@@ -1,0 +1,38 @@
+.DS_Store
+.expo/
+dist/
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Expo / React Native
+mobile/.expo/
+mobile/node_modules/
+mobile/android/
+mobile/ios/build/
+mobile/ios/Pods/
+mobile/coverage/
+
+# Vite / web output
+coverage/
+
+# Xcode
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Misc
+.idea/
+.vscode/
+*.swp
+*.swo

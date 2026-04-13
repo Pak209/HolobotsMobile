@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Holobots Mobile",
+    "slug": "holobots-mobile",
+    "scheme": "holobotsmobile",
+    "version": "0.1.1",
+    "icon": "./assets/icon.png",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "fun.holobots.mobile",
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Holobots reads your step count and workout data to convert activity into Sync Points.",
+        "NSHealthUpdateUsageDescription": "Holobots writes workout rewards and sync summaries connected to your activity.",
+        "NSLocationWhenInUseUsageDescription": "Holobots uses your location during a workout to measure live movement speed and distance for Sync Point rewards.",
+        "NSMotionUsageDescription": "Holobots reads step and motion activity during workouts to reward Sync Points."
+      }
+    },
+    "android": {
+      "package": "fun.holobots.mobile",
+      "versionCode": 2,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#f0aa22"
+      }
+    }
+  }
+}

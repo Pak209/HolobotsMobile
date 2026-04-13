@@ -1,0 +1,83 @@
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { StatusBar } from "expo-status-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
+import { ArenaScreen } from "./src/screens/ArenaScreen";
+import { AppLoadingScreen } from "./src/components/AppLoadingScreen";
+import { HomeScreen } from "./src/screens/HomeScreen";
+import { FitnessScreen } from "./src/screens/FitnessScreen";
+import { InventoryScreen } from "./src/screens/InventoryScreen";
+import { LoginScreen } from "./src/screens/LoginScreen";
+import { MarketplaceScreen } from "./src/screens/MarketplaceScreen";
+
+export type RootTabs = {
+  Arena: undefined;
+  Home: undefined;
+  Fitness: undefined;
+  Inventory: undefined;
+  Marketplace: undefined;
+};
+
+const Tab = createBottomTabNavigator<RootTabs>();
+
+const navTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: "#f5c40d",
+    card: "#050606",
+    text: "#fef1e0",
+    border: "#d9a300",
+    primary: "#f5c40d",
+  },
+};
+
+function AuthedApp() {
+  const { loading, user } = useAuth();
+
+  if (loading) {
+    return <AppLoadingScreen />;
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  return (
+    <NavigationContainer theme={navTheme}>
+      <StatusBar style="dark" />
+      <Tab.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            display: "none",
+          },
+          tabBarActiveTintColor: "#f5c40d",
+          tabBarInactiveTintColor: "#d7d0bd",
+        }}
+      >
+        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="Fitness" component={FitnessScreen} />
+        <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
+        <Tab.Screen name="Inventory" component={InventoryScreen} />
+        <Tab.Screen name="Arena" component={ArenaScreen} />
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <AuthedApp />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
