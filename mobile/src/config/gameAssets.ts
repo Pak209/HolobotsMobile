@@ -1,3 +1,5 @@
+import { Image } from "react-native";
+
 export const gameAssets = {
   arenaPass: require("../../assets/game/ArenaPass.png"),
   blueprint: require("../../assets/game/Blueprint.png"),
@@ -65,6 +67,18 @@ export function getPartImageSource(partName?: string | null, slot?: string | nul
   }
 
   return null;
+}
+
+export function resolveBundledAssetUri(source?: number | string | null) {
+  if (!source) {
+    return null;
+  }
+
+  if (typeof source === "string") {
+    return source;
+  }
+
+  return Image.resolveAssetSource(source)?.uri ?? null;
 }
 
 export function getMarketplaceItemImageSource(itemName: string) {

@@ -55,7 +55,7 @@ export function InventoryScreen() {
   const renderHolobots = () =>
     roster.map((holobot, index) => (
       <View key={`${holobot.key}:${index}`} style={styles.holobotCard}>
-        <Image source={{ uri: holobot.imageUrl }} style={styles.holobotImage} resizeMode="contain" />
+        <Image source={holobot.imageSource} style={styles.holobotImage} resizeMode="contain" />
         <View style={styles.holobotContent}>
           <Text style={styles.holobotName}>{holobot.name}</Text>
           <Text style={styles.holobotMeta}>{`Level ${holobot.level} • EXP ${holobot.experience}/${holobot.nextLevelExp}`}</Text>

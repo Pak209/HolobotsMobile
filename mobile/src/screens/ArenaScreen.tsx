@@ -1,172 +1,304 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 
+import { ArenaPrebattleMenu } from "@/components/arena/ArenaPrebattleMenu";
+import { BattleArenaView } from "@/components/arena/BattleArenaView";
+import { BattleResultsModal } from "@/components/arena/BattleResultsModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
-import { mergeHolobotRoster } from "@/config/holobots";
+import {
+  ARENA_TIERS,
+  buildOpponentFighter,
+  buildPlayerFighter,
+  getTierOpponentLineup,
+  type ArenaTier,
+} from "@/config/arenaConfig";
+import { doc, updateDoc, db } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useArenaBattleStore } from "@/stores/arena-battle-store";
+import type { UserHolobot } from "@/types/profile";
 
-const featuredOpponents = [
-  { difficulty: "Tier 1", name: "Neon Scrapper", reward: "10 Arena Tokens" },
-  { difficulty: "Tier 2", name: "Volt Specter", reward: "20 Arena Tokens" },
-  { difficulty: "Tier 3", name: "Iron Regent", reward: "35 Arena Tokens" },
-];
+type ArenaPhase = "prebattle" | "battle" | "results";
+
+type BattleSetup = {
+  paymentMethod: "tokens" | "pass";
+  roundIndex: number;
+  selectedHolobot: UserHolobot;
+  tier: ArenaTier;
+};
+
+function applyRewardsToHolobot(holobot: UserHolobot, expGain: number) {
+  let nextLevelExp = Math.max(holobot.nextLevelExp || 100, 100);
+  let level = holobot.level || 1;
+  let experience = (holobot.experience || 0) + expGain;
+
+  while (experience >= nextLevelExp) {
+    experience -= nextLevelExp;
+    level += 1;
+    nextLevelExp = Math.floor(nextLevelExp * 1.18);
+  }
+
+  return {
+    ...holobot,
+    experience,
+    level,
+    nextLevelExp,
+  };
+}
 
 export function ArenaScreen() {
-  const { profile } = useAuth();
-  const featuredHolobot = mergeHolobotRoster(profile?.holobots).find((holobot) => holobot.owned) || mergeHolobotRoster(profile?.holobots)[0];
+  const { profile, user } = useAuth();
+  const {
+    battleResult,
+    canPlayCard,
+    currentBattle,
+    getPlayableCards,
+    isAnimating,
+    lastAction,
+    playCard,
+    playerCards,
+    resetBattle,
+    selectedCardId,
+    selectCard,
+    startBattle,
+    toggleDefenseMode,
+  } = useArenaBattleStore();
+
+  const [phase, setPhase] = useState<ArenaPhase>("prebattle");
+  const [isStartingBattle, setIsStartingBattle] = useState(false);
+  const [latestSetup, setLatestSetup] = useState<BattleSetup | null>(null);
+  const [roundProgress, setRoundProgress] = useState<{ currentRound: number; totalRounds: number } | null>(null);
+  const persistedBattleIdRef = useRef<string | null>(null);
+
+  const holobots = profile?.holobots ?? [];
+  const userTokens = profile?.holosTokens ?? 0;
+  const userArenaPasses = profile?.arena_passes ?? 0;
+  const playableCardIds = useMemo(
+    () => getPlayableCards().map((card) => card.id),
+    [currentBattle, getPlayableCards],
+  );
+
+  const persistBattleOutcome = useCallback(async () => {
+    if (!user || !profile || !battleResult || !currentBattle) {
+      return;
+    }
+
+    if (persistedBattleIdRef.current === currentBattle.battleId) {
+      return;
+    }
+
+    persistedBattleIdRef.current = currentBattle.battleId;
+
+    const didWin = battleResult.winnerId === currentBattle.player.holobotId;
+    const rewardExp = battleResult.rewards.exp;
+    const rewardSyncPoints = battleResult.rewards.syncPoints;
+    const rewardHolos = battleResult.rewards.holos || 0;
+    const userRef = doc(db, "users", user.uid);
+    const selectedHolobotName = latestSetup?.selectedHolobot.name;
+    const updatedHolobots = (profile.holobots || []).map((holobot) => {
+      if (holobot.name !== selectedHolobotName) {
+        return holobot;
+      }
+
+      return applyRewardsToHolobot(holobot, rewardExp);
+    });
+
+    try {
+      await updateDoc(userRef, {
+        holobots: updatedHolobots,
+        holosTokens: (profile.holosTokens || 0) + rewardHolos,
+        losses: (profile.stats?.losses || 0) + (didWin ? 0 : 1),
+        syncPoints: (profile.syncPoints || 0) + rewardSyncPoints,
+        wins: (profile.stats?.wins || 0) + (didWin ? 1 : 0),
+      });
+    } catch (error) {
+      console.error("[Arena] Failed to persist battle rewards", error);
+      Alert.alert("Arena Sync Failed", "The battle finished, but the rewards could not be saved yet.");
+    }
+  }, [battleResult, currentBattle, latestSetup?.selectedHolobot.name, profile, user]);
+
+  useEffect(() => {
+    if (battleResult && currentBattle) {
+      setPhase("results");
+      void persistBattleOutcome();
+    }
+  }, [battleResult, currentBattle, persistBattleOutcome]);
+
+  const startTierRound = useCallback(
+    async ({ selectedHolobot, tier, paymentMethod, roundIndex }: BattleSetup, shouldChargeEntry: boolean) => {
+      if (!user || !profile) {
+        Alert.alert("Sign In Required", "Please sign in before entering the Arena.");
+        return;
+      }
+
+      const userRef = doc(db, "users", user.uid);
+      const nextArenaPasses =
+        shouldChargeEntry && paymentMethod === "pass"
+          ? Math.max(0, (profile.arena_passes || 0) - 1)
+          : profile.arena_passes || 0;
+      const nextHolos =
+        shouldChargeEntry && paymentMethod === "tokens"
+          ? Math.max(0, (profile.holosTokens || 0) - tier.entryFeeHolos)
+          : profile.holosTokens || 0;
+
+      if (shouldChargeEntry && paymentMethod === "tokens" && (profile.holosTokens || 0) < tier.entryFeeHolos) {
+        Alert.alert("Not Enough Holos", "You do not have enough Holos for this Arena tier.");
+        return;
+      }
+
+      if (shouldChargeEntry && paymentMethod === "pass" && (profile.arena_passes || 0) <= 0) {
+        Alert.alert("No Arena Passes", "You need an Arena Pass or enough Holos to enter.");
+        return;
+      }
+
+      setIsStartingBattle(true);
+
+      try {
+        if (shouldChargeEntry) {
+          await updateDoc(userRef, {
+            arena_passes: nextArenaPasses,
+            holosTokens: nextHolos,
+          });
+        }
+
+        const player = buildPlayerFighter(user.uid, selectedHolobot);
+        const opponent = buildOpponentFighter(tier, selectedHolobot.name, roundIndex);
+
+        persistedBattleIdRef.current = null;
+        setLatestSetup({ paymentMethod, selectedHolobot, tier, roundIndex });
+        setRoundProgress({ currentRound: roundIndex + 1, totalRounds: getTierOpponentLineup(tier, selectedHolobot.name).length });
+        startBattle(player, opponent, {
+          battleType: "pve",
+          difficulty: tier.difficulty,
+          playerHolobotId: player.holobotId,
+          opponentHolobotId: opponent.holobotId,
+          allowPlayerControl: true,
+          playerBattleCards: profile.battle_cards,
+          tier: ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id),
+        });
+        setPhase("battle");
+      } catch (error) {
+        console.error("[Arena] Failed to start battle", error);
+        Alert.alert("Arena Error", "We couldn't start the battle. Please try again.");
+      } finally {
+        setIsStartingBattle(false);
+      }
+    },
+    [profile, startBattle, user],
+  );
+
+  const handleStartBattle = useCallback(
+    async ({ selectedHolobot, tier, paymentMethod }: Omit<BattleSetup, "roundIndex">) => {
+      await startTierRound({ selectedHolobot, tier, paymentMethod, roundIndex: 0 }, true);
+    },
+    [startTierRound],
+  );
+
+  const handleExitResults = useCallback(() => {
+    resetBattle();
+    setPhase("prebattle");
+    persistedBattleIdRef.current = null;
+    setRoundProgress(null);
+  }, [resetBattle]);
+
+  const handleRematch = useCallback(async () => {
+    const setup = latestSetup;
+
+    resetBattle();
+    persistedBattleIdRef.current = null;
+
+    if (!setup) {
+      setPhase("prebattle");
+      return;
+    }
+
+    const lineup = getTierOpponentLineup(setup.tier, setup.selectedHolobot.name);
+    const didWinLastRound = battleResult?.winnerId === currentBattle?.player.holobotId;
+    const nextRoundIndex =
+      didWinLastRound && setup.roundIndex < lineup.length - 1 ? setup.roundIndex + 1 : 0;
+    const shouldChargeEntry = !(didWinLastRound && setup.roundIndex < lineup.length - 1);
+
+    if (!didWinLastRound) {
+      setRoundProgress(null);
+    }
+
+    await startTierRound(
+      { ...setup, roundIndex: nextRoundIndex },
+      shouldChargeEntry,
+    );
+  }, [battleResult?.winnerId, currentBattle?.player.holobotId, latestSetup, resetBattle, startTierRound]);
+
+  const hasMoreRounds =
+    !!latestSetup &&
+    !!battleResult &&
+    !!currentBattle &&
+    battleResult.winnerId === currentBattle.player.holobotId &&
+    latestSetup.roundIndex < getTierOpponentLineup(latestSetup.tier, latestSetup.selectedHolobot.name).length - 1;
 
   return (
     <View style={styles.page}>
       <HomeCogButton />
-      <View style={styles.header}>
-        <Text style={styles.headerEyebrow}>BATTLE</Text>
-        <Text style={styles.headerTitle}>Arena V2</Text>
-        <Text style={styles.headerCopy}>
-          Native arena support is now staged here so iOS and Android can share one mobile-first battle entry.
-        </Text>
-        <Text style={styles.headerMeta}>
-          {`Passes ${profile?.arena_passes || 0} • Sync ${profile?.syncPoints || 0} • W ${profile?.stats?.wins || 0} / L ${profile?.stats?.losses || 0}`}
-        </Text>
-      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroCard}>
-          <Image source={{ uri: featuredHolobot.imageUrl }} style={styles.heroImage} resizeMode="contain" />
-          <View style={styles.heroBody}>
-            <Text style={styles.heroTitle}>{featuredHolobot.name}</Text>
-            <Text style={styles.heroMeta}>{`Selected pilot unit • Level ${featuredHolobot.level}`}</Text>
-            <Text style={styles.heroCopy}>
-              Enter ranked fights, spend Arena Passes, and track your streak rewards from here.
-            </Text>
-          </View>
+      {phase === "prebattle" || !currentBattle ? (
+        <ArenaPrebattleMenu
+          onStartBattle={handleStartBattle}
+          userArenaPasses={userArenaPasses}
+          userHolobots={holobots}
+          userTokens={userTokens}
+        />
+      ) : null}
+
+      {phase === "battle" && currentBattle ? (
+        <BattleArenaView
+          battle={currentBattle}
+          playerCards={playerCards}
+          playableCardIds={playableCardIds}
+          selectedCardId={selectedCardId}
+          lastAction={lastAction}
+          isAnimating={isAnimating}
+          onCardSelect={selectCard}
+          onCardPlay={(cardId) => {
+            if (canPlayCard(cardId)) {
+              playCard(cardId);
+            }
+          }}
+          onDefenseToggle={toggleDefenseMode}
+        />
+      ) : null}
+
+      {phase === "results" && battleResult && currentBattle ? (
+        <BattleResultsModal
+          visible
+          didWin={battleResult.winnerId === currentBattle.player.holobotId}
+          rewards={battleResult.rewards}
+          continueLabel={hasMoreRounds ? `NEXT ROUND ${latestSetup!.roundIndex + 2}` : "REMATCH"}
+          subtitle={roundProgress ? `Round ${roundProgress.currentRound} of ${roundProgress.totalRounds}` : undefined}
+          onRematch={handleRematch}
+          onExit={handleExitResults}
+        />
+      ) : null}
+
+      {isStartingBattle ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#f0bf14" />
         </View>
-
-        {featuredOpponents.map((opponent) => (
-          <View key={opponent.name} style={styles.opponentCard}>
-            <View>
-              <Text style={styles.opponentTier}>{opponent.difficulty}</Text>
-              <Text style={styles.opponentName}>{opponent.name}</Text>
-              <Text style={styles.opponentReward}>{opponent.reward}</Text>
-            </View>
-            <Pressable style={styles.enterButton}>
-              <Text style={styles.enterButtonText}>ENTER</Text>
-            </Pressable>
-          </View>
-        ))}
-      </ScrollView>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  enterButton: {
-    backgroundColor: "#f0bf14",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  enterButtonText: {
-    color: "#050606",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-  },
-  header: {
-    backgroundColor: "#050606",
-    borderBottomColor: "#f0bf14",
-    borderBottomWidth: 3,
-    paddingBottom: 18,
-    paddingHorizontal: 24,
-    paddingTop: 94,
-  },
-  headerCopy: {
-    color: "#ddd2b5",
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 10,
-  },
-  headerEyebrow: {
-    color: "#f0bf14",
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-  },
-  headerMeta: {
-    color: "#ddd2b5",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  headerTitle: {
-    color: "#fef1e0",
-    fontSize: 34,
-    fontWeight: "900",
-    marginTop: 6,
-  },
-  heroBody: {
-    flex: 1,
-  },
-  heroCard: {
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
-    flexDirection: "row",
-    gap: 14,
-    padding: 14,
-  },
-  heroCopy: {
-    color: "#ddd2b5",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 10,
-  },
-  heroImage: {
-    backgroundColor: "#1a1a1a",
-    height: 124,
-    width: 124,
-  },
-  heroMeta: {
-    color: "#f0bf14",
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  heroTitle: {
-    color: "#fef1e0",
-    fontSize: 24,
-    fontWeight: "900",
-  },
-  opponentCard: {
+  loadingOverlay: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 18,
-  },
-  opponentName: {
-    color: "#fef1e0",
-    fontSize: 20,
-    fontWeight: "800",
-    marginTop: 4,
-  },
-  opponentReward: {
-    color: "#ddd2b5",
-    fontSize: 13,
-    marginTop: 6,
-  },
-  opponentTier: {
-    color: "#f0bf14",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1.1,
+    backgroundColor: "rgba(5, 6, 6, 0.48)",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   page: {
-    backgroundColor: "#f5c40d",
+    backgroundColor: "#050606",
     flex: 1,
-  },
-  scrollContent: {
-    gap: 14,
-    padding: 20,
-    paddingBottom: 40,
   },
 });

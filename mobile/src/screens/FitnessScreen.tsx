@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Image as RNImage, Pressable, StyleSheet, View } from "react-native";
 
 import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HomeCogButton } from "@/components/HomeCogButton";
@@ -34,7 +34,6 @@ export function FitnessScreen() {
   const needleAngle = NEEDLE_MIN_ANGLE + (Math.min(workout.liveSpeedKmh, NEEDLE_MAX_SPEED) / NEEDLE_MAX_SPEED) * (NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE);
   const goalBarWidth = 698.125 * workout.progress;
   const expProgressWidth = 473 * getExpProgress(selectedHolobot);
-
   return (
     <FigmaCanvas>
       <View style={StyleSheet.absoluteFill}>
@@ -94,14 +93,6 @@ export function FitnessScreen() {
             d="M 40 835 L 705 835 L 705 1068 L 545 1210 L 40 1210 Z"
             fill="#020303"
           />
-          <Image
-            href={selectedHolobot.imageUrl}
-            x={930}
-            y={600}
-            width={620}
-            height={520}
-            preserveAspectRatio="xMidYMid meet"
-          />
           <Text x={72} y={921.5} fill="#ffffff" fontSize={49.915}>{selectedHolobot.name}</Text>
           <Path d="M 72 1018 H 545 V 1043 H 72 Z" fill="#171717" />
           <Path d={`M 72 1018 H ${72 + expProgressWidth} V 1043 H 72 Z`} fill="#f4c312" />
@@ -152,6 +143,9 @@ export function FitnessScreen() {
           onPress={() => setIsPickerOpen(true)}
           style={styles.changeHolobotHotspot}
         />
+        <View pointerEvents="none" style={styles.holobotPortrait}>
+          <RNImage source={selectedHolobot.imageSource} style={styles.fillImage} resizeMode="contain" />
+        </View>
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
           onSelect={(index) => {
@@ -181,5 +175,16 @@ const styles = StyleSheet.create({
     top: "81.4375%",
     width: "94.1667%",
     height: "13.9375%",
+  },
+  holobotPortrait: {
+    position: "absolute",
+    left: "51.6667%",
+    top: "12.25%",
+    width: "34.4444%",
+    height: "22.75%",
+  },
+  fillImage: {
+    width: "100%",
+    height: "100%",
   },
 });

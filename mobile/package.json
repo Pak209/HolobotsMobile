@@ -30,7 +30,8 @@
     "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0",
     "react-native-webview": "13.13.5",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

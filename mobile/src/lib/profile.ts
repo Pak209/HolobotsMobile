@@ -52,6 +52,10 @@ type FirestoreUserDocument = {
   onboardingPath?: string;
   inventory?: Record<string, number>;
   packHistory?: Array<Record<string, unknown>>;
+  battleCards?: Record<string, number>;
+  battle_cards?: Record<string, number>;
+  starter_deck_claimed?: boolean;
+  arena_deck_template_ids?: string[];
   rewardSystem?: Record<string, unknown>;
   todaySteps?: number;
   lastStepSync?: { toDate?: () => Date };
@@ -102,6 +106,9 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
       (data.equippedParts as Record<string, Record<string, Record<string, unknown>>>) ??
       DEFAULT_USER_PROFILE.equippedParts,
     pack_history: data.packHistory ?? [],
+    battle_cards: data.battle_cards ?? data.battleCards ?? {},
+    starter_deck_claimed: data.starter_deck_claimed ?? false,
+    arena_deck_template_ids: data.arena_deck_template_ids ?? [],
     rewardSystem: data.rewardSystem ?? {},
     isDevAccount: data.isDevAccount ?? DEFAULT_USER_PROFILE.isDevAccount,
     rental_holobots: data.rentalHolobots ?? DEFAULT_USER_PROFILE.rentalHolobots,
@@ -159,7 +166,11 @@ type UserProfileUpdates = Partial<{
   async_battle_tickets: number;
   blueprints: Record<string, number>;
   parts: Array<Record<string, unknown>>;
+  equippedParts: Record<string, Record<string, Record<string, unknown>>>;
   pack_history: Array<Record<string, unknown>>;
+  battle_cards: Record<string, number>;
+  starter_deck_claimed: boolean;
+  arena_deck_template_ids: string[];
 }>;
 
 export async function updateUserProfile(userId: string, updates: UserProfileUpdates) {
@@ -175,7 +186,13 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.async_battle_tickets !== undefined) firestoreUpdates.asyncBattleTickets = updates.async_battle_tickets;
   if (updates.blueprints !== undefined) firestoreUpdates.blueprints = updates.blueprints;
   if (updates.parts !== undefined) firestoreUpdates.parts = updates.parts;
+  if (updates.equippedParts !== undefined) firestoreUpdates.equippedParts = updates.equippedParts;
   if (updates.pack_history !== undefined) firestoreUpdates.packHistory = updates.pack_history;
+  if (updates.battle_cards !== undefined) firestoreUpdates.battle_cards = updates.battle_cards;
+  if (updates.starter_deck_claimed !== undefined) firestoreUpdates.starter_deck_claimed = updates.starter_deck_claimed;
+  if (updates.arena_deck_template_ids !== undefined) {
+    firestoreUpdates.arena_deck_template_ids = updates.arena_deck_template_ids;
+  }
 
   await updateDoc(userRef, firestoreUpdates as any);
 }

@@ -42,7 +42,7 @@ export function HolobotPickerModal({
                   accessibilityRole="button"
                   accessibilityLabel={`${holobot.owned ? "Select" : "View"} ${holobot.name}`}
                 >
-                  <Image source={{ uri: holobot.imageUrl }} style={styles.portrait} resizeMode="contain" />
+                  <Image source={holobot.imageSource} style={styles.portrait} resizeMode="contain" />
                   <View style={styles.card}>
                     {isSelected ? (
                       <View style={styles.selectedBadge}>

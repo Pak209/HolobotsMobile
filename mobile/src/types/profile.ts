@@ -42,6 +42,9 @@ export type UserProfile = {
   parts?: Array<Record<string, unknown>>;
   equippedParts?: Record<string, Record<string, Record<string, unknown>>>;
   pack_history?: Array<Record<string, unknown>>;
+  battle_cards?: Record<string, number>;
+  starter_deck_claimed?: boolean;
+  arena_deck_template_ids?: string[];
   rewardSystem?: Record<string, unknown>;
   isDevAccount?: boolean;
   rental_holobots?: Array<Record<string, unknown>>;

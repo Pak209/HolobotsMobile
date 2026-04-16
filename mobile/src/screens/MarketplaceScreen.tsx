@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View, Image } from "rea
 import Svg, { Circle } from "react-native-svg";
 
 import { HomeCogButton } from "@/components/HomeCogButton";
+import { getRandomBattleCardGrant, mergeBattleCardCounts } from "@/lib/battleCards/catalog";
 import { getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -204,9 +205,16 @@ export function MarketplaceScreen() {
     const blueprintHolobot = randomFromList(boosterBlueprintPool);
     const grantedPart = randomFromList(boosterPartPool);
     const grantedItem = boosterItemAwardMap[pack.id];
+    const grantedBattleCard = getRandomBattleCardGrant(pack.id);
+    const [grantedBattleCardId] = Object.keys(grantedBattleCard);
     const packHistory = Array.isArray(profile.pack_history) ? profile.pack_history : [];
 
     const updates: Parameters<typeof updateProfile>[0] = {
+      arena_deck_template_ids:
+        profile.arena_deck_template_ids && profile.arena_deck_template_ids.length > 0
+          ? profile.arena_deck_template_ids
+          : Object.keys(mergeBattleCardCounts(profile.battle_cards, grantedBattleCard)),
+      battle_cards: mergeBattleCardCounts(profile.battle_cards, grantedBattleCard),
       blueprints: {
         ...(profile.blueprints || {}),
         [blueprintHolobot]: ((profile.blueprints || {})[blueprintHolobot] || 0) + 1,
@@ -219,7 +227,7 @@ export function MarketplaceScreen() {
             { name: blueprintHolobot, quantity: 1, type: "blueprint" },
             { name: grantedPart.name, quantity: 1, slot: grantedPart.slot, type: "part" },
             { name: grantedItem, quantity: 1, type: "item" },
-            { name: "Battle Card Reward", quantity: 1, type: "battle_card" },
+            { name: grantedBattleCardId, quantity: 1, type: "battle_card" },
           ],
           openedAt: new Date().toISOString(),
           packId: pack.id,
@@ -239,7 +247,7 @@ export function MarketplaceScreen() {
       await updateProfile(updates);
       Alert.alert(
         "Booster purchased",
-        `${pack.name} opened.\n\nBlueprint: ${blueprintHolobot}\nPart: ${grantedPart.name}\nItem: ${grantedItem}`,
+        `${pack.name} opened.\n\nBlueprint: ${blueprintHolobot}\nPart: ${grantedPart.name}\nItem: ${grantedItem}\nBattle Card: ${grantedBattleCardId}`,
       );
     } catch (error) {
       Alert.alert("Purchase failed", error instanceof Error ? error.message : "Please try again.");
@@ -323,14 +331,11 @@ export function MarketplaceScreen() {
                   <Text style={styles.packGuaranteed}>{`${pack.guaranteed} ITEMS GUARANTEED`}</Text>
                   <Text style={styles.packSubtitleLine}>{pack.subtitle}</Text>
                   <Text style={styles.packDescription}>{pack.description}</Text>
-                  <View style={styles.packPriceRow}>
-                    <HolosMark />
-                    <Text style={styles.packPrice}>{pack.price.toLocaleString()}</Text>
-                  </View>
                 </View>
                 <View style={styles.packRight}>
-                  <View style={styles.packChevronWrap}>
-                    <Text style={[styles.packChevron, { color: pack.accent }]}>›</Text>
+                  <View style={[styles.packPriceBox, { borderColor: pack.accent }]}>
+                    <Text style={styles.packPrice}>{pack.price.toLocaleString()}</Text>
+                    <HolosMark />
                   </View>
                   <Pressable
                     onPress={() => void purchaseBoosterPack(pack.id)}
@@ -418,22 +423,23 @@ const styles = StyleSheet.create({
   itemActions: {
     alignItems: "flex-end",
     justifyContent: "flex-start",
-    marginLeft: 4,
+    marginLeft: 0,
+    marginRight: 10,
     minHeight: 112,
-    width: 96,
+    width: 84,
   },
   itemBody: {
     flex: 1,
     justifyContent: "center",
-    minWidth: 140,
-    paddingRight: 8,
+    minWidth: 0,
+    paddingRight: 6,
   },
   itemCard: {
     backgroundColor: "#07080d",
     borderColor: "#f0bf14",
     borderWidth: 4,
     flexDirection: "row",
-    gap: 10,
+    gap: 9,
     minHeight: 146,
     padding: 12,
   },
@@ -470,7 +476,7 @@ const styles = StyleSheet.create({
   },
   packBody: {
     flex: 1,
-    gap: 6,
+    gap: 3,
     justifyContent: "center",
     minWidth: 0,
   },
@@ -479,13 +485,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0bf14",
     borderRadius: 8,
     justifyContent: "center",
-    minHeight: 34,
-    minWidth: 92,
-    paddingHorizontal: 10,
+    minHeight: 30,
+    minWidth: 82,
+    paddingHorizontal: 8,
   },
   packBuyText: {
     color: "#050606",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
@@ -496,29 +502,18 @@ const styles = StyleSheet.create({
     borderRightWidth: 4,
     borderTopWidth: 4,
     flexDirection: "row",
-    gap: 16,
-    minHeight: 150,
-    padding: 18,
-  },
-  packChevron: {
-    fontSize: 32,
-    fontWeight: "700",
-    lineHeight: 32,
-  },
-  packChevronWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-    width: 28,
+    gap: 10,
+    minHeight: 106,
+    padding: 10,
   },
   packDescription: {
     color: "#8e98aa",
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 9,
+    lineHeight: 12,
   },
   packGuaranteed: {
     color: "#c8cfdb",
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
@@ -526,60 +521,64 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#050606",
     borderWidth: 2,
-    height: 88,
+    height: 58,
     justifyContent: "center",
     marginTop: 2,
-    width: 88,
+    width: 58,
   },
   packIconGlyph: {
-    fontSize: 38,
+    fontSize: 26,
     fontWeight: "900",
-    lineHeight: 38,
+    lineHeight: 28,
   },
   packPrice: {
-    color: "#f0bf14",
-    fontSize: 18,
+    color: "#ffffff",
+    fontSize: 14,
     fontWeight: "900",
   },
-  packPriceRow: {
+  packPriceBox: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 8,
-    marginTop: 4,
+    gap: 4,
+    justifyContent: "center",
+    minWidth: 82,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    borderWidth: 2,
   },
   packRight: {
     alignItems: "flex-end",
-    gap: 8,
+    gap: 7,
     justifyContent: "center",
-    paddingLeft: 4,
-    width: 98,
+    marginRight: 8,
+    width: 86,
   },
   packsSection: {
-    gap: 16,
+    gap: 8,
   },
   packsSubtitle: {
     color: "#8e98aa",
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 2,
   },
   packSubtitleLine: {
     color: "#aeb6c3",
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.6,
   },
   packsTitle: {
     color: "#fef1e0",
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "900",
     letterSpacing: 1,
   },
   packTitle: {
     color: "#fef1e0",
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: "900",
-    lineHeight: 22,
+    lineHeight: 16,
   },
   price: {
     color: "#f0bf14",
@@ -590,9 +589,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderColor: "#00d9ff",
     borderWidth: 2,
-    minWidth: 92,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    minWidth: 78,
+    paddingHorizontal: 6,
+    paddingVertical: 7,
   },
   qtyLabel: {
     color: "#9ca4b0",
@@ -602,7 +601,7 @@ const styles = StyleSheet.create({
   },
   qtyValue: {
     color: "#ffffff",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "900",
   },
   priceRow: {
@@ -613,8 +612,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     gap: 14,
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 28,
   },
   simpleCard: {
     backgroundColor: "#090909",
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 8,
     minHeight: 34,
-    minWidth: 92,
+    minWidth: 78,
     paddingHorizontal: 10,
   },
   useButtonDisabled: {

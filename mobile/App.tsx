@@ -10,14 +10,18 @@ import { AppLoadingScreen } from "./src/components/AppLoadingScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { FitnessScreen } from "./src/screens/FitnessScreen";
 import { InventoryScreen } from "./src/screens/InventoryScreen";
+import { LeaderboardScreen } from "./src/screens/LeaderboardScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { MarketplaceScreen } from "./src/screens/MarketplaceScreen";
+import { GachaScreen } from "./src/screens/GachaScreen";
 
 export type RootTabs = {
   Arena: undefined;
   Home: undefined;
   Fitness: undefined;
+  Gacha: undefined;
   Inventory: undefined;
+  Leaderboard: undefined;
   Marketplace: undefined;
 };
 
@@ -65,6 +69,8 @@ function AuthedApp() {
         <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
         <Tab.Screen name="Inventory" component={InventoryScreen} />
         <Tab.Screen name="Arena" component={ArenaScreen} />
+        <Tab.Screen name="Gacha" component={GachaScreen} />
+        <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );

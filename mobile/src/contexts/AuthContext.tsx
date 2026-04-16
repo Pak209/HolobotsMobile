@@ -14,6 +14,7 @@ import {
   signOut,
   type User,
 } from "@/config/firebase";
+import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
 import { subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
 import type { UserProfile } from "@/types/profile";
 
@@ -72,6 +73,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return unsubscribe;
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !profile) {
+      return;
+    }
+
+    const alreadyHasCards = Object.keys(profile.battle_cards || {}).length > 0;
+    if (profile.starter_deck_claimed || alreadyHasCards) {
+      return;
+    }
+
+    void updateUserProfile(user.uid, {
+      arena_deck_template_ids: Object.keys(getGenesisStarterDeckGrants()),
+      battle_cards: getGenesisStarterDeckGrants(),
+      starter_deck_claimed: true,
+    }).catch((error) => {
+      console.error("[Auth] Failed to seed starter deck", error);
+    });
+  }, [profile, user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

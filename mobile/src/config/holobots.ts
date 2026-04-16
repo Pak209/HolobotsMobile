@@ -1,8 +1,11 @@
+import { Image, type ImageSourcePropType } from "react-native";
+
 import type { UserHolobot } from "@/types/profile";
+import { resolveBundledAssetUri } from "@/config/gameAssets";
 
 export type HolobotRosterEntry = {
   experience: number;
-  imageUrl: string;
+  imageSource: ImageSourcePropType;
   key: string;
   level: number;
   name: string;
@@ -17,21 +20,19 @@ export type HolobotRosterEntry = {
   };
 };
 
-const HOLOBOTS_CDN_BASE = "https://holobots.fun";
-
 const HOLBOT_IMAGE_MAP = {
-  ACE: `${HOLOBOTS_CDN_BASE}/lovable-uploads/7223a5e5-abcb-4911-8436-bddbbd851ae2.png`,
-  KUMA: `${HOLOBOTS_CDN_BASE}/lovable-uploads/78f2c37a-43a3-4cce-a767-bc3f614e7a80.png`,
-  SHADOW: `${HOLOBOTS_CDN_BASE}/lovable-uploads/ef60f626-b571-46ba-9d37-6045b020669a.png`,
-  ERA: `${HOLOBOTS_CDN_BASE}/lovable-uploads/c2cd6b0a-0e49-4ede-9507-e55d05aa608d.png`,
-  HARE: `${HOLOBOTS_CDN_BASE}/lovable-uploads/4ad952b3-4337-4120-9542-ed14ca1051d5.png`,
-  TORA: `${HOLOBOTS_CDN_BASE}/lovable-uploads/e79a5ab6-4577-4e0e-a2b9-32cafd91a212.png`,
-  WAKE: `${HOLOBOTS_CDN_BASE}/lovable-uploads/e8128616-6ab5-4995-91b8-2989d18a0508.png`,
-  GAMA: `${HOLOBOTS_CDN_BASE}/lovable-uploads/4af336bd-2825-4faf-9b2c-58cc86354b14.png`,
-  KEN: `${HOLOBOTS_CDN_BASE}/lovable-uploads/58e4110e-07f8-44ab-983e-b6caa5098cc3.png`,
-  KURAI: `${HOLOBOTS_CDN_BASE}/lovable-uploads/a2ce9d10-b01e-4b86-b52b-74f196b39a6c.png`,
-  TSUIN: `${HOLOBOTS_CDN_BASE}/lovable-uploads/e6982da0-9c53-4d62-a2b8-7ede52d89ca7.png`,
-  WOLF: `${HOLOBOTS_CDN_BASE}/lovable-uploads/46001c5e-b6c6-4c4d-8006-5926b85c13d9.png`,
+  ACE: require("../../assets/holobots/ace.png"),
+  KUMA: require("../../assets/holobots/kuma.png"),
+  SHADOW: require("../../assets/holobots/shadow.png"),
+  ERA: require("../../assets/holobots/era.png"),
+  HARE: require("../../assets/holobots/hare.png"),
+  TORA: require("../../assets/holobots/tora.png"),
+  WAKE: require("../../assets/holobots/wake.png"),
+  GAMA: require("../../assets/holobots/gama.png"),
+  KEN: require("../../assets/holobots/ken.png"),
+  KURAI: require("../../assets/holobots/kurai.png"),
+  TSUIN: require("../../assets/holobots/tsuin.png"),
+  WOLF: require("../../assets/holobots/wolf.png"),
 } as const;
 
 const DEFAULT_ROSTER_ORDER = [
@@ -64,6 +65,21 @@ const HOLOBOT_BASE_STATS = {
   WOLF: { attack: 5, defense: 5, hp: 175, intelligence: 4, speed: 5 },
 } as const;
 
+const HOLOBOT_ARCHETYPES = {
+  ACE: "balanced",
+  KUMA: "grappler",
+  SHADOW: "technical",
+  ERA: "balanced",
+  HARE: "striker",
+  TORA: "striker",
+  WAKE: "balanced",
+  GAMA: "grappler",
+  KEN: "technical",
+  KURAI: "grappler",
+  TSUIN: "balanced",
+  WOLF: "striker",
+} as const;
+
 function getNormalizedStatsForChart(
   name: string,
   level = 1,
@@ -93,14 +109,52 @@ function toHolobotKey(name: string) {
   return name.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
-export function getHolobotImageUrl(name: string) {
-  return HOLBOT_IMAGE_MAP[name.trim().toUpperCase() as keyof typeof HOLBOT_IMAGE_MAP] ?? "";
+export function getHolobotImageSource(name: string) {
+  const asset =
+    HOLBOT_IMAGE_MAP[name.trim().toUpperCase() as keyof typeof HOLBOT_IMAGE_MAP] ??
+    HOLBOT_IMAGE_MAP.ACE;
+
+  return Image.resolveAssetSource(asset) ?? asset;
+}
+
+export function getHolobotImageHref(name: string) {
+  const asset =
+    HOLBOT_IMAGE_MAP[name.trim().toUpperCase() as keyof typeof HOLBOT_IMAGE_MAP] ??
+    HOLBOT_IMAGE_MAP.ACE;
+
+  return resolveBundledAssetUri(asset);
+}
+
+export function getHolobotBattleStats(
+  name: string,
+  level = 1,
+  boostedAttributes?: UserHolobot["boostedAttributes"],
+) {
+  const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
+  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const archetype = HOLOBOT_ARCHETYPES[normalizedName] ?? HOLOBOT_ARCHETYPES.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+
+  const maxHP = Math.floor(base.hp * levelBonus) + (boostedAttributes?.health || 0);
+  const attack = Math.floor(base.attack * 10 * levelBonus) + (boostedAttributes?.attack || 0);
+  const defense = Math.floor(base.defense * 10 * levelBonus) + (boostedAttributes?.defense || 0);
+  const speed = Math.floor(base.speed * 10 * levelBonus) + (boostedAttributes?.speed || 0);
+  const intelligence = Math.floor(base.intelligence * 10 * levelBonus);
+
+  return {
+    archetype,
+    attack,
+    defense,
+    intelligence,
+    maxHP,
+    speed,
+  };
 }
 
 export function createFallbackRoster(): HolobotRosterEntry[] {
   return DEFAULT_ROSTER_ORDER.map((name) => ({
     experience: 0,
-    imageUrl: getHolobotImageUrl(name),
+    imageSource: getHolobotImageSource(name),
     key: toHolobotKey(name),
     level: 1,
     name,
@@ -117,7 +171,7 @@ export function mergeHolobotRoster(userHolobots?: UserHolobot[]) {
 
   const normalizedUserHolobots = userHolobots.map((holobot) => ({
     experience: holobot.experience || 0,
-    imageUrl: getHolobotImageUrl(holobot.name),
+    imageSource: getHolobotImageSource(holobot.name),
     key: toHolobotKey(holobot.name),
     level: holobot.level || 1,
     name: holobot.name.toUpperCase(),
@@ -133,7 +187,7 @@ export function mergeHolobotRoster(userHolobots?: UserHolobot[]) {
   const ownedNames = new Set(normalizedUserHolobots.map((holobot) => holobot.name));
   const missingDefaults = DEFAULT_ROSTER_ORDER.filter((name) => !ownedNames.has(name)).map((name) => ({
     experience: 0,
-    imageUrl: getHolobotImageUrl(name),
+    imageSource: getHolobotImageSource(name),
     key: toHolobotKey(name),
     level: 1,
     name,
