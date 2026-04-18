@@ -4,16 +4,20 @@ import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 import { ArenaPrebattleMenu } from "@/components/arena/ArenaPrebattleMenu";
 import { BattleArenaView } from "@/components/arena/BattleArenaView";
 import { BattleResultsModal } from "@/components/arena/BattleResultsModal";
+import { PvpArenaModal } from "@/components/arena/PvpArenaModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import {
   ARENA_TIERS,
+  type ArenaTier,
   buildOpponentFighter,
   buildPlayerFighter,
+  getArenaPotentialRewards,
   getTierOpponentLineup,
-  type ArenaTier,
 } from "@/config/arenaConfig";
+import { applyHolobotExperience } from "@/config/holobots";
 import { doc, updateDoc, db } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { incrementArenaBattlesToday } from "@/lib/dailyMissions";
 import { useArenaBattleStore } from "@/stores/arena-battle-store";
 import type { UserHolobot } from "@/types/profile";
 
@@ -25,25 +29,6 @@ type BattleSetup = {
   selectedHolobot: UserHolobot;
   tier: ArenaTier;
 };
-
-function applyRewardsToHolobot(holobot: UserHolobot, expGain: number) {
-  let nextLevelExp = Math.max(holobot.nextLevelExp || 100, 100);
-  let level = holobot.level || 1;
-  let experience = (holobot.experience || 0) + expGain;
-
-  while (experience >= nextLevelExp) {
-    experience -= nextLevelExp;
-    level += 1;
-    nextLevelExp = Math.floor(nextLevelExp * 1.18);
-  }
-
-  return {
-    ...holobot,
-    experience,
-    level,
-    nextLevelExp,
-  };
-}
 
 export function ArenaScreen() {
   const { profile, user } = useAuth();
@@ -65,6 +50,7 @@ export function ArenaScreen() {
 
   const [phase, setPhase] = useState<ArenaPhase>("prebattle");
   const [isStartingBattle, setIsStartingBattle] = useState(false);
+  const [isPvpOpen, setIsPvpOpen] = useState(false);
   const [latestSetup, setLatestSetup] = useState<BattleSetup | null>(null);
   const [roundProgress, setRoundProgress] = useState<{ currentRound: number; totalRounds: number } | null>(null);
   const persistedBattleIdRef = useRef<string | null>(null);
@@ -92,6 +78,7 @@ export function ArenaScreen() {
     const rewardExp = battleResult.rewards.exp;
     const rewardSyncPoints = battleResult.rewards.syncPoints;
     const rewardHolos = battleResult.rewards.holos || 0;
+    const rewardBlueprints = battleResult.rewards.blueprintRewards || [];
     const userRef = doc(db, "users", user.uid);
     const selectedHolobotName = latestSetup?.selectedHolobot.name;
     const updatedHolobots = (profile.holobots || []).map((holobot) => {
@@ -99,14 +86,22 @@ export function ArenaScreen() {
         return holobot;
       }
 
-      return applyRewardsToHolobot(holobot, rewardExp);
+      return applyHolobotExperience(holobot, rewardExp);
     });
+    const updatedBlueprints = { ...(profile.blueprints || {}) };
+
+    for (const reward of rewardBlueprints) {
+      updatedBlueprints[reward.holobotKey] = (updatedBlueprints[reward.holobotKey] || 0) + reward.amount;
+    }
+    const updatedRewardSystem = incrementArenaBattlesToday(profile.rewardSystem);
 
     try {
       await updateDoc(userRef, {
+        blueprints: updatedBlueprints,
         holobots: updatedHolobots,
         holosTokens: (profile.holosTokens || 0) + rewardHolos,
         losses: (profile.stats?.losses || 0) + (didWin ? 0 : 1),
+        rewardSystem: updatedRewardSystem,
         syncPoints: (profile.syncPoints || 0) + rewardSyncPoints,
         wins: (profile.stats?.wins || 0) + (didWin ? 1 : 0),
       });
@@ -173,6 +168,7 @@ export function ArenaScreen() {
           opponentHolobotId: opponent.holobotId,
           allowPlayerControl: true,
           playerBattleCards: profile.battle_cards,
+          potentialRewards: getArenaPotentialRewards(tier, opponent.name),
           tier: ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id),
         });
         setPhase("battle");
@@ -236,7 +232,7 @@ export function ArenaScreen() {
 
   return (
     <View style={styles.page}>
-      <HomeCogButton />
+      <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} />
 
       {phase === "prebattle" || !currentBattle ? (
         <ArenaPrebattleMenu
@@ -282,6 +278,12 @@ export function ArenaScreen() {
           <ActivityIndicator size="large" color="#f0bf14" />
         </View>
       ) : null}
+
+      <PvpArenaModal
+        visible={isPvpOpen}
+        onClose={() => setIsPvpOpen(false)}
+        userHolobots={holobots}
+      />
     </View>
   );
 }

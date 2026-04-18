@@ -73,14 +73,6 @@ export function BattleResultsModal({
                 <Text style={styles.rewardValue}>+{rewards.syncPoints}</Text>
               </View>
 
-              {rewards.arenaTokens > 0 && (
-                <View style={styles.rewardItem}>
-                  <Text style={styles.rewardIcon}>AT</Text>
-                  <Text style={styles.rewardLabel}>Arena Tokens</Text>
-                  <Text style={styles.rewardValue}>+{rewards.arenaTokens}</Text>
-                </View>
-              )}
-
               {rewards.holos && rewards.holos > 0 && (
                 <View style={[styles.rewardItem, styles.rareReward]}>
                   <Text style={styles.rewardIcon}>H</Text>
@@ -90,6 +82,14 @@ export function BattleResultsModal({
                   </Text>
                 </View>
               )}
+
+              {rewards.blueprintRewards?.map((reward) => (
+                <View key={reward.holobotKey} style={[styles.rewardItem, styles.rareReward]}>
+                  <Text style={styles.rewardIcon}>BP</Text>
+                  <Text style={styles.rewardLabel}>{`${reward.holobotKey.toUpperCase()} BLUEPRINT`}</Text>
+                  <Text style={[styles.rewardValue, styles.rareValue]}>+{reward.amount}</Text>
+                </View>
+              ))}
 
               {rewards.eloChange !== undefined && (
                 <View style={styles.rewardItem}>

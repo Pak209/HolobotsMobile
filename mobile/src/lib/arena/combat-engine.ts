@@ -58,7 +58,9 @@ export class ArenaCombatEngine {
       neutralPhase: false,
       playerBattleStyle: 'balanced',
       hackUsed: false,
-      potentialRewards: this.calculatePotentialRewards(player, opponent, config?.battleType || 'pve'),
+      potentialRewards:
+        config?.potentialRewards ??
+        this.calculatePotentialRewards(player, opponent, config?.battleType || 'pve'),
     };
   }
 
@@ -112,6 +114,7 @@ export class ArenaCombatEngine {
     const newState = { ...state };
     const attacker = action.actorId === state.player.holobotId ? newState.player : newState.opponent;
     const defender = action.actorId === state.player.holobotId ? newState.opponent : newState.player;
+    const defenderWasBlocking = defender.isInDefenseMode;
 
     // 1. Validate action
     if (!this.canPlayCard(attacker, action.card)) {
@@ -122,6 +125,7 @@ export class ArenaCombatEngine {
     // 2. Consume stamina
     attacker.stamina -= action.card.staminaCost;
     attacker.staminaState = this.getStaminaState(attacker.stamina);
+    attacker.lastActionTime = Date.now();
 
     // 3. Resolve based on card type
     let outcome: ActionOutcome = 'hit';
@@ -171,9 +175,13 @@ export class ArenaCombatEngine {
       }
     } else if (action.card.type === 'defense') {
       // Entering defense mode
-      defender.isInDefenseMode = true;
+      attacker.isInDefenseMode = true;
+      attacker.stamina = Math.min(attacker.maxStamina, attacker.stamina + 1);
+      attacker.staminaState = this.getStaminaState(attacker.stamina);
       outcome = 'blocked';
     }
+
+    this.applyCardEffects(action.card, attacker, defender);
 
     // 4. Update action with results
     const resolvedAction: BattleAction = {
@@ -197,9 +205,13 @@ export class ArenaCombatEngine {
         ? newState.opponent.holobotId
         : newState.player.holobotId;
 
-    // 7. Reset defense mode for the one who just defended
-    if (action.card.type !== 'defense') {
-      attacker.isInDefenseMode = false;
+    // 7. Reset defense mode after the defending fighter has absorbed an offensive card.
+    if (
+      action.card.type !== 'defense' &&
+      defenderWasBlocking &&
+      (outcome === 'hit' || outcome === 'blocked' || outcome === 'countered')
+    ) {
+      defender.isInDefenseMode = false;
     }
 
     // 8. Check win conditions
@@ -313,9 +325,6 @@ export class ArenaCombatEngine {
         case 'special_meter':
           if (req.operator === 'gte' && fighter.specialMeter < (req.value as number)) return false;
           break;
-        case 'combo':
-          if (req.operator === 'gte' && fighter.comboCounter < (req.value as number)) return false;
-          break;
       }
     }
 
@@ -402,7 +411,6 @@ export class ArenaCombatEngine {
   ): BattleRewards {
     const baseExp = 100;
     const baseSyncPoints = 50;
-    const baseTokens = 10;
 
     // Scale by opponent level/stats
     const statDiff = (opponent.attack + opponent.defense) - (player.attack + player.defense);
@@ -411,7 +419,7 @@ export class ArenaCombatEngine {
     return {
       exp: Math.floor(baseExp * diffMultiplier),
       syncPoints: Math.floor(baseSyncPoints * diffMultiplier),
-      arenaTokens: Math.floor(baseTokens * diffMultiplier),
+      holos: 0,
       eloChange: battleType === 'ranked' ? 25 : undefined,
     };
   }
@@ -424,7 +432,7 @@ export class ArenaCombatEngine {
       return {
         exp: Math.floor(base.exp * 0.3),
         syncPoints: Math.floor(base.syncPoints * 0.2),
-        arenaTokens: 0,
+        holos: 0,
         eloChange: base.eloChange ? -base.eloChange : undefined,
       };
     }
@@ -437,9 +445,41 @@ export class ArenaCombatEngine {
     return {
       exp: Math.floor(base.exp * performanceBonus),
       syncPoints: Math.floor(base.syncPoints * performanceBonus),
-      arenaTokens: Math.floor(base.arenaTokens * performanceBonus),
-      holos: Math.random() < 0.1 ? Math.floor(Math.random() * 5) + 1 : undefined, // 10% chance for HOLOS
+      holos: base.holos,
+      blueprintRewards: base.blueprintRewards,
       eloChange: base.eloChange,
     };
+  }
+
+  private static applyCardEffects(card: ActionCard, actor: ArenaFighter, target: ArenaFighter) {
+    for (const effect of card.effects) {
+      const effectTarget = effect.target === 'self' ? actor : target;
+
+      switch (effect.type) {
+        case 'stamina_gain':
+          effectTarget.stamina = Math.min(effectTarget.maxStamina, effectTarget.stamina + effect.value);
+          effectTarget.staminaState = this.getStaminaState(effectTarget.stamina);
+          break;
+        case 'special_meter':
+          effectTarget.specialMeter = Math.min(100, effectTarget.specialMeter + effect.value);
+          break;
+        case 'combo_enable':
+          actor.comboCounter = Math.max(actor.comboCounter, effect.value > 0 ? 1 : actor.comboCounter);
+          break;
+        case 'status':
+          effectTarget.statusEffects = [
+            ...(effectTarget.statusEffects || []),
+            {
+              id: `${card.id}-${Date.now()}`,
+              name: card.name,
+              turnsRemaining: effect.duration || 1,
+            },
+          ];
+          break;
+        case 'damage':
+        default:
+          break;
+      }
+    }
   }
 }

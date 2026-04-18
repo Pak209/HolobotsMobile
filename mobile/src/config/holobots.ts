@@ -4,6 +4,8 @@ import type { UserHolobot } from "@/types/profile";
 import { resolveBundledAssetUri } from "@/config/gameAssets";
 
 export type HolobotRosterEntry = {
+  attributePoints?: number;
+  boostedAttributes?: UserHolobot["boostedAttributes"];
   experience: number;
   imageSource: ImageSourcePropType;
   key: string;
@@ -11,6 +13,8 @@ export type HolobotRosterEntry = {
   name: string;
   nextLevelExp: number;
   owned: boolean;
+  rank?: string;
+  specialMove?: string;
   stats: {
     attack: number;
     defense: number;
@@ -65,6 +69,21 @@ const HOLOBOT_BASE_STATS = {
   WOLF: { attack: 5, defense: 5, hp: 175, intelligence: 4, speed: 5 },
 } as const;
 
+const HOLOBOT_SPECIAL_MOVES = {
+  ACE: "1st Strike",
+  KUMA: "Sharp Claws",
+  SHADOW: "Shadow Strike",
+  ERA: "Time Warp",
+  HARE: "Counter Claw",
+  TORA: "Stalk",
+  WAKE: "Torrent",
+  GAMA: "Heavy Leap",
+  KEN: "Blade Storm",
+  KURAI: "Dark Veil",
+  TSUIN: "Twin Strike",
+  WOLF: "Lunar Howl",
+} as const;
+
 const HOLOBOT_ARCHETYPES = {
   ACE: "balanced",
   KUMA: "grappler",
@@ -107,6 +126,69 @@ function getNormalizedStatsForChart(
 
 function toHolobotKey(name: string) {
   return name.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+export function calculateExperience(level: number) {
+  return Math.floor(100 * Math.pow(Math.max(1, level), 2));
+}
+
+export function getHolobotRank(level: number) {
+  if (level >= 41) return "Legendary";
+  if (level >= 31) return "Elite";
+  if (level >= 21) return "Rare";
+  if (level >= 11) return "Champion";
+  if (level >= 2) return "Starter";
+  return "Rookie";
+}
+
+export function getHolobotBaseProfile(name: string) {
+  const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
+  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const specialMove = HOLOBOT_SPECIAL_MOVES[normalizedName] ?? HOLOBOT_SPECIAL_MOVES.ACE;
+
+  return {
+    attack: base.attack,
+    defense: base.defense,
+    hp: base.hp,
+    intelligence: base.intelligence,
+    specialMove,
+    speed: base.speed,
+  };
+}
+
+export function normalizeUserHolobot(holobot: UserHolobot): UserHolobot {
+  const level = Math.max(1, holobot.level || 1);
+  return {
+    ...holobot,
+    attributePoints: holobot.attributePoints ?? level,
+    boostedAttributes: holobot.boostedAttributes || {},
+    experience: holobot.experience || 0,
+    nextLevelExp: holobot.nextLevelExp || calculateExperience(level + 1),
+    rank: holobot.rank || getHolobotRank(level),
+  };
+}
+
+export function applyHolobotExperience(holobot: UserHolobot, expGain: number): UserHolobot {
+  const normalized = normalizeUserHolobot(holobot);
+  const nextExperience = (normalized.experience || 0) + Math.max(0, expGain);
+  let nextLevel = Math.max(1, normalized.level || 1);
+  let nextLevelExp = normalized.nextLevelExp || calculateExperience(nextLevel + 1);
+  let attributePoints = normalized.attributePoints || 0;
+
+  while (nextExperience >= nextLevelExp) {
+    nextLevel += 1;
+    attributePoints += 1;
+    nextLevelExp = calculateExperience(nextLevel + 1);
+  }
+
+  return {
+    ...normalized,
+    attributePoints,
+    experience: nextExperience,
+    level: nextLevel,
+    nextLevelExp,
+    rank: getHolobotRank(nextLevel),
+  };
 }
 
 export function getHolobotImageSource(name: string) {
@@ -153,6 +235,8 @@ export function getHolobotBattleStats(
 
 export function createFallbackRoster(): HolobotRosterEntry[] {
   return DEFAULT_ROSTER_ORDER.map((name) => ({
+    attributePoints: 1,
+    boostedAttributes: {},
     experience: 0,
     imageSource: getHolobotImageSource(name),
     key: toHolobotKey(name),
@@ -160,6 +244,8 @@ export function createFallbackRoster(): HolobotRosterEntry[] {
     name,
     nextLevelExp: 100,
     owned: false,
+    rank: getHolobotRank(1),
+    specialMove: getHolobotBaseProfile(name).specialMove,
     stats: getNormalizedStatsForChart(name),
   }));
 }
@@ -169,23 +255,32 @@ export function mergeHolobotRoster(userHolobots?: UserHolobot[]) {
     return createFallbackRoster();
   }
 
-  const normalizedUserHolobots = userHolobots.map((holobot) => ({
-    experience: holobot.experience || 0,
-    imageSource: getHolobotImageSource(holobot.name),
-    key: toHolobotKey(holobot.name),
-    level: holobot.level || 1,
-    name: holobot.name.toUpperCase(),
-    nextLevelExp: holobot.nextLevelExp || 100,
-    owned: true,
-    stats: getNormalizedStatsForChart(
-      holobot.name,
-      holobot.level || 1,
-      holobot.boostedAttributes,
-    ),
-  }));
+  const normalizedUserHolobots = userHolobots.map((rawHolobot) => {
+    const holobot = normalizeUserHolobot(rawHolobot);
+    return {
+      attributePoints: holobot.attributePoints || 0,
+      boostedAttributes: holobot.boostedAttributes || {},
+      experience: holobot.experience || 0,
+      imageSource: getHolobotImageSource(holobot.name),
+      key: toHolobotKey(holobot.name),
+      level: holobot.level || 1,
+      name: holobot.name.toUpperCase(),
+      nextLevelExp: holobot.nextLevelExp || 100,
+      owned: true,
+      rank: holobot.rank || getHolobotRank(holobot.level || 1),
+      specialMove: getHolobotBaseProfile(holobot.name).specialMove,
+      stats: getNormalizedStatsForChart(
+        holobot.name,
+        holobot.level || 1,
+        holobot.boostedAttributes,
+      ),
+    };
+  });
 
   const ownedNames = new Set(normalizedUserHolobots.map((holobot) => holobot.name));
   const missingDefaults = DEFAULT_ROSTER_ORDER.filter((name) => !ownedNames.has(name)).map((name) => ({
+    attributePoints: 1,
+    boostedAttributes: {},
     experience: 0,
     imageSource: getHolobotImageSource(name),
     key: toHolobotKey(name),
@@ -193,6 +288,8 @@ export function mergeHolobotRoster(userHolobots?: UserHolobot[]) {
     name,
     nextLevelExp: 100,
     owned: false,
+    rank: getHolobotRank(1),
+    specialMove: getHolobotBaseProfile(name).specialMove,
     stats: getNormalizedStatsForChart(name),
   }));
 

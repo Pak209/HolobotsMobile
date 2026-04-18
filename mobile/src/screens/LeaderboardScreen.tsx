@@ -1,29 +1,72 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HomeCogButton } from "@/components/HomeCogButton";
-import { useAuth } from "@/contexts/AuthContext";
+import { collection, db, onSnapshot, query } from "@/config/firebase";
+import { mapFirestoreToUserProfile } from "@/lib/profile";
+import type { UserProfile } from "@/types/profile";
 
-function getPlayerRankName(wins: number, highestLevel: number) {
-  const score = wins * 2 + highestLevel;
-  if (score >= 120) return "Legend";
-  if (score >= 80) return "Elite";
-  if (score >= 40) return "Champion";
+function getPlayerRankName(profile: UserProfile) {
+  const highestLevel = Math.max(0, ...(profile.holobots || []).map((holobot) => holobot.level || 0));
+  const wins = profile.stats?.wins || 0;
+  const score = highestLevel + wins * 0.35 + (profile.prestigeCount || 0) * 8;
+
+  if (score >= 80) return "Legend";
+  if (score >= 55) return "Elite";
+  if (score >= 30) return "Champion";
   return "Rookie";
 }
 
-export function LeaderboardScreen() {
-  const { profile } = useAuth();
-  const highestLevel = Math.max(1, ...(profile?.holobots || []).map((holobot) => holobot.level || 1));
-  const wins = profile?.stats?.wins || 0;
-  const rankName = getPlayerRankName(wins, highestLevel);
+function getLeaderboardScore(profile: UserProfile) {
+  const highestLevel = Math.max(1, ...(profile.holobots || []).map((holobot) => holobot.level || 1));
+  const wins = profile.stats?.wins || 0;
+  const syncPoints = profile.syncPoints || 0;
+  const prestigeCount = profile.prestigeCount || 0;
 
-  const leaderboardRows = [
-    { name: profile?.username || "You", rank: rankName, score: wins * 100 + highestLevel * 10 },
-    { name: "Pilot Nova", rank: "Legend", score: 8840 },
-    { name: "ToraCore", rank: "Elite", score: 7710 },
-    { name: "KumaByte", rank: "Champion", score: 6420 },
-    { name: "SyncShade", rank: "Champion", score: 5930 },
-  ].sort((a, b) => b.score - a.score);
+  return wins * 120 + highestLevel * 25 + syncPoints + prestigeCount * 500;
+}
+
+export function LeaderboardScreen() {
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const usersQuery = query(collection(db, "users"));
+
+    const unsubscribe = onSnapshot(
+      usersQuery,
+      (snapshot) => {
+        const nextUsers = snapshot.docs.map((docSnapshot) =>
+          mapFirestoreToUserProfile(docSnapshot.id, docSnapshot.data() as Record<string, unknown>),
+        );
+
+        setUsers(nextUsers);
+        setLoading(false);
+        setError(null);
+      },
+      (nextError) => {
+        console.error("[Leaderboard] Failed to load users", nextError);
+        setError("Could not load leaderboard data.");
+        setLoading(false);
+      },
+    );
+
+    return unsubscribe;
+  }, []);
+
+  const leaderboardRows = useMemo(
+    () =>
+      users
+        .map((profile) => ({
+          id: profile.id,
+          name: profile.username || "Pilot",
+          rank: getPlayerRankName(profile),
+          score: getLeaderboardScore(profile),
+        }))
+        .sort((left, right) => right.score - left.score),
+    [users],
+  );
 
   return (
     <View style={styles.page}>
@@ -33,23 +76,46 @@ export function LeaderboardScreen() {
         <Text style={styles.title}>Leaderboard</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {leaderboardRows.map((row, index) => (
-          <View key={`${row.name}:${index}`} style={styles.row}>
-            <Text style={styles.position}>{`#${index + 1}`}</Text>
-            <View style={styles.rowBody}>
-              <Text style={styles.name}>{row.name}</Text>
-              <Text style={styles.rank}>{row.rank}</Text>
+      {loading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator color="#f0bf14" size="large" />
+          <Text style={styles.helperText}>Loading real pilot data...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerState}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {leaderboardRows.map((row, index) => (
+            <View key={row.id} style={styles.row}>
+              <Text style={styles.position}>{`#${index + 1}`}</Text>
+              <View style={styles.rowBody}>
+                <Text style={styles.name}>{row.name}</Text>
+                <Text style={styles.rank}>{row.rank}</Text>
+              </View>
+              <Text style={styles.score}>{row.score}</Text>
             </View>
-            <Text style={styles.score}>{row.score}</Text>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  centerState: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    color: "#fef1e0",
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   eyebrow: {
     color: "#f0bf14",
     fontSize: 13,
@@ -63,6 +129,11 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     paddingHorizontal: 24,
     paddingTop: 94,
+  },
+  helperText: {
+    color: "#ddd2b5",
+    fontSize: 14,
+    marginTop: 12,
   },
   name: {
     color: "#fef1e0",

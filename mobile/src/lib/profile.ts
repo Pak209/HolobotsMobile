@@ -157,6 +157,7 @@ export function subscribeToUserProfile(
 }
 
 type UserProfileUpdates = Partial<{
+  dailyEnergy: number;
   holosTokens: number;
   gachaTickets: number;
   arena_passes: number;
@@ -171,12 +172,15 @@ type UserProfileUpdates = Partial<{
   battle_cards: Record<string, number>;
   starter_deck_claimed: boolean;
   arena_deck_template_ids: string[];
+  holobots: UserHolobot[];
+  rewardSystem: Record<string, unknown>;
 }>;
 
 export async function updateUserProfile(userId: string, updates: UserProfileUpdates) {
   const userRef = doc(db, "users", userId);
   const firestoreUpdates: Record<string, unknown> = {};
 
+  if (updates.dailyEnergy !== undefined) firestoreUpdates.dailyEnergy = updates.dailyEnergy;
   if (updates.holosTokens !== undefined) firestoreUpdates.holosTokens = updates.holosTokens;
   if (updates.gachaTickets !== undefined) firestoreUpdates.gachaTickets = updates.gachaTickets;
   if (updates.arena_passes !== undefined) firestoreUpdates.arenaPassses = updates.arena_passes;
@@ -193,6 +197,8 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.arena_deck_template_ids !== undefined) {
     firestoreUpdates.arena_deck_template_ids = updates.arena_deck_template_ids;
   }
+  if (updates.holobots !== undefined) firestoreUpdates.holobots = updates.holobots;
+  if (updates.rewardSystem !== undefined) firestoreUpdates.rewardSystem = updates.rewardSystem;
 
   await updateDoc(userRef, firestoreUpdates as any);
 }

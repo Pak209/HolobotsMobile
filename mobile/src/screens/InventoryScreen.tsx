@@ -1,18 +1,25 @@
-import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { HolobotStatsModal } from "@/components/HolobotStatsModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
-import { getExpProgress, mergeHolobotRoster } from "@/config/holobots";
+import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
+import type { UserHolobot } from "@/types/profile";
 
 const tabs = ["Holobots", "Parts", "Items", "Blueprints"] as const;
 type InventoryTab = (typeof tabs)[number];
 
 export function InventoryScreen() {
-  const { profile } = useAuth();
+  const { profile, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<InventoryTab>("Holobots");
+  const [selectedHolobotName, setSelectedHolobotName] = useState<string | null>(null);
   const roster = mergeHolobotRoster(profile?.holobots).filter((holobot) => holobot.owned);
+  const selectedHolobot = useMemo(
+    () => profile?.holobots?.find((holobot) => holobot.name.toUpperCase() === selectedHolobotName) || null,
+    [profile?.holobots, selectedHolobotName],
+  );
   const parts = (profile?.parts || []).reduce<Array<{ image: number | null; name: string; quantity: number; rarity?: string; slot?: string }>>(
     (acc, rawPart, index) => {
       const name = String((rawPart as { name?: string }).name || `Part ${index + 1}`);
@@ -54,7 +61,7 @@ export function InventoryScreen() {
 
   const renderHolobots = () =>
     roster.map((holobot, index) => (
-      <View key={`${holobot.key}:${index}`} style={styles.holobotCard}>
+      <Pressable key={`${holobot.key}:${index}`} style={styles.holobotCard} onPress={() => setSelectedHolobotName(holobot.name)}>
         <Image source={holobot.imageSource} style={styles.holobotImage} resizeMode="contain" />
         <View style={styles.holobotContent}>
           <Text style={styles.holobotName}>{holobot.name}</Text>
@@ -63,8 +70,45 @@ export function InventoryScreen() {
             <View style={[styles.expFill, { width: `${getExpProgress(holobot) * 100}%` }]} />
           </View>
         </View>
-      </View>
+      </Pressable>
     ));
+
+  const handleUpgradeStat = async (attribute: "attack" | "defense" | "speed" | "health") => {
+    if (!profile?.holobots || !selectedHolobot) {
+      return;
+    }
+
+    const normalizedTarget = normalizeUserHolobot(selectedHolobot);
+    if ((normalizedTarget.attributePoints || 0) <= 0) {
+      Alert.alert("No Boosts Available", "This Holobot has no attribute points available to spend.");
+      return;
+    }
+
+    const updatedHolobots: UserHolobot[] = profile.holobots.map((holobot) => {
+      if (holobot.name.toUpperCase() !== normalizedTarget.name.toUpperCase()) {
+        return holobot;
+      }
+
+      const boosts = { ...(normalizedTarget.boostedAttributes || {}) };
+      if (attribute === "health") {
+        boosts.health = (boosts.health || 0) + 10;
+      } else {
+        boosts[attribute] = (boosts[attribute] || 0) + 1;
+      }
+
+      return {
+        ...normalizedTarget,
+        attributePoints: Math.max(0, (normalizedTarget.attributePoints || 0) - 1),
+        boostedAttributes: boosts,
+      };
+    });
+
+    try {
+      await updateProfile({ holobots: updatedHolobots });
+    } catch (error) {
+      Alert.alert("Upgrade failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
 
   const renderList = (entries: Array<{ image?: number | null; name: string; quantity: number; rarity?: string }>) =>
     entries.map((entry, index) => (
@@ -113,6 +157,13 @@ export function InventoryScreen() {
         {activeTab === "Items" ? renderList(items) : null}
         {activeTab === "Blueprints" ? renderList(blueprints) : null}
       </ScrollView>
+
+      <HolobotStatsModal
+        holobot={selectedHolobot ? normalizeUserHolobot(selectedHolobot) : null}
+        visible={!!selectedHolobot}
+        onClose={() => setSelectedHolobotName(null)}
+        onUpgrade={handleUpgradeStat}
+      />
     </View>
   );
 }

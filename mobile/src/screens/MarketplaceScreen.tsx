@@ -2,18 +2,18 @@ import { useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View, Image } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
+import { GameFeedbackModal } from "@/components/GameFeedbackModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { getRandomBattleCardGrant, mergeBattleCardCounts } from "@/lib/battleCards/catalog";
 import { getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { useAuth } from "@/contexts/AuthContext";
+import { incrementBoosterPacksToday } from "@/lib/dailyMissions";
 
 const tabs = ["Items", "Parts", "Booster Packs"] as const;
 type MarketplaceTab = (typeof tabs)[number];
 
 const itemDescriptions: Record<string, string> = {
   "Arena Pass": "Grants entry to one arena battle without costing HOLOS tokens.",
-  "Async Battle Ticket": "Launches an async arena match while you are away.",
-  Blueprint: "Used to unlock or progress Holobot blueprint assembly.",
   "Energy Refill": "Instantly restores your daily energy to full.",
   "EXP Booster": "Doubles experience gained from battles for 24 hours.",
   "Gacha Ticket": "Can be used for one pull in the Gacha system.",
@@ -32,8 +32,8 @@ function HolosMark() {
 const marketplaceBoosterPacks = [
   {
     accent: "#17d9ff",
-    description: "Guaranteed 1 Blueprint + 1 Part + 1 Item + 1 Battle Card with standard drop rates.",
-    guaranteed: 4,
+    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with standard drop rates.",
+    guaranteed: 3,
     icon: "□",
     id: "common",
     name: "Common Rank Booster",
@@ -42,8 +42,8 @@ const marketplaceBoosterPacks = [
   },
   {
     accent: "#2f87ff",
-    description: "Guaranteed 1 Blueprint + 1 Part + 1 Item + 1 Battle Card with improved drop rates.",
-    guaranteed: 4,
+    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with improved drop rates.",
+    guaranteed: 3,
     icon: "⬡",
     id: "champion",
     name: "Champion Rank Booster",
@@ -52,8 +52,8 @@ const marketplaceBoosterPacks = [
   },
   {
     accent: "#ae4cff",
-    description: "Guaranteed 1 Blueprint + 1 Part + 1 Item + 1 Battle Card with enhanced rare-plus chances.",
-    guaranteed: 4,
+    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with enhanced rare-plus chances.",
+    guaranteed: 3,
     icon: "✦",
     id: "rare",
     name: "Rare Rank Booster",
@@ -62,8 +62,8 @@ const marketplaceBoosterPacks = [
   },
   {
     accent: "#ff3b7d",
-    description: "Guaranteed 1 Blueprint + 1 Part + 1 Item + 1 Battle Card with premium drop rates.",
-    guaranteed: 4,
+    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with premium drop rates.",
+    guaranteed: 3,
     icon: "★",
     id: "elite",
     name: "Elite Rank Booster",
@@ -72,7 +72,6 @@ const marketplaceBoosterPacks = [
   },
 ] as const;
 
-const boosterBlueprintPool = ["ACE", "KUMA", "SHADOW", "ERA", "HARE", "TORA"] as const;
 const boosterPartPool = [
   { name: "Combat Mask", slot: "head" },
   { name: "Void Mask", slot: "head" },
@@ -96,14 +95,18 @@ export function MarketplaceScreen() {
   const { profile, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<MarketplaceTab>("Items");
   const [pendingPurchaseId, setPendingPurchaseId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    accent?: string;
+    lines?: string[];
+    message?: string;
+    title: string;
+  } | null>(null);
   const items = [
     { name: "Arena Pass", quantity: profile?.arena_passes || 0 },
     { name: "Gacha Ticket", quantity: profile?.gachaTickets || 0 },
     { name: "Energy Refill", quantity: profile?.energy_refills || 0 },
     { name: "EXP Booster", quantity: profile?.exp_boosters || 0 },
     { name: "Rank Skip", quantity: profile?.rank_skips || 0 },
-    { name: "Async Battle Ticket", quantity: profile?.async_battle_tickets || 0 },
-    { name: "Blueprint", quantity: Object.values(profile?.blueprints || {}).reduce((sum, qty) => sum + Number(qty || 0), 0) },
   ];
   const parts = useMemo(() => {
     const grouped = new Map<string, { description: string; image: ReturnType<typeof getPartImageSource>; name: string; quantity: number }>();
@@ -162,23 +165,16 @@ export function MarketplaceScreen() {
       case "Rank Skip":
         updates.rank_skips = (profile.rank_skips || 0) + 1;
         break;
-      case "Async Battle Ticket":
-        updates.async_battle_tickets = (profile.async_battle_tickets || 0) + 1;
-        break;
-      case "Blueprint": {
-        const chosenHolobot = randomFromList(boosterBlueprintPool);
-        updates.blueprints = {
-          ...(profile.blueprints || {}),
-          [chosenHolobot]: ((profile.blueprints || {})[chosenHolobot] || 0) + 1,
-        };
-        break;
-      }
     }
 
     try {
       setPendingPurchaseId(itemName);
       await updateProfile(updates);
-      Alert.alert("Purchase complete", `${itemName} has been added to your account.`);
+      setFeedback({
+        accent: "#17d9ff",
+        message: `${itemName} has been added to your account.`,
+        title: "Purchase Complete",
+      });
     } catch (error) {
       Alert.alert("Purchase failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
@@ -202,7 +198,6 @@ export function MarketplaceScreen() {
       return;
     }
 
-    const blueprintHolobot = randomFromList(boosterBlueprintPool);
     const grantedPart = randomFromList(boosterPartPool);
     const grantedItem = boosterItemAwardMap[pack.id];
     const grantedBattleCard = getRandomBattleCardGrant(pack.id);
@@ -215,16 +210,11 @@ export function MarketplaceScreen() {
           ? profile.arena_deck_template_ids
           : Object.keys(mergeBattleCardCounts(profile.battle_cards, grantedBattleCard)),
       battle_cards: mergeBattleCardCounts(profile.battle_cards, grantedBattleCard),
-      blueprints: {
-        ...(profile.blueprints || {}),
-        [blueprintHolobot]: ((profile.blueprints || {})[blueprintHolobot] || 0) + 1,
-      },
       holosTokens: (profile.holosTokens || 0) - pack.price,
       pack_history: [
         {
           id: `marketplace_${pack.id}_${Date.now()}`,
           items: [
-            { name: blueprintHolobot, quantity: 1, type: "blueprint" },
             { name: grantedPart.name, quantity: 1, slot: grantedPart.slot, type: "part" },
             { name: grantedItem, quantity: 1, type: "item" },
             { name: grantedBattleCardId, quantity: 1, type: "battle_card" },
@@ -235,6 +225,7 @@ export function MarketplaceScreen() {
         ...packHistory,
       ].slice(0, 50),
       parts: [...(profile.parts || []), { name: grantedPart.name, slot: grantedPart.slot }],
+      rewardSystem: incrementBoosterPacksToday(profile.rewardSystem),
     };
 
     if (grantedItem === "Arena Pass") updates.arena_passes = (profile.arena_passes || 0) + 1;
@@ -245,10 +236,12 @@ export function MarketplaceScreen() {
     try {
       setPendingPurchaseId(pack.id);
       await updateProfile(updates);
-      Alert.alert(
-        "Booster purchased",
-        `${pack.name} opened.\n\nBlueprint: ${blueprintHolobot}\nPart: ${grantedPart.name}\nItem: ${grantedItem}\nBattle Card: ${grantedBattleCardId}`,
-      );
+      setFeedback({
+        accent: pack.accent,
+        lines: [`Part: ${grantedPart.name}`, `Item: ${grantedItem}`, `Battle Card: ${grantedBattleCardId}`],
+        message: `${pack.name} opened.`,
+        title: "Booster Purchased",
+      });
     } catch (error) {
       Alert.alert("Purchase failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
@@ -317,7 +310,7 @@ export function MarketplaceScreen() {
       return (
         <View style={styles.packsSection}>
           <Text style={styles.packsTitle}>SELECT BOOSTER PACK</Text>
-          <Text style={styles.packsSubtitle}>Choose your boost pack and unlock blueprints, parts, items, and battle cards.</Text>
+          <Text style={styles.packsSubtitle}>Choose your boost pack and unlock parts, items, and battle cards.</Text>
           {marketplaceBoosterPacks.map((pack) => {
             const canAfford = (profile?.holosTokens || 0) >= pack.price;
 
@@ -358,34 +351,44 @@ export function MarketplaceScreen() {
   };
 
   return (
-    <View style={styles.page}>
-      <HomeCogButton />
-      <View style={styles.header}>
-        <Text style={styles.headerEyebrow}>SHOP</Text>
-        <Text style={styles.headerTitle}>Marketplace</Text>
-        <Text style={styles.headerMeta}>
-          {`Holos ${profile?.holosTokens || 0} • Tickets ${profile?.gachaTickets || 0} • Parts ${parts.length}`}
-        </Text>
-      </View>
+    <>
+      <View style={styles.page}>
+        <HomeCogButton />
+        <View style={styles.header}>
+          <Text style={styles.headerEyebrow}>SHOP</Text>
+          <Text style={styles.headerTitle}>Marketplace</Text>
+          <Text style={styles.headerMeta}>
+            {`Holos ${profile?.holosTokens || 0} • Tickets ${profile?.gachaTickets || 0} • Parts ${parts.length}`}
+          </Text>
+        </View>
 
-      <View style={styles.tabRow}>
-        {tabs.map((tab) => (
-          <Pressable
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[styles.tabButton, activeTab === tab ? styles.tabButtonActive : null]}
-          >
-            <Text style={[styles.tabButtonText, activeTab === tab ? styles.tabButtonTextActive : null]}>
-              {tab}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <View style={styles.tabRow}>
+          {tabs.map((tab) => (
+            <Pressable
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[styles.tabButton, activeTab === tab ? styles.tabButtonActive : null]}
+            >
+              <Text style={[styles.tabButtonText, activeTab === tab ? styles.tabButtonTextActive : null]}>
+                {tab}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {renderContent()}
-      </ScrollView>
-    </View>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {renderContent()}
+        </ScrollView>
+      </View>
+      <GameFeedbackModal
+        visible={!!feedback}
+        title={feedback?.title || ""}
+        message={feedback?.message}
+        lines={feedback?.lines}
+        accent={feedback?.accent}
+        onClose={() => setFeedback(null)}
+      />
+    </>
   );
 }
 

@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 
 import {
   ARENA_TIERS,
+  getArenaBlueprintAmount,
   getArenaPotentialRewards,
   getTierOpponentLineup,
   type ArenaTier,
@@ -30,10 +31,12 @@ type ArenaPrebattleMenuProps = {
 function FlipPreviewCard({
   lineup,
   rewards,
+  blueprintAmount,
   selectedHolobot,
 }: {
   lineup: string[];
   rewards: ReturnType<typeof getArenaPotentialRewards>;
+  blueprintAmount: number;
   selectedHolobot: HolobotRosterEntry;
 }) {
   const [showBack, setShowBack] = useState(false);
@@ -76,7 +79,8 @@ function FlipPreviewCard({
           <View style={styles.rewardColumn}>
             <Text style={styles.rewardLine}>{`EXP +${rewards.exp}`}</Text>
             <Text style={styles.rewardLine}>{`Sync Points +${rewards.syncPoints}`}</Text>
-            <Text style={styles.rewardLine}>{`Arena Tokens +${rewards.arenaTokens}`}</Text>
+            <Text style={styles.rewardLine}>{`Holos +${rewards.holos || 0}`}</Text>
+            <Text style={styles.rewardLine}>{`Blueprints +${blueprintAmount}`}</Text>
             <Text style={styles.rewardSubcopy}>
               Three consecutive rounds. Win the gauntlet to lock in the full payout.
             </Text>
@@ -116,6 +120,7 @@ export function ArenaPrebattleMenu({
     userHolobots.find((holobot) => holobot.name.toUpperCase() === selectedHolobot.name) ??
     userHolobots[0];
   const rewards = getArenaPotentialRewards(selectedTier);
+  const blueprintAmount = getArenaBlueprintAmount(selectedTier);
   const cpuLineup = getTierOpponentLineup(selectedTier, selectedHolobot.name);
   const canUseTokens = userTokens >= selectedTier.entryFeeHolos;
   const canUsePass = userArenaPasses > 0;
@@ -195,7 +200,12 @@ export function ArenaPrebattleMenu({
           </View>
         </View>
 
-        <FlipPreviewCard lineup={cpuLineup} rewards={rewards} selectedHolobot={selectedHolobot} />
+        <FlipPreviewCard
+          lineup={cpuLineup}
+          rewards={rewards}
+          blueprintAmount={blueprintAmount}
+          selectedHolobot={selectedHolobot}
+        />
       </ScrollView>
 
       <HolobotPickerModal

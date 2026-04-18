@@ -299,12 +299,12 @@ export function HomeScreen() {
           <Rect x={0} y={2942} width={1800} height={258} fill="#050606" />
           <Image href={homeAssets.arenaIcon} x={8} y={2638} width={432} height={392} preserveAspectRatio="xMidYMid meet" />
           <Text x={224} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">ARENA</Text>
-          <Image href={homeAssets.inventoryIcon} x={438} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
-          <Text x={598} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">INVENTORY</Text>
-          <Image href={homeAssets.syncIcon} x={815} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
-          <Text x={975} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">SYNC</Text>
-          <Image href={homeAssets.marketplaceIcon} x={1188} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
-          <Text x={1348} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">MARKET</Text>
+          <Image href={homeAssets.inventoryIcon} x={437} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
+          <Text x={597} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">INVENTORY</Text>
+          <Image href={homeAssets.syncIcon} x={820} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
+          <Text x={970} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">SYNC</Text>
+          <Image href={homeAssets.marketplaceIcon} x={1193} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
+          <Text x={1343} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">MARKET</Text>
         </Svg>
 
         <Pressable

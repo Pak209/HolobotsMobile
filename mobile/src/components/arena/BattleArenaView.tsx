@@ -43,9 +43,7 @@ export function BattleArenaView({
       <View style={styles.header}>
         <Text style={styles.turnText}>LIVE BATTLE</Text>
         <View style={styles.turnIndicator}>
-          <Text style={styles.turnIndicatorText}>
-            {canActNow ? 'READY' : 'CPU MOVING'}
-          </Text>
+          <Text style={styles.turnIndicatorText}>LIVE</Text>
         </View>
       </View>
 
@@ -131,13 +129,6 @@ export function BattleArenaView({
           onCardPlay={onCardPlay}
           disabled={isAnimating}
         />
-
-        {/* Status Text */}
-        {!canActNow && (
-          <View style={styles.waitingOverlay}>
-            <Text style={styles.waitingText}>CPU is moving...</Text>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -266,22 +257,6 @@ const styles = StyleSheet.create({
   defenseButtonText: {
     color: '#93c5fd',
     fontSize: 14,
-    fontWeight: '600',
-  },
-  waitingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 12,
-  },
-  waitingText: {
-    color: '#f5c40d',
-    fontSize: 16,
     fontWeight: '600',
   },
 });

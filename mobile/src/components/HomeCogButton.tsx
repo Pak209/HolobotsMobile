@@ -8,7 +8,11 @@ import { UserStatsModal } from "@/components/UserStatsModal";
 import { useAuth } from "@/contexts/AuthContext";
 import type { RootTabs } from "../../App";
 
-export function HomeCogButton() {
+type HomeCogButtonProps = {
+  onOpenPvp?: () => void;
+};
+
+export function HomeCogButton({ onOpenPvp }: HomeCogButtonProps) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const { logout, profile } = useAuth();
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -56,6 +60,20 @@ export function HomeCogButton() {
             </Svg>
           </View>
         </Pressable>
+        {onOpenPvp ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open PVP arena menu"
+            onPress={onOpenPvp}
+            style={styles.button}
+          >
+            <View style={styles.inner}>
+              <Svg width="30" height="30" viewBox="0 0 24 24">
+                <Path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2m1-17.87a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </Pressable>
+        ) : null}
       </View>
       <UserStatsModal
         onClose={() => setIsStatsOpen(false)}

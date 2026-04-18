@@ -156,7 +156,10 @@ export interface BattleRewards {
   exp: number;
   syncPoints: number;
   holos?: number;
-  arenaTokens: number;
+  blueprintRewards?: Array<{
+    holobotKey: string;
+    amount: number;
+  }>;
   eloChange?: number;
 }
 
@@ -188,6 +191,7 @@ export interface ArenaBattleConfig {
   opponentHolobotId?: string;
   difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
   tier?: number;
+  potentialRewards?: BattleRewards;
 
   // Rules
   maxTurns?: number;

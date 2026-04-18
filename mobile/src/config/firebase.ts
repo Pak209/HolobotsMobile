@@ -7,10 +7,12 @@ import {
   type User,
 } from "firebase/auth";
 import {
+  collection,
   doc,
   getDoc,
   getFirestore,
   onSnapshot,
+  query,
   updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -31,10 +33,12 @@ export const db = getFirestore(app);
 export const functions = getFunctions(app);
 
 export {
+  collection,
   doc,
   getDoc,
   onAuthStateChanged,
   onSnapshot,
+  query,
   signInWithEmailAndPassword,
   signOut,
   updateDoc,

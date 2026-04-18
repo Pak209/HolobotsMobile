@@ -159,14 +159,26 @@ export function buildOpponentFighter(
   };
 }
 
-export function getArenaPotentialRewards(tier: ArenaTier): BattleRewards {
+export function getArenaBlueprintAmount(tier: ArenaTier) {
+  const tierIndex = ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id);
+  return [5, 10, 15, 20][Math.max(0, tierIndex)] ?? 5;
+}
+
+export function getArenaPotentialRewards(tier: ArenaTier, opponentName?: string): BattleRewards {
   const tierIndex = ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id);
   const multiplier = 1 + Math.max(0, tierIndex) * 0.45;
 
   return {
     exp: Math.floor(95 * multiplier),
     syncPoints: Math.floor(35 * multiplier),
-    arenaTokens: Math.floor(10 * multiplier),
-    holos: 0,
+    holos: tier.entryFeeHolos * 2,
+    blueprintRewards: opponentName
+      ? [
+          {
+            holobotKey: opponentName.toLowerCase(),
+            amount: getArenaBlueprintAmount(tier),
+          },
+        ]
+      : undefined,
   };
 }
