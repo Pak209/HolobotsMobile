@@ -141,6 +141,18 @@ export function getHolobotRank(level: number) {
   return "Rookie";
 }
 
+export function createGenesisStarterHolobot(name: "ACE" | "KUMA" | "SHADOW"): UserHolobot {
+  return normalizeUserHolobot({
+    attributePoints: 1,
+    boostedAttributes: {},
+    experience: 0,
+    level: 1,
+    name,
+    nextLevelExp: calculateExperience(2),
+    rank: getHolobotRank(1),
+  });
+}
+
 export function getHolobotBaseProfile(name: string) {
   const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
   const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;

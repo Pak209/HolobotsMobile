@@ -79,6 +79,9 @@ export function SyncRewardsModal({
                 </Svg>
               </Pressable>
             </View>
+            {canQuickRefill ? (
+              <Text style={styles.refillMeta}>Quick Refill also collects these rewards before your next 5 minute Sync starts.</Text>
+            ) : null}
           </View>
 
           <View style={styles.buttonsContainer}>
@@ -213,6 +216,14 @@ const styles = StyleSheet.create({
   },
   refillButtonDisabled: {
     opacity: 0.38,
+  },
+  refillMeta: {
+    color: "#8f866f",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 16,
+    marginTop: 8,
+    textAlign: "center",
   },
   buttonsContainer: {
     padding: 18,

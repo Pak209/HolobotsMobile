@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
+  createUserWithEmailAndPassword,
   getAuth,
   initializeAuth,
   onAuthStateChanged,
@@ -15,6 +16,8 @@ import {
   getFirestore,
   onSnapshot,
   query,
+  serverTimestamp,
+  setDoc,
   updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -45,11 +48,14 @@ export const functions = getFunctions(app);
 
 export {
   collection,
+  createUserWithEmailAndPassword,
   doc,
   getDoc,
   onAuthStateChanged,
   onSnapshot,
   query,
+  serverTimestamp,
+  setDoc,
   signInWithEmailAndPassword,
   signOut,
   updateDoc,

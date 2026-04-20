@@ -40,9 +40,9 @@ const navTheme = {
 };
 
 function AuthedApp() {
-  const { loading, sessionLocked, user } = useAuth();
+  const { loading, profileLoading, sessionLocked, user } = useAuth();
 
-  if (loading) {
+  if (loading || (user && profileLoading)) {
     return <AppLoadingScreen />;
   }
 

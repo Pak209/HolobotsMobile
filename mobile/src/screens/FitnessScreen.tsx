@@ -48,7 +48,7 @@ function formatCooldownCopy(remainingMinutes: number, sessionsRemaining: number)
 
 export function FitnessScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile, logout, updateProfile } = useAuth();
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -95,9 +95,12 @@ export function FitnessScreen() {
       : "GO";
 
   const persistWorkoutRewards = async () => {
-    if (!completionResult || !profile || !user) {
-      workout.clearCompletionResult();
+    if (!completionResult) {
       return true;
+    }
+
+    if (!profile || !user) {
+      return false;
     }
 
     const nextHolobots = [...(profile.holobots || [])];
@@ -379,6 +382,16 @@ export function FitnessScreen() {
                 </View>
               </View>
 
+              <Pressable
+                style={styles.signOutButton}
+                onPress={() => {
+                  setIsSettingsOpen(false);
+                  void logout();
+                }}
+              >
+                <RNText style={styles.signOutText}>SIGN OUT</RNText>
+              </Pressable>
+
               <Pressable style={styles.closeSettingsButton} onPress={() => setIsSettingsOpen(false)}>
                 <RNText style={styles.closeSettingsText}>CLOSE</RNText>
               </Pressable>
@@ -493,6 +506,21 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "900",
     marginTop: 8,
+  },
+  signOutButton: {
+    alignItems: "center",
+    backgroundColor: "#090909",
+    borderColor: "#ef4444",
+    borderWidth: 1,
+    justifyContent: "center",
+    marginTop: 16,
+    minHeight: 48,
+  },
+  signOutText: {
+    color: "#fef1e0",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   toggleButton: {
     alignItems: "center",

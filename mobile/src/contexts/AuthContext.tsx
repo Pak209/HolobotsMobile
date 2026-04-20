@@ -12,14 +12,22 @@ import * as LocalAuthentication from "expo-local-authentication";
 
 import {
   auth,
+  createUserWithEmailAndPassword,
+  db,
+  doc,
   onAuthStateChanged,
+  serverTimestamp,
+  setDoc,
   signInWithEmailAndPassword,
   signOut,
   type User,
 } from "@/config/firebase";
+import { createGenesisStarterHolobot, getHolobotRank } from "@/config/holobots";
 import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
 import { subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
 import type { UserProfile } from "@/types/profile";
+
+export type GenesisStarterChoice = "ACE" | "KUMA" | "SHADOW";
 
 type AuthContextValue = {
   user: User | null;
@@ -33,6 +41,16 @@ type AuthContextValue = {
   profileLoading: boolean;
   profileError: string | null;
   login: (email: string, password: string, options?: { rememberMe?: boolean; faceId?: boolean }) => Promise<void>;
+  signup: (
+    params: {
+      email: string;
+      password: string;
+      rememberMe?: boolean;
+      faceId?: boolean;
+      starterHolobot: GenesisStarterChoice;
+      username: string;
+    },
+  ) => Promise<void>;
   logout: () => Promise<void>;
   unlockWithFaceId: () => Promise<boolean>;
   updateAuthPreferences: (updates: { rememberMe?: boolean; faceId?: boolean; rememberedEmail?: string }) => Promise<void>;
@@ -53,6 +71,10 @@ const DEFAULT_AUTH_PREFERENCES: AuthPreferences = {
   rememberMe: true,
   rememberedEmail: "",
 };
+
+function normalizeUsername(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -219,18 +241,117 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileLoading,
       profileError,
       login: async (email, password, options) => {
+        const normalizedEmail = email.trim();
+        const nextRememberMe = options?.rememberMe ?? authPreferences.rememberMe;
         const nextPreferences: AuthPreferences = {
-          faceId: Boolean(options?.rememberMe ?? authPreferences.rememberMe) && Boolean(options?.faceId ?? authPreferences.faceId),
-          rememberMe: options?.rememberMe ?? authPreferences.rememberMe,
-          rememberedEmail: (options?.rememberMe ?? authPreferences.rememberMe) ? email : "",
+          faceId: nextRememberMe && faceIdAvailable ? Boolean(options?.faceId ?? authPreferences.faceId) : false,
+          rememberMe: nextRememberMe,
+          rememberedEmail: nextRememberMe ? normalizedEmail : "",
         };
 
+        setLoading(true);
         await persistAuthPreferences(nextPreferences);
         manualLoginRef.current = true;
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, normalizedEmail, password);
+      },
+      signup: async ({ email, password, rememberMe, faceId, starterHolobot, username }) => {
+        const normalizedEmail = email.trim();
+        const normalizedUsername = normalizeUsername(username);
+        const nextRememberMe = rememberMe ?? authPreferences.rememberMe;
+        const nextPreferences: AuthPreferences = {
+          faceId: nextRememberMe && faceIdAvailable ? Boolean(faceId) : false,
+          rememberMe: nextRememberMe,
+          rememberedEmail: nextRememberMe ? normalizedEmail : "",
+        };
+
+        const starterDeck = getGenesisStarterDeckGrants();
+        const starterHolobotProfile = createGenesisStarterHolobot(starterHolobot);
+        const userRefData = {
+          arena_deck_template_ids: Object.keys(starterDeck),
+          asyncBattleTickets: 3,
+          battle_cards: starterDeck,
+          dailyEnergy: 100,
+          energyRefills: 0,
+          expBoosters: 0,
+          fitnessSource: "mobile",
+          gachaTickets: 0,
+          holobots: [starterHolobotProfile],
+          holosTokens: 0,
+          inventory: {},
+          isDevAccount: false,
+          lastAsyncTicketRefresh: serverTimestamp(),
+          lastEnergyRefresh: serverTimestamp(),
+          onboardingPath: "genesis",
+          starter_deck_claimed: true,
+          syncDistanceUnit: "km",
+          syncPoints: 0,
+          todaySteps: 0,
+          username: normalizedUsername,
+          wins: 0,
+          losses: 0,
+        };
+
+        const localProfile: UserProfile = {
+          arena_deck_template_ids: Object.keys(starterDeck),
+          async_battle_tickets: 3,
+          battle_cards: starterDeck,
+          dailyEnergy: 100,
+          energy_refills: 0,
+          exp_boosters: 0,
+          fitnessSource: "mobile",
+          gachaTickets: 0,
+          holobots: [starterHolobotProfile],
+          holosTokens: 0,
+          id: "",
+          inventory: {},
+          isDevAccount: false,
+          lastEnergyRefresh: new Date().toISOString(),
+          last_async_ticket_refresh: new Date().toISOString(),
+          onboardingPath: "genesis",
+          pack_history: [],
+          parts: [],
+          equippedParts: {},
+          rental_holobots: [],
+          rewardSystem: {},
+          starter_deck_claimed: true,
+          stats: {
+            losses: 0,
+            wins: 0,
+          },
+          syncDistanceUnit: "km",
+          syncPoints: 0,
+          todaySteps: 0,
+          username: normalizedUsername,
+          maxDailyEnergy: 100,
+        };
+
+        setLoading(true);
+        await persistAuthPreferences(nextPreferences);
+        manualLoginRef.current = true;
+
+        let createdUser: User | null = null;
+
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+          createdUser = userCredential.user;
+
+          await setDoc(doc(db, "users", createdUser.uid), userRefData, { merge: true });
+          setProfile({
+            ...localProfile,
+            id: createdUser.uid,
+          });
+          setProfileLoading(false);
+          setProfileError(null);
+        } catch (error) {
+          if (createdUser) {
+            await signOut(auth).catch(() => undefined);
+          }
+          throw error;
+        }
       },
       logout: async () => {
         setSessionLocked(false);
+        setLoading(true);
         await signOut(auth);
       },
       unlockWithFaceId: async () => {
@@ -239,7 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const result = await LocalAuthentication.authenticateAsync({
-          cancelLabel: "Cancel",
+          cancelLabel: "Use Login Instead",
           promptMessage: "Unlock Holobots",
         });
 
@@ -253,7 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateAuthPreferences: async (updates) => {
         const nextRememberMe = updates.rememberMe ?? authPreferences.rememberMe;
         const nextPreferences: AuthPreferences = {
-          faceId: nextRememberMe ? (updates.faceId ?? authPreferences.faceId) : false,
+          faceId: nextRememberMe && faceIdAvailable ? (updates.faceId ?? authPreferences.faceId) : false,
           rememberMe: nextRememberMe,
           rememberedEmail: updates.rememberedEmail ?? (nextRememberMe ? authPreferences.rememberedEmail : ""),
         };
@@ -268,7 +389,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateUserProfile(user.uid, updates);
       },
     }),
-    [authPreferences.faceId, authPreferences.rememberMe, authPreferences.rememberedEmail, faceIdAvailable, loading, profile, profileError, profileLoading, sessionLocked, user],
+    [
+      authPreferences.faceId,
+      authPreferences.rememberMe,
+      authPreferences.rememberedEmail,
+      faceIdAvailable,
+      loading,
+      profile,
+      profileError,
+      profileLoading,
+      sessionLocked,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
