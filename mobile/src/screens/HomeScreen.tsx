@@ -297,7 +297,7 @@ export function HomeScreen() {
 
           <Image href={homeAssets.bottomBackground} x={0} y={2375} width={1800} height={857} preserveAspectRatio="none" />
           <Rect x={0} y={2942} width={1800} height={258} fill="#050606" />
-          <Image href={homeAssets.arenaIcon} x={8} y={2638} width={432} height={392} preserveAspectRatio="xMidYMid meet" />
+          <Image href={homeAssets.arenaIcon} x={-10} y={2638} width={432} height={392} preserveAspectRatio="xMidYMid meet" />
           <Text x={224} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">ARENA</Text>
           <Image href={homeAssets.inventoryIcon} x={437} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
           <Text x={597} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">INVENTORY</Text>

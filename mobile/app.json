@@ -12,6 +12,7 @@
       "bundleIdentifier": "fun.holobots.mobile",
       "buildNumber": "2",
       "infoPlist": {
+        "NSFaceIDUsageDescription": "Holobots uses Face ID to quickly unlock your remembered session.",
         "NSHealthShareUsageDescription": "Holobots reads your step count and workout data to convert activity into Sync Points.",
         "NSHealthUpdateUsageDescription": "Holobots writes workout rewards and sync summaries connected to your activity.",
         "NSLocationWhenInUseUsageDescription": "Holobots uses your location during a workout to measure live movement speed and distance for Sync Point rewards.",

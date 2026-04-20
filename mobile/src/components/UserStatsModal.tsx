@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Image as RNImage, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Svg, Path } from "@/components/FigmaSvg";
 import { DailyMissionsModal } from "@/components/DailyMissionsModal";
+import { fitnessAssets } from "@/config/figmaAssets";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDailyMissionSummary } from "@/lib/dailyMissions";
 import type { UserProfile } from "@/types/profile";
@@ -99,12 +100,18 @@ export function UserStatsModal({
                     <Text style={styles.statMeta}>{`${profile?.energy_refills || 0} refills ready`}</Text>
                   </View>
                   <View style={styles.statTile}>
-                    <Text style={styles.statLabel}>Gacha Tickets</Text>
-                    <Text style={styles.statValue}>{`${profile?.gachaTickets || 0}`}</Text>
+                    <Text style={styles.statLabel}>Sync Points</Text>
+                    <View style={styles.valueRow}>
+                      <RNImage source={fitnessAssets.rewardSync} style={styles.currencyIcon} resizeMode="contain" />
+                      <Text style={styles.statValue}>{`${profile?.syncPoints || 0}`}</Text>
+                    </View>
                   </View>
                   <View style={styles.statTile}>
                     <Text style={styles.statLabel}>Holos</Text>
-                    <Text style={styles.statValue}>{`${profile?.holosTokens || 0}`}</Text>
+                    <View style={styles.valueRow}>
+                      <RNImage source={fitnessAssets.rewardHolos} style={styles.currencyIcon} resizeMode="contain" />
+                      <Text style={styles.statValue}>{`${profile?.holosTokens || 0}`}</Text>
+                    </View>
                   </View>
                 </View>
 
@@ -182,6 +189,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1,
+  },
+  currencyIcon: {
+    height: 22,
+    width: 22,
   },
   eyebrow: {
     color: "#f0bf14",
@@ -273,5 +284,10 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: "900",
     marginTop: 8,
+  },
+  valueRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
   },
 });

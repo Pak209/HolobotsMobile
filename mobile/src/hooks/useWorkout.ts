@@ -3,12 +3,37 @@ import * as Location from "expo-location";
 import { Pedometer } from "expo-sensors";
 
 import { db } from "@/config/firebase";
-import { getLocalDateKey, syncFitnessActivity } from "@/lib/fitnessSync";
+import {
+  getDailyWorkoutState,
+  getLocalDateKey,
+  syncFitnessActivity,
+  unlockDailyWorkoutRefill,
+} from "@/lib/fitnessSync";
 
-const TOTAL_WORKOUT_SECONDS = 20 * 60;
-const MAX_SYNC_POINTS = 225;
+export type DistanceUnit = "km" | "mi";
+export type WorkoutCompletionResult = {
+  cooldownEndsAt: string | null;
+  distanceKm: number;
+  displayDistance: number;
+  displayUnit: DistanceUnit;
+  expReward: number;
+  holosReward: number;
+  id: string;
+  sessionsCompleted: number;
+  sessionsRemaining: number;
+  syncPointsReward: number;
+  totalSyncPoints: number | null;
+  workoutMinutes: number;
+};
+
+const TOTAL_WORKOUT_SECONDS = 5 * 60;
+const DAILY_TOTAL_MINUTES = 20;
+const MAX_DAILY_SESSION_CAP = 4;
+const WORKOUT_COOLDOWN_MS = 10 * 60 * 1000;
+const BASE_SESSION_SYNC_POINTS = 225;
 const BASE_HOLOS_PER_KM = 12;
 const BASE_EXP_PER_KM = 280;
+const KM_TO_MILES = 0.621371;
 
 type LiveWorkoutState = {
   distanceKm: number;
@@ -57,7 +82,41 @@ async function getTodayStepCount() {
   }
 }
 
-function useLiveWorkout(userId?: string | null) {
+function getDisplayDistance(distanceKm: number, unitPreference: DistanceUnit) {
+  return unitPreference === "mi" ? distanceKm * KM_TO_MILES : distanceKm;
+}
+
+function getCooldownRemainingMs(cooldownEndsAt: string | null, now: number) {
+  if (!cooldownEndsAt) {
+    return 0;
+  }
+
+  const endsAtMs = new Date(cooldownEndsAt).getTime();
+  if (!Number.isFinite(endsAtMs)) {
+    return 0;
+  }
+
+  return Math.max(0, endsAtMs - now);
+}
+
+function calculateRewards(
+  distanceKm: number,
+  elapsedSeconds: number,
+  stepCount: number,
+  unitPreference: DistanceUnit,
+) {
+  const progress = clamp(elapsedSeconds / TOTAL_WORKOUT_SECONDS, 0, 1);
+  const distanceBonus = Math.floor(getDisplayDistance(distanceKm, unitPreference)) * 100;
+  const stepBonus = Math.floor(stepCount / 25);
+
+  return {
+    expReward: Math.max(0, Math.round(distanceKm * BASE_EXP_PER_KM)),
+    holosReward: Math.max(0, Math.round(distanceKm * BASE_HOLOS_PER_KM)),
+    syncPointsReward: Math.max(0, Math.round(progress * BASE_SESSION_SYNC_POINTS) + stepBonus + distanceBonus),
+  };
+}
+
+function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "km") {
   const [state, setState] = useState<LiveWorkoutState>({
     distanceKm: 0,
     elapsedSeconds: 0,
@@ -70,6 +129,10 @@ function useLiveWorkout(userId?: string | null) {
   const [syncState, setSyncState] = useState<SyncState>("idle");
   const [syncMessage, setSyncMessage] = useState("Sign in to sync rewards.");
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [cooldownEndsAt, setCooldownEndsAt] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [sessionsCompleted, setSessionsCompleted] = useState(0);
+  const [completionResult, setCompletionResult] = useState<WorkoutCompletionResult | null>(null);
 
   const startTimestampRef = useRef<number | null>(null);
   const elapsedOffsetSecondsRef = useRef(0);
@@ -81,10 +144,52 @@ function useLiveWorkout(userId?: string | null) {
   const todayStepsAtStartRef = useRef(0);
   const lastSyncedDateRef = useRef<string | null>(null);
   const lastSyncedStepsRef = useRef(0);
+  const sessionsCompletedRef = useRef(0);
+  const completionLockRef = useRef(false);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    sessionsCompletedRef.current = sessionsCompleted;
+  }, [sessionsCompleted]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!userId) {
+      setCooldownEndsAt(null);
+      setSessionsCompleted(0);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void getDailyWorkoutState(db, userId, getLocalDateKey())
+      .then((nextState) => {
+        if (cancelled) return;
+        setCooldownEndsAt(nextState.cooldownEndsAt);
+        setSessionsCompleted(nextState.sessionsCompleted);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCooldownEndsAt(null);
+        setSessionsCompleted(0);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     return () => {
@@ -104,28 +209,40 @@ function useLiveWorkout(userId?: string | null) {
     previousCoordsRef.current = null;
   };
 
-  const syncCurrentActivity = async (reason: "pause" | "complete") => {
+  const syncCurrentActivity = async (
+    snapshot: LiveWorkoutState,
+    reason: "pause" | "complete",
+    extras?: {
+      cooldownEndsAt?: string | null;
+      sessionIncrement?: number;
+      syncPointsAwarded?: number;
+    },
+  ) => {
     if (!userId) {
       setSyncState("idle");
       setSyncMessage("Sign in to sync rewards.");
-      return;
+      return null;
     }
 
     const date = getLocalDateKey();
-    const currentState = stateRef.current;
     const stepsTotal = Math.max(
-      currentState.todayStepCount,
-      todayStepsAtStartRef.current + currentState.stepCount,
+      snapshot.todayStepCount,
+      todayStepsAtStartRef.current + snapshot.stepCount,
     );
 
-    if (stepsTotal <= 0 && currentState.distanceKm <= 0 && currentState.elapsedSeconds <= 0) {
-      return;
+    if (stepsTotal <= 0 && snapshot.distanceKm <= 0 && snapshot.elapsedSeconds <= 0) {
+      return null;
     }
 
-    if (lastSyncedDateRef.current === date && stepsTotal <= lastSyncedStepsRef.current) {
+    const hasExplicitSyncReward = extras?.syncPointsAwarded !== undefined;
+    if (
+      !hasExplicitSyncReward &&
+      lastSyncedDateRef.current === date &&
+      stepsTotal <= lastSyncedStepsRef.current
+    ) {
       setSyncState("synced");
       setSyncMessage(`Workout ${reason === "pause" ? "paused" : "completed"} and already synced.`);
-      return;
+      return null;
     }
 
     try {
@@ -133,11 +250,14 @@ function useLiveWorkout(userId?: string | null) {
       setSyncMessage(reason === "pause" ? "Syncing paused workout..." : "Syncing completed workout...");
 
       const result = await syncFitnessActivity(db, {
+        cooldownEndsAt: extras?.cooldownEndsAt,
         date,
-        distanceMeters: currentState.distanceKm * 1000,
+        distanceMeters: snapshot.distanceKm * 1000,
+        sessionIncrement: extras?.sessionIncrement,
         stepsTotal,
+        syncPointsAwarded: extras?.syncPointsAwarded,
         uid: userId,
-        workoutMinutes: Math.max(1, Math.round(currentState.elapsedSeconds / 60)),
+        workoutMinutes: Math.max(1, Math.round(snapshot.elapsedSeconds / 60)),
       });
 
       lastSyncedDateRef.current = date;
@@ -153,9 +273,13 @@ function useLiveWorkout(userId?: string | null) {
         ...current,
         todayStepCount: result.todaySteps,
       }));
-    } catch (error) {
-      setSyncState("idle");
+      setCooldownEndsAt(result.cooldownEndsAt);
+      setSessionsCompleted(result.workoutSessionsCompleted);
+      return result;
+    } catch {
+      setSyncState("error");
       setSyncMessage("Workout saved locally. Sync will retry later.");
+      return null;
     }
   };
 
@@ -177,6 +301,18 @@ function useLiveWorkout(userId?: string | null) {
   };
 
   const startLiveTracking = async () => {
+    const cooldownRemainingMs = getCooldownRemainingMs(cooldownEndsAt, Date.now());
+
+    if (sessionsCompletedRef.current >= MAX_DAILY_SESSION_CAP) {
+      setSyncMessage("Daily Sync workout limit reached. Come back tomorrow.");
+      return;
+    }
+
+    if (cooldownRemainingMs > 0) {
+      setSyncMessage("Workout cooling down. Use Quick Refill or wait for the timer to end.");
+      return;
+    }
+
     const granted = permissionState === "granted" || (await requestPermissions());
     if (!granted) {
       return;
@@ -189,6 +325,7 @@ function useLiveWorkout(userId?: string | null) {
       todayStepCount: Math.max(current.todayStepCount, todaySteps),
     }));
     setSyncMessage(userId ? "Workout running..." : "Workout running. Sign in to sync rewards.");
+    completionLockRef.current = false;
 
     startTimestampRef.current = Date.now();
 
@@ -204,14 +341,17 @@ function useLiveWorkout(userId?: string | null) {
 
         if (nextElapsed >= TOTAL_WORKOUT_SECONDS) {
           stopLiveTracking();
+          startTimestampRef.current = null;
           elapsedOffsetSecondsRef.current = TOTAL_WORKOUT_SECONDS;
-          void syncCurrentActivity("complete");
-          return {
+          const completedSnapshot: LiveWorkoutState = {
             ...current,
             elapsedSeconds: TOTAL_WORKOUT_SECONDS,
             isRunning: false,
             speedKmh: 0,
           };
+          stateRef.current = completedSnapshot;
+          void finishWorkout("complete", completedSnapshot);
+          return completedSnapshot;
         }
 
         return {
@@ -263,16 +403,106 @@ function useLiveWorkout(userId?: string | null) {
     }
   };
 
+  const finishWorkout = async (
+    reason: "complete" | "finish-now",
+    snapshotOverride?: LiveWorkoutState,
+  ) => {
+    if (completionLockRef.current) {
+      return;
+    }
+
+    const currentState = snapshotOverride ?? stateRef.current;
+    if (currentState.elapsedSeconds <= 0 && currentState.distanceKm <= 0 && currentState.stepCount <= 0) {
+      setSyncMessage("Start a workout first.");
+      return;
+    }
+
+    completionLockRef.current = true;
+    stopLiveTracking();
+    startTimestampRef.current = null;
+
+    const finalElapsedSeconds =
+      reason === "complete"
+        ? TOTAL_WORKOUT_SECONDS
+        : clamp(Math.round(currentState.elapsedSeconds), 1, TOTAL_WORKOUT_SECONDS);
+
+    elapsedOffsetSecondsRef.current = finalElapsedSeconds;
+
+    const finalSnapshot: LiveWorkoutState = {
+      ...currentState,
+      elapsedSeconds: finalElapsedSeconds,
+      isRunning: false,
+      speedKmh: 0,
+    };
+
+    stateRef.current = finalSnapshot;
+    setState(finalSnapshot);
+
+    const rewards = calculateRewards(
+      finalSnapshot.distanceKm,
+      finalSnapshot.elapsedSeconds,
+      finalSnapshot.stepCount,
+      unitPreference,
+    );
+    const nextSessionsCompleted = Math.min(MAX_DAILY_SESSION_CAP, sessionsCompletedRef.current + 1);
+    const nextCooldownEndsAt =
+      nextSessionsCompleted >= MAX_DAILY_SESSION_CAP
+        ? null
+        : new Date(Date.now() + WORKOUT_COOLDOWN_MS).toISOString();
+
+    try {
+      const result = await syncCurrentActivity(finalSnapshot, "complete", {
+        cooldownEndsAt: nextCooldownEndsAt,
+        sessionIncrement: 1,
+        syncPointsAwarded: rewards.syncPointsReward,
+      });
+
+      const resolvedSessionsCompleted =
+        result?.workoutSessionsCompleted ??
+        nextSessionsCompleted;
+      const resolvedCooldownEndsAt =
+        result?.cooldownEndsAt ??
+        nextCooldownEndsAt;
+
+      setSessionsCompleted(resolvedSessionsCompleted);
+      setCooldownEndsAt(resolvedCooldownEndsAt);
+      sessionsCompletedRef.current = resolvedSessionsCompleted;
+      setCompletionResult({
+        ...rewards,
+        cooldownEndsAt: resolvedCooldownEndsAt,
+        distanceKm: finalSnapshot.distanceKm,
+        displayDistance: getDisplayDistance(finalSnapshot.distanceKm, unitPreference),
+        displayUnit: unitPreference,
+        id: `${Date.now()}`,
+        sessionsCompleted: resolvedSessionsCompleted,
+        sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - resolvedSessionsCompleted),
+        totalSyncPoints: result?.totalSyncPoints ?? null,
+        workoutMinutes: Math.max(1, Math.round(finalSnapshot.elapsedSeconds / 60)),
+      });
+      setSyncMessage("Workout complete. Rewards ready.");
+    } finally {
+      completionLockRef.current = false;
+    }
+  };
+
   const toggleRunning = async () => {
     if (state.isRunning) {
       stopLiveTracking();
+      startTimestampRef.current = null;
       elapsedOffsetSecondsRef.current = state.elapsedSeconds;
+      const pausedSnapshot = {
+        ...stateRef.current,
+        elapsedSeconds: state.elapsedSeconds,
+        isRunning: false,
+        speedKmh: 0,
+      };
+      stateRef.current = pausedSnapshot;
       setState((current) => ({
         ...current,
         isRunning: false,
         speedKmh: 0,
       }));
-      void syncCurrentActivity("pause");
+      void syncCurrentActivity(pausedSnapshot, "pause");
       return;
     }
 
@@ -283,6 +513,7 @@ function useLiveWorkout(userId?: string | null) {
     stopLiveTracking();
     startTimestampRef.current = null;
     elapsedOffsetSecondsRef.current = 0;
+    completionLockRef.current = false;
     setState({
       distanceKm: 0,
       elapsedSeconds: 0,
@@ -291,6 +522,7 @@ function useLiveWorkout(userId?: string | null) {
       stepCount: 0,
       todayStepCount: 0,
     });
+    setCompletionResult(null);
     setSyncState("idle");
     setSyncMessage(userId ? "Workout reset." : "Workout reset. Sign in to sync rewards.");
     setLastSyncedAt(null);
@@ -299,30 +531,70 @@ function useLiveWorkout(userId?: string | null) {
     lastSyncedStepsRef.current = 0;
   };
 
+  const unlockQuickRefill = async () => {
+    if (sessionsCompletedRef.current >= MAX_DAILY_SESSION_CAP) {
+      setSyncMessage("Daily Sync workout limit reached. Come back tomorrow.");
+      return;
+    }
+
+    if (getCooldownRemainingMs(cooldownEndsAt, Date.now()) <= 0) {
+      setSyncMessage("No cooldown is active right now.");
+      return;
+    }
+
+    if (!userId) {
+      setCooldownEndsAt(null);
+      setSyncMessage("Quick Refill used. Your next workout is ready now.");
+      return;
+    }
+
+    try {
+      const nextState = await unlockDailyWorkoutRefill(db, userId, getLocalDateKey());
+      setCooldownEndsAt(nextState.cooldownEndsAt);
+      setSessionsCompleted(nextState.sessionsCompleted);
+      sessionsCompletedRef.current = nextState.sessionsCompleted;
+      setSyncMessage("Quick Refill used. Your next workout is ready now.");
+    } catch {
+      setSyncMessage("Quick Refill failed. Please try again.");
+    }
+  };
+
   const progress = clamp(state.elapsedSeconds / TOTAL_WORKOUT_SECONDS, 0, 1);
   const remainingSeconds = Math.max(TOTAL_WORKOUT_SECONDS - state.elapsedSeconds, 0);
   const remainingMinutes = Math.ceil(remainingSeconds / 60);
-  const stepBonus = Math.floor(state.stepCount / 25);
-  const syncPointsReward = Math.min(MAX_SYNC_POINTS, Math.round(progress * MAX_SYNC_POINTS) + stepBonus);
+  const cooldownRemainingMs = getCooldownRemainingMs(cooldownEndsAt, now);
+  const cooldownRemainingMinutes = Math.ceil(cooldownRemainingMs / 60000);
+  const rewards = calculateRewards(state.distanceKm, state.elapsedSeconds, state.stepCount, unitPreference);
 
   return {
     ...state,
-    expReward: Math.round(state.distanceKm * BASE_EXP_PER_KM),
-    holosReward: Math.round(state.distanceKm * BASE_HOLOS_PER_KM),
+    canQuickRefill: cooldownRemainingMs > 0 && sessionsCompleted < MAX_DAILY_SESSION_CAP,
+    clearCompletionResult: () => setCompletionResult(null),
+    completionResult,
+    cooldownEndsAt,
+    cooldownRemainingMinutes,
+    expReward: rewards.expReward,
+    finishWorkoutNow: () => void finishWorkout("finish-now"),
+    holosReward: rewards.holosReward,
     liveSpeedKmh: state.isRunning ? state.speedKmh : 0,
+    isCooldownActive: cooldownRemainingMs > 0,
     lastSyncedAt,
     permissionState,
     progress,
     remainingMinutes,
-    stepCount: state.stepCount,
-    syncPointsReward,
+    resetWorkout,
+    sessionsCompleted,
+    sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - sessionsCompleted),
     syncMessage,
+    syncPointsReward: rewards.syncPointsReward,
     syncState,
     toggleRunning,
-    resetWorkout,
+    totalWorkoutMinutes: DAILY_TOTAL_MINUTES,
+    totalWorkoutSeconds: TOTAL_WORKOUT_SECONDS,
+    unlockQuickRefill,
   };
 }
 
-export function useWorkout(userId?: string | null) {
-  return useLiveWorkout(userId);
+export function useWorkout(userId?: string | null, unitPreference: DistanceUnit = "km") {
+  return useLiveWorkout(userId, unitPreference);
 }

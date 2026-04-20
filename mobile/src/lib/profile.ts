@@ -24,6 +24,7 @@ const DEFAULT_USER_PROFILE = {
   inventory: {},
   todaySteps: 0,
   fitnessSource: "mobile",
+  syncDistanceUnit: "km" as const,
 };
 
 type FirestoreUserDocument = {
@@ -61,6 +62,7 @@ type FirestoreUserDocument = {
   lastStepSync?: { toDate?: () => Date };
   lastFitnessSyncAt?: { toDate?: () => Date };
   fitnessSource?: string;
+  syncDistanceUnit?: "km" | "mi";
 };
 
 function toIsoString(value?: { toDate?: () => Date } | string) {
@@ -119,6 +121,7 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     lastStepSync: toIsoString(data.lastStepSync),
     lastFitnessSyncAt: toIsoString(data.lastFitnessSyncAt),
     fitnessSource: data.fitnessSource ?? DEFAULT_USER_PROFILE.fitnessSource,
+    syncDistanceUnit: data.syncDistanceUnit ?? DEFAULT_USER_PROFILE.syncDistanceUnit,
   };
 }
 
@@ -159,6 +162,7 @@ export function subscribeToUserProfile(
 type UserProfileUpdates = Partial<{
   dailyEnergy: number;
   holosTokens: number;
+  syncPoints: number;
   gachaTickets: number;
   arena_passes: number;
   exp_boosters: number;
@@ -174,6 +178,7 @@ type UserProfileUpdates = Partial<{
   arena_deck_template_ids: string[];
   holobots: UserHolobot[];
   rewardSystem: Record<string, unknown>;
+  syncDistanceUnit: "km" | "mi";
 }>;
 
 export async function updateUserProfile(userId: string, updates: UserProfileUpdates) {
@@ -182,6 +187,7 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
 
   if (updates.dailyEnergy !== undefined) firestoreUpdates.dailyEnergy = updates.dailyEnergy;
   if (updates.holosTokens !== undefined) firestoreUpdates.holosTokens = updates.holosTokens;
+  if (updates.syncPoints !== undefined) firestoreUpdates.syncPoints = updates.syncPoints;
   if (updates.gachaTickets !== undefined) firestoreUpdates.gachaTickets = updates.gachaTickets;
   if (updates.arena_passes !== undefined) firestoreUpdates.arenaPassses = updates.arena_passes;
   if (updates.exp_boosters !== undefined) firestoreUpdates.expBoosters = updates.exp_boosters;
@@ -199,6 +205,7 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   }
   if (updates.holobots !== undefined) firestoreUpdates.holobots = updates.holobots;
   if (updates.rewardSystem !== undefined) firestoreUpdates.rewardSystem = updates.rewardSystem;
+  if (updates.syncDistanceUnit !== undefined) firestoreUpdates.syncDistanceUnit = updates.syncDistanceUnit;
 
   await updateDoc(userRef, firestoreUpdates as any);
 }

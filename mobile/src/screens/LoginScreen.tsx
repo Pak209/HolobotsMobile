@@ -1,8 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,26 +11,85 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 
 export function LoginScreen() {
-  const { loading, login } = useAuth();
+  const {
+    faceIdAvailable,
+    faceIdEnabled,
+    loading,
+    login,
+    rememberedEmail,
+    rememberMeEnabled,
+    sessionLocked,
+    unlockWithFaceId,
+  } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+  const [useFaceId, setUseFaceId] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEmail(rememberedEmail);
+  }, [rememberedEmail]);
+
+  useEffect(() => {
+    setRememberMe(rememberMeEnabled);
+  }, [rememberMeEnabled]);
+
+  useEffect(() => {
+    setUseFaceId(faceIdEnabled);
+  }, [faceIdEnabled]);
 
   const handleLogin = async () => {
     setError(null);
 
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, {
+        faceId: useFaceId,
+        rememberMe,
+      });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to sign in right now.");
     }
   };
 
+  if (sessionLocked) {
+    return (
+      <View style={styles.page}>
+        <View style={styles.panel}>
+          <Text style={styles.eyebrow}>HOLOBOTS MOBILE</Text>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.copy}>
+            Unlock with Face ID to jump back into your remembered session.
+          </Text>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            accessibilityLabel="Unlock with Face ID"
+            accessibilityRole="button"
+            disabled={loading}
+            onPress={async () => {
+              setError(null);
+              const unlocked = await unlockWithFaceId();
+              if (!unlocked) {
+                setError("Face ID was cancelled or unavailable.");
+              }
+            }}
+            style={({ pressed }) => [
+              styles.button,
+              pressed ? styles.buttonPressed : null,
+              loading ? styles.buttonDisabled : null,
+            ]}
+          >
+            {loading ? <ActivityIndicator color="#050606" /> : <Text style={styles.buttonText}>UNLOCK WITH FACE ID</Text>}
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.page}
-    >
+    <View style={styles.page}>
       <View style={styles.panel}>
         <Text style={styles.eyebrow}>HOLOBOTS MOBILE</Text>
         <Text style={styles.title}>Sign In</Text>
@@ -67,6 +124,39 @@ export function LoginScreen() {
           />
         </View>
 
+        <View style={styles.optionRow}>
+          <Pressable
+            accessibilityLabel="Toggle remember me"
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: rememberMe }}
+            onPress={() => {
+              const nextValue = !rememberMe;
+              setRememberMe(nextValue);
+              if (!nextValue) {
+                setUseFaceId(false);
+              }
+            }}
+            style={styles.optionButton}
+          >
+            <View style={[styles.checkbox, rememberMe ? styles.checkboxActive : null]} />
+            <Text style={styles.optionText}>Remember Me</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel="Toggle Face ID"
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: useFaceId, disabled: !faceIdAvailable || !rememberMe }}
+            disabled={!faceIdAvailable || !rememberMe}
+            onPress={() => setUseFaceId((current) => !current)}
+            style={[styles.optionButton, !faceIdAvailable || !rememberMe ? styles.optionButtonDisabled : null]}
+          >
+            <View style={[styles.checkbox, useFaceId ? styles.checkboxActive : null]} />
+            <Text style={styles.optionText}>Face ID</Text>
+          </Pressable>
+        </View>
+
+        {!faceIdAvailable ? <Text style={styles.meta}>Face ID isn&apos;t available on this device yet.</Text> : null}
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable
@@ -87,16 +177,17 @@ export function LoginScreen() {
           )}
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: {
-    flex: 1,
     backgroundColor: "#f5c40d",
-    justifyContent: "center",
+    flex: 1,
+    justifyContent: "flex-start",
     paddingHorizontal: 24,
+    paddingTop: 132,
   },
   panel: {
     backgroundColor: "#060606",
@@ -121,8 +212,8 @@ const styles = StyleSheet.create({
     color: "#d7d0bd",
     fontSize: 15,
     lineHeight: 22,
-    marginTop: 10,
     marginBottom: 24,
+    marginTop: 10,
   },
   fieldGroup: {
     marginBottom: 16,
@@ -142,11 +233,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
+  checkbox: {
+    borderColor: "#66561f",
+    borderWidth: 1,
+    height: 16,
+    marginRight: 10,
+    width: 16,
+  },
+  checkboxActive: {
+    backgroundColor: "#f5c40d",
+    borderColor: "#f5c40d",
+  },
   error: {
     color: "#ff6a57",
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
+  },
+  meta: {
+    color: "#8f896d",
+    fontSize: 12,
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  optionButton: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  optionButtonDisabled: {
+    opacity: 0.45,
+  },
+  optionRow: {
+    flexDirection: "row",
+    gap: 18,
+    marginBottom: 16,
+  },
+  optionText: {
+    color: "#fef1e0",
+    fontSize: 13,
+    fontWeight: "700",
   },
   button: {
     alignItems: "center",

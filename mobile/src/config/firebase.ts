@@ -1,11 +1,13 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
+  initializeAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
   type User,
 } from "firebase/auth";
+import { getReactNativePersistence } from "@firebase/auth/dist/rn/index";
 import {
   collection,
   doc,
@@ -17,6 +19,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAJblChg4w8fC1pWkwNn_Bp1PmUTlHlPb8",
@@ -28,7 +31,15 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+export const auth = (() => {
+  try {
+    return initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage) as any,
+    });
+  } catch {
+    return getAuth(app);
+  }
+})();
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
 

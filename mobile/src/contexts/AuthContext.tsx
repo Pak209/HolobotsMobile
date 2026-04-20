@@ -3,9 +3,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as LocalAuthentication from "expo-local-authentication";
 
 import {
   auth,
@@ -22,30 +25,140 @@ type AuthContextValue = {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  rememberedEmail: string;
+  rememberMeEnabled: boolean;
+  faceIdEnabled: boolean;
+  faceIdAvailable: boolean;
+  sessionLocked: boolean;
   profileLoading: boolean;
   profileError: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, options?: { rememberMe?: boolean; faceId?: boolean }) => Promise<void>;
   logout: () => Promise<void>;
+  unlockWithFaceId: () => Promise<boolean>;
+  updateAuthPreferences: (updates: { rememberMe?: boolean; faceId?: boolean; rememberedEmail?: string }) => Promise<void>;
   updateProfile: (updates: Parameters<typeof updateUserProfile>[1]) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const AUTH_PREFS_KEY = "holobots.auth.preferences";
+
+type AuthPreferences = {
+  faceId: boolean;
+  rememberMe: boolean;
+  rememberedEmail: string;
+};
+
+const DEFAULT_AUTH_PREFERENCES: AuthPreferences = {
+  faceId: false,
+  rememberMe: true,
+  rememberedEmail: "",
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [authPreferences, setAuthPreferences] = useState<AuthPreferences>(DEFAULT_AUTH_PREFERENCES);
+  const [faceIdAvailable, setFaceIdAvailable] = useState(false);
+  const [sessionLocked, setSessionLocked] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const manualLoginRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+
+    void AsyncStorage.getItem(AUTH_PREFS_KEY)
+      .then((storedValue) => {
+        if (cancelled) return;
+
+        if (!storedValue) {
+          setAuthPreferences(DEFAULT_AUTH_PREFERENCES);
+          return;
+        }
+
+        const parsed = JSON.parse(storedValue) as Partial<AuthPreferences>;
+        setAuthPreferences({
+          faceId: Boolean(parsed.faceId),
+          rememberMe: parsed.rememberMe ?? DEFAULT_AUTH_PREFERENCES.rememberMe,
+          rememberedEmail: parsed.rememberedEmail ?? "",
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAuthPreferences(DEFAULT_AUTH_PREFERENCES);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setPreferencesLoaded(true);
+      });
+
+    void Promise.all([
+      LocalAuthentication.hasHardwareAsync(),
+      LocalAuthentication.isEnrolledAsync(),
+      LocalAuthentication.supportedAuthenticationTypesAsync(),
+    ])
+      .then(([hasHardware, isEnrolled, supportedTypes]) => {
+        if (cancelled) return;
+        setFaceIdAvailable(
+          hasHardware &&
+            isEnrolled &&
+            supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFaceIdAvailable(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const persistAuthPreferences = async (nextPreferences: AuthPreferences) => {
+    setAuthPreferences(nextPreferences);
+    await AsyncStorage.setItem(AUTH_PREFS_KEY, JSON.stringify(nextPreferences));
+  };
+
+  useEffect(() => {
+    if (!preferencesLoaded) {
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      if (!nextUser) {
+        setUser(null);
+        setSessionLocked(false);
+        setLoading(false);
+        return;
+      }
+
+      if (manualLoginRef.current) {
+        manualLoginRef.current = false;
+        setUser(nextUser);
+        setSessionLocked(false);
+        setLoading(false);
+        return;
+      }
+
+      if (!authPreferences.rememberMe) {
+        void signOut(auth).finally(() => {
+          setUser(null);
+          setSessionLocked(false);
+          setLoading(false);
+        });
+        return;
+      }
+
       setUser(nextUser);
+      setSessionLocked(authPreferences.faceId && faceIdAvailable);
       setLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [authPreferences.faceId, authPreferences.rememberMe, faceIdAvailable, preferencesLoaded]);
 
   useEffect(() => {
     if (!user) {
@@ -98,13 +211,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       loading,
+      rememberedEmail: authPreferences.rememberedEmail,
+      rememberMeEnabled: authPreferences.rememberMe,
+      faceIdEnabled: authPreferences.faceId,
+      faceIdAvailable,
+      sessionLocked,
       profileLoading,
       profileError,
-      login: async (email, password) => {
+      login: async (email, password, options) => {
+        const nextPreferences: AuthPreferences = {
+          faceId: Boolean(options?.rememberMe ?? authPreferences.rememberMe) && Boolean(options?.faceId ?? authPreferences.faceId),
+          rememberMe: options?.rememberMe ?? authPreferences.rememberMe,
+          rememberedEmail: (options?.rememberMe ?? authPreferences.rememberMe) ? email : "",
+        };
+
+        await persistAuthPreferences(nextPreferences);
+        manualLoginRef.current = true;
         await signInWithEmailAndPassword(auth, email, password);
       },
       logout: async () => {
+        setSessionLocked(false);
         await signOut(auth);
+      },
+      unlockWithFaceId: async () => {
+        if (!faceIdAvailable) {
+          return false;
+        }
+
+        const result = await LocalAuthentication.authenticateAsync({
+          cancelLabel: "Cancel",
+          promptMessage: "Unlock Holobots",
+        });
+
+        if (result.success) {
+          setSessionLocked(false);
+          return true;
+        }
+
+        return false;
+      },
+      updateAuthPreferences: async (updates) => {
+        const nextRememberMe = updates.rememberMe ?? authPreferences.rememberMe;
+        const nextPreferences: AuthPreferences = {
+          faceId: nextRememberMe ? (updates.faceId ?? authPreferences.faceId) : false,
+          rememberMe: nextRememberMe,
+          rememberedEmail: updates.rememberedEmail ?? (nextRememberMe ? authPreferences.rememberedEmail : ""),
+        };
+
+        await persistAuthPreferences(nextPreferences);
       },
       updateProfile: async (updates) => {
         if (!user) {
@@ -114,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateUserProfile(user.uid, updates);
       },
     }),
-    [user, profile, loading, profileLoading, profileError],
+    [authPreferences.faceId, authPreferences.rememberMe, authPreferences.rememberedEmail, faceIdAvailable, loading, profile, profileError, profileLoading, sessionLocked, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

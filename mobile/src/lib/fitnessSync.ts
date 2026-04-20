@@ -1,25 +1,49 @@
 import {
   doc,
+  getDoc,
   runTransaction,
   serverTimestamp,
   type Firestore,
 } from "firebase/firestore";
 
 const STEPS_PER_SYNC_POINT = 1000;
+const DAILY_WORKOUT_CAP = 4;
 
 type SyncFitnessActivityRequest = {
+  cooldownEndsAt?: string | null;
   date: string;
   distanceMeters?: number;
+  sessionIncrement?: number;
   stepsTotal: number;
+  syncPointsAwarded?: number;
   uid: string;
   workoutMinutes?: number;
 };
 
 type SyncFitnessActivityResponse = {
   awardedDelta: number;
+  cooldownEndsAt: string | null;
   todaySteps: number;
   totalSyncPoints: number;
+  workoutSessionsCompleted: number;
 };
+
+export type DailyWorkoutState = {
+  cooldownEndsAt: string | null;
+  sessionsCompleted: number;
+};
+
+function toIsoString(value?: { toDate?: () => Date } | string | null) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return value.toDate?.()?.toISOString() ?? null;
+}
 
 function calculateAwardDelta(previousStepsSynced: number, incomingStepsTotal: number) {
   const safePrevious = Math.max(0, Math.floor(previousStepsSynced));
@@ -40,6 +64,56 @@ export function getLocalDateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+export async function getDailyWorkoutState(
+  db: Firestore,
+  uid: string,
+  date: string,
+): Promise<DailyWorkoutState> {
+  const dailyRef = doc(db, "users", uid, "fitness_daily", date);
+  const snapshot = await getDoc(dailyRef);
+  const data = snapshot.data() ?? {};
+
+  return {
+    cooldownEndsAt: toIsoString(data.workoutCooldownEndsAt),
+    sessionsCompleted: Math.min(
+      DAILY_WORKOUT_CAP,
+      Math.max(0, Number(data.workoutSessionsCompleted ?? 0)),
+    ),
+  };
+}
+
+export async function unlockDailyWorkoutRefill(
+  db: Firestore,
+  uid: string,
+  date: string,
+): Promise<DailyWorkoutState> {
+  const dailyRef = doc(db, "users", uid, "fitness_daily", date);
+
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(dailyRef);
+    const data = snapshot.data() ?? {};
+
+    const nextState = {
+      cooldownEndsAt: null,
+      sessionsCompleted: Math.min(
+        DAILY_WORKOUT_CAP,
+        Math.max(0, Number(data.workoutSessionsCompleted ?? 0)),
+      ),
+    };
+
+    transaction.set(
+      dailyRef,
+      {
+        lastSampleAt: serverTimestamp(),
+        workoutCooldownEndsAt: null,
+      },
+      { merge: true },
+    );
+
+    return nextState;
+  });
+}
+
 export async function syncFitnessActivity(
   db: Firestore,
   request: SyncFitnessActivityRequest,
@@ -58,9 +132,18 @@ export async function syncFitnessActivity(
 
     const previousStepsSynced = Number(dailyData.stepsSynced ?? 0);
     const currentSyncPoints = Number(userData.syncPoints ?? 0);
-    const { awardedDelta } = calculateAwardDelta(previousStepsSynced, request.stepsTotal);
+    const stepAward = calculateAwardDelta(previousStepsSynced, request.stepsTotal);
+    const awardedDelta = Math.max(
+      0,
+      Math.floor(request.syncPointsAwarded ?? stepAward.awardedDelta),
+    );
 
     const nextSyncPoints = currentSyncPoints + awardedDelta;
+    const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted ?? 0));
+    const nextSessionsCompleted = Math.min(
+      DAILY_WORKOUT_CAP,
+      previousSessionsCompleted + Math.max(0, Math.floor(request.sessionIncrement ?? 0)),
+    );
 
     transaction.set(
       dailyRef,
@@ -72,7 +155,9 @@ export async function syncFitnessActivity(
         stepsSynced: Math.max(previousStepsSynced, Math.floor(request.stepsTotal)),
         stepsTotal: Math.max(0, Math.floor(request.stepsTotal)),
         syncPointsAwarded: Number(dailyData.syncPointsAwarded ?? 0) + awardedDelta,
+        workoutCooldownEndsAt: request.cooldownEndsAt ?? null,
         workoutMinutes: Math.max(0, Math.round(request.workoutMinutes ?? 0)),
+        workoutSessionsCompleted: nextSessionsCompleted,
       },
       { merge: true },
     );
@@ -91,8 +176,10 @@ export async function syncFitnessActivity(
 
     return {
       awardedDelta,
+      cooldownEndsAt: request.cooldownEndsAt ?? null,
       todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
       totalSyncPoints: nextSyncPoints,
+      workoutSessionsCompleted: nextSessionsCompleted,
     };
   });
 }

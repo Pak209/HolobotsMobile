@@ -55,4 +55,5 @@ export type UserProfile = {
   lastStepSync?: string;
   lastFitnessSyncAt?: string;
   fitnessSource?: string;
+  syncDistanceUnit?: "km" | "mi";
 };
