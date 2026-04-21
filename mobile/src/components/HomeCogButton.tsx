@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
+import { DashboardSettingsModal } from "@/components/DashboardSettingsModal";
 import { Svg, Path } from "@/components/FigmaSvg";
 import { UserStatsModal } from "@/components/UserStatsModal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,12 +11,19 @@ import type { RootTabs } from "../../App";
 
 type HomeCogButtonProps = {
   onOpenPvp?: () => void;
+  showSettings?: boolean;
+  showStats?: boolean;
 };
 
-export function HomeCogButton({ onOpenPvp }: HomeCogButtonProps) {
+export function HomeCogButton({
+  onOpenPvp,
+  showSettings = true,
+  showStats = true,
+}: HomeCogButtonProps) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
-  const { logout, profile } = useAuth();
+  const { profile } = useAuth();
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isDashboardSettingsOpen, setIsDashboardSettingsOpen] = useState(false);
 
   return (
     <>
@@ -24,7 +32,6 @@ export function HomeCogButton({ onOpenPvp }: HomeCogButtonProps) {
           accessibilityRole="button"
           accessibilityLabel="Go to home dashboard"
           onPress={() => navigation.navigate("Home")}
-          onLongPress={logout}
           style={styles.button}
         >
           <View style={styles.inner}>
@@ -41,25 +48,42 @@ export function HomeCogButton({ onOpenPvp }: HomeCogButtonProps) {
             </Svg>
           </View>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open pilot stats"
-          onPress={() => setIsStatsOpen(true)}
-          style={styles.button}
-        >
-          <View style={styles.inner}>
-            <Svg width="30" height="30" viewBox="0 0 24 24">
-              <Path
-                d="M17 17v-4l-5 3l-5-3v4l5 3zm0-9V4l-5 3l-5-3v4l5 3z"
-                stroke="#f5c40d"
-                strokeWidth={2}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
-        </Pressable>
+        {showStats ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open pilot stats"
+            onPress={() => setIsStatsOpen(true)}
+            style={styles.button}
+          >
+            <View style={styles.inner}>
+              <Svg width="30" height="30" viewBox="0 0 24 24">
+                <Path
+                  d="M17 17v-4l-5 3l-5-3v4l5 3zm0-9V4l-5 3l-5-3v4l5 3z"
+                  stroke="#f5c40d"
+                  strokeWidth={2}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </View>
+          </Pressable>
+        ) : null}
+        {showSettings ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open dashboard settings"
+            onPress={() => setIsDashboardSettingsOpen(true)}
+            style={styles.button}
+          >
+            <View style={styles.inner}>
+              <Svg width="30" height="30" viewBox="0 0 24 24">
+                <Path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0-6 0" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </Pressable>
+        ) : null}
         {onOpenPvp ? (
           <Pressable
             accessibilityRole="button"
@@ -75,19 +99,27 @@ export function HomeCogButton({ onOpenPvp }: HomeCogButtonProps) {
           </Pressable>
         ) : null}
       </View>
-      <UserStatsModal
-        onClose={() => setIsStatsOpen(false)}
-        onOpenGacha={() => {
-          setIsStatsOpen(false);
-          navigation.navigate("Gacha");
-        }}
-        onOpenLeaderboard={() => {
-          setIsStatsOpen(false);
-          navigation.navigate("Leaderboard");
-        }}
-        profile={profile}
-        visible={isStatsOpen}
-      />
+      {showStats ? (
+        <UserStatsModal
+          onClose={() => setIsStatsOpen(false)}
+          onOpenGacha={() => {
+            setIsStatsOpen(false);
+            navigation.navigate("Gacha");
+          }}
+          onOpenLeaderboard={() => {
+            setIsStatsOpen(false);
+            navigation.navigate("Leaderboard");
+          }}
+          profile={profile}
+          visible={isStatsOpen}
+        />
+      ) : null}
+      {showSettings ? (
+        <DashboardSettingsModal
+          onClose={() => setIsDashboardSettingsOpen(false)}
+          visible={isDashboardSettingsOpen}
+        />
+      ) : null}
     </>
   );
 }

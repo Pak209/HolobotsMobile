@@ -14,6 +14,8 @@ import {
   auth,
   createUserWithEmailAndPassword,
   db,
+  deleteDoc,
+  deleteUser,
   doc,
   onAuthStateChanged,
   serverTimestamp,
@@ -52,6 +54,7 @@ type AuthContextValue = {
     },
   ) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   unlockWithFaceId: () => Promise<boolean>;
   updateAuthPreferences: (updates: { rememberMe?: boolean; faceId?: boolean; rememberedEmail?: string }) => Promise<void>;
   updateProfile: (updates: Parameters<typeof updateUserProfile>[1]) => Promise<void>;
@@ -353,6 +356,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSessionLocked(false);
         setLoading(true);
         await signOut(auth);
+      },
+      deleteAccount: async () => {
+        if (!user) {
+          throw new Error("You must be signed in to delete your account.");
+        }
+
+        setSessionLocked(false);
+        setLoading(true);
+
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error("Your session expired. Please sign in again before deleting your account.");
+        }
+
+        await deleteUser(currentUser);
+        await deleteDoc(doc(db, "users", user.uid)).catch(() => undefined);
+        await AsyncStorage.removeItem(AUTH_PREFS_KEY).catch(() => undefined);
+        setAuthPreferences(DEFAULT_AUTH_PREFERENCES);
+        setProfile(null);
       },
       unlockWithFaceId: async () => {
         if (!faceIdAvailable) {

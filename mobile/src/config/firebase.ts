@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   getAuth,
   initializeAuth,
   onAuthStateChanged,
@@ -11,6 +12,7 @@ import {
 import { getReactNativePersistence } from "@firebase/auth/dist/rn/index";
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getFirestore,
@@ -49,6 +51,8 @@ export const functions = getFunctions(app);
 export {
   collection,
   createUserWithEmailAndPassword,
+  deleteDoc,
+  deleteUser,
   doc,
   getDoc,
   onAuthStateChanged,

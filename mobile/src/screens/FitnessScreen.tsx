@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image as RNImage, Modal, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import {
+  Image as RNImage,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text as RNText,
+  View,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
@@ -34,6 +41,15 @@ function formatDistanceLabel(unit: DistanceUnit) {
   return unit === "mi" ? "Miles" : "Kilometers";
 }
 
+function formatSyncBoostCopy(boostCount: number, unit: DistanceUnit) {
+  if (boostCount <= 0) {
+    return null;
+  }
+
+  const unitLabel = unit === "mi" ? (boostCount === 1 ? "MILE" : "MILES") : (boostCount === 1 ? "KM" : "KM");
+  return `+${boostCount * 100} SP BOOST (${boostCount} ${unitLabel})`;
+}
+
 function formatCooldownCopy(remainingMinutes: number, sessionsRemaining: number) {
   if (sessionsRemaining <= 0) {
     return "Daily Sync limit reached. More workouts reset tomorrow.";
@@ -48,7 +64,7 @@ function formatCooldownCopy(remainingMinutes: number, sessionsRemaining: number)
 
 export function FitnessScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
-  const { user, profile, logout, updateProfile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -88,6 +104,7 @@ export function FitnessScreen() {
   const rewardSessionsCopy = completionResult
     ? `${completionResult.sessionsCompleted}/4 workouts completed today`
     : "";
+  const syncBoostCopy = formatSyncBoostCopy(workout.syncPointBoostCount, distanceUnit);
   const goLabel = workout.isRunning
     ? "PAUSE"
     : workout.elapsedSeconds > 0
@@ -268,8 +285,25 @@ export function FitnessScreen() {
           <Text x={729} y={1608} fill="#e9dfc5" fontSize={37.004} fontWeight="700">Movement speed</Text>
 
           <Image href={fitnessAssets.distanceFill} x={92} y={1915} width={1639} height={385} preserveAspectRatio="none" mask="url(#distance-mask)" />
+          {workout.syncPointBoostCount > 0 ? (
+            <G transform="translate(610 2020)">
+              <Path
+                d="M9 12H5.414a1 1 0 0 1-.707-1.707l6.586-6.586a1 1 0 0 1 1.414 0l6.586 6.586A1 1 0 0 1 18.586 12H15v3H9zm0 9h6m-6-3h6"
+                stroke="#f0bf14"
+                strokeWidth={2.6}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </G>
+          ) : null}
           <Text x={788} y={2074.31} fill="#e9dfc5" fontSize={121.544}>{displayDistance.toFixed(3)}</Text>
           <Text x={793} y={2180.08} fill="#e9dfc5" fontSize={45.702} fontWeight="500">{formatDistanceLabel(distanceUnit)}</Text>
+          {syncBoostCopy ? (
+            <Text x={794} y={2232} fill="#f0bf14" fontSize={34} fontWeight="700">
+              {syncBoostCopy}
+            </Text>
+          ) : null}
 
           <Image href={fitnessAssets.bottomElement} x={0} y={2208} width={1800} height={992} preserveAspectRatio="none" />
           <Image href={fitnessAssets.rewardSync} x={244} y={2429} width={116} height={131} preserveAspectRatio="none" />
@@ -381,16 +415,6 @@ export function FitnessScreen() {
                   </Pressable>
                 </View>
               </View>
-
-              <Pressable
-                style={styles.signOutButton}
-                onPress={() => {
-                  setIsSettingsOpen(false);
-                  void logout();
-                }}
-              >
-                <RNText style={styles.signOutText}>SIGN OUT</RNText>
-              </Pressable>
 
               <Pressable style={styles.closeSettingsButton} onPress={() => setIsSettingsOpen(false)}>
                 <RNText style={styles.closeSettingsText}>CLOSE</RNText>
@@ -506,21 +530,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "900",
     marginTop: 8,
-  },
-  signOutButton: {
-    alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#ef4444",
-    borderWidth: 1,
-    justifyContent: "center",
-    marginTop: 16,
-    minHeight: 48,
-  },
-  signOutText: {
-    color: "#fef1e0",
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: 1,
   },
   toggleButton: {
     alignItems: "center",

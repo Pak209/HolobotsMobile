@@ -353,7 +353,7 @@ export function MarketplaceScreen() {
   return (
     <>
       <View style={styles.page}>
-        <HomeCogButton />
+        <HomeCogButton showSettings={false} />
         <View style={styles.header}>
           <Text style={styles.headerEyebrow}>SHOP</Text>
           <Text style={styles.headerTitle}>Marketplace</Text>

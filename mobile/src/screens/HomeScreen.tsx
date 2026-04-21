@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
+import { DashboardSettingsModal } from "@/components/DashboardSettingsModal";
 import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
@@ -18,6 +19,13 @@ const ATTRIBUTE_CENTER_X = 415;
 const ATTRIBUTE_CENTER_Y = 1055;
 const ATTRIBUTE_RADIUS = 252;
 const ATTRIBUTE_LABEL_RADIUS = 330;
+const HOME_INFO_CARD_Y = 1638;
+const HOME_CHANGE_BAR_Y = 1878;
+const DASHBOARD_SLOT_Y = 2216;
+const DASHBOARD_SLOT_WIDTH = 248;
+const DASHBOARD_SLOT_HEIGHT = 260;
+const DASHBOARD_SLOT_OVERLAY_WIDTH = 208;
+const DASHBOARD_SLOT_OVERLAY_HEIGHT = 200;
 type EquippedPartRecord = { id?: string; name?: string; rarity?: string; slot?: string };
 type DashboardSlot = "head" | "torso" | "arms" | "legs" | "core";
 
@@ -141,6 +149,7 @@ export function HomeScreen() {
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isDashboardSettingsOpen, setIsDashboardSettingsOpen] = useState(false);
   const [selectedPartSlot, setSelectedPartSlot] = useState<DashboardSlot | null>(null);
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
@@ -151,11 +160,11 @@ export function HomeScreen() {
     {};
   const dashboardParts = resolveDashboardParts(equippedParts);
   const abilitySlots = [
-    { part: dashboardParts[0], slot: "head", x: 78 },
+    { part: dashboardParts[0], slot: "head", x: 68 },
     { part: dashboardParts[1], slot: "torso", x: 338 },
-    { part: dashboardParts[2], slot: "arms", x: 598 },
-    { part: dashboardParts[3], slot: "legs", x: 858 },
-    { part: dashboardParts[4], slot: "core", x: 1118 },
+    { part: dashboardParts[2], slot: "arms", x: 608 },
+    { part: dashboardParts[3], slot: "legs", x: 878 },
+    { part: dashboardParts[4], slot: "core", x: 1148 },
   ] as const;
   const inventoryParts = useMemo(
     () =>
@@ -247,38 +256,38 @@ export function HomeScreen() {
           </G>
 
           <Path
-            d="M 110.2 1594.4 H 814.6 V 1825.5 L 699.7 1941.5 H 110.2 Z"
+            d={`M 110.2 ${HOME_INFO_CARD_Y} H 814.6 V ${HOME_INFO_CARD_Y + 231.1} L 699.7 ${HOME_INFO_CARD_Y + 347.1} H 110.2 Z`}
             fill="#050606"
           />
           <Image
             href={homeAssets.mechCardFill}
             x={110.2}
-            y={1594.38}
+            y={HOME_INFO_CARD_Y}
             width={704.418}
             height={347.163}
             preserveAspectRatio="none"
           />
-          <Text x={153} y={1662} fill="#ffffff" fontSize={49.915}>{selectedHolobot.name}</Text>
-          <Image href={homeAssets.expBarTotal} x={140.48} y={1771.99} width={460.193} height={22.202} preserveAspectRatio="none" />
-          <Image href={homeAssets.expBarProgress} x={140.48} y={1771.99} width={expProgressWidth} height={22.202} preserveAspectRatio="none" />
-          <Text x={153} y={1742} fill="#ffffff" fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
-          <Text x={141} y={1863.3} fill="#ffffff" fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
+          <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill="#ffffff" fontSize={49.915}>{selectedHolobot.name}</Text>
+          <Image href={homeAssets.expBarTotal} x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} preserveAspectRatio="none" />
+          <Image href={homeAssets.expBarProgress} x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} preserveAspectRatio="none" />
+          <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill="#ffffff" fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
+          <Text x={141} y={HOME_INFO_CARD_Y + 268.92} fill="#ffffff" fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
 
           <Path
-            d="M 932 1833.75 H 1677.5 L 1625.5 1946.25 H 815 Z"
+            d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
             fill="#050606"
           />
           <Image
             href={homeAssets.changeBar}
             x={815}
-            y={1833.75}
+            y={HOME_CHANGE_BAR_Y}
             width={862.5}
             height={112.5}
             preserveAspectRatio="none"
           />
-          <Image href={homeAssets.changeIconBack} x={1511} y={1755} width={168} height={159} preserveAspectRatio="none" />
-          <Image href={homeAssets.changeIconFront} x={1491} y={1735} width={218} height={211} preserveAspectRatio="none" />
-          <Text x={902} y={1896.25} fill="#e9dfc5" fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
+          <Image href={homeAssets.changeIconBack} x={1511} y={HOME_CHANGE_BAR_Y - 78.75} width={168} height={159} preserveAspectRatio="none" />
+          <Image href={homeAssets.changeIconFront} x={1491} y={HOME_CHANGE_BAR_Y - 98.75} width={218} height={211} preserveAspectRatio="none" />
+          <Text x={902} y={HOME_CHANGE_BAR_Y + 62.5} fill="#e9dfc5" fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
 
           {abilitySlots.map(({ part, x }, index) => {
             const background = index % 2 === 0 ? homeAssets.abilityChipBackground1 : homeAssets.abilityChipBackground3;
@@ -288,23 +297,23 @@ export function HomeScreen() {
                 key={`${part?.name || "empty"}:${index}`}
                 background={background}
                 x={x}
-                y={2168}
-                width={228}
-                height={240}
+                y={DASHBOARD_SLOT_Y}
+                width={DASHBOARD_SLOT_WIDTH}
+                height={DASHBOARD_SLOT_HEIGHT}
               />
             );
           })}
 
           <Image href={homeAssets.bottomBackground} x={0} y={2375} width={1800} height={857} preserveAspectRatio="none" />
           <Rect x={0} y={2942} width={1800} height={258} fill="#050606" />
-          <Image href={homeAssets.arenaIcon} x={-10} y={2638} width={432} height={392} preserveAspectRatio="xMidYMid meet" />
-          <Text x={224} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">ARENA</Text>
-          <Image href={homeAssets.inventoryIcon} x={437} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
-          <Text x={597} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">INVENTORY</Text>
-          <Image href={homeAssets.syncIcon} x={820} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
-          <Text x={970} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">SYNC</Text>
-          <Image href={homeAssets.marketplaceIcon} x={1193} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
-          <Text x={1343} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">MARKET</Text>
+          <Image href={homeAssets.arenaIcon} x={-50} y={2638} width={432} height={392} preserveAspectRatio="xMidYMid meet" />
+          <Text x={210} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">ARENA</Text>
+          <Image href={homeAssets.inventoryIcon} x={462} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
+          <Text x={622} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">INVENTORY</Text>
+          <Image href={homeAssets.syncIcon} x={858} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
+          <Text x={1008} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">SYNC</Text>
+          <Image href={homeAssets.marketplaceIcon} x={1248} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
+          <Text x={1398} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">MARKET</Text>
         </Svg>
 
         <Pressable
@@ -337,25 +346,40 @@ export function HomeScreen() {
           accessibilityLabel="Open arena portal"
           onPress={() => navigation.navigate("Arena")}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open pilot stats"
-          onPress={() => setIsStatsOpen(true)}
-          style={styles.statsButton}
-        >
-          <View style={styles.statsButtonInner}>
-            <Svg width="30" height="30" viewBox="0 0 24 24">
-              <Path
-                d="M17 17v-4l-5 3l-5-3v4l5 3zm0-9V4l-5 3l-5-3v4l5 3z"
-                stroke="#f5c40d"
-                strokeWidth={2}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
-        </Pressable>
+        <View style={styles.utilityStack}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open pilot stats"
+            onPress={() => setIsStatsOpen(true)}
+            style={styles.statsButton}
+          >
+            <View style={styles.statsButtonInner}>
+              <Svg width="30" height="30" viewBox="0 0 24 24">
+                <Path
+                  d="M17 17v-4l-5 3l-5-3v4l5 3zm0-9V4l-5 3l-5-3v4l5 3z"
+                  stroke="#f5c40d"
+                  strokeWidth={2}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open dashboard settings"
+            onPress={() => setIsDashboardSettingsOpen(true)}
+            style={styles.statsButton}
+          >
+            <View style={styles.statsButtonInner}>
+              <Svg width="30" height="30" viewBox="0 0 24 24">
+                <Path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0-6 0" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </Pressable>
+        </View>
         <View pointerEvents="none" style={styles.holobotPortrait}>
           <RNImage source={selectedHolobot.imageSource} style={styles.fillImage} resizeMode="contain" />
         </View>
@@ -417,6 +441,10 @@ export function HomeScreen() {
           }}
           profile={profile}
           visible={isStatsOpen}
+        />
+        <DashboardSettingsModal
+          onClose={() => setIsDashboardSettingsOpen(false)}
+          visible={isDashboardSettingsOpen}
         />
         <Modal
           animationType="fade"
@@ -499,7 +527,7 @@ const styles = StyleSheet.create({
   changeHolobotHotspot: {
     position: "absolute",
     left: "45.2778%",
-    top: "54.5625%",
+    top: "55.9375%",
     width: "48.3333%",
     height: "10.625%",
   },
@@ -524,10 +552,14 @@ const styles = StyleSheet.create({
     height: "12%",
     position: "absolute",
   },
-  statsButton: {
+  utilityStack: {
+    gap: 10,
     position: "absolute",
     right: 18,
     top: 72,
+    zIndex: 25,
+  },
+  statsButton: {
     zIndex: 25,
   },
   statsButtonInner: {
@@ -553,15 +585,15 @@ const styles = StyleSheet.create({
   },
   partOverlay: {
     position: "absolute",
-    top: `${((2168 + 18) / ARTBOARD_HEIGHT) * 100}%`,
-    width: `${(190 / ARTBOARD_WIDTH) * 100}%`,
-    height: `${(182 / ARTBOARD_HEIGHT) * 100}%`,
+    top: `${((DASHBOARD_SLOT_Y + 24) / ARTBOARD_HEIGHT) * 100}%`,
+    width: `${(DASHBOARD_SLOT_OVERLAY_WIDTH / ARTBOARD_WIDTH) * 100}%`,
+    height: `${(DASHBOARD_SLOT_OVERLAY_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
   },
   partHotspot: {
     position: "absolute",
-    top: `${(2168 / ARTBOARD_HEIGHT) * 100}%`,
-    width: `${(228 / ARTBOARD_WIDTH) * 100}%`,
-    height: `${(240 / ARTBOARD_HEIGHT) * 100}%`,
+    top: `${(DASHBOARD_SLOT_Y / ARTBOARD_HEIGHT) * 100}%`,
+    width: `${(DASHBOARD_SLOT_WIDTH / ARTBOARD_WIDTH) * 100}%`,
+    height: `${(DASHBOARD_SLOT_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
   },
   fillImage: {
     width: "100%",

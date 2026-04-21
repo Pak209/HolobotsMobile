@@ -21,6 +21,8 @@ export type WorkoutCompletionResult = {
   id: string;
   sessionsCompleted: number;
   sessionsRemaining: number;
+  syncPointBoostCount: number;
+  syncPointBoostReward: number;
   syncPointsReward: number;
   totalSyncPoints: number | null;
   workoutMinutes: number;
@@ -33,6 +35,7 @@ const WORKOUT_COOLDOWN_MS = 10 * 60 * 1000;
 const BASE_SESSION_SYNC_POINTS = 225;
 const BASE_HOLOS_PER_KM = 12;
 const BASE_EXP_PER_KM = 280;
+const UNIT_SYNC_POINT_BOOST = 100;
 const KM_TO_MILES = 0.621371;
 
 type LiveWorkoutState = {
@@ -106,12 +109,15 @@ function calculateRewards(
   unitPreference: DistanceUnit,
 ) {
   const progress = clamp(elapsedSeconds / TOTAL_WORKOUT_SECONDS, 0, 1);
-  const distanceBonus = Math.floor(getDisplayDistance(distanceKm, unitPreference)) * 100;
+  const syncPointBoostCount = Math.floor(getDisplayDistance(distanceKm, unitPreference));
+  const distanceBonus = syncPointBoostCount * UNIT_SYNC_POINT_BOOST;
   const stepBonus = Math.floor(stepCount / 25);
 
   return {
     expReward: Math.max(0, Math.round(distanceKm * BASE_EXP_PER_KM)),
     holosReward: Math.max(0, Math.round(distanceKm * BASE_HOLOS_PER_KM)),
+    syncPointBoostCount,
+    syncPointBoostReward: distanceBonus,
     syncPointsReward: Math.max(0, Math.round(progress * BASE_SESSION_SYNC_POINTS) + stepBonus + distanceBonus),
   };
 }
@@ -215,8 +221,8 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
     extras?: {
       cooldownEndsAt?: string | null;
       sessionIncrement?: number;
-      syncPointsAwarded?: number;
-    },
+    syncPointsAwarded?: number;
+  },
   ) => {
     if (!userId) {
       setSyncState("idle");
@@ -586,6 +592,8 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
     sessionsCompleted,
     sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - sessionsCompleted),
     syncMessage,
+    syncPointBoostCount: rewards.syncPointBoostCount,
+    syncPointBoostReward: rewards.syncPointBoostReward,
     syncPointsReward: rewards.syncPointsReward,
     syncState,
     toggleRunning,

@@ -232,7 +232,7 @@ export function ArenaScreen() {
 
   return (
     <View style={styles.page}>
-      <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} />
+      <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} showSettings={false} showStats={false} />
 
       {phase === "prebattle" || !currentBattle ? (
         <ArenaPrebattleMenu
