@@ -7,6 +7,12 @@ import type { UserHolobot } from "@/types/profile";
 
 type PvpArenaModalProps = {
   onClose: () => void;
+  onCreateRoom: (holobot: UserHolobot, roomCode: string) => void;
+  onJoinRoom: (holobot: UserHolobot, roomCode: string) => void;
+  onQuickMatch: (holobot: UserHolobot) => void;
+  statusAccent?: string;
+  statusMessage?: string | null;
+  statusRoomCode?: string | null;
   userHolobots: UserHolobot[];
   visible: boolean;
 };
@@ -15,70 +21,35 @@ function buildRoomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalProps) {
+export function PvpArenaModal({
+  onClose,
+  onCreateRoom,
+  onJoinRoom,
+  onQuickMatch,
+  statusAccent,
+  statusMessage,
+  statusRoomCode,
+  userHolobots,
+  visible,
+}: PvpArenaModalProps) {
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [friendCode, setFriendCode] = useState(buildRoomCode());
-  const [feedback, setFeedback] = useState<{
-    accent?: string;
-    lines?: string[];
-    message?: string;
-    title: string;
-  } | null>(null);
   const roster = useMemo(
     () => mergeHolobotRoster(userHolobots).filter((holobot) => holobot.owned),
     [userHolobots],
   );
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
+  const selectedUserHolobot =
+    userHolobots.find((holobot) => holobot.name.toUpperCase() === selectedHolobot?.name.toUpperCase()) ?? null;
 
   useEffect(() => {
     if (!visible) {
       setJoinCode("");
       setFriendCode(buildRoomCode());
-      setFeedback(null);
     }
   }, [visible]);
-
-  const handleQuickMatch = () => {
-    if (!selectedHolobot) return;
-
-    setFeedback({
-      accent: "#17d9ff",
-      message: "In queue for next match.",
-      title: "Quick Match Queue",
-    });
-  };
-
-  const handleJoinRoom = () => {
-    if (!selectedHolobot) return;
-
-    if (!joinCode.trim()) {
-      setFeedback({
-        accent: "#f0bf14",
-        message: "Enter a room code to join a private PVP arena.",
-        title: "Room Code Needed",
-      });
-      return;
-    }
-
-    setFeedback({
-      accent: "#17d9ff",
-      message: `${selectedHolobot.name} is ready to join room ${joinCode.trim().toUpperCase()}. The room-sync backend is the next step behind this UI.`,
-      title: "Join Room",
-    });
-  };
-
-  const handleFriendBattle = () => {
-    if (!selectedHolobot) return;
-
-    setFeedback({
-      accent: "#ae4cff",
-      lines: [`Room Code: ${friendCode}`],
-      message: `${selectedHolobot.name} is set as your pilot for this room. Share the code with your friend to sync the battle.`,
-      title: "Friend Battle Ready",
-    });
-  };
 
   return (
     <>
@@ -109,11 +80,29 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
               </View>
             )}
 
+            {statusMessage ? (
+              <View style={[styles.statusCard, { borderColor: statusAccent || "#17d9ff" }]}>
+                <Text style={[styles.statusEyebrow, { color: statusAccent || "#17d9ff" }]}>LIVE STATUS</Text>
+                <Text style={styles.statusMessage}>{statusMessage}</Text>
+                {statusRoomCode ? (
+                  <View style={[styles.statusRoomBadge, { borderColor: statusAccent || "#17d9ff" }]}>
+                    <Text style={[styles.statusRoomText, { color: statusAccent || "#17d9ff" }]}>
+                      {statusRoomCode}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
             <View style={styles.optionColumn}>
               <Pressable
-                disabled={!selectedHolobot}
-                onPress={handleQuickMatch}
-                style={[styles.optionCard, !selectedHolobot && styles.optionCardDisabled]}
+                disabled={!selectedUserHolobot}
+                onPress={() => {
+                  if (selectedUserHolobot) {
+                    onQuickMatch(selectedUserHolobot);
+                  }
+                }}
+                style={[styles.optionCard, !selectedUserHolobot && styles.optionCardDisabled]}
               >
                 <Text style={styles.optionTitle}>Quick Match</Text>
                 <Text style={styles.optionCopy}>Sync with the next pilot who is looking for a live battle.</Text>
@@ -132,13 +121,23 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                     value={joinCode}
                   />
                   <Pressable
-                    disabled={!selectedHolobot}
-                    onPress={handleJoinRoom}
-                    style={[styles.inlineButton, !selectedHolobot && styles.optionCardDisabled]}
+                    disabled={!selectedUserHolobot || !joinCode.trim()}
+                    onPress={() => {
+                      if (selectedUserHolobot && joinCode.trim()) {
+                        onJoinRoom(selectedUserHolobot, joinCode.trim().toUpperCase());
+                      }
+                    }}
+                    style={[
+                      styles.inlineButton,
+                      (!selectedUserHolobot || !joinCode.trim()) && styles.optionCardDisabled,
+                    ]}
                   >
                     <Text style={styles.inlineButtonText}>JOIN</Text>
                   </Pressable>
                 </View>
+                {!joinCode.trim() ? (
+                  <Text style={styles.helperCopy}>Enter a room code to join a private battle.</Text>
+                ) : null}
               </View>
 
               <View style={styles.optionCard}>
@@ -149,9 +148,13 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                     <Text style={styles.roomCodeText}>{friendCode}</Text>
                   </View>
                   <Pressable
-                    disabled={!selectedHolobot}
-                    onPress={handleFriendBattle}
-                    style={[styles.inlineButton, !selectedHolobot && styles.optionCardDisabled]}
+                    disabled={!selectedUserHolobot}
+                    onPress={() => {
+                      if (selectedUserHolobot) {
+                        onCreateRoom(selectedUserHolobot, friendCode);
+                      }
+                    }}
+                    style={[styles.inlineButton, !selectedUserHolobot && styles.optionCardDisabled]}
                   >
                     <Text style={styles.inlineButtonText}>CREATE</Text>
                   </Pressable>
@@ -163,32 +166,6 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
               <Text style={styles.closeText}>CLOSE</Text>
             </Pressable>
           </View>
-          {feedback ? (
-            <View style={styles.feedbackBackdrop}>
-              <View style={[styles.feedbackCard, { borderColor: feedback.accent || "#f0bf14" }]}>
-                <Text style={[styles.feedbackEyebrow, { color: feedback.accent || "#f0bf14" }]}>
-                  SYSTEM UPDATE
-                </Text>
-                <Text style={styles.feedbackTitle}>{feedback.title}</Text>
-                {feedback.message ? <Text style={styles.feedbackMessage}>{feedback.message}</Text> : null}
-                {feedback.lines?.length ? (
-                  <View style={styles.feedbackLineGroup}>
-                    {feedback.lines.map((line) => (
-                      <Text key={line} style={styles.feedbackLine}>
-                        {line}
-                      </Text>
-                    ))}
-                  </View>
-                ) : null}
-                <Pressable
-                  style={[styles.feedbackButton, { backgroundColor: feedback.accent || "#f0bf14" }]}
-                  onPress={() => setFeedback(null)}
-                >
-                  <Text style={styles.feedbackButtonText}>OK</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
         </View>
       </Modal>
 
@@ -273,75 +250,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1.6,
   },
-  feedbackBackdrop: {
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.62)",
-    bottom: 0,
-    justifyContent: "center",
-    left: 0,
-    padding: 28,
-    position: "absolute",
-    right: 0,
-    top: 0,
-  },
-  feedbackButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
-    minHeight: 50,
-  },
-  feedbackButtonText: {
-    color: "#050606",
-    fontSize: 16,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-  feedbackCard: {
-    backgroundColor: "#111111",
-    borderWidth: 3,
-    maxWidth: 360,
-    padding: 20,
-    width: "100%",
-  },
-  feedbackEyebrow: {
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1.8,
-    textAlign: "center",
-  },
-  feedbackLine: {
-    color: "#fef1e0",
-    fontSize: 15,
-    fontWeight: "700",
-    lineHeight: 21,
-    textAlign: "center",
-  },
-  feedbackLineGroup: {
-    backgroundColor: "#090909",
-    borderColor: "#2a2a2a",
-    borderWidth: 1,
-    gap: 8,
-    marginTop: 16,
-    padding: 12,
-  },
-  feedbackMessage: {
-    color: "#d5cbb2",
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 10,
-    textAlign: "center",
-  },
-  feedbackTitle: {
-    color: "#fef1e0",
-    fontSize: 30,
-    fontWeight: "900",
-    marginTop: 8,
-    textAlign: "center",
-  },
   friendRow: {
     flexDirection: "row",
     gap: 10,
     marginTop: 12,
+  },
+  helperCopy: {
+    color: "#8f856c",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 8,
   },
   holobotArt: {
     backgroundColor: "#050606",
@@ -428,6 +346,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1.4,
+  },
+  statusCard: {
+    backgroundColor: "#090909",
+    borderWidth: 2,
+    marginTop: 16,
+    padding: 14,
+  },
+  statusEyebrow: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  statusMessage: {
+    color: "#fef1e0",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  statusRoomBadge: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  statusRoomText: {
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 1.2,
   },
   title: {
     color: "#fef1e0",
