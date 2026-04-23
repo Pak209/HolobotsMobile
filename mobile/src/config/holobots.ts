@@ -113,7 +113,7 @@ function getNormalizedStatsForChart(
   const finalDefense = Math.floor(base.defense * levelBonus) + (boostedAttributes?.defense || 0);
   const finalSpeed = Math.floor(base.speed * levelBonus) + (boostedAttributes?.speed || 0);
   const finalHp = Math.floor(base.hp * levelBonus) + (boostedAttributes?.health || 0);
-  const finalSpecial = Math.floor(base.intelligence * levelBonus);
+  const finalSpecial = Math.floor(base.intelligence * levelBonus) + (boostedAttributes?.special || 0);
 
   return {
     attack: Math.min(100, Math.max(25, finalAttack * 8)),
@@ -233,7 +233,7 @@ export function getHolobotBattleStats(
   const attack = Math.floor(base.attack * 10 * levelBonus) + (boostedAttributes?.attack || 0);
   const defense = Math.floor(base.defense * 10 * levelBonus) + (boostedAttributes?.defense || 0);
   const speed = Math.floor(base.speed * 10 * levelBonus) + (boostedAttributes?.speed || 0);
-  const intelligence = Math.floor(base.intelligence * 10 * levelBonus);
+  const intelligence = Math.floor(base.intelligence * 10 * levelBonus) + (boostedAttributes?.special || 0);
 
   return {
     archetype,
@@ -242,6 +242,24 @@ export function getHolobotBattleStats(
     intelligence,
     maxHP,
     speed,
+  };
+}
+
+export function getHolobotDisplayStats(
+  name: string,
+  level = 1,
+  boostedAttributes?: UserHolobot["boostedAttributes"],
+) {
+  const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
+  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+
+  return {
+    attack: Math.floor(base.attack * levelBonus) + (boostedAttributes?.attack || 0),
+    defense: Math.floor(base.defense * levelBonus) + (boostedAttributes?.defense || 0),
+    hp: Math.floor(base.hp * levelBonus) + (boostedAttributes?.health || 0),
+    special: Math.floor(base.intelligence * levelBonus) + (boostedAttributes?.special || 0),
+    speed: Math.floor(base.speed * levelBonus) + (boostedAttributes?.speed || 0),
   };
 }
 

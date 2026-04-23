@@ -14,6 +14,8 @@ import { LeaderboardScreen } from "./src/screens/LeaderboardScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { MarketplaceScreen } from "./src/screens/MarketplaceScreen";
 import { GachaScreen } from "./src/screens/GachaScreen";
+import { QuestsScreen } from "./src/screens/QuestsScreen";
+import { TrainingScreen } from "./src/screens/TrainingScreen";
 
 export type RootTabs = {
   Arena: undefined;
@@ -23,6 +25,8 @@ export type RootTabs = {
   Inventory: undefined;
   Leaderboard: undefined;
   Marketplace: undefined;
+  Quests: undefined;
+  Training: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabs>();
@@ -40,9 +44,9 @@ const navTheme = {
 };
 
 function AuthedApp() {
-  const { loading, profileLoading, sessionLocked, user } = useAuth();
+  const { bootLoading, profile, profileLoading, sessionLocked, user } = useAuth();
 
-  if (loading || (user && profileLoading)) {
+  if (bootLoading || (user && profileLoading && !profile)) {
     return <AppLoadingScreen />;
   }
 
@@ -71,6 +75,8 @@ function AuthedApp() {
         <Tab.Screen name="Arena" component={ArenaScreen} />
         <Tab.Screen name="Gacha" component={GachaScreen} />
         <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
+        <Tab.Screen name="Training" component={TrainingScreen} />
+        <Tab.Screen name="Quests" component={QuestsScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );

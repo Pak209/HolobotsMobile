@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HomeCogButton } from "@/components/HomeCogButton";
-import { collection, db, onSnapshot, query } from "@/config/firebase";
-import { mapFirestoreToUserProfile } from "@/lib/profile";
+import { collection, db, limit, onSnapshot, orderBy, query } from "@/config/firebase";
+import { computeLeaderboardScore, mapFirestoreToUserProfile } from "@/lib/profile";
 import type { UserProfile } from "@/types/profile";
 
 function getPlayerRankName(profile: UserProfile) {
@@ -17,22 +17,13 @@ function getPlayerRankName(profile: UserProfile) {
   return "Rookie";
 }
 
-function getLeaderboardScore(profile: UserProfile) {
-  const highestLevel = Math.max(1, ...(profile.holobots || []).map((holobot) => holobot.level || 1));
-  const wins = profile.stats?.wins || 0;
-  const syncPoints = profile.syncPoints || 0;
-  const prestigeCount = profile.prestigeCount || 0;
-
-  return wins * 120 + highestLevel * 25 + syncPoints + prestigeCount * 500;
-}
-
 export function LeaderboardScreen() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const usersQuery = query(collection(db, "users"));
+    const usersQuery = query(collection(db, "users"), orderBy("leaderboardScore", "desc"), limit(10));
 
     const unsubscribe = onSnapshot(
       usersQuery,
@@ -62,7 +53,14 @@ export function LeaderboardScreen() {
           id: profile.id,
           name: profile.username || "Pilot",
           rank: getPlayerRankName(profile),
-          score: getLeaderboardScore(profile),
+          score:
+            profile.leaderboardScore ??
+            computeLeaderboardScore({
+              holobots: profile.holobots,
+              prestigeCount: profile.prestigeCount,
+              syncPoints: profile.syncPoints,
+              wins: profile.stats?.wins,
+            }),
         }))
         .sort((left, right) => right.score - left.score),
     [users],

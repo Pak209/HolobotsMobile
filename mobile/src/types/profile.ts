@@ -6,6 +6,7 @@ export type UserHolobot = {
   boostedAttributes?: {
     attack?: number;
     defense?: number;
+    special?: number;
     speed?: number;
     health?: number;
   };
@@ -49,6 +50,7 @@ export type UserProfile = {
   isDevAccount?: boolean;
   rental_holobots?: Array<Record<string, unknown>>;
   syncPoints?: number;
+  leaderboardScore?: number;
   prestigeCount?: number;
   onboardingPath?: string;
   todaySteps?: number;

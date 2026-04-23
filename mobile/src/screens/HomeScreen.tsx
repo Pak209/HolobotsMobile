@@ -368,6 +368,39 @@ export function HomeScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Open quests page"
+            onPress={() => navigation.navigate("Quests")}
+            style={styles.statsButton}
+          >
+            <View style={styles.statsButtonInner}>
+              <Svg width="30" height="30" viewBox="0 0 24 24">
+                <Path d="m3 7l6-3l6 3l6-3v13l-6 3l-6-3l-6 3z" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M9 12v.01" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M6 13v.01" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m17 15-4-4" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m13 15 4-4" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open training page"
+            onPress={() => navigation.navigate("Training")}
+            style={styles.statsButton}
+          >
+            <View style={styles.statsButtonInner}>
+              <Svg width="30" height="30" viewBox="0 0 24 24">
+                <Path d="M10 3a1 1 0 1 0 2 0a1 1 0 0 0-2 0" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m3 14 4 1 .5-.5" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M12 18v-3l-3-2.923L9.75 7" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M6 10V8l4-1 2.5 2.5 2.5.5" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M21 22a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m18 21 1-11 2-1" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel="Open dashboard settings"
             onPress={() => setIsDashboardSettingsOpen(true)}
             style={styles.statsButton}

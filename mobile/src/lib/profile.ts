@@ -49,6 +49,7 @@ type FirestoreUserDocument = {
   isDevAccount?: boolean;
   rentalHolobots?: Array<Record<string, unknown>>;
   syncPoints?: number;
+  leaderboardScore?: number;
   prestigeCount?: number;
   onboardingPath?: string;
   inventory?: Record<string, number>;
@@ -64,6 +65,22 @@ type FirestoreUserDocument = {
   fitnessSource?: string;
   syncDistanceUnit?: "km" | "mi";
 };
+
+type LeaderboardScoreInput = {
+  holobots?: UserHolobot[];
+  prestigeCount?: number;
+  syncPoints?: number;
+  wins?: number;
+};
+
+export function computeLeaderboardScore(input: LeaderboardScoreInput) {
+  const highestLevel = Math.max(1, ...(input.holobots || []).map((holobot) => holobot.level || 1));
+  const wins = input.wins || 0;
+  const syncPoints = input.syncPoints || 0;
+  const prestigeCount = input.prestigeCount || 0;
+
+  return wins * 120 + highestLevel * 25 + syncPoints + prestigeCount * 500;
+}
 
 function toIsoString(value?: { toDate?: () => Date } | string) {
   if (!value) {
@@ -115,6 +132,14 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     isDevAccount: data.isDevAccount ?? DEFAULT_USER_PROFILE.isDevAccount,
     rental_holobots: data.rentalHolobots ?? DEFAULT_USER_PROFILE.rentalHolobots,
     syncPoints: data.syncPoints ?? DEFAULT_USER_PROFILE.syncPoints,
+    leaderboardScore:
+      data.leaderboardScore ??
+      computeLeaderboardScore({
+        holobots: data.holobots || [],
+        prestigeCount: data.prestigeCount ?? 0,
+        syncPoints: data.syncPoints ?? DEFAULT_USER_PROFILE.syncPoints,
+        wins: data.wins ?? DEFAULT_USER_PROFILE.wins,
+      }),
     prestigeCount: data.prestigeCount ?? 0,
     onboardingPath: data.onboardingPath,
     todaySteps: data.todaySteps ?? DEFAULT_USER_PROFILE.todaySteps,
@@ -170,6 +195,7 @@ type UserProfileUpdates = Partial<{
   rank_skips: number;
   async_battle_tickets: number;
   blueprints: Record<string, number>;
+  inventory: Record<string, number>;
   parts: Array<Record<string, unknown>>;
   equippedParts: Record<string, Record<string, Record<string, unknown>>>;
   pack_history: Array<Record<string, unknown>>;
@@ -195,6 +221,7 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.rank_skips !== undefined) firestoreUpdates.rankSkips = updates.rank_skips;
   if (updates.async_battle_tickets !== undefined) firestoreUpdates.asyncBattleTickets = updates.async_battle_tickets;
   if (updates.blueprints !== undefined) firestoreUpdates.blueprints = updates.blueprints;
+  if (updates.inventory !== undefined) firestoreUpdates.inventory = updates.inventory;
   if (updates.parts !== undefined) firestoreUpdates.parts = updates.parts;
   if (updates.equippedParts !== undefined) firestoreUpdates.equippedParts = updates.equippedParts;
   if (updates.pack_history !== undefined) firestoreUpdates.packHistory = updates.pack_history;
@@ -206,6 +233,18 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.holobots !== undefined) firestoreUpdates.holobots = updates.holobots;
   if (updates.rewardSystem !== undefined) firestoreUpdates.rewardSystem = updates.rewardSystem;
   if (updates.syncDistanceUnit !== undefined) firestoreUpdates.syncDistanceUnit = updates.syncDistanceUnit;
+
+  if (updates.holobots !== undefined || updates.syncPoints !== undefined) {
+    const existingSnapshot = await getDoc(userRef);
+    const existingData = (existingSnapshot.data() ?? {}) as FirestoreUserDocument;
+
+    firestoreUpdates.leaderboardScore = computeLeaderboardScore({
+      holobots: updates.holobots ?? existingData.holobots ?? DEFAULT_USER_PROFILE.holobots,
+      prestigeCount: existingData.prestigeCount ?? 0,
+      syncPoints: updates.syncPoints ?? existingData.syncPoints ?? DEFAULT_USER_PROFILE.syncPoints,
+      wins: existingData.wins ?? DEFAULT_USER_PROFILE.wins,
+    });
+  }
 
   await updateDoc(userRef, firestoreUpdates as any);
 }

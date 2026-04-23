@@ -18,6 +18,7 @@ import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, fitnessAssets } from "@/config/figmaAs
 import { applyHolobotExperience, getExpProgress, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
+import { normalizeProgressionSystem } from "@/lib/progressionSystems";
 import type { UserHolobot } from "@/types/profile";
 import type { RootTabs } from "../../App";
 
@@ -85,6 +86,7 @@ export function FitnessScreen() {
   const needleAngle = NEEDLE_MIN_ANGLE + (Math.min(displaySpeed, NEEDLE_MAX_SPEED) / NEEDLE_MAX_SPEED) * (NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE);
   const goalBarWidth = 698.125 * workout.progress;
   const expProgressWidth = 473 * getExpProgress(selectedHolobot);
+  const syncBoostMultiplier = normalizeProgressionSystem(profile?.rewardSystem).syncBoostEnabled ? 1.2 : 1;
 
   const handleDistanceUnitChange = (nextUnit: DistanceUnit) => {
     setLocalDistanceUnit(nextUnit);
@@ -104,6 +106,7 @@ export function FitnessScreen() {
   const rewardSessionsCopy = completionResult
     ? `${completionResult.sessionsCompleted}/4 workouts completed today`
     : "";
+  const boostedExpReward = completionResult ? Math.round(completionResult.expReward * syncBoostMultiplier) : 0;
   const syncBoostCopy = formatSyncBoostCopy(workout.syncPointBoostCount, distanceUnit);
   const goLabel = workout.isRunning
     ? "PAUSE"
@@ -127,7 +130,7 @@ export function FitnessScreen() {
     );
 
     if (targetIndex >= 0) {
-      nextHolobots[targetIndex] = applyHolobotExperience(nextHolobots[targetIndex], completionResult.expReward);
+      nextHolobots[targetIndex] = applyHolobotExperience(nextHolobots[targetIndex], boostedExpReward);
     } else {
       const fallbackHolobot: UserHolobot = {
         attributePoints: selectedHolobot.attributePoints ?? 0,
@@ -138,7 +141,7 @@ export function FitnessScreen() {
         nextLevelExp: selectedHolobot.nextLevelExp,
         rank: selectedHolobot.rank,
       };
-      nextHolobots.push(applyHolobotExperience(fallbackHolobot, completionResult.expReward));
+      nextHolobots.push(applyHolobotExperience(fallbackHolobot, boostedExpReward));
     }
 
     try {
@@ -349,7 +352,7 @@ export function FitnessScreen() {
           onClose={() => void handleCollectRewards()}
           onQuickRefill={() => void handleRewardQuickRefill()}
           rewards={{
-            exp: completionResult?.expReward ?? 0,
+            exp: boostedExpReward,
             holos: completionResult?.holosReward ?? 0,
             syncPoints: completionResult?.syncPointsReward ?? 0,
           }}

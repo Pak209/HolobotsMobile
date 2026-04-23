@@ -14,9 +14,10 @@ import {
   auth,
   createUserWithEmailAndPassword,
   db,
-  deleteDoc,
-  deleteUser,
   doc,
+  functions,
+  getDoc,
+  httpsCallable,
   onAuthStateChanged,
   serverTimestamp,
   setDoc,
@@ -26,7 +27,7 @@ import {
 } from "@/config/firebase";
 import { createGenesisStarterHolobot, getHolobotRank } from "@/config/holobots";
 import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
-import { subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
+import { computeLeaderboardScore, subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
 import type { UserProfile } from "@/types/profile";
 
 export type GenesisStarterChoice = "ACE" | "KUMA" | "SHADOW";
@@ -34,6 +35,7 @@ export type GenesisStarterChoice = "ACE" | "KUMA" | "SHADOW";
 type AuthContextValue = {
   user: User | null;
   profile: UserProfile | null;
+  bootLoading: boolean;
   loading: boolean;
   rememberedEmail: string;
   rememberMeEnabled: boolean;
@@ -75,12 +77,15 @@ const DEFAULT_AUTH_PREFERENCES: AuthPreferences = {
   rememberedEmail: "",
 };
 
+const deleteAccountCallable = httpsCallable<void, { success?: boolean }>(functions, "deleteUserAccount");
+
 function normalizeUsername(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [bootLoading, setBootLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [authPreferences, setAuthPreferences] = useState<AuthPreferences>(DEFAULT_AUTH_PREFERENCES);
@@ -156,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!nextUser) {
         setUser(null);
         setSessionLocked(false);
+        setBootLoading(false);
         setLoading(false);
         return;
       }
@@ -164,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         manualLoginRef.current = false;
         setUser(nextUser);
         setSessionLocked(false);
+        setBootLoading(false);
         setLoading(false);
         return;
       }
@@ -172,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void signOut(auth).finally(() => {
           setUser(null);
           setSessionLocked(false);
+          setBootLoading(false);
           setLoading(false);
         });
         return;
@@ -179,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(nextUser);
       setSessionLocked(authPreferences.faceId && faceIdAvailable);
+      setBootLoading(false);
       setLoading(false);
     });
 
@@ -217,6 +226,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (profile.leaderboardScore === undefined) {
+      void updateUserProfile(user.uid, {
+        holobots: profile.holobots || [],
+        syncPoints: profile.syncPoints || 0,
+      }).catch((error) => {
+        console.error("[Auth] Failed to backfill leaderboard score", error);
+      });
+    }
+
     const alreadyHasCards = Object.keys(profile.battle_cards || {}).length > 0;
     if (profile.starter_deck_claimed || alreadyHasCards) {
       return;
@@ -235,6 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       profile,
+      bootLoading,
       loading,
       rememberedEmail: authPreferences.rememberedEmail,
       rememberMeEnabled: authPreferences.rememberMe,
@@ -288,6 +307,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           starter_deck_claimed: true,
           syncDistanceUnit: "km",
           syncPoints: 0,
+          leaderboardScore: computeLeaderboardScore({
+            holobots: [starterHolobotProfile],
+            prestigeCount: 0,
+            syncPoints: 0,
+            wins: 0,
+          }),
           todaySteps: 0,
           username: normalizedUsername,
           wins: 0,
@@ -338,17 +363,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
           createdUser = userCredential.user;
 
-          await setDoc(doc(db, "users", createdUser.uid), userRefData, { merge: true });
+          setUser(createdUser);
+          setSessionLocked(false);
           setProfile({
             ...localProfile,
             id: createdUser.uid,
           });
+          setLoading(false);
           setProfileLoading(false);
           setProfileError(null);
+
+          await setDoc(doc(db, "users", createdUser.uid), userRefData, { merge: true }).catch((error) => {
+            console.error("[Auth] Failed to persist new user profile", error);
+          });
         } catch (error) {
+          const errorCode =
+            typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code) : "";
+
+          if (errorCode === "auth/email-already-in-use") {
+            try {
+              const existingCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+              const existingUser = existingCredential.user;
+              const existingProfileRef = doc(db, "users", existingUser.uid);
+              const existingProfileSnap = await getDoc(existingProfileRef);
+
+              if (!existingProfileSnap.exists()) {
+                await setDoc(existingProfileRef, userRefData, { merge: true });
+                setUser(existingUser);
+                setSessionLocked(false);
+                setProfile({
+                  ...localProfile,
+                  id: existingUser.uid,
+                });
+                setLoading(false);
+                setProfileLoading(false);
+                setProfileError(null);
+                return;
+              }
+
+              await signOut(auth).catch(() => undefined);
+              setLoading(false);
+              throw new Error("That email already has a Holobots account. Please sign in instead.");
+            } catch (recoveryError) {
+              const recoveryCode =
+                typeof recoveryError === "object" && recoveryError && "code" in recoveryError
+                  ? String((recoveryError as { code?: string }).code)
+                  : "";
+
+              setLoading(false);
+
+              if (recoveryCode === "auth/invalid-credential" || recoveryCode === "auth/wrong-password") {
+                throw new Error("That email is already registered. Sign in instead, or use the original password to recover setup.");
+              }
+
+              throw recoveryError;
+            }
+          }
+
           if (createdUser) {
             await signOut(auth).catch(() => undefined);
           }
+
+          setLoading(false);
           throw error;
         }
       },
@@ -370,11 +446,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error("Your session expired. Please sign in again before deleting your account.");
         }
 
-        await deleteUser(currentUser);
-        await deleteDoc(doc(db, "users", user.uid)).catch(() => undefined);
+        await currentUser.getIdToken(true);
+        await deleteAccountCallable();
+        await signOut(auth).catch(() => undefined);
         await AsyncStorage.removeItem(AUTH_PREFS_KEY).catch(() => undefined);
         setAuthPreferences(DEFAULT_AUTH_PREFERENCES);
         setProfile(null);
+        setUser(null);
       },
       unlockWithFaceId: async () => {
         if (!faceIdAvailable) {
@@ -415,6 +493,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authPreferences.faceId,
       authPreferences.rememberMe,
       authPreferences.rememberedEmail,
+      bootLoading,
       faceIdAvailable,
       loading,
       profile,

@@ -5,6 +5,7 @@ import {
   serverTimestamp,
   type Firestore,
 } from "firebase/firestore";
+import { computeLeaderboardScore } from "@/lib/profile";
 
 const STEPS_PER_SYNC_POINT = 1000;
 const DAILY_WORKOUT_CAP = 4;
@@ -168,6 +169,12 @@ export async function syncFitnessActivity(
         fitnessSource: "manual",
         lastFitnessSyncAt: serverTimestamp(),
         lastStepSync: serverTimestamp(),
+        leaderboardScore: computeLeaderboardScore({
+          holobots: Array.isArray(userData.holobots) ? userData.holobots : [],
+          prestigeCount: Number(userData.prestigeCount ?? 0),
+          syncPoints: nextSyncPoints,
+          wins: Number(userData.wins ?? 0),
+        }),
         syncPoints: nextSyncPoints,
         todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
       },

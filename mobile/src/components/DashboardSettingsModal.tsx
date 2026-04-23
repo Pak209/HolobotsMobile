@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -19,7 +18,7 @@ type DashboardSettingsModalProps = {
 
 export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsModalProps) {
   const { user, profile, deleteAccount, logout } = useAuth();
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleteFlowOpen, setIsDeleteFlowOpen] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -41,145 +40,120 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
       >
         <View style={styles.backdrop}>
           <View style={styles.card}>
-            <Text style={styles.eyebrow}>DASHBOARD SETTINGS</Text>
-            <Text style={styles.title}>Pilot Controls</Text>
-            <Text style={styles.copy}>
-              Manage your account and fitness connections from one place.
-            </Text>
+            {!isDeleteFlowOpen ? (
+              <>
+                <Text style={styles.eyebrow}>DASHBOARD SETTINGS</Text>
+                <Text style={styles.title}>Pilot Controls</Text>
+                <Text style={styles.copy}>
+                  Manage your account and fitness connections from one place.
+                </Text>
 
-            <View style={styles.section}>
-              <Text style={styles.label}>ACCOUNT</Text>
-              <Text style={styles.copySmall}>{pilotLabel}</Text>
-              {user?.email ? <Text style={styles.meta}>{user.email}</Text> : null}
-              <Pressable
-                style={styles.primaryAction}
-                onPress={() => {
-                  onClose();
-                  void logout();
-                }}
-              >
-                <Text style={styles.primaryActionText}>SIGN OUT</Text>
-              </Pressable>
-            </View>
+                <View style={styles.section}>
+                  <Text style={styles.label}>ACCOUNT</Text>
+                  <Text style={styles.copySmall}>{pilotLabel}</Text>
+                  {user?.email ? <Text style={styles.meta}>{user.email}</Text> : null}
+                  <Pressable
+                    style={styles.primaryAction}
+                    onPress={() => {
+                      onClose();
+                      void logout();
+                    }}
+                  >
+                    <Text style={styles.primaryActionText}>SIGN OUT</Text>
+                  </Pressable>
+                </View>
 
-            <View style={styles.section}>
-              <Text style={styles.label}>HEALTH & FITNESS</Text>
-              <Text style={styles.copySmall}>HEALTHKIT CONNECT</Text>
-              <Text style={styles.meta}>
-                Fitness permissions are currently handled from Sync. This shortcut can host a one-tap HealthKit connect flow next.
-              </Text>
-              <Pressable
-                style={styles.secondaryAction}
-                onPress={() =>
-                  Alert.alert(
-                    "HealthKit Connect",
-                    "HealthKit connection settings will live here once the direct iOS permission flow is added.",
-                  )
-                }
-              >
-                <Text style={styles.secondaryActionText}>OPEN HEALTH SETTINGS</Text>
-              </Pressable>
-            </View>
+                <View style={styles.section}>
+                  <Text style={styles.dangerLabel}>DANGER ZONE</Text>
+                  <Text style={styles.meta}>
+                    Permanently remove this account and all saved pilot data from Holobots Mobile.
+                  </Text>
+                  <Pressable
+                    style={styles.deleteAccountButton}
+                    onPress={() => {
+                      setDeleteConfirmationText("");
+                      setDeleteError(null);
+                      setIsDeleteFlowOpen(true);
+                    }}
+                  >
+                    <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
+                  </Pressable>
+                </View>
 
-            <View style={styles.section}>
-              <Text style={styles.dangerLabel}>DANGER ZONE</Text>
-              <Text style={styles.meta}>
-                Permanently remove this account and all saved pilot data from Holobots Mobile.
-              </Text>
-              <Pressable
-                style={styles.deleteAccountButton}
-                onPress={() => {
-                  setDeleteConfirmationText("");
-                  setDeleteError(null);
-                  setIsDeleteModalOpen(true);
-                }}
-              >
-                <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
-              </Pressable>
-            </View>
+                <Pressable style={styles.closeButton} onPress={onClose}>
+                  <Text style={styles.closeText}>CLOSE</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.eyebrow}>ACCOUNT ACTION</Text>
+                <Text style={styles.title}>Delete Account</Text>
+                <Text style={styles.copy}>
+                  This permanently removes your Holobots account from the app. Type DELETE below to confirm.
+                </Text>
 
-            <Pressable style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeText}>CLOSE</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+                <View style={styles.section}>
+                  <Text style={styles.label}>TYPE DELETE TO CONFIRM</Text>
+                  <TextInput
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    onChangeText={setDeleteConfirmationText}
+                    placeholder="DELETE"
+                    placeholderTextColor="#8f896d"
+                    style={styles.deleteInput}
+                    value={deleteConfirmationText}
+                  />
+                  <Text style={styles.meta}>
+                    Your pilot data, workouts, rewards, and saved progression will be removed.
+                  </Text>
+                </View>
 
-      <Modal
-        animationType="fade"
-        presentationStyle="overFullScreen"
-        transparent
-        visible={isDeleteModalOpen}
-        onRequestClose={() => setIsDeleteModalOpen(false)}
-      >
-        <View style={styles.backdrop}>
-          <View style={styles.card}>
-            <Text style={styles.eyebrow}>ACCOUNT ACTION</Text>
-            <Text style={styles.title}>Delete Account</Text>
-            <Text style={styles.copy}>
-              This permanently removes your Holobots account from the app. Type DELETE below to confirm.
-            </Text>
+                {deleteError ? <Text style={styles.deleteErrorText}>{deleteError}</Text> : null}
 
-            <View style={styles.section}>
-              <Text style={styles.label}>TYPE DELETE TO CONFIRM</Text>
-              <TextInput
-                autoCapitalize="characters"
-                autoCorrect={false}
-                onChangeText={setDeleteConfirmationText}
-                placeholder="DELETE"
-                placeholderTextColor="#8f896d"
-                style={styles.deleteInput}
-                value={deleteConfirmationText}
-              />
-              <Text style={styles.meta}>
-                Your pilot data, workouts, rewards, and saved progression will be removed.
-              </Text>
-            </View>
+                <Pressable
+                  disabled={!canConfirmDelete || isDeletingAccount}
+                  style={[
+                    styles.deleteAccountButton,
+                    (!canConfirmDelete || isDeletingAccount) ? styles.deleteAccountButtonDisabled : null,
+                  ]}
+                  onPress={async () => {
+                    setDeleteError(null);
+                    setIsDeletingAccount(true);
 
-            {deleteError ? <Text style={styles.deleteErrorText}>{deleteError}</Text> : null}
+                    try {
+                      await deleteAccount();
+                      setIsDeleteFlowOpen(false);
+                      onClose();
+                    } catch (error) {
+                      setDeleteError(
+                        error instanceof Error
+                          ? error.message
+                          : "Unable to delete your account right now.",
+                      );
+                    } finally {
+                      setIsDeletingAccount(false);
+                    }
+                  }}
+                >
+                  {isDeletingAccount ? (
+                    <ActivityIndicator color="#fef1e0" />
+                  ) : (
+                    <Text style={styles.deleteAccountText}>PERMANENTLY DELETE</Text>
+                  )}
+                </Pressable>
 
-            <Pressable
-              disabled={!canConfirmDelete || isDeletingAccount}
-              style={[
-                styles.deleteAccountButton,
-                (!canConfirmDelete || isDeletingAccount) ? styles.deleteAccountButtonDisabled : null,
-              ]}
-              onPress={async () => {
-                setDeleteError(null);
-                setIsDeletingAccount(true);
-
-                try {
-                  await deleteAccount();
-                  setIsDeleteModalOpen(false);
-                  onClose();
-                } catch (error) {
-                  setDeleteError(
-                    error instanceof Error
-                      ? error.message
-                      : "Unable to delete your account right now.",
-                  );
-                } finally {
-                  setIsDeletingAccount(false);
-                }
-              }}
-            >
-              {isDeletingAccount ? (
-                <ActivityIndicator color="#fef1e0" />
-              ) : (
-                <Text style={styles.deleteAccountText}>PERMANENTLY DELETE</Text>
-              )}
-            </Pressable>
-
-            <Pressable
-              style={styles.closeButton}
-              onPress={() => {
-                setDeleteConfirmationText("");
-                setDeleteError(null);
-                setIsDeleteModalOpen(false);
-              }}
-            >
-              <Text style={styles.closeText}>CANCEL</Text>
-            </Pressable>
+                <Pressable
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setDeleteConfirmationText("");
+                    setDeleteError(null);
+                    setIsDeleteFlowOpen(false);
+                  }}
+                >
+                  <Text style={styles.closeText}>CANCEL</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </View>
       </Modal>
