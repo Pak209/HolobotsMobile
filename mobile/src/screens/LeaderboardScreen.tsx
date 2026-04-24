@@ -58,7 +58,7 @@ export function LeaderboardScreen() {
             computeLeaderboardScore({
               holobots: profile.holobots,
               prestigeCount: profile.prestigeCount,
-              syncPoints: profile.syncPoints,
+              seasonSyncPoints: profile.seasonSyncPoints,
               wins: profile.stats?.wins,
             }),
         }))

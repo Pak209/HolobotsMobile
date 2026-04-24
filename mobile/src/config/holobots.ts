@@ -2,6 +2,7 @@ import { Image, type ImageSourcePropType } from "react-native";
 
 import type { UserHolobot } from "@/types/profile";
 import { resolveBundledAssetUri } from "@/config/gameAssets";
+import { getUnlockedSyncAbilities } from "@/lib/syncProgression";
 
 export type HolobotRosterEntry = {
   attributePoints?: number;
@@ -170,13 +171,27 @@ export function getHolobotBaseProfile(name: string) {
 
 export function normalizeUserHolobot(holobot: UserHolobot): UserHolobot {
   const level = Math.max(1, holobot.level || 1);
+  const syncStats = {
+    bond: Math.max(0, Math.floor(holobot.syncStats?.bond || 0)),
+    focus: Math.max(0, Math.floor(holobot.syncStats?.focus || 0)),
+    guard: Math.max(0, Math.floor(holobot.syncStats?.guard || 0)),
+    power: Math.max(0, Math.floor(holobot.syncStats?.power || 0)),
+    tempo: Math.max(0, Math.floor(holobot.syncStats?.tempo || 0)),
+  };
+  const syncLevel = syncStats.power + syncStats.guard + syncStats.tempo + syncStats.focus + syncStats.bond;
+
   return {
     ...holobot,
     attributePoints: holobot.attributePoints ?? level,
     boostedAttributes: holobot.boostedAttributes || {},
     experience: holobot.experience || 0,
+    lifetimeSPInvested: holobot.lifetimeSPInvested ?? 0,
     nextLevelExp: holobot.nextLevelExp || calculateExperience(level + 1),
     rank: holobot.rank || getHolobotRank(level),
+    syncAbilityUnlocks:
+      holobot.syncAbilityUnlocks ?? getUnlockedSyncAbilities({ name: holobot.name, syncStats }),
+    syncLevel: holobot.syncLevel ?? syncLevel,
+    syncStats,
   };
 }
 

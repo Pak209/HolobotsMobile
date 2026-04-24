@@ -1,4 +1,8 @@
 import { getHolobotBattleStats, getHolobotImageSource } from "@/config/holobots";
+import {
+  calculateSyncBattleModifiers,
+  getUnlockedSyncAbilities,
+} from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 import type { ArenaBattleConfig, ArenaFighter, BattleRewards } from "@/types/arena";
 
@@ -78,6 +82,8 @@ export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaF
     holobot.level || 1,
     holobot.boostedAttributes,
   );
+  const syncModifiers = calculateSyncBattleModifiers(holobot);
+  const syncAbilityIds = getUnlockedSyncAbilities(holobot);
 
   return {
     holobotId: `player-${holobot.name.toLowerCase()}`,
@@ -88,10 +94,10 @@ export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaF
     level: holobot.level || 1,
     maxHP: clampPositive(stats.maxHP, 150),
     currentHP: clampPositive(stats.maxHP, 150),
-    attack: clampPositive(stats.attack, 50),
-    defense: clampPositive(stats.defense, 50),
-    speed: clampPositive(stats.speed, 50),
-    intelligence: clampPositive(stats.intelligence, 50),
+    attack: clampPositive(Math.floor(stats.attack * syncModifiers.powerDamageMultiplier), 50),
+    defense: clampPositive(Math.floor(stats.defense * syncModifiers.guardDefenseMultiplier), 50),
+    speed: clampPositive(Math.floor(stats.speed * syncModifiers.tempoSpeedMultiplier), 50),
+    intelligence: clampPositive(Math.floor(stats.intelligence * syncModifiers.focusIntelligenceMultiplier), 50),
     specialMove: holobot.rank ? `${holobot.rank} protocol` : "Arena Burst",
     abilityDescription: `${holobot.name.toUpperCase()} enters battle with a mobile-first Arena loadout.`,
     stamina: 7,
@@ -102,8 +108,8 @@ export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaF
     comboCounter: 0,
     lastActionTime: Date.now(),
     statusEffects: [],
-    staminaEfficiency: 1,
-    defenseTimingWindow: 500,
+    staminaEfficiency: syncModifiers.tempoStaminaMultiplier,
+    defenseTimingWindow: Math.round(500 * syncModifiers.guardDefenseMultiplier),
     counterDamageBonus: 1.25,
     damageMultiplier: 1,
     speedBonus: 0,
@@ -111,6 +117,8 @@ export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaF
     totalDamageDealt: 0,
     perfectDefenses: 0,
     combosCompleted: 0,
+    syncAbilities: syncAbilityIds,
+    syncModifiers,
   };
 }
 

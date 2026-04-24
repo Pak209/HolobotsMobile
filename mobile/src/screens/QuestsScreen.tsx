@@ -16,6 +16,8 @@ import {
   refreshQuestBoard,
   startQuestRun,
 } from "@/lib/progressionSystems";
+import { computeLeaderboardScore } from "@/lib/profile";
+import { getSyncRank } from "@/lib/syncProgression";
 
 function formatQuestDuration(minutes: number) {
   if (minutes < 60) return `${minutes} min`;
@@ -120,12 +122,24 @@ export function QuestsScreen() {
       ...progression,
       activeQuests: progression.activeQuests.filter((entry) => entry.id !== quest.id),
     };
+    const earnedSyncPoints = Math.max(0, claimResult.syncPoints - (profile.syncPoints || 0));
+    const nextLifetimeSyncPoints = (profile.lifetimeSyncPoints || 0) + earnedSyncPoints;
+    const nextSeasonSyncPoints = (profile.seasonSyncPoints || 0) + earnedSyncPoints;
 
     try {
       await updateProfile({
         holobots: claimResult.holobots,
         inventory: claimResult.inventory,
+        lifetimeSyncPoints: nextLifetimeSyncPoints,
+        leaderboardScore: computeLeaderboardScore({
+          holobots: claimResult.holobots,
+          prestigeCount: profile.prestigeCount,
+          seasonSyncPoints: nextSeasonSyncPoints,
+          wins: profile.stats?.wins,
+        }),
         rewardSystem: nextRewardSystem,
+        seasonSyncPoints: nextSeasonSyncPoints,
+        syncRank: getSyncRank(nextLifetimeSyncPoints),
         syncPoints: claimResult.syncPoints,
       });
     } catch (error) {

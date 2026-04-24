@@ -11,6 +11,18 @@ import { ArenaCombatEngine } from '../lib/arena/combat-engine';
 import { CardPoolGenerator } from '../lib/arena/card-generator';
 import { ArenaAI } from '../lib/arena/ai-controller';
 
+function rotateCardQueue(cards: ActionCard[], usedCardId: string) {
+  const usedIndex = cards.findIndex((card) => card.id === usedCardId);
+  if (usedIndex < 0) {
+    return cards;
+  }
+
+  const nextCards = [...cards];
+  const [usedCard] = nextCards.splice(usedIndex, 1);
+  nextCards.push(usedCard);
+  return nextCards;
+}
+
 // ============================================================================
 // Arena Battle Store
 // ============================================================================
@@ -126,10 +138,13 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     const newState = ArenaCombatEngine.resolveAction(currentBattle, action);
     const resolvedAction = newState.actionHistory[newState.actionHistory.length - 1];
 
+    const nextPlayerCards = rotateCardQueue(playerCards, cardId);
+
     set({
       currentBattle: newState,
       lastAction: resolvedAction,
       isAnimating: true,
+      playerCards: nextPlayerCards,
       selectedCardId: null,
       lastAIActionTime: Date.now(),
     });
@@ -166,7 +181,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
 
   // Process AI turn
   processAITurn: () => {
-    const { currentBattle, ai } = get();
+    const { currentBattle, ai, opponentCards } = get();
     if (!currentBattle || !ai) return;
     if (currentBattle.status !== 'active') return;
     if (get().isAnimating) return;
@@ -209,10 +224,13 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     const newState = ArenaCombatEngine.resolveAction(battleWithDefense, action);
     const resolvedAction = newState.actionHistory[newState.actionHistory.length - 1];
 
+    const nextOpponentCards = rotateCardQueue(opponentCards, decision.selectedCard.id);
+
     set({
       currentBattle: newState,
       lastAction: resolvedAction,
       lastAIActionTime: Date.now(),
+      opponentCards: nextOpponentCards,
     });
 
     // Check for battle end

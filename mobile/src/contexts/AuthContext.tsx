@@ -28,6 +28,7 @@ import {
 import { createGenesisStarterHolobot, getHolobotRank } from "@/config/holobots";
 import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
 import { computeLeaderboardScore, subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
+import { getSyncRank } from "@/lib/syncProgression";
 import type { UserProfile } from "@/types/profile";
 
 export type GenesisStarterChoice = "ACE" | "KUMA" | "SHADOW";
@@ -226,12 +227,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (profile.leaderboardScore === undefined) {
+    if (
+      profile.leaderboardScore === undefined ||
+      profile.lifetimeSyncPoints === undefined ||
+      profile.seasonSyncPoints === undefined ||
+      profile.syncRank === undefined
+    ) {
       void updateUserProfile(user.uid, {
         holobots: profile.holobots || [],
         syncPoints: profile.syncPoints || 0,
+        lifetimeSyncPoints: profile.lifetimeSyncPoints ?? profile.syncPoints ?? 0,
+        seasonSyncPoints: profile.seasonSyncPoints ?? profile.syncPoints ?? 0,
+        syncRank: profile.syncRank ?? getSyncRank(profile.lifetimeSyncPoints ?? profile.syncPoints ?? 0),
       }).catch((error) => {
-        console.error("[Auth] Failed to backfill leaderboard score", error);
+        console.error("[Auth] Failed to backfill sync progression", error);
       });
     }
 
@@ -307,10 +316,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           starter_deck_claimed: true,
           syncDistanceUnit: "km",
           syncPoints: 0,
+          lifetimeSyncPoints: 0,
+          seasonSyncPoints: 0,
+          syncRank: "Rookie",
           leaderboardScore: computeLeaderboardScore({
             holobots: [starterHolobotProfile],
             prestigeCount: 0,
-            syncPoints: 0,
+            seasonSyncPoints: 0,
             wins: 0,
           }),
           todaySteps: 0,
@@ -348,6 +360,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
           syncDistanceUnit: "km",
           syncPoints: 0,
+          lifetimeSyncPoints: 0,
+          seasonSyncPoints: 0,
+          syncRank: "Rookie",
           todaySteps: 0,
           username: normalizedUsername,
           maxDailyEnergy: 100,

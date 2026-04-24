@@ -1,3 +1,6 @@
+import type { SyncBattleModifiers } from "@/lib/syncProgression";
+import type { ImageSourcePropType } from "react-native";
+
 // ============================================================================
 // Arena V2 Types - React Native / Expo
 // ============================================================================
@@ -58,6 +61,8 @@ export interface ArenaFighter {
   totalDamageDealt?: number;
   perfectDefenses?: number;
   combosCompleted?: number;
+  syncAbilities?: string[];
+  syncModifiers?: SyncBattleModifiers;
 }
 
 // ============================================================================
@@ -211,4 +216,3 @@ export interface BattleModifier {
   multiplier: number;
   description: string;
 }
-import type { ImageSourcePropType } from "react-native";

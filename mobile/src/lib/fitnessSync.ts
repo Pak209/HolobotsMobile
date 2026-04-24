@@ -6,6 +6,7 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { computeLeaderboardScore } from "@/lib/profile";
+import { getSyncRank } from "@/lib/syncProgression";
 
 const STEPS_PER_SYNC_POINT = 1000;
 const DAILY_WORKOUT_CAP = 4;
@@ -133,6 +134,8 @@ export async function syncFitnessActivity(
 
     const previousStepsSynced = Number(dailyData.stepsSynced ?? 0);
     const currentSyncPoints = Number(userData.syncPoints ?? 0);
+    const currentLifetimeSyncPoints = Number(userData.lifetimeSyncPoints ?? 0);
+    const currentSeasonSyncPoints = Number(userData.seasonSyncPoints ?? 0);
     const stepAward = calculateAwardDelta(previousStepsSynced, request.stepsTotal);
     const awardedDelta = Math.max(
       0,
@@ -140,6 +143,8 @@ export async function syncFitnessActivity(
     );
 
     const nextSyncPoints = currentSyncPoints + awardedDelta;
+    const nextLifetimeSyncPoints = currentLifetimeSyncPoints + awardedDelta;
+    const nextSeasonSyncPoints = currentSeasonSyncPoints + awardedDelta;
     const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted ?? 0));
     const nextSessionsCompleted = Math.min(
       DAILY_WORKOUT_CAP,
@@ -172,10 +177,13 @@ export async function syncFitnessActivity(
         leaderboardScore: computeLeaderboardScore({
           holobots: Array.isArray(userData.holobots) ? userData.holobots : [],
           prestigeCount: Number(userData.prestigeCount ?? 0),
-          syncPoints: nextSyncPoints,
+          seasonSyncPoints: nextSeasonSyncPoints,
           wins: Number(userData.wins ?? 0),
         }),
         syncPoints: nextSyncPoints,
+        lifetimeSyncPoints: nextLifetimeSyncPoints,
+        seasonSyncPoints: nextSeasonSyncPoints,
+        syncRank: getSyncRank(nextLifetimeSyncPoints),
         todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
       },
       { merge: true },

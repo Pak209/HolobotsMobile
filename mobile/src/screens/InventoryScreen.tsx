@@ -14,6 +14,7 @@ import {
   normalizeUserHolobot,
 } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
+import { canUpgradeSyncStat, upgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
 const tabs = ["Holobots", "Parts", "Items", "Cards"] as const;
@@ -240,6 +241,28 @@ export function InventoryScreen() {
       await updateProfile({ holobots: updatedHolobots });
     } catch (error) {
       Alert.alert("Upgrade failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
+
+  const handleUpgradeSyncStat = async (stat: SyncStatKey) => {
+    if (!profile || !selectedOwnedHolobot) {
+      return;
+    }
+
+    const upgradeCheck = canUpgradeSyncStat(profile, selectedOwnedHolobot, stat);
+    if (!upgradeCheck.canUpgrade) {
+      Alert.alert("Sync Upgrade Locked", upgradeCheck.reason || "This Sync Stat cannot be upgraded yet.");
+      return;
+    }
+
+    try {
+      const result = upgradeSyncStat(profile, selectedOwnedHolobot.name, stat);
+      await updateProfile({
+        holobots: result.profile.holobots,
+        syncPoints: result.profile.syncPoints,
+      });
+    } catch (error) {
+      Alert.alert("Sync Upgrade Failed", error instanceof Error ? error.message : "Please try again.");
     }
   };
 
@@ -609,6 +632,7 @@ export function InventoryScreen() {
       </ScrollView>
 
       <HolobotStatsModal
+        availableSyncPoints={profile?.syncPoints || 0}
         blueprintCount={selectedRosterHolobot ? profile?.blueprints?.[selectedRosterHolobot.key] || 0 : 0}
         holobot={selectedRosterHolobot}
         ownedHolobot={selectedOwnedHolobot}
@@ -617,6 +641,7 @@ export function InventoryScreen() {
         onMint={handleMintHolobot}
         onRankUpgrade={handleRankUpgrade}
         onUpgrade={handleUpgradeStat}
+        onUpgradeSync={handleUpgradeSyncStat}
       />
     </View>
   );

@@ -18,7 +18,9 @@ import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, fitnessAssets } from "@/config/figmaAs
 import { applyHolobotExperience, getExpProgress, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
+import { computeLeaderboardScore } from "@/lib/profile";
 import { normalizeProgressionSystem } from "@/lib/progressionSystems";
+import { getSyncRank } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 import type { RootTabs } from "../../App";
 
@@ -81,7 +83,7 @@ export function FitnessScreen() {
   const workout = useWorkout(user?.uid ?? null, distanceUnit);
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
-  const displayDistance = distanceUnit === "mi" ? workout.distanceKm * KM_TO_MILES : workout.distanceKm;
+  const displayDistance = distanceUnit === "mi" ? workout.displayDistanceKm * KM_TO_MILES : workout.displayDistanceKm;
   const displaySpeed = distanceUnit === "mi" ? workout.liveSpeedKmh * KM_TO_MILES : workout.liveSpeedKmh;
   const needleAngle = NEEDLE_MIN_ANGLE + (Math.min(displaySpeed, NEEDLE_MAX_SPEED) / NEEDLE_MAX_SPEED) * (NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE);
   const goalBarWidth = 698.125 * workout.progress;
@@ -145,10 +147,32 @@ export function FitnessScreen() {
     }
 
     try {
+      const syncProgressionUpdates =
+        completionResult.totalSyncPoints == null
+          ? (() => {
+              const rewardSyncPoints = (profile.syncPoints || 0) + completionResult.syncPointsReward;
+              const nextLifetimeSyncPoints = (profile.lifetimeSyncPoints || 0) + completionResult.syncPointsReward;
+              const nextSeasonSyncPoints = (profile.seasonSyncPoints || 0) + completionResult.syncPointsReward;
+
+              return {
+                leaderboardScore: computeLeaderboardScore({
+                  holobots: nextHolobots,
+                  prestigeCount: profile.prestigeCount,
+                  seasonSyncPoints: nextSeasonSyncPoints,
+                  wins: profile.stats?.wins,
+                }),
+                lifetimeSyncPoints: nextLifetimeSyncPoints,
+                seasonSyncPoints: nextSeasonSyncPoints,
+                syncPoints: rewardSyncPoints,
+                syncRank: getSyncRank(nextLifetimeSyncPoints),
+              };
+            })()
+          : {};
+
       await updateProfile({
         holobots: nextHolobots,
         holosTokens: (profile.holosTokens || 0) + completionResult.holosReward,
-        syncPoints: completionResult.totalSyncPoints ?? (profile.syncPoints || 0) + completionResult.syncPointsReward,
+        ...syncProgressionUpdates,
       });
       workout.clearCompletionResult();
       return true;
@@ -159,7 +183,10 @@ export function FitnessScreen() {
   };
 
   const handleCollectRewards = async () => {
-    await persistWorkoutRewards();
+    const saved = await persistWorkoutRewards();
+    if (saved) {
+      workout.resetWorkout();
+    }
   };
 
   const handleRewardQuickRefill = async () => {
@@ -168,7 +195,7 @@ export function FitnessScreen() {
       return;
     }
 
-    workout.resetWorkout();
+    workout.continueQuickRefillChain();
     await workout.unlockQuickRefill();
     await workout.toggleRunning();
   };

@@ -1,3 +1,13 @@
+export type SyncStats = {
+  power: number;
+  guard: number;
+  tempo: number;
+  focus: number;
+  bond: number;
+};
+
+export type SyncRank = "Rookie" | "Walker" | "Pilot" | "Strider" | "Champion" | "Legend";
+
 export type UserHolobot = {
   name: string;
   level: number;
@@ -16,6 +26,10 @@ export type UserHolobot = {
   prestiged?: boolean;
   pvpWins?: number;
   pvpLosses?: number;
+  syncStats?: SyncStats;
+  syncAbilityUnlocks?: string[];
+  syncLevel?: number;
+  lifetimeSPInvested?: number;
 };
 
 export type UserProfile = {
@@ -58,4 +72,7 @@ export type UserProfile = {
   lastFitnessSyncAt?: string;
   fitnessSource?: string;
   syncDistanceUnit?: "km" | "mi";
+  lifetimeSyncPoints?: number;
+  seasonSyncPoints?: number;
+  syncRank?: SyncRank;
 };

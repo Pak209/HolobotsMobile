@@ -8,6 +8,15 @@ import {
   normalizeUserHolobot,
   type HolobotRosterEntry,
 } from "@/config/holobots";
+import {
+  getDefaultSyncStats,
+  getSyncAbilityDefinitions,
+  getSyncStatLabel,
+  getSyncStatUpgradeCost,
+  getTotalSyncInvestment,
+  normalizeSyncStats,
+  type SyncStatKey,
+} from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
 const BLUEPRINT_TIERS = [
@@ -21,6 +30,7 @@ const BLUEPRINT_TIERS = [
 type UpgradeTierLabel = (typeof BLUEPRINT_TIERS)[number]["label"];
 
 type Props = {
+  availableSyncPoints: number;
   blueprintCount: number;
   holobot: HolobotRosterEntry | null;
   ownedHolobot: UserHolobot | null;
@@ -28,6 +38,7 @@ type Props = {
   onMint: (tierLabel: UpgradeTierLabel) => void;
   onRankUpgrade: (tierLabel: UpgradeTierLabel) => void;
   onUpgrade: (attribute: "attack" | "defense" | "speed" | "health") => void;
+  onUpgradeSync: (stat: SyncStatKey) => void;
   visible: boolean;
 };
 
@@ -69,6 +80,7 @@ function getMintTier(blueprintCount: number) {
 }
 
 export function HolobotStatsModal({
+  availableSyncPoints,
   blueprintCount,
   holobot,
   ownedHolobot,
@@ -76,6 +88,7 @@ export function HolobotStatsModal({
   onMint,
   onRankUpgrade,
   onUpgrade,
+  onUpgradeSync,
   visible,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"stats" | "blueprints">("stats");
@@ -97,6 +110,10 @@ export function HolobotStatsModal({
   const currentRank = normalizedOwnedHolobot?.rank || holobot.rank || getHolobotRank(holobot.level || 1);
   const currentTierNumber = getTierNumber(currentRank);
   const mintTier = getMintTier(blueprintCount);
+  const syncStats = normalizeSyncStats(normalizedOwnedHolobot?.syncStats || getDefaultSyncStats());
+  const syncAbilities = getSyncAbilityDefinitions(holobot.name);
+  const unlockedSyncAbilityIds = normalizedOwnedHolobot?.syncAbilityUnlocks || [];
+  const totalSyncInvestment = getTotalSyncInvestment(syncStats);
   const progress = normalizedOwnedHolobot
     ? getExpProgress(normalizedOwnedHolobot)
     : mintTier
@@ -108,6 +125,13 @@ export function HolobotStatsModal({
     { baseValue: base.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
     { baseValue: base.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
     { baseValue: base.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
+  ];
+  const syncRows: Array<{ key: SyncStatKey; value: number }> = [
+    { key: "power", value: syncStats.power },
+    { key: "guard", value: syncStats.guard },
+    { key: "tempo", value: syncStats.tempo },
+    { key: "focus", value: syncStats.focus },
+    { key: "bond", value: syncStats.bond },
   ];
 
   return (
@@ -213,6 +237,75 @@ export function HolobotStatsModal({
                     </Text>
                   </View>
                 )}
+
+                {normalizedOwnedHolobot ? (
+                  <>
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>SYNC STATS</Text>
+                      <Text style={styles.syncMeta}>{`Available SP ${availableSyncPoints}`}</Text>
+                      <Text style={styles.syncMeta}>
+                        {`Sync Level ${normalizedOwnedHolobot.syncLevel || totalSyncInvestment} • Total Investment ${totalSyncInvestment}/120`}
+                      </Text>
+                      <Text style={styles.syncMeta}>{`Lifetime SP Invested ${normalizedOwnedHolobot.lifetimeSPInvested || 0}`}</Text>
+                      <View style={styles.syncStatList}>
+                        {syncRows.map((entry) => {
+                          const nextCost = getSyncStatUpgradeCost(entry.value);
+                          const lockedByCap = entry.value >= 50 || totalSyncInvestment >= 120;
+                          const canAfford = availableSyncPoints >= nextCost;
+                          const canUpgrade = !lockedByCap && canAfford;
+
+                          return (
+                            <View key={entry.key} style={styles.syncStatRow}>
+                              <View style={styles.syncStatCopy}>
+                                <Text style={styles.syncStatName}>{getSyncStatLabel(entry.key).toUpperCase()}</Text>
+                                <Text style={styles.syncStatValue}>{`LV ${entry.value} • NEXT ${nextCost} SP`}</Text>
+                              </View>
+                              <Pressable
+                                disabled={!canUpgrade}
+                                onPress={() => onUpgradeSync(entry.key)}
+                                style={[styles.syncUpgradeButton, !canUpgrade ? styles.boostButtonDisabled : null]}
+                              >
+                                <Text style={[styles.syncUpgradeButtonText, !canUpgrade ? styles.boostButtonTextDisabled : null]}>
+                                  {lockedByCap ? "MAX" : "UPGRADE"}
+                                </Text>
+                              </Pressable>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
+                      {syncAbilities.length ? (
+                        <View style={styles.syncAbilityList}>
+                          {syncAbilities.map((ability) => {
+                            const unlocked = unlockedSyncAbilityIds.includes(ability.id);
+                            return (
+                              <View key={ability.id} style={[styles.syncAbilityCard, unlocked ? styles.syncAbilityUnlocked : null]}>
+                                <View style={styles.syncAbilityHeader}>
+                                  <Text style={styles.syncAbilityName}>{ability.name}</Text>
+                                  <Text style={styles.syncAbilityTier}>{`T${ability.tier}`}</Text>
+                                </View>
+                                <Text style={styles.syncAbilityRequirement}>
+                                  {ability.secondaryStat
+                                    ? `${getSyncStatLabel(ability.primaryStat)} ${ability.primaryRequired} • ${getSyncStatLabel(ability.secondaryStat)} ${ability.secondaryRequired}`
+                                    : `${getSyncStatLabel(ability.primaryStat)} ${ability.primaryRequired}`}
+                                </Text>
+                                <Text style={styles.syncAbilityDescription}>{ability.description}</Text>
+                                <Text style={[styles.syncAbilityState, unlocked ? styles.syncAbilityStateUnlocked : null]}>
+                                  {unlocked ? "UNLOCKED" : "LOCKED"}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ) : (
+                        <Text style={styles.emptyStateText}>This holobot does not have Sync Abilities configured yet.</Text>
+                      )}
+                    </View>
+                  </>
+                ) : null}
               </>
             ) : (
               <View style={styles.section}>
@@ -455,6 +548,99 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 8,
+  },
+  syncAbilityCard: {
+    backgroundColor: "#0d1219",
+    borderColor: "#32404d",
+    borderWidth: 1,
+    padding: 12,
+  },
+  syncAbilityDescription: {
+    color: "#d7cfb7",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  syncAbilityHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  syncAbilityList: {
+    gap: 10,
+  },
+  syncAbilityName: {
+    color: "#f4f4f2",
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    marginRight: 12,
+  },
+  syncAbilityRequirement: {
+    color: "#8fa6bf",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  syncAbilityState: {
+    color: "#7f7a68",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+    marginTop: 8,
+  },
+  syncAbilityStateUnlocked: {
+    color: "#66d68d",
+  },
+  syncAbilityTier: {
+    color: "#f0bf14",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  syncAbilityUnlocked: {
+    borderColor: "#66d68d",
+  },
+  syncMeta: {
+    color: "#d5cbb2",
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  syncStatCopy: {
+    flex: 1,
+    marginRight: 12,
+  },
+  syncStatList: {
+    gap: 10,
+    marginTop: 6,
+  },
+  syncStatName: {
+    color: "#f4f4f2",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  syncStatRow: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  syncStatValue: {
+    color: "#8fa6bf",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  syncUpgradeButton: {
+    alignItems: "center",
+    backgroundColor: "#1a2534",
+    borderColor: "#4f79aa",
+    borderWidth: 1.5,
+    minWidth: 90,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  syncUpgradeButtonText: {
+    color: "#dceeff",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.6,
   },
   tabButton: {
     alignItems: "center",

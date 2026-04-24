@@ -1,5 +1,6 @@
 import { doc, getDoc, onSnapshot, updateDoc, db, type Unsubscribe } from "@/config/firebase";
-import type { UserHolobot, UserProfile } from "@/types/profile";
+import type { SyncRank, UserHolobot, UserProfile } from "@/types/profile";
+import { getSyncRank } from "@/lib/syncProgression";
 
 const DEFAULT_USER_PROFILE = {
   dailyEnergy: 100,
@@ -21,6 +22,9 @@ const DEFAULT_USER_PROFILE = {
   isDevAccount: false,
   rentalHolobots: [],
   syncPoints: 0,
+  lifetimeSyncPoints: 0,
+  seasonSyncPoints: 0,
+  syncRank: "Rookie" as SyncRank,
   inventory: {},
   todaySteps: 0,
   fitnessSource: "mobile",
@@ -49,6 +53,9 @@ type FirestoreUserDocument = {
   isDevAccount?: boolean;
   rentalHolobots?: Array<Record<string, unknown>>;
   syncPoints?: number;
+  lifetimeSyncPoints?: number;
+  seasonSyncPoints?: number;
+  syncRank?: SyncRank;
   leaderboardScore?: number;
   prestigeCount?: number;
   onboardingPath?: string;
@@ -69,17 +76,17 @@ type FirestoreUserDocument = {
 type LeaderboardScoreInput = {
   holobots?: UserHolobot[];
   prestigeCount?: number;
-  syncPoints?: number;
+  seasonSyncPoints?: number;
   wins?: number;
 };
 
 export function computeLeaderboardScore(input: LeaderboardScoreInput) {
   const highestLevel = Math.max(1, ...(input.holobots || []).map((holobot) => holobot.level || 1));
   const wins = input.wins || 0;
-  const syncPoints = input.syncPoints || 0;
+  const seasonSyncPoints = input.seasonSyncPoints || 0;
   const prestigeCount = input.prestigeCount || 0;
 
-  return wins * 120 + highestLevel * 25 + syncPoints + prestigeCount * 500;
+  return wins * 120 + highestLevel * 25 + seasonSyncPoints + prestigeCount * 500;
 }
 
 function toIsoString(value?: { toDate?: () => Date } | string) {
@@ -132,12 +139,17 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     isDevAccount: data.isDevAccount ?? DEFAULT_USER_PROFILE.isDevAccount,
     rental_holobots: data.rentalHolobots ?? DEFAULT_USER_PROFILE.rentalHolobots,
     syncPoints: data.syncPoints ?? DEFAULT_USER_PROFILE.syncPoints,
+    lifetimeSyncPoints: data.lifetimeSyncPoints ?? DEFAULT_USER_PROFILE.lifetimeSyncPoints,
+    seasonSyncPoints: data.seasonSyncPoints ?? DEFAULT_USER_PROFILE.seasonSyncPoints,
+    syncRank:
+      data.syncRank ??
+      getSyncRank(data.lifetimeSyncPoints ?? DEFAULT_USER_PROFILE.lifetimeSyncPoints),
     leaderboardScore:
       data.leaderboardScore ??
       computeLeaderboardScore({
         holobots: data.holobots || [],
         prestigeCount: data.prestigeCount ?? 0,
-        syncPoints: data.syncPoints ?? DEFAULT_USER_PROFILE.syncPoints,
+        seasonSyncPoints: data.seasonSyncPoints ?? DEFAULT_USER_PROFILE.seasonSyncPoints,
         wins: data.wins ?? DEFAULT_USER_PROFILE.wins,
       }),
     prestigeCount: data.prestigeCount ?? 0,
@@ -188,6 +200,9 @@ type UserProfileUpdates = Partial<{
   dailyEnergy: number;
   holosTokens: number;
   syncPoints: number;
+  lifetimeSyncPoints: number;
+  seasonSyncPoints: number;
+  syncRank: SyncRank;
   gachaTickets: number;
   arena_passes: number;
   exp_boosters: number;
@@ -205,6 +220,7 @@ type UserProfileUpdates = Partial<{
   holobots: UserHolobot[];
   rewardSystem: Record<string, unknown>;
   syncDistanceUnit: "km" | "mi";
+  leaderboardScore: number;
 }>;
 
 export async function updateUserProfile(userId: string, updates: UserProfileUpdates) {
@@ -214,6 +230,9 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.dailyEnergy !== undefined) firestoreUpdates.dailyEnergy = updates.dailyEnergy;
   if (updates.holosTokens !== undefined) firestoreUpdates.holosTokens = updates.holosTokens;
   if (updates.syncPoints !== undefined) firestoreUpdates.syncPoints = updates.syncPoints;
+  if (updates.lifetimeSyncPoints !== undefined) firestoreUpdates.lifetimeSyncPoints = updates.lifetimeSyncPoints;
+  if (updates.seasonSyncPoints !== undefined) firestoreUpdates.seasonSyncPoints = updates.seasonSyncPoints;
+  if (updates.syncRank !== undefined) firestoreUpdates.syncRank = updates.syncRank;
   if (updates.gachaTickets !== undefined) firestoreUpdates.gachaTickets = updates.gachaTickets;
   if (updates.arena_passes !== undefined) firestoreUpdates.arenaPassses = updates.arena_passes;
   if (updates.exp_boosters !== undefined) firestoreUpdates.expBoosters = updates.exp_boosters;
@@ -234,16 +253,26 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.rewardSystem !== undefined) firestoreUpdates.rewardSystem = updates.rewardSystem;
   if (updates.syncDistanceUnit !== undefined) firestoreUpdates.syncDistanceUnit = updates.syncDistanceUnit;
 
-  if (updates.holobots !== undefined || updates.syncPoints !== undefined) {
+  if (
+    updates.holobots !== undefined ||
+    updates.syncPoints !== undefined ||
+    updates.seasonSyncPoints !== undefined ||
+    updates.leaderboardScore !== undefined
+  ) {
     const existingSnapshot = await getDoc(userRef);
     const existingData = (existingSnapshot.data() ?? {}) as FirestoreUserDocument;
 
-    firestoreUpdates.leaderboardScore = computeLeaderboardScore({
-      holobots: updates.holobots ?? existingData.holobots ?? DEFAULT_USER_PROFILE.holobots,
-      prestigeCount: existingData.prestigeCount ?? 0,
-      syncPoints: updates.syncPoints ?? existingData.syncPoints ?? DEFAULT_USER_PROFILE.syncPoints,
-      wins: existingData.wins ?? DEFAULT_USER_PROFILE.wins,
-    });
+    firestoreUpdates.leaderboardScore =
+      updates.leaderboardScore ??
+      computeLeaderboardScore({
+        holobots: updates.holobots ?? existingData.holobots ?? DEFAULT_USER_PROFILE.holobots,
+        prestigeCount: existingData.prestigeCount ?? 0,
+        seasonSyncPoints:
+          updates.seasonSyncPoints ??
+          existingData.seasonSyncPoints ??
+          DEFAULT_USER_PROFILE.seasonSyncPoints,
+        wins: existingData.wins ?? DEFAULT_USER_PROFILE.wins,
+      });
   }
 
   await updateDoc(userRef, firestoreUpdates as any);

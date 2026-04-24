@@ -73,7 +73,7 @@ export function BattleResultsModal({
                 <Text style={styles.rewardValue}>+{rewards.syncPoints}</Text>
               </View>
 
-              {rewards.holos && rewards.holos > 0 && (
+              {typeof rewards.holos === "number" && rewards.holos > 0 ? (
                 <View style={[styles.rewardItem, styles.rareReward]}>
                   <Text style={styles.rewardIcon}>H</Text>
                   <Text style={styles.rewardLabel}>HOLOS</Text>
@@ -81,7 +81,7 @@ export function BattleResultsModal({
                     +{rewards.holos}
                   </Text>
                 </View>
-              )}
+              ) : null}
 
               {rewards.blueprintRewards?.map((reward) => (
                 <View key={reward.holobotKey} style={[styles.rewardItem, styles.rareReward]}>

@@ -19,6 +19,7 @@ import { collection, db, doc, onSnapshot, query, serverTimestamp, updateDoc } fr
 import { useAuth } from "@/contexts/AuthContext";
 import { incrementArenaBattlesToday } from "@/lib/dailyMissions";
 import { computeLeaderboardScore } from "@/lib/profile";
+import { getSyncRank } from "@/lib/syncProgression";
 import { useArenaBattleStore } from "@/stores/arena-battle-store";
 import type { UserHolobot } from "@/types/profile";
 
@@ -459,10 +460,12 @@ export function ArenaScreen() {
     const nextWins = (profile.stats?.wins || 0) + (didWin ? 1 : 0);
     const nextLosses = (profile.stats?.losses || 0) + (didWin ? 0 : 1);
     const nextSyncPoints = (profile.syncPoints || 0) + rewardSyncPoints;
+    const nextLifetimeSyncPoints = (profile.lifetimeSyncPoints || 0) + rewardSyncPoints;
+    const nextSeasonSyncPoints = (profile.seasonSyncPoints || 0) + rewardSyncPoints;
     const nextLeaderboardScore = computeLeaderboardScore({
       holobots: updatedHolobots,
       prestigeCount: profile.prestigeCount || 0,
-      syncPoints: nextSyncPoints,
+      seasonSyncPoints: nextSeasonSyncPoints,
       wins: nextWins,
     });
 
@@ -472,8 +475,11 @@ export function ArenaScreen() {
         holobots: updatedHolobots,
         holosTokens: (profile.holosTokens || 0) + rewardHolos,
         leaderboardScore: nextLeaderboardScore,
+        lifetimeSyncPoints: nextLifetimeSyncPoints,
         losses: nextLosses,
         rewardSystem: updatedRewardSystem,
+        seasonSyncPoints: nextSeasonSyncPoints,
+        syncRank: getSyncRank(nextLifetimeSyncPoints),
         syncPoints: nextSyncPoints,
         wins: nextWins,
       });
@@ -618,7 +624,9 @@ export function ArenaScreen() {
 
   return (
     <View style={styles.page}>
-      <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} showSettings={false} showStats={false} />
+      {phase === "prebattle" ? (
+        <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} showSettings={false} showStats={false} />
+      ) : null}
 
       {phase === "prebattle" || !currentBattle ? (
         <ArenaPrebattleMenu
@@ -632,6 +640,7 @@ export function ArenaScreen() {
       {phase === "battle" && currentBattle ? (
         <BattleArenaView
           battle={currentBattle}
+          roundProgress={roundProgress}
           playerCards={playerCards}
           playableCardIds={playableCardIds}
           selectedCardId={selectedCardId}

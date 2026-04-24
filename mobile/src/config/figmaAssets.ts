@@ -59,3 +59,5 @@ export const fitnessAssets = {
   bottomElement: require("../../assets/figma/fitness/bottomElement.png"),
   goButton: require("../../assets/figma/fitness/goButton.png")
 };
+
+export const fitnessAssetList = Object.values(fitnessAssets);

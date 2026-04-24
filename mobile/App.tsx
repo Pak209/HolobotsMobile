@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Asset } from "expo-asset";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -16,6 +18,7 @@ import { MarketplaceScreen } from "./src/screens/MarketplaceScreen";
 import { GachaScreen } from "./src/screens/GachaScreen";
 import { QuestsScreen } from "./src/screens/QuestsScreen";
 import { TrainingScreen } from "./src/screens/TrainingScreen";
+import { fitnessAssetList } from "./src/config/figmaAssets";
 
 export type RootTabs = {
   Arena: undefined;
@@ -83,6 +86,10 @@ function AuthedApp() {
 }
 
 export default function App() {
+  useEffect(() => {
+    void Asset.loadAsync(fitnessAssetList);
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
