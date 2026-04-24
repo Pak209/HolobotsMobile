@@ -9,12 +9,15 @@ import type {
   ArenaBattleConfig,
   BattleRewards,
 } from '../../types/arena';
+import { SYNC_ABILITIES, type SyncAbility } from '@/lib/syncProgression';
 
 // ============================================================================
 // Arena Combat Engine
 // ============================================================================
 
 export class ArenaCombatEngine {
+  private static readonly SYNC_MARKER_PREFIX = 'sync:';
+
   // ============================================================================
   // Initialization
   // ============================================================================
@@ -26,30 +29,33 @@ export class ArenaCombatEngine {
   ): BattleState {
     const battleId = `battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+    const playerState = this.applySyncAbilityBattleStartEffects({
+      ...player,
+      currentHP: player.maxHP,
+      stamina: player.maxStamina,
+      specialMeter: 0,
+      staminaState: 'fresh',
+      isInDefenseMode: false,
+      comboCounter: 0,
+      lastActionTime: Date.now(),
+    });
+    const opponentState = this.applySyncAbilityBattleStartEffects({
+      ...opponent,
+      currentHP: opponent.maxHP,
+      stamina: opponent.maxStamina,
+      specialMeter: 0,
+      staminaState: 'fresh',
+      isInDefenseMode: false,
+      comboCounter: 0,
+      lastActionTime: Date.now(),
+    });
+
     return {
       battleId,
       battleType: config?.battleType || 'pve',
       status: 'active',
-      player: {
-        ...player,
-        currentHP: player.maxHP,
-        stamina: player.maxStamina,
-        specialMeter: 0,
-        staminaState: 'fresh',
-        isInDefenseMode: false,
-        comboCounter: 0,
-        lastActionTime: Date.now(),
-      },
-      opponent: {
-        ...opponent,
-        currentHP: opponent.maxHP,
-        stamina: opponent.maxStamina,
-        specialMeter: 0,
-        staminaState: 'fresh',
-        isInDefenseMode: false,
-        comboCounter: 0,
-        lastActionTime: Date.now(),
-      },
+      player: playerState,
+      opponent: opponentState,
       turnNumber: 1,
       currentActorId: player.speed >= opponent.speed ? player.holobotId : opponent.holobotId,
       pendingActions: [],
@@ -76,28 +82,38 @@ export class ArenaCombatEngine {
       opponent: { ...state.opponent },
     };
 
-    const REGEN_INTERVAL_MS = 1800;
+    const BASE_REGEN_INTERVAL_MS = 1800;
 
     const regenerateFighter = (fighter: ArenaFighter) => {
       if (fighter.stamina >= fighter.maxStamina) {
         return fighter;
       }
 
+      const flowStateBonus = this.hasSyncAbility(fighter, 'wake_flow_state') && fighter.currentHP > fighter.maxHP * 0.5
+        ? 1 + 0.08
+        : 1;
+      const effectiveEfficiency = Math.max(0.5, (fighter.staminaEfficiency || 1) * flowStateBonus);
+      const regenIntervalMs = Math.max(400, Math.floor(BASE_REGEN_INTERVAL_MS / effectiveEfficiency));
       const elapsed = now - fighter.lastActionTime;
-      const recovered = Math.floor(elapsed / REGEN_INTERVAL_MS);
+      const recovered = Math.floor(elapsed / regenIntervalMs);
 
       if (recovered <= 0) {
         return fighter;
       }
 
       const stamina = Math.min(fighter.maxStamina, fighter.stamina + recovered);
-
-      return {
+      let nextFighter: ArenaFighter = {
         ...fighter,
         stamina,
         staminaState: this.getStaminaState(stamina),
-        lastActionTime: fighter.lastActionTime + recovered * REGEN_INTERVAL_MS,
+        lastActionTime: fighter.lastActionTime + recovered * regenIntervalMs,
       };
+
+      if (fighter.stamina < fighter.maxStamina && stamina >= fighter.maxStamina) {
+        nextFighter = this.addSyncMarker(nextFighter, 'stamina-full-ready');
+      }
+
+      return nextFighter;
     };
 
     nextState.player = regenerateFighter(nextState.player);
@@ -123,15 +139,30 @@ export class ArenaCombatEngine {
     }
 
     // 2. Consume stamina
-    attacker.stamina -= action.card.staminaCost;
+    const staminaCost = this.getEffectiveStaminaCost(attacker, action.card);
+    attacker.stamina -= staminaCost;
     attacker.staminaState = this.getStaminaState(attacker.stamina);
     attacker.lastActionTime = Date.now();
+
+    if (
+      this.hasSyncAbility(attacker, 'era_time_slip') &&
+      attacker.staminaState === 'exhausted' &&
+      !this.hasSyncMarker(attacker, 'era-time-slip-used')
+    ) {
+      attacker.stamina = Math.min(attacker.maxStamina, attacker.stamina + 2);
+      attacker.staminaState = this.getStaminaState(attacker.stamina);
+      this.addSyncMarkerMutating(attacker, 'era-time-slip-used');
+    }
 
     // 3. Resolve based on card type
     let outcome: ActionOutcome = 'hit';
     let damageDealt = 0;
     let wasCountered = false;
     let perfectDefense = false;
+    let syncMeterBonus = 0;
+    let syncDamageMultiplier = 1;
+    let syncCounterBonus = 0;
+    let resolvedMeterGain = 0;
 
     if (action.card.type === 'strike' || action.card.type === 'combo' || action.card.type === 'finisher') {
       // Check if defender is in defense mode
@@ -142,15 +173,29 @@ export class ArenaCombatEngine {
         wasCountered = defenseResult.countered;
 
         if (outcome === 'blocked') {
-          damageDealt = Math.floor(action.card.baseDamage * 0.25); // Chip damage
+          let chipMultiplier = 0.25;
+          const defenseSyncEffects = this.applySyncAbilityDefenseEffects(defender, attacker, outcome);
+          Object.assign(defender, defenseSyncEffects.fighter);
+          Object.assign(attacker, defenseSyncEffects.opponent);
+          chipMultiplier *= defenseSyncEffects.blockMultiplier;
+          syncMeterBonus += defenseSyncEffects.meterBonus;
+          syncCounterBonus += defenseSyncEffects.counterBonus;
+          damageDealt = Math.floor(action.card.baseDamage * chipMultiplier);
           if (perfectDefense) {
             defender.stamina = Math.min(defender.maxStamina, defender.stamina + 2);
             defender.specialMeter = Math.min(100, defender.specialMeter + 15);
           }
         } else if (outcome === 'countered') {
+          const defenseSyncEffects = this.applySyncAbilityDefenseEffects(defender, attacker, outcome);
+          Object.assign(defender, defenseSyncEffects.fighter);
+          Object.assign(attacker, defenseSyncEffects.opponent);
+          syncMeterBonus += defenseSyncEffects.meterBonus;
+          syncCounterBonus += defenseSyncEffects.counterBonus;
           damageDealt = 0;
           // Counter damage back to attacker
-          const counterDamage = Math.floor(action.card.baseDamage * 0.5 * defender.counterDamageBonus);
+          const counterDamage = Math.floor(
+            action.card.baseDamage * 0.5 * defender.counterDamageBonus * (1 + syncCounterBonus)
+          );
           attacker.currentHP = Math.max(0, attacker.currentHP - counterDamage);
         }
       } else {
@@ -159,26 +204,53 @@ export class ArenaCombatEngine {
         outcome = 'hit';
       }
 
-      // Apply damage
-      if (outcome === 'hit' || outcome === 'blocked') {
-        defender.currentHP = Math.max(0, defender.currentHP - damageDealt);
-      }
-
-      // Build special meter
-      attacker.specialMeter = Math.min(100, attacker.specialMeter + this.getMeterGain(action.card, outcome));
-
       // Track combo
       if (action.card.type === 'combo' || outcome === 'hit') {
         attacker.comboCounter++;
       } else {
         attacker.comboCounter = 0;
       }
+
+      const syncCardEffects = this.applySyncAbilityCardEffects(
+        { ...action, outcome },
+        action.card,
+        attacker,
+        defender,
+      );
+      Object.assign(attacker, syncCardEffects.fighter);
+      Object.assign(defender, syncCardEffects.opponent);
+      syncDamageMultiplier = syncCardEffects.damageMultiplier;
+      syncMeterBonus += syncCardEffects.meterBonus;
+      damageDealt = Math.floor(damageDealt * syncDamageMultiplier);
+
+      // Apply damage
+      if (outcome === 'hit' || outcome === 'blocked') {
+        defender.currentHP = Math.max(0, defender.currentHP - damageDealt);
+      }
+
+      // Build special meter
+      const baseMeterGain = this.getMeterGain(action.card, outcome);
+      resolvedMeterGain = Math.max(0, Math.floor(baseMeterGain * syncCardEffects.meterMultiplier + syncMeterBonus));
+      attacker.specialMeter = Math.min(100, attacker.specialMeter + resolvedMeterGain);
     } else if (action.card.type === 'defense') {
       // Entering defense mode
       attacker.isInDefenseMode = true;
       attacker.stamina = Math.min(attacker.maxStamina, attacker.stamina + 1);
       attacker.staminaState = this.getStaminaState(attacker.stamina);
       outcome = 'blocked';
+      const syncCardEffects = this.applySyncAbilityCardEffects(
+        { ...action, outcome },
+        action.card,
+        attacker,
+        defender,
+      );
+      Object.assign(attacker, syncCardEffects.fighter);
+      Object.assign(defender, syncCardEffects.opponent);
+      syncMeterBonus += syncCardEffects.meterBonus;
+      if (syncMeterBonus > 0) {
+        resolvedMeterGain = Math.floor(syncMeterBonus);
+        attacker.specialMeter = Math.min(100, attacker.specialMeter + resolvedMeterGain);
+      }
     }
 
     this.applyCardEffects(action.card, attacker, defender);
@@ -188,8 +260,8 @@ export class ArenaCombatEngine {
       ...action,
       outcome,
       damageDealt,
-      staminaChange: -action.card.staminaCost,
-      specialMeterChange: this.getMeterGain(action.card, outcome),
+      staminaChange: -staminaCost,
+      specialMeterChange: resolvedMeterGain,
       wasCountered,
       triggeredCombo: attacker.comboCounter >= 3,
       perfectDefense,
@@ -313,7 +385,8 @@ export class ArenaCombatEngine {
   }
 
   static canPlayCard(fighter: ArenaFighter, card: ActionCard): boolean {
-    if (fighter.stamina < card.staminaCost) return false;
+    const effectiveCost = this.getEffectiveStaminaCost(fighter, card);
+    if (fighter.stamina < effectiveCost) return false;
 
     // Check requirements
     for (const req of card.requirements) {
@@ -427,10 +500,15 @@ export class ArenaCombatEngine {
   static calculateActualRewards(state: BattleState, winnerId: string): BattleRewards {
     const didWin = winnerId === state.player.holobotId;
     const base = state.potentialRewards;
+    const syncAbilityExpMultiplier = this.getFighterSyncAbilityDefinitions(state.player)
+      .filter((ability) => ability.effectType === 'exp_bonus')
+      .reduce((multiplier, ability) => multiplier * (1 + ability.value), 1);
+    const syncExpMultiplier =
+      (state.player.syncModifiers?.bondExpRewardMultiplier || 1) * syncAbilityExpMultiplier;
 
     if (!didWin) {
       return {
-        exp: Math.floor(base.exp * 0.3),
+        exp: Math.floor(base.exp * 0.3 * syncExpMultiplier),
         syncPoints: Math.floor(base.syncPoints * 0.2),
         holos: 0,
         eloChange: base.eloChange ? -base.eloChange : undefined,
@@ -443,7 +521,7 @@ export class ArenaCombatEngine {
     const performanceBonus = 1 + (perfectDefenses * 0.05) + (maxCombo * 0.1);
 
     return {
-      exp: Math.floor(base.exp * performanceBonus),
+      exp: Math.floor(base.exp * performanceBonus * syncExpMultiplier),
       syncPoints: Math.floor(base.syncPoints * performanceBonus),
       holos: base.holos,
       blueprintRewards: base.blueprintRewards,
@@ -481,5 +559,361 @@ export class ArenaCombatEngine {
           break;
       }
     }
+  }
+
+  static hasSyncAbility(fighter: ArenaFighter, abilityId: string) {
+    return (fighter.syncAbilities || []).includes(abilityId);
+  }
+
+  static getFighterSyncAbilityDefinitions(fighter: ArenaFighter): SyncAbility[] {
+    const activeAbilityIds = new Set(fighter.syncAbilities || []);
+    return SYNC_ABILITIES.filter((ability) => activeAbilityIds.has(ability.id));
+  }
+
+  static applySyncAbilityBattleStartEffects(fighter: ArenaFighter): ArenaFighter {
+    let nextFighter: ArenaFighter = {
+      ...fighter,
+      statusEffects: [...(fighter.statusEffects || [])],
+    };
+
+    for (const ability of this.getFighterSyncAbilityDefinitions(nextFighter)) {
+      switch (ability.id) {
+        case 'era_chrono_read':
+        case 'wolf_lunar_howl':
+          nextFighter.specialMeter = Math.min(100, nextFighter.specialMeter + ability.value);
+          if (ability.oncePerBattle) {
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'kuma_guardian_core':
+        case 'shadow_vanish_protocol':
+        case 'era_rewind_pulse':
+        case 'kurai_void_shell':
+          // TODO: implement harder Sync defensive effects in a later combat-engine phase.
+          break;
+        default:
+          break;
+      }
+    }
+
+    return nextFighter;
+  }
+
+  static applySyncAbilityCardEffects(
+    action: BattleAction,
+    card: ActionCard,
+    fighter: ArenaFighter,
+    opponent: ArenaFighter
+  ): {
+    damageMultiplier: number;
+    fighter: ArenaFighter;
+    meterBonus: number;
+    meterMultiplier: number;
+    opponent: ArenaFighter;
+  } {
+    let nextFighter: ArenaFighter = fighter;
+    let nextOpponent: ArenaFighter = opponent;
+    let damageMultiplier = 1;
+    let meterBonus = 0;
+    let meterMultiplier = 1;
+
+    for (const ability of this.getFighterSyncAbilityDefinitions(nextFighter)) {
+      switch (ability.id) {
+        case 'ace_knockout_rhythm':
+          if (card.type === 'finisher' && nextFighter.comboCounter >= 1) {
+            damageMultiplier *= 1 + ability.value;
+          }
+          break;
+        case 'tora_predator_mark':
+          if (card.type === 'strike' && action.outcome === 'hit' && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            damageMultiplier *= 1 + ability.value;
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'tora_pounce_protocol':
+          if (
+            card.type === 'combo' &&
+            (nextOpponent.staminaState === 'gassed' || nextOpponent.staminaState === 'exhausted') &&
+            !this.hasSyncMarker(nextFighter, `${ability.id}:used`)
+          ) {
+            damageMultiplier *= 1 + ability.value;
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'ken_blade_focus':
+          if (card.type === 'strike' && nextFighter.specialMeter > 50) {
+            damageMultiplier *= 1 + ability.value;
+          }
+          break;
+        case 'ken_clean_cut':
+          if (
+            (card.type === 'strike' || card.type === 'combo' || card.type === 'finisher') &&
+            this.hasSyncMarker(nextFighter, 'perfect-defense-window')
+          ) {
+            damageMultiplier *= 1 + ability.value;
+            nextFighter = this.removeSyncMarker(nextFighter, 'perfect-defense-window');
+          }
+          break;
+        case 'tsuin_mirror_chain':
+          if (card.type === 'combo' && nextFighter.comboCounter >= 2) {
+            damageMultiplier *= 1 + ability.value;
+          }
+          break;
+        case 'wolf_pack_instinct':
+          if (nextFighter.currentHP <= nextFighter.maxHP * 0.5) {
+            damageMultiplier *= 1 + ability.value;
+          }
+          break;
+        case 'ace_rocket_tempo':
+          if (card.type === 'strike' && this.hasSyncMarker(nextFighter, 'stamina-full-ready')) {
+            nextFighter = this.removeSyncMarker(nextFighter, 'stamina-full-ready');
+            if (ability.oncePerBattle) {
+              nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+            }
+          }
+          break;
+        case 'tsuin_linked_rhythm':
+          if (card.type === 'combo' && ability.oncePerBattle && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'hare_guarded_stance':
+          if (card.type === 'defense' && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            nextFighter.stamina = Math.min(nextFighter.maxStamina, nextFighter.stamina + ability.value);
+            nextFighter.staminaState = this.getStaminaState(nextFighter.stamina);
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'wake_torrent_shift':
+          if (card.type === 'defense') {
+            nextFighter = this.addSyncMarker(nextFighter, 'wake-torrent-shift-ready');
+          } else if (card.type === 'strike' && this.hasSyncMarker(nextFighter, 'wake-torrent-shift-ready')) {
+            meterBonus += ability.value;
+            nextFighter = this.removeSyncMarker(nextFighter, 'wake-torrent-shift-ready');
+          }
+          break;
+        case 'tora_stalk_pattern':
+          if (card.type === 'strike' && this.hasSyncMarker(nextFighter, 'stamina-full-ready')) {
+            meterBonus += ability.value;
+            nextFighter = this.removeSyncMarker(nextFighter, 'stamina-full-ready');
+          }
+          break;
+        case 'ken_blade_storm':
+          if (card.type === 'combo') {
+            meterMultiplier += ability.value;
+          }
+          break;
+        case 'wake_riptide_loop':
+          if (card.type === 'combo' && nextFighter.comboCounter >= 3 && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            nextFighter.stamina = Math.min(nextFighter.maxStamina, nextFighter.stamina + ability.value);
+            nextFighter.staminaState = this.getStaminaState(nextFighter.stamina);
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'era_time_slip':
+          // Handled when stamina is spent and the fighter drops to exhausted.
+          break;
+        case 'gama_heavy_leap':
+          if (card.type === 'combo' && this.hasSyncMarker(nextFighter, 'after-defense-window') && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            damageMultiplier *= 1 + ability.value;
+            nextFighter = this.removeSyncMarker(nextFighter, 'after-defense-window');
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'shadow_silent_counter':
+          if (
+            (card.type === 'strike' || card.type === 'combo' || card.type === 'finisher') &&
+            this.hasSyncMarker(nextFighter, 'silent-counter-ready')
+          ) {
+            damageMultiplier *= 1 + ability.value;
+            nextFighter = this.removeSyncMarker(nextFighter, 'silent-counter-ready');
+          }
+          break;
+        case 'tsuin_twin_strike':
+          if (card.type === 'strike' && action.outcome === 'hit' && nextFighter.comboCounter > 0 && nextFighter.comboCounter % 3 === 0) {
+            nextFighter.comboCounter += ability.value;
+          }
+          break;
+        case 'era_rewind_pulse':
+        case 'kuma_guardian_core':
+        case 'shadow_vanish_protocol':
+        case 'hare_last_hop_reflex':
+        case 'kurai_pressure_field':
+        case 'kurai_void_shell':
+          // TODO: implement harder Sync reactive effects in a later combat-engine phase.
+          break;
+        default:
+          break;
+      }
+    }
+
+    return {
+      damageMultiplier,
+      fighter: nextFighter,
+      meterBonus,
+      meterMultiplier,
+      opponent: nextOpponent,
+    };
+  }
+
+  static applySyncAbilityDefenseEffects(
+    fighter: ArenaFighter,
+    opponent: ArenaFighter,
+    outcome: ActionOutcome
+  ): {
+    blockMultiplier: number;
+    counterBonus: number;
+    fighter: ArenaFighter;
+    meterBonus: number;
+    opponent: ArenaFighter;
+  } {
+    let nextFighter: ArenaFighter = fighter;
+    let nextOpponent: ArenaFighter = opponent;
+    let blockMultiplier = 1;
+    let counterBonus = 0;
+    let meterBonus = 0;
+
+    for (const ability of this.getFighterSyncAbilityDefinitions(nextFighter)) {
+      switch (ability.id) {
+        case 'kuma_iron_fur_protocol':
+          if ((outcome === 'blocked' || outcome === 'countered') && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            blockMultiplier *= Math.max(0, 1 - ability.value);
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'kuma_bearwall_sync':
+          if (outcome === 'countered') {
+            meterBonus += ability.value;
+          }
+          break;
+        case 'hare_counter_claw':
+          if (outcome === 'countered') {
+            counterBonus += ability.value;
+          }
+          break;
+        case 'shadow_silent_counter':
+          if (outcome === 'blocked' || outcome === 'countered') {
+            nextFighter = this.addSyncMarker(nextFighter, 'silent-counter-ready');
+          }
+          break;
+        case 'gama_spring_guard':
+          if ((outcome === 'blocked' || outcome === 'countered') && nextFighter.staminaState === 'fresh') {
+            meterBonus += ability.value;
+          }
+          break;
+        case 'gama_amphibian_anchor':
+          if ((outcome === 'blocked' || outcome === 'countered') && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            blockMultiplier *= Math.max(0, 1 - ability.value);
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'kurai_dark_veil':
+          if ((outcome === 'blocked' || outcome === 'hit') && !this.hasSyncMarker(nextFighter, `${ability.id}:used`)) {
+            blockMultiplier *= Math.max(0, 1 - ability.value);
+            nextFighter = this.addSyncMarker(nextFighter, `${ability.id}:used`);
+          }
+          break;
+        case 'hare_last_hop_reflex':
+        case 'shadow_ghost_step':
+          // TODO: implement dodge-based Sync defenses in a later combat-engine phase.
+          break;
+        case 'era_rewind_pulse':
+          // TODO: implement post-hit HP restore logic in a later combat-engine phase.
+          break;
+        case 'kurai_void_shell':
+          // TODO: implement Finisher resistance in a later combat-engine phase.
+          break;
+        case 'kurai_pressure_field':
+          // TODO: implement enemy meter debuff in a later combat-engine phase.
+          break;
+        case 'kuma_guardian_core':
+        case 'shadow_vanish_protocol':
+          // TODO: implement survive-lethal effects in a later combat-engine phase.
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (outcome === 'blocked' || outcome === 'countered') {
+      nextFighter = this.addSyncMarker(nextFighter, 'after-defense-window');
+    }
+
+    return {
+      blockMultiplier,
+      counterBonus,
+      fighter: nextFighter,
+      meterBonus,
+      opponent: nextOpponent,
+    };
+  }
+
+  private static getEffectiveStaminaCost(fighter: ArenaFighter, card: ActionCard) {
+    let discount = 0;
+
+    if (
+      card.type === 'strike' &&
+      this.hasSyncAbility(fighter, 'ace_rocket_tempo') &&
+      this.hasSyncMarker(fighter, 'stamina-full-ready') &&
+      !this.hasSyncMarker(fighter, 'ace_rocket_tempo:used')
+    ) {
+      discount = Math.max(discount, 1);
+    }
+
+    if (
+      card.type === 'combo' &&
+      this.hasSyncAbility(fighter, 'tsuin_linked_rhythm') &&
+      !this.hasSyncMarker(fighter, 'tsuin_linked_rhythm:used')
+    ) {
+      discount = Math.max(discount, 1);
+    }
+
+    return Math.max(0, card.staminaCost - discount);
+  }
+
+  private static hasSyncMarker(fighter: ArenaFighter, markerId: string) {
+    return (fighter.statusEffects || []).some((effect) => effect.id === `${this.SYNC_MARKER_PREFIX}${markerId}`);
+  }
+
+  private static addSyncMarker(fighter: ArenaFighter, markerId: string) {
+    if (this.hasSyncMarker(fighter, markerId)) {
+      return fighter;
+    }
+
+    return {
+      ...fighter,
+      statusEffects: [
+        ...(fighter.statusEffects || []),
+        {
+          id: `${this.SYNC_MARKER_PREFIX}${markerId}`,
+          name: markerId,
+          turnsRemaining: 99,
+        },
+      ],
+    };
+  }
+
+  private static addSyncMarkerMutating(fighter: ArenaFighter, markerId: string) {
+    if (this.hasSyncMarker(fighter, markerId)) {
+      return;
+    }
+
+    fighter.statusEffects = [
+      ...(fighter.statusEffects || []),
+      {
+        id: `${this.SYNC_MARKER_PREFIX}${markerId}`,
+        name: markerId,
+        turnsRemaining: 99,
+      },
+    ];
+  }
+
+  private static removeSyncMarker(fighter: ArenaFighter, markerId: string) {
+    return {
+      ...fighter,
+      statusEffects: (fighter.statusEffects || []).filter(
+        (effect) => effect.id !== `${this.SYNC_MARKER_PREFIX}${markerId}`
+      ),
+    };
   }
 }
