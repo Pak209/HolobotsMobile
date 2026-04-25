@@ -19,6 +19,7 @@ import { GachaScreen } from "./src/screens/GachaScreen";
 import { QuestsScreen } from "./src/screens/QuestsScreen";
 import { TrainingScreen } from "./src/screens/TrainingScreen";
 import { fitnessAssetList } from "./src/config/figmaAssets";
+import { useWatchBridge } from "./src/hooks/useWatchBridge";
 
 export type RootTabs = {
   Arena: undefined;
@@ -48,6 +49,7 @@ const navTheme = {
 
 function AuthedApp() {
   const { bootLoading, profile, profileLoading, sessionLocked, user } = useAuth();
+  useWatchBridge(user?.uid);
 
   if (bootLoading || (user && profileLoading && !profile)) {
     return <AppLoadingScreen />;

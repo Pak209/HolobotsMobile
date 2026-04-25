@@ -159,10 +159,12 @@ export class ArenaCombatEngine {
     let damageDealt = 0;
     let wasCountered = false;
     let perfectDefense = false;
-    let syncMeterBonus = 0;
+    let attackerMeterBonus = 0;
+    let defenderMeterBonus = 0;
     let syncDamageMultiplier = 1;
     let syncCounterBonus = 0;
-    let resolvedMeterGain = 0;
+    let attackerMeterGain = 0;
+    let defenderMeterGain = 0;
 
     if (action.card.type === 'strike' || action.card.type === 'combo' || action.card.type === 'finisher') {
       // Check if defender is in defense mode
@@ -178,18 +180,19 @@ export class ArenaCombatEngine {
           Object.assign(defender, defenseSyncEffects.fighter);
           Object.assign(attacker, defenseSyncEffects.opponent);
           chipMultiplier *= defenseSyncEffects.blockMultiplier;
-          syncMeterBonus += defenseSyncEffects.meterBonus;
+          defenderMeterBonus += defenseSyncEffects.meterBonus;
           syncCounterBonus += defenseSyncEffects.counterBonus;
           damageDealt = Math.floor(action.card.baseDamage * chipMultiplier);
           if (perfectDefense) {
             defender.stamina = Math.min(defender.maxStamina, defender.stamina + 2);
             defender.specialMeter = Math.min(100, defender.specialMeter + 15);
+            defenderMeterGain += 15;
           }
         } else if (outcome === 'countered') {
           const defenseSyncEffects = this.applySyncAbilityDefenseEffects(defender, attacker, outcome);
           Object.assign(defender, defenseSyncEffects.fighter);
           Object.assign(attacker, defenseSyncEffects.opponent);
-          syncMeterBonus += defenseSyncEffects.meterBonus;
+          defenderMeterBonus += defenseSyncEffects.meterBonus;
           syncCounterBonus += defenseSyncEffects.counterBonus;
           damageDealt = 0;
           // Counter damage back to attacker
@@ -220,7 +223,7 @@ export class ArenaCombatEngine {
       Object.assign(attacker, syncCardEffects.fighter);
       Object.assign(defender, syncCardEffects.opponent);
       syncDamageMultiplier = syncCardEffects.damageMultiplier;
-      syncMeterBonus += syncCardEffects.meterBonus;
+      attackerMeterBonus += syncCardEffects.meterBonus;
       damageDealt = Math.floor(damageDealt * syncDamageMultiplier);
 
       // Apply damage
@@ -230,8 +233,15 @@ export class ArenaCombatEngine {
 
       // Build special meter
       const baseMeterGain = this.getMeterGain(action.card, outcome);
-      resolvedMeterGain = Math.max(0, Math.floor(baseMeterGain * syncCardEffects.meterMultiplier + syncMeterBonus));
-      attacker.specialMeter = Math.min(100, attacker.specialMeter + resolvedMeterGain);
+      attackerMeterGain = Math.max(
+        0,
+        Math.floor(baseMeterGain * syncCardEffects.meterMultiplier + attackerMeterBonus)
+      );
+      attacker.specialMeter = Math.min(100, attacker.specialMeter + attackerMeterGain);
+      if (defenderMeterBonus > 0) {
+        defenderMeterGain += Math.max(0, Math.floor(defenderMeterBonus));
+        defender.specialMeter = Math.min(100, defender.specialMeter + Math.floor(defenderMeterBonus));
+      }
     } else if (action.card.type === 'defense') {
       // Entering defense mode
       attacker.isInDefenseMode = true;
@@ -246,10 +256,10 @@ export class ArenaCombatEngine {
       );
       Object.assign(attacker, syncCardEffects.fighter);
       Object.assign(defender, syncCardEffects.opponent);
-      syncMeterBonus += syncCardEffects.meterBonus;
-      if (syncMeterBonus > 0) {
-        resolvedMeterGain = Math.floor(syncMeterBonus);
-        attacker.specialMeter = Math.min(100, attacker.specialMeter + resolvedMeterGain);
+      attackerMeterBonus += syncCardEffects.meterBonus;
+      if (attackerMeterBonus > 0) {
+        attackerMeterGain = Math.max(0, Math.floor(attackerMeterBonus));
+        attacker.specialMeter = Math.min(100, attacker.specialMeter + attackerMeterGain);
       }
     }
 
@@ -261,7 +271,8 @@ export class ArenaCombatEngine {
       outcome,
       damageDealt,
       staminaChange: -staminaCost,
-      specialMeterChange: resolvedMeterGain,
+      specialMeterChange:
+        action.actorId === state.player.holobotId ? attackerMeterGain : defenderMeterGain,
       wasCountered,
       triggeredCombo: attacker.comboCounter >= 3,
       perfectDefense,

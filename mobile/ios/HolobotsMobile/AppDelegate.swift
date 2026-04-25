@@ -1,6 +1,7 @@
 import Expo
 import React
 import ReactAppDependencyProvider
+import WatchConnectivity
 
 @UIApplicationMain
 public class AppDelegate: ExpoAppDelegate {
@@ -28,6 +29,8 @@ public class AppDelegate: ExpoAppDelegate {
       in: window,
       launchOptions: launchOptions)
 #endif
+
+    WatchBridge.shared.activate()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
