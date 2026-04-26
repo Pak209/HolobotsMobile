@@ -12,6 +12,7 @@
 		524D8036E474F228802FF3C3 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1E631CC2B090A0D3D3C34C /* ExpoModulesProvider.swift */; };
 		8C354DFC8DD19261BC8071E1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FA52BFDF22FC224B27353973 /* PrivacyInfo.xcprivacy */; };
 		90BB79A4DC1563B4AA303991 /* libPods-HolobotsMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 80C754DE45B95367614343C5 /* libPods-HolobotsMobile.a */; };
+		F1A200012E4010010044C1D9 /* HolobotsWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ACB0CB9C2F9C1B4E006D18EB /* HolobotsWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		ACB0CBA22F9C1B4E006D18EB /* HolobotsWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ACB0CBA12F9C1B4E006D18EB /* HolobotsWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
@@ -20,6 +21,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		F1A200022E4010020044C1D9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ACB0CB9B2F9C1B4E006D18EB;
+			remoteInfo = HolobotsWatch;
+		};
 		ACB0CBA32F9C1B4E006D18EB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
@@ -44,6 +52,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		F1A200032E4010030044C1D9 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				F1A200012E4010010044C1D9 /* HolobotsWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		ACB0CBC72F9C1B4F006D18EB /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -229,10 +248,12 @@
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				C8424357E6372EA45E657130 /* [CP] Embed Pods Frameworks */,
+				F1A200032E4010030044C1D9 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F1A200042E4010040044C1D9 /* PBXTargetDependency */,
 			);
 			name = HolobotsMobile;
 			productName = HolobotsMobile;
@@ -574,6 +595,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		F1A200042E4010040044C1D9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ACB0CB9B2F9C1B4E006D18EB /* HolobotsWatch */;
+			targetProxy = F1A200022E4010020044C1D9 /* PBXContainerItemProxy */;
+		};
 		ACB0CBA42F9C1B4E006D18EB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = ACB0CBA02F9C1B4E006D18EB /* HolobotsWatch Watch App */;
