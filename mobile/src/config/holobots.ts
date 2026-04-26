@@ -25,19 +25,36 @@ export type HolobotRosterEntry = {
   };
 };
 
-const HOLBOT_IMAGE_MAP = {
-  ACE: require("../../assets/holobots/ace.png"),
-  KUMA: require("../../assets/holobots/kuma.png"),
-  SHADOW: require("../../assets/holobots/shadow.png"),
-  ERA: require("../../assets/holobots/era.png"),
-  HARE: require("../../assets/holobots/hare.png"),
-  TORA: require("../../assets/holobots/tora.png"),
-  WAKE: require("../../assets/holobots/wake.png"),
-  GAMA: require("../../assets/holobots/gama.png"),
-  KEN: require("../../assets/holobots/ken.png"),
-  KURAI: require("../../assets/holobots/kurai.png"),
-  TSUIN: require("../../assets/holobots/tsuin.png"),
-  WOLF: require("../../assets/holobots/wolf.png"),
+export type HolobotImageVariant = "headshot" | "full";
+
+const HOLOBOT_HEADSHOT_IMAGE_MAP = {
+  ACE: require("../../assets/holobots/headshots/ace.png"),
+  KUMA: require("../../assets/holobots/headshots/kuma.png"),
+  SHADOW: require("../../assets/holobots/headshots/shadow.png"),
+  ERA: require("../../assets/holobots/headshots/era.png"),
+  HARE: require("../../assets/holobots/headshots/hare.png"),
+  TORA: require("../../assets/holobots/headshots/tora.png"),
+  WAKE: require("../../assets/holobots/headshots/wake.png"),
+  GAMA: require("../../assets/holobots/headshots/gama.png"),
+  KEN: require("../../assets/holobots/headshots/ken.png"),
+  KURAI: require("../../assets/holobots/headshots/kurai.png"),
+  TSUIN: require("../../assets/holobots/headshots/tsuin.png"),
+  WOLF: require("../../assets/holobots/headshots/wolf.png"),
+} as const;
+
+const HOLOBOT_FULL_IMAGE_MAP = {
+  ACE: require("../../assets/holobots/full/ace.png"),
+  KUMA: require("../../assets/holobots/full/kuma.png"),
+  SHADOW: require("../../assets/holobots/full/shadow.png"),
+  ERA: require("../../assets/holobots/full/era.png"),
+  HARE: require("../../assets/holobots/full/hare.png"),
+  TORA: require("../../assets/holobots/full/tora.png"),
+  WAKE: require("../../assets/holobots/full/wake.png"),
+  GAMA: require("../../assets/holobots/full/gama.png"),
+  KEN: require("../../assets/holobots/full/ken.png"),
+  KURAI: require("../../assets/holobots/full/kurai.png"),
+  TSUIN: require("../../assets/holobots/full/tsuin.png"),
+  WOLF: require("../../assets/holobots/full/wolf.png"),
 } as const;
 
 const DEFAULT_ROSTER_ORDER = [
@@ -218,20 +235,97 @@ export function applyHolobotExperience(holobot: UserHolobot, expGain: number): U
   };
 }
 
-export function getHolobotImageSource(name: string) {
-  const asset =
-    HOLBOT_IMAGE_MAP[name.trim().toUpperCase() as keyof typeof HOLBOT_IMAGE_MAP] ??
-    HOLBOT_IMAGE_MAP.ACE;
+function getHolobotImageAsset(name: string, variant: HolobotImageVariant = "headshot") {
+  const imageMap = variant === "full" ? HOLOBOT_FULL_IMAGE_MAP : HOLOBOT_HEADSHOT_IMAGE_MAP;
+  return imageMap[name.trim().toUpperCase() as keyof typeof imageMap] ?? imageMap.ACE;
+}
 
+export function getHolobotImageSource(name: string, variant: HolobotImageVariant = "headshot") {
+  const asset = getHolobotImageAsset(name, variant);
   return Image.resolveAssetSource(asset) ?? asset;
 }
 
-export function getHolobotImageHref(name: string) {
-  const asset =
-    HOLBOT_IMAGE_MAP[name.trim().toUpperCase() as keyof typeof HOLBOT_IMAGE_MAP] ??
-    HOLBOT_IMAGE_MAP.ACE;
+export function getHolobotHeadshotImageSource(name: string) {
+  return getHolobotImageSource(name, "headshot");
+}
 
-  return resolveBundledAssetUri(asset);
+export function getHolobotFullImageSource(name: string) {
+  return getHolobotImageSource(name, "full");
+}
+
+export function getHolobotImageHref(name: string, variant: HolobotImageVariant = "headshot") {
+  return resolveBundledAssetUri(getHolobotImageAsset(name, variant));
+}
+
+export function getHolobotHeadshotImageHref(name: string) {
+  return getHolobotImageHref(name, "headshot");
+}
+
+export function getHolobotFullImageHref(name: string) {
+  return getHolobotImageHref(name, "full");
+}
+
+export function createFallbackRoster(variant: HolobotImageVariant = "headshot"): HolobotRosterEntry[] {
+  return DEFAULT_ROSTER_ORDER.map((name) => ({
+    attributePoints: 1,
+    boostedAttributes: {},
+    experience: 0,
+    imageSource: getHolobotImageSource(name, variant),
+    key: toHolobotKey(name),
+    level: 1,
+    name,
+    nextLevelExp: 100,
+    owned: false,
+    rank: getHolobotRank(1),
+    specialMove: getHolobotBaseProfile(name).specialMove,
+    stats: getNormalizedStatsForChart(name),
+  }));
+}
+
+export function mergeHolobotRoster(userHolobots?: UserHolobot[], variant: HolobotImageVariant = "headshot") {
+  if (!userHolobots?.length) {
+    return createFallbackRoster(variant);
+  }
+
+  const normalizedUserHolobots = userHolobots.map((rawHolobot) => {
+    const holobot = normalizeUserHolobot(rawHolobot);
+    return {
+      attributePoints: holobot.attributePoints || 0,
+      boostedAttributes: holobot.boostedAttributes || {},
+      experience: holobot.experience || 0,
+      imageSource: getHolobotImageSource(holobot.name, variant),
+      key: toHolobotKey(holobot.name),
+      level: holobot.level || 1,
+      name: holobot.name.toUpperCase(),
+      nextLevelExp: holobot.nextLevelExp || 100,
+      owned: true,
+      rank: holobot.rank || getHolobotRank(holobot.level || 1),
+      specialMove: getHolobotBaseProfile(holobot.name).specialMove,
+      stats: getNormalizedStatsForChart(
+        holobot.name,
+        holobot.level || 1,
+        holobot.boostedAttributes,
+      ),
+    };
+  });
+
+  const ownedNames = new Set(normalizedUserHolobots.map((holobot) => holobot.name));
+  const missingDefaults = DEFAULT_ROSTER_ORDER.filter((name) => !ownedNames.has(name)).map((name) => ({
+    attributePoints: 1,
+    boostedAttributes: {},
+    experience: 0,
+    imageSource: getHolobotImageSource(name, variant),
+    key: toHolobotKey(name),
+    level: 1,
+    name,
+    nextLevelExp: 100,
+    owned: false,
+    rank: getHolobotRank(1),
+    specialMove: getHolobotBaseProfile(name).specialMove,
+    stats: getNormalizedStatsForChart(name),
+  }));
+
+  return [...normalizedUserHolobots, ...missingDefaults];
 }
 
 export function getHolobotBattleStats(
@@ -276,69 +370,6 @@ export function getHolobotDisplayStats(
     special: Math.floor(base.intelligence * levelBonus) + (boostedAttributes?.special || 0),
     speed: Math.floor(base.speed * levelBonus) + (boostedAttributes?.speed || 0),
   };
-}
-
-export function createFallbackRoster(): HolobotRosterEntry[] {
-  return DEFAULT_ROSTER_ORDER.map((name) => ({
-    attributePoints: 1,
-    boostedAttributes: {},
-    experience: 0,
-    imageSource: getHolobotImageSource(name),
-    key: toHolobotKey(name),
-    level: 1,
-    name,
-    nextLevelExp: 100,
-    owned: false,
-    rank: getHolobotRank(1),
-    specialMove: getHolobotBaseProfile(name).specialMove,
-    stats: getNormalizedStatsForChart(name),
-  }));
-}
-
-export function mergeHolobotRoster(userHolobots?: UserHolobot[]) {
-  if (!userHolobots?.length) {
-    return createFallbackRoster();
-  }
-
-  const normalizedUserHolobots = userHolobots.map((rawHolobot) => {
-    const holobot = normalizeUserHolobot(rawHolobot);
-    return {
-      attributePoints: holobot.attributePoints || 0,
-      boostedAttributes: holobot.boostedAttributes || {},
-      experience: holobot.experience || 0,
-      imageSource: getHolobotImageSource(holobot.name),
-      key: toHolobotKey(holobot.name),
-      level: holobot.level || 1,
-      name: holobot.name.toUpperCase(),
-      nextLevelExp: holobot.nextLevelExp || 100,
-      owned: true,
-      rank: holobot.rank || getHolobotRank(holobot.level || 1),
-      specialMove: getHolobotBaseProfile(holobot.name).specialMove,
-      stats: getNormalizedStatsForChart(
-        holobot.name,
-        holobot.level || 1,
-        holobot.boostedAttributes,
-      ),
-    };
-  });
-
-  const ownedNames = new Set(normalizedUserHolobots.map((holobot) => holobot.name));
-  const missingDefaults = DEFAULT_ROSTER_ORDER.filter((name) => !ownedNames.has(name)).map((name) => ({
-    attributePoints: 1,
-    boostedAttributes: {},
-    experience: 0,
-    imageSource: getHolobotImageSource(name),
-    key: toHolobotKey(name),
-    level: 1,
-    name,
-    nextLevelExp: 100,
-    owned: false,
-    rank: getHolobotRank(1),
-    specialMove: getHolobotBaseProfile(name).specialMove,
-    stats: getNormalizedStatsForChart(name),
-  }));
-
-  return [...normalizedUserHolobots, ...missingDefaults];
 }
 
 export function getExpProgress(holobot: Pick<HolobotRosterEntry, "experience" | "nextLevelExp">) {

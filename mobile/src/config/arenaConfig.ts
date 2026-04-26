@@ -1,4 +1,4 @@
-import { getHolobotBattleStats, getHolobotImageSource } from "@/config/holobots";
+import { getHolobotBattleStats, getHolobotFullImageSource } from "@/config/holobots";
 import {
   calculateSyncBattleModifiers,
   getUnlockedSyncAbilities,
@@ -89,7 +89,7 @@ export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaF
     holobotId: `player-${holobot.name.toLowerCase()}`,
     ownerUserId: userId,
     name: holobot.name.toUpperCase(),
-    avatar: getHolobotImageSource(holobot.name),
+    avatar: getHolobotFullImageSource(holobot.name),
     archetype: stats.archetype,
     level: holobot.level || 1,
     maxHP: clampPositive(stats.maxHP, 150),
@@ -136,7 +136,7 @@ export function buildOpponentFighter(
     holobotId: `opponent-${tier.id}-${opponentName.toLowerCase()}`,
     ownerUserId: "arena-ai",
     name: opponentName,
-    avatar: getHolobotImageSource(opponentName),
+    avatar: getHolobotFullImageSource(opponentName),
     archetype: stats.archetype,
     level: tier.opponentLevel,
     maxHP: clampPositive(Math.floor(stats.maxHP * 1.05), 160),

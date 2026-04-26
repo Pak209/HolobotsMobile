@@ -8,6 +8,41 @@ import WatchKit
 @MainActor
 final class WorkoutViewModel: ObservableObject {
 
+    enum WorkoutMode: String, CaseIterable, Identifiable {
+        case outdoorWalk
+        case treadmill
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .outdoorWalk: return "Outdoor Walk"
+            case .treadmill: return "Treadmill"
+            }
+        }
+
+        var isIndoor: Bool { self == .treadmill }
+    }
+
+    enum DistanceUnit: String, CaseIterable, Identifiable {
+        case kilometers
+        case miles
+
+        var id: String { rawValue }
+        var distanceSuffix: String {
+            switch self {
+            case .kilometers: return "km"
+            case .miles: return "mi"
+            }
+        }
+
+        var speedSuffix: String {
+            switch self {
+            case .kilometers: return "km/h"
+            case .miles: return "mph"
+            }
+        }
+    }
+
     // ── Live state ──────────────────────────────────────────────────────────
     @Published var elapsedSeconds: Int    = 0
     @Published var stepCount:      Int    = 0
@@ -24,7 +59,18 @@ final class WorkoutViewModel: ObservableObject {
     @Published var showRewards:       Bool                   = false
     @Published var rewardsPayload:    WorkoutRewardsPayload? = nil
     @Published var syncStatus:        SyncStatus             = .idle
-    @Published var isIndoorMode:      Bool                   = false  // treadmill toggle
+    @Published var workoutMode:       WorkoutMode            = .outdoorWalk {
+        didSet {
+            isIndoorMode = workoutMode.isIndoor
+            UserDefaults.standard.set(workoutMode.rawValue, forKey: Self.workoutModeKey)
+        }
+    }
+    @Published var distanceUnit:      DistanceUnit           = .kilometers {
+        didSet {
+            UserDefaults.standard.set(distanceUnit.rawValue, forKey: Self.distanceUnitKey)
+        }
+    }
+    @Published var isIndoorMode:      Bool                   = false
     @Published var usedLocalRewardFallback: Bool             = false
 
     enum SyncStatus {
@@ -38,11 +84,23 @@ final class WorkoutViewModel: ObservableObject {
     var remainingSeconds: Int {
         max(WorkoutConfig.totalSeconds - elapsedSeconds, 0)
     }
+    var displayedDistance: Double {
+        distanceUnit == .kilometers ? distanceKm : distanceKm * WorkoutConfig.kmToMiles
+    }
+    var displayedSpeed: Double {
+        distanceUnit == .kilometers ? speedKmh : speedKmh * WorkoutConfig.kmToMiles
+    }
+    var distanceLabel: String {
+        String(format: "%.2f %@", displayedDistance, distanceUnit.distanceSuffix)
+    }
+    var speedLabel: String {
+        String(format: "%.0f %@", displayedSpeed, distanceUnit.speedSuffix)
+    }
     var currentRewards: (syncPoints: Int, holos: Int, exp: Int) {
         guard elapsedSeconds > 0 else {
             return (0, 0, 0)
         }
-        RewardCalculator.calculate(
+        return RewardCalculator.calculate(
             elapsedSeconds: elapsedSeconds,
             stepCount: stepCount,
             distanceKm: distanceKm
@@ -50,14 +108,14 @@ final class WorkoutViewModel: ObservableObject {
     }
     var isComplete: Bool { elapsedSeconds >= WorkoutConfig.totalSeconds }
 
-    // Needle: 0 km/h → -180° (LEFT / 9 o'clock), 18 km/h → 0° (RIGHT / 3 o'clock)
-    // The Figma speedometerNeedle.png naturally points RIGHT, so:
-    //   rotation = -180 + (speed / max) * 180
-    // Clamped to [0, maxKmh] so the needle never exits the D-shaped arc.
+    // The watch gauge uses a tighter visible sweep than the original full semicircle.
+    // Clamp the needle so 0 km/h lands on the left "zero" tick instead of rotating past it.
     var needleAngle: Angle {
-        let maxKmh = 18.0
-        let clamped = min(max(speedKmh, 0), maxKmh)
-        return .degrees(-180 + (clamped / maxKmh) * 180)
+        let maxDisplaySpeed = distanceUnit == .kilometers ? 18.0 : 18.0 * WorkoutConfig.kmToMiles
+        let clamped = min(max(displayedSpeed, 0), maxDisplaySpeed)
+        let minAngle = -162.0
+        let maxAngle = -8.0
+        return .degrees(minAngle + (clamped / maxDisplaySpeed) * (maxAngle - minAngle))
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -68,6 +126,23 @@ final class WorkoutViewModel: ObservableObject {
     private var workoutSession:  HKWorkoutSession?
     private var workoutBuilder:  HKLiveWorkoutBuilder?
     private var timerFired =     false
+    private static let workoutModeKey = "holobots.watch.workoutMode"
+    private static let distanceUnitKey = "holobots.watch.distanceUnit"
+
+    init() {
+        if let storedMode = UserDefaults.standard.string(forKey: Self.workoutModeKey),
+           let workoutMode = WorkoutMode(rawValue: storedMode) {
+            self.workoutMode = workoutMode
+            self.isIndoorMode = workoutMode.isIndoor
+        } else {
+            self.isIndoorMode = self.workoutMode.isIndoor
+        }
+
+        if let storedUnit = UserDefaults.standard.string(forKey: Self.distanceUnitKey),
+           let distanceUnit = DistanceUnit(rawValue: storedUnit) {
+            self.distanceUnit = distanceUnit
+        }
+    }
 
     // ── Start / Pause toggle ─────────────────────────────────────────────────
     func toggleRunning() {

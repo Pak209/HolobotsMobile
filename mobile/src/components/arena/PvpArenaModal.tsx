@@ -37,7 +37,7 @@ export function PvpArenaModal({
   const [joinCode, setJoinCode] = useState("");
   const [friendCode, setFriendCode] = useState(buildRoomCode());
   const roster = useMemo(
-    () => mergeHolobotRoster(userHolobots).filter((holobot) => holobot.owned),
+    () => mergeHolobotRoster(userHolobots, "full").filter((holobot) => holobot.owned),
     [userHolobots],
   );
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];

@@ -237,6 +237,22 @@ export function BattleArenaView({
         <View style={styles.battleStage}>
           <View style={styles.battleFloor}>
             <Image source={battlefieldImage} style={styles.battlefieldImage} resizeMode="contain" />
+            <View pointerEvents="none" style={styles.fighterOverlay}>
+              <View style={[styles.stageFighter, styles.stageFighterLeft]}>
+                <Image
+                  source={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
+                  style={styles.stageFighterImage}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={[styles.stageFighter, styles.stageFighterRight]}>
+                <Image
+                  source={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
+                  style={[styles.stageFighterImage, styles.stageFighterImageMirrored]}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
             <View style={styles.vsBadge}>
               <Text style={styles.vsText}>VS</Text>
             </View>
@@ -370,16 +386,45 @@ const styles = StyleSheet.create({
     position: "relative",
     width: "100%",
   },
+  fighterOverlay: {
+    bottom: 104,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: -8,
+    zIndex: 2,
+  },
   battleStage: {
     alignItems: "center",
-    height: 290,
+    height: 306,
     position: "relative",
     width: "100%",
   },
   battleStageWrap: {
     marginHorizontal: 18,
-    marginTop: 8,
-    marginBottom: -26,
+    marginTop: 14,
+    marginBottom: -18,
+  },
+  stageFighter: {
+    alignItems: "center",
+    bottom: 0,
+    height: 142,
+    justifyContent: "flex-end",
+    position: "absolute",
+    width: "34%",
+  },
+  stageFighterImage: {
+    height: "100%",
+    width: "100%",
+  },
+  stageFighterImageMirrored: {
+    transform: [{ scaleX: -1 }],
+  },
+  stageFighterLeft: {
+    left: "9%",
+  },
+  stageFighterRight: {
+    right: "9%",
   },
   cardArtPlaceholder: {
     alignItems: "center",

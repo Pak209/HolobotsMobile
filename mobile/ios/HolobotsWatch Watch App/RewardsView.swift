@@ -16,32 +16,69 @@ struct RewardsView: View {
             darkBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // ── Header ─────────────────────────────────────────────────
+                Spacer(minLength: 30)
+
                 VStack(spacing: 2) {
                     Text("SYNC RESULT")
                         .font(.system(size: 9, weight: .black))
                         .foregroundColor(gold)
                         .kerning(1.8)
                     Text("COMPLETE")
-                        .font(.system(size: 18, weight: .black))
+                        .font(.system(size: 16, weight: .black))
                         .foregroundColor(cream)
                         .kerning(1.2)
                 }
-                .padding(.vertical, 6)
+                .padding(.vertical, 4)
                 .frame(maxWidth: .infinity)
-                .background(panel)
-                .overlay(Rectangle().stroke(gold, lineWidth: 1.5).padding(.bottom, -1))
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(panel)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(gold, lineWidth: 1.2)
+                )
+                .padding(.horizontal, 4)
 
-                // ── Reward rows ────────────────────────────────────────────
                 VStack(spacing: 3) {
                     RewardRow(label: "SP",  title: "Sync Points", value: rewards.syncPoints, gold: gold, cream: cream, panel: panel)
                     RewardRow(label: "H",   title: "Holos",       value: rewards.holos,      gold: gold, cream: cream, panel: panel)
                     RewardRow(label: "EXP", title: "Experience",  value: rewards.exp,        gold: gold, cream: cream, panel: panel)
                 }
-                .padding(.top, 6)
+                .padding(.top, 5)
                 .padding(.horizontal, 4)
 
-                // ── Sessions remaining ─────────────────────────────────────
+                Spacer(minLength: 8)
+
+                HStack(spacing: 6) {
+                    Button(action: viewModel.collectRewards) {
+                        Text("COLLECT")
+                            .font(.system(size: 12, weight: .black))
+                            .kerning(1.2)
+                            .foregroundColor(darkBg)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 26)
+                            .background(gold, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: viewModel.quickRefill) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(accent)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                        .stroke(gold, lineWidth: 1)
+                                )
+                            BatteryChargingIcon(color: gold)
+                                .frame(width: 16, height: 16)
+                        }
+                        .frame(width: 34, height: 26)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 4)
+
                 HStack(spacing: 4) {
                     ForEach(0..<WorkoutConfig.maxDailySessions, id: \.self) { i in
                         Circle()
@@ -52,39 +89,12 @@ struct RewardsView: View {
                         .font(.system(size: 9, weight: .bold))
                         .foregroundColor(dimGold)
                 }
-                .padding(.top, 6)
+                .padding(.top, 7)
+                .padding(.bottom, 6)
 
-                Spacer(minLength: 6)
-
-                // ── Collect button ─────────────────────────────────────────
-                HStack(spacing: 6) {
-                    Button(action: viewModel.collectRewards) {
-                        Text("COLLECT")
-                            .font(.system(size: 13, weight: .black))
-                            .kerning(1.2)
-                            .foregroundColor(darkBg)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 32)
-                            .background(gold)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button(action: viewModel.quickRefill) {
-                        ZStack {
-                            Rectangle()
-                                .fill(accent)
-                                .overlay(Rectangle().stroke(gold, lineWidth: 1))
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 13, weight: .black))
-                                .foregroundColor(gold)
-                        }
-                        .frame(width: 34, height: 32)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 4)
-                .padding(.bottom, 4)
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 2)
         }
     }
 }
@@ -120,6 +130,68 @@ private struct RewardRow: View {
         .frame(height: 28)
         .background(panel)
         .overlay(Rectangle().stroke(gold.opacity(0.2), lineWidth: 0.5))
+    }
+}
+
+private struct BatteryChargingIcon: View {
+    let color: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+
+            ZStack {
+                Path { path in
+                    path.move(to: CGPoint(x: w * 0.18, y: h * 0.22))
+                    path.addLine(to: CGPoint(x: w * 0.64, y: h * 0.22))
+                    path.addArc(
+                        center: CGPoint(x: w * 0.72, y: h * 0.30),
+                        radius: w * 0.08,
+                        startAngle: .degrees(-90),
+                        endAngle: .degrees(0),
+                        clockwise: false
+                    )
+                    path.addLine(to: CGPoint(x: w * 0.80, y: h * 0.40))
+                    path.addLine(to: CGPoint(x: w * 0.88, y: h * 0.40))
+                    path.addLine(to: CGPoint(x: w * 0.88, y: h * 0.60))
+                    path.addLine(to: CGPoint(x: w * 0.80, y: h * 0.60))
+                    path.addLine(to: CGPoint(x: w * 0.80, y: h * 0.70))
+                    path.addArc(
+                        center: CGPoint(x: w * 0.72, y: h * 0.78),
+                        radius: w * 0.08,
+                        startAngle: .degrees(0),
+                        endAngle: .degrees(90),
+                        clockwise: false
+                    )
+                    path.addLine(to: CGPoint(x: w * 0.18, y: h * 0.86))
+                    path.addArc(
+                        center: CGPoint(x: w * 0.10, y: h * 0.78),
+                        radius: w * 0.08,
+                        startAngle: .degrees(90),
+                        endAngle: .degrees(180),
+                        clockwise: false
+                    )
+                    path.addLine(to: CGPoint(x: w * 0.02, y: h * 0.30))
+                    path.addArc(
+                        center: CGPoint(x: w * 0.10, y: h * 0.22),
+                        radius: w * 0.08,
+                        startAngle: .degrees(180),
+                        endAngle: .degrees(270),
+                        clockwise: false
+                    )
+                }
+                .stroke(color, style: StrokeStyle(lineWidth: max(1.4, w * 0.09), lineCap: .round, lineJoin: .round))
+
+                Path { path in
+                    path.move(to: CGPoint(x: w * 0.52, y: h * 0.12))
+                    path.addLine(to: CGPoint(x: w * 0.35, y: h * 0.48))
+                    path.addLine(to: CGPoint(x: w * 0.58, y: h * 0.48))
+                    path.addLine(to: CGPoint(x: w * 0.42, y: h * 0.88))
+                }
+                .stroke(color, style: StrokeStyle(lineWidth: max(1.2, w * 0.09), lineCap: .round, lineJoin: .round))
+            }
+        }
     }
 }
 

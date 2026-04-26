@@ -151,7 +151,7 @@ export function HomeScreen() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isDashboardSettingsOpen, setIsDashboardSettingsOpen] = useState(false);
   const [selectedPartSlot, setSelectedPartSlot] = useState<DashboardSlot | null>(null);
-  const roster = useMemo(() => mergeHolobotRoster(profile?.holobots), [profile?.holobots]);
+  const roster = useMemo(() => mergeHolobotRoster(profile?.holobots, "full"), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
   const expProgressWidth = 460.193 * getExpProgress(selectedHolobot);
   const equippedParts =
@@ -611,10 +611,10 @@ const styles = StyleSheet.create({
   },
   holobotPortrait: {
     position: "absolute",
-    left: "46.3889%",
-    top: "22.5%",
-    width: "39.4444%",
-    height: "30.3125%",
+    left: "43.5%",
+    top: "20.75%",
+    width: "44.5%",
+    height: "34.5%",
   },
   partOverlay: {
     position: "absolute",

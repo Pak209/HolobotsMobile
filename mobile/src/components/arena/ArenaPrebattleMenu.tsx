@@ -10,7 +10,7 @@ import {
 } from "@/config/arenaConfig";
 import {
   getExpProgress,
-  getHolobotImageSource,
+  getHolobotFullImageSource,
   mergeHolobotRoster,
   type HolobotRosterEntry,
 } from "@/config/holobots";
@@ -63,7 +63,7 @@ function FlipPreviewCard({
           <View style={styles.lineupRow}>
             {lineup.map((name, index) => (
               <View key={`${name}:${index}`} style={styles.lineupChip}>
-                <Image source={getHolobotImageSource(name)} style={styles.lineupPortrait} resizeMode="contain" />
+                <Image source={getHolobotFullImageSource(name)} style={styles.lineupPortrait} resizeMode="contain" />
                 <Text style={styles.lineupRound}>{`R${index + 1}`}</Text>
                 <Text style={styles.lineupName}>{name}</Text>
               </View>
@@ -101,7 +101,7 @@ export function ArenaPrebattleMenu({
   const [selectedTierId, setSelectedTierId] = useState(ARENA_TIERS[0].id);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const roster = useMemo(
-    () => mergeHolobotRoster(userHolobots).filter((holobot) => holobot.owned),
+    () => mergeHolobotRoster(userHolobots, "full").filter((holobot) => holobot.owned),
     [userHolobots],
   );
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];

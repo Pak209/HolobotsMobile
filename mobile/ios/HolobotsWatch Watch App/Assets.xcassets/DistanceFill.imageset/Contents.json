@@ -1,10 +1,9 @@
 {
   "images" : [
     {
-      "filename" : "WatchIcon.png",
+      "filename" : "distanceFill.png",
       "idiom" : "universal",
-      "platform" : "watchos",
-      "size" : "1024x1024"
+      "scale" : "1x"
     }
   ],
   "info" : {
