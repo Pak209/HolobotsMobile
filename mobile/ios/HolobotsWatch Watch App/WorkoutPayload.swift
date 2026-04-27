@@ -20,6 +20,7 @@ enum WorkoutConfig {
 // ─────────────────────────────────────────────
 enum WatchMessageType {
     static let workoutComplete = "workoutComplete"
+    static let claimWorkoutRewards = "claimWorkoutRewards"
     static let workoutPause    = "workoutPause"
     static let workoutRewards  = "workoutRewards"
     static let sessionState    = "sessionState"
@@ -27,23 +28,42 @@ enum WatchMessageType {
 }
 
 struct WorkoutCompletePayload {
+    let workoutId:        String
     let elapsedSeconds:   Int
     let stepCount:        Int
     let distanceMeters:   Double
     let syncPointsEarned: Int
     let holosEarned:      Int
     let expEarned:        Int
+    let holobotName:      String
     let date:             String   // "yyyy-MM-dd"
 
     var asDictionary: [String: Any] {
         [
             "type":             WatchMessageType.workoutComplete,
+            "workoutId":        workoutId,
             "elapsedSeconds":   elapsedSeconds,
             "stepCount":        stepCount,
             "distanceMeters":   distanceMeters,
             "syncPointsEarned": syncPointsEarned,
             "holosEarned":      holosEarned,
             "expEarned":        expEarned,
+            "holobotName":      holobotName,
+            "date":             date,
+        ]
+    }
+
+    var asClaimDictionary: [String: Any] {
+        [
+            "type":             WatchMessageType.claimWorkoutRewards,
+            "workoutId":        workoutId,
+            "elapsedSeconds":   elapsedSeconds,
+            "stepCount":        stepCount,
+            "distanceMeters":   distanceMeters,
+            "syncPointsEarned": syncPointsEarned,
+            "holosEarned":      holosEarned,
+            "expEarned":        expEarned,
+            "holobotName":      holobotName,
             "date":             date,
         ]
     }

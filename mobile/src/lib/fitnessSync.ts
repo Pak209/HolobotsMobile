@@ -5,6 +5,7 @@ import {
   serverTimestamp,
   type Firestore,
 } from "firebase/firestore";
+import { applyHolobotExperience, normalizeUserHolobot } from "@/config/holobots";
 import { computeLeaderboardScore } from "@/lib/profile";
 import { getSyncRank } from "@/lib/syncProgression";
 
@@ -12,9 +13,13 @@ const STEPS_PER_SYNC_POINT = 1000;
 const DAILY_WORKOUT_CAP = 4;
 
 type SyncFitnessActivityRequest = {
+  activityId?: string;
   cooldownEndsAt?: string | null;
   date: string;
   distanceMeters?: number;
+  eventId?: string;
+  expAwarded?: number;
+  holobotName?: string;
   holosAwarded?: number;
   sessionIncrement?: number;
   stepsTotal: number;
@@ -133,6 +138,20 @@ export async function syncFitnessActivity(
 
     const userData = userSnapshot.data() ?? {};
     const dailyData = dailySnapshot.data() ?? {};
+    const activityId = request.activityId?.trim() || request.eventId?.trim() || "";
+    const processedActivityIds = (dailyData.processedActivityIds as Record<string, true> | undefined) ?? {};
+    const processedWorkoutEvents = (dailyData.processedWorkoutEvents as Record<string, true> | undefined) ?? {};
+
+    if (activityId && (processedActivityIds[activityId] || processedWorkoutEvents[activityId])) {
+      return {
+        awardedDelta: 0,
+        cooldownEndsAt: request.cooldownEndsAt ?? toIsoString(dailyData.workoutCooldownEndsAt) ?? null,
+        totalHolosTokens: Number(userData.holosTokens ?? 0),
+        todaySteps: Math.max(0, Math.floor(Number(dailyData.stepsTotal ?? request.stepsTotal ?? 0))),
+        totalSyncPoints: Number(userData.syncPoints ?? 0),
+        workoutSessionsCompleted: Math.max(0, Number(dailyData.workoutSessionsCompleted ?? 0)),
+      };
+    }
 
     const previousStepsSynced = Number(dailyData.stepsSynced ?? 0);
     const currentHolosTokens = Number(userData.holosTokens ?? 0);
@@ -140,6 +159,7 @@ export async function syncFitnessActivity(
     const currentLifetimeSyncPoints = Number(userData.lifetimeSyncPoints ?? 0);
     const currentSeasonSyncPoints = Number(userData.seasonSyncPoints ?? 0);
     const stepAward = calculateAwardDelta(previousStepsSynced, request.stepsTotal);
+    const expAwarded = Math.max(0, Math.floor(request.expAwarded ?? 0));
     const holosAwarded = Math.max(0, Math.floor(request.holosAwarded ?? 0));
     const awardedDelta = Math.max(
       0,
@@ -155,6 +175,27 @@ export async function syncFitnessActivity(
       DAILY_WORKOUT_CAP,
       previousSessionsCompleted + Math.max(0, Math.floor(request.sessionIncrement ?? 0)),
     );
+    const currentHolobots = Array.isArray(userData.holobots) ? userData.holobots : [];
+    const normalizedTargetName = request.holobotName?.trim().toUpperCase() ?? "";
+    let nextHolobots = currentHolobots;
+
+    if (expAwarded > 0 && currentHolobots.length > 0) {
+      const targetIndex = currentHolobots.findIndex((rawHolobot) => {
+        const holobotName =
+          typeof (rawHolobot as { name?: unknown })?.name === "string"
+            ? String((rawHolobot as { name?: unknown }).name)
+            : "";
+        return holobotName.trim().toUpperCase() === normalizedTargetName;
+      });
+      const safeTargetIndex = targetIndex >= 0 ? targetIndex : 0;
+
+      nextHolobots = currentHolobots.map((rawHolobot, index) => {
+        if (index !== safeTargetIndex) {
+          return rawHolobot;
+        }
+        return applyHolobotExperience(normalizeUserHolobot(rawHolobot), expAwarded);
+      });
+    }
 
     transaction.set(
       dailyRef,
@@ -166,6 +207,18 @@ export async function syncFitnessActivity(
         stepsSynced: Math.max(previousStepsSynced, Math.floor(request.stepsTotal)),
         stepsTotal: Math.max(0, Math.floor(request.stepsTotal)),
         syncPointsAwarded: Number(dailyData.syncPointsAwarded ?? 0) + awardedDelta,
+        processedActivityIds: activityId
+          ? {
+              ...processedActivityIds,
+              [activityId]: true,
+            }
+          : processedActivityIds,
+        processedWorkoutEvents: activityId
+          ? {
+              ...processedWorkoutEvents,
+              [activityId]: true,
+            }
+          : processedWorkoutEvents,
         workoutCooldownEndsAt: request.cooldownEndsAt ?? null,
         workoutMinutes: Math.max(0, Math.round(request.workoutMinutes ?? 0)),
         workoutSessionsCompleted: nextSessionsCompleted,
@@ -178,10 +231,11 @@ export async function syncFitnessActivity(
       {
         fitnessSource: "manual",
         holosTokens: nextHolosTokens,
+        holobots: nextHolobots,
         lastFitnessSyncAt: serverTimestamp(),
         lastStepSync: serverTimestamp(),
         leaderboardScore: computeLeaderboardScore({
-          holobots: Array.isArray(userData.holobots) ? userData.holobots : [],
+          holobots: nextHolobots,
           prestigeCount: Number(userData.prestigeCount ?? 0),
           seasonSyncPoints: nextSeasonSyncPoints,
           wins: Number(userData.wins ?? 0),

@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import { ArenaScreen } from "./src/screens/ArenaScreen";
 import { AppLoadingScreen } from "./src/components/AppLoadingScreen";
+import { WatchRewardsSyncModal } from "./src/components/WatchRewardsSyncModal";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { FitnessScreen } from "./src/screens/FitnessScreen";
 import { InventoryScreen } from "./src/screens/InventoryScreen";
@@ -49,7 +50,10 @@ const navTheme = {
 
 function AuthedApp() {
   const { bootLoading, profile, profileLoading, sessionLocked, user } = useAuth();
-  useWatchBridge(user?.uid);
+  const watchRewardsSync = useWatchBridge(
+    user?.uid,
+    (profile?.holobots || []).map((holobot) => holobot.name),
+  );
 
   if (bootLoading || (user && profileLoading && !profile)) {
     return <AppLoadingScreen />;
@@ -60,30 +64,41 @@ function AuthedApp() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
-      <StatusBar style="dark" />
-      <Tab.Navigator
-        initialRouteName="Home"
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: {
-            display: "none",
-          },
-          tabBarActiveTintColor: "#f5c40d",
-          tabBarInactiveTintColor: "#d7d0bd",
-        }}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Fitness" component={FitnessScreen} />
-        <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
-        <Tab.Screen name="Inventory" component={InventoryScreen} />
-        <Tab.Screen name="Arena" component={ArenaScreen} />
-        <Tab.Screen name="Gacha" component={GachaScreen} />
-        <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
-        <Tab.Screen name="Training" component={TrainingScreen} />
-        <Tab.Screen name="Quests" component={QuestsScreen} />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <>
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style="dark" />
+        <Tab.Navigator
+          initialRouteName="Home"
+          screenOptions={{
+            headerShown: false,
+            tabBarStyle: {
+              display: "none",
+            },
+            tabBarActiveTintColor: "#f5c40d",
+            tabBarInactiveTintColor: "#d7d0bd",
+          }}
+        >
+          <Tab.Screen name="Home" component={HomeScreen} />
+          <Tab.Screen name="Fitness" component={FitnessScreen} />
+          <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
+          <Tab.Screen name="Inventory" component={InventoryScreen} />
+          <Tab.Screen name="Arena" component={ArenaScreen} />
+          <Tab.Screen name="Gacha" component={GachaScreen} />
+          <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
+          <Tab.Screen name="Training" component={TrainingScreen} />
+          <Tab.Screen name="Quests" component={QuestsScreen} />
+        </Tab.Navigator>
+      </NavigationContainer>
+      <WatchRewardsSyncModal
+        error={watchRewardsSync.error}
+        onClose={watchRewardsSync.dismissPendingRewardsPrompt}
+        onSync={() => void watchRewardsSync.processPendingWatchWorkouts()}
+        pendingCount={watchRewardsSync.pendingCount}
+        processing={watchRewardsSync.processing}
+        rewards={watchRewardsSync.pendingTotals}
+        visible={watchRewardsSync.visible}
+      />
+    </>
   );
 }
 

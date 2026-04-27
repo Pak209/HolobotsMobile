@@ -8,6 +8,8 @@ struct ContentView: View {
         ZStack {
             if viewModel.showRewards, let rewards = viewModel.rewardsPayload {
                 RewardsView(rewards: rewards)
+            } else if !viewModel.isRunning && viewModel.elapsedSeconds == 0 {
+                PreWorkoutView()
             } else {
                 ActiveWorkoutView()
             }

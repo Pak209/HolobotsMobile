@@ -16,6 +16,11 @@ final class WorkoutViewModel: ObservableObject {
         static let zero = RewardProgress()
     }
 
+    private enum PendingRewardAction {
+        case collect
+        case quickRefill
+    }
+
     enum WorkoutMode: String, CaseIterable, Identifiable {
         case outdoorWalk
         case treadmill
@@ -80,6 +85,11 @@ final class WorkoutViewModel: ObservableObject {
     }
     @Published var isIndoorMode:      Bool                   = false
     @Published var usedLocalRewardFallback: Bool             = false
+    @Published var selectedHolobotName: String               = WatchHolobot.defaultHolobot.name {
+        didSet {
+            UserDefaults.standard.set(selectedHolobotName, forKey: Self.selectedHolobotKey)
+        }
+    }
 
     enum SyncStatus {
         case idle, sending, success, error
@@ -142,10 +152,17 @@ final class WorkoutViewModel: ObservableObject {
     private var accumulatedStepCount = 0
     private var accumulatedDistanceKm = 0.0
     private var accumulatedRewards = RewardProgress.zero
+    private var pendingWorkoutPayload: WorkoutCompletePayload?
+    private var pendingRewardAction: PendingRewardAction?
     private var roundStepCount = 0
     private var roundDistanceKm = 0.0
     private static let workoutModeKey = "holobots.watch.workoutMode"
     private static let distanceUnitKey = "holobots.watch.distanceUnit"
+    private static let selectedHolobotKey = "holobots.watch.selectedHolobotName"
+
+    var selectedHolobot: WatchHolobot {
+        WatchHolobot.named(selectedHolobotName)
+    }
 
     init() {
         if let storedMode = UserDefaults.standard.string(forKey: Self.workoutModeKey),
@@ -159,6 +176,10 @@ final class WorkoutViewModel: ObservableObject {
         if let storedUnit = UserDefaults.standard.string(forKey: Self.distanceUnitKey),
            let distanceUnit = DistanceUnit(rawValue: storedUnit) {
             self.distanceUnit = distanceUnit
+        }
+
+        if let storedHolobot = UserDefaults.standard.string(forKey: Self.selectedHolobotKey) {
+            self.selectedHolobotName = WatchHolobot.named(storedHolobot).name
         }
     }
 
@@ -222,18 +243,20 @@ final class WorkoutViewModel: ObservableObject {
         distanceKm = accumulatedDistanceKm
 
         let payload = WorkoutCompletePayload(
+            workoutId:        UUID().uuidString,
             elapsedSeconds:   elapsedSeconds,
             stepCount:        roundStepCount,
             distanceMeters:   roundDistanceKm * 1000,
             syncPointsEarned: segmentRewards.syncPoints,
             holosEarned:      segmentRewards.holos,
             expEarned:        segmentRewards.exp,
+            holobotName:      selectedHolobot.name,
             date:             localDateKey()
         )
+        pendingWorkoutPayload = payload
 
-        syncStatus = .sending
         presentLocalRewardsFallback(displayRewards: nextAccumulatedRewards, segmentRewards: segmentRewards)
-        WatchConnectivityManager.shared.sendWorkoutComplete(payload)
+        syncStatus = .idle
     }
 
     // Called by WatchConnectivityManager when phone replies
@@ -258,27 +281,26 @@ final class WorkoutViewModel: ObservableObject {
         sessionsCompleted = rewards.sessionsCompleted
         sessionsRemaining = rewards.sessionsRemaining
         totalSyncPoints   = rewards.totalSyncPoints
+        pendingWorkoutPayload = nil
+        let nextAction = pendingRewardAction
+        pendingRewardAction = nil
         usedLocalRewardFallback = false
-        showRewards       = true
+        if let nextAction {
+            completePendingRewardAction(nextAction)
+        } else {
+            rewardsPayload    = displayRewards
+            showRewards       = true
+        }
         WKInterfaceDevice.current().play(.success)
     }
 
     // Dismiss rewards and reset for next session
     func collectRewards() {
-        showRewards    = false
-        rewardsPayload = nil
-        resetWorkout()
+        claimPendingRewards(after: .collect)
     }
 
     func quickRefill() {
-        showRewards    = false
-        rewardsPayload = nil
-        syncStatus     = .idle
-        usedLocalRewardFallback = false
-        prepareNextRound()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            self?.start()
-        }
+        claimPendingRewards(after: .quickRefill)
     }
 
     func resetWorkout() {
@@ -288,6 +310,8 @@ final class WorkoutViewModel: ObservableObject {
         accumulatedStepCount = 0
         accumulatedDistanceKm = 0
         accumulatedRewards = .zero
+        pendingWorkoutPayload = nil
+        pendingRewardAction = nil
         roundStepCount = 0
         roundDistanceKm = 0
         elapsedSeconds = 0
@@ -298,6 +322,45 @@ final class WorkoutViewModel: ObservableObject {
         syncStatus     = .idle
         timerFired     = false
         usedLocalRewardFallback = false
+    }
+
+    func selectHolobot(_ holobot: WatchHolobot) {
+        selectedHolobotName = holobot.name
+    }
+
+    func sanitizeSelectedHolobot(availableHolobots: [WatchHolobot]) {
+        let safeHolobots = availableHolobots.isEmpty ? [WatchHolobot.defaultHolobot] : availableHolobots
+        guard !safeHolobots.contains(where: { $0.name == selectedHolobotName }) else { return }
+        selectedHolobotName = safeHolobots[0].name
+    }
+
+    private func claimPendingRewards(after action: PendingRewardAction) {
+        guard let pendingWorkoutPayload else {
+            completePendingRewardAction(action)
+            return
+        }
+
+        guard syncStatus != .sending else { return }
+        pendingRewardAction = action
+        syncStatus = .sending
+        WatchConnectivityManager.shared.claimWorkoutRewards(pendingWorkoutPayload)
+    }
+
+    private func completePendingRewardAction(_ action: PendingRewardAction) {
+        showRewards = false
+        rewardsPayload = nil
+        usedLocalRewardFallback = false
+
+        switch action {
+        case .collect:
+            resetWorkout()
+        case .quickRefill:
+            syncStatus = .idle
+            prepareNextRound()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.start()
+            }
+        }
     }
 
     private func prepareNextRound() {

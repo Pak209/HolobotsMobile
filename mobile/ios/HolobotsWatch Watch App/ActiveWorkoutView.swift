@@ -232,6 +232,290 @@ private struct BrandedSpeedometer: View {
     }
 }
 
+struct PreWorkoutView: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var connectivity: WatchConnectivityManager
+    @State private var showSettings = false
+    @State private var showHolobotPicker = false
+
+    private let gold = Color(red: 0.94, green: 0.75, blue: 0.08)
+    private let brightGold = Color(red: 0.98, green: 0.80, blue: 0.10)
+    private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
+    private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
+    private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
+
+    var body: some View {
+        ZStack {
+            BrandedWorkoutBackground(
+                darkBg: darkBg,
+                gold: gold,
+                brightGold: brightGold
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                ZStack {
+                    Text("SYNC")
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundColor(brightGold)
+                        .kerning(1.8)
+                }
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .leading) {
+                    Text("READY")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(cream.opacity(0.9))
+                        .kerning(1.1)
+                }
+                .overlay(alignment: .topTrailing) {
+                    Button(action: { showSettings = true }) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(panel.opacity(0.95))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(brightGold.opacity(0.35), lineWidth: 0.8)
+                                )
+
+                            SettingsGlyph(color: brightGold)
+                                .frame(width: 13, height: 13)
+                        }
+                        .frame(width: 26, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 22)
+                }
+                .padding(.top, 6)
+
+                Spacer(minLength: 10)
+
+                VStack(spacing: 8) {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.selectedHolobot.name)
+                                .font(.system(size: 19, weight: .black, design: .rounded))
+                                .foregroundColor(cream)
+                                .minimumScaleFactor(0.7)
+
+                            Text("EXP TARGET")
+                                .font(.system(size: 7, weight: .black))
+                                .foregroundColor(brightGold.opacity(0.9))
+                                .kerning(1.0)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(viewModel.selectedHolobot.assetName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 70, height: 70)
+                    }
+
+                    Button(action: { showHolobotPicker = true }) {
+                        HStack(spacing: 8) {
+                            Text("CHANGE HOLOBOT")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(cream)
+                                .kerning(0.8)
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(brightGold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 30)
+                        .background(panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(brightGold.opacity(0.55), lineWidth: 0.9)
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, -2)
+
+                    HStack(spacing: 6) {
+                        preWorkoutModeButton(
+                            mode: .outdoorWalk,
+                            title: "OUTDOOR",
+                            icon: .outdoorWalk
+                        )
+                        preWorkoutModeButton(
+                            mode: .treadmill,
+                            title: "TREADMILL",
+                            icon: .treadmill
+                        )
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+
+                Spacer(minLength: 60)
+            }
+            .padding(.horizontal, 8)
+        }
+        .overlay(alignment: .bottom) {
+            Button(action: viewModel.start) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(brightGold)
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 11, weight: .black))
+                        Text("START SYNC")
+                            .font(.system(size: 11, weight: .black))
+                            .kerning(1.1)
+                    }
+                    .foregroundColor(darkBg)
+                }
+                .frame(width: 148, height: 28)
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .frame(width: 148, height: 28)
+            .padding(.bottom, 18)
+        }
+        .onAppear {
+            viewModel.sanitizeSelectedHolobot(availableHolobots: connectivity.ownedHolobots)
+            connectivity.requestSessionState()
+        }
+        .onChange(of: connectivity.ownedHolobots.map(\.name)) {
+            viewModel.sanitizeSelectedHolobot(availableHolobots: connectivity.ownedHolobots)
+        }
+        .sheet(isPresented: $showSettings) {
+            WorkoutSettingsView()
+                .environmentObject(viewModel)
+        }
+        .sheet(isPresented: $showHolobotPicker) {
+            HolobotPickerView()
+                .environmentObject(viewModel)
+        }
+    }
+
+    private func preWorkoutModeButton(
+        mode: WorkoutViewModel.WorkoutMode,
+        title: String,
+        icon: WorkoutSettingsIcon
+    ) -> some View {
+        let selected = viewModel.workoutMode == mode
+
+        return Button(action: {
+            viewModel.workoutMode = mode
+        }) {
+            HStack(spacing: 5) {
+                workoutSettingsIcon(icon, color: selected ? brightGold : cream.opacity(0.82))
+                    .frame(width: 12, height: 12)
+
+                Text(title)
+                    .font(.system(size: 7, weight: .black))
+                    .foregroundColor(selected ? cream : cream.opacity(0.82))
+                    .kerning(0.6)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 22)
+            .background(panel.opacity(selected ? 0.96 : 0.72), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(selected ? brightGold.opacity(0.8) : brightGold.opacity(0.25), lineWidth: 0.8)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .frame(height: 22)
+    }
+}
+
+private struct HolobotPickerView: View {
+    @EnvironmentObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var connectivity: WatchConnectivityManager
+    @Environment(\.dismiss) private var dismiss
+
+    private let brightGold = Color(red: 0.98, green: 0.80, blue: 0.10)
+    private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
+    private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
+    private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
+
+    var body: some View {
+        ZStack {
+            darkBg.ignoresSafeArea()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("HOLOBOTS")
+                            .font(.system(size: 13, weight: .black))
+                            .foregroundColor(brightGold)
+                            .kerning(1.8)
+
+                        Spacer()
+
+                        Button("DONE") {
+                            dismiss()
+                        }
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundColor(cream)
+                        .buttonStyle(.plain)
+                    }
+
+                    if viewModel.isRunning {
+                        Text("Finish or pause the current workout before changing holobots.")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(cream.opacity(0.75))
+                    }
+
+                    ForEach(connectivity.ownedHolobots) { holobot in
+                        Button(action: {
+                            guard !viewModel.isRunning else { return }
+                            viewModel.selectHolobot(holobot)
+                            dismiss()
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(holobot.assetName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 40, height: 40)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(holobot.name)
+                                        .font(.system(size: 12, weight: .black))
+                                        .foregroundColor(cream)
+                                    Text("Apply watch EXP here")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundColor(cream.opacity(0.65))
+                                }
+
+                                Spacer(minLength: 0)
+
+                                Circle()
+                                    .fill(viewModel.selectedHolobotName == holobot.name ? brightGold : brightGold.opacity(0.12))
+                                    .frame(width: 16, height: 16)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(brightGold.opacity(0.9), lineWidth: 1)
+                                    )
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(viewModel.selectedHolobotName == holobot.name ? brightGold : brightGold.opacity(0.35), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(10)
+            }
+        }
+        .onAppear {
+            viewModel.sanitizeSelectedHolobot(availableHolobots: connectivity.ownedHolobots)
+            connectivity.requestSessionState()
+        }
+    }
+}
+
 private struct WorkoutSettingsView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @Environment(\.dismiss) private var dismiss
@@ -323,7 +607,7 @@ private struct WorkoutSettingsView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(selected ? gold.opacity(0.2) : Color.black.opacity(0.15))
-                    settingsIcon(icon, color: selected ? brightGold : cream)
+                    workoutSettingsIcon(icon, color: selected ? brightGold : cream)
                         .frame(width: 18, height: 18)
                 }
                 .frame(width: 34, height: 34)
@@ -379,20 +663,21 @@ private struct WorkoutSettingsView: View {
         .buttonStyle(.plain)
     }
 
-    @ViewBuilder
-    private func settingsIcon(_ icon: WorkoutSettingsIcon, color: Color) -> some View {
-        switch icon {
-        case .outdoorWalk:
-            OutdoorWalkGlyph(color: color)
-        case .treadmill:
-            TreadmillGlyph(color: color)
-        }
-    }
 }
 
 private enum WorkoutSettingsIcon {
     case outdoorWalk
     case treadmill
+}
+
+@ViewBuilder
+private func workoutSettingsIcon(_ icon: WorkoutSettingsIcon, color: Color) -> some View {
+    switch icon {
+    case .outdoorWalk:
+        OutdoorWalkGlyph(color: color)
+    case .treadmill:
+        TreadmillGlyph(color: color)
+    }
 }
 
 private struct SettingsGlyph: View {

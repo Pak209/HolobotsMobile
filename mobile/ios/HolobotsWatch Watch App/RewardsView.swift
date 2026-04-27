@@ -10,6 +10,7 @@ struct RewardsView: View {
     private let panel   = Color(red: 0.04, green: 0.05, blue: 0.06)
     private let cream   = Color(red: 0.996, green: 0.945, blue: 0.878)
     private let accent  = Color(red: 0.06, green: 0.08, blue: 0.10)
+    private var isSyncing: Bool { viewModel.syncStatus == .sending }
 
     var body: some View {
         ZStack {
@@ -52,7 +53,7 @@ struct RewardsView: View {
 
                 HStack(spacing: 6) {
                     Button(action: viewModel.collectRewards) {
-                        Text("COLLECT")
+                        Text(isSyncing ? "SYNCING..." : "COLLECT")
                             .font(.system(size: 12, weight: .black))
                             .kerning(1.2)
                             .foregroundColor(darkBg)
@@ -61,6 +62,7 @@ struct RewardsView: View {
                             .background(gold, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .disabled(isSyncing)
 
                     Button(action: viewModel.quickRefill) {
                         ZStack {
@@ -76,6 +78,7 @@ struct RewardsView: View {
                         .frame(width: 34, height: 26)
                     }
                     .buttonStyle(.plain)
+                    .disabled(isSyncing)
                 }
                 .padding(.horizontal, 4)
 
