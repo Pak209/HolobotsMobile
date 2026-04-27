@@ -101,6 +101,29 @@ function toIsoString(value?: { toDate?: () => Date } | string) {
   return value.toDate?.()?.toISOString();
 }
 
+function stripUndefinedDeep(value: unknown): unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => stripUndefinedDeep(entry))
+      .filter((entry) => entry !== undefined);
+  }
+
+  if (value && typeof value === "object") {
+    const nextEntries = Object.entries(value).flatMap(([key, entry]) => {
+      const sanitized = stripUndefinedDeep(entry);
+      return sanitized === undefined ? [] : [[key, sanitized] as const];
+    });
+
+    return Object.fromEntries(nextEntries);
+  }
+
+  return value;
+}
+
 export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDocument): UserProfile {
   return {
     id: userId,
@@ -275,5 +298,5 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
       });
   }
 
-  await updateDoc(userRef, firestoreUpdates as any);
+  await updateDoc(userRef, stripUndefinedDeep(firestoreUpdates) as any);
 }

@@ -15,6 +15,7 @@ type SyncFitnessActivityRequest = {
   cooldownEndsAt?: string | null;
   date: string;
   distanceMeters?: number;
+  holosAwarded?: number;
   sessionIncrement?: number;
   stepsTotal: number;
   syncPointsAwarded?: number;
@@ -25,6 +26,7 @@ type SyncFitnessActivityRequest = {
 type SyncFitnessActivityResponse = {
   awardedDelta: number;
   cooldownEndsAt: string | null;
+  totalHolosTokens: number;
   todaySteps: number;
   totalSyncPoints: number;
   workoutSessionsCompleted: number;
@@ -133,15 +135,18 @@ export async function syncFitnessActivity(
     const dailyData = dailySnapshot.data() ?? {};
 
     const previousStepsSynced = Number(dailyData.stepsSynced ?? 0);
+    const currentHolosTokens = Number(userData.holosTokens ?? 0);
     const currentSyncPoints = Number(userData.syncPoints ?? 0);
     const currentLifetimeSyncPoints = Number(userData.lifetimeSyncPoints ?? 0);
     const currentSeasonSyncPoints = Number(userData.seasonSyncPoints ?? 0);
     const stepAward = calculateAwardDelta(previousStepsSynced, request.stepsTotal);
+    const holosAwarded = Math.max(0, Math.floor(request.holosAwarded ?? 0));
     const awardedDelta = Math.max(
       0,
       Math.floor(request.syncPointsAwarded ?? stepAward.awardedDelta),
     );
 
+    const nextHolosTokens = currentHolosTokens + holosAwarded;
     const nextSyncPoints = currentSyncPoints + awardedDelta;
     const nextLifetimeSyncPoints = currentLifetimeSyncPoints + awardedDelta;
     const nextSeasonSyncPoints = currentSeasonSyncPoints + awardedDelta;
@@ -172,6 +177,7 @@ export async function syncFitnessActivity(
       userRef,
       {
         fitnessSource: "manual",
+        holosTokens: nextHolosTokens,
         lastFitnessSyncAt: serverTimestamp(),
         lastStepSync: serverTimestamp(),
         leaderboardScore: computeLeaderboardScore({
@@ -192,6 +198,7 @@ export async function syncFitnessActivity(
     return {
       awardedDelta,
       cooldownEndsAt: request.cooldownEndsAt ?? null,
+      totalHolosTokens: nextHolosTokens,
       todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
       totalSyncPoints: nextSyncPoints,
       workoutSessionsCompleted: nextSessionsCompleted,

@@ -8,6 +8,14 @@ import WatchKit
 @MainActor
 final class WorkoutViewModel: ObservableObject {
 
+    private struct RewardProgress {
+        var syncPoints: Int = 0
+        var holos: Int = 0
+        var exp: Int = 0
+
+        static let zero = RewardProgress()
+    }
+
     enum WorkoutMode: String, CaseIterable, Identifiable {
         case outdoorWalk
         case treadmill
@@ -97,13 +105,17 @@ final class WorkoutViewModel: ObservableObject {
         String(format: "%.0f %@", displayedSpeed, distanceUnit.speedSuffix)
     }
     var currentRewards: (syncPoints: Int, holos: Int, exp: Int) {
-        guard elapsedSeconds > 0 else {
+        let totalElapsed = accumulatedElapsedSeconds + elapsedSeconds
+        let totalSteps = accumulatedStepCount + roundStepCount
+        let totalDistance = accumulatedDistanceKm + roundDistanceKm
+
+        guard totalElapsed > 0 else {
             return (0, 0, 0)
         }
         return RewardCalculator.calculate(
-            elapsedSeconds: elapsedSeconds,
-            stepCount: stepCount,
-            distanceKm: distanceKm
+            elapsedSeconds: totalElapsed,
+            stepCount: totalSteps,
+            distanceKm: totalDistance
         )
     }
     var isComplete: Bool { elapsedSeconds >= WorkoutConfig.totalSeconds }
@@ -126,6 +138,12 @@ final class WorkoutViewModel: ObservableObject {
     private var workoutSession:  HKWorkoutSession?
     private var workoutBuilder:  HKLiveWorkoutBuilder?
     private var timerFired =     false
+    private var accumulatedElapsedSeconds = 0
+    private var accumulatedStepCount = 0
+    private var accumulatedDistanceKm = 0.0
+    private var accumulatedRewards = RewardProgress.zero
+    private var roundStepCount = 0
+    private var roundDistanceKm = 0.0
     private static let workoutModeKey = "holobots.watch.workoutMode"
     private static let distanceUnitKey = "holobots.watch.distanceUnit"
 
@@ -180,26 +198,63 @@ final class WorkoutViewModel: ObservableObject {
         stopPedometer()
         endHKWorkout()
 
-        let rewards = currentRewards
+        accumulatedElapsedSeconds += elapsedSeconds
+        accumulatedStepCount += roundStepCount
+        accumulatedDistanceKm += roundDistanceKm
+
+        let nextAccumulatedRewards = RewardCalculator.calculate(
+            elapsedSeconds: accumulatedElapsedSeconds,
+            stepCount: accumulatedStepCount,
+            distanceKm: accumulatedDistanceKm
+        )
+        let segmentRewards = (
+            syncPoints: max(0, nextAccumulatedRewards.syncPoints - accumulatedRewards.syncPoints),
+            holos: max(0, nextAccumulatedRewards.holos - accumulatedRewards.holos),
+            exp: max(0, nextAccumulatedRewards.exp - accumulatedRewards.exp)
+        )
+        accumulatedRewards = RewardProgress(
+            syncPoints: nextAccumulatedRewards.syncPoints,
+            holos: nextAccumulatedRewards.holos,
+            exp: nextAccumulatedRewards.exp
+        )
+
+        stepCount = accumulatedStepCount
+        distanceKm = accumulatedDistanceKm
+
         let payload = WorkoutCompletePayload(
             elapsedSeconds:   elapsedSeconds,
-            stepCount:        stepCount,
-            distanceMeters:   distanceKm * 1000,
-            syncPointsEarned: rewards.syncPoints,
-            holosEarned:      rewards.holos,
-            expEarned:        rewards.exp,
+            stepCount:        roundStepCount,
+            distanceMeters:   roundDistanceKm * 1000,
+            syncPointsEarned: segmentRewards.syncPoints,
+            holosEarned:      segmentRewards.holos,
+            expEarned:        segmentRewards.exp,
             date:             localDateKey()
         )
 
         syncStatus = .sending
-        presentLocalRewardsFallback(rewards: rewards)
+        presentLocalRewardsFallback(displayRewards: nextAccumulatedRewards, segmentRewards: segmentRewards)
         WatchConnectivityManager.shared.sendWorkoutComplete(payload)
     }
 
     // Called by WatchConnectivityManager when phone replies
     func applyRewards(_ rewards: WorkoutRewardsPayload) {
         syncStatus        = .success
-        rewardsPayload    = rewards
+        let displayRewards: WorkoutRewardsPayload
+        if accumulatedRewards.syncPoints > rewards.syncPoints ||
+            accumulatedRewards.holos > rewards.holos ||
+            accumulatedRewards.exp > rewards.exp {
+            displayRewards = WorkoutRewardsPayload(
+                syncPoints: accumulatedRewards.syncPoints,
+                holos: accumulatedRewards.holos,
+                exp: accumulatedRewards.exp,
+                sessionsCompleted: rewards.sessionsCompleted,
+                sessionsRemaining: rewards.sessionsRemaining,
+                totalSyncPoints: rewards.totalSyncPoints
+            )
+        } else {
+            displayRewards = rewards
+        }
+        rewardsPayload    = displayRewards
         sessionsCompleted = rewards.sessionsCompleted
         sessionsRemaining = rewards.sessionsRemaining
         totalSyncPoints   = rewards.totalSyncPoints
@@ -216,7 +271,11 @@ final class WorkoutViewModel: ObservableObject {
     }
 
     func quickRefill() {
-        collectRewards()
+        showRewards    = false
+        rewardsPayload = nil
+        syncStatus     = .idle
+        usedLocalRewardFallback = false
+        prepareNextRound()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             self?.start()
         }
@@ -225,6 +284,12 @@ final class WorkoutViewModel: ObservableObject {
     func resetWorkout() {
         stopTimer()
         stopPedometer()
+        accumulatedElapsedSeconds = 0
+        accumulatedStepCount = 0
+        accumulatedDistanceKm = 0
+        accumulatedRewards = .zero
+        roundStepCount = 0
+        roundDistanceKm = 0
         elapsedSeconds = 0
         stepCount      = 0
         distanceKm     = 0
@@ -235,18 +300,33 @@ final class WorkoutViewModel: ObservableObject {
         usedLocalRewardFallback = false
     }
 
+    private func prepareNextRound() {
+        stopTimer()
+        stopPedometer()
+        roundStepCount = 0
+        roundDistanceKm = 0
+        elapsedSeconds = 0
+        stepCount = accumulatedStepCount
+        distanceKm = accumulatedDistanceKm
+        speedKmh = 0
+        isRunning = false
+        syncStatus = .idle
+        timerFired = false
+    }
+
     private func presentLocalRewardsFallback(
-        rewards: (syncPoints: Int, holos: Int, exp: Int)
+        displayRewards: (syncPoints: Int, holos: Int, exp: Int),
+        segmentRewards: (syncPoints: Int, holos: Int, exp: Int)
     ) {
         let completed = min(sessionsCompleted + 1, WorkoutConfig.maxDailySessions)
         let remaining = max(WorkoutConfig.maxDailySessions - completed, 0)
         let fallback = WorkoutRewardsPayload(
-            syncPoints: rewards.syncPoints,
-            holos: rewards.holos,
-            exp: rewards.exp,
+            syncPoints: displayRewards.syncPoints,
+            holos: displayRewards.holos,
+            exp: displayRewards.exp,
             sessionsCompleted: completed,
             sessionsRemaining: remaining,
-            totalSyncPoints: totalSyncPoints + rewards.syncPoints
+            totalSyncPoints: totalSyncPoints + segmentRewards.syncPoints
         )
 
         rewardsPayload = fallback
@@ -284,9 +364,11 @@ final class WorkoutViewModel: ObservableObject {
         pedometer.startUpdates(from: start) { [weak self] data, _ in
             guard let self, let data else { return }
             Task { @MainActor in
-                self.stepCount = Int(truncating: data.numberOfSteps)
+                self.roundStepCount = Int(truncating: data.numberOfSteps)
+                self.stepCount = self.accumulatedStepCount + self.roundStepCount
                 if let dist = data.distance {
-                    self.distanceKm = dist.doubleValue / 1000
+                    self.roundDistanceKm = dist.doubleValue / 1000
+                    self.distanceKm = self.accumulatedDistanceKm + self.roundDistanceKm
                 }
                 // currentPace = seconds per metre (nil when stationary)
                 // Convert → km/h: (1 / pace_s_per_m) * 3.6

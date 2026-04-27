@@ -33,6 +33,7 @@ export function useWatchBridge(userId: string | null | undefined) {
             cooldownEndsAt: undefined,
             date: workoutDate,
             distanceMeters: event.distanceMeters,
+            holosAwarded: event.holosEarned,
             sessionIncrement: 1,
             stepsTotal: event.stepCount,
             syncPointsAwarded: event.syncPointsEarned,

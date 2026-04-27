@@ -12,22 +12,15 @@
 		524D8036E474F228802FF3C3 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1E631CC2B090A0D3D3C34C /* ExpoModulesProvider.swift */; };
 		8C354DFC8DD19261BC8071E1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FA52BFDF22FC224B27353973 /* PrivacyInfo.xcprivacy */; };
 		90BB79A4DC1563B4AA303991 /* libPods-HolobotsMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 80C754DE45B95367614343C5 /* libPods-HolobotsMobile.a */; };
-		F1A200012E4010010044C1D9 /* HolobotsWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ACB0CB9C2F9C1B4E006D18EB /* HolobotsWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		ACB0CBA22F9C1B4E006D18EB /* HolobotsWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ACB0CBA12F9C1B4E006D18EB /* HolobotsWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		F12A10012E2F10010044C1D9 /* WatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12A10002E2F10010044C1D9 /* WatchBridge.swift */; };
 		F12A10032E2F10030044C1D9 /* WatchBridgeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = F12A10022E2F10030044C1D9 /* WatchBridgeModule.m */; };
+		F1A200012E4010010044C1D9 /* HolobotsWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ACB0CBA12F9C1B4E006D18EB /* HolobotsWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		F1A200022E4010020044C1D9 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = ACB0CB9B2F9C1B4E006D18EB;
-			remoteInfo = HolobotsWatch;
-		};
 		ACB0CBA32F9C1B4E006D18EB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
@@ -49,20 +42,16 @@
 			remoteGlobalIDString = ACB0CBA02F9C1B4E006D18EB;
 			remoteInfo = "HolobotsWatch Watch App";
 		};
+		F1A200022E4010020044C1D9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ACB0CBA02F9C1B4E006D18EB;
+			remoteInfo = "HolobotsWatch Watch App";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		F1A200032E4010030044C1D9 /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-				F1A200012E4010010044C1D9 /* HolobotsWatch.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		ACB0CBC72F9C1B4F006D18EB /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -70,6 +59,17 @@
 			dstSubfolderSpec = 16;
 			files = (
 				ACB0CBA22F9C1B4E006D18EB /* HolobotsWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1A200032E4010030044C1D9 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				F1A200012E4010010044C1D9 /* HolobotsWatch Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -595,11 +595,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		F1A200042E4010040044C1D9 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = ACB0CB9B2F9C1B4E006D18EB /* HolobotsWatch */;
-			targetProxy = F1A200022E4010020044C1D9 /* PBXContainerItemProxy */;
-		};
 		ACB0CBA42F9C1B4E006D18EB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = ACB0CBA02F9C1B4E006D18EB /* HolobotsWatch Watch App */;
@@ -614,6 +609,11 @@
 			isa = PBXTargetDependency;
 			target = ACB0CBA02F9C1B4E006D18EB /* HolobotsWatch Watch App */;
 			targetProxy = ACB0CBBE2F9C1B4F006D18EB /* PBXContainerItemProxy */;
+		};
+		F1A200042E4010040044C1D9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ACB0CB9B2F9C1B4E006D18EB /* HolobotsWatch */;
+			targetProxy = F1A200022E4010020044C1D9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -828,13 +828,16 @@
 				DEVELOPMENT_TEAM = 5YJJCSFSQM;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HolobotsWatch;
+				INFOPLIST_KEY_WKApplication = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = Holobots.HolobotsWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = fun.holobots.mobile.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -859,12 +862,15 @@
 				DEVELOPMENT_TEAM = 5YJJCSFSQM;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HolobotsWatch;
+				INFOPLIST_KEY_WKApplication = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = Holobots.HolobotsWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = fun.holobots.mobile.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 5.0;
 			};
@@ -898,7 +904,7 @@
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Holobots writes workout rewards and sync summaries connected to your activity.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Holobots reads step and motion activity during workouts to reward Sync Points.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKWatchOnly = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = fun.holobots.mobile;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -907,7 +913,7 @@
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = Holobots.HolobotsWatch.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = "fun.holobots.mobile.watchapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -949,7 +955,7 @@
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Holobots writes workout rewards and sync summaries connected to your activity.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Holobots reads step and motion activity during workouts to reward Sync Points.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKWatchOnly = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = fun.holobots.mobile;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -957,7 +963,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = Holobots.HolobotsWatch.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = "fun.holobots.mobile.watchapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
