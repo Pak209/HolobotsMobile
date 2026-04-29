@@ -185,8 +185,22 @@ async function clearUserPresence(uid) {
   ).catch(() => undefined);
 }
 
-exports.deleteUserAccount = onCall(async (request) => {
-  const uid = request.auth?.uid;
+async function handleDeleteUserAccount(request) {
+  let uid = request.auth?.uid;
+
+  if (!uid) {
+    const idToken = typeof request.data?.idToken === "string" ? request.data.idToken : "";
+    if (!idToken) {
+      throw new HttpsError("unauthenticated", "You must be signed in to delete your account.");
+    }
+
+    try {
+      const decoded = await auth.verifyIdToken(idToken);
+      uid = decoded.uid;
+    } catch (error) {
+      throw new HttpsError("unauthenticated", "Your session could not be verified. Please sign in again.");
+    }
+  }
 
   if (!uid) {
     throw new HttpsError("unauthenticated", "You must be signed in to delete your account.");
@@ -209,7 +223,9 @@ exports.deleteUserAccount = onCall(async (request) => {
   }
 
   return { success: true };
-});
+}
+
+exports.deleteUserAccountV2 = onCall({ region: "us-central1", invoker: "public" }, handleDeleteUserAccount);
 
 exports.syncWatchWorkoutRewards = onCall(async (request) => {
   const uid = request.auth?.uid;

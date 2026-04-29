@@ -78,7 +78,10 @@ const DEFAULT_AUTH_PREFERENCES: AuthPreferences = {
   rememberedEmail: "",
 };
 
-const deleteAccountCallable = httpsCallable<void, { success?: boolean }>(functions, "deleteUserAccount");
+const deleteAccountCallable = httpsCallable<{ idToken: string }, { success?: boolean }>(
+  functions,
+  "deleteUserAccountV2",
+);
 
 function normalizeUsername(value: string) {
   return value.trim().replace(/\s+/g, " ");
@@ -461,8 +464,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error("Your session expired. Please sign in again before deleting your account.");
         }
 
-        await currentUser.getIdToken(true);
-        await deleteAccountCallable();
+        const idToken = await currentUser.getIdToken(true);
+        await deleteAccountCallable({ idToken });
         await signOut(auth).catch(() => undefined);
         await AsyncStorage.removeItem(AUTH_PREFS_KEY).catch(() => undefined);
         setAuthPreferences(DEFAULT_AUTH_PREFERENCES);
