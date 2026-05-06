@@ -37,6 +37,8 @@ const firebaseConfig = {
   appId: "1:276314676160:web:4c564acf635324c0384625",
 };
 
+export const FIREBASE_FUNCTIONS_REGION = "us-central1";
+
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = (() => {
   try {
@@ -48,7 +50,7 @@ export const auth = (() => {
   }
 })();
 export const db = getFirestore(app);
-export const functions = getFunctions(app);
+export const functions = getFunctions(app, FIREBASE_FUNCTIONS_REGION);
 
 export {
   collection,
