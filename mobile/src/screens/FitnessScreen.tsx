@@ -19,6 +19,7 @@ import { applyHolobotExperience, getExpProgress, mergeHolobotRoster } from "@/co
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
 import { computeLeaderboardScore } from "@/lib/profile";
+import { getPlayerRank, getPlayerRankExpMultiplier } from "@/lib/playerRank";
 import { normalizeProgressionSystem } from "@/lib/progressionSystems";
 import { getSyncRank } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
@@ -80,7 +81,9 @@ export function FitnessScreen() {
   }, [profile?.syncDistanceUnit]);
 
   const distanceUnit = profile?.syncDistanceUnit ?? localDistanceUnit;
-  const workout = useWorkout(user?.uid ?? null, distanceUnit);
+  const playerRank = getPlayerRank(profile);
+  const playerRankExpMultiplier = getPlayerRankExpMultiplier(profile);
+  const workout = useWorkout(user?.uid ?? null, distanceUnit, playerRankExpMultiplier);
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
   const displayDistance = distanceUnit === "mi" ? workout.displayDistanceKm * KM_TO_MILES : workout.displayDistanceKm;
@@ -108,7 +111,10 @@ export function FitnessScreen() {
   const rewardSessionsCopy = completionResult
     ? `${completionResult.sessionsCompleted}/4 workouts completed today`
     : "";
-  const boostedExpReward = completionResult ? Math.round(completionResult.expReward * syncBoostMultiplier) : 0;
+  const currentExpReward = Math.round(workout.expReward * syncBoostMultiplier * playerRankExpMultiplier);
+  const boostedExpReward = completionResult
+    ? Math.round(completionResult.expReward * syncBoostMultiplier * playerRankExpMultiplier)
+    : 0;
   const syncBoostCopy = formatSyncBoostCopy(workout.syncPointBoostCount, distanceUnit);
   const goLabel = workout.isRunning
     ? "PAUSE"
@@ -341,7 +347,7 @@ export function FitnessScreen() {
           <Image href={fitnessAssets.rewardExp} x={1196} y={2433} width={119} height={118} preserveAspectRatio="none" />
           <Text x={410} y={2494} fill="#e9dfc5" fontSize={96.929} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
           <Text x={882} y={2494} fill="#e9dfc5" fontSize={95.215} fontWeight="700">{`+${workout.holosReward}`}</Text>
-          <Text x={1353} y={2493.96} fill="#e9dfc5" fontSize={91.406} fontWeight="700">{`+${workout.expReward}`}</Text>
+          <Text x={1353} y={2493.96} fill="#e9dfc5" fontSize={91.406} fontWeight="700">{`+${currentExpReward}`}</Text>
 
           <Image href={fitnessAssets.goButton} x={20} y={2606} width={1695} height={446} preserveAspectRatio="none" />
           <Text x={goLabel === "PAUSE" ? 635 : goLabel === "RESUME" ? 610 : 740} y={2868} fill="#eeb818" fontSize={204.86} fontWeight="700">{goLabel}</Text>
@@ -420,6 +426,7 @@ export function FitnessScreen() {
                 <RNText style={styles.settingsMeta}>
                   {distanceUnit === "mi" ? "+100 SP for every full mile completed." : "+100 SP for every full kilometer completed."}
                 </RNText>
+                <RNText style={styles.settingsMeta}>{`${playerRank} rank EXP boost x${playerRankExpMultiplier}`}</RNText>
               </View>
 
               <View style={styles.settingsSection}>

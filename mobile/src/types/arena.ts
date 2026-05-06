@@ -9,11 +9,21 @@ export type BattleStatus = 'preparing' | 'active' | 'paused' | 'completed' | 'ab
 export type BattleType = 'pvp' | 'pve' | 'training' | 'ranked';
 
 export type CardType = 'strike' | 'defense' | 'combo' | 'finisher';
-export type CardRarity = 'common' | 'uncommon' | 'rare' | 'epic';
+export type CardRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+export type DefenseTrapEffect = 'guard' | 'evade' | 'counter' | 'perfect_reversal';
 
 export type StaminaState = 'fresh' | 'working' | 'gassed' | 'exhausted';
 export type DefenseOutcome = 'perfect' | 'partial' | 'failed';
 export type ActionOutcome = 'hit' | 'blocked' | 'dodged' | 'countered' | 'missed';
+
+export type ArenaCardDisableReason =
+  | 'cooldown'
+  | 'insufficient_stamina'
+  | 'special_meter'
+  | 'combo_requirement'
+  | 'opponent_state'
+  | 'defense_lock'
+  | 'trap_armed';
 
 // ============================================================================
 // Fighter (Holobot in Combat)
@@ -63,6 +73,21 @@ export interface ArenaFighter {
   combosCompleted?: number;
   syncAbilities?: string[];
   syncModifiers?: SyncBattleModifiers;
+  defenseActive?: boolean;
+  defendedAt?: number;
+  cardCooldowns?: Record<string, number>;
+  armedDefenseTrap?: ArmedDefenseTrap | null;
+}
+
+export interface ArmedDefenseTrap {
+  cardId: string;
+  cardName: string;
+  tier: CardRarity;
+  effect: DefenseTrapEffect;
+  expiresOnTurn: number;
+  evadeChance: number;
+  damageReduction: number;
+  counterDamageMultiplier: number;
 }
 
 // ============================================================================
@@ -88,6 +113,12 @@ export interface ActionCard {
   animationId: string;
   description: string;
   iconName?: string;
+  cooldownTurns?: number;
+  tier?: CardRarity;
+  defenseEffect?: DefenseTrapEffect;
+  evadeChance?: number;
+  damageReduction?: number;
+  counterDamageMultiplier?: number;
 }
 
 export interface CardRequirement {
@@ -115,6 +146,10 @@ export interface BattleState {
   // Fighters
   player: ArenaFighter;
   opponent: ArenaFighter;
+  playerCardCooldowns?: Record<string, number>;
+  opponentCardCooldowns?: Record<string, number>;
+  playerDefenseCooldownTurns?: number;
+  opponentDefenseCooldownTurns?: number;
 
   // Turn State
   turnNumber: number;
@@ -155,6 +190,8 @@ export interface BattleAction {
   wasCountered: boolean;
   triggeredCombo: boolean;
   perfectDefense: boolean;
+  comboLength?: number;
+  actualDamage?: number;
 }
 
 export interface BattleRewards {
@@ -173,7 +210,7 @@ export interface BattleRewards {
 // ============================================================================
 
 export interface AIDecision {
-  selectedCard: ActionCard;
+  selectedCard: ActionCard | null;
   confidence: number;
   reasoning: string;
   enterDefenseMode: boolean;
@@ -215,4 +252,11 @@ export interface BattleModifier {
   target: 'player' | 'opponent' | 'both';
   multiplier: number;
   description: string;
+}
+
+export interface ArenaCardAvailability {
+  cardId: string;
+  playable: boolean;
+  cooldownTurns: number;
+  disabledReason?: ArenaCardDisableReason;
 }

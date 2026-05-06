@@ -9,10 +9,16 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published var incomingRewards: WorkoutRewardsPayload? = nil
     @Published var isPhoneReachable: Bool = false
     @Published var ownedHolobots: [WatchHolobot] = []
+    @Published var sessionState: WorkoutSessionStatePayload? = nil
 
     private static let ownedHolobotNamesKey = "holobots.watch.ownedHolobotNames"
+    private static let sessionStateKey = "holobots.watch.sessionState"
 
     private override init() {
+        if let storedState = UserDefaults.standard.dictionary(forKey: Self.sessionStateKey) {
+            self.sessionState = WorkoutSessionStatePayload(from: storedState)
+        }
+
         if let storedNames = UserDefaults.standard.array(forKey: Self.ownedHolobotNamesKey) as? [String] {
             let resolved = storedNames
                 .map(WatchHolobot.named(_:))
@@ -43,6 +49,14 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
         UserDefaults.standard.set(nextHolobots.map(\.name), forKey: Self.ownedHolobotNamesKey)
     }
 
+    private func applySessionState(_ dict: [String: Any]) {
+        if let state = WorkoutSessionStatePayload(from: dict) {
+            sessionState = state
+            UserDefaults.standard.set(dict, forKey: Self.sessionStateKey)
+        }
+        applyOwnedHolobotNames(dict["ownedHolobotNames"] as? [Any])
+    }
+
     func activate() {
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
@@ -56,7 +70,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
             replyHandler: { [weak self] reply in
                 Task { @MainActor [weak self] in
                     guard reply["type"] as? String == WatchMessageType.sessionState else { return }
-                    self?.applyOwnedHolobotNames(reply["ownedHolobotNames"] as? [Any])
+                    self?.applySessionState(reply)
                 }
             },
             errorHandler: { error in
@@ -122,7 +136,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
     ) {
         guard applicationContext["type"] as? String == WatchMessageType.sessionState else { return }
         Task { @MainActor in
-            self.applyOwnedHolobotNames(applicationContext["ownedHolobotNames"] as? [Any])
+            self.applySessionState(applicationContext)
         }
     }
 
@@ -133,7 +147,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
     ) {
         if message["type"] as? String == WatchMessageType.sessionState {
             Task { @MainActor in
-                self.applyOwnedHolobotNames(message["ownedHolobotNames"] as? [Any])
+                self.applySessionState(message)
             }
             return
         }
@@ -153,7 +167,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
     ) {
         if userInfo["type"] as? String == WatchMessageType.sessionState {
             Task { @MainActor in
-                self.applyOwnedHolobotNames(userInfo["ownedHolobotNames"] as? [Any])
+                self.applySessionState(userInfo)
             }
             return
         }

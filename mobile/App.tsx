@@ -3,6 +3,7 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Asset } from "expo-asset";
 import { StatusBar } from "expo-status-bar";
+import { Image as RNImage, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -35,6 +36,7 @@ export type RootTabs = {
 };
 
 const Tab = createBottomTabNavigator<RootTabs>();
+const warmFitnessAssets = fitnessAssetList.filter((asset): asset is number => typeof asset === "number");
 
 const navTheme = {
   ...DefaultTheme,
@@ -102,6 +104,21 @@ function AuthedApp() {
   );
 }
 
+function FitnessAssetWarmer() {
+  return (
+    <View pointerEvents="none" style={styles.assetWarmer}>
+      {warmFitnessAssets.map((source, index) => (
+        <RNImage
+          key={`${source}:${index}`}
+          source={source}
+          resizeMode="contain"
+          style={styles.warmImage}
+        />
+      ))}
+    </View>
+  );
+}
+
 export default function App() {
   useEffect(() => {
     void Asset.loadAsync(fitnessAssetList);
@@ -111,9 +128,26 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
+          <FitnessAssetWarmer />
           <AuthedApp />
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  assetWarmer: {
+    height: 1,
+    left: 0,
+    opacity: 0,
+    overflow: "hidden",
+    position: "absolute",
+    top: 0,
+    width: 1,
+  },
+  warmImage: {
+    height: 1,
+    width: 1,
+  },
+});

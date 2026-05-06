@@ -98,7 +98,7 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
   // DEFENSE
   block: {
     templateId: 'block',
-    name: 'Block',
+    name: 'Guard Protocol',
     type: 'defense',
     staminaCost: 1,
     baseDamage: 0,
@@ -106,14 +106,20 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
     requirements: [],
     effects: [{ type: 'status', target: 'self', value: 1, duration: 1 }],
     animationId: 'defense_block',
-    description: 'Raise guard. Reduces incoming damage.',
+    description: 'Arm a guard trap that cuts the next incoming hit in half.',
     iconName: 'shield',
+    tier: 'common',
+    cooldownTurns: 2,
+    defenseEffect: 'guard',
+    damageReduction: 0.5,
+    evadeChance: 0,
+    counterDamageMultiplier: 0,
   },
   slip: {
     templateId: 'slip',
-    name: 'Slip',
+    name: 'Evasion Step',
     type: 'defense',
-    staminaCost: 1,
+    staminaCost: 2,
     baseDamage: 0,
     speedModifier: 1.4,
     requirements: [],
@@ -122,14 +128,20 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
       { type: 'combo_enable', target: 'self', value: 1 },
     ],
     animationId: 'defense_slip',
-    description: 'Evade strike by moving head. Opens counter window.',
+    description: 'Arm an evasive trap with a strong chance to avoid the next hit.',
     iconName: 'move',
+    tier: 'rare',
+    cooldownTurns: 3,
+    defenseEffect: 'evade',
+    damageReduction: 0.5,
+    evadeChance: 0.45,
+    counterDamageMultiplier: 0,
   },
   parry: {
     templateId: 'parry',
-    name: 'Parry',
+    name: 'Counter Guard',
     type: 'defense',
-    staminaCost: 2,
+    staminaCost: 3,
     baseDamage: 0,
     speedModifier: 1.2,
     requirements: [],
@@ -138,21 +150,33 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
       { type: 'stamina_gain', target: 'self', value: 2 },
     ],
     animationId: 'defense_parry',
-    description: 'Redirect attack. Perfect timing recovers stamina.',
+    description: 'Arm a trap that softens the next hit and returns counter damage.',
     iconName: 'repeat',
+    tier: 'epic',
+    cooldownTurns: 3,
+    defenseEffect: 'counter',
+    damageReduction: 0.6,
+    evadeChance: 0.25,
+    counterDamageMultiplier: 0.55,
   },
   roll: {
     templateId: 'roll',
-    name: 'Roll',
+    name: 'Perfect Reversal',
     type: 'defense',
-    staminaCost: 2,
+    staminaCost: 4,
     baseDamage: 0,
     speedModifier: 1.1,
     requirements: [],
     effects: [{ type: 'status', target: 'self', value: 1, duration: 2 }],
     animationId: 'defense_roll',
-    description: 'Bob and weave through strikes. Longer defense window.',
+    description: 'Arm a legendary reversal that fully evades and slams back.',
     iconName: 'refresh-cw',
+    tier: 'legendary',
+    cooldownTurns: 4,
+    defenseEffect: 'perfect_reversal',
+    damageReduction: 1,
+    evadeChance: 1,
+    counterDamageMultiplier: 0.8,
   },
 
   // COMBOS
@@ -289,7 +313,7 @@ export class CardPoolGenerator {
       .filter((card): card is ActionCard => Boolean(card));
 
     if (uniqueCards.length >= 6) {
-      return this.shuffle(uniqueCards).slice(0, 10);
+      return this.ensureCoreBattleFlow(this.shuffle(uniqueCards).slice(0, 10));
     }
 
     const cards: ActionCard[] = [];
@@ -302,7 +326,34 @@ export class CardPoolGenerator {
       }
     });
 
-    return cards;
+    return this.ensureCoreBattleFlow(cards);
+  }
+
+  private static ensureCoreBattleFlow(cards: ActionCard[]): ActionCard[] {
+    const normalized = [...cards];
+    const strikeCount = normalized.filter((card) => card.type === 'strike').length;
+    const defenseCount = normalized.filter((card) => card.type === 'defense').length;
+
+    const pushFallbackCard = (templateId: keyof typeof CARD_TEMPLATES) => {
+      const template = CARD_TEMPLATES[templateId];
+      if (!template) {
+        return;
+      }
+      normalized.unshift({ ...template, id: this.generateId() });
+    };
+
+    if (strikeCount === 0) {
+      pushFallbackCard('jab');
+      pushFallbackCard('cross');
+    } else if (strikeCount === 1) {
+      pushFallbackCard('cross');
+    }
+
+    if (defenseCount === 0) {
+      pushFallbackCard('block');
+    }
+
+    return normalized.slice(0, 10);
   }
 
   private static shuffle<T>(items: T[]): T[] {

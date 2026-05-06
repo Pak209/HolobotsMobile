@@ -7,7 +7,7 @@ import type {
   ArenaBattleConfig,
   BattleRewards,
 } from '../types/arena';
-import { ArenaCombatEngine } from '../lib/arena/combat-engine';
+import { ArenaCombatEngine } from '../features/arena/combatEngine';
 import { CardPoolGenerator } from '../lib/arena/card-generator';
 import { ArenaAI } from '../lib/arena/ai-controller';
 
@@ -112,7 +112,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     if (!card) return;
 
     // Check if playable
-    if (!ArenaCombatEngine.canPlayCard(currentBattle.player, card)) {
+    if (!ArenaCombatEngine.canPlayCard(currentBattle.player, card, currentBattle, true)) {
       console.warn('Cannot play card:', card.name);
       return;
     }
@@ -146,7 +146,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
       isAnimating: true,
       playerCards: nextPlayerCards,
       selectedCardId: null,
-      lastAIActionTime: Date.now(),
     });
 
     // Check for battle end
@@ -163,35 +162,49 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     }
   },
 
-  // Toggle player defense mode
+  // Trigger defense by actually playing a defense card through the shared engine
   toggleDefenseMode: () => {
-    const { currentBattle } = get();
-    if (!currentBattle) return;
+    const { currentBattle, playerCards } = get();
+    if (!currentBattle || currentBattle.status !== 'active') return;
 
-    set({
-      currentBattle: {
-        ...currentBattle,
-        player: {
-          ...currentBattle.player,
-          isInDefenseMode: !currentBattle.player.isInDefenseMode,
-        },
-      },
-    });
+    const defenseCard = ArenaCombatEngine.getPlayableCards(
+      playerCards,
+      currentBattle.player,
+      currentBattle.opponent,
+      currentBattle,
+      true,
+    ).find((card) => card.type === 'defense');
+
+    if (!defenseCard) return;
+    get().playCard(defenseCard.id);
   },
 
   // Process AI turn
   processAITurn: () => {
     const { currentBattle, ai, opponentCards } = get();
     if (!currentBattle || !ai) return;
-    if (currentBattle.status !== 'active') return;
-    if (get().isAnimating) return;
+    if (currentBattle.status !== "active") return;
 
     set({ isAnimating: true });
 
-    // AI decides action
-    const decision = ai.selectAction(currentBattle);
+    const aiPlayableCards = ArenaCombatEngine.getPlayableCards(
+      opponentCards,
+      currentBattle.opponent,
+      currentBattle.player,
+      currentBattle,
+      false,
+    );
 
-    // Create action
+    const decision = ai.selectAction(currentBattle, aiPlayableCards);
+
+    if (!decision.selectedCard) {
+      set({
+        isAnimating: false,
+        lastAIActionTime: Date.now(),
+      });
+      return;
+    }
+
     const action: BattleAction = {
       id: `action_${Date.now()}`,
       turnNumber: currentBattle.turnNumber,
@@ -199,7 +212,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
       targetId: currentBattle.player.holobotId,
       card: decision.selectedCard,
       timestamp: Date.now(),
-      outcome: 'hit',
+      outcome: "hit",
       damageDealt: 0,
       staminaChange: 0,
       specialMeterChange: 0,
@@ -208,20 +221,15 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
       perfectDefense: false,
     };
 
-    // Update opponent defense mode
-    let battleWithDefense = currentBattle;
-    if (decision.enterDefenseMode) {
-      battleWithDefense = {
-        ...currentBattle,
-        opponent: {
-          ...currentBattle.opponent,
-          isInDefenseMode: true,
-        },
-      };
+    if (!ArenaCombatEngine.canPlayCard(currentBattle.opponent, decision.selectedCard, currentBattle, false)) {
+      set({
+        isAnimating: false,
+        lastAIActionTime: Date.now(),
+      });
+      return;
     }
 
-    // Resolve action
-    const newState = ArenaCombatEngine.resolveAction(battleWithDefense, action);
+    const newState = ArenaCombatEngine.resolveAction(currentBattle, action);
     const resolvedAction = newState.actionHistory[newState.actionHistory.length - 1];
 
     const nextOpponentCards = rotateCardQueue(opponentCards, decision.selectedCard.id);
@@ -284,7 +292,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     }
 
     const intervalId = setInterval(() => {
-      const { currentBattle, ai, isAnimating, lastAIActionTime } = get();
+      const { currentBattle, ai, lastAIActionTime } = get();
       if (!currentBattle || currentBattle.status !== 'active') {
         return;
       }
@@ -294,14 +302,13 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
         set({ currentBattle: regeneratedBattle });
       }
 
-      if (!ai || isAnimating) {
+      if (!ai) {
         return;
       }
 
-      const aiPlayableCards = CardPoolGenerator.getPlayableCards(get().opponentCards, regeneratedBattle.opponent);
-      const enoughDelayPassed = Date.now() - lastAIActionTime > 950;
+      const enoughDelayPassed = Date.now() - lastAIActionTime > 700;
 
-      if (aiPlayableCards.length > 0 && enoughDelayPassed) {
+      if (enoughDelayPassed) {
         get().processAITurn();
       }
     }, 180);
@@ -325,7 +332,13 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
   getPlayableCards: () => {
     const { currentBattle, playerCards } = get();
     if (!currentBattle) return [];
-    return CardPoolGenerator.getPlayableCards(playerCards, currentBattle.player);
+    return ArenaCombatEngine.getPlayableCards(
+      playerCards,
+      currentBattle.player,
+      currentBattle.opponent,
+      currentBattle,
+      true,
+    );
   },
 
   // Helper: Check if specific card can be played
@@ -334,6 +347,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     if (!currentBattle) return false;
     const card = playerCards.find(c => c.id === cardId);
     if (!card) return false;
-    return ArenaCombatEngine.canPlayCard(currentBattle.player, card);
+    return ArenaCombatEngine.canPlayCard(currentBattle.player, card, currentBattle, true);
   },
 }));

@@ -6,20 +6,8 @@ import { DailyMissionsModal } from "@/components/DailyMissionsModal";
 import { fitnessAssets } from "@/config/figmaAssets";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDailyMissionSummary } from "@/lib/dailyMissions";
+import { getPlayerRank } from "@/lib/playerRank";
 import type { UserProfile } from "@/types/profile";
-
-function getPlayerRank(profile: UserProfile | null) {
-  if (!profile) return "Rookie";
-
-  const maxLevel = Math.max(0, ...(profile.holobots || []).map((holobot) => holobot.level || 0));
-  const wins = profile.stats?.wins || 0;
-  const score = maxLevel + wins * 0.35 + (profile.prestigeCount || 0) * 8;
-
-  if (score >= 80) return "Legend";
-  if (score >= 55) return "Elite";
-  if (score >= 30) return "Champion";
-  return "Rookie";
-}
 
 type UserStatsModalProps = {
   onClose: () => void;

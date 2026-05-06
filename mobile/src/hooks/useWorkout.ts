@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { AppState, NativeModules, Platform } from "react-native";
 import * as Location from "expo-location";
 import { Pedometer } from "expo-sensors";
 
-import { db } from "@/config/firebase";
+import { db, doc, onSnapshot } from "@/config/firebase";
 import {
   getDailyWorkoutState,
   getLocalDateKey,
@@ -38,6 +39,7 @@ const BASE_HOLOS_PER_KM = 12;
 const BASE_EXP_PER_KM = 280;
 const UNIT_SYNC_POINT_BOOST = 100;
 const KM_TO_MILES = 0.621371;
+const { WatchBridgeModule } = NativeModules;
 
 type LiveWorkoutState = {
   distanceKm: number;
@@ -50,6 +52,11 @@ type LiveWorkoutState = {
 
 type PermissionState = "idle" | "granted" | "denied";
 type SyncState = "idle" | "syncing" | "synced" | "error";
+type PendingWatchWorkoutEvent = {
+  date?: string;
+  sessionsCompleted?: number;
+  workoutId?: string;
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -127,7 +134,11 @@ function calculateRewards(
   };
 }
 
-function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "km") {
+function useLiveWorkout(
+  userId?: string | null,
+  unitPreference: DistanceUnit = "km",
+  playerRankExpMultiplier = 1,
+) {
   const [state, setState] = useState<LiveWorkoutState>({
     distanceKm: 0,
     elapsedSeconds: 0,
@@ -143,6 +154,7 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   const [cooldownEndsAt, setCooldownEndsAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
+  const [pendingWatchSessionsCompleted, setPendingWatchSessionsCompleted] = useState(0);
   const [completionResult, setCompletionResult] = useState<WorkoutCompletionResult | null>(null);
   const [carryoverDistanceKm, setCarryoverDistanceKm] = useState(0);
   const [rewardedBoostCount, setRewardedBoostCount] = useState(0);
@@ -158,6 +170,7 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   const lastSyncedDateRef = useRef<string | null>(null);
   const lastSyncedStepsRef = useRef(0);
   const sessionsCompletedRef = useRef(0);
+  const pendingWatchSessionsCompletedRef = useRef(0);
   const completionLockRef = useRef(false);
   const cooldownEndsAtRef = useRef<string | null>(null);
   const carryoverDistanceKmRef = useRef(0);
@@ -170,6 +183,10 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   useEffect(() => {
     sessionsCompletedRef.current = sessionsCompleted;
   }, [sessionsCompleted]);
+
+  useEffect(() => {
+    pendingWatchSessionsCompletedRef.current = pendingWatchSessionsCompleted;
+  }, [pendingWatchSessionsCompleted]);
 
   useEffect(() => {
     cooldownEndsAtRef.current = cooldownEndsAt;
@@ -218,6 +235,161 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
       cancelled = true;
     };
   }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const dailyRef = doc(db, "users", userId, "fitness_daily", getLocalDateKey());
+    const unsubscribe = onSnapshot(
+      dailyRef,
+      (snapshot) => {
+        const data = snapshot.data() ?? {};
+        const nextCooldownEndsAt =
+          typeof data.workoutCooldownEndsAt === "string"
+            ? data.workoutCooldownEndsAt
+            : data.workoutCooldownEndsAt?.toDate?.()?.toISOString?.() ?? null;
+        const nextSessionsCompleted = Math.min(
+          MAX_DAILY_SESSION_CAP,
+          Math.max(0, Number(data.workoutSessionsCompleted ?? 0)),
+        );
+
+        setCooldownEndsAt(nextCooldownEndsAt);
+        setSessionsCompleted(nextSessionsCompleted);
+        cooldownEndsAtRef.current = nextCooldownEndsAt;
+        sessionsCompletedRef.current = nextSessionsCompleted;
+        const reconciledSessionsCompleted = Math.max(
+          nextSessionsCompleted,
+          pendingWatchSessionsCompletedRef.current,
+        );
+
+        if (
+          Platform.OS === "ios" &&
+          WatchBridgeModule &&
+          typeof WatchBridgeModule.syncWorkoutSessionState === "function"
+        ) {
+          WatchBridgeModule.syncWorkoutSessionState({
+            cooldownEndsAt: nextCooldownEndsAt,
+            expMultiplier: playerRankExpMultiplier,
+            sessionsCompleted: reconciledSessionsCompleted,
+            sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - reconciledSessionsCompleted),
+          });
+        }
+      },
+      () => undefined,
+    );
+
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+      void getDailyWorkoutState(db, userId, getLocalDateKey())
+        .then((nextState) => {
+          setCooldownEndsAt(nextState.cooldownEndsAt);
+          setSessionsCompleted(nextState.sessionsCompleted);
+          cooldownEndsAtRef.current = nextState.cooldownEndsAt;
+          sessionsCompletedRef.current = nextState.sessionsCompleted;
+          const reconciledSessionsCompleted = Math.max(
+            nextState.sessionsCompleted,
+            pendingWatchSessionsCompletedRef.current,
+          );
+          if (
+            Platform.OS === "ios" &&
+            WatchBridgeModule &&
+            typeof WatchBridgeModule.syncWorkoutSessionState === "function"
+          ) {
+            WatchBridgeModule.syncWorkoutSessionState({
+              cooldownEndsAt: nextState.cooldownEndsAt,
+              expMultiplier: playerRankExpMultiplier,
+              sessionsCompleted: reconciledSessionsCompleted,
+              sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - reconciledSessionsCompleted),
+            });
+          }
+        })
+        .catch(() => undefined);
+    });
+
+    return () => {
+      unsubscribe();
+      appStateSub.remove();
+    };
+  }, [playerRankExpMultiplier, userId]);
+
+  useEffect(() => {
+    if (
+      Platform.OS !== "ios" ||
+      !WatchBridgeModule ||
+      typeof WatchBridgeModule.getPendingWatchWorkouts !== "function"
+    ) {
+      setPendingWatchSessionsCompleted(0);
+      pendingWatchSessionsCompletedRef.current = 0;
+      return;
+    }
+
+    let cancelled = false;
+    const refreshPendingWatchWorkoutState = async () => {
+      try {
+        const events = (await WatchBridgeModule.getPendingWatchWorkouts()) as
+          | PendingWatchWorkoutEvent[]
+          | null
+          | undefined;
+        if (cancelled) return;
+
+        const today = getLocalDateKey();
+        const todayEvents = Array.isArray(events)
+          ? events.filter((event) => event?.workoutId && event.date === today)
+          : [];
+        const highestReportedCompletion = todayEvents.reduce(
+          (highest, event) => Math.max(highest, Math.floor(Number(event.sessionsCompleted ?? 0))),
+          0,
+        );
+        const optimisticCompletion = todayEvents.length > 0
+          ? Math.min(
+              MAX_DAILY_SESSION_CAP,
+              Math.max(
+                highestReportedCompletion,
+                sessionsCompletedRef.current + todayEvents.length,
+              ),
+            )
+          : 0;
+
+        setPendingWatchSessionsCompleted(optimisticCompletion);
+        pendingWatchSessionsCompletedRef.current = optimisticCompletion;
+
+        if (typeof WatchBridgeModule.syncWorkoutSessionState === "function") {
+          const reconciledSessionsCompleted = Math.max(
+            sessionsCompletedRef.current,
+            optimisticCompletion,
+          );
+          WatchBridgeModule.syncWorkoutSessionState({
+            cooldownEndsAt: cooldownEndsAtRef.current,
+            expMultiplier: playerRankExpMultiplier,
+            sessionsCompleted: reconciledSessionsCompleted,
+            sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - reconciledSessionsCompleted),
+          });
+        }
+      } catch {
+        if (cancelled) return;
+        setPendingWatchSessionsCompleted(0);
+        pendingWatchSessionsCompletedRef.current = 0;
+      }
+    };
+
+    void refreshPendingWatchWorkoutState();
+    const intervalId = setInterval(() => {
+      if (AppState.currentState === "active") {
+        void refreshPendingWatchWorkoutState();
+      }
+    }, 3000);
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refreshPendingWatchWorkoutState();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+      appStateSub.remove();
+    };
+  }, [playerRankExpMultiplier]);
 
   useEffect(() => {
     return () => {
@@ -330,8 +502,12 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
 
   const startLiveTracking = async () => {
     const cooldownRemainingMs = getCooldownRemainingMs(cooldownEndsAtRef.current, Date.now());
+    const reconciledSessionsCompleted = Math.max(
+      sessionsCompletedRef.current,
+      pendingWatchSessionsCompletedRef.current,
+    );
 
-    if (sessionsCompletedRef.current >= MAX_DAILY_SESSION_CAP) {
+    if (reconciledSessionsCompleted >= MAX_DAILY_SESSION_CAP) {
       setSyncMessage("Daily Sync workout limit reached. Come back tomorrow.");
       return;
     }
@@ -594,7 +770,12 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   };
 
   const unlockQuickRefill = async () => {
-    if (sessionsCompletedRef.current >= MAX_DAILY_SESSION_CAP) {
+    const reconciledSessionsCompleted = Math.max(
+      sessionsCompletedRef.current,
+      pendingWatchSessionsCompletedRef.current,
+    );
+
+    if (reconciledSessionsCompleted >= MAX_DAILY_SESSION_CAP) {
       setSyncMessage("Daily Sync workout limit reached. Come back tomorrow.");
       return;
     }
@@ -629,6 +810,8 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   const remainingMinutes = Math.ceil(remainingSeconds / 60);
   const cooldownRemainingMs = getCooldownRemainingMs(cooldownEndsAt, now);
   const cooldownRemainingMinutes = Math.ceil(cooldownRemainingMs / 60000);
+  const reconciledSessionsCompleted = Math.max(sessionsCompleted, pendingWatchSessionsCompleted);
+  const reconciledSessionsRemaining = Math.max(0, MAX_DAILY_SESSION_CAP - reconciledSessionsCompleted);
   const stackedDistanceKm = carryoverDistanceKm + state.distanceKm;
   const rewards = calculateRewards(
     state.distanceKm,
@@ -641,7 +824,7 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
 
   return {
     ...state,
-    canQuickRefill: cooldownRemainingMs > 0 && sessionsCompleted < MAX_DAILY_SESSION_CAP,
+    canQuickRefill: cooldownRemainingMs > 0 && reconciledSessionsCompleted < MAX_DAILY_SESSION_CAP,
     clearCompletionResult: () => setCompletionResult(null),
     completionResult,
     cooldownEndsAt,
@@ -658,8 +841,8 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
     remainingMinutes,
     resetWorkout,
     continueQuickRefillChain,
-    sessionsCompleted,
-    sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - sessionsCompleted),
+    sessionsCompleted: reconciledSessionsCompleted,
+    sessionsRemaining: reconciledSessionsRemaining,
     syncMessage,
     syncPointBoostCount: rewards.syncPointBoostCount,
     syncPointBoostReward: rewards.syncPointBoostReward,
@@ -672,6 +855,10 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   };
 }
 
-export function useWorkout(userId?: string | null, unitPreference: DistanceUnit = "km") {
-  return useLiveWorkout(userId, unitPreference);
+export function useWorkout(
+  userId?: string | null,
+  unitPreference: DistanceUnit = "km",
+  playerRankExpMultiplier = 1,
+) {
+  return useLiveWorkout(userId, unitPreference, playerRankExpMultiplier);
 }

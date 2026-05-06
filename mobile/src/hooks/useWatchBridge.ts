@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, NativeEventEmitter, NativeModules, Platform } from "react-native";
 
 import { functions, httpsCallable } from "@/config/firebase";
@@ -20,9 +20,13 @@ type WatchWorkoutEvent = {
   distanceMeters: number;
   elapsedSeconds: number;
   expEarned: number;
+  expMultiplier?: number;
+  expMultiplierApplied?: boolean;
   hasReplyHandler: boolean;
   holobotName: string;
   holosEarned: number;
+  sessionsCompleted?: number;
+  sessionsRemaining?: number;
   stepCount: number;
   syncPointsEarned: number;
   type: "watchWorkoutComplete";
@@ -54,6 +58,7 @@ export function useWatchBridge(
 
   const canUseBridge = Platform.OS === "ios" && !!WatchBridgeModule && !!userId;
   const processedWorkoutIds = useMemo(() => new Set<string>(), []);
+  const autoSyncedBatchKeyRef = useRef<string | null>(null);
 
   const refreshPendingWatchWorkouts = useCallback(async () => {
     if (!canUseBridge) {
@@ -116,6 +121,14 @@ export function useWatchBridge(
 
       const result = await syncWatchWorkoutRewards({ workouts: unsyncedEvents });
 
+      if (typeof WatchBridgeModule.syncWorkoutSessionState === "function") {
+        WatchBridgeModule.syncWorkoutSessionState({
+          sessionsCompleted: result.data.sessionsCompleted,
+          sessionsRemaining: result.data.sessionsRemaining,
+          totalSyncPoints: result.data.totalSyncPoints,
+        });
+      }
+
       for (const event of unsyncedEvents) {
         const workoutId = event.workoutId?.trim();
         if (!workoutId) continue;
@@ -138,6 +151,7 @@ export function useWatchBridge(
 
       await refreshPendingWatchWorkouts();
       setDismissedWhilePending(false);
+      autoSyncedBatchKeyRef.current = null;
     } catch (syncError) {
       const events = await refreshPendingWatchWorkouts().catch(() => []);
       if (Array.isArray(events)) {
@@ -151,6 +165,7 @@ export function useWatchBridge(
       const message =
         syncError instanceof Error ? syncError.message : "We couldn't sync watch rewards yet.";
       setError(message);
+      autoSyncedBatchKeyRef.current = null;
       console.warn("[WatchBridge] processPendingWatchWorkouts failed:", syncError);
     } finally {
       setProcessing(false);
@@ -163,6 +178,7 @@ export function useWatchBridge(
       setProcessing(false);
       setError(null);
       setDismissedWhilePending(false);
+      autoSyncedBatchKeyRef.current = null;
       return;
     }
 
@@ -204,6 +220,24 @@ export function useWatchBridge(
       clearInterval(pollId);
     };
   }, [canUseBridge, processWorkoutEvent, refreshPendingWatchWorkouts]);
+
+  useEffect(() => {
+    if (!canUseBridge || processing || !pendingWatchWorkouts.length) return;
+
+    const batchKey = pendingWatchWorkouts
+      .map((event) => event.workoutId?.trim())
+      .filter(Boolean)
+      .sort()
+      .join("|");
+
+    if (!batchKey || autoSyncedBatchKeyRef.current === batchKey) return;
+
+    autoSyncedBatchKeyRef.current = batchKey;
+    void processPendingWatchWorkouts().catch((syncError: unknown) => {
+      autoSyncedBatchKeyRef.current = null;
+      console.warn("[WatchBridge] automatic watch workout sync failed:", syncError);
+    });
+  }, [canUseBridge, pendingWatchWorkouts, processPendingWatchWorkouts, processing]);
 
   useEffect(() => {
     if (Platform.OS !== "ios" || !WatchBridgeModule) return;

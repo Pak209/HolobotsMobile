@@ -34,30 +34,30 @@ export class ArenaAI {
     switch (difficulty) {
       case 'easy':
         return {
-          aggression: 0.7,
+          aggression: 0.85,
           patience: 0.2,
           riskTolerance: 0.8,
           adaptability: 0.2,
         };
       case 'medium':
         return {
-          aggression: 0.5,
-          patience: 0.5,
+          aggression: 0.78,
+          patience: 0.35,
           riskTolerance: 0.5,
           adaptability: 0.5,
         };
       case 'hard':
         return {
-          aggression: 0.4,
-          patience: 0.7,
-          riskTolerance: 0.3,
+          aggression: 0.72,
+          patience: 0.45,
+          riskTolerance: 0.45,
           adaptability: 0.8,
         };
       case 'expert':
         return {
-          aggression: 0.3,
-          patience: 0.9,
-          riskTolerance: 0.2,
+          aggression: 0.68,
+          patience: 0.55,
+          riskTolerance: 0.4,
           adaptability: 0.95,
         };
       default:
@@ -70,49 +70,57 @@ export class ArenaAI {
     }
   }
 
-  selectAction(state: BattleState): AIDecision {
+  selectAction(state: BattleState, playableCardsArg?: ActionCard[]): AIDecision {
     const self = state.opponent;
     const opponent = state.player;
 
-    // Get playable cards
-    const playableCards = CardPoolGenerator.getPlayableCards(this.cardPool, self);
+    const playableCards = playableCardsArg ?? [];
 
     if (playableCards.length === 0) {
-      // No cards available - must pass or use lowest cost option
-      const lowestCostCard = this.cardPool.reduce((min, card) =>
-        card.staminaCost < min.staminaCost ? card : min
-      );
       return {
-        selectedCard: lowestCostCard,
+        selectedCard: null,
         confidence: 0.1,
-        reasoning: 'No playable cards, forced action',
-        enterDefenseMode: true,
+        reasoning: 'No playable cards available, passing turn',
+        enterDefenseMode: false,
       };
     }
 
     // Decision making based on situation
     const situation = this.analyzeSituation(self, opponent, state);
 
+    const defenseCards = playableCards.filter(c => c.type === 'defense');
+    const strikeCards = playableCards.filter(c => c.type === 'strike');
+    const comboCards = playableCards.filter(c => c.type === 'combo');
+    const finisherCards = playableCards.filter(c => c.type === 'finisher');
+    const attackCards = [...strikeCards, ...comboCards];
+
     // Should we defend?
-    if (this.shouldDefend(situation)) {
-      const defenseCards = playableCards.filter(c => c.type === 'defense');
+    if (this.shouldDefend(situation, attackCards.length > 0)) {
       if (defenseCards.length > 0) {
         const selectedDefense = this.selectBestDefense(defenseCards, situation);
         return {
           selectedCard: selectedDefense,
           confidence: 0.8,
           reasoning: 'Defensive play - protecting HP or recovering stamina',
-          enterDefenseMode: true,
+          enterDefenseMode: false,
         };
       }
     }
 
     // Can we use a finisher?
     if (self.specialMeter >= 100) {
-      const finishers = playableCards.filter(c => c.type === 'finisher');
-      if (finishers.length > 0 && (opponent.staminaState === 'gassed' || opponent.staminaState === 'exhausted')) {
+      if (
+        finisherCards.length > 0 &&
+        !opponent.armedDefenseTrap &&
+        (
+          opponent.staminaState === 'working' ||
+          opponent.staminaState === 'gassed' ||
+          opponent.staminaState === 'exhausted' ||
+          situation.opponentLowHP
+        )
+      ) {
         return {
-          selectedCard: finishers[0],
+          selectedCard: finisherCards[0],
           confidence: 0.95,
           reasoning: 'Finisher opportunity - opponent is vulnerable',
           enterDefenseMode: false,
@@ -121,11 +129,10 @@ export class ArenaAI {
     }
 
     // Can we combo?
-    if (self.comboCounter >= 2) {
-      const combos = playableCards.filter(c => c.type === 'combo');
-      if (combos.length > 0) {
+    if (self.comboCounter >= 1) {
+      if (comboCards.length > 0) {
         return {
-          selectedCard: this.selectBestCombo(combos, situation),
+          selectedCard: this.selectBestCombo(comboCards, situation),
           confidence: 0.7,
           reasoning: 'Continuing combo chain',
           enterDefenseMode: false,
@@ -134,12 +141,39 @@ export class ArenaAI {
     }
 
     // Standard attack selection
-    const strikes = playableCards.filter(c => c.type === 'strike');
-    if (strikes.length > 0) {
+    if (strikeCards.length > 0) {
+      const highPressureStrike = strikeCards.find((card) => card.staminaCost <= self.stamina && card.baseDamage >= 15);
+      if (highPressureStrike && !situation.isLowStamina) {
+        return {
+          selectedCard: highPressureStrike,
+          confidence: 0.8,
+          reasoning: 'High-pressure offensive play',
+          enterDefenseMode: false,
+        };
+      }
+
       return {
-        selectedCard: this.selectBestStrike(strikes, situation),
+        selectedCard: this.selectBestStrike(strikeCards, situation),
         confidence: 0.6,
         reasoning: 'Standard offensive play',
+        enterDefenseMode: false,
+      };
+    }
+
+    if (comboCards.length > 0) {
+      return {
+        selectedCard: this.selectBestCombo(comboCards, situation),
+        confidence: 0.65,
+        reasoning: 'Available combo pressure',
+        enterDefenseMode: false,
+      };
+    }
+
+    if (defenseCards.length > 0) {
+      return {
+        selectedCard: this.selectBestDefense(defenseCards, situation),
+        confidence: 0.45,
+        reasoning: 'Fallback defense to recover stamina and arm trap',
         enterDefenseMode: false,
       };
     }
@@ -168,21 +202,24 @@ export class ArenaAI {
       isLowStamina: staminaPercent < 0.3,
       opponentLowHP: opponentHpPercent < 0.3,
       opponentLowStamina: opponent.stamina / opponent.maxStamina < 0.3,
-      opponentInDefense: opponent.isInDefenseMode,
+      opponentInDefense: Boolean(opponent.armedDefenseTrap),
       hasFinisherReady: self.specialMeter >= 100,
       comboActive: self.comboCounter >= 2,
     };
   }
 
-  private shouldDefend(situation: SituationAnalysis): boolean {
-    // Always consider defending if low HP
-    if (situation.isLowHP && Math.random() < 0.7) return true;
+  private shouldDefend(situation: SituationAnalysis, hasPlayableAttack: boolean): boolean {
+    if (!situation.isLowHP && !situation.isLowStamina) return false;
+    if (situation.opponentLowHP && situation.isWinning) return false;
 
-    // Consider stamina recovery
-    if (situation.isLowStamina && Math.random() < 0.5) return true;
+    if (situation.isLowHP && Math.random() < (hasPlayableAttack ? 0.45 : 0.8)) return true;
+
+    if (situation.isLowStamina && Math.random() < (hasPlayableAttack ? 0.45 : 0.9)) return true;
+
+    if (!situation.isWinning && situation.opponentLowHP) return false;
 
     // Personality-based decision
-    if (Math.random() > this.personality.aggression) {
+    if (Math.random() > this.personality.aggression + 0.18) {
       if (Math.random() < this.personality.patience) return true;
     }
 
@@ -215,6 +252,14 @@ export class ArenaAI {
       return strikes.reduce((best, card) =>
         card.baseDamage > best.baseDamage ? card : best
       );
+    }
+
+    const highestDamage = strikes.reduce((best, card) =>
+      card.baseDamage > best.baseDamage ? card : best
+    );
+
+    if (!situation.isLowStamina && Math.random() < this.personality.aggression) {
+      return highestDamage;
     }
 
     // If we're low on stamina, prefer efficient strikes

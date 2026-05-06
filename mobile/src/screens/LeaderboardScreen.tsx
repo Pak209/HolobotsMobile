@@ -4,18 +4,8 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-nat
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { collection, db, limit, onSnapshot, orderBy, query } from "@/config/firebase";
 import { computeLeaderboardScore, mapFirestoreToUserProfile } from "@/lib/profile";
+import { getPlayerRank } from "@/lib/playerRank";
 import type { UserProfile } from "@/types/profile";
-
-function getPlayerRankName(profile: UserProfile) {
-  const highestLevel = Math.max(0, ...(profile.holobots || []).map((holobot) => holobot.level || 0));
-  const wins = profile.stats?.wins || 0;
-  const score = highestLevel + wins * 0.35 + (profile.prestigeCount || 0) * 8;
-
-  if (score >= 80) return "Legend";
-  if (score >= 55) return "Elite";
-  if (score >= 30) return "Champion";
-  return "Rookie";
-}
 
 export function LeaderboardScreen() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -52,7 +42,7 @@ export function LeaderboardScreen() {
         .map((profile) => ({
           id: profile.id,
           name: profile.username || "Pilot",
-          rank: getPlayerRankName(profile),
+          rank: getPlayerRank(profile),
           score:
             profile.leaderboardScore ??
             computeLeaderboardScore({

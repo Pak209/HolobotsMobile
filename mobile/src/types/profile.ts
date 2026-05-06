@@ -40,6 +40,8 @@ export type UserProfile = {
   maxDailyEnergy: number;
   holosTokens: number;
   gachaTickets: number;
+  lastFreeDailyGachaAt?: string;
+  lastFreeGachaPullAt?: string | null;
   stats: {
     wins: number;
     losses: number;
