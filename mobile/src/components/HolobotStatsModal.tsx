@@ -91,7 +91,7 @@ export function HolobotStatsModal({
   onUpgradeSync,
   visible,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<"stats" | "blueprints">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "abilities" | "blueprints">("stats");
 
   useEffect(() => {
     if (visible) {
@@ -136,8 +136,9 @@ export function HolobotStatsModal({
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdropTap} onPress={onClose} />
+        <View style={styles.card}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.section}>
               <View style={styles.levelRow}>
@@ -180,6 +181,14 @@ export function HolobotStatsModal({
               >
                 <Text style={[styles.tabButtonText, activeTab === "stats" ? styles.tabButtonTextActive : null]}>
                   STATS
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setActiveTab("abilities")}
+                style={[styles.tabButton, activeTab === "abilities" ? styles.tabButtonActive : null]}
+              >
+                <Text style={[styles.tabButtonText, activeTab === "abilities" ? styles.tabButtonTextActive : null]}>
+                  ABILITIES
                 </Text>
               </Pressable>
               <Pressable
@@ -237,76 +246,82 @@ export function HolobotStatsModal({
                     </Text>
                   </View>
                 )}
+              </>
+            ) : activeTab === "abilities" ? (
+              normalizedOwnedHolobot ? (
+                <>
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>SYNC STATS</Text>
+                    <Text style={styles.syncMeta}>{`Available SP ${availableSyncPoints}`}</Text>
+                    <Text style={styles.syncMeta}>
+                      {`Sync Level ${normalizedOwnedHolobot.syncLevel || totalSyncInvestment} • Total Investment ${totalSyncInvestment}/120`}
+                    </Text>
+                    <Text style={styles.syncMeta}>{`Lifetime SP Invested ${normalizedOwnedHolobot.lifetimeSPInvested || 0}`}</Text>
+                    <View style={styles.syncStatList}>
+                      {syncRows.map((entry) => {
+                        const nextCost = getSyncStatUpgradeCost(entry.value);
+                        const lockedByCap = entry.value >= 50 || totalSyncInvestment >= 120;
+                        const canAfford = availableSyncPoints >= nextCost;
+                        const canUpgrade = !lockedByCap && canAfford;
 
-                {normalizedOwnedHolobot ? (
-                  <>
-                    <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>SYNC STATS</Text>
-                      <Text style={styles.syncMeta}>{`Available SP ${availableSyncPoints}`}</Text>
-                      <Text style={styles.syncMeta}>
-                        {`Sync Level ${normalizedOwnedHolobot.syncLevel || totalSyncInvestment} • Total Investment ${totalSyncInvestment}/120`}
-                      </Text>
-                      <Text style={styles.syncMeta}>{`Lifetime SP Invested ${normalizedOwnedHolobot.lifetimeSPInvested || 0}`}</Text>
-                      <View style={styles.syncStatList}>
-                        {syncRows.map((entry) => {
-                          const nextCost = getSyncStatUpgradeCost(entry.value);
-                          const lockedByCap = entry.value >= 50 || totalSyncInvestment >= 120;
-                          const canAfford = availableSyncPoints >= nextCost;
-                          const canUpgrade = !lockedByCap && canAfford;
+                        return (
+                          <View key={entry.key} style={styles.syncStatRow}>
+                            <View style={styles.syncStatCopy}>
+                              <Text style={styles.syncStatName}>{getSyncStatLabel(entry.key).toUpperCase()}</Text>
+                              <Text style={styles.syncStatValue}>{`LV ${entry.value} • NEXT ${nextCost} SP`}</Text>
+                            </View>
+                            <Pressable
+                              disabled={!canUpgrade}
+                              onPress={() => onUpgradeSync(entry.key)}
+                              style={[styles.syncUpgradeButton, !canUpgrade ? styles.boostButtonDisabled : null]}
+                            >
+                              <Text style={[styles.syncUpgradeButtonText, !canUpgrade ? styles.boostButtonTextDisabled : null]}>
+                                {lockedByCap ? "MAX" : "UPGRADE"}
+                              </Text>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
 
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
+                    {syncAbilities.length ? (
+                      <View style={styles.syncAbilityList}>
+                        {syncAbilities.map((ability) => {
+                          const unlocked = unlockedSyncAbilityIds.includes(ability.id);
+                          const requirementText = ability.secondaryStat
+                            ? `${getSyncStatLabel(ability.primaryStat)} ${ability.primaryRequired} • ${getSyncStatLabel(ability.secondaryStat)} ${ability.secondaryRequired}`
+                            : `${getSyncStatLabel(ability.primaryStat)} ${ability.primaryRequired}`;
                           return (
-                            <View key={entry.key} style={styles.syncStatRow}>
-                              <View style={styles.syncStatCopy}>
-                                <Text style={styles.syncStatName}>{getSyncStatLabel(entry.key).toUpperCase()}</Text>
-                                <Text style={styles.syncStatValue}>{`LV ${entry.value} • NEXT ${nextCost} SP`}</Text>
+                            <View key={ability.id} style={[styles.syncAbilityCard, unlocked ? styles.syncAbilityUnlocked : null]}>
+                              <View style={styles.syncAbilityHeader}>
+                                <Text style={styles.syncAbilityName}>{ability.name}</Text>
+                                <Text style={styles.syncAbilityTier}>{`T${ability.tier}`}</Text>
                               </View>
-                              <Pressable
-                                disabled={!canUpgrade}
-                                onPress={() => onUpgradeSync(entry.key)}
-                                style={[styles.syncUpgradeButton, !canUpgrade ? styles.boostButtonDisabled : null]}
-                              >
-                                <Text style={[styles.syncUpgradeButtonText, !canUpgrade ? styles.boostButtonTextDisabled : null]}>
-                                  {lockedByCap ? "MAX" : "UPGRADE"}
-                                </Text>
-                              </Pressable>
+                              <Text style={styles.syncAbilityRequirement}>{requirementText}</Text>
+                              <Text style={styles.syncAbilityDescription}>{ability.description}</Text>
+                              <Text style={[styles.syncAbilityState, unlocked ? styles.syncAbilityStateUnlocked : null]}>
+                                {unlocked ? "UNLOCKED" : `LOCKED • REQUIRES ${requirementText.toUpperCase()}`}
+                              </Text>
                             </View>
                           );
                         })}
                       </View>
-                    </View>
-
-                    <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
-                      {syncAbilities.length ? (
-                        <View style={styles.syncAbilityList}>
-                          {syncAbilities.map((ability) => {
-                            const unlocked = unlockedSyncAbilityIds.includes(ability.id);
-                            return (
-                              <View key={ability.id} style={[styles.syncAbilityCard, unlocked ? styles.syncAbilityUnlocked : null]}>
-                                <View style={styles.syncAbilityHeader}>
-                                  <Text style={styles.syncAbilityName}>{ability.name}</Text>
-                                  <Text style={styles.syncAbilityTier}>{`T${ability.tier}`}</Text>
-                                </View>
-                                <Text style={styles.syncAbilityRequirement}>
-                                  {ability.secondaryStat
-                                    ? `${getSyncStatLabel(ability.primaryStat)} ${ability.primaryRequired} • ${getSyncStatLabel(ability.secondaryStat)} ${ability.secondaryRequired}`
-                                    : `${getSyncStatLabel(ability.primaryStat)} ${ability.primaryRequired}`}
-                                </Text>
-                                <Text style={styles.syncAbilityDescription}>{ability.description}</Text>
-                                <Text style={[styles.syncAbilityState, unlocked ? styles.syncAbilityStateUnlocked : null]}>
-                                  {unlocked ? "UNLOCKED" : "LOCKED"}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      ) : (
-                        <Text style={styles.emptyStateText}>This holobot does not have Sync Abilities configured yet.</Text>
-                      )}
-                    </View>
-                  </>
-                ) : null}
-              </>
+                    ) : (
+                      <Text style={styles.emptyStateText}>This holobot does not have Sync Abilities configured yet.</Text>
+                    )}
+                  </View>
+                </>
+              ) : (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
+                  <Text style={styles.emptyStateText}>
+                    Mint this holobot first to unlock Sync Stats, Sync Abilities, and stat upgrade paths.
+                  </Text>
+                </View>
+              )
             ) : (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
@@ -361,13 +376,16 @@ export function HolobotStatsModal({
 
             <Text style={styles.closeHint}>TAP OUTSIDE TO CLOSE</Text>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  backdropTap: {
+    ...StyleSheet.absoluteFillObject,
+  },
   blueprintSummary: {
     color: "#ddd2b5",
     fontSize: 14,

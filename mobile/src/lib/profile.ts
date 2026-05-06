@@ -37,6 +37,8 @@ type FirestoreUserDocument = {
   maxDailyEnergy?: number;
   holosTokens?: number;
   gachaTickets?: number;
+  lastFreeDailyGachaAt?: string;
+  lastFreeGachaPullAt?: string | null;
   wins?: number;
   losses?: number;
   arenaPassses?: number;
@@ -133,6 +135,8 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     maxDailyEnergy: data.maxDailyEnergy ?? DEFAULT_USER_PROFILE.maxDailyEnergy,
     holosTokens: data.holosTokens ?? DEFAULT_USER_PROFILE.holosTokens,
     gachaTickets: data.gachaTickets ?? DEFAULT_USER_PROFILE.gachaTickets,
+    lastFreeDailyGachaAt: data.lastFreeDailyGachaAt ?? data.lastFreeGachaPullAt ?? undefined,
+    lastFreeGachaPullAt: data.lastFreeGachaPullAt ?? data.lastFreeDailyGachaAt ?? null,
     stats: {
       wins: data.wins ?? DEFAULT_USER_PROFILE.wins,
       losses: data.losses ?? DEFAULT_USER_PROFILE.losses,
@@ -227,6 +231,8 @@ type UserProfileUpdates = Partial<{
   seasonSyncPoints: number;
   syncRank: SyncRank;
   gachaTickets: number;
+  lastFreeDailyGachaAt: string;
+  lastFreeGachaPullAt: string | null;
   arena_passes: number;
   exp_boosters: number;
   energy_refills: number;
@@ -257,6 +263,12 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.seasonSyncPoints !== undefined) firestoreUpdates.seasonSyncPoints = updates.seasonSyncPoints;
   if (updates.syncRank !== undefined) firestoreUpdates.syncRank = updates.syncRank;
   if (updates.gachaTickets !== undefined) firestoreUpdates.gachaTickets = updates.gachaTickets;
+  if (updates.lastFreeDailyGachaAt !== undefined) {
+    firestoreUpdates.lastFreeDailyGachaAt = updates.lastFreeDailyGachaAt;
+  }
+  if (updates.lastFreeGachaPullAt !== undefined) {
+    firestoreUpdates.lastFreeGachaPullAt = updates.lastFreeGachaPullAt;
+  }
   if (updates.arena_passes !== undefined) firestoreUpdates.arenaPassses = updates.arena_passes;
   if (updates.exp_boosters !== undefined) firestoreUpdates.expBoosters = updates.exp_boosters;
   if (updates.energy_refills !== undefined) firestoreUpdates.energyRefills = updates.energy_refills;

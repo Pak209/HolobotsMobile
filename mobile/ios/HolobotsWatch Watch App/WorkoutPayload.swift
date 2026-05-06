@@ -35,8 +35,11 @@ struct WorkoutCompletePayload {
     let syncPointsEarned: Int
     let holosEarned:      Int
     let expEarned:        Int
+    let expMultiplier:    Int
     let holobotName:      String
     let date:             String   // "yyyy-MM-dd"
+    let sessionsCompleted: Int
+    let sessionsRemaining: Int
 
     var asDictionary: [String: Any] {
         [
@@ -48,8 +51,12 @@ struct WorkoutCompletePayload {
             "syncPointsEarned": syncPointsEarned,
             "holosEarned":      holosEarned,
             "expEarned":        expEarned,
+            "expMultiplier":    expMultiplier,
+            "expMultiplierApplied": true,
             "holobotName":      holobotName,
             "date":             date,
+            "sessionsCompleted": sessionsCompleted,
+            "sessionsRemaining": sessionsRemaining,
         ]
     }
 
@@ -63,8 +70,12 @@ struct WorkoutCompletePayload {
             "syncPointsEarned": syncPointsEarned,
             "holosEarned":      holosEarned,
             "expEarned":        expEarned,
+            "expMultiplier":    expMultiplier,
+            "expMultiplierApplied": true,
             "holobotName":      holobotName,
             "date":             date,
+            "sessionsCompleted": sessionsCompleted,
+            "sessionsRemaining": sessionsRemaining,
         ]
     }
 }
@@ -111,6 +122,24 @@ struct WorkoutRewardsPayload {
     }
 }
 
+struct WorkoutSessionStatePayload {
+    let sessionsCompleted: Int
+    let sessionsRemaining: Int
+    let totalSyncPoints: Int?
+    let expMultiplier: Int
+
+    init?(from dict: [String: Any]) {
+        guard
+            let sc = dict["sessionsCompleted"] as? Int,
+            let sr = dict["sessionsRemaining"] as? Int
+        else { return nil }
+        sessionsCompleted = sc
+        sessionsRemaining = sr
+        totalSyncPoints = dict["totalSyncPoints"] as? Int
+        expMultiplier = max(1, dict["expMultiplier"] as? Int ?? 1)
+    }
+}
+
 // ─────────────────────────────────────────────
 // Reward calculation — mirrors calculateRewards() in useWorkout.ts
 // ─────────────────────────────────────────────
@@ -121,7 +150,7 @@ struct RewardCalculator {
         distanceKm: Double
     ) -> (syncPoints: Int, holos: Int, exp: Int) {
         let progress           = min(Double(elapsedSeconds) / Double(WorkoutConfig.totalSeconds), 1.0)
-        let fullUnits          = Int(distanceKm)          // km milestones
+        let fullUnits          = Int(distanceKm)          // legacy km milestones; live watch flow uses the selected km/mi unit.
         let distanceBonus      = fullUnits * WorkoutConfig.syncPointBoost
         let stepBonus          = stepCount / 25
         let syncPoints         = max(0, Int((progress * Double(WorkoutConfig.baseSyncPoints)).rounded()) + stepBonus + distanceBonus)

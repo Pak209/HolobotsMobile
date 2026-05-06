@@ -243,6 +243,7 @@ struct PreWorkoutView: View {
     private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
     private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
     private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
+    private var canStartSync: Bool { viewModel.sessionsRemaining > 0 }
 
     var body: some View {
         ZStack {
@@ -261,11 +262,30 @@ struct PreWorkoutView: View {
                         .kerning(1.8)
                 }
                 .frame(maxWidth: .infinity)
-                .overlay(alignment: .leading) {
-                    Text("READY")
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundColor(cream.opacity(0.9))
-                        .kerning(1.1)
+                .overlay(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("READY")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundColor(cream.opacity(0.9))
+                            .kerning(1.1)
+
+                        HStack(spacing: 4) {
+                            HStack(spacing: 2.5) {
+                                ForEach(0..<WorkoutConfig.maxDailySessions, id: \.self) { i in
+                                    Circle()
+                                        .fill(i < viewModel.sessionsCompleted ? brightGold : cream.opacity(0.35))
+                                        .frame(width: 4, height: 4)
+                                }
+                            }
+
+                            Text("\(viewModel.sessionsCompleted)/\(WorkoutConfig.maxDailySessions)")
+                                .font(.system(size: 7, weight: .black, design: .monospaced))
+                                .foregroundColor(cream.opacity(0.85))
+                                .monospacedDigit()
+                        }
+                    }
+                    .fixedSize()
+                    .offset(y: -1)
                 }
                 .overlay(alignment: .topTrailing) {
                     Button(action: { showSettings = true }) {
@@ -290,25 +310,33 @@ struct PreWorkoutView: View {
                 Spacer(minLength: 10)
 
                 VStack(spacing: 8) {
-                    HStack(spacing: 10) {
+                    HStack(alignment: .center, spacing: 5) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(viewModel.selectedHolobot.name)
-                                .font(.system(size: 19, weight: .black, design: .rounded))
+                                .font(.system(size: 18, weight: .black, design: .rounded))
                                 .foregroundColor(cream)
-                                .minimumScaleFactor(0.7)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.55)
+                                .allowsTightening(true)
+                                .frame(minWidth: 62, maxWidth: .infinity, alignment: .leading)
 
                             Text("EXP TARGET")
                                 .font(.system(size: 7, weight: .black))
                                 .foregroundColor(brightGold.opacity(0.9))
                                 .kerning(1.0)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .allowsTightening(true)
                         }
+                        .layoutPriority(1)
 
                         Spacer(minLength: 0)
 
                         Image(viewModel.selectedHolobot.assetName)
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 70, height: 70)
+                            .frame(width: 58, height: 66)
+                            .layoutPriority(0)
                     }
 
                     Button(action: { showHolobotPicker = true }) {
@@ -349,7 +377,7 @@ struct PreWorkoutView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
 
-                Spacer(minLength: 60)
+                Spacer(minLength: 46)
             }
             .padding(.horizontal, 8)
         }
@@ -371,6 +399,8 @@ struct PreWorkoutView: View {
                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
+            .disabled(!canStartSync)
+            .opacity(canStartSync ? 1 : 0.45)
             .frame(width: 148, height: 28)
             .padding(.bottom, 18)
         }

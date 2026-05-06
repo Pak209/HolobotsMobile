@@ -4,6 +4,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -109,7 +110,11 @@ export function PackOpeningAnimation({
           <Text style={styles.packSubtitle}>{isComplete ? "Rewards ready" : "Opening pack..."}</Text>
         </Animated.View>
 
-        <View style={styles.revealColumn}>
+        <ScrollView
+          contentContainerStyle={styles.revealColumn}
+          showsVerticalScrollIndicator={false}
+          style={styles.revealScroll}
+        >
           {visibleItems.map((item) => (
             <View
               key={item.id}
@@ -125,7 +130,7 @@ export function PackOpeningAnimation({
               <Text style={styles.revealSubtitle}>{item.subtitle}</Text>
             </View>
           ))}
-        </View>
+        </ScrollView>
 
         {isComplete ? (
           <Pressable style={[styles.collectButton, { borderColor: accentColor }]} onPress={onComplete}>
@@ -186,6 +191,12 @@ const styles = StyleSheet.create({
   },
   revealColumn: {
     gap: 10,
+    paddingBottom: 8,
+    width: "100%",
+  },
+  revealScroll: {
+    flexGrow: 0,
+    maxHeight: "48%",
     width: "100%",
   },
   revealLabel: {

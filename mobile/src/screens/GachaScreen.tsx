@@ -6,6 +6,7 @@ import { PackOpeningAnimation, type GachaRevealItem } from "@/components/gacha/P
 import { useAuth } from "@/contexts/AuthContext";
 
 type PackType = "basic" | "premium" | "elite";
+type ActiveOpening = (typeof PACKS)[number] | { accent: string; id: "daily"; name: string; price: 0 };
 
 const PACKS = [
   { accent: "#00d9ff", guaranteed: 3, id: "basic" as PackType, name: "Basic Pack", price: 1 },
@@ -66,17 +67,72 @@ function buildPackRewards(packId: PackType) {
   });
 }
 
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function GachaScreen() {
   const { profile, updateProfile } = useAuth();
   const [activePack, setActivePack] = useState<(typeof PACKS)[number] | null>(null);
+  const [activeOpening, setActiveOpening] = useState<ActiveOpening | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [revealedItems, setRevealedItems] = useState<GachaRevealItem[]>([]);
 
   const tickets = profile?.gachaTickets || 0;
+  const todayKey = getLocalDateKey();
+  const claimedDailyToday =
+    profile?.lastFreeDailyGachaAt === todayKey ||
+    getLocalDateKey(new Date(profile?.lastFreeGachaPullAt || 0)) === todayKey;
   const canOpen = useMemo(() => {
     if (!activePack) return false;
     return tickets >= activePack.price;
   }, [activePack, tickets]);
+
+  const openDailyGacha = async () => {
+    if (!profile) return;
+    if (claimedDailyToday) {
+      Alert.alert("Already claimed", "Your free Daily Gacha will refresh tomorrow.");
+      return;
+    }
+
+    const rewards = buildPackRewards("basic").map((reward) => ({
+      ...reward,
+      id: `daily-${Date.now()}-${reward.id}`,
+      subtitle: reward.subtitle.replace("Drop", "Daily drop"),
+    }));
+    const dailyPack: ActiveOpening = {
+      accent: "#4ade80",
+      id: "daily",
+      name: "Free Daily Gacha",
+      price: 0,
+    };
+
+    setActiveOpening(dailyPack);
+    setRevealedItems(rewards);
+    setIsOpening(true);
+
+    try {
+      await updateProfile({
+        lastFreeDailyGachaAt: todayKey,
+        lastFreeGachaPullAt: new Date().toISOString(),
+        pack_history: [
+          {
+            id: `gacha_daily_${Date.now()}`,
+            items: rewards.map((reward) => ({ name: reward.label, rarity: reward.rarity })),
+            openedAt: new Date().toISOString(),
+            packId: "daily",
+          },
+          ...(profile.pack_history || []),
+        ].slice(0, 50),
+      });
+    } catch (error) {
+      setIsOpening(false);
+      Alert.alert("Daily Gacha failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
 
   const openPack = async () => {
     if (!activePack || !profile) return;
@@ -86,6 +142,7 @@ export function GachaScreen() {
     }
 
     const rewards = buildPackRewards(activePack.id);
+    setActiveOpening(activePack);
     setRevealedItems(rewards);
     setIsOpening(true);
 
@@ -114,10 +171,30 @@ export function GachaScreen() {
       <View style={styles.header}>
         <Text style={styles.eyebrow}>SUPPLY DROP</Text>
         <Text style={styles.title}>Gacha</Text>
-        <Text style={styles.meta}>{`Tickets ${tickets}`}</Text>
+        <Text style={styles.meta}>{`Tickets ${tickets} • Daily ${claimedDailyToday ? "claimed" : "ready"}`}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Pressable
+          disabled={claimedDailyToday || isOpening}
+          onPress={() => void openDailyGacha()}
+          style={[
+            styles.dailyCard,
+            claimedDailyToday || isOpening ? styles.dailyCardDisabled : null,
+          ]}
+        >
+          <View style={styles.dailyIconFrame}>
+            <Text style={styles.dailyIconGlyph}>★</Text>
+          </View>
+          <View style={styles.packBody}>
+            <Text style={styles.packTitle}>FREE DAILY GACHA</Text>
+            <Text style={styles.packCopy}>3 ITEMS GUARANTEED</Text>
+            <Text style={styles.dailyPrice}>
+              {claimedDailyToday ? "REFRESHES TOMORROW" : "FREE TODAY"}
+            </Text>
+          </View>
+        </Pressable>
+
         {PACKS.map((pack) => {
           const selected = activePack?.id === pack.id;
           return (
@@ -152,19 +229,50 @@ export function GachaScreen() {
       </ScrollView>
 
       <PackOpeningAnimation
-        accentColor={activePack?.accent || "#00d9ff"}
+        accentColor={activeOpening?.accent || activePack?.accent || "#00d9ff"}
         isOpen={isOpening}
         items={revealedItems}
         onComplete={() => {
           setIsOpening(false);
+          setActiveOpening(null);
         }}
-        packName={activePack?.name || "Pack"}
+        packName={activeOpening?.name || activePack?.name || "Pack"}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  dailyCard: {
+    backgroundColor: "#07110b",
+    borderColor: "#4ade80",
+    borderWidth: 3,
+    flexDirection: "row",
+    gap: 14,
+    padding: 16,
+  },
+  dailyCardDisabled: {
+    opacity: 0.48,
+  },
+  dailyIconFrame: {
+    alignItems: "center",
+    borderColor: "#4ade80",
+    borderWidth: 2,
+    height: 74,
+    justifyContent: "center",
+    width: 74,
+  },
+  dailyIconGlyph: {
+    color: "#4ade80",
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  dailyPrice: {
+    color: "#4ade80",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 12,
+  },
   eyebrow: {
     color: "#f0bf14",
     fontSize: 13,

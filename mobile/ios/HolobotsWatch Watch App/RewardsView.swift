@@ -11,6 +11,7 @@ struct RewardsView: View {
     private let cream   = Color(red: 0.996, green: 0.945, blue: 0.878)
     private let accent  = Color(red: 0.06, green: 0.08, blue: 0.10)
     private var isSyncing: Bool { viewModel.syncStatus == .sending }
+    private var canQuickRefill: Bool { !isSyncing && rewards.sessionsRemaining > 0 }
 
     var body: some View {
         ZStack {
@@ -62,7 +63,8 @@ struct RewardsView: View {
                             .background(gold, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .disabled(isSyncing)
+                    .disabled(!canQuickRefill)
+                    .opacity(canQuickRefill ? 1 : 0.45)
 
                     Button(action: viewModel.quickRefill) {
                         ZStack {

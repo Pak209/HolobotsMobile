@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Dimensions, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { ActionCard, BattleAction, BattleState, CardType } from "../../types/arena";
+import { ArenaCombatEngine } from "../../features/arena/combatEngine";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_SLOTS = 4;
@@ -93,15 +94,34 @@ function HudBar({
   );
 }
 
+function ComboMeter({
+  align = "left",
+  value,
+}: {
+  align?: "left" | "right";
+  value: number;
+}) {
+  return (
+    <View style={[styles.comboMeterRow, align === "right" ? styles.comboMeterRowRight : null]}>
+      <Text style={styles.comboMeterLabel}>COMBO</Text>
+      <Text style={styles.comboMeterValue}>{`x${value}`}</Text>
+    </View>
+  );
+}
+
 function ArenaCard({
   card,
+  cooldownTurns = 0,
   disabled,
+  disabledReason,
   isPlayable,
   isSelected,
   onPress,
 }: {
   card?: ActionCard;
+  cooldownTurns?: number;
   disabled: boolean;
+  disabledReason?: string;
   isPlayable: boolean;
   isSelected: boolean;
   onPress: () => void;
@@ -115,6 +135,22 @@ function ArenaCard({
   }
 
   const colors = getCardColors(card.type);
+  const disabledLabel =
+    disabledReason === "cooldown"
+      ? `CD ${cooldownTurns}`
+      : disabledReason === "insufficient_stamina"
+        ? "LOW STM"
+        : disabledReason === "trap_armed"
+          ? "TRAP SET"
+        : disabledReason === "defense_lock"
+          ? "LOCKED"
+          : disabledReason === "special_meter"
+            ? "NO METER"
+            : disabledReason === "combo_requirement"
+              ? "NEED COMBO"
+              : disabledReason === "opponent_state"
+                ? "NO OPEN"
+                : null;
 
   return (
     <Pressable
@@ -145,6 +181,11 @@ function ArenaCard({
       <Text style={[styles.cardDamage, { color: colors.accent }]}>
         {card.baseDamage > 0 ? `${card.baseDamage} DMG` : card.type === "defense" ? "BLOCK" : "UTILITY"}
       </Text>
+      {disabledLabel ? (
+        <View style={styles.disabledBadge}>
+          <Text style={styles.disabledBadgeText}>{disabledLabel}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -169,7 +210,24 @@ export function BattleArenaView({
     return slots;
   }, [playerCards]);
 
-  const playerCanAct = playableCardIds.length > 0 && !isAnimating;
+  const cardAvailability = useMemo(
+    () =>
+      ArenaCombatEngine.getCardAvailability(
+        playerCards,
+        battle.player,
+        battle.opponent,
+        battle,
+        true,
+      ),
+    [battle, playerCards],
+  );
+
+  const cardAvailabilityMap = useMemo(
+    () => Object.fromEntries(cardAvailability.map((entry) => [entry.cardId, entry])),
+    [cardAvailability],
+  );
+
+  const playerCanAct = playableCardIds.length > 0;
   const playerHealthPercent = getHealthPercent(battle.player.currentHP, battle.player.maxHP);
   const opponentHealthPercent = getHealthPercent(battle.opponent.currentHP, battle.opponent.maxHP);
   const playerStaminaPercent = getHealthPercent(battle.player.stamina, battle.player.maxStamina);
@@ -199,6 +257,7 @@ export function BattleArenaView({
               percent={playerStaminaPercent}
               value={`${battle.player.stamina} / ${battle.player.maxStamina}`}
             />
+            <ComboMeter value={ArenaCombatEngine.getComboMeter(battle.player)} />
           </View>
         </View>
 
@@ -225,6 +284,7 @@ export function BattleArenaView({
               percent={opponentStaminaPercent}
               value={`${battle.opponent.stamina} / ${battle.opponent.maxStamina}`}
             />
+            <ComboMeter align="right" value={ArenaCombatEngine.getComboMeter(battle.opponent)} />
           </View>
         </View>
       </View>
@@ -282,18 +342,25 @@ export function BattleArenaView({
         </View>
         <View style={styles.cardBayHeader}>
           <Text style={styles.deckHint}>
-            {battle.player.isInDefenseMode ? "DEFENSE MODE ACTIVE" : playerCanAct ? "TAP A CARD TO PLAY" : "WAITING FOR ACTION"}
+            {battle.player.armedDefenseTrap
+              ? "DEFENSE TRAP ARMED"
+              : playerCanAct
+                ? "TAP A CARD TO PLAY"
+                : "NO PLAYABLE CARDS"}
           </Text>
         </View>
 
         <View style={styles.cardRow}>
           {visibleCards.map((card, index) => {
             const isPlayable = !!card && playableCardIds.includes(card.id);
+            const availability = card ? cardAvailabilityMap[card.id] : undefined;
             return (
               <ArenaCard
                 key={card?.id ?? `empty-${index}`}
                 card={card}
-                disabled={!card || isAnimating || !isPlayable}
+                cooldownTurns={availability?.cooldownTurns ?? 0}
+                disabled={!card || !isPlayable}
+                disabledReason={availability?.disabledReason}
                 isPlayable={isPlayable}
                 isSelected={false}
                 onPress={() => {
@@ -488,6 +555,23 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: 2,
   },
+  disabledBadge: {
+    alignSelf: "center",
+    backgroundColor: "rgba(5, 6, 6, 0.92)",
+    borderColor: "#f0bf14",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 4,
+    marginTop: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  disabledBadgeText: {
+    color: "#f0bf14",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
   cardName: {
     color: "#fef1e0",
     fontSize: 9,
@@ -534,6 +618,26 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.6,
     marginTop: 8,
+  },
+  comboMeterLabel: {
+    color: "#9d9580",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
+  comboMeterRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    marginTop: -1,
+  },
+  comboMeterRowRight: {
+    justifyContent: "flex-end",
+  },
+  comboMeterValue: {
+    color: "#f0bf14",
+    fontSize: 12,
+    fontWeight: "900",
   },
   deckHint: {
     color: "#9d9580",

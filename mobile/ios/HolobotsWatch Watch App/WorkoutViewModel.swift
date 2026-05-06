@@ -90,6 +90,7 @@ final class WorkoutViewModel: ObservableObject {
             UserDefaults.standard.set(selectedHolobotName, forKey: Self.selectedHolobotKey)
         }
     }
+    @Published var expMultiplier: Int                         = 1
 
     enum SyncStatus {
         case idle, sending, success, error
@@ -115,17 +116,19 @@ final class WorkoutViewModel: ObservableObject {
         String(format: "%.0f %@", displayedSpeed, distanceUnit.speedSuffix)
     }
     var currentRewards: (syncPoints: Int, holos: Int, exp: Int) {
-        let totalElapsed = accumulatedElapsedSeconds + elapsedSeconds
-        let totalSteps = accumulatedStepCount + roundStepCount
-        let totalDistance = accumulatedDistanceKm + roundDistanceKm
-
-        guard totalElapsed > 0 else {
+        guard accumulatedElapsedSeconds + elapsedSeconds > 0 else {
             return (0, 0, 0)
         }
-        return RewardCalculator.calculate(
-            elapsedSeconds: totalElapsed,
-            stepCount: totalSteps,
-            distanceKm: totalDistance
+        let segmentRewards = calculateRoundRewards(
+            elapsedSeconds: elapsedSeconds,
+            stepCount: roundStepCount,
+            distanceKm: roundDistanceKm,
+            commitsDistanceBonus: false
+        )
+        return (
+            syncPoints: accumulatedRewards.syncPoints + segmentRewards.syncPoints,
+            holos: accumulatedRewards.holos + segmentRewards.holos,
+            exp: accumulatedRewards.exp + segmentRewards.exp
         )
     }
     var isComplete: Bool { elapsedSeconds >= WorkoutConfig.totalSeconds }
@@ -152,8 +155,9 @@ final class WorkoutViewModel: ObservableObject {
     private var accumulatedStepCount = 0
     private var accumulatedDistanceKm = 0.0
     private var accumulatedRewards = RewardProgress.zero
-    private var pendingWorkoutPayload: WorkoutCompletePayload?
+    private var pendingWorkoutPayloads: [WorkoutCompletePayload] = []
     private var pendingRewardAction: PendingRewardAction?
+    private var rewardedDistanceUnits = 0
     private var roundStepCount = 0
     private var roundDistanceKm = 0.0
     private static let workoutModeKey = "holobots.watch.workoutMode"
@@ -190,6 +194,7 @@ final class WorkoutViewModel: ObservableObject {
 
     func start() {
         guard !isComplete else { return }
+        guard sessionsRemaining > 0 else { return }
         isRunning = true
         timerFired = false
         startTimer()
@@ -219,19 +224,16 @@ final class WorkoutViewModel: ObservableObject {
         stopPedometer()
         endHKWorkout()
 
-        accumulatedElapsedSeconds += elapsedSeconds
-        accumulatedStepCount += roundStepCount
-        accumulatedDistanceKm += roundDistanceKm
-
-        let nextAccumulatedRewards = RewardCalculator.calculate(
-            elapsedSeconds: accumulatedElapsedSeconds,
-            stepCount: accumulatedStepCount,
-            distanceKm: accumulatedDistanceKm
+        let segmentRewards = calculateRoundRewards(
+            elapsedSeconds: elapsedSeconds,
+            stepCount: roundStepCount,
+            distanceKm: roundDistanceKm,
+            commitsDistanceBonus: true
         )
-        let segmentRewards = (
-            syncPoints: max(0, nextAccumulatedRewards.syncPoints - accumulatedRewards.syncPoints),
-            holos: max(0, nextAccumulatedRewards.holos - accumulatedRewards.holos),
-            exp: max(0, nextAccumulatedRewards.exp - accumulatedRewards.exp)
+        let nextAccumulatedRewards = (
+            syncPoints: accumulatedRewards.syncPoints + segmentRewards.syncPoints,
+            holos: accumulatedRewards.holos + segmentRewards.holos,
+            exp: accumulatedRewards.exp + segmentRewards.exp
         )
         accumulatedRewards = RewardProgress(
             syncPoints: nextAccumulatedRewards.syncPoints,
@@ -239,8 +241,15 @@ final class WorkoutViewModel: ObservableObject {
             exp: nextAccumulatedRewards.exp
         )
 
+        accumulatedElapsedSeconds += elapsedSeconds
+        accumulatedStepCount += roundStepCount
+        accumulatedDistanceKm += roundDistanceKm
+
         stepCount = accumulatedStepCount
         distanceKm = accumulatedDistanceKm
+
+        let completedAfterThisRound = min(sessionsCompleted + 1, WorkoutConfig.maxDailySessions)
+        let remainingAfterThisRound = max(WorkoutConfig.maxDailySessions - completedAfterThisRound, 0)
 
         let payload = WorkoutCompletePayload(
             workoutId:        UUID().uuidString,
@@ -250,10 +259,13 @@ final class WorkoutViewModel: ObservableObject {
             syncPointsEarned: segmentRewards.syncPoints,
             holosEarned:      segmentRewards.holos,
             expEarned:        segmentRewards.exp,
+            expMultiplier:    expMultiplier,
             holobotName:      selectedHolobot.name,
-            date:             localDateKey()
+            date:             localDateKey(),
+            sessionsCompleted: completedAfterThisRound,
+            sessionsRemaining: remainingAfterThisRound
         )
-        pendingWorkoutPayload = payload
+        pendingWorkoutPayloads.append(payload)
 
         presentLocalRewardsFallback(displayRewards: nextAccumulatedRewards, segmentRewards: segmentRewards)
         syncStatus = .idle
@@ -262,6 +274,14 @@ final class WorkoutViewModel: ObservableObject {
     // Called by WatchConnectivityManager when phone replies
     func applyRewards(_ rewards: WorkoutRewardsPayload) {
         syncStatus        = .success
+        if !showRewards && pendingWorkoutPayloads.isEmpty {
+            sessionsCompleted = rewards.sessionsCompleted
+            sessionsRemaining = rewards.sessionsRemaining
+            totalSyncPoints   = rewards.totalSyncPoints
+            usedLocalRewardFallback = false
+            return
+        }
+
         let displayRewards: WorkoutRewardsPayload
         if accumulatedRewards.syncPoints > rewards.syncPoints ||
             accumulatedRewards.holos > rewards.holos ||
@@ -281,7 +301,6 @@ final class WorkoutViewModel: ObservableObject {
         sessionsCompleted = rewards.sessionsCompleted
         sessionsRemaining = rewards.sessionsRemaining
         totalSyncPoints   = rewards.totalSyncPoints
-        pendingWorkoutPayload = nil
         let nextAction = pendingRewardAction
         pendingRewardAction = nil
         usedLocalRewardFallback = false
@@ -292,6 +311,16 @@ final class WorkoutViewModel: ObservableObject {
             showRewards       = true
         }
         WKInterfaceDevice.current().play(.success)
+    }
+
+    func applySessionState(_ state: WorkoutSessionStatePayload) {
+        let localCompleted = (showRewards || !pendingWorkoutPayloads.isEmpty) ? sessionsCompleted : 0
+        sessionsCompleted = max(state.sessionsCompleted, localCompleted)
+        sessionsRemaining = max(0, WorkoutConfig.maxDailySessions - sessionsCompleted)
+        if let totalSyncPoints = state.totalSyncPoints {
+            self.totalSyncPoints = totalSyncPoints
+        }
+        expMultiplier = max(1, state.expMultiplier)
     }
 
     // Dismiss rewards and reset for next session
@@ -310,7 +339,8 @@ final class WorkoutViewModel: ObservableObject {
         accumulatedStepCount = 0
         accumulatedDistanceKm = 0
         accumulatedRewards = .zero
-        pendingWorkoutPayload = nil
+        rewardedDistanceUnits = 0
+        pendingWorkoutPayloads.removeAll()
         pendingRewardAction = nil
         roundStepCount = 0
         roundDistanceKm = 0
@@ -335,15 +365,28 @@ final class WorkoutViewModel: ObservableObject {
     }
 
     private func claimPendingRewards(after action: PendingRewardAction) {
-        guard let pendingWorkoutPayload else {
+        guard !pendingWorkoutPayloads.isEmpty else {
             completePendingRewardAction(action)
             return
         }
 
         guard syncStatus != .sending else { return }
+
+        if action == .quickRefill {
+            completePendingRewardAction(action)
+            return
+        }
+
         pendingRewardAction = action
         syncStatus = .sending
-        WatchConnectivityManager.shared.claimWorkoutRewards(pendingWorkoutPayload)
+        let payloads = pendingWorkoutPayloads
+        pendingWorkoutPayloads.removeAll()
+        for payload in payloads {
+            WatchConnectivityManager.shared.claimWorkoutRewards(payload)
+        }
+        pendingRewardAction = nil
+        syncStatus = .idle
+        completePendingRewardAction(action)
     }
 
     private func completePendingRewardAction(_ action: PendingRewardAction) {
@@ -398,6 +441,34 @@ final class WorkoutViewModel: ObservableObject {
         totalSyncPoints = fallback.totalSyncPoints
         usedLocalRewardFallback = true
         showRewards = true
+    }
+
+    private func calculateRoundRewards(
+        elapsedSeconds: Int,
+        stepCount: Int,
+        distanceKm: Double,
+        commitsDistanceBonus: Bool
+    ) -> (syncPoints: Int, holos: Int, exp: Int) {
+        let progress = min(Double(elapsedSeconds) / Double(WorkoutConfig.totalSeconds), 1.0)
+        let cumulativeDistanceUnits = completedBoostDistanceUnits(for: accumulatedDistanceKm + distanceKm)
+        let newDistanceUnits = max(0, cumulativeDistanceUnits - rewardedDistanceUnits)
+        let distanceBonus = newDistanceUnits * WorkoutConfig.syncPointBoost
+        let stepBonus = stepCount / 25
+        let syncPoints = max(0, Int((progress * Double(WorkoutConfig.baseSyncPoints)).rounded()) + stepBonus + distanceBonus)
+        let holos = max(0, Int((distanceKm * WorkoutConfig.holosPerKm).rounded()))
+        let baseExp = max(0, Int((distanceKm * WorkoutConfig.expPerKm).rounded()))
+        let exp = baseExp * max(1, expMultiplier)
+        if commitsDistanceBonus {
+            rewardedDistanceUnits = max(rewardedDistanceUnits, cumulativeDistanceUnits)
+        }
+        return (syncPoints, holos, exp)
+    }
+
+    private func completedBoostDistanceUnits(for distanceKm: Double) -> Int {
+        let displayedDistance = distanceUnit == .kilometers
+            ? distanceKm
+            : distanceKm * WorkoutConfig.kmToMiles
+        return max(0, Int(displayedDistance))
     }
 
     // ── Timer ─────────────────────────────────────────────────────────────────

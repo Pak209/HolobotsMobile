@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "fun.holobots.mobile",
-      "buildNumber": "2",
+      "buildNumber": "24",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Holobots uses Face ID to quickly unlock your remembered session.",
         "NSHealthShareUsageDescription": "Holobots reads your step count and workout data to convert activity into Sync Points.",
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "fun.holobots.mobile",
-      "versionCode": 2,
+      "versionCode": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#f0aa22"

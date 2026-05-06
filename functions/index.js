@@ -70,6 +70,22 @@ function computeLeaderboardScore(profile) {
   return Math.round(holobotPower + prestigeCount * 250 + seasonSyncPoints * 0.4 + wins * 6);
 }
 
+function getPlayerRankExpMultiplier(profile) {
+  const holobots = Array.isArray(profile?.holobots) ? profile.holobots : [];
+  const maxLevel = holobots.reduce((highest, holobot) => {
+    return Math.max(highest, Number(holobot?.level || 0));
+  }, 0);
+  const wins = Math.max(0, Number(profile?.wins || 0));
+  const prestigeCount = Math.max(0, Number(profile?.prestigeCount || 0));
+  const score = maxLevel + wins * 0.35 + prestigeCount * 8;
+
+  if (score >= 80) return 10;
+  if (score >= 55) return 5;
+  if (score >= 40) return 3;
+  if (score >= 30) return 2;
+  return 1;
+}
+
 async function persistWatchWorkoutReward(uid, workout) {
   const activityId = typeof workout.workoutId === "string" ? workout.workoutId.trim() : "";
   const date = typeof workout.date === "string" && workout.date ? workout.date : new Date().toISOString().slice(0, 10);
@@ -101,9 +117,18 @@ async function persistWatchWorkoutReward(uid, workout) {
 
     const awardedSyncPoints = Math.max(0, Math.floor(Number(workout.syncPointsEarned || 0)));
     const awardedHolos = Math.max(0, Math.floor(Number(workout.holosEarned || 0)));
-    const awardedExp = Math.max(0, Math.floor(Number(workout.expEarned || 0)));
+    const baseAwardedExp = Math.max(0, Math.floor(Number(workout.expEarned || 0)));
+    const submittedMultiplier = Math.max(1, Math.floor(Number(workout.expMultiplier || 1)));
+    const expMultiplier = Math.max(submittedMultiplier, getPlayerRankExpMultiplier(userData));
+    const awardedExp = workout.expMultiplierApplied === true
+      ? baseAwardedExp
+      : baseAwardedExp * expMultiplier;
     const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted || 0));
-    const nextSessionsCompleted = Math.min(DAILY_WORKOUT_CAP, previousSessionsCompleted + 1);
+    const reportedSessionsCompleted = Math.max(0, Math.floor(Number(workout.sessionsCompleted || 0)));
+    const nextSessionsCompleted = Math.min(
+      DAILY_WORKOUT_CAP,
+      Math.max(previousSessionsCompleted + 1, reportedSessionsCompleted),
+    );
 
     const currentHolobots = Array.isArray(userData.holobots) ? userData.holobots : [];
     const normalizedTargetName = typeof workout.holobotName === "string" ? workout.holobotName.trim().toUpperCase() : "";
@@ -225,6 +250,7 @@ async function handleDeleteUserAccount(request) {
   return { success: true };
 }
 
+exports.deleteUserAccount = onCall(handleDeleteUserAccount);
 exports.deleteUserAccountV2 = onCall({ region: "us-central1", invoker: "public" }, handleDeleteUserAccount);
 
 exports.syncWatchWorkoutRewards = onCall(async (request) => {
