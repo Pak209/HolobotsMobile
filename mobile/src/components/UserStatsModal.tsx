@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Image as RNImage, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Svg, Path } from "@/components/FigmaSvg";
 import { DailyMissionsModal } from "@/components/DailyMissionsModal";
@@ -29,6 +29,71 @@ type UserStatsModalProps = {
   visible: boolean;
 };
 
+type LegalDocument = "privacy" | "terms";
+
+const LEGAL_COPY: Record<LegalDocument, { title: string; updated: string; sections: Array<{ heading: string; body: string }> }> = {
+  privacy: {
+    title: "Privacy Policy",
+    updated: "Effective May 27, 2026",
+    sections: [
+      {
+        heading: "Information We Collect",
+        body: "Holobots collects account details, pilot profile data, gameplay progress, inventory, battle results, and app diagnostics needed to operate the game. If you enable fitness features, Holobots may read activity data such as steps, distance, workout sessions, motion, location during workouts, and related fitness summaries that you choose to sync.",
+      },
+      {
+        heading: "How We Use Information",
+        body: "We use this information to sign you in, save your Holobots, calculate rewards, sync PvP battles, restore purchases or inventory where applicable, improve reliability, and protect the game from abuse. Fitness data is used to calculate in-game rewards and progress connected to activity features.",
+      },
+      {
+        heading: "Storage And Sharing",
+        body: "Game and account data is stored with our backend providers, including Firebase services. We do not sell personal information. We may share limited data with service providers only when needed to run authentication, storage, analytics, crash diagnostics, gameplay sync, or legal compliance.",
+      },
+      {
+        heading: "Your Choices",
+        body: "You can choose not to enable fitness, location, motion, or biometric unlock features. You may sign out at any time. Platform permissions can be changed in iOS or Android settings. Contact support if you want help with account access or deletion requests.",
+      },
+      {
+        heading: "Children And Safety",
+        body: "Holobots is intended for users old enough to manage an online game account under applicable local rules and platform requirements. Do not submit sensitive personal information through usernames, feedback, or support messages.",
+      },
+      {
+        heading: "Contact",
+        body: "For privacy questions, account requests, or policy concerns, contact the Holobots team at support@holobots.fun.",
+      },
+    ],
+  },
+  terms: {
+    title: "Terms of Use",
+    updated: "Effective May 27, 2026",
+    sections: [
+      {
+        heading: "Use Of Holobots",
+        body: "By using Holobots, you agree to use the app only for lawful gameplay, testing, and account activity. You are responsible for keeping your account credentials secure and for activity that happens through your account.",
+      },
+      {
+        heading: "Game Progress And Virtual Items",
+        body: "Holobots may include virtual currency, tickets, rewards, cards, parts, ranks, and other in-game items. These items are part of the game experience, have no cash value unless explicitly stated by us, and may be adjusted to fix bugs, balance gameplay, or protect the game economy.",
+      },
+      {
+        heading: "PvP And Fair Play",
+        body: "Do not cheat, exploit bugs, automate gameplay, interfere with matchmaking, attack backend services, or manipulate battle results. We may restrict access, reset progress, or remove rewards when activity harms other players or the service.",
+      },
+      {
+        heading: "Fitness Features",
+        body: "Fitness-based rewards are for entertainment and motivation only. Holobots is not medical advice and should not be used to diagnose, treat, or measure health conditions. Use safe judgment during workouts and follow platform permission prompts carefully.",
+      },
+      {
+        heading: "Updates And Availability",
+        body: "We may update, rebalance, suspend, or discontinue features as the game evolves. Testing builds may contain bugs, incomplete systems, or temporary data resets. We are not liable for loss of access caused by outages, platform changes, or test-track limits.",
+      },
+      {
+        heading: "Contact",
+        body: "For terms, account, or support questions, contact the Holobots team at support@holobots.fun.",
+      },
+    ],
+  },
+};
+
 export function UserStatsModal({
   onClose,
   onOpenGacha,
@@ -38,6 +103,7 @@ export function UserStatsModal({
 }: UserStatsModalProps) {
   const { updateProfile } = useAuth();
   const [isMissionsOpen, setIsMissionsOpen] = useState(false);
+  const [legalDocument, setLegalDocument] = useState<LegalDocument | null>(null);
   const missionSummary = getDailyMissionSummary(profile);
   const playerRank = getPlayerRank(profile);
 
@@ -64,6 +130,14 @@ export function UserStatsModal({
     }
   };
 
+  const handleClose = () => {
+    setLegalDocument(null);
+    setIsMissionsOpen(false);
+    onClose();
+  };
+
+  const activeLegalCopy = legalDocument ? LEGAL_COPY[legalDocument] : null;
+
   return (
     <>
       <Modal
@@ -71,11 +145,28 @@ export function UserStatsModal({
         presentationStyle="overFullScreen"
         transparent
         visible={visible}
-        onRequestClose={onClose}
+        onRequestClose={handleClose}
       >
         <View style={styles.backdrop}>
-          <View style={styles.card}>
-            {isMissionsOpen ? (
+          <View style={[styles.card, activeLegalCopy && styles.legalCard]}>
+            {activeLegalCopy ? (
+              <>
+                <Text style={styles.eyebrow}>LEGAL</Text>
+                <Text style={styles.title}>{activeLegalCopy.title}</Text>
+                <Text style={styles.legalUpdated}>{activeLegalCopy.updated}</Text>
+                <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalScrollContent}>
+                  {activeLegalCopy.sections.map((section) => (
+                    <View key={section.heading} style={styles.legalSection}>
+                      <Text style={styles.legalHeading}>{section.heading}</Text>
+                      <Text style={styles.legalBody}>{section.body}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+                <Pressable style={styles.closeButton} onPress={() => setLegalDocument(null)}>
+                  <Text style={styles.closeText}>BACK</Text>
+                </Pressable>
+              </>
+            ) : isMissionsOpen ? (
               <DailyMissionsModal onClose={() => setIsMissionsOpen(false)} />
             ) : (
               <>
@@ -129,9 +220,17 @@ export function UserStatsModal({
                   <Pressable style={styles.secondaryButton} onPress={onOpenLeaderboard}>
                     <Text style={styles.secondaryText}>LEADERBOARD</Text>
                   </Pressable>
+                  <View style={styles.legalButtonRow}>
+                    <Pressable style={styles.legalButton} onPress={() => setLegalDocument("privacy")}>
+                      <Text style={styles.legalButtonText}>PRIVACY POLICY</Text>
+                    </Pressable>
+                    <Pressable style={styles.legalButton} onPress={() => setLegalDocument("terms")}>
+                      <Text style={styles.legalButtonText}>TERMS OF USE</Text>
+                    </Pressable>
+                  </View>
                 </View>
 
-                <Pressable style={styles.closeButton} onPress={onClose}>
+                <Pressable style={styles.closeButton} onPress={handleClose}>
                   <Text style={styles.closeText}>CLOSE</Text>
                 </Pressable>
               </>
@@ -235,6 +334,60 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.8,
+  },
+  legalBody: {
+    color: "#ddd2b5",
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  legalButton: {
+    alignItems: "center",
+    backgroundColor: "#050606",
+    borderColor: "#2a2a2a",
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 10,
+  },
+  legalButtonRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  legalButtonText: {
+    color: "#ddd2b5",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    textAlign: "center",
+  },
+  legalCard: {
+    maxHeight: "82%",
+  },
+  legalHeading: {
+    color: "#f0bf14",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+    marginBottom: 7,
+  },
+  legalScroll: {
+    marginTop: 14,
+  },
+  legalScrollContent: {
+    gap: 14,
+    paddingBottom: 8,
+  },
+  legalSection: {
+    borderBottomColor: "#242424",
+    borderBottomWidth: 1,
+    paddingBottom: 14,
+  },
+  legalUpdated: {
+    color: "#8f866f",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 6,
   },
   secondaryButton: {
     alignItems: "center",

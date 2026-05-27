@@ -1,0 +1,166 @@
+import { describe, expect, it } from 'vitest';
+
+import type { ActionCard, ArenaFighter } from '@/types/arena';
+import { ArenaCombatEngine } from '../combatEngine';
+
+function makeFighter(overrides: Partial<ArenaFighter> = {}): ArenaFighter {
+  return ArenaCombatEngine.prepareFighter({
+    holobotId: overrides.holobotId ?? 'fighter-1',
+    ownerUserId: 'user-1',
+    name: 'TESTBOT',
+    avatar: 'test://avatar',
+    archetype: 'balanced',
+    level: 1,
+    maxHP: 120,
+    currentHP: 120,
+    attack: 40,
+    defense: 30,
+    speed: 25,
+    intelligence: 25,
+    stamina: 6,
+    maxStamina: 7,
+    specialMeter: 0,
+    staminaState: 'fresh',
+    isInDefenseMode: false,
+    defenseCooldownUntil: 0,
+    comboCounter: 0,
+    lastActionTime: 0,
+    statusEffects: [],
+    staminaEfficiency: 1,
+    defenseTimingWindow: 500,
+    counterDamageBonus: 1.25,
+    damageMultiplier: 1,
+    speedBonus: 0,
+    hand: [],
+    totalDamageDealt: 0,
+    perfectDefenses: 0,
+    combosCompleted: 0,
+    ...overrides,
+  });
+}
+
+function makeCard(overrides: Partial<ActionCard> = {}): ActionCard {
+  return {
+    id: overrides.id ?? overrides.templateId ?? 'card-1',
+    templateId: overrides.templateId ?? 'jab',
+    name: overrides.name ?? 'Jab',
+    type: overrides.type ?? 'strike',
+    staminaCost: overrides.staminaCost ?? 1,
+    requirements: overrides.requirements ?? [],
+    baseDamage: overrides.baseDamage ?? 10,
+    speedModifier: overrides.speedModifier ?? 1,
+    effects: overrides.effects ?? [],
+    animationId: overrides.animationId ?? 'test',
+    description: overrides.description ?? 'test card',
+    iconName: overrides.iconName,
+  };
+}
+
+function makeBattle(playerOverrides: Partial<ArenaFighter> = {}, opponentOverrides: Partial<ArenaFighter> = {}) {
+  const player = makeFighter({ holobotId: 'player-1', ...playerOverrides });
+  const opponent = makeFighter({ holobotId: 'opponent-1', ...opponentOverrides });
+
+  return ArenaCombatEngine.initializeBattle(player, opponent, {
+    battleType: 'pve',
+    allowPlayerControl: true,
+    playerHolobotId: player.holobotId,
+    opponentHolobotId: opponent.holobotId,
+  });
+}
+
+describe('ArenaCombatEngine', () => {
+  it('defense restores stamina', () => {
+    const battle = makeBattle({ stamina: 3, maxStamina: 7 });
+    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+
+    const resolved = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+
+    expect(resolved.player.stamina).toBe(6);
+  });
+
+  it('defense applies cooldown', () => {
+    const battle = makeBattle();
+    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+
+    const resolved = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+
+    expect(resolved.playerCardCooldowns?.block).toBe(2);
+    expect(resolved.player.armedDefenseTrap?.templateId).toBe('block');
+    expect(ArenaCombatEngine.canPlayCard(resolved, 'player', block)).toBe(false);
+  });
+
+  it('cooldown ticks down each turn', () => {
+    const battle = makeBattle();
+    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const jab = makeCard({ id: 'jab-1', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+    const cross = makeCard({ id: 'cross-1', templateId: 'cross', type: 'strike', staminaCost: 1, baseDamage: 9 });
+
+    const afterDefense = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+    const afterOpponentTurn = ArenaCombatEngine.resolveAction(afterDefense, jab, afterDefense.opponent.holobotId);
+    const afterPlayerTurn = ArenaCombatEngine.resolveAction(afterOpponentTurn, cross, afterOpponentTurn.player.holobotId);
+
+    expect(afterDefense.playerCardCooldowns?.block).toBe(2);
+    expect(afterOpponentTurn.playerCardCooldowns?.block).toBe(1);
+    expect(afterPlayerTurn.playerCardCooldowns?.block).toBeUndefined();
+  });
+
+  it('blocked attacks deal reduced damage', () => {
+    const battle = makeBattle();
+    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const strike = makeCard({ id: 'hook-1', templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
+
+    const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+    const blockedAttack = ArenaCombatEngine.resolveAction(defended, strike, defended.opponent.holobotId);
+    const unblocked = ArenaCombatEngine.calculateDamage(blockedAttack.opponent, blockedAttack.player, strike);
+
+    expect((blockedAttack.actionHistory.at(-1)?.outcome)).toBe('blocked');
+    expect(blockedAttack.actionHistory.at(-1)?.actualDamage).toBeLessThan(unblocked.finalDamage);
+    expect(blockedAttack.player.armedDefenseTrap).toBeNull();
+  });
+
+  it('counter trap deals return damage and is consumed', () => {
+    const battle = makeBattle();
+    const parry = makeCard({ templateId: 'parry', type: 'defense', staminaCost: 3, baseDamage: 0 });
+    const strike = makeCard({ id: 'hook-1', templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
+
+    const defended = ArenaCombatEngine.resolveAction(battle, parry, battle.player.holobotId);
+    const countered = ArenaCombatEngine.resolveAction(defended, strike, defended.opponent.holobotId);
+
+    expect(countered.actionHistory.at(-1)?.wasCountered).toBe(true);
+    expect(countered.opponent.currentHP).toBeLessThan(defended.opponent.currentHP);
+    expect(countered.player.armedDefenseTrap).toBeNull();
+  });
+
+  it('cannot stack a second defense trap while one is armed', () => {
+    const battle = makeBattle({ stamina: 7 });
+    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const slip = makeCard({ templateId: 'slip', type: 'defense', staminaCost: 2, baseDamage: 0 });
+
+    const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+
+    expect(ArenaCombatEngine.canPlayCard(defended, 'player', slip)).toBe(false);
+  });
+
+  it('cards cannot be played without enough stamina', () => {
+    const battle = makeBattle({ stamina: 1 });
+    const heavyCard = makeCard({ templateId: 'flurry', type: 'combo', staminaCost: 5, baseDamage: 40 });
+
+    expect(ArenaCombatEngine.canPlayCard(battle, 'player', heavyCard)).toBe(false);
+  });
+
+  it('damage formula respects ATK and DEF', () => {
+    const strike = makeCard({ templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
+    const highAttack = makeFighter({ attack: 60, defense: 20 });
+    const lowAttack = makeFighter({ attack: 20, defense: 20 });
+    const lowDefense = makeFighter({ holobotId: 'def-low', defense: 10 });
+    const highDefense = makeFighter({ holobotId: 'def-high', defense: 60 });
+
+    const highAttackDamage = ArenaCombatEngine.calculateDamage(highAttack, lowDefense, strike);
+    const lowAttackDamage = ArenaCombatEngine.calculateDamage(lowAttack, lowDefense, strike);
+    const lowDefenseDamage = ArenaCombatEngine.calculateDamage(highAttack, lowDefense, strike);
+    const highDefenseDamage = ArenaCombatEngine.calculateDamage(highAttack, highDefense, strike);
+
+    expect(highAttackDamage.finalDamage).toBeGreaterThan(lowAttackDamage.finalDamage);
+    expect(lowDefenseDamage.finalDamage).toBeGreaterThan(highDefenseDamage.finalDamage);
+  });
+});

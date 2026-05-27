@@ -13,7 +13,52 @@ export type CardRarity = 'common' | 'uncommon' | 'rare' | 'epic';
 
 export type StaminaState = 'fresh' | 'working' | 'gassed' | 'exhausted';
 export type DefenseOutcome = 'perfect' | 'partial' | 'failed';
-export type ActionOutcome = 'hit' | 'blocked' | 'dodged' | 'countered' | 'missed';
+export type ActionOutcome =
+  | 'hit'
+  | 'blocked'
+  | 'dodged'
+  | 'countered'
+  | 'counter'
+  | 'missed'
+  | 'perfect_defense';
+
+export interface StatusEffect {
+  id: string;
+  type: 'damage_over_time' | 'stamina_drain' | 'stat_modifier' | 'guard' | 'utility';
+  value: number;
+  duration: number;
+  appliedBy: string;
+}
+
+export interface DamageModifier {
+  source: string;
+  type: 'add' | 'multiply';
+  value: number;
+  description: string;
+}
+
+export interface DamageResult {
+  rawDamage: number;
+  finalDamage: number;
+  damageReduction: number;
+  isCritical: boolean;
+  modifiers: DamageModifier[];
+}
+
+export type DefenseTrapEffect = 'guard' | 'evade' | 'counter' | 'perfect_reversal';
+export type DefenseTrapTier = 'common' | 'rare' | 'epic' | 'legendary';
+
+export interface ArmedDefenseTrap {
+  cardId: string;
+  templateId: string;
+  name: string;
+  tier: DefenseTrapTier;
+  effect: DefenseTrapEffect;
+  damageReduction: number;
+  evadeChance: number;
+  counterDamageMultiplier: number;
+  cooldownTurns: number;
+}
 
 // ============================================================================
 // Fighter (Holobot in Combat)
@@ -39,6 +84,10 @@ export interface ArenaFighter {
   // Current Battle State
   staminaState: StaminaState;
   isInDefenseMode: boolean;
+  defenseCooldownUntil?: number;
+  defenseActive?: boolean;
+  defendedAt?: number;
+  armedDefenseTrap?: ArmedDefenseTrap | null;
   comboCounter: number;
   lastActionTime: number;
 
@@ -54,7 +103,7 @@ export interface ArenaFighter {
   level: number;
   specialMove?: string;
   abilityDescription?: string;
-  statusEffects?: Array<{ id: string; name: string; turnsRemaining: number }>;
+  statusEffects?: StatusEffect[];
   damageMultiplier?: number;
   speedBonus?: number;
   hand?: ActionCard[];
@@ -88,6 +137,7 @@ export interface ActionCard {
   animationId: string;
   description: string;
   iconName?: string;
+  tier?: DefenseTrapTier;
 }
 
 export interface CardRequirement {
@@ -119,6 +169,10 @@ export interface BattleState {
   // Turn State
   turnNumber: number;
   currentActorId: string;
+  playerDefenseCooldownUntil?: number;
+  opponentDefenseCooldownUntil?: number;
+  playerCardCooldowns?: Record<string, number>;
+  opponentCardCooldowns?: Record<string, number>;
 
   // Action Queue
   pendingActions: BattleAction[];
@@ -127,10 +181,16 @@ export interface BattleState {
   // Game State
   timer: number;
   neutralPhase: boolean;
+  counterWindowOpen?: boolean;
+  lastActionTimestamp?: number;
+  createdAt?: number;
+  startedAt?: number;
 
   // Player Control
   playerBattleStyle: 'aggressive' | 'balanced' | 'defensive';
   hackUsed: boolean;
+  allowPlayerControl?: boolean;
+  config?: ArenaBattleConfig;
 
   // Rewards Preview
   potentialRewards: BattleRewards;
@@ -138,16 +198,22 @@ export interface BattleState {
 
 export interface BattleAction {
   id: string;
+  battleId?: string;
   turnNumber: number;
+  actionOrder?: number;
   actorId: string;
+  actorRole?: 'player' | 'opponent';
   targetId: string;
 
   card: ActionCard;
+  actionType?: CardType;
   timestamp: number;
+  elapsedMs?: number;
 
   // Resolution
   outcome: ActionOutcome;
   damageDealt: number;
+  actualDamage?: number;
   staminaChange: number;
   specialMeterChange: number;
 
@@ -155,6 +221,10 @@ export interface BattleAction {
   wasCountered: boolean;
   triggeredCombo: boolean;
   perfectDefense: boolean;
+  comboLength?: number;
+  openedCounterWindow?: boolean;
+  animationId?: string;
+  animationDuration?: number;
 }
 
 export interface BattleRewards {

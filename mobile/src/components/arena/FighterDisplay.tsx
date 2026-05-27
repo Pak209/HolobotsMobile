@@ -10,9 +10,9 @@ interface FighterDisplayProps {
 }
 
 export function FighterDisplay({ fighter, position, isActive }: FighterDisplayProps) {
-  const hpPercent = (fighter.currentHP / fighter.maxHP) * 100;
-  const staminaPercent = (fighter.stamina / fighter.maxStamina) * 100;
-  const specialPercent = fighter.specialMeter;
+  const hpPercent = Math.min(100, Math.max(0, (fighter.currentHP / fighter.maxHP) * 100));
+  const staminaPercent = Math.min(100, Math.max(0, (fighter.stamina / fighter.maxStamina) * 100));
+  const specialPercent = Math.min(100, Math.max(0, fighter.specialMeter));
 
   const getStaminaColor = (state: StaminaState): string => {
     switch (state) {
@@ -52,7 +52,7 @@ export function FighterDisplay({ fighter, position, isActive }: FighterDisplayPr
             </View>
           )}
         </View>
-        {fighter.isInDefenseMode && (
+        {(fighter.isInDefenseMode || fighter.armedDefenseTrap) && (
           <View style={styles.defenseBadge}>
             <Text style={styles.defenseBadgeText}>🛡️</Text>
           </View>
@@ -137,6 +137,11 @@ export function FighterDisplay({ fighter, position, isActive }: FighterDisplayPr
             </Text>
           </View>
         )}
+        {fighter.armedDefenseTrap ? (
+          <View style={styles.trapContainer}>
+            <Text style={styles.trapText}>{fighter.armedDefenseTrap.name}</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -147,7 +152,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: '#050606',
     gap: 12,
   },
   topContainer: {
@@ -209,6 +214,10 @@ const styles = StyleSheet.create({
   statsContainer: {
     flex: 1,
     gap: 4,
+    backgroundColor: '#050606',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   nameRow: {
     flexDirection: 'row',
@@ -233,7 +242,7 @@ const styles = StyleSheet.create({
   subBarsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 4,
+    marginTop: 6,
   },
   subBarContainer: {
     flex: 1,
@@ -243,14 +252,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   miniBar: {
-    height: 6,
+    height: 10,
     backgroundColor: '#1a1a1a',
-    borderRadius: 3,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   miniBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 5,
   },
   comboContainer: {
     position: 'absolute',
@@ -265,5 +274,20 @@ const styles = StyleSheet.create({
     color: '#050606',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  trapContainer: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(147, 197, 253, 0.45)',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  trapText: {
+    color: '#93c5fd',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

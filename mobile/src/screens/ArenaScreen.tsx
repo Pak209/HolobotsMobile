@@ -15,11 +15,9 @@ import {
   getTierOpponentLineup,
 } from "@/config/arenaConfig";
 import { applyHolobotExperience } from "@/config/holobots";
-import { collection, db, doc, onSnapshot, query, serverTimestamp, updateDoc } from "@/config/firebase";
+import { doc, updateDoc, db } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { incrementArenaBattlesToday } from "@/lib/dailyMissions";
-import { computeLeaderboardScore } from "@/lib/profile";
-import { getSyncRank } from "@/lib/syncProgression";
 import { useArenaBattleStore } from "@/stores/arena-battle-store";
 import type { UserHolobot } from "@/types/profile";
 
@@ -32,32 +30,13 @@ type BattleSetup = {
   tier: ArenaTier;
 };
 
-type PvpStoredPlayer = {
-  battleCards: Record<string, number>;
-  holobot: UserHolobot;
-  userId: string;
-  username: string;
-};
-
-type PvpPresence = {
-  battleCards: Record<string, number>;
-  holobot: UserHolobot;
-  mode: "friend-guest" | "friend-host" | "quick";
-  opponentUserId?: string;
-  roomCode?: string;
-  roomId: string;
-  status: "in-battle" | "ready" | "waiting";
-  updatedAt?: unknown;
-  userId: string;
-  username: string;
-};
-
 export function ArenaScreen() {
   const { profile, user } = useAuth();
   const {
     battleResult,
     canPlayCard,
     currentBattle,
+    getCardAvailabilityMap,
     getPlayableCards,
     isAnimating,
     lastAction,
@@ -67,24 +46,14 @@ export function ArenaScreen() {
     selectedCardId,
     selectCard,
     startBattle,
-    toggleDefenseMode,
   } = useArenaBattleStore();
 
   const [phase, setPhase] = useState<ArenaPhase>("prebattle");
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPvpOpen, setIsPvpOpen] = useState(false);
   const [latestSetup, setLatestSetup] = useState<BattleSetup | null>(null);
-  const [pvpStatus, setPvpStatus] = useState<{
-    accent: string;
-    message: string;
-    roomCode?: string | null;
-  } | null>(null);
   const [roundProgress, setRoundProgress] = useState<{ currentRound: number; totalRounds: number } | null>(null);
   const persistedBattleIdRef = useRef<string | null>(null);
-  const activeBattleHolobotNameRef = useRef<string | null>(null);
-  const pvpQueueUnsubRef = useRef<(() => void) | null>(null);
-  const pvpRoomUnsubRef = useRef<(() => void) | null>(null);
-  const startedPvpRoomIdRef = useRef<string | null>(null);
 
   const holobots = profile?.holobots ?? [];
   const userTokens = profile?.holosTokens ?? 0;
@@ -93,337 +62,9 @@ export function ArenaScreen() {
     () => getPlayableCards().map((card) => card.id),
     [currentBattle, getPlayableCards],
   );
-
-  const stopPvpQueueListener = useCallback(() => {
-    pvpQueueUnsubRef.current?.();
-    pvpQueueUnsubRef.current = null;
-  }, []);
-
-  const stopPvpRoomListener = useCallback(() => {
-    pvpRoomUnsubRef.current?.();
-    pvpRoomUnsubRef.current = null;
-  }, []);
-
-  const clearOwnPvpPresence = useCallback(async () => {
-    if (!user) {
-      return;
-    }
-
-    await updateDoc(doc(db, "users", user.uid), {
-      pvpPresence: null,
-    }).catch(() => undefined);
-  }, [user]);
-
-  const buildPvpPlayer = useCallback(
-    (holobot: UserHolobot): PvpStoredPlayer => ({
-      battleCards: { ...(profile?.battle_cards || {}) },
-      holobot: JSON.parse(JSON.stringify(holobot)) as UserHolobot,
-      userId: user!.uid,
-      username: profile?.username || "Pilot",
-    }),
-    [profile?.battle_cards, profile?.username, user],
-  );
-
-  const updateOwnPvpPresence = useCallback(
-    async (presence: Omit<PvpPresence, "updatedAt" | "userId" | "username">) => {
-      if (!user || !profile) {
-        throw new Error("You must be signed in before entering PVP.");
-      }
-
-      await updateDoc(doc(db, "users", user.uid), {
-        pvpPresence: {
-          ...presence,
-          updatedAt: serverTimestamp(),
-          userId: user.uid,
-          username: profile.username || "Pilot",
-        },
-      });
-    },
-    [profile, user],
-  );
-
-  const startPvpBattleFromRoom = useCallback(
-    async (roomId: string, myPresence: PvpPresence, opponentPresence: PvpPresence) => {
-      if (!user || !profile || startedPvpRoomIdRef.current === roomId) {
-        return;
-      }
-
-      const localHolobot =
-        profile.holobots?.find((holobot) => holobot.name.toUpperCase() === myPresence.holobot.name.toUpperCase()) ||
-        myPresence.holobot;
-
-      startedPvpRoomIdRef.current = roomId;
-      stopPvpQueueListener();
-      stopPvpRoomListener();
-
-      const player = {
-        ...buildPlayerFighter(user.uid, localHolobot),
-        holobotId: `pvp-${user.uid}-${localHolobot.name.toLowerCase()}`,
-      };
-      const opponent = {
-        ...buildPlayerFighter(opponentPresence.userId, opponentPresence.holobot),
-        holobotId: `pvp-${opponentPresence.userId}-${opponentPresence.holobot.name.toLowerCase()}`,
-      };
-
-      persistedBattleIdRef.current = null;
-      activeBattleHolobotNameRef.current = localHolobot.name;
-      setLatestSetup(null);
-      setRoundProgress(null);
-      setPvpStatus(null);
-      setIsPvpOpen(false);
-
-      startBattle(player, opponent, {
-        allowPlayerControl: true,
-        battleType: "pvp",
-        difficulty: "medium",
-        opponentBattleCards: opponentPresence.battleCards,
-        opponentHolobotId: opponent.holobotId,
-        playerBattleCards: profile.battle_cards,
-        playerHolobotId: player.holobotId,
-        potentialRewards: {
-          exp: 140,
-          holos: 120,
-          syncPoints: 90,
-        },
-      });
-      setPhase("battle");
-
-      await updateOwnPvpPresence({
-        ...myPresence,
-        status: "in-battle",
-      }).catch(() => undefined);
-    },
-    [profile, startBattle, stopPvpQueueListener, stopPvpRoomListener, updateOwnPvpPresence, user],
-  );
-
-  const watchPvpRoom = useCallback(
-    (roomId: string, waitingMessage: string, roomCode?: string) => {
-      if (!user) {
-        return;
-      }
-
-      stopPvpRoomListener();
-      pvpRoomUnsubRef.current = onSnapshot(query(collection(db, "users")), (snapshot) => {
-        const users = snapshot.docs.map((entry) => ({
-          id: entry.id,
-          ...(entry.data() as { pvpPresence?: PvpPresence }),
-        }));
-        const me = users.find((entry) => entry.id === user.uid)?.pvpPresence;
-
-        if (!me || me.roomId !== roomId) {
-          return;
-        }
-
-        if (!me.opponentUserId) {
-          const waitingOpponent = users
-            .filter((entry) => entry.id !== user.uid)
-            .map((entry) => entry.pvpPresence)
-            .find((presence) => presence?.roomId === roomId && presence.status !== "waiting" ? true : presence?.roomId === roomId);
-
-          if (waitingOpponent) {
-            void updateOwnPvpPresence({
-              ...me,
-              opponentUserId: waitingOpponent.userId,
-              status: "ready",
-            }).catch(() => undefined);
-          } else {
-            setPvpStatus({
-              accent: roomCode ? "#ae4cff" : "#17d9ff",
-              message: waitingMessage,
-              roomCode: roomCode || null,
-            });
-          }
-          return;
-        }
-
-        const opponent = users
-          .filter((entry) => entry.id !== user.uid)
-          .map((entry) => entry.pvpPresence)
-          .find((presence) => presence?.roomId === roomId && presence.userId === me.opponentUserId);
-
-        if (!opponent || (opponent.status !== "ready" && opponent.status !== "in-battle")) {
-          setPvpStatus({
-            accent: roomCode ? "#ae4cff" : "#17d9ff",
-            message: waitingMessage,
-            roomCode: roomCode || null,
-          });
-          return;
-        }
-
-        if (me.status === "waiting") {
-          void updateOwnPvpPresence({
-            ...me,
-            status: "ready",
-          }).catch(() => undefined);
-          return;
-        }
-
-        if (me.status === "ready" || me.status === "in-battle") {
-          void startPvpBattleFromRoom(roomId, me, opponent);
-        }
-      });
-    },
-    [startPvpBattleFromRoom, stopPvpRoomListener, updateOwnPvpPresence, user],
-  );
-
-  const handleQuickMatch = useCallback(
-    async (selectedHolobot: UserHolobot) => {
-      if (!user || !profile) {
-        Alert.alert("Sign In Required", "Please sign in before entering PVP.");
-        return;
-      }
-
-      try {
-        startedPvpRoomIdRef.current = null;
-        setPvpStatus({
-          accent: "#17d9ff",
-          message: "Searching the queue for another pilot.",
-        });
-
-        await updateOwnPvpPresence({
-          ...buildPvpPlayer(selectedHolobot),
-          mode: "quick",
-          roomId: `quick_wait_${user.uid}`,
-          status: "waiting",
-        });
-
-        stopPvpQueueListener();
-        pvpQueueUnsubRef.current = onSnapshot(query(collection(db, "users")), (snapshot) => {
-          const users = snapshot.docs.map((entry) => ({
-            id: entry.id,
-            ...(entry.data() as { pvpPresence?: PvpPresence }),
-          }));
-          const me = users.find((entry) => entry.id === user.uid)?.pvpPresence;
-
-          if (!me || me.mode !== "quick" || me.status === "in-battle") {
-            return;
-          }
-
-          if (me.opponentUserId && me.roomId.startsWith("quick_")) {
-            watchPvpRoom(me.roomId, "Match found. Syncing both pilots into the arena.");
-            return;
-          }
-
-          const opponent = users
-            .filter((entry) => entry.id !== user.uid)
-            .map((entry) => entry.pvpPresence)
-            .find((presence) => presence?.mode === "quick" && presence.status === "waiting");
-
-          if (!opponent) {
-            return;
-          }
-
-          const roomId = `quick_${[user.uid, opponent.userId].sort().join("_")}`;
-          void updateOwnPvpPresence({
-            ...me,
-            opponentUserId: opponent.userId,
-            roomId,
-            status: "ready",
-          }).catch((error) => {
-            console.error("[Arena] Quick match ready failed", error);
-          });
-
-          watchPvpRoom(roomId, "Match found. Syncing both pilots into the arena.");
-        });
-      } catch (error) {
-        console.error("[Arena] Quick match failed", error);
-        Alert.alert("Quick Match Failed", error instanceof Error ? error.message : "Please try again.");
-      }
-    },
-    [buildPvpPlayer, profile, stopPvpQueueListener, updateOwnPvpPresence, user, watchPvpRoom],
-  );
-
-  const handleCreateFriendRoom = useCallback(
-    async (selectedHolobot: UserHolobot, roomCode: string) => {
-      if (!user || !profile) {
-        Alert.alert("Sign In Required", "Please sign in before creating a PVP room.");
-        return;
-      }
-
-      try {
-        startedPvpRoomIdRef.current = null;
-        const normalizedCode = roomCode.trim().toUpperCase();
-        const roomId = `friend_${normalizedCode}`;
-
-        await updateOwnPvpPresence({
-          ...buildPvpPlayer(selectedHolobot),
-          mode: "friend-host",
-          roomCode: normalizedCode,
-          roomId,
-          status: "waiting",
-        });
-
-        setPvpStatus({
-          accent: "#ae4cff",
-          message: "Room created. Share this code with your friend and stay ready.",
-          roomCode: normalizedCode,
-        });
-        watchPvpRoom(roomId, "Waiting for your friend to join this room.", normalizedCode);
-      } catch (error) {
-        console.error("[Arena] Create friend room failed", error);
-        Alert.alert("Create Room Failed", error instanceof Error ? error.message : "Please try again.");
-      }
-    },
-    [buildPvpPlayer, profile, updateOwnPvpPresence, user, watchPvpRoom],
-  );
-
-  const handleJoinFriendRoom = useCallback(
-    async (selectedHolobot: UserHolobot, roomCode: string) => {
-      if (!user || !profile) {
-        Alert.alert("Sign In Required", "Please sign in before joining a PVP room.");
-        return;
-      }
-
-      try {
-        const normalizedCode = roomCode.trim().toUpperCase();
-        const roomId = `friend_${normalizedCode}`;
-
-        stopPvpQueueListener();
-        stopPvpRoomListener();
-
-        pvpRoomUnsubRef.current = onSnapshot(query(collection(db, "users")), (snapshot) => {
-          const users = snapshot.docs.map((entry) => ({
-            id: entry.id,
-            ...(entry.data() as { pvpPresence?: PvpPresence }),
-          }));
-          const host = users
-            .filter((entry) => entry.id !== user.uid)
-            .map((entry) => entry.pvpPresence)
-            .find(
-              (presence) =>
-                presence?.mode === "friend-host" &&
-                presence.roomCode === normalizedCode &&
-                (presence.status === "waiting" || presence.status === "ready" || presence.status === "in-battle"),
-            );
-
-          if (!host) {
-            setPvpStatus({
-              accent: "#17d9ff",
-              message: `Looking for room ${normalizedCode}.`,
-              roomCode: normalizedCode,
-            });
-            return;
-          }
-
-          void updateOwnPvpPresence({
-            ...buildPvpPlayer(selectedHolobot),
-            mode: "friend-guest",
-            opponentUserId: host.userId,
-            roomCode: normalizedCode,
-            roomId,
-            status: "ready",
-          }).catch((error) => {
-            console.error("[Arena] Join room failed", error);
-          });
-
-          watchPvpRoom(roomId, `Joining room ${normalizedCode}. Syncing battle data now.`, normalizedCode);
-        });
-      } catch (error) {
-        console.error("[Arena] Join friend room failed", error);
-        Alert.alert("Join Room Failed", error instanceof Error ? error.message : "Please try again.");
-      }
-    },
-    [buildPvpPlayer, profile, stopPvpQueueListener, stopPvpRoomListener, updateOwnPvpPresence, user, watchPvpRoom],
+  const cardAvailability = useMemo(
+    () => getCardAvailabilityMap(),
+    [currentBattle, getCardAvailabilityMap],
   );
 
   const persistBattleOutcome = useCallback(async () => {
@@ -443,7 +84,7 @@ export function ArenaScreen() {
     const rewardHolos = battleResult.rewards.holos || 0;
     const rewardBlueprints = battleResult.rewards.blueprintRewards || [];
     const userRef = doc(db, "users", user.uid);
-    const selectedHolobotName = activeBattleHolobotNameRef.current;
+    const selectedHolobotName = latestSetup?.selectedHolobot.name;
     const updatedHolobots = (profile.holobots || []).map((holobot) => {
       if (holobot.name !== selectedHolobotName) {
         return holobot;
@@ -457,37 +98,22 @@ export function ArenaScreen() {
       updatedBlueprints[reward.holobotKey] = (updatedBlueprints[reward.holobotKey] || 0) + reward.amount;
     }
     const updatedRewardSystem = incrementArenaBattlesToday(profile.rewardSystem);
-    const nextWins = (profile.stats?.wins || 0) + (didWin ? 1 : 0);
-    const nextLosses = (profile.stats?.losses || 0) + (didWin ? 0 : 1);
-    const nextSyncPoints = (profile.syncPoints || 0) + rewardSyncPoints;
-    const nextLifetimeSyncPoints = (profile.lifetimeSyncPoints || 0) + rewardSyncPoints;
-    const nextSeasonSyncPoints = (profile.seasonSyncPoints || 0) + rewardSyncPoints;
-    const nextLeaderboardScore = computeLeaderboardScore({
-      holobots: updatedHolobots,
-      prestigeCount: profile.prestigeCount || 0,
-      seasonSyncPoints: nextSeasonSyncPoints,
-      wins: nextWins,
-    });
 
     try {
       await updateDoc(userRef, {
         blueprints: updatedBlueprints,
         holobots: updatedHolobots,
         holosTokens: (profile.holosTokens || 0) + rewardHolos,
-        leaderboardScore: nextLeaderboardScore,
-        lifetimeSyncPoints: nextLifetimeSyncPoints,
-        losses: nextLosses,
+        losses: (profile.stats?.losses || 0) + (didWin ? 0 : 1),
         rewardSystem: updatedRewardSystem,
-        seasonSyncPoints: nextSeasonSyncPoints,
-        syncRank: getSyncRank(nextLifetimeSyncPoints),
-        syncPoints: nextSyncPoints,
-        wins: nextWins,
+        syncPoints: (profile.syncPoints || 0) + rewardSyncPoints,
+        wins: (profile.stats?.wins || 0) + (didWin ? 1 : 0),
       });
     } catch (error) {
       console.error("[Arena] Failed to persist battle rewards", error);
       Alert.alert("Arena Sync Failed", "The battle finished, but the rewards could not be saved yet.");
     }
-  }, [battleResult, currentBattle, profile, user]);
+  }, [battleResult, currentBattle, latestSetup?.selectedHolobot.name, profile, user]);
 
   useEffect(() => {
     if (battleResult && currentBattle) {
@@ -495,15 +121,6 @@ export function ArenaScreen() {
       void persistBattleOutcome();
     }
   }, [battleResult, currentBattle, persistBattleOutcome]);
-
-  useEffect(
-    () => () => {
-      stopPvpQueueListener();
-      stopPvpRoomListener();
-      void clearOwnPvpPresence();
-    },
-    [clearOwnPvpPresence, stopPvpQueueListener, stopPvpRoomListener],
-  );
 
   const startTierRound = useCallback(
     async ({ selectedHolobot, tier, paymentMethod, roundIndex }: BattleSetup, shouldChargeEntry: boolean) => {
@@ -546,7 +163,6 @@ export function ArenaScreen() {
         const opponent = buildOpponentFighter(tier, selectedHolobot.name, roundIndex);
 
         persistedBattleIdRef.current = null;
-        activeBattleHolobotNameRef.current = selectedHolobot.name;
         setLatestSetup({ paymentMethod, selectedHolobot, tier, roundIndex });
         setRoundProgress({ currentRound: roundIndex + 1, totalRounds: getTierOpponentLineup(tier, selectedHolobot.name).length });
         startBattle(player, opponent, {
@@ -580,11 +196,8 @@ export function ArenaScreen() {
   const handleExitResults = useCallback(() => {
     resetBattle();
     setPhase("prebattle");
-    activeBattleHolobotNameRef.current = null;
     persistedBattleIdRef.current = null;
     setRoundProgress(null);
-    setPvpStatus(null);
-    void clearOwnPvpPresence();
   }, [resetBattle]);
 
   const handleRematch = useCallback(async () => {
@@ -594,7 +207,6 @@ export function ArenaScreen() {
     persistedBattleIdRef.current = null;
 
     if (!setup) {
-      activeBattleHolobotNameRef.current = null;
       setPhase("prebattle");
       return;
     }
@@ -624,9 +236,7 @@ export function ArenaScreen() {
 
   return (
     <View style={styles.page}>
-      {phase === "prebattle" ? (
-        <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} showSettings={false} showStats={false} />
-      ) : null}
+      <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} />
 
       {phase === "prebattle" || !currentBattle ? (
         <ArenaPrebattleMenu
@@ -640,9 +250,9 @@ export function ArenaScreen() {
       {phase === "battle" && currentBattle ? (
         <BattleArenaView
           battle={currentBattle}
-          roundProgress={roundProgress}
           playerCards={playerCards}
           playableCardIds={playableCardIds}
+          cardAvailability={cardAvailability}
           selectedCardId={selectedCardId}
           lastAction={lastAction}
           isAnimating={isAnimating}
@@ -652,7 +262,6 @@ export function ArenaScreen() {
               playCard(cardId);
             }
           }}
-          onDefenseToggle={toggleDefenseMode}
         />
       ) : null}
 
@@ -677,12 +286,6 @@ export function ArenaScreen() {
       <PvpArenaModal
         visible={isPvpOpen}
         onClose={() => setIsPvpOpen(false)}
-        onCreateRoom={handleCreateFriendRoom}
-        onJoinRoom={handleJoinFriendRoom}
-        onQuickMatch={handleQuickMatch}
-        statusAccent={pvpStatus?.accent}
-        statusMessage={pvpStatus?.message}
-        statusRoomCode={pvpStatus?.roomCode}
         userHolobots={holobots}
       />
     </View>

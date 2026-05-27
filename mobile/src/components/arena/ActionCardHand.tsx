@@ -7,10 +7,12 @@ import {
   ScrollView,
 } from 'react-native';
 import type { ActionCard, CardType } from '../../types/arena';
+import type { ArenaCardAvailability } from '../../features/arena/arenaCards';
 
 interface ActionCardHandProps {
   cards: ActionCard[];
   playableCardIds: string[];
+  cardAvailability: Record<string, ArenaCardAvailability>;
   selectedCardId: string | null;
   onCardSelect: (cardId: string) => void;
   onCardPlay: (cardId: string) => void;
@@ -20,6 +22,7 @@ interface ActionCardHandProps {
 export function ActionCardHand({
   cards,
   playableCardIds,
+  cardAvailability,
   selectedCardId: _selectedCardId,
   onCardSelect: _onCardSelect,
   onCardPlay,
@@ -57,7 +60,22 @@ export function ActionCardHand({
       >
         {cards.map((card) => {
           const isPlayable = playableCardIds.includes(card.id);
+          const availability = cardAvailability[card.id];
           const colors = getCardTypeColor(card.type);
+          const reasonLabel =
+            availability?.reason === 'cooldown'
+              ? `CD ${availability.cooldownTurns}`
+              : availability?.reason === 'stamina'
+                ? 'LOW STA'
+                : availability?.reason === 'combo'
+                  ? 'NEEDS COMBO'
+                  : availability?.reason === 'special_meter'
+                    ? 'NEEDS METER'
+                    : availability?.reason === 'opponent_state'
+                      ? 'TARGET SAFE'
+                      : availability?.reason === 'defense_lock'
+                        ? 'LOCKED'
+                        : null;
 
           return (
             <TouchableOpacity
@@ -69,7 +87,7 @@ export function ActionCardHand({
                 {
                   backgroundColor: colors.bg,
                   borderColor: colors.border,
-                  opacity: isPlayable ? 1 : 0.4,
+                  opacity: isPlayable ? 1 : 0.45,
                 },
               ]}
             >
@@ -100,6 +118,10 @@ export function ActionCardHand({
               {isPlayable && !disabled ? (
                 <View style={styles.tapToPlay}>
                   <Text style={styles.tapToPlayText}>PLAY</Text>
+                </View>
+              ) : reasonLabel ? (
+                <View style={styles.lockedBadge}>
+                  <Text style={styles.lockedBadgeText}>{reasonLabel}</Text>
                 </View>
               ) : null}
             </TouchableOpacity>
@@ -232,6 +254,23 @@ const styles = StyleSheet.create({
     color: '#050606',
     fontSize: 8,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  lockedBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    backgroundColor: 'rgba(5, 6, 6, 0.82)',
+    borderRadius: 4,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  lockedBadgeText: {
+    color: '#d1d5db',
+    fontSize: 8,
+    fontWeight: '700',
     textAlign: 'center',
   },
   legend: {

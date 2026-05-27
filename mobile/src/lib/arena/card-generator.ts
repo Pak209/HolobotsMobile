@@ -98,7 +98,7 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
   // DEFENSE
   block: {
     templateId: 'block',
-    name: 'Block',
+    name: 'Guard Protocol',
     type: 'defense',
     staminaCost: 1,
     baseDamage: 0,
@@ -106,14 +106,15 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
     requirements: [],
     effects: [{ type: 'status', target: 'self', value: 1, duration: 1 }],
     animationId: 'defense_block',
-    description: 'Raise guard. Reduces incoming damage.',
+    description: 'Arms a guard trap that reduces the next incoming hit.',
     iconName: 'shield',
+    tier: 'common',
   },
   slip: {
     templateId: 'slip',
-    name: 'Slip',
+    name: 'Evasion Step',
     type: 'defense',
-    staminaCost: 1,
+    staminaCost: 2,
     baseDamage: 0,
     speedModifier: 1.4,
     requirements: [],
@@ -122,14 +123,15 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
       { type: 'combo_enable', target: 'self', value: 1 },
     ],
     animationId: 'defense_slip',
-    description: 'Evade strike by moving head. Opens counter window.',
+    description: 'Arms an evade trap with a strong chance to avoid the next attack.',
     iconName: 'move',
+    tier: 'rare',
   },
   parry: {
     templateId: 'parry',
-    name: 'Parry',
+    name: 'Counter Guard',
     type: 'defense',
-    staminaCost: 2,
+    staminaCost: 3,
     baseDamage: 0,
     speedModifier: 1.2,
     requirements: [],
@@ -138,21 +140,23 @@ const CARD_TEMPLATES: Record<string, Omit<ActionCard, 'id'>> = {
       { type: 'stamina_gain', target: 'self', value: 2 },
     ],
     animationId: 'defense_parry',
-    description: 'Redirect attack. Perfect timing recovers stamina.',
+    description: 'Arms a counter trap that softens the hit and returns damage.',
     iconName: 'repeat',
+    tier: 'epic',
   },
   roll: {
     templateId: 'roll',
-    name: 'Roll',
+    name: 'Perfect Reversal',
     type: 'defense',
-    staminaCost: 2,
+    staminaCost: 4,
     baseDamage: 0,
     speedModifier: 1.1,
     requirements: [],
     effects: [{ type: 'status', target: 'self', value: 1, duration: 2 }],
     animationId: 'defense_roll',
-    description: 'Bob and weave through strikes. Longer defense window.',
+    description: 'Arms a legendary reversal trap that fully negates and punishes the next hit.',
     iconName: 'refresh-cw',
+    tier: 'legendary',
   },
 
   // COMBOS
@@ -335,6 +339,7 @@ export class CardPoolGenerator {
   static getPlayableCards(cards: ActionCard[], fighter: ArenaFighter): ActionCard[] {
     return cards.filter(card => {
       if (fighter.stamina < card.staminaCost) return false;
+      if (card.type === 'defense' && (fighter.defenseCooldownUntil || 0) > Date.now()) return false;
 
       for (const req of card.requirements) {
         switch (req.type) {
