@@ -259,31 +259,15 @@ export function HomeScreen() {
             d={`M 110.2 ${HOME_INFO_CARD_Y} H 814.6 V ${HOME_INFO_CARD_Y + 231.1} L 699.7 ${HOME_INFO_CARD_Y + 347.1} H 110.2 Z`}
             fill="#050606"
           />
-          <Image
-            href={homeAssets.mechCardFill}
-            x={110.2}
-            y={HOME_INFO_CARD_Y}
-            width={704.418}
-            height={347.163}
-            preserveAspectRatio="none"
-          />
           <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill="#ffffff" fontSize={49.915}>{selectedHolobot.name}</Text>
-          <Image href={homeAssets.expBarTotal} x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} preserveAspectRatio="none" />
-          <Image href={homeAssets.expBarProgress} x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} preserveAspectRatio="none" />
+          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill="#171717" />
+          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill="#f4c312" />
           <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill="#ffffff" fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
           <Text x={141} y={HOME_INFO_CARD_Y + 268.92} fill="#ffffff" fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
 
           <Path
             d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
             fill="#050606"
-          />
-          <Image
-            href={homeAssets.changeBar}
-            x={815}
-            y={HOME_CHANGE_BAR_Y}
-            width={862.5}
-            height={112.5}
-            preserveAspectRatio="none"
           />
           <Image href={homeAssets.changeIconBack} x={1511} y={HOME_CHANGE_BAR_Y - 78.75} width={168} height={159} preserveAspectRatio="none" />
           <Image href={homeAssets.changeIconFront} x={1491} y={HOME_CHANGE_BAR_Y - 98.75} width={218} height={211} preserveAspectRatio="none" />
