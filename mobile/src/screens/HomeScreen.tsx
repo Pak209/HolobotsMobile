@@ -9,7 +9,7 @@ import { UserStatsModal } from "@/components/UserStatsModal";
 import { Svg, G, Image, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, homeAssets } from "@/config/figmaAssets";
 import { getPartImageSource } from "@/config/gameAssets";
-import { getExpProgress, mergeHolobotRoster } from "@/config/holobots";
+import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import type { RootTabs } from "../../App";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
@@ -414,7 +414,7 @@ export function HomeScreen() {
           </Pressable>
         </View>
         <View pointerEvents="none" style={styles.holobotPortrait}>
-          <RNImage source={selectedHolobot.imageSource} style={styles.fillImage} resizeMode="contain" />
+          <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" />
         </View>
         {abilitySlots.map(({ part, x }, index) => {
           const source = getPartImageSource(part?.name, part?.slot);

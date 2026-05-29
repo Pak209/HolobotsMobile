@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image as RNImage,
   Modal,
@@ -12,10 +12,9 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
 import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
-import { SyncRewardsModal } from "@/components/fitness/SyncRewardsModal";
 import { Svg, Defs, G, Image, Mask, Path, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, fitnessAssets } from "@/config/figmaAssets";
-import { applyHolobotExperience, getExpProgress, mergeHolobotRoster } from "@/config/holobots";
+import { applyHolobotExperience, getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
 import { computeLeaderboardScore } from "@/lib/profile";
@@ -53,18 +52,6 @@ function formatSyncBoostCopy(boostCount: number, unit: DistanceUnit) {
   return `+${boostCount * 100} SP BOOST (${boostCount} ${unitLabel})`;
 }
 
-function formatCooldownCopy(remainingMinutes: number, sessionsRemaining: number) {
-  if (sessionsRemaining <= 0) {
-    return "Daily Sync limit reached. More workouts reset tomorrow.";
-  }
-
-  if (remainingMinutes <= 0) {
-    return "Next workout is ready now.";
-  }
-
-  return `Next Sync workout unlocks in ${remainingMinutes} min. Quick Refill skips the wait.`;
-}
-
 export function FitnessScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const { user, profile, updateProfile } = useAuth();
@@ -72,6 +59,7 @@ export function FitnessScreen() {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [localDistanceUnit, setLocalDistanceUnit] = useState<DistanceUnit>("km");
+  const autoCollectedCompletionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (profile?.syncDistanceUnit) {
@@ -81,7 +69,7 @@ export function FitnessScreen() {
 
   const distanceUnit = profile?.syncDistanceUnit ?? localDistanceUnit;
   const workout = useWorkout(user?.uid ?? null, distanceUnit);
-  const roster = useMemo(() => mergeHolobotRoster(profile?.holobots), [profile?.holobots]);
+  const roster = useMemo(() => mergeHolobotRoster(profile?.holobots, "full"), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
   const displayDistance = distanceUnit === "mi" ? workout.displayDistanceKm * KM_TO_MILES : workout.displayDistanceKm;
   const displaySpeed = distanceUnit === "mi" ? workout.liveSpeedKmh * KM_TO_MILES : workout.liveSpeedKmh;
@@ -102,12 +90,6 @@ export function FitnessScreen() {
   };
 
   const completionResult = workout.completionResult;
-  const rewardCooldownCopy = completionResult
-    ? formatCooldownCopy(workout.cooldownRemainingMinutes, completionResult.sessionsRemaining)
-    : "";
-  const rewardSessionsCopy = completionResult
-    ? `${completionResult.sessionsCompleted}/4 workouts completed today`
-    : "";
   const boostedExpReward = completionResult ? Math.round(completionResult.expReward * syncBoostMultiplier) : 0;
   const syncBoostCopy = formatSyncBoostCopy(workout.syncPointBoostCount, distanceUnit);
   const goLabel = workout.isRunning
@@ -189,16 +171,14 @@ export function FitnessScreen() {
     }
   };
 
-  const handleRewardQuickRefill = async () => {
-    const saved = await persistWorkoutRewards();
-    if (!saved) {
+  useEffect(() => {
+    if (!completionResult || autoCollectedCompletionIdRef.current === completionResult.id) {
       return;
     }
 
-    workout.continueQuickRefillChain();
-    await workout.unlockQuickRefill();
-    await workout.toggleRunning();
-  };
+    autoCollectedCompletionIdRef.current = completionResult.id;
+    void handleCollectRewards();
+  }, [completionResult]);
 
   return (
     <FigmaCanvas>
@@ -361,7 +341,7 @@ export function FitnessScreen() {
           style={styles.changeHolobotHotspot}
         />
         <View pointerEvents="none" style={styles.holobotPortrait}>
-          <RNImage source={selectedHolobot.imageSource} style={styles.fillImage} resizeMode="contain" />
+          <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" />
         </View>
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
@@ -372,19 +352,6 @@ export function FitnessScreen() {
           roster={roster}
           selectedIndex={selectedHolobotIndex}
           visible={isPickerOpen}
-        />
-        <SyncRewardsModal
-          canQuickRefill={workout.canQuickRefill}
-          cooldownCopy={rewardCooldownCopy}
-          onClose={() => void handleCollectRewards()}
-          onQuickRefill={() => void handleRewardQuickRefill()}
-          rewards={{
-            exp: boostedExpReward,
-            holos: completionResult?.holosReward ?? 0,
-            syncPoints: completionResult?.syncPointsReward ?? 0,
-          }}
-          sessionsCopy={rewardSessionsCopy}
-          visible={Boolean(completionResult)}
         />
         <Modal
           animationType="fade"
