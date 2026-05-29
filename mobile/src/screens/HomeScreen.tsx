@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View, type DimensionValue, type ImageSourcePropType } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 import { DashboardSettingsModal } from "@/components/DashboardSettingsModal";
 import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
-import { Svg, G, Image, Line, Path, Rect, Text } from "@/components/FigmaSvg";
+import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, homeAssets } from "@/config/figmaAssets";
 import { getPartImageSource } from "@/config/gameAssets";
 import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
@@ -127,20 +127,37 @@ function resolveDashboardParts(equippedParts: Record<string, EquippedPartRecord>
   return [head, torso, armParts[0] ?? null, fourthPart, core];
 }
 
-function AbilityChip({
-  background,
+function getArtboardFrame(x: number, y: number, width: number, height: number) {
+  return {
+    left: `${(x / ARTBOARD_WIDTH) * 100}%` as DimensionValue,
+    top: `${(y / ARTBOARD_HEIGHT) * 100}%` as DimensionValue,
+    width: `${(width / ARTBOARD_WIDTH) * 100}%` as DimensionValue,
+    height: `${(height / ARTBOARD_HEIGHT) * 100}%` as DimensionValue,
+  };
+}
+
+function ArtImage({
   height,
-  x,
+  resizeMode = "stretch",
+  source,
   width,
+  x,
   y,
+  zIndex = 1,
 }: {
-  background: string;
   height: number;
-  x: number;
+  resizeMode?: "contain" | "cover" | "stretch";
+  source: ImageSourcePropType;
   width: number;
+  x: number;
   y: number;
+  zIndex?: number;
 }) {
-  return <Image href={background} x={x} y={y} width={width} height={height} preserveAspectRatio="none" />;
+  return (
+    <View pointerEvents="none" style={[styles.artImageFrame, getArtboardFrame(x, y, width, height), { zIndex }]}>
+      <RNImage source={source} style={styles.fillImage} resizeMode={resizeMode} />
+    </View>
+  );
 }
 
 export function HomeScreen() {
@@ -201,13 +218,25 @@ export function HomeScreen() {
   return (
     <FigmaCanvas>
       <View style={StyleSheet.absoluteFill}>
-        <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`}>
-          <Image href={homeAssets.backgroundBase} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
-          <Image href={homeAssets.backgroundDetail} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
-          <Image href={homeAssets.topBackground} x={0} y={100} width={1800} height={409} preserveAspectRatio="none" />
+        <ArtImage source={homeAssets.backgroundBase} x={0} y={0} width={1800} height={3200} />
+        <ArtImage source={homeAssets.backgroundDetail} x={0} y={0} width={1800} height={3200} />
+        <ArtImage source={homeAssets.topBackground} x={0} y={100} width={1800} height={409} />
+        <ArtImage source={homeAssets.attributeChartBase} x={0} y={628} width={825} height={971} zIndex={2} />
+        {abilitySlots.map(({ part, x }, index) => (
+          <ArtImage
+            key={`ability-bg-${part?.name || "empty"}:${index}`}
+            source={index % 2 === 0 ? homeAssets.abilityChipBackground1 : homeAssets.abilityChipBackground3}
+            x={x}
+            y={DASHBOARD_SLOT_Y}
+            width={DASHBOARD_SLOT_WIDTH}
+            height={DASHBOARD_SLOT_HEIGHT}
+            zIndex={2}
+          />
+        ))}
+        <ArtImage source={homeAssets.bottomBackground} x={0} y={2375} width={1800} height={857} zIndex={2} />
+        <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
           <Text x={126} y={228} fill="#fef1e0" fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
 
-          <Image href={homeAssets.attributeChartBase} x={0} y={628} width={825} height={971} preserveAspectRatio="none" />
           <G>
             {[0.2, 0.4, 0.6, 0.8].map((scale) => (
               <Path
@@ -269,36 +298,20 @@ export function HomeScreen() {
             d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
             fill="#050606"
           />
-          <Image href={homeAssets.changeIconBack} x={1511} y={HOME_CHANGE_BAR_Y - 78.75} width={168} height={159} preserveAspectRatio="none" />
-          <Image href={homeAssets.changeIconFront} x={1491} y={HOME_CHANGE_BAR_Y - 98.75} width={218} height={211} preserveAspectRatio="none" />
           <Text x={902} y={HOME_CHANGE_BAR_Y + 62.5} fill="#e9dfc5" fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
 
-          {abilitySlots.map(({ part, x }, index) => {
-            const background = index % 2 === 0 ? homeAssets.abilityChipBackground1 : homeAssets.abilityChipBackground3;
-
-            return (
-              <AbilityChip
-                key={`${part?.name || "empty"}:${index}`}
-                background={background}
-                x={x}
-                y={DASHBOARD_SLOT_Y}
-                width={DASHBOARD_SLOT_WIDTH}
-                height={DASHBOARD_SLOT_HEIGHT}
-              />
-            );
-          })}
-
-          <Image href={homeAssets.bottomBackground} x={0} y={2375} width={1800} height={857} preserveAspectRatio="none" />
           <Rect x={0} y={2942} width={1800} height={258} fill="#050606" />
-          <Image href={homeAssets.arenaIcon} x={-50} y={2638} width={432} height={392} preserveAspectRatio="xMidYMid meet" />
           <Text x={210} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">ARENA</Text>
-          <Image href={homeAssets.inventoryIcon} x={462} y={2680} width={320} height={320} preserveAspectRatio="xMidYMid meet" />
           <Text x={622} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">INVENTORY</Text>
-          <Image href={homeAssets.syncIcon} x={858} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
           <Text x={1008} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">SYNC</Text>
-          <Image href={homeAssets.marketplaceIcon} x={1248} y={2690} width={300} height={300} preserveAspectRatio="xMidYMid meet" />
           <Text x={1398} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">MARKET</Text>
         </Svg>
+        <ArtImage source={homeAssets.changeIconBack} x={1511} y={HOME_CHANGE_BAR_Y - 78.75} width={168} height={159} zIndex={11} />
+        <ArtImage source={homeAssets.changeIconFront} x={1491} y={HOME_CHANGE_BAR_Y - 98.75} width={218} height={211} zIndex={12} />
+        <ArtImage source={homeAssets.arenaIcon} x={-50} y={2638} width={432} height={392} resizeMode="contain" zIndex={11} />
+        <ArtImage source={homeAssets.inventoryIcon} x={462} y={2680} width={320} height={320} resizeMode="contain" zIndex={11} />
+        <ArtImage source={homeAssets.syncIcon} x={858} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
+        <ArtImage source={homeAssets.marketplaceIcon} x={1248} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
 
         <Pressable
           style={styles.syncHotspot}
@@ -534,6 +547,13 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  artImageFrame: {
+    position: "absolute",
+  },
+  vectorLayer: {
+    position: "absolute",
+    zIndex: 10,
+  },
   arenaHotspot: {
     position: "absolute",
     left: "4%",
@@ -599,12 +619,14 @@ const styles = StyleSheet.create({
     top: "20.75%",
     width: "44.5%",
     height: "34.5%",
+    zIndex: 20,
   },
   partOverlay: {
     position: "absolute",
     top: `${((DASHBOARD_SLOT_Y + 24) / ARTBOARD_HEIGHT) * 100}%`,
     width: `${(DASHBOARD_SLOT_OVERLAY_WIDTH / ARTBOARD_WIDTH) * 100}%`,
     height: `${(DASHBOARD_SLOT_OVERLAY_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
+    zIndex: 20,
   },
   partHotspot: {
     position: "absolute",
