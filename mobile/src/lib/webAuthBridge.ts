@@ -1,5 +1,7 @@
 import { auth, httpsCallable, functions } from "@/config/firebase";
 
+export { ALLOWED_BRIDGE_HOSTS, isAllowedBridgeOrigin } from "@/lib/security/bridgeOrigin";
+
 type CreateWebviewBridgeTokenResponse = {
   token: string;
 };
