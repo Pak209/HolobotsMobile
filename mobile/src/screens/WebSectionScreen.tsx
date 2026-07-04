@@ -3,7 +3,11 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 import { HomeCogButton } from "@/components/HomeCogButton";
-import { buildBridgeInjectionScript, getWebviewBridgeToken } from "@/lib/webAuthBridge";
+import {
+  buildBridgeInjectionScript,
+  getWebviewBridgeToken,
+  isAllowedBridgeOrigin,
+} from "@/lib/webAuthBridge";
 
 type WebSectionScreenProps = {
   uri: string;
@@ -14,6 +18,8 @@ export function WebSectionScreen({ uri }: WebSectionScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const uriIsTrusted = useMemo(() => isAllowedBridgeOrigin(uri), [uri]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -21,6 +27,12 @@ export function WebSectionScreen({ uri }: WebSectionScreenProps) {
       try {
         setLoading(true);
         setError(null);
+
+        // Never mint or inject a session token for an untrusted destination.
+        if (!isAllowedBridgeOrigin(uri)) {
+          throw new Error("This section points to an untrusted address and was blocked.");
+        }
+
         const token = await getWebviewBridgeToken();
 
         if (isMounted) {
@@ -64,11 +76,17 @@ export function WebSectionScreen({ uri }: WebSectionScreenProps) {
           <Text style={styles.errorCopy}>{error}</Text>
         </View>
       ) : null}
-      {!error ? (
+      {!error && uriIsTrusted ? (
         <WebView
           injectedJavaScriptBeforeContentLoaded={injectedBridge}
           source={{ uri }}
           style={styles.webview}
+          originWhitelist={["https://*"]}
+          setSupportMultipleWindows={false}
+          javaScriptCanOpenWindowsAutomatically={false}
+          // Keep navigation (and therefore the injected token) confined to the
+          // trusted host. Anything else is opened out of the token context.
+          onShouldStartLoadWithRequest={(request) => isAllowedBridgeOrigin(request.url)}
         />
       ) : null}
     </View>
