@@ -13,6 +13,69 @@ const db = admin.firestore();
 const auth = admin.auth();
 const DAILY_WORKOUT_CAP = 4;
 
+// Maximum number of workout events accepted in a single sync call (anti-DoS /
+// anti mass-write). A device can never legitimately buffer more than a handful.
+const MAX_WORKOUTS_PER_CALL = 25;
+
+// ---------------------------------------------------------------------------
+// Server-side reward clamping (mirror of
+// mobile/src/lib/security/workoutRewardLimits.ts — keep the two in sync).
+//
+// The client fully controls the workout payload, so reward amounts are clamped
+// to what the reported (also clamped) activity can justify. A client may
+// under-report but can never over-report. See SECURITY_AUDIT.md (H1).
+// ---------------------------------------------------------------------------
+const STEPS_PER_SYNC_POINT = 1000;
+const HOLOS_PER_KM = 12;
+const EXP_PER_KM = 280;
+const MAX_SESSION_SYNC_POINTS = 50;
+const MAX_SESSION_HOLOS = 500;
+const MAX_SESSION_EXP = 12000;
+const MAX_SESSION_STEPS = 60000;
+const MAX_SESSION_DISTANCE_METERS = 60000;
+const MAX_SESSION_ELAPSED_SECONDS = 12 * 60 * 60;
+
+function toNonNegativeInt(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    return 0;
+  }
+  return Math.floor(n);
+}
+
+function clampNonNegative(value, max) {
+  return Math.min(Math.max(0, value), max);
+}
+
+function clampWorkoutReward(workout) {
+  const steps = clampNonNegative(toNonNegativeInt(workout.stepCount), MAX_SESSION_STEPS);
+  const distanceMeters = clampNonNegative(
+    toNonNegativeInt(workout.distanceMeters),
+    MAX_SESSION_DISTANCE_METERS,
+  );
+  const elapsedSeconds = clampNonNegative(
+    toNonNegativeInt(workout.elapsedSeconds),
+    MAX_SESSION_ELAPSED_SECONDS,
+  );
+
+  const distanceKm = distanceMeters / 1000;
+  const syncPointsCeiling = Math.min(
+    Math.floor(steps / STEPS_PER_SYNC_POINT),
+    MAX_SESSION_SYNC_POINTS,
+  );
+  const holosCeiling = Math.min(Math.floor(distanceKm * HOLOS_PER_KM), MAX_SESSION_HOLOS);
+  const expCeiling = Math.min(Math.floor(distanceKm * EXP_PER_KM), MAX_SESSION_EXP);
+
+  return {
+    syncPoints: Math.min(toNonNegativeInt(workout.syncPointsEarned), syncPointsCeiling),
+    holos: Math.min(toNonNegativeInt(workout.holosEarned), holosCeiling),
+    exp: Math.min(toNonNegativeInt(workout.expEarned), expCeiling),
+    steps,
+    distanceMeters,
+    elapsedSeconds,
+  };
+}
+
 async function persistWatchWorkoutReward(uid, workout) {
   const activityId = typeof workout.workoutId === "string" ? workout.workoutId.trim() : "";
   const date = typeof workout.date === "string" && workout.date ? workout.date : new Date().toISOString().slice(0, 10);
@@ -42,9 +105,10 @@ async function persistWatchWorkoutReward(uid, workout) {
       };
     }
 
-    const awardedSyncPoints = Math.max(0, Math.floor(Number(workout.syncPointsEarned || 0)));
-    const awardedHolos = Math.max(0, Math.floor(Number(workout.holosEarned || 0)));
-    const awardedExp = Math.max(0, Math.floor(Number(workout.expEarned || 0)));
+    const clampedReward = clampWorkoutReward(workout);
+    const awardedSyncPoints = clampedReward.syncPoints;
+    const awardedHolos = clampedReward.holos;
+    const awardedExp = clampedReward.exp;
     const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted || 0));
     const nextSessionsCompleted = Math.min(DAILY_WORKOUT_CAP, previousSessionsCompleted + 1);
 
@@ -83,7 +147,7 @@ async function persistWatchWorkoutReward(uid, workout) {
 
     transaction.set(dailyRef, {
       date,
-      distanceMeters: Math.max(0, Math.round(Number(workout.distanceMeters || 0))),
+      distanceMeters: clampedReward.distanceMeters,
       lastSampleAt: admin.firestore.FieldValue.serverTimestamp(),
       processedActivityIds: activityId
         ? { ...processedActivityIds, [activityId]: true }
@@ -94,10 +158,10 @@ async function persistWatchWorkoutReward(uid, workout) {
       source: "watch",
       stepsTotal: Math.max(
         Math.max(0, Number(dailyData.stepsTotal || 0)),
-        Math.max(0, Math.floor(Number(workout.stepCount || 0))),
+        clampedReward.steps,
       ),
       syncPointsAwarded: Number(dailyData.syncPointsAwarded || 0) + awardedSyncPoints,
-      workoutMinutes: Math.max(0, Math.round(Number(workout.elapsedSeconds || 0) / 60)),
+      workoutMinutes: Math.max(0, Math.round(clampedReward.elapsedSeconds / 60)),
       workoutSessionsCompleted: nextSessionsCompleted,
     }, { merge: true });
 
@@ -117,7 +181,7 @@ async function persistWatchWorkoutReward(uid, workout) {
       seasonSyncPoints: nextSeasonSyncPoints,
       syncPoints: nextSyncPoints,
       syncRank: getSyncRank(nextLifetimeSyncPoints),
-      todaySteps: Math.max(0, Math.floor(Number(workout.stepCount || 0))),
+      todaySteps: clampedReward.steps,
     }, { merge: true });
 
     return {
@@ -193,6 +257,17 @@ exports.syncWatchWorkoutRewards = onCall(async (request) => {
       sessionsRemaining: DAILY_WORKOUT_CAP,
       totalSyncPoints: 0,
     };
+  }
+
+  if (workouts.length > MAX_WORKOUTS_PER_CALL) {
+    throw new HttpsError(
+      "invalid-argument",
+      `Too many workouts in one sync (max ${MAX_WORKOUTS_PER_CALL}).`,
+    );
+  }
+
+  if (!workouts.every((workout) => workout && typeof workout === "object")) {
+    throw new HttpsError("invalid-argument", "Malformed workout payload.");
   }
 
   let latestResult = {
