@@ -1,15 +1,20 @@
 {
   "name": "holobots-mobile-functions",
   "private": true,
-  "main": "index.js",
+  "main": "lib/index.js",
   "engines": {
     "node": "20"
   },
   "scripts": {
-    "lint": "node -e \"console.log('No lint configured')\""
+    "build": "npm run check:shared && tsc",
+    "check:shared": "node scripts/check-shared-parity.mjs",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
   }
 }
