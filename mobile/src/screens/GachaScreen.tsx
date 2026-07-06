@@ -4,67 +4,10 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { PackOpeningAnimation, type GachaRevealItem } from "@/components/gacha/PackOpeningAnimation";
 import { useAuth } from "@/contexts/AuthContext";
+import { incrementBoosterPacksToday } from "@/lib/dailyMissions";
+import { buildPackGrantUpdates, buildPackRewards, GACHA_PACKS } from "@/lib/gacha";
 
-type PackType = "basic" | "premium" | "elite";
-
-const PACKS = [
-  { accent: "#00d9ff", guaranteed: 3, id: "basic" as PackType, name: "Basic Pack", price: 1 },
-  { accent: "#9d4edd", guaranteed: 5, id: "premium" as PackType, name: "Premium Pack", price: 3 },
-  { accent: "#ff3366", guaranteed: 10, id: "elite" as PackType, name: "Elite Pack", price: 5 },
-] as const;
-
-const ITEM_LABELS = [
-  "Plasma Cannon",
-  "Combat Mask",
-  "Core Part",
-  "Energy Refill",
-  "Arena Pass",
-  "EXP Booster",
-  "Blueprint Fragment",
-  "Void Mask",
-] as const;
-
-function randomFrom<T>(items: readonly T[]) {
-  return items[Math.floor(Math.random() * items.length)];
-}
-
-function buildPackRewards(packId: PackType) {
-  const countMap = { basic: 3, premium: 5, elite: 10 };
-  const total = countMap[packId];
-
-  return Array.from({ length: total }, (_, index) => {
-    const rarityRoll = Math.random();
-    const rarity =
-      packId === "elite"
-        ? rarityRoll > 0.72
-          ? "legendary"
-          : rarityRoll > 0.42
-            ? "epic"
-            : "rare"
-        : packId === "premium"
-          ? rarityRoll > 0.84
-            ? "legendary"
-            : rarityRoll > 0.54
-              ? "epic"
-              : rarityRoll > 0.2
-                ? "rare"
-                : "common"
-          : rarityRoll > 0.95
-            ? "legendary"
-            : rarityRoll > 0.74
-              ? "epic"
-              : rarityRoll > 0.4
-                ? "rare"
-                : "common";
-
-    return {
-      id: `${packId}-${Date.now()}-${index}`,
-      label: randomFrom(ITEM_LABELS),
-      rarity,
-      subtitle: `Drop ${index + 1} of ${total}`,
-    } as GachaRevealItem;
-  });
-}
+const PACKS = GACHA_PACKS;
 
 export function GachaScreen() {
   const { profile, updateProfile } = useAuth();
@@ -86,11 +29,13 @@ export function GachaScreen() {
     }
 
     const rewards = buildPackRewards(activePack.id);
+    const grantUpdates = buildPackGrantUpdates(profile, rewards);
     setRevealedItems(rewards);
     setIsOpening(true);
 
     try {
       await updateProfile({
+        ...grantUpdates,
         gachaTickets: Math.max(0, tickets - activePack.price),
         pack_history: [
           {
@@ -101,6 +46,7 @@ export function GachaScreen() {
           },
           ...(profile.pack_history || []),
         ].slice(0, 50),
+        rewardSystem: incrementBoosterPacksToday(profile.rewardSystem),
       });
     } catch (error) {
       setIsOpening(false);

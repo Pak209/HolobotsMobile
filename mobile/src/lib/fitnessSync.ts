@@ -5,9 +5,15 @@ import {
   serverTimestamp,
   type Firestore,
 } from "firebase/firestore";
-import { applyHolobotExperience, normalizeUserHolobot } from "@/config/holobots";
-import { computeLeaderboardScore } from "@/lib/profile";
+import {
+  applyHolobotExperience,
+  applyWorkoutCareer,
+  computeLeaderboardScore,
+  normalizeUserHolobot,
+} from "@/lib/progression";
 import { getSyncRank } from "@/lib/syncProgression";
+
+export { getLocalDateKey } from "@/lib/dates";
 
 const STEPS_PER_SYNC_POINT = 1000;
 const DAILY_WORKOUT_CAP = 4;
@@ -42,6 +48,13 @@ export type DailyWorkoutState = {
   sessionsCompleted: number;
 };
 
+export type FitnessSyncOutcome = {
+  alreadyProcessed: boolean;
+  dailyUpdates: Record<string, unknown>;
+  response: SyncFitnessActivityResponse;
+  userUpdates: Record<string, unknown> | null;
+};
+
 function toIsoString(value?: { toDate?: () => Date } | string | null) {
   if (!value) {
     return null;
@@ -65,12 +78,152 @@ function calculateAwardDelta(previousStepsSynced: number, incomingStepsTotal: nu
   };
 }
 
-export function getLocalDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
+/**
+ * Pure reward computation for a fitness sync. Given the current user and
+ * daily documents plus the incoming request, returns the document updates
+ * and the response payload. The Firestore transaction only reads, calls
+ * this, and writes — keeping every awarding rule unit-testable.
+ */
+export function computeFitnessSyncOutcome(
+  userData: Record<string, unknown>,
+  dailyData: Record<string, unknown>,
+  request: SyncFitnessActivityRequest,
+): FitnessSyncOutcome {
+  const activityId = request.activityId?.trim() || request.eventId?.trim() || "";
+  const processedActivityIds = (dailyData.processedActivityIds as Record<string, true> | undefined) ?? {};
+  const processedWorkoutEvents = (dailyData.processedWorkoutEvents as Record<string, true> | undefined) ?? {};
 
-  return `${year}-${month}-${day}`;
+  if (activityId && (processedActivityIds[activityId] || processedWorkoutEvents[activityId])) {
+    return {
+      alreadyProcessed: true,
+      dailyUpdates: {},
+      response: {
+        awardedDelta: 0,
+        cooldownEndsAt:
+          request.cooldownEndsAt ??
+          toIsoString(dailyData.workoutCooldownEndsAt as { toDate?: () => Date } | string | null) ??
+          null,
+        totalHolosTokens: Number(userData.holosTokens ?? 0),
+        todaySteps: Math.max(0, Math.floor(Number(dailyData.stepsTotal ?? request.stepsTotal ?? 0))),
+        totalSyncPoints: Number(userData.syncPoints ?? 0),
+        workoutSessionsCompleted: Math.max(0, Number(dailyData.workoutSessionsCompleted ?? 0)),
+      },
+      userUpdates: null,
+    };
+  }
+
+  const previousStepsSynced = Number(dailyData.stepsSynced ?? 0);
+  const currentHolosTokens = Number(userData.holosTokens ?? 0);
+  const currentSyncPoints = Number(userData.syncPoints ?? 0);
+  const currentLifetimeSyncPoints = Number(userData.lifetimeSyncPoints ?? 0);
+  const currentSeasonSyncPoints = Number(userData.seasonSyncPoints ?? 0);
+  const stepAward = calculateAwardDelta(previousStepsSynced, request.stepsTotal);
+  const expAwarded = Math.max(0, Math.floor(request.expAwarded ?? 0));
+  const holosAwarded = Math.max(0, Math.floor(request.holosAwarded ?? 0));
+  const awardedDelta = Math.max(
+    0,
+    Math.floor(request.syncPointsAwarded ?? stepAward.awardedDelta),
+  );
+
+  const nextHolosTokens = currentHolosTokens + holosAwarded;
+  const nextSyncPoints = currentSyncPoints + awardedDelta;
+  const nextLifetimeSyncPoints = currentLifetimeSyncPoints + awardedDelta;
+  const nextSeasonSyncPoints = currentSeasonSyncPoints + awardedDelta;
+  const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted ?? 0));
+  const nextSessionsCompleted = Math.min(
+    DAILY_WORKOUT_CAP,
+    previousSessionsCompleted + Math.max(0, Math.floor(request.sessionIncrement ?? 0)),
+  );
+  const currentHolobots = Array.isArray(userData.holobots)
+    ? (userData.holobots as Parameters<typeof normalizeUserHolobot>[0][])
+    : [];
+  const normalizedTargetName = request.holobotName?.trim().toUpperCase() ?? "";
+  const sessionIncrementCount = Math.max(0, Math.floor(request.sessionIncrement ?? 0));
+  let nextHolobots = currentHolobots;
+
+  if ((expAwarded > 0 || sessionIncrementCount > 0) && currentHolobots.length > 0) {
+    const targetIndex = currentHolobots.findIndex((rawHolobot) => {
+      const holobotName =
+        typeof (rawHolobot as { name?: unknown })?.name === "string"
+          ? String((rawHolobot as { name?: unknown }).name)
+          : "";
+      return holobotName.trim().toUpperCase() === normalizedTargetName;
+    });
+    const safeTargetIndex = targetIndex >= 0 ? targetIndex : 0;
+
+    nextHolobots = currentHolobots.map((rawHolobot, index) => {
+      if (index !== safeTargetIndex) {
+        return rawHolobot;
+      }
+
+      let nextHolobot = normalizeUserHolobot(rawHolobot);
+      if (expAwarded > 0) {
+        nextHolobot = applyHolobotExperience(nextHolobot, expAwarded);
+      }
+      if (sessionIncrementCount > 0) {
+        nextHolobot = applyWorkoutCareer(nextHolobot, {
+          date: request.date,
+          distanceMeters: request.distanceMeters,
+        });
+      }
+      return nextHolobot;
+    });
+  }
+
+  const dailyUpdates: Record<string, unknown> = {
+    date: request.date,
+    distanceMeters: Math.max(0, Math.round(request.distanceMeters ?? 0)),
+    source: "manual",
+    stepsSynced: Math.max(previousStepsSynced, Math.floor(request.stepsTotal)),
+    stepsTotal: Math.max(0, Math.floor(request.stepsTotal)),
+    syncPointsAwarded: Number(dailyData.syncPointsAwarded ?? 0) + awardedDelta,
+    processedActivityIds: activityId
+      ? {
+          ...processedActivityIds,
+          [activityId]: true,
+        }
+      : processedActivityIds,
+    processedWorkoutEvents: activityId
+      ? {
+          ...processedWorkoutEvents,
+          [activityId]: true,
+        }
+      : processedWorkoutEvents,
+    workoutCooldownEndsAt: request.cooldownEndsAt ?? null,
+    workoutMinutes: Math.max(0, Math.round(request.workoutMinutes ?? 0)),
+    workoutSessionsCompleted: nextSessionsCompleted,
+  };
+
+  const userUpdates: Record<string, unknown> = {
+    fitnessSource: "manual",
+    holosTokens: nextHolosTokens,
+    holobots: nextHolobots,
+    leaderboardScore: computeLeaderboardScore({
+      holobots: nextHolobots as Parameters<typeof computeLeaderboardScore>[0]["holobots"],
+      prestigeCount: Number(userData.prestigeCount ?? 0),
+      seasonSyncPoints: nextSeasonSyncPoints,
+      wins: Number(userData.wins ?? 0),
+    }),
+    syncPoints: nextSyncPoints,
+    lifetimeSyncPoints: nextLifetimeSyncPoints,
+    seasonSyncPoints: nextSeasonSyncPoints,
+    syncRank: getSyncRank(nextLifetimeSyncPoints),
+    todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
+  };
+
+  return {
+    alreadyProcessed: false,
+    dailyUpdates,
+    response: {
+      awardedDelta,
+      cooldownEndsAt: request.cooldownEndsAt ?? null,
+      totalHolosTokens: nextHolosTokens,
+      todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
+      totalSyncPoints: nextSyncPoints,
+      workoutSessionsCompleted: nextSessionsCompleted,
+    },
+    userUpdates,
+  };
 }
 
 export async function getDailyWorkoutState(
@@ -136,92 +289,21 @@ export async function syncFitnessActivity(
       transaction.get(dailyRef),
     ]);
 
-    const userData = userSnapshot.data() ?? {};
-    const dailyData = dailySnapshot.data() ?? {};
-    const activityId = request.activityId?.trim() || request.eventId?.trim() || "";
-    const processedActivityIds = (dailyData.processedActivityIds as Record<string, true> | undefined) ?? {};
-    const processedWorkoutEvents = (dailyData.processedWorkoutEvents as Record<string, true> | undefined) ?? {};
-
-    if (activityId && (processedActivityIds[activityId] || processedWorkoutEvents[activityId])) {
-      return {
-        awardedDelta: 0,
-        cooldownEndsAt: request.cooldownEndsAt ?? toIsoString(dailyData.workoutCooldownEndsAt) ?? null,
-        totalHolosTokens: Number(userData.holosTokens ?? 0),
-        todaySteps: Math.max(0, Math.floor(Number(dailyData.stepsTotal ?? request.stepsTotal ?? 0))),
-        totalSyncPoints: Number(userData.syncPoints ?? 0),
-        workoutSessionsCompleted: Math.max(0, Number(dailyData.workoutSessionsCompleted ?? 0)),
-      };
-    }
-
-    const previousStepsSynced = Number(dailyData.stepsSynced ?? 0);
-    const currentHolosTokens = Number(userData.holosTokens ?? 0);
-    const currentSyncPoints = Number(userData.syncPoints ?? 0);
-    const currentLifetimeSyncPoints = Number(userData.lifetimeSyncPoints ?? 0);
-    const currentSeasonSyncPoints = Number(userData.seasonSyncPoints ?? 0);
-    const stepAward = calculateAwardDelta(previousStepsSynced, request.stepsTotal);
-    const expAwarded = Math.max(0, Math.floor(request.expAwarded ?? 0));
-    const holosAwarded = Math.max(0, Math.floor(request.holosAwarded ?? 0));
-    const awardedDelta = Math.max(
-      0,
-      Math.floor(request.syncPointsAwarded ?? stepAward.awardedDelta),
+    const outcome = computeFitnessSyncOutcome(
+      userSnapshot.data() ?? {},
+      dailySnapshot.data() ?? {},
+      request,
     );
 
-    const nextHolosTokens = currentHolosTokens + holosAwarded;
-    const nextSyncPoints = currentSyncPoints + awardedDelta;
-    const nextLifetimeSyncPoints = currentLifetimeSyncPoints + awardedDelta;
-    const nextSeasonSyncPoints = currentSeasonSyncPoints + awardedDelta;
-    const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted ?? 0));
-    const nextSessionsCompleted = Math.min(
-      DAILY_WORKOUT_CAP,
-      previousSessionsCompleted + Math.max(0, Math.floor(request.sessionIncrement ?? 0)),
-    );
-    const currentHolobots = Array.isArray(userData.holobots) ? userData.holobots : [];
-    const normalizedTargetName = request.holobotName?.trim().toUpperCase() ?? "";
-    let nextHolobots = currentHolobots;
-
-    if (expAwarded > 0 && currentHolobots.length > 0) {
-      const targetIndex = currentHolobots.findIndex((rawHolobot) => {
-        const holobotName =
-          typeof (rawHolobot as { name?: unknown })?.name === "string"
-            ? String((rawHolobot as { name?: unknown }).name)
-            : "";
-        return holobotName.trim().toUpperCase() === normalizedTargetName;
-      });
-      const safeTargetIndex = targetIndex >= 0 ? targetIndex : 0;
-
-      nextHolobots = currentHolobots.map((rawHolobot, index) => {
-        if (index !== safeTargetIndex) {
-          return rawHolobot;
-        }
-        return applyHolobotExperience(normalizeUserHolobot(rawHolobot), expAwarded);
-      });
+    if (outcome.alreadyProcessed || !outcome.userUpdates) {
+      return outcome.response;
     }
 
     transaction.set(
       dailyRef,
       {
-        date: request.date,
-        distanceMeters: Math.max(0, Math.round(request.distanceMeters ?? 0)),
+        ...outcome.dailyUpdates,
         lastSampleAt: serverTimestamp(),
-        source: "manual",
-        stepsSynced: Math.max(previousStepsSynced, Math.floor(request.stepsTotal)),
-        stepsTotal: Math.max(0, Math.floor(request.stepsTotal)),
-        syncPointsAwarded: Number(dailyData.syncPointsAwarded ?? 0) + awardedDelta,
-        processedActivityIds: activityId
-          ? {
-              ...processedActivityIds,
-              [activityId]: true,
-            }
-          : processedActivityIds,
-        processedWorkoutEvents: activityId
-          ? {
-              ...processedWorkoutEvents,
-              [activityId]: true,
-            }
-          : processedWorkoutEvents,
-        workoutCooldownEndsAt: request.cooldownEndsAt ?? null,
-        workoutMinutes: Math.max(0, Math.round(request.workoutMinutes ?? 0)),
-        workoutSessionsCompleted: nextSessionsCompleted,
       },
       { merge: true },
     );
@@ -229,33 +311,13 @@ export async function syncFitnessActivity(
     transaction.set(
       userRef,
       {
-        fitnessSource: "manual",
-        holosTokens: nextHolosTokens,
-        holobots: nextHolobots,
+        ...outcome.userUpdates,
         lastFitnessSyncAt: serverTimestamp(),
         lastStepSync: serverTimestamp(),
-        leaderboardScore: computeLeaderboardScore({
-          holobots: nextHolobots,
-          prestigeCount: Number(userData.prestigeCount ?? 0),
-          seasonSyncPoints: nextSeasonSyncPoints,
-          wins: Number(userData.wins ?? 0),
-        }),
-        syncPoints: nextSyncPoints,
-        lifetimeSyncPoints: nextLifetimeSyncPoints,
-        seasonSyncPoints: nextSeasonSyncPoints,
-        syncRank: getSyncRank(nextLifetimeSyncPoints),
-        todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
       },
       { merge: true },
     );
 
-    return {
-      awardedDelta,
-      cooldownEndsAt: request.cooldownEndsAt ?? null,
-      totalHolosTokens: nextHolosTokens,
-      todaySteps: Math.max(0, Math.floor(request.stepsTotal)),
-      totalSyncPoints: nextSyncPoints,
-      workoutSessionsCompleted: nextSessionsCompleted,
-    };
+    return outcome.response;
   });
 }

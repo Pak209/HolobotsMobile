@@ -11,6 +11,12 @@ import {
 } from "@/lib/fitnessSync";
 
 export type DistanceUnit = "km" | "mi";
+export type WorkoutRewardOptions = {
+  /** Multiplier applied to EXP rewards (e.g. sync boost). Defaults to 1. */
+  expMultiplier?: number;
+  /** Holobot that receives workout EXP and career credit. */
+  holobotName?: string;
+};
 export type WorkoutCompletionResult = {
   cooldownEndsAt: string | null;
   cumulativeDistanceKm: number;
@@ -20,6 +26,8 @@ export type WorkoutCompletionResult = {
   expReward: number;
   holosReward: number;
   id: string;
+  /** True when rewards were persisted by the sync transaction. */
+  rewardsPersisted: boolean;
   sessionsCompleted: number;
   sessionsRemaining: number;
   syncPointBoostCount: number;
@@ -110,15 +118,17 @@ function calculateRewards(
   stepCount: number,
   unitPreference: DistanceUnit,
   rewardedBoostCount: number,
+  expMultiplier = 1,
 ) {
   const progress = clamp(elapsedSeconds / TOTAL_WORKOUT_SECONDS, 0, 1);
   const syncPointBoostCount = Math.floor(getDisplayDistance(cumulativeDistanceKm, unitPreference));
   const newBoostCount = Math.max(0, syncPointBoostCount - rewardedBoostCount);
   const distanceBonus = newBoostCount * UNIT_SYNC_POINT_BOOST;
   const stepBonus = Math.floor(stepCount / 25);
+  const safeExpMultiplier = Number.isFinite(expMultiplier) && expMultiplier > 0 ? expMultiplier : 1;
 
   return {
-    expReward: Math.max(0, Math.round(sessionDistanceKm * BASE_EXP_PER_KM)),
+    expReward: Math.max(0, Math.round(sessionDistanceKm * BASE_EXP_PER_KM * safeExpMultiplier)),
     holosReward: Math.max(0, Math.round(sessionDistanceKm * BASE_HOLOS_PER_KM)),
     newSyncPointBoostCount: newBoostCount,
     syncPointBoostCount,
@@ -127,7 +137,11 @@ function calculateRewards(
   };
 }
 
-function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "km") {
+function useLiveWorkout(
+  userId?: string | null,
+  unitPreference: DistanceUnit = "km",
+  rewardOptions?: WorkoutRewardOptions,
+) {
   const [state, setState] = useState<LiveWorkoutState>({
     distanceKm: 0,
     elapsedSeconds: 0,
@@ -162,6 +176,9 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   const cooldownEndsAtRef = useRef<string | null>(null);
   const carryoverDistanceKmRef = useRef(0);
   const rewardedBoostCountRef = useRef(0);
+  const rewardOptionsRef = useRef(rewardOptions);
+
+  rewardOptionsRef.current = rewardOptions;
 
   useEffect(() => {
     stateRef.current = state;
@@ -241,10 +258,14 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
     snapshot: LiveWorkoutState,
     reason: "pause" | "complete",
     extras?: {
+      activityId?: string;
       cooldownEndsAt?: string | null;
+      expAwarded?: number;
+      holobotName?: string;
+      holosAwarded?: number;
       sessionIncrement?: number;
-    syncPointsAwarded?: number;
-  },
+      syncPointsAwarded?: number;
+    },
   ) => {
     if (!userId) {
       setSyncState("idle");
@@ -278,9 +299,13 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
       setSyncMessage(reason === "pause" ? "Syncing paused workout..." : "Syncing completed workout...");
 
       const result = await syncFitnessActivity(db, {
+        activityId: extras?.activityId,
         cooldownEndsAt: extras?.cooldownEndsAt,
         date,
         distanceMeters: snapshot.distanceKm * 1000,
+        expAwarded: extras?.expAwarded,
+        holobotName: extras?.holobotName,
+        holosAwarded: extras?.holosAwarded,
         sessionIncrement: extras?.sessionIncrement,
         stepsTotal,
         syncPointsAwarded: extras?.syncPointsAwarded,
@@ -306,7 +331,11 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
       return result;
     } catch {
       setSyncState("error");
-      setSyncMessage("Workout saved locally. Sync will retry later.");
+      setSyncMessage(
+        reason === "complete"
+          ? "Cloud sync failed. Collect your rewards to save them from this device."
+          : "Cloud sync failed. Steps will sync with your next workout update.",
+      );
       return null;
     }
   };
@@ -474,16 +503,22 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
       finalSnapshot.stepCount,
       unitPreference,
       rewardedBoostCountRef.current,
+      rewardOptionsRef.current?.expMultiplier,
     );
     const nextSessionsCompleted = Math.min(MAX_DAILY_SESSION_CAP, sessionsCompletedRef.current + 1);
     const nextCooldownEndsAt =
       nextSessionsCompleted >= MAX_DAILY_SESSION_CAP
         ? null
         : new Date(Date.now() + WORKOUT_COOLDOWN_MS).toISOString();
+    const completionId = `workout_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     try {
       const result = await syncCurrentActivity(finalSnapshot, "complete", {
+        activityId: completionId,
         cooldownEndsAt: nextCooldownEndsAt,
+        expAwarded: rewards.expReward,
+        holobotName: rewardOptionsRef.current?.holobotName,
+        holosAwarded: rewards.holosReward,
         sessionIncrement: 1,
         syncPointsAwarded: rewards.syncPointsReward,
       });
@@ -505,7 +540,8 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
         distanceKm: finalSnapshot.distanceKm,
         displayDistance: getDisplayDistance(cumulativeDistanceKm, unitPreference),
         displayUnit: unitPreference,
-        id: `${Date.now()}`,
+        id: completionId,
+        rewardsPersisted: result != null,
         sessionsCompleted: resolvedSessionsCompleted,
         sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - resolvedSessionsCompleted),
         totalSyncPoints: result?.totalSyncPoints ?? null,
@@ -637,6 +673,7 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
     state.stepCount,
     unitPreference,
     rewardedBoostCount,
+    rewardOptions?.expMultiplier,
   );
 
   return {
@@ -672,6 +709,10 @@ function useLiveWorkout(userId?: string | null, unitPreference: DistanceUnit = "
   };
 }
 
-export function useWorkout(userId?: string | null, unitPreference: DistanceUnit = "km") {
-  return useLiveWorkout(userId, unitPreference);
+export function useWorkout(
+  userId?: string | null,
+  unitPreference: DistanceUnit = "km",
+  rewardOptions?: WorkoutRewardOptions,
+) {
+  return useLiveWorkout(userId, unitPreference, rewardOptions);
 }

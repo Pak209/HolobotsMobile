@@ -30,6 +30,16 @@ export type UserHolobot = {
   syncAbilityUnlocks?: string[];
   syncLevel?: number;
   lifetimeSPInvested?: number;
+  career?: HolobotCareer;
+};
+
+export type HolobotCareer = {
+  /** Distinct local days on which this Holobot completed a workout. */
+  activeDays?: number;
+  distanceMeters?: number;
+  firstWorkoutDate?: string;
+  lastWorkoutDate?: string;
+  workouts?: number;
 };
 
 export type UserProfile = {
@@ -45,6 +55,8 @@ export type UserProfile = {
     losses: number;
   };
   lastEnergyRefresh: string;
+  stepEnergyDate?: string;
+  stepEnergyGrantedToday?: number;
   level?: number;
   arena_passes?: number;
   exp_boosters?: number;

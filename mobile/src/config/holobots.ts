@@ -2,7 +2,15 @@ import { Image, type ImageSourcePropType } from "react-native";
 
 import type { UserHolobot } from "@/types/profile";
 import { resolveBundledAssetUri } from "@/config/gameAssets";
-import { getUnlockedSyncAbilities } from "@/lib/syncProgression";
+import {
+  applyHolobotExperience,
+  calculateExperience,
+  getHolobotRank,
+  HOLOBOT_NAMES,
+  normalizeUserHolobot,
+} from "@/lib/progression";
+
+export { applyHolobotExperience, calculateExperience, getHolobotRank, normalizeUserHolobot };
 
 export type HolobotRosterEntry = {
   attributePoints?: number;
@@ -57,20 +65,7 @@ const HOLOBOT_FULL_IMAGE_MAP = {
   WOLF: require("../../assets/holobots/full/wolf.png"),
 } as const;
 
-const DEFAULT_ROSTER_ORDER = [
-  "ACE",
-  "KUMA",
-  "SHADOW",
-  "ERA",
-  "HARE",
-  "TORA",
-  "WAKE",
-  "GAMA",
-  "KEN",
-  "KURAI",
-  "TSUIN",
-  "WOLF",
-] as const;
+const DEFAULT_ROSTER_ORDER = HOLOBOT_NAMES;
 
 const HOLOBOT_BASE_STATS = {
   ACE: { attack: 8, defense: 6, hp: 150, intelligence: 5, speed: 7 },
@@ -146,19 +141,6 @@ function toHolobotKey(name: string) {
   return name.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
-export function calculateExperience(level: number) {
-  return Math.floor(100 * Math.pow(Math.max(1, level), 2));
-}
-
-export function getHolobotRank(level: number) {
-  if (level >= 41) return "Legendary";
-  if (level >= 31) return "Elite";
-  if (level >= 21) return "Rare";
-  if (level >= 11) return "Champion";
-  if (level >= 2) return "Starter";
-  return "Rookie";
-}
-
 export function createGenesisStarterHolobot(name: "ACE" | "KUMA" | "SHADOW"): UserHolobot {
   return normalizeUserHolobot({
     attributePoints: 1,
@@ -183,55 +165,6 @@ export function getHolobotBaseProfile(name: string) {
     intelligence: base.intelligence,
     specialMove,
     speed: base.speed,
-  };
-}
-
-export function normalizeUserHolobot(holobot: UserHolobot): UserHolobot {
-  const level = Math.max(1, holobot.level || 1);
-  const syncStats = {
-    bond: Math.max(0, Math.floor(holobot.syncStats?.bond || 0)),
-    focus: Math.max(0, Math.floor(holobot.syncStats?.focus || 0)),
-    guard: Math.max(0, Math.floor(holobot.syncStats?.guard || 0)),
-    power: Math.max(0, Math.floor(holobot.syncStats?.power || 0)),
-    tempo: Math.max(0, Math.floor(holobot.syncStats?.tempo || 0)),
-  };
-  const syncLevel = syncStats.power + syncStats.guard + syncStats.tempo + syncStats.focus + syncStats.bond;
-
-  return {
-    ...holobot,
-    attributePoints: holobot.attributePoints ?? level,
-    boostedAttributes: holobot.boostedAttributes || {},
-    experience: holobot.experience || 0,
-    lifetimeSPInvested: holobot.lifetimeSPInvested ?? 0,
-    nextLevelExp: holobot.nextLevelExp || calculateExperience(level + 1),
-    rank: holobot.rank || getHolobotRank(level),
-    syncAbilityUnlocks:
-      holobot.syncAbilityUnlocks ?? getUnlockedSyncAbilities({ name: holobot.name, syncStats }),
-    syncLevel: holobot.syncLevel ?? syncLevel,
-    syncStats,
-  };
-}
-
-export function applyHolobotExperience(holobot: UserHolobot, expGain: number): UserHolobot {
-  const normalized = normalizeUserHolobot(holobot);
-  const nextExperience = (normalized.experience || 0) + Math.max(0, expGain);
-  let nextLevel = Math.max(1, normalized.level || 1);
-  let nextLevelExp = normalized.nextLevelExp || calculateExperience(nextLevel + 1);
-  let attributePoints = normalized.attributePoints || 0;
-
-  while (nextExperience >= nextLevelExp) {
-    nextLevel += 1;
-    attributePoints += 1;
-    nextLevelExp = calculateExperience(nextLevel + 1);
-  }
-
-  return {
-    ...normalized,
-    attributePoints,
-    experience: nextExperience,
-    level: nextLevel,
-    nextLevelExp,
-    rank: getHolobotRank(nextLevel),
   };
 }
 

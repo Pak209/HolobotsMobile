@@ -1,74 +1,17 @@
 const admin = require("firebase-admin");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const {
+  applyHolobotExperience,
+  applyWorkoutCareer,
+  computeLeaderboardScore,
+  getSyncRank,
+} = require("./progression");
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const auth = admin.auth();
 const DAILY_WORKOUT_CAP = 4;
-
-function getSyncRank(syncPoints) {
-  const safePoints = Math.max(0, Number(syncPoints) || 0);
-  if (safePoints >= 10000) return "Legend";
-  if (safePoints >= 5000) return "Champion";
-  if (safePoints >= 2500) return "Strider";
-  if (safePoints >= 1000) return "Pilot";
-  if (safePoints >= 250) return "Walker";
-  return "Rookie";
-}
-
-function normalizeUserHolobot(rawHolobot) {
-  if (!rawHolobot || typeof rawHolobot !== "object") {
-    return {
-      experience: 0,
-      level: 1,
-      name: "KUMA",
-      nextLevelExp: 100,
-    };
-  }
-
-  return {
-    ...rawHolobot,
-    experience: Math.max(0, Number(rawHolobot.experience || 0)),
-    level: Math.max(1, Number(rawHolobot.level || 1)),
-    name: typeof rawHolobot.name === "string" ? rawHolobot.name : "KUMA",
-    nextLevelExp: Math.max(100, Number(rawHolobot.nextLevelExp || 100)),
-  };
-}
-
-function applyHolobotExperience(rawHolobot, expAwarded) {
-  const holobot = normalizeUserHolobot(rawHolobot);
-  let level = holobot.level;
-  let experience = holobot.experience + Math.max(0, Number(expAwarded || 0));
-  let nextLevelExp = Math.max(100, Number(holobot.nextLevelExp || 100));
-
-  while (experience >= nextLevelExp) {
-    experience -= nextLevelExp;
-    level += 1;
-    nextLevelExp = Math.round(nextLevelExp * 1.18);
-  }
-
-  return {
-    ...holobot,
-    experience,
-    level,
-    nextLevelExp,
-  };
-}
-
-function computeLeaderboardScore(profile) {
-  const holobots = Array.isArray(profile?.holobots) ? profile.holobots : [];
-  const prestigeCount = Math.max(0, Number(profile?.prestigeCount || 0));
-  const seasonSyncPoints = Math.max(0, Number(profile?.seasonSyncPoints || 0));
-  const wins = Math.max(0, Number(profile?.wins || 0));
-
-  const holobotPower = holobots.reduce((total, holobot) => {
-    const normalized = normalizeUserHolobot(holobot);
-    return total + normalized.level * 12 + normalized.experience * 0.02;
-  }, 0);
-
-  return Math.round(holobotPower + prestigeCount * 250 + seasonSyncPoints * 0.4 + wins * 6);
-}
 
 async function persistWatchWorkoutReward(uid, workout) {
   const activityId = typeof workout.workoutId === "string" ? workout.workoutId.trim() : "";
@@ -109,7 +52,7 @@ async function persistWatchWorkoutReward(uid, workout) {
     const normalizedTargetName = typeof workout.holobotName === "string" ? workout.holobotName.trim().toUpperCase() : "";
     let nextHolobots = currentHolobots;
 
-    if (awardedExp > 0 && currentHolobots.length > 0) {
+    if (currentHolobots.length > 0) {
       const targetIndex = currentHolobots.findIndex((rawHolobot) => {
         const holobotName = typeof rawHolobot?.name === "string" ? rawHolobot.name : "";
         return holobotName.trim().toUpperCase() === normalizedTargetName;
@@ -120,7 +63,16 @@ async function persistWatchWorkoutReward(uid, workout) {
         if (index !== safeTargetIndex) {
           return rawHolobot;
         }
-        return applyHolobotExperience(rawHolobot, awardedExp);
+
+        let nextHolobot = rawHolobot;
+        if (awardedExp > 0) {
+          nextHolobot = applyHolobotExperience(nextHolobot, awardedExp);
+        }
+        // Every processed watch workout counts toward the companion career.
+        return applyWorkoutCareer(nextHolobot, {
+          date,
+          distanceMeters: Number(workout.distanceMeters || 0),
+        });
       });
     }
 

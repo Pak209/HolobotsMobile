@@ -1,6 +1,11 @@
+import { Timestamp } from "firebase/firestore";
+
 import { doc, getDoc, onSnapshot, updateDoc, db, type Unsubscribe } from "@/config/firebase";
 import type { SyncRank, UserHolobot, UserProfile } from "@/types/profile";
+import { computeLeaderboardScore } from "@/lib/progression";
 import { getSyncRank } from "@/lib/syncProgression";
+
+export { computeLeaderboardScore };
 
 const DEFAULT_USER_PROFILE = {
   dailyEnergy: 100,
@@ -50,6 +55,8 @@ type FirestoreUserDocument = {
   equippedParts?: Record<string, unknown>;
   holobots?: UserHolobot[];
   lastEnergyRefresh?: { toDate?: () => Date };
+  stepEnergyDate?: string;
+  stepEnergyGrantedToday?: number;
   isDevAccount?: boolean;
   rentalHolobots?: Array<Record<string, unknown>>;
   syncPoints?: number;
@@ -73,22 +80,6 @@ type FirestoreUserDocument = {
   syncDistanceUnit?: "km" | "mi";
 };
 
-type LeaderboardScoreInput = {
-  holobots?: UserHolobot[];
-  prestigeCount?: number;
-  seasonSyncPoints?: number;
-  wins?: number;
-};
-
-export function computeLeaderboardScore(input: LeaderboardScoreInput) {
-  const highestLevel = Math.max(1, ...(input.holobots || []).map((holobot) => holobot.level || 1));
-  const wins = input.wins || 0;
-  const seasonSyncPoints = input.seasonSyncPoints || 0;
-  const prestigeCount = input.prestigeCount || 0;
-
-  return wins * 120 + highestLevel * 25 + seasonSyncPoints + prestigeCount * 500;
-}
-
 function toIsoString(value?: { toDate?: () => Date } | string) {
   if (!value) {
     return undefined;
@@ -104,6 +95,11 @@ function toIsoString(value?: { toDate?: () => Date } | string) {
 function stripUndefinedDeep(value: unknown): unknown {
   if (value === undefined) {
     return undefined;
+  }
+
+  // Firestore sentinel values must pass through untouched.
+  if (value instanceof Timestamp || value instanceof Date) {
+    return value;
   }
 
   if (Array.isArray(value)) {
@@ -139,6 +135,8 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     },
     lastEnergyRefresh:
       toIsoString(data.lastEnergyRefresh) || new Date().toISOString(),
+    stepEnergyDate: data.stepEnergyDate,
+    stepEnergyGrantedToday: data.stepEnergyGrantedToday,
     level: 1,
     arena_passes: data.arenaPassses ?? DEFAULT_USER_PROFILE.arenaPassses,
     exp_boosters: data.expBoosters ?? DEFAULT_USER_PROFILE.expBoosters,
@@ -221,6 +219,9 @@ export function subscribeToUserProfile(
 
 type UserProfileUpdates = Partial<{
   dailyEnergy: number;
+  lastEnergyRefresh: string;
+  stepEnergyDate: string;
+  stepEnergyGrantedToday: number;
   holosTokens: number;
   syncPoints: number;
   lifetimeSyncPoints: number;
@@ -251,6 +252,15 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   const firestoreUpdates: Record<string, unknown> = {};
 
   if (updates.dailyEnergy !== undefined) firestoreUpdates.dailyEnergy = updates.dailyEnergy;
+  if (updates.lastEnergyRefresh !== undefined) {
+    // The web app (holobots-fun) writes and reads this field as a Firestore
+    // Timestamp; writing a string here would break its `?.toDate?.()` reader.
+    firestoreUpdates.lastEnergyRefresh = Timestamp.fromDate(new Date(updates.lastEnergyRefresh));
+  }
+  if (updates.stepEnergyDate !== undefined) firestoreUpdates.stepEnergyDate = updates.stepEnergyDate;
+  if (updates.stepEnergyGrantedToday !== undefined) {
+    firestoreUpdates.stepEnergyGrantedToday = updates.stepEnergyGrantedToday;
+  }
   if (updates.holosTokens !== undefined) firestoreUpdates.holosTokens = updates.holosTokens;
   if (updates.syncPoints !== undefined) firestoreUpdates.syncPoints = updates.syncPoints;
   if (updates.lifetimeSyncPoints !== undefined) firestoreUpdates.lifetimeSyncPoints = updates.lifetimeSyncPoints;

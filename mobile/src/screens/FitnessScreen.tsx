@@ -68,15 +68,18 @@ export function FitnessScreen() {
   }, [profile?.syncDistanceUnit]);
 
   const distanceUnit = profile?.syncDistanceUnit ?? localDistanceUnit;
-  const workout = useWorkout(user?.uid ?? null, distanceUnit);
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots, "full"), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
+  const syncBoostMultiplier = normalizeProgressionSystem(profile?.rewardSystem).syncBoostEnabled ? 1.2 : 1;
+  const workout = useWorkout(user?.uid ?? null, distanceUnit, {
+    expMultiplier: syncBoostMultiplier,
+    holobotName: selectedHolobot?.name,
+  });
   const displayDistance = distanceUnit === "mi" ? workout.displayDistanceKm * KM_TO_MILES : workout.displayDistanceKm;
   const displaySpeed = distanceUnit === "mi" ? workout.liveSpeedKmh * KM_TO_MILES : workout.liveSpeedKmh;
   const needleAngle = NEEDLE_MIN_ANGLE + (Math.min(displaySpeed, NEEDLE_MAX_SPEED) / NEEDLE_MAX_SPEED) * (NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE);
   const goalBarWidth = 698.125 * workout.progress;
   const expProgressWidth = 473 * getExpProgress(selectedHolobot);
-  const syncBoostMultiplier = normalizeProgressionSystem(profile?.rewardSystem).syncBoostEnabled ? 1.2 : 1;
 
   const handleDistanceUnitChange = (nextUnit: DistanceUnit) => {
     setLocalDistanceUnit(nextUnit);
@@ -90,7 +93,6 @@ export function FitnessScreen() {
   };
 
   const completionResult = workout.completionResult;
-  const boostedExpReward = completionResult ? Math.round(completionResult.expReward * syncBoostMultiplier) : 0;
   const syncBoostCopy = formatSyncBoostCopy(workout.syncPointBoostCount, distanceUnit);
   const goLabel = workout.isRunning
     ? "PAUSE"
@@ -107,6 +109,14 @@ export function FitnessScreen() {
       return false;
     }
 
+    // The happy path already persisted everything atomically inside the
+    // fitness sync transaction (EXP, Holos, and Sync Points). Only fall back
+    // to a local profile write when that transaction failed.
+    if (completionResult.rewardsPersisted) {
+      workout.clearCompletionResult();
+      return true;
+    }
+
     const nextHolobots = [...(profile.holobots || [])];
     const targetName = selectedHolobot.name.trim().toUpperCase();
     const targetIndex = nextHolobots.findIndex(
@@ -114,7 +124,7 @@ export function FitnessScreen() {
     );
 
     if (targetIndex >= 0) {
-      nextHolobots[targetIndex] = applyHolobotExperience(nextHolobots[targetIndex], boostedExpReward);
+      nextHolobots[targetIndex] = applyHolobotExperience(nextHolobots[targetIndex], completionResult.expReward);
     } else {
       const fallbackHolobot: UserHolobot = {
         attributePoints: selectedHolobot.attributePoints ?? 0,
@@ -125,7 +135,7 @@ export function FitnessScreen() {
         nextLevelExp: selectedHolobot.nextLevelExp,
         rank: selectedHolobot.rank,
       };
-      nextHolobots.push(applyHolobotExperience(fallbackHolobot, boostedExpReward));
+      nextHolobots.push(applyHolobotExperience(fallbackHolobot, completionResult.expReward));
     }
 
     try {
