@@ -1,6 +1,9 @@
 import { doc, getDoc, onSnapshot, updateDoc, db, type Unsubscribe } from "@/config/firebase";
 import type { SyncRank, UserHolobot, UserProfile } from "@/types/profile";
+import { computeLeaderboardScore } from "@/lib/progression";
 import { getSyncRank } from "@/lib/syncProgression";
+
+export { computeLeaderboardScore };
 
 const DEFAULT_USER_PROFILE = {
   dailyEnergy: 100,
@@ -72,22 +75,6 @@ type FirestoreUserDocument = {
   fitnessSource?: string;
   syncDistanceUnit?: "km" | "mi";
 };
-
-type LeaderboardScoreInput = {
-  holobots?: UserHolobot[];
-  prestigeCount?: number;
-  seasonSyncPoints?: number;
-  wins?: number;
-};
-
-export function computeLeaderboardScore(input: LeaderboardScoreInput) {
-  const highestLevel = Math.max(1, ...(input.holobots || []).map((holobot) => holobot.level || 1));
-  const wins = input.wins || 0;
-  const seasonSyncPoints = input.seasonSyncPoints || 0;
-  const prestigeCount = input.prestigeCount || 0;
-
-  return wins * 120 + highestLevel * 25 + seasonSyncPoints + prestigeCount * 500;
-}
 
 function toIsoString(value?: { toDate?: () => Date } | string) {
   if (!value) {
