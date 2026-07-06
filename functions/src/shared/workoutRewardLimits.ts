@@ -7,10 +7,14 @@
  * is the single source of truth for how a raw (attacker-controllable) workout
  * payload is clamped to a plausible reward before it is persisted.
  *
- * This file exists byte-identically in two packages (they cannot share a build):
- *   - mobile/src/lib/security/workoutRewardLimits.ts (its vitest tests are the spec)
- *   - functions/src/shared/workoutRewardLimits.ts (compiled into the deployed function)
- * `npm run check:shared` in functions/ fails the build and deploy if they drift.
+ * The ceilings mirror the session reward formula the watch actually uses
+ * (`RewardCalculator` in WorkoutPayload.swift and `calculateRewards` in
+ * mobile/src/hooks/useWorkout.ts): base session points + a step bonus + a
+ * per-km milestone bonus. Keep all three in sync when rebalancing.
+ *
+ * The equivalent file is kept byte-identical at
+ * `functions/src/shared/workoutRewardLimits.ts` (enforced by
+ * `functions/scripts/check-shared-parity.mjs` on every functions build).
  */
 
 export type RawWorkoutRewardInput = {
@@ -31,15 +35,16 @@ export type ClampedWorkoutReward = {
   elapsedSeconds: number;
 };
 
-// Conversion / plausibility constants. Generous enough not to penalise honest
-// clients, tight enough that "syncPointsEarned: 1e6" is rejected.
-export const STEPS_PER_SYNC_POINT = 1000;
+// Session reward formula constants (must match the watch/phone reward math).
+export const BASE_SESSION_SYNC_POINTS = 225;
+export const SESSION_STEP_BONUS_DIVISOR = 25;
+export const SYNC_POINTS_PER_KM_MILESTONE = 100;
 export const HOLOS_PER_KM = 12;
 export const EXP_PER_KM = 280;
 
 // Absolute per-session ceilings (a single workout can never legitimately exceed
-// these regardless of reported steps/distance). ~50k steps and ~42km (marathon).
-export const MAX_SESSION_SYNC_POINTS = 50;
+// these regardless of reported steps/distance). ~60k steps and ~42km (marathon).
+export const MAX_SESSION_SYNC_POINTS = 2000;
 export const MAX_SESSION_HOLOS = 500;
 export const MAX_SESSION_EXP = 12000;
 export const MAX_SESSION_STEPS = 60000;
@@ -72,9 +77,12 @@ export function clampWorkoutReward(input: RawWorkoutRewardInput): ClampedWorkout
 
   const distanceKm = distanceMeters / 1000;
 
-  // Ceiling justified by the reported (already-clamped) activity.
+  // Ceiling justified by the reported (already-clamped) activity, mirroring
+  // the session formula: base + steps/25 + 100 per full km.
   const syncPointsCeiling = Math.min(
-    Math.floor(steps / STEPS_PER_SYNC_POINT),
+    BASE_SESSION_SYNC_POINTS +
+      Math.floor(steps / SESSION_STEP_BONUS_DIVISOR) +
+      Math.floor(distanceKm) * SYNC_POINTS_PER_KM_MILESTONE,
     MAX_SESSION_SYNC_POINTS,
   );
   const holosCeiling = Math.min(Math.floor(distanceKm * HOLOS_PER_KM), MAX_SESSION_HOLOS);
