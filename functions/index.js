@@ -2,6 +2,7 @@ const admin = require("firebase-admin");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const {
   applyHolobotExperience,
+  applyWorkoutCareer,
   computeLeaderboardScore,
   getSyncRank,
 } = require("./progression");
@@ -51,7 +52,7 @@ async function persistWatchWorkoutReward(uid, workout) {
     const normalizedTargetName = typeof workout.holobotName === "string" ? workout.holobotName.trim().toUpperCase() : "";
     let nextHolobots = currentHolobots;
 
-    if (awardedExp > 0 && currentHolobots.length > 0) {
+    if (currentHolobots.length > 0) {
       const targetIndex = currentHolobots.findIndex((rawHolobot) => {
         const holobotName = typeof rawHolobot?.name === "string" ? rawHolobot.name : "";
         return holobotName.trim().toUpperCase() === normalizedTargetName;
@@ -62,7 +63,16 @@ async function persistWatchWorkoutReward(uid, workout) {
         if (index !== safeTargetIndex) {
           return rawHolobot;
         }
-        return applyHolobotExperience(rawHolobot, awardedExp);
+
+        let nextHolobot = rawHolobot;
+        if (awardedExp > 0) {
+          nextHolobot = applyHolobotExperience(nextHolobot, awardedExp);
+        }
+        // Every processed watch workout counts toward the companion career.
+        return applyWorkoutCareer(nextHolobot, {
+          date,
+          distanceMeters: Number(workout.distanceMeters || 0),
+        });
       });
     }
 

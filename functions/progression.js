@@ -73,6 +73,26 @@ function applyHolobotExperience(rawHolobot, expGain) {
   };
 }
 
+function applyWorkoutCareer(holobot, update) {
+  const source = holobot && typeof holobot === "object" ? holobot : {};
+  const career = source.career && typeof source.career === "object" ? source.career : {};
+  const date = typeof (update && update.date) === "string" ? update.date : "";
+  const isNewActiveDay = Boolean(date) && career.lastWorkoutDate !== date;
+
+  return {
+    ...source,
+    career: {
+      activeDays: Math.max(0, Math.floor(Number(career.activeDays || 0))) + (isNewActiveDay ? 1 : 0),
+      distanceMeters:
+        Math.max(0, Math.round(Number(career.distanceMeters || 0))) +
+        Math.max(0, Math.round(Number((update && update.distanceMeters) || 0))),
+      firstWorkoutDate: career.firstWorkoutDate || date,
+      lastWorkoutDate: date || career.lastWorkoutDate,
+      workouts: Math.max(0, Math.floor(Number(career.workouts || 0))) + 1,
+    },
+  };
+}
+
 const SYNC_RANK_THRESHOLDS = [
   { min: 50000, rank: "Legend" },
   { min: 25000, rank: "Champion" },
@@ -100,6 +120,7 @@ function computeLeaderboardScore(input) {
 
 module.exports = {
   applyHolobotExperience,
+  applyWorkoutCareer,
   calculateExperience,
   computeLeaderboardScore,
   getHolobotRank,

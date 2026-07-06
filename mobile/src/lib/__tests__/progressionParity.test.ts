@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyHolobotExperience,
+  applyWorkoutCareer,
   calculateExperience,
   computeLeaderboardScore,
   getHolobotRank,
@@ -84,6 +85,37 @@ describe("client/server progression parity", () => {
     expect(pickCompared(serverResult as Record<string, unknown>)).toEqual(
       pickCompared(clientResult as unknown as Record<string, unknown>),
     );
+  });
+
+  it("applyWorkoutCareer matches", () => {
+    const cases = [
+      { holobot: makeHolobot(), update: { date: "2026-07-06", distanceMeters: 500 } },
+      {
+        holobot: makeHolobot({
+          career: {
+            activeDays: 2,
+            distanceMeters: 3200,
+            firstWorkoutDate: "2026-07-01",
+            lastWorkoutDate: "2026-07-05",
+            workouts: 4,
+          },
+        }),
+        update: { date: "2026-07-06", distanceMeters: 1250 },
+      },
+      {
+        holobot: makeHolobot({
+          career: { activeDays: 1, distanceMeters: 100, lastWorkoutDate: "2026-07-06", workouts: 1 },
+        }),
+        update: { date: "2026-07-06" },
+      },
+    ];
+
+    for (const testCase of cases) {
+      const clientResult = applyWorkoutCareer(testCase.holobot, testCase.update);
+      const serverResult = serverProgression.applyWorkoutCareer({ ...testCase.holobot }, testCase.update);
+
+      expect(serverResult.career).toEqual(clientResult.career);
+    }
   });
 
   it("computeLeaderboardScore matches", () => {

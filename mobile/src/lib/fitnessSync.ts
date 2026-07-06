@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore";
 import {
   applyHolobotExperience,
+  applyWorkoutCareer,
   computeLeaderboardScore,
   normalizeUserHolobot,
 } from "@/lib/progression";
@@ -137,9 +138,10 @@ export function computeFitnessSyncOutcome(
     ? (userData.holobots as Parameters<typeof normalizeUserHolobot>[0][])
     : [];
   const normalizedTargetName = request.holobotName?.trim().toUpperCase() ?? "";
+  const sessionIncrementCount = Math.max(0, Math.floor(request.sessionIncrement ?? 0));
   let nextHolobots = currentHolobots;
 
-  if (expAwarded > 0 && currentHolobots.length > 0) {
+  if ((expAwarded > 0 || sessionIncrementCount > 0) && currentHolobots.length > 0) {
     const targetIndex = currentHolobots.findIndex((rawHolobot) => {
       const holobotName =
         typeof (rawHolobot as { name?: unknown })?.name === "string"
@@ -153,7 +155,18 @@ export function computeFitnessSyncOutcome(
       if (index !== safeTargetIndex) {
         return rawHolobot;
       }
-      return applyHolobotExperience(normalizeUserHolobot(rawHolobot), expAwarded);
+
+      let nextHolobot = normalizeUserHolobot(rawHolobot);
+      if (expAwarded > 0) {
+        nextHolobot = applyHolobotExperience(nextHolobot, expAwarded);
+      }
+      if (sessionIncrementCount > 0) {
+        nextHolobot = applyWorkoutCareer(nextHolobot, {
+          date: request.date,
+          distanceMeters: request.distanceMeters,
+        });
+      }
+      return nextHolobot;
     });
   }
 

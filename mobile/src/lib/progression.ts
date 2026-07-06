@@ -1,5 +1,5 @@
 import { getUnlockedSyncAbilities } from "@/lib/syncProgression";
-import type { UserHolobot } from "@/types/profile";
+import type { HolobotCareer, UserHolobot } from "@/types/profile";
 
 /**
  * Canonical progression math shared (by parity contract) with
@@ -81,6 +81,34 @@ export function applyHolobotExperience(holobot: UserHolobot, expGain: number): U
     level: nextLevel,
     nextLevelExp,
     rank: getHolobotRank(nextLevel),
+  };
+}
+
+export type WorkoutCareerUpdate = {
+  /** Local date key (yyyy-mm-dd) of the completed workout. */
+  date: string;
+  distanceMeters?: number;
+};
+
+/**
+ * Records one completed workout on a Holobot's lifetime career: workouts
+ * together, distance together, and distinct active days.
+ */
+export function applyWorkoutCareer<T extends UserHolobot>(holobot: T, update: WorkoutCareerUpdate): T {
+  const career: HolobotCareer = holobot.career || {};
+  const isNewActiveDay = Boolean(update.date) && career.lastWorkoutDate !== update.date;
+
+  return {
+    ...holobot,
+    career: {
+      activeDays: Math.max(0, Math.floor(career.activeDays || 0)) + (isNewActiveDay ? 1 : 0),
+      distanceMeters:
+        Math.max(0, Math.round(career.distanceMeters || 0)) +
+        Math.max(0, Math.round(update.distanceMeters || 0)),
+      firstWorkoutDate: career.firstWorkoutDate || update.date,
+      lastWorkoutDate: update.date || career.lastWorkoutDate,
+      workouts: Math.max(0, Math.floor(career.workouts || 0)) + 1,
+    },
   };
 }
 

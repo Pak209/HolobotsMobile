@@ -133,6 +133,19 @@ export function HolobotStatsModal({
     { key: "focus", value: syncStats.focus },
     { key: "bond", value: syncStats.bond },
   ];
+  const career = normalizedOwnedHolobot?.career;
+  const careerWorkouts = Math.max(0, Math.floor(career?.workouts || 0));
+  const careerSummary =
+    careerWorkouts > 0
+      ? [
+          `${careerWorkouts} workout${careerWorkouts === 1 ? "" : "s"} together`,
+          `${((career?.distanceMeters || 0) / 1000).toFixed(1)} km side by side`,
+          `${Math.max(1, Math.floor(career?.activeDays || 0))} active day${
+            Math.max(1, Math.floor(career?.activeDays || 0)) === 1 ? "" : "s"
+          }`,
+        ].join(" · ")
+      : null;
+  const careerSince = career?.firstWorkoutDate ? `Partners since ${career.firstWorkoutDate}` : null;
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -194,6 +207,13 @@ export function HolobotStatsModal({
 
             {activeTab === "stats" ? (
               <>
+                {careerSummary ? (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>CAREER</Text>
+                    <Text style={styles.metaText}>{careerSummary}</Text>
+                    {careerSince ? <Text style={styles.metaText}>{careerSince}</Text> : null}
+                  </View>
+                ) : null}
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>STATS</Text>
                   {stats.map((stat) => (

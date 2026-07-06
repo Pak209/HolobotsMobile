@@ -138,6 +138,63 @@ describe("computeFitnessSyncOutcome", () => {
     expect(outcome.userUpdates?.syncRank).toBe("Walker");
   });
 
+  it("records career stats on the partner holobot for a completed session", () => {
+    const outcome = computeFitnessSyncOutcome(
+      { holobots: [makeHolobot("ACE"), makeHolobot("KUMA")] },
+      {},
+      makeRequest({
+        distanceMeters: 850,
+        holobotName: "KUMA",
+        sessionIncrement: 1,
+        stepsTotal: 900,
+      }),
+    );
+
+    const holobots = outcome.userUpdates?.holobots as Array<Record<string, unknown>>;
+    const career = holobots[1].career as Record<string, unknown>;
+    expect(career.workouts).toBe(1);
+    expect(career.distanceMeters).toBe(850);
+    expect(career.activeDays).toBe(1);
+    expect(career.firstWorkoutDate).toBe("2026-07-06");
+    expect(career.lastWorkoutDate).toBe("2026-07-06");
+    expect(holobots[0].career).toBeUndefined();
+  });
+
+  it("accumulates career workouts within the same day without double-counting active days", () => {
+    const existing = makeHolobot("ACE", {
+      career: {
+        activeDays: 3,
+        distanceMeters: 5000,
+        firstWorkoutDate: "2026-07-01",
+        lastWorkoutDate: "2026-07-06",
+        workouts: 7,
+      },
+    });
+    const outcome = computeFitnessSyncOutcome(
+      { holobots: [existing] },
+      {},
+      makeRequest({ distanceMeters: 400, holobotName: "ACE", sessionIncrement: 1, stepsTotal: 500 }),
+    );
+
+    const holobots = outcome.userUpdates?.holobots as Array<Record<string, unknown>>;
+    const career = holobots[0].career as Record<string, unknown>;
+    expect(career.workouts).toBe(8);
+    expect(career.distanceMeters).toBe(5400);
+    expect(career.activeDays).toBe(3);
+    expect(career.firstWorkoutDate).toBe("2026-07-01");
+  });
+
+  it("does not touch career stats on pause syncs", () => {
+    const outcome = computeFitnessSyncOutcome(
+      { holobots: [makeHolobot("ACE")] },
+      {},
+      makeRequest({ holobotName: "ACE", stepsTotal: 2500 }),
+    );
+
+    const holobots = outcome.userUpdates?.holobots as Array<Record<string, unknown>>;
+    expect(holobots[0].career).toBeUndefined();
+  });
+
   it("clamps negative reward inputs to zero", () => {
     const outcome = computeFitnessSyncOutcome(
       { holosTokens: 10, syncPoints: 10, holobots: [makeHolobot("ACE")] },
