@@ -2,7 +2,12 @@ import { DocumentData, FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
-import { applyHolobotExperience, computeLeaderboardScore, getSyncRank } from "../lib/progression";
+import {
+  applyHolobotExperience,
+  applyWorkoutCareer,
+  computeLeaderboardScore,
+  getSyncRank,
+} from "../lib/progression";
 import { RawWorkoutRewardInput, clampWorkoutReward } from "../shared/workoutRewardLimits";
 
 const DAILY_WORKOUT_CAP = 4;
@@ -70,7 +75,7 @@ async function persistWatchWorkoutReward(
       typeof workout.holobotName === "string" ? workout.holobotName.trim().toUpperCase() : "";
     let nextHolobots = currentHolobots;
 
-    if (awardedExp > 0 && currentHolobots.length > 0) {
+    if (currentHolobots.length > 0) {
       const targetIndex = currentHolobots.findIndex((rawHolobot) => {
         const holobotName =
           rawHolobot && typeof rawHolobot === "object" && typeof (rawHolobot as Record<string, unknown>).name === "string"
@@ -84,7 +89,16 @@ async function persistWatchWorkoutReward(
         if (index !== safeTargetIndex) {
           return rawHolobot;
         }
-        return applyHolobotExperience(rawHolobot, awardedExp);
+
+        let nextHolobot: unknown = rawHolobot;
+        if (awardedExp > 0) {
+          nextHolobot = applyHolobotExperience(nextHolobot, awardedExp);
+        }
+        // Every processed watch workout counts toward the companion career.
+        return applyWorkoutCareer(nextHolobot, {
+          date,
+          distanceMeters: clampedReward.distanceMeters,
+        });
       });
     }
 
