@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 import { doc, getDoc, onSnapshot, updateDoc, db, type Unsubscribe } from "@/config/firebase";
 import type { SyncRank, UserHolobot, UserProfile } from "@/types/profile";
 import { computeLeaderboardScore } from "@/lib/progression";
@@ -93,6 +95,11 @@ function toIsoString(value?: { toDate?: () => Date } | string) {
 function stripUndefinedDeep(value: unknown): unknown {
   if (value === undefined) {
     return undefined;
+  }
+
+  // Firestore sentinel values must pass through untouched.
+  if (value instanceof Timestamp || value instanceof Date) {
+    return value;
   }
 
   if (Array.isArray(value)) {
@@ -245,7 +252,11 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   const firestoreUpdates: Record<string, unknown> = {};
 
   if (updates.dailyEnergy !== undefined) firestoreUpdates.dailyEnergy = updates.dailyEnergy;
-  if (updates.lastEnergyRefresh !== undefined) firestoreUpdates.lastEnergyRefresh = updates.lastEnergyRefresh;
+  if (updates.lastEnergyRefresh !== undefined) {
+    // The web app (holobots-fun) writes and reads this field as a Firestore
+    // Timestamp; writing a string here would break its `?.toDate?.()` reader.
+    firestoreUpdates.lastEnergyRefresh = Timestamp.fromDate(new Date(updates.lastEnergyRefresh));
+  }
   if (updates.stepEnergyDate !== undefined) firestoreUpdates.stepEnergyDate = updates.stepEnergyDate;
   if (updates.stepEnergyGrantedToday !== undefined) {
     firestoreUpdates.stepEnergyGrantedToday = updates.stepEnergyGrantedToday;
