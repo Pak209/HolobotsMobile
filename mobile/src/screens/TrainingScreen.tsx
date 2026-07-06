@@ -5,6 +5,7 @@ import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEnergyRegen } from "@/hooks/useEnergyRegen";
 import {
   claimTrainingSession,
   getTrainingCourse,
@@ -24,6 +25,7 @@ function formatCountdown(endsAt: string, nowTick: number) {
 
 export function TrainingScreen() {
   const { profile, updateProfile } = useAuth();
+  useEnergyRegen();
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());

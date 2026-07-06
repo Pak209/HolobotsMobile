@@ -53,6 +53,8 @@ type FirestoreUserDocument = {
   equippedParts?: Record<string, unknown>;
   holobots?: UserHolobot[];
   lastEnergyRefresh?: { toDate?: () => Date };
+  stepEnergyDate?: string;
+  stepEnergyGrantedToday?: number;
   isDevAccount?: boolean;
   rentalHolobots?: Array<Record<string, unknown>>;
   syncPoints?: number;
@@ -126,6 +128,8 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     },
     lastEnergyRefresh:
       toIsoString(data.lastEnergyRefresh) || new Date().toISOString(),
+    stepEnergyDate: data.stepEnergyDate,
+    stepEnergyGrantedToday: data.stepEnergyGrantedToday,
     level: 1,
     arena_passes: data.arenaPassses ?? DEFAULT_USER_PROFILE.arenaPassses,
     exp_boosters: data.expBoosters ?? DEFAULT_USER_PROFILE.expBoosters,
@@ -208,6 +212,9 @@ export function subscribeToUserProfile(
 
 type UserProfileUpdates = Partial<{
   dailyEnergy: number;
+  lastEnergyRefresh: string;
+  stepEnergyDate: string;
+  stepEnergyGrantedToday: number;
   holosTokens: number;
   syncPoints: number;
   lifetimeSyncPoints: number;
@@ -238,6 +245,11 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   const firestoreUpdates: Record<string, unknown> = {};
 
   if (updates.dailyEnergy !== undefined) firestoreUpdates.dailyEnergy = updates.dailyEnergy;
+  if (updates.lastEnergyRefresh !== undefined) firestoreUpdates.lastEnergyRefresh = updates.lastEnergyRefresh;
+  if (updates.stepEnergyDate !== undefined) firestoreUpdates.stepEnergyDate = updates.stepEnergyDate;
+  if (updates.stepEnergyGrantedToday !== undefined) {
+    firestoreUpdates.stepEnergyGrantedToday = updates.stepEnergyGrantedToday;
+  }
   if (updates.holosTokens !== undefined) firestoreUpdates.holosTokens = updates.holosTokens;
   if (updates.syncPoints !== undefined) firestoreUpdates.syncPoints = updates.syncPoints;
   if (updates.lifetimeSyncPoints !== undefined) firestoreUpdates.lifetimeSyncPoints = updates.lifetimeSyncPoints;

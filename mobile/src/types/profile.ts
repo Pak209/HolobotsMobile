@@ -45,6 +45,8 @@ export type UserProfile = {
     losses: number;
   };
   lastEnergyRefresh: string;
+  stepEnergyDate?: string;
+  stepEnergyGrantedToday?: number;
   level?: number;
   arena_passes?: number;
   exp_boosters?: number;
