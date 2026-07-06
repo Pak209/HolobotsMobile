@@ -65,6 +65,7 @@ service cloud.firestore {
         && saneOptional(data, 'asyncBattleTickets')
         && saneOptional(data, 'dailyEnergy')
         && saneOptional(data, 'maxDailyEnergy')
+        && saneOptional(data, 'stepEnergyGrantedToday')
         && saneOptional(data, 'leaderboardScore')
         && saneOptional(data, 'prestigeCount')
         && saneOptional(data, 'wins')
