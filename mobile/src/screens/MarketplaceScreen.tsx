@@ -4,10 +4,13 @@ import Svg, { Circle } from "react-native-svg";
 
 import { GameFeedbackModal } from "@/components/GameFeedbackModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
-import { getRandomBattleCardGrant, mergeBattleCardCounts } from "@/lib/battleCards/catalog";
 import { getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { useAuth } from "@/contexts/AuthContext";
-import { incrementBoosterPacksToday } from "@/lib/dailyMissions";
+import {
+  purchaseMarketplaceBoosterAuthoritative,
+  purchaseMarketplaceItemAuthoritative,
+} from "@/lib/economyClient";
+import { getMarketplacePrice, MARKETPLACE_BOOSTER_PRICES } from "@/lib/marketplace";
 
 const tabs = ["Items", "Parts", "Booster Packs"] as const;
 type MarketplaceTab = (typeof tabs)[number];
@@ -37,7 +40,7 @@ const marketplaceBoosterPacks = [
     icon: "□",
     id: "common",
     name: "Common Rank Booster",
-    price: 50,
+    price: MARKETPLACE_BOOSTER_PRICES.common,
     subtitle: "STANDARD DROP RATES",
   },
   {
@@ -47,7 +50,7 @@ const marketplaceBoosterPacks = [
     icon: "⬡",
     id: "champion",
     name: "Champion Rank Booster",
-    price: 100,
+    price: MARKETPLACE_BOOSTER_PRICES.champion,
     subtitle: "IMPROVED DROP RATES",
   },
   {
@@ -57,7 +60,7 @@ const marketplaceBoosterPacks = [
     icon: "✦",
     id: "rare",
     name: "Rare Rank Booster",
-    price: 200,
+    price: MARKETPLACE_BOOSTER_PRICES.rare,
     subtitle: "ENHANCED RARE+ CHANCES",
   },
   {
@@ -67,29 +70,10 @@ const marketplaceBoosterPacks = [
     icon: "★",
     id: "elite",
     name: "Elite Rank Booster",
-    price: 400,
+    price: MARKETPLACE_BOOSTER_PRICES.elite,
     subtitle: "PREMIUM DROP RATES",
   },
 ] as const;
-
-const boosterPartPool = [
-  { name: "Combat Mask", slot: "head" },
-  { name: "Void Mask", slot: "head" },
-  { name: "Torso Part", slot: "torso" },
-  { name: "Plasma Cannon", slot: "arms" },
-  { name: "Boxer Gloves", slot: "arms" },
-  { name: "Core Part", slot: "core" },
-] as const;
-const boosterItemAwardMap = {
-  champion: "Gacha Ticket",
-  common: "Arena Pass",
-  elite: "EXP Booster",
-  rare: "Energy Refill",
-} as const;
-
-function randomFromList<T>(items: readonly T[]) {
-  return items[Math.floor(Math.random() * items.length)];
-}
 
 export function MarketplaceScreen() {
   const { profile, updateProfile } = useAuth();
@@ -139,37 +123,15 @@ export function MarketplaceScreen() {
       return;
     }
 
-    const price = Number(getMarketplacePrice(itemName));
+    const price = getMarketplacePrice(itemName);
     if ((profile.holosTokens || 0) < price) {
       Alert.alert("Not enough Holos", `You need ${price - (profile.holosTokens || 0)} more Holos.`);
       return;
     }
 
-    const updates: Parameters<typeof updateProfile>[0] = {
-      holosTokens: (profile.holosTokens || 0) - price,
-    };
-
-    switch (itemName) {
-      case "Arena Pass":
-        updates.arena_passes = (profile.arena_passes || 0) + 1;
-        break;
-      case "Gacha Ticket":
-        updates.gachaTickets = (profile.gachaTickets || 0) + 1;
-        break;
-      case "Energy Refill":
-        updates.energy_refills = (profile.energy_refills || 0) + 1;
-        break;
-      case "EXP Booster":
-        updates.exp_boosters = (profile.exp_boosters || 0) + 1;
-        break;
-      case "Rank Skip":
-        updates.rank_skips = (profile.rank_skips || 0) + 1;
-        break;
-    }
-
     try {
       setPendingPurchaseId(itemName);
-      await updateProfile(updates);
+      await purchaseMarketplaceItemAuthoritative(profile, updateProfile, itemName);
       setFeedback({
         accent: "#17d9ff",
         message: `${itemName} has been added to your account.`,
@@ -198,47 +160,16 @@ export function MarketplaceScreen() {
       return;
     }
 
-    const grantedPart = randomFromList(boosterPartPool);
-    const grantedItem = boosterItemAwardMap[pack.id];
-    const grantedBattleCard = getRandomBattleCardGrant(pack.id);
-    const [grantedBattleCardId] = Object.keys(grantedBattleCard);
-    const packHistory = Array.isArray(profile.pack_history) ? profile.pack_history : [];
-
-    const updates: Parameters<typeof updateProfile>[0] = {
-      arena_deck_template_ids:
-        profile.arena_deck_template_ids && profile.arena_deck_template_ids.length > 0
-          ? profile.arena_deck_template_ids
-          : Object.keys(mergeBattleCardCounts(profile.battle_cards, grantedBattleCard)),
-      battle_cards: mergeBattleCardCounts(profile.battle_cards, grantedBattleCard),
-      holosTokens: (profile.holosTokens || 0) - pack.price,
-      pack_history: [
-        {
-          id: `marketplace_${pack.id}_${Date.now()}`,
-          items: [
-            { name: grantedPart.name, quantity: 1, slot: grantedPart.slot, type: "part" },
-            { name: grantedItem, quantity: 1, type: "item" },
-            { name: grantedBattleCardId, quantity: 1, type: "battle_card" },
-          ],
-          openedAt: new Date().toISOString(),
-          packId: pack.id,
-        },
-        ...packHistory,
-      ].slice(0, 50),
-      parts: [...(profile.parts || []), { name: grantedPart.name, slot: grantedPart.slot }],
-      rewardSystem: incrementBoosterPacksToday(profile.rewardSystem),
-    };
-
-    if (grantedItem === "Arena Pass") updates.arena_passes = (profile.arena_passes || 0) + 1;
-    if (grantedItem === "Gacha Ticket") updates.gachaTickets = (profile.gachaTickets || 0) + 1;
-    if (grantedItem === "Energy Refill") updates.energy_refills = (profile.energy_refills || 0) + 1;
-    if (grantedItem === "EXP Booster") updates.exp_boosters = (profile.exp_boosters || 0) + 1;
-
     try {
       setPendingPurchaseId(pack.id);
-      await updateProfile(updates);
+      const granted = await purchaseMarketplaceBoosterAuthoritative(profile, updateProfile, pack.id);
       setFeedback({
         accent: pack.accent,
-        lines: [`Part: ${grantedPart.name}`, `Item: ${grantedItem}`, `Battle Card: ${grantedBattleCardId}`],
+        lines: [
+          `Part: ${granted.part.name}`,
+          `Item: ${granted.itemName}`,
+          `Battle Card: ${granted.battleCardId}`,
+        ],
         message: `${pack.name} opened.`,
         title: "Booster Purchased",
       });
@@ -679,17 +610,3 @@ const styles = StyleSheet.create({
     color: "#1c1805",
   },
 });
-
-function getMarketplacePrice(itemName: string) {
-  const normalized = itemName.trim().toLowerCase();
-
-  if (normalized.includes("energy")) return "200";
-  if (normalized.includes("exp")) return "750";
-  if (normalized.includes("rank")) return "5000";
-  if (normalized.includes("arena")) return "50";
-  if (normalized.includes("gacha")) return "100";
-  if (normalized.includes("async")) return "125";
-  if (normalized.includes("blueprint")) return "300";
-
-  return "100";
-}

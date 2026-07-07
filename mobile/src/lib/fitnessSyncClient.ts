@@ -1,5 +1,6 @@
 import { functions, httpsCallable } from "@/config/firebase";
 import { db } from "@/config/firebase";
+import { shouldFallBackToLocal } from "@/lib/callables";
 import {
   syncFitnessActivity as syncFitnessActivityLocal,
   type SyncFitnessActivityRequest,
@@ -25,28 +26,6 @@ const syncFitnessActivityCallable = httpsCallable<CallablePayload, SyncFitnessAc
   "syncFitnessActivity",
 );
 
-// Errors that mean "the server path was unusable", not "the server said no".
-const FALLBACK_ERROR_CODES = new Set([
-  "functions/not-found",
-  "functions/unavailable",
-  "functions/deadline-exceeded",
-  "functions/internal",
-]);
-
-function shouldFallBack(error: unknown): boolean {
-  const code =
-    typeof error === "object" && error && "code" in error
-      ? String((error as { code?: unknown }).code)
-      : "";
-
-  if (!code) {
-    // Plain network failures surface without a functions/* code.
-    return true;
-  }
-
-  return FALLBACK_ERROR_CODES.has(code);
-}
-
 export async function syncFitnessActivityAuthoritative(
   request: SyncFitnessActivityRequest,
 ): Promise<SyncFitnessActivityResponse> {
@@ -56,7 +35,7 @@ export async function syncFitnessActivityAuthoritative(
     const result = await syncFitnessActivityCallable(payload);
     return result.data;
   } catch (error) {
-    if (!shouldFallBack(error)) {
+    if (!shouldFallBackToLocal(error)) {
       throw error;
     }
 
