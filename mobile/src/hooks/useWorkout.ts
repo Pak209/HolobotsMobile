@@ -6,9 +6,9 @@ import { db } from "@/config/firebase";
 import {
   getDailyWorkoutState,
   getLocalDateKey,
-  syncFitnessActivity,
   unlockDailyWorkoutRefill,
 } from "@/lib/fitnessSync";
+import { syncFitnessActivityAuthoritative } from "@/lib/fitnessSyncClient";
 
 export type DistanceUnit = "km" | "mi";
 export type WorkoutRewardOptions = {
@@ -298,7 +298,7 @@ function useLiveWorkout(
       setSyncState("syncing");
       setSyncMessage(reason === "pause" ? "Syncing paused workout..." : "Syncing completed workout...");
 
-      const result = await syncFitnessActivity(db, {
+      const result = await syncFitnessActivityAuthoritative({
         activityId: extras?.activityId,
         cooldownEndsAt: extras?.cooldownEndsAt,
         date,
