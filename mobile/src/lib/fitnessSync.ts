@@ -18,7 +18,7 @@ export { getLocalDateKey } from "@/lib/dates";
 const STEPS_PER_SYNC_POINT = 1000;
 const DAILY_WORKOUT_CAP = 4;
 
-type SyncFitnessActivityRequest = {
+export type SyncFitnessActivityRequest = {
   activityId?: string;
   cooldownEndsAt?: string | null;
   date: string;
@@ -34,7 +34,7 @@ type SyncFitnessActivityRequest = {
   workoutMinutes?: number;
 };
 
-type SyncFitnessActivityResponse = {
+export type SyncFitnessActivityResponse = {
   awardedDelta: number;
   cooldownEndsAt: string | null;
   totalHolosTokens: number;

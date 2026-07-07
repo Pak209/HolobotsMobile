@@ -5,7 +5,7 @@
 This Firebase project (`holobots-24046`) hosts functions deployed from **two
 repositories**:
 
-- this repo (`syncWatchWorkoutRewards`, `deleteUserAccountV2`)
+- this repo (`syncWatchWorkoutRewards`, `syncFitnessActivity`, `deleteUserAccountV2`)
 - the `holobots-fun` web repo (`createWebviewBridgeToken`, possibly others)
 
 A bare `firebase deploy --only functions` from this repo will offer to
@@ -13,7 +13,7 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --only functions:syncWatchWorkoutRewards,functions:deleteUserAccountV2
+firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:deleteUserAccountV2
 ```
 
 ## Layout
