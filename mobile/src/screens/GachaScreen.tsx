@@ -4,8 +4,8 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { PackOpeningAnimation, type GachaRevealItem } from "@/components/gacha/PackOpeningAnimation";
 import { useAuth } from "@/contexts/AuthContext";
-import { incrementBoosterPacksToday } from "@/lib/dailyMissions";
-import { buildPackGrantUpdates, buildPackRewards, GACHA_PACKS } from "@/lib/gacha";
+import { openGachaPackAuthoritative } from "@/lib/economyClient";
+import { GACHA_PACKS } from "@/lib/gacha";
 
 const PACKS = GACHA_PACKS;
 
@@ -28,26 +28,12 @@ export function GachaScreen() {
       return;
     }
 
-    const rewards = buildPackRewards(activePack.id);
-    const grantUpdates = buildPackGrantUpdates(profile, rewards);
-    setRevealedItems(rewards);
     setIsOpening(true);
 
     try {
-      await updateProfile({
-        ...grantUpdates,
-        gachaTickets: Math.max(0, tickets - activePack.price),
-        pack_history: [
-          {
-            id: `gacha_${activePack.id}_${Date.now()}`,
-            items: rewards.map((reward) => ({ name: reward.label, rarity: reward.rarity })),
-            openedAt: new Date().toISOString(),
-            packId: activePack.id,
-          },
-          ...(profile.pack_history || []),
-        ].slice(0, 50),
-        rewardSystem: incrementBoosterPacksToday(profile.rewardSystem),
-      });
+      // Server rolls the loot; the reveal animates whatever it granted.
+      const { items } = await openGachaPackAuthoritative(profile, updateProfile, activePack.id);
+      setRevealedItems(items);
     } catch (error) {
       setIsOpening(false);
       Alert.alert("Gacha failed", error instanceof Error ? error.message : "Please try again.");
