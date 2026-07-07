@@ -1,0 +1,139 @@
+rules_version = '2';
+
+// Holobots Firestore Security Rules
+// -----------------------------------------------------------------------------
+// SECURITY MODEL & KNOWN LIMITATION
+//
+// The mobile client currently writes economy fields (holosTokens, syncPoints,
+// gachaTickets, holobots, leaderboardScore, battle_cards, inventory, ...)
+// directly to /users/{uid}. These rules therefore CANNOT make those fields
+// fully immutable without breaking the shipping app. Instead they:
+//   * require authentication for every read/write (was previously ungoverned),
+//   * scope every document to its owner (no cross-account reads/writes),
+//   * block privilege escalation (isDevAccount, uid spoofing),
+//   * reject malformed / negative / absurdly large economy values as
+//     defense-in-depth against trivial "set balance = 1e9" attacks,
+//   * restrict PvP room/pool writes to participants.
+//
+// FULL economy integrity still REQUIRES moving value-granting logic
+// (gacha, battle payouts, fitness conversion, quests, purchases, minting,
+// mission claims, leaderboard scoring, PvP resolution) into Cloud Functions
+// that recompute from server-trusted state. See SECURITY_AUDIT.md (C1-C5, H1-H7).
+// Once those writes move server-side, tighten the economy fields below to
+// `allow write: if false` for the client and delete the sanity-cap helpers.
+// -----------------------------------------------------------------------------
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers -----------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // A defensive upper bound. Far above any legitimate balance, but blocks
+    // the "set my currency to 1e9" class of tampering. Not a substitute for
+    // server-authoritative economy (see header).
+    function sane(n) {
+      return n is number && n >= 0 && n <= 100000000;
+    }
+
+    function saneOptional(data, field) {
+      return !(field in data) || sane(data[field]);
+    }
+
+    // Fields the client must never be able to set/raise itself.
+    function noPrivilegeEscalation(data) {
+      return !('isDevAccount' in data) || data.isDevAccount == false;
+    }
+
+    // Numeric economy fields we sanity-check on write.
+    function economyFieldsSane(data) {
+      return saneOptional(data, 'holosTokens')
+        && saneOptional(data, 'syncPoints')
+        && saneOptional(data, 'lifetimeSyncPoints')
+        && saneOptional(data, 'seasonSyncPoints')
+        && saneOptional(data, 'gachaTickets')
+        && saneOptional(data, 'arenaPassses')
+        && saneOptional(data, 'expBoosters')
+        && saneOptional(data, 'energyRefills')
+        && saneOptional(data, 'rankSkips')
+        && saneOptional(data, 'asyncBattleTickets')
+        && saneOptional(data, 'dailyEnergy')
+        && saneOptional(data, 'maxDailyEnergy')
+        && saneOptional(data, 'stepEnergyGrantedToday')
+        && saneOptional(data, 'leaderboardScore')
+        && saneOptional(data, 'prestigeCount')
+        && saneOptional(data, 'wins')
+        && saneOptional(data, 'losses')
+        && saneOptional(data, 'todaySteps');
+    }
+
+    // ---- users -------------------------------------------------------------
+    // Read: any signed-in user (leaderboard reads the top-N of this collection).
+    //   NOTE: this exposes the full user document to every authenticated user,
+    //   which is a privacy concern (see SECURITY_AUDIT.md, data-privacy). The
+    //   durable fix is a dedicated `/leaderboard` projection with only public
+    //   fields; until then reads are gated on auth (previously ungoverned).
+    // Write: owner only, with anti-escalation + sanity validation.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+
+      allow create: if isOwner(uid)
+        && noPrivilegeEscalation(request.resource.data)
+        && economyFieldsSane(request.resource.data);
+
+      allow update: if isOwner(uid)
+        && noPrivilegeEscalation(request.resource.data)
+        && economyFieldsSane(request.resource.data)
+        // isDevAccount can never be flipped on by the client.
+        && (!('isDevAccount' in request.resource.data)
+            || request.resource.data.isDevAccount == resource.data.get('isDevAccount', false)
+            || request.resource.data.isDevAccount == false);
+
+      allow delete: if isOwner(uid);
+
+      // Owner-scoped subcollections (fitness_daily, etc.).
+      match /{document=**} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // ---- PvP matchmaking pool ---------------------------------------------
+    // Each entry keyed by uid. Only the owner may create/modify/remove its own
+    // entry; any signed-in user may read the pool to find opponents.
+    match /battle_pool_entries/{uid} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwner(uid);
+    }
+
+    // ---- PvP battle rooms --------------------------------------------------
+    // Signed-in users may read/join rooms. Writes are limited to the two
+    // participants recorded on the room. This does NOT validate individual
+    // moves (a participant can still write an illegal board state) — authoritative
+    // move validation requires a Cloud Function (SECURITY_AUDIT.md C4).
+    match /battle_rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.get('hostId', request.auth.uid) == request.auth.uid;
+      allow update: if isSignedIn()
+        && (request.auth.uid in [
+              resource.data.get('hostId', ''),
+              resource.data.get('guestId', ''),
+              resource.data.get('p1', ''),
+              resource.data.get('p2', '')
+            ]);
+      allow delete: if isSignedIn()
+        && request.auth.uid == resource.data.get('hostId', '');
+    }
+
+    // ---- default deny ------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

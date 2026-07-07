@@ -1,21 +1,42 @@
-const admin = require("firebase-admin");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const {
+import { DocumentData, FieldValue } from "firebase-admin/firestore";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
+
+import { db } from "../admin";
+import {
   applyHolobotExperience,
   applyWorkoutCareer,
   computeLeaderboardScore,
   getSyncRank,
-} = require("./progression");
+} from "../lib/progression";
+import { RawWorkoutRewardInput, clampWorkoutReward } from "../shared/workoutRewardLimits";
 
-admin.initializeApp();
-
-const db = admin.firestore();
-const auth = admin.auth();
 const DAILY_WORKOUT_CAP = 4;
 
-async function persistWatchWorkoutReward(uid, workout) {
+// Maximum number of workout events accepted in a single sync call (anti-DoS /
+// anti mass-write). A device can never legitimately buffer more than a handful.
+const MAX_WORKOUTS_PER_CALL = 25;
+
+type WatchWorkoutPayload = RawWorkoutRewardInput & {
+  workoutId?: unknown;
+  date?: unknown;
+  holobotName?: unknown;
+};
+
+type WorkoutRewardResult = {
+  alreadyProcessed: boolean;
+  totalSyncPoints: number;
+  workoutSessionsCompleted: number;
+};
+
+async function persistWatchWorkoutReward(
+  uid: string,
+  workout: WatchWorkoutPayload,
+): Promise<WorkoutRewardResult> {
   const activityId = typeof workout.workoutId === "string" ? workout.workoutId.trim() : "";
-  const date = typeof workout.date === "string" && workout.date ? workout.date : new Date().toISOString().slice(0, 10);
+  const date =
+    typeof workout.date === "string" && workout.date
+      ? workout.date
+      : new Date().toISOString().slice(0, 10);
   const dailyRef = db.doc(`users/${uid}/fitness_daily/${date}`);
   const userRef = db.doc(`users/${uid}`);
 
@@ -29,8 +50,8 @@ async function persistWatchWorkoutReward(uid, workout) {
       throw new HttpsError("not-found", "User profile not found.");
     }
 
-    const userData = userSnapshot.data() || {};
-    const dailyData = dailySnapshot.data() || {};
+    const userData: DocumentData = userSnapshot.data() || {};
+    const dailyData: DocumentData = dailySnapshot.data() || {};
     const processedActivityIds = dailyData.processedActivityIds || {};
     const processedWorkoutEvents = dailyData.processedWorkoutEvents || {};
 
@@ -42,19 +63,24 @@ async function persistWatchWorkoutReward(uid, workout) {
       };
     }
 
-    const awardedSyncPoints = Math.max(0, Math.floor(Number(workout.syncPointsEarned || 0)));
-    const awardedHolos = Math.max(0, Math.floor(Number(workout.holosEarned || 0)));
-    const awardedExp = Math.max(0, Math.floor(Number(workout.expEarned || 0)));
+    const clampedReward = clampWorkoutReward(workout);
+    const awardedSyncPoints = clampedReward.syncPoints;
+    const awardedHolos = clampedReward.holos;
+    const awardedExp = clampedReward.exp;
     const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted || 0));
     const nextSessionsCompleted = Math.min(DAILY_WORKOUT_CAP, previousSessionsCompleted + 1);
 
-    const currentHolobots = Array.isArray(userData.holobots) ? userData.holobots : [];
-    const normalizedTargetName = typeof workout.holobotName === "string" ? workout.holobotName.trim().toUpperCase() : "";
+    const currentHolobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
+    const normalizedTargetName =
+      typeof workout.holobotName === "string" ? workout.holobotName.trim().toUpperCase() : "";
     let nextHolobots = currentHolobots;
 
     if (currentHolobots.length > 0) {
       const targetIndex = currentHolobots.findIndex((rawHolobot) => {
-        const holobotName = typeof rawHolobot?.name === "string" ? rawHolobot.name : "";
+        const holobotName =
+          rawHolobot && typeof rawHolobot === "object" && typeof (rawHolobot as Record<string, unknown>).name === "string"
+            ? ((rawHolobot as Record<string, unknown>).name as string)
+            : "";
         return holobotName.trim().toUpperCase() === normalizedTargetName;
       });
       const safeTargetIndex = targetIndex >= 0 ? targetIndex : 0;
@@ -64,27 +90,29 @@ async function persistWatchWorkoutReward(uid, workout) {
           return rawHolobot;
         }
 
-        let nextHolobot = rawHolobot;
+        let nextHolobot: unknown = rawHolobot;
         if (awardedExp > 0) {
           nextHolobot = applyHolobotExperience(nextHolobot, awardedExp);
         }
         // Every processed watch workout counts toward the companion career.
         return applyWorkoutCareer(nextHolobot, {
           date,
-          distanceMeters: Number(workout.distanceMeters || 0),
+          distanceMeters: clampedReward.distanceMeters,
         });
       });
     }
 
     const nextSyncPoints = Math.max(0, Number(userData.syncPoints || 0)) + awardedSyncPoints;
-    const nextLifetimeSyncPoints = Math.max(0, Number(userData.lifetimeSyncPoints || 0)) + awardedSyncPoints;
-    const nextSeasonSyncPoints = Math.max(0, Number(userData.seasonSyncPoints || 0)) + awardedSyncPoints;
+    const nextLifetimeSyncPoints =
+      Math.max(0, Number(userData.lifetimeSyncPoints || 0)) + awardedSyncPoints;
+    const nextSeasonSyncPoints =
+      Math.max(0, Number(userData.seasonSyncPoints || 0)) + awardedSyncPoints;
     const nextHolosTokens = Math.max(0, Number(userData.holosTokens || 0)) + awardedHolos;
 
     transaction.set(dailyRef, {
       date,
-      distanceMeters: Math.max(0, Math.round(Number(workout.distanceMeters || 0))),
-      lastSampleAt: admin.firestore.FieldValue.serverTimestamp(),
+      distanceMeters: clampedReward.distanceMeters,
+      lastSampleAt: FieldValue.serverTimestamp(),
       processedActivityIds: activityId
         ? { ...processedActivityIds, [activityId]: true }
         : processedActivityIds,
@@ -94,10 +122,10 @@ async function persistWatchWorkoutReward(uid, workout) {
       source: "watch",
       stepsTotal: Math.max(
         Math.max(0, Number(dailyData.stepsTotal || 0)),
-        Math.max(0, Math.floor(Number(workout.stepCount || 0))),
+        clampedReward.steps,
       ),
       syncPointsAwarded: Number(dailyData.syncPointsAwarded || 0) + awardedSyncPoints,
-      workoutMinutes: Math.max(0, Math.round(Number(workout.elapsedSeconds || 0) / 60)),
+      workoutMinutes: Math.max(0, Math.round(clampedReward.elapsedSeconds / 60)),
       workoutSessionsCompleted: nextSessionsCompleted,
     }, { merge: true });
 
@@ -105,8 +133,8 @@ async function persistWatchWorkoutReward(uid, workout) {
       fitnessSource: "watch",
       holobots: nextHolobots,
       holosTokens: nextHolosTokens,
-      lastFitnessSyncAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastStepSync: admin.firestore.FieldValue.serverTimestamp(),
+      lastFitnessSyncAt: FieldValue.serverTimestamp(),
+      lastStepSync: FieldValue.serverTimestamp(),
       leaderboardScore: computeLeaderboardScore({
         holobots: nextHolobots,
         prestigeCount: Number(userData.prestigeCount || 0),
@@ -117,7 +145,7 @@ async function persistWatchWorkoutReward(uid, workout) {
       seasonSyncPoints: nextSeasonSyncPoints,
       syncPoints: nextSyncPoints,
       syncRank: getSyncRank(nextLifetimeSyncPoints),
-      todaySteps: Math.max(0, Math.floor(Number(workout.stepCount || 0))),
+      todaySteps: clampedReward.steps,
     }, { merge: true });
 
     return {
@@ -128,64 +156,13 @@ async function persistWatchWorkoutReward(uid, workout) {
   });
 }
 
-async function clearUserPresence(uid) {
-  await db.doc(`users/${uid}`).set(
-    {
-      pvpPresence: null,
-    },
-    { merge: true },
-  ).catch(() => undefined);
-}
-
-async function handleDeleteUserAccount(request) {
-  let uid = request.auth?.uid;
-
-  if (!uid) {
-    const idToken = typeof request.data?.idToken === "string" ? request.data.idToken : "";
-    if (!idToken) {
-      throw new HttpsError("unauthenticated", "You must be signed in to delete your account.");
-    }
-
-    try {
-      const decoded = await auth.verifyIdToken(idToken);
-      uid = decoded.uid;
-    } catch (error) {
-      throw new HttpsError("unauthenticated", "Your session could not be verified. Please sign in again.");
-    }
-  }
-
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "You must be signed in to delete your account.");
-  }
-
-  const userDocRef = db.doc(`users/${uid}`);
-
-  await clearUserPresence(uid);
-
-  try {
-    await db.recursiveDelete(userDocRef);
-  } catch (error) {
-    throw new HttpsError("internal", "Failed to remove Firestore profile data.");
-  }
-
-  try {
-    await auth.deleteUser(uid);
-  } catch (error) {
-    throw new HttpsError("internal", "Failed to remove the Firebase Authentication account.");
-  }
-
-  return { success: true };
-}
-
-exports.deleteUserAccountV2 = onCall({ region: "us-central1", invoker: "public" }, handleDeleteUserAccount);
-
-exports.syncWatchWorkoutRewards = onCall(async (request) => {
+export const syncWatchWorkoutRewards = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
     throw new HttpsError("unauthenticated", "You must be signed in to sync watch rewards.");
   }
 
-  const workouts = Array.isArray(request.data?.workouts) ? request.data.workouts : [];
+  const workouts: unknown[] = Array.isArray(request.data?.workouts) ? request.data.workouts : [];
   if (!workouts.length) {
     return {
       processedCount: 0,
@@ -195,14 +172,26 @@ exports.syncWatchWorkoutRewards = onCall(async (request) => {
     };
   }
 
-  let latestResult = {
+  if (workouts.length > MAX_WORKOUTS_PER_CALL) {
+    throw new HttpsError(
+      "invalid-argument",
+      `Too many workouts in one sync (max ${MAX_WORKOUTS_PER_CALL}).`,
+    );
+  }
+
+  if (!workouts.every((workout) => workout && typeof workout === "object")) {
+    throw new HttpsError("invalid-argument", "Malformed workout payload.");
+  }
+
+  let latestResult: WorkoutRewardResult = {
+    alreadyProcessed: false,
     totalSyncPoints: 0,
     workoutSessionsCompleted: 0,
   };
   let processedCount = 0;
 
   for (const workout of workouts) {
-    const result = await persistWatchWorkoutReward(uid, workout);
+    const result = await persistWatchWorkoutReward(uid, workout as WatchWorkoutPayload);
     latestResult = result;
     if (!result.alreadyProcessed) {
       processedCount += 1;

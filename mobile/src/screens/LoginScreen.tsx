@@ -84,8 +84,8 @@ export function LoginScreen() {
           return;
         }
 
-        if (password.length < 6) {
-          setError("Use a password with at least 6 characters.");
+        if (password.length < 8) {
+          setError("Use a password with at least 8 characters.");
           return;
         }
 
