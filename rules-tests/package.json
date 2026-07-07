@@ -1,0 +1,16 @@
+{
+  "name": "rules-tests",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:emulator": "PATH=\"$(/usr/libexec/java_home)/bin:$PATH\" ./node_modules/.bin/firebase emulators:exec --config ../firebase.json --project holobots-rules-test --only firestore \"vitest run\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0",
+    "firebase-tools": "^14.0.0",
+    "vitest": "^3.0.0"
+  }
+}
