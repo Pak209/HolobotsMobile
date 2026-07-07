@@ -8,5 +8,8 @@
  *   shared/   — modules kept byte-identical with the mobile app (see check:shared)
  */
 export { deleteUserAccountV2 } from "./account/deleteUserAccount";
+export { openGachaPack } from "./economy/openGachaPack";
+export { purchaseMarketplaceBooster } from "./economy/purchaseMarketplaceBooster";
+export { purchaseMarketplaceItem } from "./economy/purchaseMarketplaceItem";
 export { syncFitnessActivity } from "./fitness/syncFitnessActivity";
 export { syncWatchWorkoutRewards } from "./fitness/syncWatchWorkoutRewards";
