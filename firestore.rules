@@ -98,7 +98,16 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
 
       // Owner-scoped subcollections (fitness_daily, etc.).
-      match /{document=**} {
+      //
+      // IMPORTANT: in rules_version '2', a bare `match /{document=**}` here
+      // ALSO matches /users/{uid} itself (recursive wildcards match zero or
+      // more segments), which would OR a blanket owner-allow over the
+      // validated create/update rules above and silently disable
+      // economyFieldsSane + noPrivilegeEscalation. The extra {subcollection}
+      // segment forces this block to apply only to documents strictly below
+      // the user document. Regression coverage: rules-tests/tests/
+      // auth-privilege.test.ts and mobile-writes.test.ts.
+      match /{subcollection}/{document=**} {
         allow read, write: if isOwner(uid);
       }
     }

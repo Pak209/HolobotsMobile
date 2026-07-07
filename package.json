@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:rules": "npm --prefix rules-tests run test:emulator"
   },
   "dependencies": {
     "pixi.js": "^8.10.1",
