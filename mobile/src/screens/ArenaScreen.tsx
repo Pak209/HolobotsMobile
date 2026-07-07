@@ -14,10 +14,9 @@ import {
   getArenaPotentialRewards,
   getTierOpponentLineup,
 } from "@/config/arenaConfig";
-import { applyHolobotExperience } from "@/config/holobots";
-import { doc, updateDoc, db } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { incrementArenaBattlesToday } from "@/lib/dailyMissions";
+import { chargeArenaEntryAuthoritative, settleArenaBattleAuthoritative } from "@/lib/arenaClient";
+import type { ArenaTierId } from "@/lib/arenaEconomy";
 import { useArenaBattleStore } from "@/stores/arena-battle-store";
 import type { UserHolobot } from "@/types/profile";
 
@@ -68,7 +67,7 @@ export function ArenaScreen() {
   );
 
   const persistBattleOutcome = useCallback(async () => {
-    if (!user || !profile || !battleResult || !currentBattle) {
+    if (!user || !profile || !battleResult || !currentBattle || !latestSetup) {
       return;
     }
 
@@ -78,42 +77,32 @@ export function ArenaScreen() {
 
     persistedBattleIdRef.current = currentBattle.battleId;
 
+    // The server derives the payout from the tier table plus these
+    // performance counts (clamped server-side); reward amounts are no
+    // longer sent from the client.
     const didWin = battleResult.winnerId === currentBattle.player.holobotId;
-    const rewardExp = battleResult.rewards.exp;
-    const rewardSyncPoints = battleResult.rewards.syncPoints;
-    const rewardHolos = battleResult.rewards.holos || 0;
-    const rewardBlueprints = battleResult.rewards.blueprintRewards || [];
-    const userRef = doc(db, "users", user.uid);
-    const selectedHolobotName = latestSetup?.selectedHolobot.name;
-    const updatedHolobots = (profile.holobots || []).map((holobot) => {
-      if (holobot.name !== selectedHolobotName) {
-        return holobot;
-      }
-
-      return applyHolobotExperience(holobot, rewardExp);
-    });
-    const updatedBlueprints = { ...(profile.blueprints || {}) };
-
-    for (const reward of rewardBlueprints) {
-      updatedBlueprints[reward.holobotKey] = (updatedBlueprints[reward.holobotKey] || 0) + reward.amount;
-    }
-    const updatedRewardSystem = incrementArenaBattlesToday(profile.rewardSystem);
+    const perfectDefenses = currentBattle.actionHistory.filter((action) => action.perfectDefense).length;
+    const combosCompleted = currentBattle.actionHistory.filter((action) => action.triggeredCombo).length;
 
     try {
-      await updateDoc(userRef, {
-        blueprints: updatedBlueprints,
-        holobots: updatedHolobots,
-        holosTokens: (profile.holosTokens || 0) + rewardHolos,
-        losses: (profile.stats?.losses || 0) + (didWin ? 0 : 1),
-        rewardSystem: updatedRewardSystem,
-        syncPoints: (profile.syncPoints || 0) + rewardSyncPoints,
-        wins: (profile.stats?.wins || 0) + (didWin ? 1 : 0),
-      });
+      await settleArenaBattleAuthoritative(
+        profile,
+        user.uid,
+        latestSetup.selectedHolobot.name,
+        currentBattle.battleId,
+        {
+          combosCompleted,
+          didWin,
+          opponentName: currentBattle.opponent.name,
+          perfectDefenses,
+          tierId: latestSetup.tier.id as ArenaTierId,
+        },
+      );
     } catch (error) {
       console.error("[Arena] Failed to persist battle rewards", error);
       Alert.alert("Arena Sync Failed", "The battle finished, but the rewards could not be saved yet.");
     }
-  }, [battleResult, currentBattle, latestSetup?.selectedHolobot.name, profile, user]);
+  }, [battleResult, currentBattle, latestSetup, profile, user]);
 
   useEffect(() => {
     if (battleResult && currentBattle) {
@@ -129,16 +118,6 @@ export function ArenaScreen() {
         return;
       }
 
-      const userRef = doc(db, "users", user.uid);
-      const nextArenaPasses =
-        shouldChargeEntry && paymentMethod === "pass"
-          ? Math.max(0, (profile.arena_passes || 0) - 1)
-          : profile.arena_passes || 0;
-      const nextHolos =
-        shouldChargeEntry && paymentMethod === "tokens"
-          ? Math.max(0, (profile.holosTokens || 0) - tier.entryFeeHolos)
-          : profile.holosTokens || 0;
-
       if (shouldChargeEntry && paymentMethod === "tokens" && (profile.holosTokens || 0) < tier.entryFeeHolos) {
         Alert.alert("Not Enough Holos", "You do not have enough Holos for this Arena tier.");
         return;
@@ -153,10 +132,7 @@ export function ArenaScreen() {
 
       try {
         if (shouldChargeEntry) {
-          await updateDoc(userRef, {
-            arena_passes: nextArenaPasses,
-            holosTokens: nextHolos,
-          });
+          await chargeArenaEntryAuthoritative(profile, user.uid, tier.id, paymentMethod);
         }
 
         const player = buildPlayerFighter(user.uid, selectedHolobot);
