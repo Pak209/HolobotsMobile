@@ -1,59 +1,19 @@
 import { getHolobotBattleStats, getHolobotFullImageSource } from "@/config/holobots";
 import {
+  ARENA_TIERS,
+  getArenaBaseRewards,
+  getArenaBlueprintAmount,
+  type ArenaTier,
+} from "@/lib/arenaEconomy";
+import {
   calculateSyncBattleModifiers,
   getUnlockedSyncAbilities,
 } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
-import type { ArenaBattleConfig, ArenaFighter, BattleRewards } from "@/types/arena";
+import type { ArenaFighter, BattleRewards } from "@/types/arena";
 
-export type ArenaTier = {
-  difficulty: NonNullable<ArenaBattleConfig["difficulty"]>;
-  entryFeeHolos: number;
-  id: string;
-  label: string;
-  opponentLevel: number;
-  opponentPool: readonly [string, string, string];
-  rewardLabel: string;
-};
-
-export const ARENA_TIERS: ArenaTier[] = [
-  {
-    id: "rookie",
-    label: "Rookie Circuit",
-    difficulty: "easy",
-    entryFeeHolos: 50,
-    opponentLevel: 12,
-    opponentPool: ["HARE", "WAKE", "GAMA"],
-    rewardLabel: "Low-risk warmup fights",
-  },
-  {
-    id: "challenger",
-    label: "Challenger Ring",
-    difficulty: "medium",
-    entryFeeHolos: 100,
-    opponentLevel: 24,
-    opponentPool: ["KUMA", "SHADOW", "TSUIN"],
-    rewardLabel: "Balanced rewards and pressure",
-  },
-  {
-    id: "elite",
-    label: "Elite Gauntlet",
-    difficulty: "hard",
-    entryFeeHolos: 150,
-    opponentLevel: 36,
-    opponentPool: ["TORA", "KEN", "KURAI"],
-    rewardLabel: "Harder AI and better payouts",
-  },
-  {
-    id: "legend",
-    label: "Legend Arena",
-    difficulty: "expert",
-    entryFeeHolos: 225,
-    opponentLevel: 45,
-    opponentPool: ["ACE", "WOLF", "ERA"],
-    rewardLabel: "High-risk showcase battle",
-  },
-];
+export { ARENA_TIERS, getArenaBlueprintAmount };
+export type { ArenaTier };
 
 function clampPositive(value: number, fallback: number) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -169,19 +129,13 @@ export function buildOpponentFighter(
   };
 }
 
-export function getArenaBlueprintAmount(tier: ArenaTier) {
-  const tierIndex = ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id);
-  return [5, 10, 15, 20][Math.max(0, tierIndex)] ?? 5;
-}
-
 export function getArenaPotentialRewards(tier: ArenaTier, opponentName?: string): BattleRewards {
-  const tierIndex = ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id);
-  const multiplier = 1 + Math.max(0, tierIndex) * 0.45;
+  const base = getArenaBaseRewards(tier);
 
   return {
-    exp: Math.floor(95 * multiplier),
-    syncPoints: Math.floor(35 * multiplier),
-    holos: tier.entryFeeHolos * 2,
+    exp: base.exp,
+    syncPoints: base.syncPoints,
+    holos: base.holos,
     blueprintRewards: opponentName
       ? [
           {
