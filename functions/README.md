@@ -6,7 +6,8 @@ This Firebase project (`holobots-24046`) hosts functions deployed from **two
 repositories**:
 
 - this repo (`syncWatchWorkoutRewards`, `syncFitnessActivity`, `openGachaPack`,
-  `purchaseMarketplaceItem`, `purchaseMarketplaceBooster`, `deleteUserAccountV2`)
+  `purchaseMarketplaceItem`, `purchaseMarketplaceBooster`, `chargeArenaEntry`,
+  `settleArenaBattle`, `deleteUserAccountV2`)
 - the `holobots-fun` web repo (`createWebviewBridgeToken`, possibly others)
 
 A bare `firebase deploy --only functions` from this repo will offer to
@@ -14,13 +15,16 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:deleteUserAccountV2
+firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:chargeArenaEntry,functions:settleArenaBattle,functions:deleteUserAccountV2
 ```
 
 Deliberately still client-side (documented, not forgotten): Quick Refill /
-energy-refill consumption and quest/training claims — free or low-value
-mechanics whose server migration is scheduled with the arena-rewards slice,
-before rules tightening.
+energy-refill consumption, quest/training claims and their rewardSystem
+state machine, sync-stat upgrades, and blueprint minting/rank upgrades —
+scheduled as the next server-economy slice, before rules tightening. The
+arena battle simulation itself also remains client-side (C4): settlement
+derives payouts from the tier table with clamped performance bonuses, so a
+dishonest client can claim a win but cannot invent reward amounts.
 
 ## Layout
 
