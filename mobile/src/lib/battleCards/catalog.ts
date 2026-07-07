@@ -325,7 +325,17 @@ export function createActionCardFromTemplate(templateId: string, id: string): Ac
   return template ? { ...template, id } : null;
 }
 
-export function getRandomBattleCardGrant(packId: string): Record<string, number> {
+/** Card id → rarity, for the server economy mirror's parity test. */
+export function getBattleCardRarityTable(): Record<string, BattleCardTemplate["rarity"]> {
+  return Object.fromEntries(
+    Object.entries(BATTLE_CARD_TEMPLATES).map(([id, template]) => [id, template.rarity]),
+  );
+}
+
+export function getRandomBattleCardGrant(
+  packId: string,
+  random: () => number = Math.random,
+): Record<string, number> {
   const pools: Record<string, string[]> = {
     champion: Object.keys(BATTLE_CARD_TEMPLATES).filter((id) => BATTLE_CARD_TEMPLATES[id].rarity !== "epic"),
     common: Object.keys(BATTLE_CARD_TEMPLATES).filter((id) => BATTLE_CARD_TEMPLATES[id].rarity === "common"),
@@ -333,6 +343,6 @@ export function getRandomBattleCardGrant(packId: string): Record<string, number>
     rare: Object.keys(BATTLE_CARD_TEMPLATES).filter((id) => BATTLE_CARD_TEMPLATES[id].rarity !== "common"),
   };
   const pool = pools[packId] || pools.common;
-  const id = pool[Math.floor(Math.random() * pool.length)] || STARTER_DECK_BALANCED_IDS[0];
+  const id = pool[Math.floor(random() * pool.length)] || STARTER_DECK_BALANCED_IDS[0];
   return { [id]: 1 };
 }

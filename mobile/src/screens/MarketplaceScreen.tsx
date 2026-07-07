@@ -37,7 +37,7 @@ const marketplaceBoosterPacks = [
     icon: "□",
     id: "common",
     name: "Common Rank Booster",
-    price: 50,
+    price: MARKETPLACE_BOOSTER_PRICES.common,
     subtitle: "STANDARD DROP RATES",
   },
   {
@@ -47,7 +47,7 @@ const marketplaceBoosterPacks = [
     icon: "⬡",
     id: "champion",
     name: "Champion Rank Booster",
-    price: 100,
+    price: MARKETPLACE_BOOSTER_PRICES.champion,
     subtitle: "IMPROVED DROP RATES",
   },
   {
@@ -57,7 +57,7 @@ const marketplaceBoosterPacks = [
     icon: "✦",
     id: "rare",
     name: "Rare Rank Booster",
-    price: 200,
+    price: MARKETPLACE_BOOSTER_PRICES.rare,
     subtitle: "ENHANCED RARE+ CHANCES",
   },
   {
@@ -67,29 +67,10 @@ const marketplaceBoosterPacks = [
     icon: "★",
     id: "elite",
     name: "Elite Rank Booster",
-    price: 400,
+    price: MARKETPLACE_BOOSTER_PRICES.elite,
     subtitle: "PREMIUM DROP RATES",
   },
 ] as const;
-
-const boosterPartPool = [
-  { name: "Combat Mask", slot: "head" },
-  { name: "Void Mask", slot: "head" },
-  { name: "Torso Part", slot: "torso" },
-  { name: "Plasma Cannon", slot: "arms" },
-  { name: "Boxer Gloves", slot: "arms" },
-  { name: "Core Part", slot: "core" },
-] as const;
-const boosterItemAwardMap = {
-  champion: "Gacha Ticket",
-  common: "Arena Pass",
-  elite: "EXP Booster",
-  rare: "Energy Refill",
-} as const;
-
-function randomFromList<T>(items: readonly T[]) {
-  return items[Math.floor(Math.random() * items.length)];
-}
 
 export function MarketplaceScreen() {
   const { profile, updateProfile } = useAuth();
