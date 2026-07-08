@@ -22,6 +22,62 @@ export const HOLOBOT_NAMES = [
   "WOLF",
 ] as const;
 
+export const HOLOBOT_BASE_STATS = {
+  ACE: { attack: 8, defense: 6, hp: 150, intelligence: 5, speed: 7 },
+  KUMA: { attack: 7, defense: 5, hp: 200, intelligence: 4, speed: 3 },
+  SHADOW: { attack: 5, defense: 7, hp: 170, intelligence: 3, speed: 4 },
+  ERA: { attack: 5, defense: 4, hp: 165, intelligence: 4, speed: 6 },
+  HARE: { attack: 4, defense: 5, hp: 160, intelligence: 3, speed: 4 },
+  TORA: { attack: 5, defense: 4, hp: 180, intelligence: 4, speed: 6 },
+  WAKE: { attack: 6, defense: 3, hp: 170, intelligence: 4, speed: 4 },
+  GAMA: { attack: 6, defense: 5, hp: 180, intelligence: 4, speed: 3 },
+  KEN: { attack: 7, defense: 3, hp: 150, intelligence: 5, speed: 6 },
+  KURAI: { attack: 4, defense: 6, hp: 190, intelligence: 3, speed: 3 },
+  TSUIN: { attack: 6, defense: 4, hp: 160, intelligence: 4, speed: 5 },
+  WOLF: { attack: 5, defense: 5, hp: 175, intelligence: 4, speed: 5 },
+} as const;
+
+export const HOLOBOT_ARCHETYPES = {
+  ACE: "balanced",
+  KUMA: "grappler",
+  SHADOW: "technical",
+  ERA: "balanced",
+  HARE: "striker",
+  TORA: "striker",
+  WAKE: "balanced",
+  GAMA: "grappler",
+  KEN: "technical",
+  KURAI: "grappler",
+  TSUIN: "balanced",
+  WOLF: "striker",
+} as const;
+
+export function getHolobotBattleStats(
+  name: string,
+  level = 1,
+  boostedAttributes?: UserHolobot["boostedAttributes"],
+) {
+  const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
+  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const archetype = HOLOBOT_ARCHETYPES[normalizedName] ?? HOLOBOT_ARCHETYPES.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+
+  const maxHP = Math.floor(base.hp * levelBonus) + (boostedAttributes?.health || 0);
+  const attack = Math.floor(base.attack * 10 * levelBonus) + (boostedAttributes?.attack || 0);
+  const defense = Math.floor(base.defense * 10 * levelBonus) + (boostedAttributes?.defense || 0);
+  const speed = Math.floor(base.speed * 10 * levelBonus) + (boostedAttributes?.speed || 0);
+  const intelligence = Math.floor(base.intelligence * 10 * levelBonus) + (boostedAttributes?.special || 0);
+
+  return {
+    archetype,
+    attack,
+    defense,
+    intelligence,
+    maxHP,
+    speed,
+  };
+}
+
 export function calculateExperience(level: number) {
   return Math.floor(100 * Math.pow(Math.max(1, level), 2));
 }

@@ -7,7 +7,8 @@ repositories**:
 
 - this repo (`syncWatchWorkoutRewards`, `syncFitnessActivity`, `openGachaPack`,
   `purchaseMarketplaceItem`, `purchaseMarketplaceBooster`, `chargeArenaEntry`,
-  `settleArenaBattle`, `deleteUserAccountV2`)
+  `settleArenaBattle`, `claimQuestRun`, `claimTrainingSession`,
+  `upgradeSyncStat`, `deleteUserAccountV2`)
 - the `holobots-fun` web repo (`createWebviewBridgeToken`, possibly others)
 
 A bare `firebase deploy --only functions` from this repo will offer to
@@ -15,16 +16,18 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:chargeArenaEntry,functions:settleArenaBattle,functions:deleteUserAccountV2
+firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:deleteUserAccountV2
 ```
 
-Deliberately still client-side (documented, not forgotten): Quick Refill /
-energy-refill consumption, quest/training claims and their rewardSystem
-state machine, sync-stat upgrades, and blueprint minting/rank upgrades —
-scheduled as the next server-economy slice, before rules tightening. The
-arena battle simulation itself also remains client-side (C4): settlement
-derives payouts from the tier table with clamped performance bonuses, so a
-dishonest client can claim a win but cannot invent reward amounts.
+Deliberately still client-side (documented, not forgotten): quest/training
+STARTS (energy spend, board refresh, session records), Quick Refill /
+energy-refill consumption, and blueprint minting/rank upgrades — the last
+server-economy slice before rules tightening. Starts are low-value alone:
+the claims that pay out are now server-side, with quest outcomes rolled at
+claim time and training boosts clamped to course ranges. The arena battle
+simulation also remains client-side (C4): settlement derives payouts from
+the tier table with clamped performance bonuses, so a dishonest client can
+claim a win but cannot invent reward amounts.
 
 ## Layout
 

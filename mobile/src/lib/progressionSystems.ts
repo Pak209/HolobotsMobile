@@ -1,4 +1,4 @@
-import { applyHolobotExperience, getHolobotBattleStats, normalizeUserHolobot } from "@/config/holobots";
+import { applyHolobotExperience, getHolobotBattleStats, normalizeUserHolobot } from "@/lib/progression";
 import { getTodayMissionKey, normalizeRewardSystem, type MobileRewardSystem } from "@/lib/dailyMissions";
 import type { UserHolobot, UserProfile } from "@/types/profile";
 

@@ -14,7 +14,8 @@ import {
   normalizeUserHolobot,
 } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
-import { canUpgradeSyncStat, upgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
+import { upgradeSyncStatAuthoritative } from "@/lib/progressionClient";
+import { canUpgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
 const tabs = ["Holobots", "Parts", "Items", "Cards"] as const;
@@ -256,11 +257,7 @@ export function InventoryScreen() {
     }
 
     try {
-      const result = upgradeSyncStat(profile, selectedOwnedHolobot.name, stat);
-      await updateProfile({
-        holobots: result.profile.holobots,
-        syncPoints: result.profile.syncPoints,
-      });
+      await upgradeSyncStatAuthoritative(profile, updateProfile, selectedOwnedHolobot.name, stat);
     } catch (error) {
       Alert.alert("Sync Upgrade Failed", error instanceof Error ? error.message : "Please try again.");
     }

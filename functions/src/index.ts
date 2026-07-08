@@ -8,8 +8,11 @@
  *   shared/   — modules kept byte-identical with the mobile app (see check:shared)
  */
 export { chargeArenaEntry } from "./arena/chargeArenaEntry";
+export { claimQuestRun } from "./progression/claimQuestRun";
+export { claimTrainingSession } from "./progression/claimTrainingSession";
 export { deleteUserAccountV2 } from "./account/deleteUserAccount";
 export { openGachaPack } from "./economy/openGachaPack";
+export { upgradeSyncStat } from "./progression/upgradeSyncStat";
 export { purchaseMarketplaceBooster } from "./economy/purchaseMarketplaceBooster";
 export { purchaseMarketplaceItem } from "./economy/purchaseMarketplaceItem";
 export { settleArenaBattle } from "./arena/settleArenaBattle";
