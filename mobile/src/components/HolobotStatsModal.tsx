@@ -19,15 +19,7 @@ import {
 } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
-const BLUEPRINT_TIERS = [
-  { attributePoints: 10, key: "common", label: "Common", required: 5, startLevel: 1 },
-  { attributePoints: 10, key: "champion", label: "Champion", required: 10, startLevel: 11 },
-  { attributePoints: 20, key: "rare", label: "Rare", required: 20, startLevel: 21 },
-  { attributePoints: 30, key: "elite", label: "Elite", required: 40, startLevel: 31 },
-  { attributePoints: 40, key: "legendary", label: "Legendary", required: 80, startLevel: 41 },
-] as const;
-
-type UpgradeTierLabel = (typeof BLUEPRINT_TIERS)[number]["label"];
+import { BLUEPRINT_TIERS, type UpgradeTierLabel } from "@/lib/minting";
 
 type Props = {
   availableSyncPoints: number;

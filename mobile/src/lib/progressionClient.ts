@@ -1,5 +1,11 @@
 import { functions, httpsCallable } from "@/config/firebase";
 import { shouldFallBackToLocal } from "@/lib/callables";
+import {
+  buildMintUpdates,
+  buildRankUpgradeUpdates,
+  isMintRefusal,
+  isRankUpgradeRefusal,
+} from "@/lib/minting";
 import { buildQuestClaimUpdates, buildTrainingClaimUpdates } from "@/lib/progressionClaims";
 import type { ActiveQuestRecord, TrainingSessionRecord } from "@/lib/progressionSystems";
 import { upgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
@@ -61,6 +67,87 @@ export async function claimTrainingSessionAuthoritative(
   }
 
   await updateProfile(buildTrainingClaimUpdates(profile, training));
+}
+
+const mintHolobotCallable = httpsCallable<
+  { holobotName: string; tierLabel: string },
+  { startLevel: number }
+>(functions, "mintHolobot");
+
+const upgradeHolobotRankCallable = httpsCallable<
+  { holobotName: string; tierLabel: string },
+  { startLevel: number }
+>(functions, "upgradeHolobotRank");
+
+const useEnergyRefillCallable = httpsCallable<
+  Record<string, never>,
+  { dailyEnergy: number; energyRefills: number }
+>(functions, "useEnergyRefill");
+
+export async function mintHolobotAuthoritative(
+  profile: UserProfile,
+  updateProfile: UpdateProfileFn,
+  holobotName: string,
+  tierLabel: string,
+): Promise<void> {
+  try {
+    await mintHolobotCallable({ holobotName, tierLabel });
+    return;
+  } catch (error) {
+    if (!shouldFallBackToLocal(error)) {
+      throw error;
+    }
+  }
+
+  const result = buildMintUpdates(profile, holobotName, tierLabel);
+  if (isMintRefusal(result)) {
+    throw new Error("This Holobot cannot be minted right now.");
+  }
+  await updateProfile(result.updates);
+}
+
+export async function upgradeHolobotRankAuthoritative(
+  profile: UserProfile,
+  updateProfile: UpdateProfileFn,
+  holobotName: string,
+  tierLabel: string,
+): Promise<void> {
+  try {
+    await upgradeHolobotRankCallable({ holobotName, tierLabel });
+    return;
+  } catch (error) {
+    if (!shouldFallBackToLocal(error)) {
+      throw error;
+    }
+  }
+
+  const result = buildRankUpgradeUpdates(profile, holobotName, tierLabel);
+  if (isRankUpgradeRefusal(result)) {
+    throw new Error("This Holobot cannot be upgraded right now.");
+  }
+  await updateProfile(result.updates);
+}
+
+export async function useEnergyRefillAuthoritative(
+  profile: UserProfile,
+  updateProfile: UpdateProfileFn,
+): Promise<void> {
+  try {
+    await useEnergyRefillCallable({});
+    return;
+  } catch (error) {
+    if (!shouldFallBackToLocal(error)) {
+      throw error;
+    }
+  }
+
+  if ((profile.energy_refills || 0) <= 0) {
+    throw new Error("No Energy Refills available.");
+  }
+  await updateProfile({
+    dailyEnergy: profile.maxDailyEnergy || 100,
+    energy_refills: Math.max(0, (profile.energy_refills || 0) - 1),
+  });
 }
 
 export async function upgradeSyncStatAuthoritative(

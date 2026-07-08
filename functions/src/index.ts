@@ -10,11 +10,15 @@
 export { chargeArenaEntry } from "./arena/chargeArenaEntry";
 export { claimQuestRun } from "./progression/claimQuestRun";
 export { claimTrainingSession } from "./progression/claimTrainingSession";
+export { clearWorkoutCooldown } from "./fitness/clearWorkoutCooldown";
 export { deleteUserAccountV2 } from "./account/deleteUserAccount";
+export { mintHolobot } from "./progression/mintHolobot";
 export { openGachaPack } from "./economy/openGachaPack";
-export { upgradeSyncStat } from "./progression/upgradeSyncStat";
 export { purchaseMarketplaceBooster } from "./economy/purchaseMarketplaceBooster";
 export { purchaseMarketplaceItem } from "./economy/purchaseMarketplaceItem";
 export { settleArenaBattle } from "./arena/settleArenaBattle";
 export { syncFitnessActivity } from "./fitness/syncFitnessActivity";
 export { syncWatchWorkoutRewards } from "./fitness/syncWatchWorkoutRewards";
+export { upgradeHolobotRank } from "./progression/upgradeHolobotRank";
+export { upgradeSyncStat } from "./progression/upgradeSyncStat";
+export { useEnergyRefill } from "./economy/useEnergyRefill";

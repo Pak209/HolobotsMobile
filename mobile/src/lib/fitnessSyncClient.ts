@@ -3,6 +3,7 @@ import { db } from "@/config/firebase";
 import { shouldFallBackToLocal } from "@/lib/callables";
 import {
   syncFitnessActivity as syncFitnessActivityLocal,
+  unlockDailyWorkoutRefill,
   type SyncFitnessActivityRequest,
   type SyncFitnessActivityResponse,
 } from "@/lib/fitnessSync";
@@ -25,6 +26,28 @@ const syncFitnessActivityCallable = httpsCallable<CallablePayload, SyncFitnessAc
   functions,
   "syncFitnessActivity",
 );
+
+const clearWorkoutCooldownCallable = httpsCallable<
+  { date: string },
+  { cooldownEndsAt: null; sessionsCompleted: number }
+>(functions, "clearWorkoutCooldown");
+
+/** Quick Refill: server clears the cooldown (refusing past the daily cap). */
+export async function clearWorkoutCooldownAuthoritative(
+  uid: string,
+  date: string,
+): Promise<{ cooldownEndsAt: string | null; sessionsCompleted: number }> {
+  try {
+    const result = await clearWorkoutCooldownCallable({ date });
+    return result.data;
+  } catch (error) {
+    if (!shouldFallBackToLocal(error)) {
+      throw error;
+    }
+  }
+
+  return unlockDailyWorkoutRefill(db, uid, date);
+}
 
 export async function syncFitnessActivityAuthoritative(
   request: SyncFitnessActivityRequest,

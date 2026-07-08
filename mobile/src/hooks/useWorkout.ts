@@ -6,9 +6,11 @@ import { db } from "@/config/firebase";
 import {
   getDailyWorkoutState,
   getLocalDateKey,
-  unlockDailyWorkoutRefill,
 } from "@/lib/fitnessSync";
-import { syncFitnessActivityAuthoritative } from "@/lib/fitnessSyncClient";
+import {
+  clearWorkoutCooldownAuthoritative,
+  syncFitnessActivityAuthoritative,
+} from "@/lib/fitnessSyncClient";
 
 export type DistanceUnit = "km" | "mi";
 export type WorkoutRewardOptions = {
@@ -649,7 +651,7 @@ function useLiveWorkout(
     try {
       setCooldownEndsAt(null);
       cooldownEndsAtRef.current = null;
-      const nextState = await unlockDailyWorkoutRefill(db, userId, getLocalDateKey());
+      const nextState = await clearWorkoutCooldownAuthoritative(userId, getLocalDateKey());
       setCooldownEndsAt(nextState.cooldownEndsAt);
       cooldownEndsAtRef.current = nextState.cooldownEndsAt;
       setSessionsCompleted(nextState.sessionsCompleted);

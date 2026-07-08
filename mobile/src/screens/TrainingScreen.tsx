@@ -6,7 +6,7 @@ import { HomeCogButton } from "@/components/HomeCogButton";
 import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
-import { claimTrainingSessionAuthoritative } from "@/lib/progressionClient";
+import { claimTrainingSessionAuthoritative, useEnergyRefillAuthoritative } from "@/lib/progressionClient";
 import {
   getTrainingCourse,
   isSessionComplete,
@@ -117,10 +117,7 @@ export function TrainingScreen() {
     }
 
     try {
-      await updateProfile({
-        dailyEnergy: profile.maxDailyEnergy || 100,
-        energy_refills: Math.max(0, (profile.energy_refills || 0) - 1),
-      });
+      await useEnergyRefillAuthoritative(profile, updateProfile);
     } catch (error) {
       Alert.alert("Refill Failed", error instanceof Error ? error.message : "Please try again.");
     }
