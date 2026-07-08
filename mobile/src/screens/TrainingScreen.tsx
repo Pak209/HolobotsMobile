@@ -6,8 +6,8 @@ import { HomeCogButton } from "@/components/HomeCogButton";
 import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
+import { claimTrainingSessionAuthoritative } from "@/lib/progressionClient";
 import {
-  claimTrainingSession,
   getTrainingCourse,
   isSessionComplete,
   normalizeProgressionSystem,
@@ -86,16 +86,9 @@ export function TrainingScreen() {
       return;
     }
 
-    const nextRewardSystem = {
-      ...progression,
-      activeTraining: null,
-    };
-
     try {
-      await updateProfile({
-        holobots: claimTrainingSession(profile.holobots, activeTraining),
-        rewardSystem: nextRewardSystem,
-      });
+      // Server clamps boosts to the course's legal range and pays table EXP.
+      await claimTrainingSessionAuthoritative(profile, updateProfile, activeTraining);
     } catch (error) {
       Alert.alert("Claim Failed", error instanceof Error ? error.message : "Please try again.");
     }

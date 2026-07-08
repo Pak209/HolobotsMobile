@@ -6,8 +6,8 @@ import { HomeCogButton } from "@/components/HomeCogButton";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
+import { claimQuestRunAuthoritative } from "@/lib/progressionClient";
 import {
-  claimQuestRun,
   getEligibleQuestHolobots,
   getHolobotPowerScore,
   getQuestDefinition,
@@ -17,8 +17,6 @@ import {
   refreshQuestBoard,
   startQuestRun,
 } from "@/lib/progressionSystems";
-import { computeLeaderboardScore } from "@/lib/profile";
-import { getSyncRank } from "@/lib/syncProgression";
 
 function formatQuestDuration(minutes: number) {
   if (minutes < 60) return `${minutes} min`;
@@ -119,31 +117,9 @@ export function QuestsScreen() {
       return;
     }
 
-    const claimResult = claimQuestRun(profile.holobots, profile.inventory, profile.syncPoints || 0, quest);
-    const nextRewardSystem = {
-      ...progression,
-      activeQuests: progression.activeQuests.filter((entry) => entry.id !== quest.id),
-    };
-    const earnedSyncPoints = Math.max(0, claimResult.syncPoints - (profile.syncPoints || 0));
-    const nextLifetimeSyncPoints = (profile.lifetimeSyncPoints || 0) + earnedSyncPoints;
-    const nextSeasonSyncPoints = (profile.seasonSyncPoints || 0) + earnedSyncPoints;
-
     try {
-      await updateProfile({
-        holobots: claimResult.holobots,
-        inventory: claimResult.inventory,
-        lifetimeSyncPoints: nextLifetimeSyncPoints,
-        leaderboardScore: computeLeaderboardScore({
-          holobots: claimResult.holobots,
-          prestigeCount: profile.prestigeCount,
-          seasonSyncPoints: nextSeasonSyncPoints,
-          wins: profile.stats?.wins,
-        }),
-        rewardSystem: nextRewardSystem,
-        seasonSyncPoints: nextSeasonSyncPoints,
-        syncRank: getSyncRank(nextLifetimeSyncPoints),
-        syncPoints: claimResult.syncPoints,
-      });
+      // Server rolls the outcome at claim time and pays from the quest table.
+      await claimQuestRunAuthoritative(profile, updateProfile, quest);
     } catch (error) {
       Alert.alert("Claim Failed", error instanceof Error ? error.message : "Please try again.");
     }
