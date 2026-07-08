@@ -5,10 +5,12 @@
 This Firebase project (`holobots-24046`) hosts functions deployed from **two
 repositories**:
 
-- this repo (`syncWatchWorkoutRewards`, `syncFitnessActivity`, `openGachaPack`,
-  `purchaseMarketplaceItem`, `purchaseMarketplaceBooster`, `chargeArenaEntry`,
+- this repo (`syncWatchWorkoutRewards`, `syncFitnessActivity`,
+  `clearWorkoutCooldown`, `openGachaPack`, `purchaseMarketplaceItem`,
+  `purchaseMarketplaceBooster`, `useEnergyRefill`, `chargeArenaEntry`,
   `settleArenaBattle`, `claimQuestRun`, `claimTrainingSession`,
-  `upgradeSyncStat`, `deleteUserAccountV2`)
+  `upgradeSyncStat`, `mintHolobot`, `upgradeHolobotRank`,
+  `deleteUserAccountV2`)
 - the `holobots-fun` web repo (`createWebviewBridgeToken`, possibly others)
 
 A bare `firebase deploy --only functions` from this repo will offer to
@@ -16,18 +18,17 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:deleteUserAccountV2
+firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:clearWorkoutCooldown,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:useEnergyRefill,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:mintHolobot,functions:upgradeHolobotRank,functions:deleteUserAccountV2
 ```
 
 Deliberately still client-side (documented, not forgotten): quest/training
-STARTS (energy spend, board refresh, session records), Quick Refill /
-energy-refill consumption, and blueprint minting/rank upgrades — the last
-server-economy slice before rules tightening. Starts are low-value alone:
-the claims that pay out are now server-side, with quest outcomes rolled at
-claim time and training boosts clamped to course ranges. The arena battle
-simulation also remains client-side (C4): settlement derives payouts from
-the tier table with clamped performance bonuses, so a dishonest client can
-claim a win but cannot invent reward amounts.
+STARTS (energy spend, board refresh, session records — the endsAt/startedAt
+anchors are client-written, so true timer validation requires migrating the
+starts themselves; the claims that pay out are server-side, so forged starts
+only skip wait timers). The arena battle simulation also remains client-side
+(C4): settlement derives payouts from the tier table with clamped
+performance bonuses, so a dishonest client can claim a win but cannot
+invent reward amounts.
 
 ## Layout
 

@@ -6,15 +6,14 @@ import { HolobotStatsModal } from "@/components/HolobotStatsModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { BATTLE_CARD_TEMPLATES, STARTER_DECK_BALANCED_IDS } from "@/lib/battleCards/catalog";
-import {
-  calculateExperience,
-  getExpProgress,
-  getHolobotRank,
-  mergeHolobotRoster,
-  normalizeUserHolobot,
-} from "@/config/holobots";
+import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
-import { upgradeSyncStatAuthoritative } from "@/lib/progressionClient";
+import { getTierByLabel, type UpgradeTierLabel } from "@/lib/minting";
+import {
+  mintHolobotAuthoritative,
+  upgradeHolobotRankAuthoritative,
+  upgradeSyncStatAuthoritative,
+} from "@/lib/progressionClient";
 import { canUpgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
@@ -41,22 +40,9 @@ const CARD_EQUIP_FILTERS = [
   { label: "Not Equipped", value: "unequipped" },
 ] as const;
 
-const BLUEPRINT_TIERS = [
-  { attributePoints: 10, label: "Common", required: 5, startLevel: 1 },
-  { attributePoints: 10, label: "Champion", required: 10, startLevel: 11 },
-  { attributePoints: 20, label: "Rare", required: 20, startLevel: 21 },
-  { attributePoints: 30, label: "Elite", required: 40, startLevel: 31 },
-  { attributePoints: 40, label: "Legendary", required: 80, startLevel: 41 },
-] as const;
-
-type UpgradeTierLabel = (typeof BLUEPRINT_TIERS)[number]["label"];
 type CardTypeFilter = (typeof CARD_TYPE_FILTERS)[number]["value"];
 type CardTierFilter = (typeof CARD_TIER_FILTERS)[number]["value"];
 type CardEquipFilter = (typeof CARD_EQUIP_FILTERS)[number]["value"];
-
-function getTierByLabel(label: UpgradeTierLabel) {
-  return BLUEPRINT_TIERS.find((tier) => tier.label === label);
-}
 
 export function InventoryScreen() {
   const { profile, updateProfile } = useAuth();
@@ -279,26 +265,8 @@ export function InventoryScreen() {
       return;
     }
 
-    const nextHolobot: UserHolobot = {
-      attributePoints: tier.attributePoints,
-      boostedAttributes: {},
-      experience: 0,
-      level: tier.startLevel,
-      name: selectedRosterHolobot.name,
-      nextLevelExp: calculateExperience(tier.startLevel + 1),
-      rank: getHolobotRank(tier.startLevel),
-    };
-
-    const nextBlueprints = {
-      ...(profile.blueprints || {}),
-      [selectedRosterHolobot.key]: currentBlueprints - tier.required,
-    };
-
     try {
-      await updateProfile({
-        blueprints: nextBlueprints,
-        holobots: [...(profile.holobots || []), nextHolobot],
-      });
+      await mintHolobotAuthoritative(profile, updateProfile, selectedRosterHolobot.name, tierLabel);
       Alert.alert("Holobot Minted", `${selectedRosterHolobot.name} joined your roster at Level ${tier.startLevel}.`);
     } catch (error) {
       Alert.alert("Mint failed", error instanceof Error ? error.message : "Please try again.");
@@ -326,31 +294,8 @@ export function InventoryScreen() {
       return;
     }
 
-    const normalizedTarget = normalizeUserHolobot(selectedOwnedHolobot);
-    const nextBlueprints = {
-      ...(profile.blueprints || {}),
-      [selectedRosterHolobot.key]: currentBlueprints - tier.required,
-    };
-    const updatedHolobots = profile.holobots.map((holobot) => {
-      if (holobot.name.toUpperCase() !== normalizedTarget.name.toUpperCase()) {
-        return holobot;
-      }
-
-      return {
-        ...normalizedTarget,
-        attributePoints: (normalizedTarget.attributePoints || 0) + tier.attributePoints,
-        experience: 0,
-        level: tier.startLevel,
-        nextLevelExp: calculateExperience(tier.startLevel + 1),
-        rank: getHolobotRank(tier.startLevel),
-      };
-    });
-
     try {
-      await updateProfile({
-        blueprints: nextBlueprints,
-        holobots: updatedHolobots,
-      });
+      await upgradeHolobotRankAuthoritative(profile, updateProfile, selectedRosterHolobot.name, tierLabel);
       Alert.alert("Holobot Upgraded", `${selectedRosterHolobot.name} advanced to ${tier.label} rank at Level ${tier.startLevel}.`);
     } catch (error) {
       Alert.alert("Upgrade failed", error instanceof Error ? error.message : "Please try again.");
