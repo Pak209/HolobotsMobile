@@ -560,6 +560,7 @@ const styles = StyleSheet.create({
     top: "82%",
     width: "20%",
     height: "12%",
+    zIndex: 20,
   },
   changeHolobotHotspot: {
     position: "absolute",
@@ -567,6 +568,7 @@ const styles = StyleSheet.create({
     top: "55.9375%",
     width: "48.3333%",
     height: "10.625%",
+    zIndex: 20,
   },
   inventoryHotspot: {
     position: "absolute",
@@ -574,6 +576,7 @@ const styles = StyleSheet.create({
     top: "82%",
     width: "20%",
     height: "12%",
+    zIndex: 20,
   },
   marketplaceHotspot: {
     position: "absolute",
@@ -581,6 +584,7 @@ const styles = StyleSheet.create({
     top: "82%",
     width: "24%",
     height: "12%",
+    zIndex: 20,
   },
   syncHotspot: {
     left: "46.5%",
@@ -588,6 +592,7 @@ const styles = StyleSheet.create({
     width: "18%",
     height: "12%",
     position: "absolute",
+    zIndex: 20,
   },
   utilityStack: {
     gap: 10,
@@ -633,6 +638,7 @@ const styles = StyleSheet.create({
     top: `${(DASHBOARD_SLOT_Y / ARTBOARD_HEIGHT) * 100}%`,
     width: `${(DASHBOARD_SLOT_WIDTH / ARTBOARD_WIDTH) * 100}%`,
     height: `${(DASHBOARD_SLOT_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
+    zIndex: 20,
   },
   fillImage: {
     width: "100%",
