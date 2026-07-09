@@ -95,6 +95,45 @@ describe("privilege escalation", () => {
       updateDoc(doc(aliceDb, "users/alice"), { isDevAccount: false }),
     );
   });
+
+  // Regression: a legacy account that already has isDevAccount: true must
+  // still be able to perform normal economy writes. The original update rule
+  // ran noPrivilegeEscalation() against the whole post-merge document, which
+  // denied EVERY update on such accounts (real production incident: gacha,
+  // marketplace, and quest claims all returned permission-denied).
+  it("allows normal updates on a legacy account with isDevAccount already true", async () => {
+    await seedUser(env, "alice", buildUserDoc({ isDevAccount: true }));
+
+    await assertSucceeds(
+      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { gachaTickets: 5 }),
+    );
+  });
+
+  it("still denies flipping to true even from a legacy-true account snapshot", async () => {
+    await seedUser(env, "alice", buildUserDoc({ isDevAccount: false }));
+
+    // Explicitly writing true when the stored value is false stays denied.
+    await assertFails(
+      updateDoc(doc(authedDb(env, "alice"), "users/alice"), {
+        gachaTickets: 5,
+        isDevAccount: true,
+      }),
+    );
+  });
+
+  it("allows a legacy-true account to keep or renounce the flag", async () => {
+    await seedUser(env, "alice", buildUserDoc({ isDevAccount: true }));
+    const aliceDb = authedDb(env, "alice");
+
+    // Writing the unchanged value alongside an economy field is fine...
+    await assertSucceeds(
+      updateDoc(doc(aliceDb, "users/alice"), { holosTokens: 10, isDevAccount: true }),
+    );
+    // ...and so is turning it off.
+    await assertSucceeds(
+      updateDoc(doc(aliceDb, "users/alice"), { isDevAccount: false }),
+    );
+  });
 });
 
 describe("economy sanity caps", () => {

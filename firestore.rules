@@ -87,10 +87,14 @@ service cloud.firestore {
         && noPrivilegeEscalation(request.resource.data)
         && economyFieldsSane(request.resource.data);
 
+      // NOTE: noPrivilegeEscalation applies to CREATE only. On update,
+      // request.resource.data is the whole post-merge document, so a legacy
+      // account that already has isDevAccount: true would fail it on EVERY
+      // write (bricking all economy actions for that account). The clause
+      // below enforces the actual invariant: the client may keep the
+      // existing value or set false, but can never flip false -> true.
       allow update: if isOwner(uid)
-        && noPrivilegeEscalation(request.resource.data)
         && economyFieldsSane(request.resource.data)
-        // isDevAccount can never be flipped on by the client.
         && (!('isDevAccount' in request.resource.data)
             || request.resource.data.isDevAccount == resource.data.get('isDevAccount', false)
             || request.resource.data.isDevAccount == false);

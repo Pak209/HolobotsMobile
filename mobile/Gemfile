@@ -1,0 +1,9 @@
+source "https://rubygems.org"
+
+# Pin the iOS build toolchain so every machine (dev Mac, Mac mini) resolves
+# the same CocoaPods and regenerates an identical Podfile.lock. Run
+# `bundle install` once, then `bundle exec pod install` in ios/.
+ruby ">= 3.1.0"
+
+gem "cocoapods", "1.16.2"
+gem "activesupport", ">= 6.1.7.5", "!= 7.1.0"
