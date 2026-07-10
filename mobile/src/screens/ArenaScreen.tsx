@@ -226,6 +226,7 @@ export function ArenaScreen() {
       {phase === "battle" && currentBattle ? (
         <BattleArenaView
           battle={currentBattle}
+          roundProgress={roundProgress}
           playerCards={playerCards}
           playableCardIds={playableCardIds}
           cardAvailability={cardAvailability}
