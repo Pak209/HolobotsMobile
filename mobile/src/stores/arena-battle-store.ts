@@ -156,7 +156,13 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
 
     const selectedCard = ArenaCombatEngine.selectAIAction(currentBattle, opponentCards);
     if (!selectedCard) {
-      set({ isAnimating: false, lastAIActionTime: Date.now() });
+      // Nothing playable (stamina drained / cooldowns): pass the turn so the
+      // battle keeps moving instead of the loop spinning on the AI forever.
+      set({
+        currentBattle: ArenaCombatEngine.passTurn(currentBattle, 'opponent'),
+        isAnimating: false,
+        lastAIActionTime: Date.now(),
+      });
       return;
     }
 
@@ -238,6 +244,21 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
         enoughDelayPassed
       ) {
         get().processAITurn();
+        return;
+      }
+
+      // Liveness guard: if it's the player's turn but they have no playable
+      // card (stamina drained, cooldowns), auto-pass so per-turn regen can
+      // unstick them instead of soft-locking the battle.
+      if (
+        currentBattle.currentActorId === currentBattle.player.holobotId &&
+        enoughDelayPassed &&
+        ArenaCombatEngine.getPlayableCards(currentBattle, 'player', get().playerCards).length === 0
+      ) {
+        set({
+          currentBattle: ArenaCombatEngine.passTurn(currentBattle, 'player'),
+          lastAIActionTime: Date.now(),
+        });
       }
     }, 180);
 
