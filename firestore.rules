@@ -117,31 +117,58 @@ service cloud.firestore {
     }
 
     // ---- PvP matchmaking pool ---------------------------------------------
-    // Each entry keyed by uid. Only the owner may create/modify/remove its own
-    // entry; any signed-in user may read the pool to find opponents.
-    match /battle_pool_entries/{uid} {
+    // Entries are self-describing via their userId field: the mobile client
+    // keys docs by uid (one entry per player), the web client still writes
+    // auto-ID docs, so ownership checks the field rather than the path
+    // segment. Any signed-in searcher may CLAIM an active entry — flip
+    // isActive to false and stamp the shared roomId, touching exactly those
+    // two fields — which the transactional pairing in
+    // mobile/src/lib/pvpMatchmaking.ts commits atomically with the room
+    // creation so two simultaneous searchers can never both create rooms.
+    match /battle_pool_entries/{entryId} {
+      function ownsEntry() {
+        return isSignedIn() && resource.data.get('userId', '') == request.auth.uid;
+      }
+      function isClaim() {
+        return isSignedIn()
+          && resource.data.get('isActive', false) == true
+          && request.resource.data.get('isActive', true) == false
+          && request.resource.data.get('roomId', '') != ''
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive', 'roomId']);
+      }
       allow read: if isSignedIn();
-      allow create, update, delete: if isOwner(uid);
+      allow create: if isSignedIn()
+        && request.resource.data.get('userId', '') == request.auth.uid;
+      allow update: if ownsEntry() || isClaim();
+      allow delete: if ownsEntry();
     }
 
     // ---- PvP battle rooms --------------------------------------------------
-    // Signed-in users may read/join rooms. Writes are limited to the two
-    // participants recorded on the room. This does NOT validate individual
-    // moves (a participant can still write an illegal board state) — authoritative
-    // move validation requires a Cloud Function (SECURITY_AUDIT.md C4).
+    // Participant uids live at players.p1.uid / players.p2.uid — the only
+    // shape either client (mobile or holobots-fun web) has ever written. The
+    // previous rule checked top-level hostId/guestId/p1/p2 fields that never
+    // existed, so every real participant update (heartbeat, stamina regen,
+    // playCard, join) was denied. Writes are limited to the two recorded
+    // participants, plus a joiner filling the empty p2 slot of a waiting
+    // room. This still does NOT validate individual moves (a participant can
+    // write an illegal board state) — authoritative move validation requires
+    // a Cloud Function (SECURITY_AUDIT.md C4).
     match /battle_rooms/{roomId} {
+      function isParticipant(data) {
+        return isSignedIn()
+          && (request.auth.uid == data.get(['players', 'p1', 'uid'], '')
+              || request.auth.uid == data.get(['players', 'p2', 'uid'], ''));
+      }
+      function isJoiningOpenSlot() {
+        return isSignedIn()
+          && resource.data.get('status', '') == 'waiting'
+          && resource.data.get(['players', 'p2', 'uid'], '') == ''
+          && request.resource.data.get(['players', 'p2', 'uid'], '') == request.auth.uid;
+      }
       allow read: if isSignedIn();
-      allow create: if isSignedIn()
-        && request.resource.data.get('hostId', request.auth.uid) == request.auth.uid;
-      allow update: if isSignedIn()
-        && (request.auth.uid in [
-              resource.data.get('hostId', ''),
-              resource.data.get('guestId', ''),
-              resource.data.get('p1', ''),
-              resource.data.get('p2', '')
-            ]);
-      allow delete: if isSignedIn()
-        && request.auth.uid == resource.data.get('hostId', '');
+      allow create: if isParticipant(request.resource.data);
+      allow update: if isParticipant(resource.data) || isJoiningOpenSlot();
+      allow delete: if isParticipant(resource.data);
     }
 
     // ---- default deny ------------------------------------------------------
