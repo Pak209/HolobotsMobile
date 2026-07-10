@@ -83,7 +83,7 @@ export function HolobotStatsModal({
   onUpgradeSync,
   visible,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<"stats" | "blueprints">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "abilities" | "blueprints">("stats");
 
   useEffect(() => {
     if (visible) {
@@ -188,6 +188,14 @@ export function HolobotStatsModal({
                 </Text>
               </Pressable>
               <Pressable
+                onPress={() => setActiveTab("abilities")}
+                style={[styles.tabButton, activeTab === "abilities" ? styles.tabButtonActive : null]}
+              >
+                <Text style={[styles.tabButtonText, activeTab === "abilities" ? styles.tabButtonTextActive : null]}>
+                  ABILITIES
+                </Text>
+              </Pressable>
+              <Pressable
                 onPress={() => setActiveTab("blueprints")}
                 style={[styles.tabButton, activeTab === "blueprints" ? styles.tabButtonActive : null]}
               >
@@ -249,8 +257,9 @@ export function HolobotStatsModal({
                     </Text>
                   </View>
                 )}
-
-                {normalizedOwnedHolobot ? (
+              </>
+            ) : activeTab === "abilities" ? (
+              normalizedOwnedHolobot ? (
                   <>
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>SYNC STATS</Text>
@@ -317,8 +326,14 @@ export function HolobotStatsModal({
                       )}
                     </View>
                   </>
-                ) : null}
-              </>
+              ) : (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
+                  <Text style={styles.emptyStateText}>
+                    Mint this holobot first to unlock Sync Stats, Sync Abilities, and stat upgrade paths.
+                  </Text>
+                </View>
+              )
             ) : (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
