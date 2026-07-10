@@ -173,16 +173,17 @@ export function evaluateCardAvailability(
     return { playable: false, reason: 'cooldown', cooldownTurns };
   }
 
+  // While a trap is armed only ADDITIONAL defense plays are locked (no
+  // stacking). Attacks stay available — resolveAction drops the actor's own
+  // trap when they attack. Locking every card here used to deadlock the
+  // battle: once both fighters armed traps, neither side had a playable
+  // card and the trap could never be consumed.
   if (card.type === 'defense' && fighter.armedDefenseTrap) {
     return { playable: false, reason: 'defense_lock' };
   }
 
   if (fighter.stamina < card.staminaCost) {
     return { playable: false, reason: 'stamina' };
-  }
-
-  if (fighter.isInDefenseMode && card.type !== 'defense') {
-    return { playable: false, reason: 'defense_lock' };
   }
 
   for (const requirement of card.requirements) {

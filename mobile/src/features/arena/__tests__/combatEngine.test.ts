@@ -148,6 +148,99 @@ describe('ArenaCombatEngine', () => {
     expect(ArenaCombatEngine.canPlayCard(battle, 'player', heavyCard)).toBe(false);
   });
 
+  // Regression: playing a defense trap (e.g. Safety Protocol) used to lock
+  // EVERY card for its owner until the opponent attacked into it. If the
+  // opponent defended too, both sides were trap-armed with zero playable
+  // cards and the battle deadlocked permanently.
+  it('attacking while your own trap is armed is allowed and drops the trap', () => {
+    const battle = makeBattle();
+    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const opponentBlock = makeCard({ id: 'block-opp', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const jab = makeCard({ id: 'jab-1', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+
+    const playerDefended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+    const bothDefended = ArenaCombatEngine.resolveAction(playerDefended, opponentBlock, playerDefended.opponent.holobotId);
+
+    // Both fighters trap-armed — previously zero playable cards for either side.
+    expect(ArenaCombatEngine.canPlayCard(bothDefended, 'player', jab)).toBe(true);
+
+    const playerAttacked = ArenaCombatEngine.resolveAction(bothDefended, jab, bothDefended.player.holobotId);
+
+    // Attacking drops the attacker's own guard and springs the defender's trap.
+    expect(playerAttacked.player.armedDefenseTrap).toBeNull();
+    expect(playerAttacked.player.isInDefenseMode).toBe(false);
+    expect(playerAttacked.opponent.armedDefenseTrap).toBeNull();
+    expect(playerAttacked.actionHistory.at(-1)?.outcome).toBe('blocked');
+  });
+
+  it('passTurn regenerates stamina, ticks cooldowns, and hands the turn over', () => {
+    const battle = makeBattle({ stamina: 2 }, { stamina: 3 });
+    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+    expect(defended.currentActorId).toBe(defended.opponent.holobotId);
+
+    const passed = ArenaCombatEngine.passTurn(defended, 'opponent');
+
+    expect(passed.currentActorId).toBe(passed.player.holobotId);
+    expect(passed.turnNumber).toBe(defended.turnNumber + 1);
+    expect(passed.player.stamina).toBe(defended.player.stamina + 1);
+    expect(passed.opponent.stamina).toBe(defended.opponent.stamina + 1);
+    expect(passed.playerCardCooldowns?.block).toBe((defended.playerCardCooldowns?.block ?? 1) - 1);
+  });
+
+  describe('AI card selection', () => {
+    const jab = makeCard({ id: 'jab-ai', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+    const hook = makeCard({ id: 'hook-ai', templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
+    const block = makeCard({ id: 'block-ai', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const finisher = makeCard({ id: 'fin-ai', templateId: 'ultimate', type: 'finisher', staminaCost: 3, baseDamage: 30 });
+
+    it('attacks in a neutral state instead of turtling', () => {
+      const battle = makeBattle();
+      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, hook, block]);
+
+      expect(choice).not.toBeNull();
+      expect(choice?.type).not.toBe('defense');
+    });
+
+    it('takes the cheapest lethal attack when one is available', () => {
+      const battle = makeBattle({ currentHP: 5 });
+      const choice = ArenaCombatEngine.selectAIAction(battle, [hook, jab, block]);
+
+      expect(choice?.id).toBe(jab.id);
+    });
+
+    it('spends a full special meter on its finisher', () => {
+      const battle = makeBattle({}, { specialMeter: 100 });
+      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, finisher, block]);
+
+      expect(choice?.type).toBe('finisher');
+    });
+
+    it('defends to recover when it cannot afford any attack', () => {
+      const battle = makeBattle({}, { stamina: 1 });
+      const choice = ArenaCombatEngine.selectAIAction(battle, [hook, block]);
+
+      expect(choice?.type).toBe('defense');
+    });
+
+    it('returns null when nothing is playable so the turn can be passed', () => {
+      const battle = makeBattle({}, { stamina: 0 });
+      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, hook, block]);
+
+      expect(choice).toBeNull();
+    });
+
+    it('probes an armed player trap with its cheapest attack', () => {
+      const battle = makeBattle();
+      const playerBlock = makeCard({ id: 'block-player', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+      const defended = ArenaCombatEngine.resolveAction(battle, playerBlock, battle.player.holobotId);
+
+      const choice = ArenaCombatEngine.selectAIAction(defended, [hook, jab, block]);
+
+      expect(choice?.id).toBe(jab.id);
+    });
+  });
+
   it('damage formula respects ATK and DEF', () => {
     const strike = makeCard({ templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
     const highAttack = makeFighter({ attack: 60, defense: 20 });

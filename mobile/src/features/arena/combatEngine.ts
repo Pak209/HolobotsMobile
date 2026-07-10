@@ -216,6 +216,15 @@ export class ArenaCombatEngine {
     if (card.type !== 'defense') {
       actor.stamina = Math.max(0, actor.stamina - card.staminaCost);
       actor.staminaState = this.getStaminaState(actor.stamina);
+
+      // Attacking drops your own guard: an armed trap only persists while
+      // its owner holds the defensive stance.
+      if (actor.armedDefenseTrap) {
+        actor.armedDefenseTrap = null;
+        actor.isInDefenseMode = false;
+        actor.defenseActive = false;
+        actor.defendedAt = undefined;
+      }
     }
     actor.lastActionTime = now;
 
@@ -249,6 +258,59 @@ export class ArenaCombatEngine {
     }
 
     return nextState;
+  }
+
+  /**
+   * Advances the turn without an action — used when the current actor has
+   * no playable card (stamina drained, everything on cooldown). Ticks
+   * cooldowns and regenerates stamina exactly like a played turn so a
+   * stalled fighter recovers instead of deadlocking the battle.
+   */
+  static passTurn(state: BattleState, actorRole: FighterRole): BattleState {
+    const nextState: BattleState = {
+      ...state,
+      player: this.recoverStamina(cloneFighter(state.player), TURN_STAMINA_REGEN),
+      opponent: this.recoverStamina(cloneFighter(state.opponent), TURN_STAMINA_REGEN),
+      playerCardCooldowns: tickCooldownMap({ ...(state.playerCardCooldowns ?? {}) }),
+      opponentCardCooldowns: tickCooldownMap({ ...(state.opponentCardCooldowns ?? {}) }),
+    };
+
+    nextState.turnNumber += 1;
+    nextState.currentActorId =
+      actorRole === 'player' ? nextState.opponent.holobotId : nextState.player.holobotId;
+    nextState.lastActionTimestamp = Date.now();
+
+    return nextState;
+  }
+
+  /**
+   * Deterministic damage forecast mirroring resolveStrike/resolveCombo/
+   * resolveFinisher (combo multiplier, finisher doubling, and the target's
+   * armed-trap reduction, which finishers bypass). Drives AI decisions.
+   */
+  static estimateCardDamage(
+    attacker: ArenaFighter,
+    defender: ArenaFighter,
+    card: ActionCard,
+  ): number {
+    if (card.type === 'defense') {
+      return 0;
+    }
+
+    const result = this.calculateDamage(attacker, defender, card, false, attacker.comboCounter);
+    let damage = result.finalDamage;
+
+    if (card.type === 'combo') {
+      damage = Math.floor(damage * this.calculateComboMultiplier(attacker.comboCounter));
+    }
+    if (card.type === 'finisher') {
+      damage = result.rawDamage * 2;
+    }
+    if (defender.armedDefenseTrap && card.type !== 'finisher') {
+      damage = Math.max(0, Math.round(damage * (1 - defender.armedDefenseTrap.damageReduction)));
+    }
+
+    return damage;
   }
 
   static resolveDefenseTrap({
@@ -432,43 +494,90 @@ export class ArenaCombatEngine {
       comboActive: self.comboCounter >= 2,
     };
 
-    const defenseCards = playableCards.filter((card) => card.type === 'defense');
-    if ((situation.isLowHP || situation.isLowStamina) && defenseCards.length > 0) {
-      return this.selectBestDefense(defenseCards, situation);
+    const attacks = playableCards.filter((card) => card.type !== 'defense');
+    const defenses = playableCards.filter((card) => card.type === 'defense');
+    const opponentTrapArmed = Boolean(opponent.armedDefenseTrap);
+    const opponentWinded =
+      opponent.staminaState === 'gassed' || opponent.staminaState === 'exhausted';
+
+    // 1) Close out the fight: cheapest attack that finishes the player now.
+    const lethal = attacks
+      .filter((card) => this.estimateCardDamage(self, opponent, card) >= opponent.currentHP)
+      .sort((left, right) => left.staminaCost - right.staminaCost)[0];
+    if (lethal) {
+      return lethal;
     }
 
+    // 2) A full special meter is banked damage with nothing to gain from
+    //    holding it (further gains are wasted at the cap) — spend it.
     if (situation.hasFinisherReady) {
-      const finisher = playableCards.find((card) => card.type === 'finisher');
-      if (finisher && (opponent.staminaState === 'gassed' || opponent.staminaState === 'exhausted')) {
+      const finisher = attacks.find((card) => card.type === 'finisher');
+      if (finisher) {
         return finisher;
       }
     }
 
-    if (situation.comboActive) {
-      const combos = playableCards.filter((card) => card.type === 'combo');
-      if (combos.length > 0) {
-        return combos.reduce((best, current) =>
-          current.baseDamage > best.baseDamage ? current : best,
-        );
+    // 3) Defense is for recovering stamina, not hiding: brace only when no
+    //    attack is affordable, or when badly hurt while the player still has
+    //    the gas to punish an opening.
+    const mustRecover = attacks.length === 0;
+    const shouldBrace =
+      situation.isLowHP && self.stamina <= 2 && opponent.stamina >= 2 && !opponentTrapArmed;
+    if (defenses.length > 0 && (mustRecover || shouldBrace)) {
+      return this.selectBestDefense(defenses, situation);
+    }
+
+    // 4) The player armed a trap: spring it with the cheapest attack so the
+    //    real hits land after the trap is spent.
+    if (opponentTrapArmed) {
+      const probe = [...attacks].sort(
+        (left, right) => left.staminaCost - right.staminaCost || left.baseDamage - right.baseDamage,
+      )[0];
+      if (probe) {
+        return probe;
       }
     }
 
-    const strikes = playableCards.filter((card) => card.type === 'strike');
-    if (strikes.length > 0) {
-      return strikes
-        .map((card) => ({
-          card,
-          score:
-            card.baseDamage +
-            getCardEfficiency(card) * 5 +
-            card.speedModifier * 10 +
-            (situation.opponentLowHP ? card.baseDamage * 0.5 : 0) +
-            (situation.isLowStamina ? getCardEfficiency(card) * 4 : 0),
-        }))
-        .sort((left, right) => right.score - left.score)[0]?.card ?? strikes[0];
+    // 5) Cash in a hot combo counter — but keep one point of stamina in
+    //    reserve unless the payoff is a big chunk of the player's health.
+    if (situation.comboActive) {
+      const combos = attacks
+        .filter((card) => card.type === 'combo')
+        .sort(
+          (left, right) =>
+            this.estimateCardDamage(self, opponent, right) -
+            this.estimateCardDamage(self, opponent, left),
+        );
+      const bestCombo = combos[0];
+      if (
+        bestCombo &&
+        (self.stamina - bestCombo.staminaCost >= 1 ||
+          this.estimateCardDamage(self, opponent, bestCombo) >= opponent.currentHP * 0.3)
+      ) {
+        return bestCombo;
+      }
     }
 
-    return playableCards[0];
+    // 6) Default: best value for the current stamina budget. When the bar is
+    //    low, damage-per-stamina matters more than raw damage; never dump the
+    //    last point without a kill, and press harder while the player is winded.
+    const staminaTight = self.stamina <= 3;
+    const scored = attacks
+      .map((card) => {
+        const damage = this.estimateCardDamage(self, opponent, card);
+        const efficiency = getCardEfficiency(card);
+        let score = damage + efficiency * (staminaTight ? 8 : 3) + card.speedModifier * 2;
+        if (self.stamina - card.staminaCost <= 0) {
+          score -= damage * 0.5;
+        }
+        if (opponentWinded) {
+          score += damage * 0.3;
+        }
+        return { card, score };
+      })
+      .sort((left, right) => right.score - left.score);
+
+    return scored[0]?.card ?? playableCards[0];
   }
 
   static calculatePotentialRewards(
