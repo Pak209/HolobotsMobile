@@ -152,19 +152,70 @@ export const WEB_ENERGY_UPDATE: Record<string, unknown> = {
 };
 
 // ---- PvP (firestore.rules battle_pool_entries / battle_rooms) -------------
+// These builders mirror what the clients ACTUALLY write (mobile
+// useRealtimeArena.ts and the holobots-fun web hook): pool entries are
+// self-describing via userId, and battle-room participant uids live only at
+// players.p1.uid / players.p2.uid. The original fixtures invented top-level
+// hostId/guestId/p1/p2 fields no client ever wrote, which let the old
+// (broken) rules pass their tests while denying every real PvP write in
+// production.
 
-export const BATTLE_POOL_ENTRY: Record<string, unknown> = {
-  uid: "alice",
-  holobotName: "ACE",
-  rank: "Rookie",
-  queuedAt: new Date().toISOString(),
+const FIXTURE_HOLOBOT_STATS: Record<string, unknown> = {
+  name: "ACE",
+  level: 5,
+  attack: 10,
+  defense: 10,
+  speed: 10,
+  intelligence: 5,
+  maxHealth: 150,
 };
 
-export const BATTLE_ROOM_DOC: Record<string, unknown> = {
-  hostId: "alice",
-  guestId: "bob",
-  p1: "alice",
-  p2: "bob",
-  status: "active",
-  createdAt: new Date().toISOString(),
-};
+export function buildPoolEntry(
+  userId: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    userId,
+    username: userId,
+    holobotStats: { ...FIXTURE_HOLOBOT_STATS },
+    isActive: true,
+    createdAt: Date.now(),
+    ...overrides,
+  };
+}
+
+function buildRoomPlayer(uid: string): Record<string, unknown> {
+  return {
+    uid,
+    username: uid,
+    holobot: uid ? { ...FIXTURE_HOLOBOT_STATS } : {},
+    health: uid ? 150 : 0,
+    maxHealth: uid ? 150 : 0,
+    stamina: uid ? 7 : 0,
+    maxStamina: uid ? 7 : 0,
+    specialMeter: 0,
+    hand: [],
+    activeBoosts: [],
+    isConnected: Boolean(uid),
+    damageDealt: 0,
+    damageTaken: 0,
+  };
+}
+
+// Pass p2Uid: "" for a freshly created room still waiting for an opponent.
+export function buildBattleRoom(
+  p1Uid: string,
+  p2Uid: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    roomCode: "ABC234",
+    status: p2Uid ? "active" : "waiting",
+    players: { p1: buildRoomPlayer(p1Uid), p2: buildRoomPlayer(p2Uid) },
+    currentTurn: 0,
+    winner: null,
+    battleLog: [],
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
