@@ -241,6 +241,34 @@ describe('ArenaCombatEngine', () => {
     });
   });
 
+  // Regression: landing a finisher used to end the battle instantly with the
+  // ACTOR as winner regardless of remaining HP — so the moment the AI's meter
+  // filled it fired a non-lethal finisher and the player was handed a DEFEAT
+  // while sitting on a full health bar.
+  it('a non-lethal finisher does not end the battle', () => {
+    const finisher = makeCard({ id: 'fin-1', templateId: 'hyper_strike', type: 'finisher', staminaCost: 4, baseDamage: 30 });
+    const battle = makeBattle({ specialMeter: 100, stamina: 7 }, { currentHP: 120, maxHP: 120 });
+
+    const resolved = ArenaCombatEngine.resolveAction(battle, finisher, battle.player.holobotId);
+    const winCheck = ArenaCombatEngine.checkWinCondition(resolved);
+
+    expect(resolved.opponent.currentHP).toBeGreaterThan(0);
+    expect(winCheck.isComplete).toBe(false);
+    expect(resolved.status).toBe('active');
+  });
+
+  it('a lethal finisher ends the battle with the finisher win type', () => {
+    const finisher = makeCard({ id: 'fin-2', templateId: 'hyper_strike', type: 'finisher', staminaCost: 4, baseDamage: 30 });
+    const battle = makeBattle({ specialMeter: 100, stamina: 7 }, { currentHP: 5 });
+
+    const resolved = ArenaCombatEngine.resolveAction(battle, finisher, battle.player.holobotId);
+    const winCheck = ArenaCombatEngine.checkWinCondition(resolved);
+
+    expect(winCheck.isComplete).toBe(true);
+    expect(winCheck.winnerId).toBe(battle.player.holobotId);
+    expect(winCheck.winType).toBe('finisher');
+  });
+
   it('damage formula respects ATK and DEF', () => {
     const strike = makeCard({ templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
     const highAttack = makeFighter({ attack: 60, defense: 20 });

@@ -629,12 +629,20 @@ export class ArenaCombatEngine {
     winnerId?: string;
     winType?: 'ko' | 'finisher' | 'timeout' | 'forfeit';
   } {
+    // A finisher is a big attack, not an auto-win: only a KO (or timeout)
+    // ends the battle. The old rule completed the battle for whoever landed
+    // a finisher even when the target had plenty of HP left, which handed
+    // out instant defeats the moment the AI's meter filled. The label still
+    // reports 'finisher' when the KO'ing blow was one.
+    const lastAction = state.actionHistory[state.actionHistory.length - 1];
+    const koWinType = lastAction?.actionType === 'finisher' ? 'finisher' : 'ko';
+
     if (state.player.currentHP <= 0) {
-      return { isComplete: true, winnerId: state.opponent.holobotId, winType: 'ko' };
+      return { isComplete: true, winnerId: state.opponent.holobotId, winType: koWinType };
     }
 
     if (state.opponent.currentHP <= 0) {
-      return { isComplete: true, winnerId: state.player.holobotId, winType: 'ko' };
+      return { isComplete: true, winnerId: state.player.holobotId, winType: koWinType };
     }
 
     if (state.config?.maxTurns && state.turnNumber >= state.config.maxTurns) {
@@ -645,15 +653,6 @@ export class ArenaCombatEngine {
             ? state.player.holobotId
             : state.opponent.holobotId,
         winType: 'timeout',
-      };
-    }
-
-    const lastAction = state.actionHistory[state.actionHistory.length - 1];
-    if (lastAction?.actionType === 'finisher' && lastAction.outcome === 'hit') {
-      return {
-        isComplete: true,
-        winnerId: lastAction.actorId,
-        winType: 'finisher',
       };
     }
 
