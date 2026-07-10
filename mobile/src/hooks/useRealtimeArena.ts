@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -18,6 +17,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/config/firebase";
+import { claimOpponentAndCreateRoom, isFreshPoolEntry } from "@/lib/pvpMatchmaking";
 import { getHolobotBaseProfile, type HolobotRosterEntry } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
@@ -168,6 +168,7 @@ export function useRealtimeArena() {
   const [error, setError] = useState<string | null>(null);
   const [matchmakingStatus, setMatchmakingStatus] = useState<"idle" | "searching" | "matched">("idle");
   const unsubscribeRef = useRef<Unsubscribe | null>(null);
+  const poolUnsubscribeRef = useRef<Unsubscribe | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const staminaRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const poolEntryIdRef = useRef<string | null>(null);
@@ -175,6 +176,8 @@ export function useRealtimeArena() {
   const cleanup = useCallback(() => {
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
+    poolUnsubscribeRef.current?.();
+    poolUnsubscribeRef.current = null;
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     if (staminaRef.current) clearInterval(staminaRef.current);
     heartbeatRef.current = null;
@@ -321,22 +324,26 @@ export function useRealtimeArena() {
     if (!user || !profile) throw new Error("Sign in before matchmaking.");
     setMatchmakingStatus("searching");
     setError(null);
-    const myPoolRef = await addDoc(collection(db, BATTLE_POOL), {
+    // Keyed by uid: one queue entry per player, and re-queueing overwrites
+    // any ghost entry left behind by a crashed session.
+    const myPoolRef = doc(db, BATTLE_POOL, user.uid);
+    await setDoc(myPoolRef, {
       userId: user.uid,
       username: profile.username || "Pilot",
       holobotStats,
       isActive: true,
       createdAt: serverTimestamp(),
     } satisfies BattlePoolEntry);
-    poolEntryIdRef.current = myPoolRef.id;
+    poolEntryIdRef.current = user.uid;
 
-    const opponents = await getDocs(query(collection(db, BATTLE_POOL), where("isActive", "==", true), where("userId", "!=", user.uid), limit(1)));
-    if (!opponents.empty) {
-      const opponentDoc = opponents.docs[0];
-      const opponent = opponentDoc.data() as BattlePoolEntry;
-      const roomRef = doc(collection(db, BATTLE_ROOMS));
-      await setDoc(roomRef, {
-        roomId: roomRef.id,
+    const candidates = await getDocs(query(collection(db, BATTLE_POOL), where("isActive", "==", true), limit(10)));
+    for (const candidateDoc of candidates.docs) {
+      if (candidateDoc.id === user.uid) continue;
+      const candidate = candidateDoc.data() as BattlePoolEntry;
+      if (candidate.userId === user.uid || !isFreshPoolEntry(candidate)) continue;
+
+      const claim = await claimOpponentAndCreateRoom(db, user.uid, candidateDoc.id, (roomId, opponent) => ({
+        roomId,
         roomCode: generateRoomCode(),
         status: "active",
         players: {
@@ -348,25 +355,36 @@ export function useRealtimeArena() {
         battleLog: [],
         createdAt: serverTimestamp(),
         startedAt: serverTimestamp(),
-      } satisfies BattleRoom);
-      await updateDoc(doc(db, BATTLE_POOL, opponentDoc.id), { isActive: false, roomId: roomRef.id });
-      await updateDoc(myPoolRef, { isActive: false, roomId: roomRef.id });
-      setMatchmakingStatus("matched");
-      setMyRole("p1");
-      subscribeToRoom(roomRef.id);
-      return;
+      } satisfies BattleRoom));
+
+      if (claim.outcome === "created") {
+        setMatchmakingStatus("matched");
+        setMyRole("p1");
+        subscribeToRoom(claim.roomId);
+        return;
+      }
+      if (claim.outcome === "alreadyMatched") {
+        setMatchmakingStatus("matched");
+        await joinRoomById(claim.roomId);
+        return;
+      }
+      // candidateGone: another searcher claimed this entry first — try the next.
     }
 
-    const unsubscribe = onSnapshot(myPoolRef, (snapshot) => {
+    poolUnsubscribeRef.current?.();
+    poolUnsubscribeRef.current = onSnapshot(myPoolRef, (snapshot) => {
       const entry = snapshot.data() as BattlePoolEntry | undefined;
       if (!entry?.roomId || entry.isActive) return;
-      unsubscribe();
+      poolUnsubscribeRef.current?.();
+      poolUnsubscribeRef.current = null;
       setMatchmakingStatus("matched");
       void joinRoomById(entry.roomId);
     });
   }, [joinRoomById, profile, subscribeToRoom, user]);
 
   const cancelMatchmaking = useCallback(async () => {
+    poolUnsubscribeRef.current?.();
+    poolUnsubscribeRef.current = null;
     if (!poolEntryIdRef.current) return;
     await deleteDoc(doc(db, BATTLE_POOL, poolEntryIdRef.current));
     poolEntryIdRef.current = null;
