@@ -203,6 +203,8 @@ export function BattleArenaView({
   const opponentHealthPercent = getHealthPercent(battle.opponent.currentHP, battle.opponent.maxHP);
   const playerStaminaPercent = getHealthPercent(battle.player.stamina, battle.player.maxStamina);
   const opponentStaminaPercent = getHealthPercent(battle.opponent.stamina, battle.opponent.maxStamina);
+  const playerSpecialPercent = getHealthPercent(battle.player.specialMeter, 100);
+  const finisherReady = battle.player.specialMeter >= 100;
   const lastActionDamage = lastAction ? (lastAction.actualDamage ?? lastAction.damageDealt) : 0;
 
   return (
@@ -302,17 +304,25 @@ export function BattleArenaView({
 
       <View style={styles.cardBay}>
         <View style={styles.cardBayTopBar}>
-          <View style={styles.cardBayEnergyTrack}>
-            <View style={[styles.cardBayEnergyFill, { width: `${playerStaminaPercent * 100}%` }]} />
+          <View style={styles.specialGaugeTrack}>
+            <View style={[styles.specialGaugeFill, { width: `${playerSpecialPercent * 100}%` }]} />
           </View>
-          <View style={styles.energyCluster}>
-            <Text style={styles.energyIcon}>⚡</Text>
-            <Text style={styles.energyText}>{`${battle.player.stamina} / ${battle.player.maxStamina}`}</Text>
+          <View style={styles.specialCluster}>
+            <Text style={styles.specialIcon}>✦</Text>
+            <Text style={styles.specialText}>
+              {finisherReady ? "READY" : `${Math.floor(battle.player.specialMeter)}%`}
+            </Text>
           </View>
         </View>
         <View style={styles.cardBayHeader}>
           <Text style={styles.deckHint}>
-            {battle.player.armedDefenseTrap ? "DEFENSE TRAP ARMED" : playerCanAct ? "TAP A CARD TO PLAY" : "WAITING FOR ACTION"}
+            {battle.player.armedDefenseTrap
+              ? "DEFENSE TRAP ARMED"
+              : finisherReady
+                ? "FINISHER READY"
+                : playerCanAct
+                  ? "TAP A CARD TO PLAY"
+                  : "WAITING FOR ACTION"}
           </Text>
         </View>
 
@@ -476,16 +486,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 10,
   },
-  cardBayEnergyFill: {
-    backgroundColor: "#f0bf14",
-    height: "100%",
-  },
-  cardBayEnergyTrack: {
-    backgroundColor: "#342d1a",
-    flex: 1,
-    height: 12,
-    overflow: "hidden",
-  },
   cardBayHeader: {
     alignItems: "center",
     flexDirection: "row",
@@ -600,20 +600,32 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: "72%",
   },
-  energyCluster: {
+  specialCluster: {
     alignItems: "center",
     flexDirection: "row",
     gap: 6,
   },
-  energyIcon: {
-    color: "#2db8ff",
+  specialGaugeFill: {
+    backgroundColor: "#f0bf14",
+    height: "100%",
+  },
+  specialGaugeTrack: {
+    backgroundColor: "#342d1a",
+    flex: 1,
+    height: 12,
+    overflow: "hidden",
+  },
+  specialIcon: {
+    color: "#f0bf14",
     fontSize: 20,
     fontWeight: "900",
   },
-  energyText: {
-    color: "#2db8ff",
+  specialText: {
+    color: "#f0bf14",
     fontSize: 15,
     fontWeight: "900",
+    minWidth: 52,
+    textAlign: "right",
   },
   hudBarBlock: {
     gap: 4,
