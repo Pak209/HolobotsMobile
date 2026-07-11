@@ -9,21 +9,30 @@ import type {
 } from '../types/arena';
 import { ArenaCombatEngine } from '../features/arena/combatEngine';
 import type { ArenaCardAvailability } from '../features/arena/arenaCards';
-import { CardPoolGenerator } from '../lib/arena/card-generator';
+import { resolveCombatKit } from '../features/arena/moveKits';
 
 // ============================================================================
 // Arena Battle Store
 // ============================================================================
+//
+// Fighters battle with a fixed four-move kit (slots 1-3 + a Technique
+// Finisher in slot 4) plus an innate Signature Finisher gated by a full
+// special meter — no deck, hand, draw, or cycling (see
+// docs/arena-card-to-move-implementation-plan.md).
+
+// Real-time pacing: both fighters gain +1 stamina on this interval, and the
+// AI acts on its own cadence (independent of the player).
+const STAMINA_REGEN_INTERVAL_MS = 2000;
+const AI_ACTION_INTERVAL_MS = 950;
 
 interface ArenaBattleStore {
   // Current Battle State
   currentBattle: BattleState | null;
-  playerCards: ActionCard[];
-  opponentCards: ActionCard[];
+  playerMoves: ActionCard[];
+  opponentMoves: ActionCard[];
 
   // UI State
   isAnimating: boolean;
-  selectedCardId: string | null;
   lastAction: BattleAction | null;
   battleResult: {
     winnerId: string;
@@ -38,7 +47,8 @@ interface ArenaBattleStore {
     opponent: ArenaFighter,
     config?: Partial<ArenaBattleConfig>
   ) => void;
-  playCard: (cardId: string) => void;
+  useMove: (moveId: string) => void;
+  useSignatureFinisher: () => void;
   toggleDefenseMode: () => void;
   processAITurn: () => void;
   endBattle: () => void;
@@ -48,138 +58,29 @@ interface ArenaBattleStore {
 
   // Animation
   setAnimating: (isAnimating: boolean) => void;
-  selectCard: (cardId: string | null) => void;
 
   // Helpers
-  getPlayableCards: () => ActionCard[];
-  canPlayCard: (cardId: string) => boolean;
-  getCardAvailabilityMap: () => Record<string, ArenaCardAvailability>;
+  getPlayableMoves: () => ActionCard[];
+  canUseMove: (moveId: string) => boolean;
+  canUseSignature: () => boolean;
+  getMoveAvailabilityMap: () => Record<string, ArenaCardAvailability>;
 }
 
-export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
-  // Initial State
-  currentBattle: null,
-  playerCards: [],
-  opponentCards: [],
-  isAnimating: false,
-  selectedCardId: null,
-  lastAction: null,
-  battleResult: null,
-  gameLoopIntervalId: null,
-  lastAIActionTime: 0,
-
-  // Start a new battle
-  startBattle: (player, opponent, config) => {
-    const battle = ArenaCombatEngine.initializeBattle(player, opponent, config);
-    const playerCards = CardPoolGenerator.generateBattleHand(player, config?.playerBattleCards);
-    const opponentCards = CardPoolGenerator.generateBattleHand(opponent, config?.opponentBattleCards);
-
-    set({
-      currentBattle: battle,
-      playerCards,
-      opponentCards,
-      isAnimating: false,
-      selectedCardId: null,
-      lastAction: null,
-      battleResult: null,
-      lastAIActionTime: Date.now(),
-    });
-
-    get().startGameLoop();
-  },
-
-  // Player plays a card
-  playCard: (cardId) => {
-    const { currentBattle, playerCards } = get();
-    if (!currentBattle || currentBattle.status !== 'active') return;
-    if (currentBattle.currentActorId !== currentBattle.player.holobotId) return;
-
-    const card = playerCards.find(c => c.id === cardId);
-    if (!card) return;
-
-    // Check if playable
-    if (!ArenaCombatEngine.canPlayCard(currentBattle, 'player', card)) {
-      console.warn('Cannot play card:', card.name);
-      return;
-    }
-
-    const newState = ArenaCombatEngine.resolveAction(currentBattle, card, currentBattle.player.holobotId);
+export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
+  // Shared post-action commit: state, ticker, animation lock, win check.
+  const commitResolution = (
+    newState: BattleState,
+    extra: Partial<Pick<ArenaBattleStore, 'playerMoves' | 'opponentMoves' | 'lastAIActionTime'>> = {},
+  ) => {
     const resolvedAction = newState.actionHistory[newState.actionHistory.length - 1];
 
     set({
       currentBattle: newState,
       lastAction: resolvedAction,
       isAnimating: true,
-      selectedCardId: null,
-      lastAIActionTime: Date.now(),
+      ...extra,
     });
 
-    // Check for battle end
-    const winCheck = ArenaCombatEngine.checkWinCondition(newState);
-    if (winCheck.isComplete && winCheck.winnerId) {
-      const rewards = ArenaCombatEngine.calculateActualRewards(newState, winCheck.winnerId);
-      set({
-        battleResult: { winnerId: winCheck.winnerId, rewards },
-      });
-    } else {
-      setTimeout(() => {
-        get().setAnimating(false);
-      }, 350);
-    }
-  },
-
-  // Toggle player defense mode
-  toggleDefenseMode: () => {
-    const { currentBattle, playerCards } = get();
-    if (!currentBattle) return;
-    const defenseCard = ArenaCombatEngine.getPlayableCards(
-      currentBattle,
-      'player',
-      playerCards,
-    ).find((card) => card.type === 'defense');
-
-    if (!defenseCard) {
-      return;
-    }
-    get().playCard(defenseCard.id);
-  },
-
-  // Process AI turn
-  processAITurn: () => {
-    const { currentBattle, opponentCards } = get();
-    if (!currentBattle) return;
-    if (currentBattle.status !== 'active') return;
-    if (get().isAnimating) return;
-    if (currentBattle.currentActorId !== currentBattle.opponent.holobotId) return;
-
-    set({ isAnimating: true });
-
-    const selectedCard = ArenaCombatEngine.selectAIAction(currentBattle, opponentCards);
-    if (!selectedCard) {
-      // Nothing playable (stamina drained / cooldowns): pass the turn so the
-      // battle keeps moving instead of the loop spinning on the AI forever.
-      set({
-        currentBattle: ArenaCombatEngine.passTurn(currentBattle, 'opponent'),
-        isAnimating: false,
-        lastAIActionTime: Date.now(),
-      });
-      return;
-    }
-
-    const newState = ArenaCombatEngine.resolveAction(
-      currentBattle,
-      selectedCard,
-      currentBattle.opponent.holobotId,
-    );
-    const resolvedAction = newState.actionHistory[newState.actionHistory.length - 1];
-
-    set({
-      currentBattle: newState,
-      lastAction: resolvedAction,
-      lastAIActionTime: Date.now(),
-    });
-
-    // Check for battle end
     const winCheck = ArenaCombatEngine.checkWinCondition(newState);
     if (winCheck.isComplete && winCheck.winnerId) {
       const rewards = ArenaCombatEngine.calculateActualRewards(newState, winCheck.winnerId);
@@ -192,116 +93,233 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
         set({ isAnimating: false });
       }, 350);
     }
-  },
+  };
 
-  // End battle and cleanup
-  endBattle: () => {
-    get().stopGameLoop();
-    set({
-      currentBattle: null,
-      playerCards: [],
-      opponentCards: [],
-      battleResult: null,
-      gameLoopIntervalId: null,
-    });
-  },
+  return {
+    // Initial State
+    currentBattle: null,
+    playerMoves: [],
+    opponentMoves: [],
+    isAnimating: false,
+    lastAction: null,
+    battleResult: null,
+    gameLoopIntervalId: null,
+    lastAIActionTime: 0,
 
-  // Reset for rematch
-  resetBattle: () => {
-    get().stopGameLoop();
-    set({
-      currentBattle: null,
-      playerCards: [],
-      opponentCards: [],
-      isAnimating: false,
-      selectedCardId: null,
-      lastAction: null,
-      battleResult: null,
-      gameLoopIntervalId: null,
-    });
-  },
+    // Start a new battle: resolve each fighter's fixed four-move kit.
+    startBattle: (player, opponent, config) => {
+      const battle = ArenaCombatEngine.initializeBattle(player, opponent, config);
+      const playerKit = resolveCombatKit({
+        savedKitTemplateIds: config?.playerKitTemplateIds,
+        deckTemplateIds: config?.playerDeckTemplateIds,
+        ownedBattleCards: config?.playerBattleCards,
+        moveProgress: config?.playerMoveProgress,
+        idPrefix: 'player',
+      });
+      const opponentKit = resolveCombatKit({
+        ownedBattleCards: config?.opponentBattleCards,
+        idPrefix: 'opponent',
+      });
 
-  startGameLoop: () => {
-    const existing = get().gameLoopIntervalId;
-    if (existing) {
-      clearInterval(existing);
-    }
+      set({
+        currentBattle: battle,
+        playerMoves: [...playerKit.slots],
+        opponentMoves: [...opponentKit.slots],
+        isAnimating: false,
+        lastAction: null,
+        battleResult: null,
+        lastAIActionTime: Date.now(),
+      });
 
-    const intervalId = setInterval(() => {
-      const { currentBattle, isAnimating, lastAIActionTime } = get();
-      if (!currentBattle || currentBattle.status !== 'active') {
+      get().startGameLoop();
+    },
+
+    // Player uses a kit move (real-time: any moment stamina/requirements allow)
+    useMove: (moveId) => {
+      const { currentBattle, playerMoves } = get();
+      if (!currentBattle || currentBattle.status !== 'active') return;
+
+      const move = playerMoves.find((candidate) => candidate.id === moveId);
+      if (!move) return;
+
+      if (!ArenaCombatEngine.canPlayCard(currentBattle, 'player', move)) {
+        console.warn('Cannot use move:', move.name);
         return;
       }
 
-      if (isAnimating) {
+      const newState = ArenaCombatEngine.resolveAction(currentBattle, move, currentBattle.player.holobotId);
+      commitResolution(newState);
+    },
+
+    // Player fires their Signature Finisher (explicit command; requires a
+    // full special meter, which it consumes).
+    useSignatureFinisher: () => {
+      const { currentBattle } = get();
+      if (!currentBattle || currentBattle.status !== 'active') return;
+      if (!ArenaCombatEngine.canUseSignatureFinisher(currentBattle, 'player')) return;
+
+      const newState = ArenaCombatEngine.resolveSignatureFinisher(
+        currentBattle,
+        currentBattle.player.holobotId,
+      );
+      if (newState === currentBattle) return;
+
+      commitResolution(newState);
+    },
+
+    // Toggle player defense mode
+    toggleDefenseMode: () => {
+      const { currentBattle, playerMoves } = get();
+      if (!currentBattle) return;
+      const defenseMove = ArenaCombatEngine.getPlayableCards(
+        currentBattle,
+        'player',
+        playerMoves,
+      ).find((move) => move.type === 'defense');
+
+      if (!defenseMove) {
+        return;
+      }
+      get().useMove(defenseMove.id);
+    },
+
+    // Process an AI action (real-time: fired on a cadence by the game loop)
+    processAITurn: () => {
+      const { currentBattle, opponentMoves } = get();
+      if (!currentBattle) return;
+      if (currentBattle.status !== 'active') return;
+      if (get().isAnimating) return;
+
+      const command = ArenaCombatEngine.selectAICommand(currentBattle, opponentMoves);
+      if (!command) {
+        // Nothing playable (stamina drained / cooldowns): wait for the timed
+        // stamina regen and try again on the next cadence.
+        set({ lastAIActionTime: Date.now() });
         return;
       }
 
-      const enoughDelayPassed = Date.now() - lastAIActionTime > 950;
+      const newState =
+        command.kind === 'signature'
+          ? ArenaCombatEngine.resolveSignatureFinisher(currentBattle, currentBattle.opponent.holobotId)
+          : ArenaCombatEngine.resolveAction(currentBattle, command.card, currentBattle.opponent.holobotId);
 
-      if (
-        currentBattle.currentActorId === currentBattle.opponent.holobotId &&
-        enoughDelayPassed
-      ) {
-        get().processAITurn();
+      if (newState === currentBattle) {
+        set({ lastAIActionTime: Date.now() });
         return;
       }
 
-      // Liveness guard: if it's the player's turn but they have no playable
-      // card (stamina drained, cooldowns), auto-pass so per-turn regen can
-      // unstick them instead of soft-locking the battle.
-      if (
-        currentBattle.currentActorId === currentBattle.player.holobotId &&
-        enoughDelayPassed &&
-        ArenaCombatEngine.getPlayableCards(currentBattle, 'player', get().playerCards).length === 0
-      ) {
-        set({
-          currentBattle: ArenaCombatEngine.passTurn(currentBattle, 'player'),
-          lastAIActionTime: Date.now(),
-        });
+      commitResolution(newState, { lastAIActionTime: Date.now() });
+    },
+
+    // End battle and cleanup
+    endBattle: () => {
+      get().stopGameLoop();
+      set({
+        currentBattle: null,
+        playerMoves: [],
+        opponentMoves: [],
+        battleResult: null,
+        gameLoopIntervalId: null,
+      });
+    },
+
+    // Reset for rematch
+    resetBattle: () => {
+      get().stopGameLoop();
+      set({
+        currentBattle: null,
+        playerMoves: [],
+        opponentMoves: [],
+        isAnimating: false,
+        lastAction: null,
+        battleResult: null,
+        gameLoopIntervalId: null,
+      });
+    },
+
+    // Real-time game loop: stamina regenerates for both fighters on a fixed
+    // interval, and the AI acts on its own cadence whenever it has a playable
+    // move or a charged signature — it does not wait for the player.
+    startGameLoop: () => {
+      const existing = get().gameLoopIntervalId;
+      if (existing) {
+        clearInterval(existing);
       }
-    }, 180);
 
-    set({ gameLoopIntervalId: intervalId });
-  },
+      let lastRegenAt = Date.now();
 
-  stopGameLoop: () => {
-    const existing = get().gameLoopIntervalId;
-    if (existing) {
-      clearInterval(existing);
-    }
-    set({ gameLoopIntervalId: null });
-  },
+      const intervalId = setInterval(() => {
+        const { currentBattle, isAnimating, lastAIActionTime, opponentMoves } = get();
+        if (!currentBattle || currentBattle.status !== 'active') {
+          return;
+        }
 
-  // Animation control
-  setAnimating: (isAnimating) => set({ isAnimating }),
-  selectCard: (cardId) => set({ selectedCardId: cardId }),
+        const now = Date.now();
+        let battle = currentBattle;
+        if (now - lastRegenAt >= STAMINA_REGEN_INTERVAL_MS) {
+          lastRegenAt = now;
+          battle = ArenaCombatEngine.regenerateStamina(battle);
+          set({ currentBattle: battle });
+        }
 
-  // Helper: Get currently playable cards
-  getPlayableCards: () => {
-    const { currentBattle, playerCards } = get();
-    if (!currentBattle) return [];
-    if (currentBattle.currentActorId !== currentBattle.player.holobotId) return [];
-    return ArenaCombatEngine.getPlayableCards(currentBattle, 'player', playerCards);
-  },
+        if (isAnimating) {
+          return;
+        }
 
-  // Helper: Check if specific card can be played
-  canPlayCard: (cardId) => {
-    const { currentBattle, playerCards } = get();
-    if (!currentBattle) return false;
-    if (currentBattle.currentActorId !== currentBattle.player.holobotId) return false;
-    const card = playerCards.find(c => c.id === cardId);
-    if (!card) return false;
-    return ArenaCombatEngine.canPlayCard(currentBattle, 'player', card);
-  },
+        if (
+          now - lastAIActionTime > AI_ACTION_INTERVAL_MS &&
+          (ArenaCombatEngine.getPlayableCards(battle, 'opponent', opponentMoves).length > 0 ||
+            ArenaCombatEngine.canUseSignatureFinisher(battle, 'opponent'))
+        ) {
+          get().processAITurn();
+        }
+      }, 180);
 
-  getCardAvailabilityMap: () => {
-    const { currentBattle, playerCards } = get();
-    if (!currentBattle) return {};
+      set({ gameLoopIntervalId: intervalId });
+    },
 
-    return playerCards.reduce<Record<string, ArenaCardAvailability>>((result, card) => {
-      result[card.id] = ArenaCombatEngine.getCardAvailability(currentBattle, 'player', card);
-      return result;
-    }, {});
-  },
-}));
+    stopGameLoop: () => {
+      const existing = get().gameLoopIntervalId;
+      if (existing) {
+        clearInterval(existing);
+      }
+      set({ gameLoopIntervalId: null });
+    },
+
+    // Animation control
+    setAnimating: (isAnimating) => set({ isAnimating }),
+
+    // Helper: Get currently usable kit moves
+    getPlayableMoves: () => {
+      const { currentBattle, playerMoves } = get();
+      if (!currentBattle) return [];
+      return ArenaCombatEngine.getPlayableCards(currentBattle, 'player', playerMoves);
+    },
+
+    // Helper: Check if a specific kit move can be used
+    canUseMove: (moveId) => {
+      const { currentBattle, playerMoves } = get();
+      if (!currentBattle) return false;
+      const move = playerMoves.find((candidate) => candidate.id === moveId);
+      if (!move) return false;
+      return ArenaCombatEngine.canPlayCard(currentBattle, 'player', move);
+    },
+
+    // Helper: Signature availability (full special meter)
+    canUseSignature: () => {
+      const { currentBattle } = get();
+      if (!currentBattle) return false;
+      return ArenaCombatEngine.canUseSignatureFinisher(currentBattle, 'player');
+    },
+
+    getMoveAvailabilityMap: () => {
+      const { currentBattle, playerMoves } = get();
+      if (!currentBattle) return {};
+
+      return playerMoves.reduce<Record<string, ArenaCardAvailability>>((result, move) => {
+        result[move.id] = ArenaCombatEngine.getCardAvailability(currentBattle, 'player', move);
+        return result;
+      }, {});
+    },
+  };
+});

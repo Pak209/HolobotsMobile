@@ -3,6 +3,11 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { ActionCard, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
+import {
+  FINISHER_UNLOCK_SEGMENTS,
+  getSpecialMeterSegments,
+  SPECIAL_METER_SEGMENTS,
+} from "../../features/arena/moveKits";
 
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
@@ -16,11 +21,10 @@ type BattleArenaViewProps = {
   playerCards: ActionCard[];
   playableCardIds: string[];
   cardAvailability: Record<string, ArenaCardAvailability>;
-  selectedCardId: string | null;
   lastAction: BattleAction | null;
   isAnimating: boolean;
-  onCardSelect: (cardId: string | null) => void;
   onCardPlay: (cardId: string) => void;
+  onSignaturePlay: () => void;
 };
 
 function getCardColors(type: CardType) {
@@ -45,7 +49,7 @@ function getCardLabel(type: CardType) {
     case "defense":
       return "DEFEND";
     case "finisher":
-      return "FINISH";
+      return "FINISHER";
   }
 }
 
@@ -119,14 +123,12 @@ function ArenaCard({
   card,
   disabled,
   isPlayable,
-  isSelected,
   reasonLabel,
   onPress,
 }: {
   card?: ActionCard;
   disabled: boolean;
   isPlayable: boolean;
-  isSelected: boolean;
   reasonLabel: string | null;
   onPress: () => void;
 }) {
@@ -151,7 +153,6 @@ function ArenaCard({
           backgroundColor: colors.glow,
           opacity: isPlayable ? 1 : 0.45,
         },
-        isSelected ? styles.cardSlotSelected : null,
       ]}
     >
       <View style={styles.cardCostBadge}>
@@ -184,11 +185,10 @@ export function BattleArenaView({
   playerCards,
   playableCardIds,
   cardAvailability,
-  selectedCardId: _selectedCardId,
   lastAction,
   isAnimating,
-  onCardSelect: _onCardSelect,
   onCardPlay,
+  onSignaturePlay,
 }: BattleArenaViewProps) {
   const visibleCards = useMemo(() => {
     const slots = playerCards.slice(0, CARD_SLOTS);
@@ -231,6 +231,19 @@ export function BattleArenaView({
               percent={playerStaminaPercent}
               value={`${battle.player.stamina} / ${battle.player.maxStamina}`}
             />
+            <Text
+              style={[
+                styles.comboCounter,
+                battle.player.comboCounter > 0 ? styles.comboCounterActive : null,
+              ]}
+            >
+              {`COMBO ×${battle.player.comboCounter}`}
+            </Text>
+            {battle.player.ability ? (
+              <Text numberOfLines={1} style={styles.abilityBadge}>
+                {`◈ ${battle.player.ability.name.toUpperCase()}`}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -257,6 +270,20 @@ export function BattleArenaView({
               percent={opponentStaminaPercent}
               value={`${battle.opponent.stamina} / ${battle.opponent.maxStamina}`}
             />
+            <Text
+              style={[
+                styles.comboCounter,
+                styles.comboCounterRight,
+                battle.opponent.comboCounter > 0 ? styles.comboCounterActive : null,
+              ]}
+            >
+              {`COMBO ×${battle.opponent.comboCounter}`}
+            </Text>
+            {battle.opponent.ability ? (
+              <Text numberOfLines={1} style={[styles.abilityBadge, styles.abilityBadgeRight]}>
+                {`◈ ${battle.opponent.ability.name.toUpperCase()}`}
+              </Text>
+            ) : null}
           </View>
         </View>
       </View>
@@ -306,23 +333,41 @@ export function BattleArenaView({
         <View style={styles.cardBayTopBar}>
           <View style={styles.specialGaugeTrack}>
             <View style={[styles.specialGaugeFill, { width: `${playerSpecialPercent * 100}%` }]} />
+            <View
+              style={[
+                styles.specialGaugeUnlockTick,
+                { left: `${(FINISHER_UNLOCK_SEGMENTS / SPECIAL_METER_SEGMENTS) * 100}%` },
+              ]}
+            />
           </View>
-          <View style={styles.specialCluster}>
-            <Text style={styles.specialIcon}>✦</Text>
-            <Text style={styles.specialText}>
-              {finisherReady ? "READY" : `${Math.floor(battle.player.specialMeter)}%`}
-            </Text>
-          </View>
+          {finisherReady ? (
+            <Pressable
+              disabled={isAnimating}
+              onPress={onSignaturePlay}
+              style={[styles.signatureButton, isAnimating ? styles.signatureButtonDisabled : null]}
+            >
+              <Text numberOfLines={1} style={styles.signatureButtonText}>
+                {`✦ ${(battle.player.signatureFinisher?.name || "SIGNATURE").toUpperCase()}`}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={styles.specialCluster}>
+              <Text style={styles.specialIcon}>{"✦"}</Text>
+              <Text style={styles.specialText}>
+                {`${getSpecialMeterSegments(battle.player.specialMeter)}/${SPECIAL_METER_SEGMENTS}`}
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.cardBayHeader}>
           <Text style={styles.deckHint}>
             {battle.player.armedDefenseTrap
               ? "DEFENSE TRAP ARMED"
               : finisherReady
-                ? "FINISHER READY"
+                ? "FULL FINISHER READY — TAP THE GOLD BUTTON"
                 : playerCanAct
-                  ? "TAP A CARD TO PLAY"
-                  : "WAITING FOR ACTION"}
+                  ? "TAP A MOVE TO FIGHT"
+                  : "WAITING FOR STAMINA"}
           </Text>
         </View>
 
@@ -335,7 +380,6 @@ export function BattleArenaView({
                 card={card}
                 disabled={!card || isAnimating || !isPlayable}
                 isPlayable={isPlayable}
-                isSelected={false}
                 reasonLabel={card ? getAvailabilityLabel(cardAvailability[card.id]) : null}
                 onPress={() => {
                   if (card && isPlayable) {
@@ -510,6 +554,29 @@ const styles = StyleSheet.create({
     top: 6,
     width: 22,
   },
+  abilityBadge: {
+    color: "#2fb9c9",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  abilityBadgeRight: {
+    textAlign: "right",
+  },
+  comboCounter: {
+    color: "#5a5a52",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  comboCounterActive: {
+    color: "#f0bf14",
+  },
+  comboCounterRight: {
+    textAlign: "right",
+  },
   cardCostText: {
     fontSize: 18,
     fontWeight: "900",
@@ -570,13 +637,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#101010",
     borderColor: "#2b2b2b",
   },
-  cardSlotSelected: {
-    shadowColor: "#f0bf14",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    transform: [{ translateY: -6 }],
-  },
   cardTypeLabel: {
     fontSize: 9,
     fontWeight: "900",
@@ -600,6 +660,23 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: "72%",
   },
+  signatureButton: {
+    backgroundColor: "#f0bf14",
+    borderColor: "#07080d",
+    borderWidth: 2,
+    maxWidth: 190,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  signatureButtonDisabled: {
+    opacity: 0.55,
+  },
+  signatureButtonText: {
+    color: "#07080d",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
   specialCluster: {
     alignItems: "center",
     flexDirection: "row",
@@ -614,6 +691,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 12,
     overflow: "hidden",
+  },
+  specialGaugeUnlockTick: {
+    backgroundColor: "#07080d",
+    bottom: 0,
+    position: "absolute",
+    top: 0,
+    width: 2,
   },
   specialIcon: {
     color: "#f0bf14",

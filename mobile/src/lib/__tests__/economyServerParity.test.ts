@@ -11,9 +11,11 @@ import {
 import {
   buildBoosterPurchaseUpdates,
   buildItemPurchaseUpdates,
+  buildPartPurchaseUpdates,
   getMarketplacePrice,
   MARKETPLACE_BOOSTER_PRICES,
   MARKETPLACE_ITEM_NAMES,
+  MARKETPLACE_PART_CATALOG,
   type MarketplaceBoosterId,
 } from "@/lib/marketplace";
 
@@ -156,6 +158,30 @@ describe("marketplace client/server parity", () => {
     }
   });
 
+  it("part catalogs match and purchases produce identical updates", () => {
+    expect(serverEconomy.MARKETPLACE_PART_CATALOG).toEqual(MARKETPLACE_PART_CATALOG);
+
+    for (const offer of MARKETPLACE_PART_CATALOG) {
+      const { clientProfile, rawDoc } = playerState();
+      const client = buildPartPurchaseUpdates(clientProfile as never, offer.id);
+      const server = serverEconomy.buildPartPurchaseUpdatesRaw(rawDoc, offer.id);
+
+      expect(client).not.toBeNull();
+      expect(server).not.toBeNull();
+      expect(server!.price).toBe(client!.price);
+      expect(server!.part).toEqual(client!.part);
+      // holosTokens and parts use identical raw names on both sides.
+      expect(server!.updates).toEqual(client!.updates);
+    }
+  });
+
+  it("both sides reject an unknown part id", () => {
+    const { clientProfile, rawDoc } = playerState();
+
+    expect(buildPartPurchaseUpdates(clientProfile as never, "part.doesNotExist")).toBeNull();
+    expect(serverEconomy.buildPartPurchaseUpdatesRaw(rawDoc, "part.doesNotExist")).toBeNull();
+  });
+
   it("both sides refuse an unaffordable purchase", () => {
     const { clientProfile, rawDoc } = playerState();
     (clientProfile as Record<string, unknown>).holosTokens = 10;
@@ -165,6 +191,8 @@ describe("marketplace client/server parity", () => {
     expect(serverEconomy.buildItemPurchaseUpdatesRaw(rawDoc, "Arena Pass")).toBeNull();
     expect(buildBoosterPurchaseUpdates(clientProfile as never, "common", { now: NOW })).toBeNull();
     expect(serverEconomy.buildBoosterPurchaseUpdatesRaw(rawDoc, "common", { now: NOW })).toBeNull();
+    expect(buildPartPurchaseUpdates(clientProfile as never, "part.combatMask")).toBeNull();
+    expect(serverEconomy.buildPartPurchaseUpdatesRaw(rawDoc, "part.combatMask")).toBeNull();
   });
 
   it("booster purchases produce raw-translated identical updates and grants", () => {

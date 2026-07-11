@@ -11,6 +11,7 @@ import type {
   DamageResult,
   StaminaState,
 } from '@/types/arena';
+import { fireAbility } from './abilities';
 import {
   createArmedDefenseTrap,
   evaluateCardAvailability,
@@ -28,11 +29,6 @@ const TURN_STAMINA_REGEN = 1;
 
 type FighterRole = 'player' | 'opponent';
 
-type DamageMeterGain = {
-  attackerGain: number;
-  defenderGain: number;
-};
-
 type AISituation = {
   isLowHP: boolean;
   isLowStamina: boolean;
@@ -45,7 +41,6 @@ type AISituation = {
 function cloneFighter(fighter: ArenaFighter): ArenaFighter {
   return {
     ...fighter,
-    hand: [...(fighter.hand ?? [])],
     statusEffects: [...(fighter.statusEffects ?? [])],
   };
 }
@@ -69,6 +64,11 @@ export class ArenaCombatEngine {
     const now = Date.now();
     const initialPlayer = this.prepareFighter(player, now);
     const initialOpponent = this.prepareFighter(opponent, now);
+
+    // Innate abilities are live from the opening bell (e.g. ERA starts with
+    // meter already charged).
+    fireAbility(initialPlayer, 'battle_start', { turnNumber: 0 });
+    fireAbility(initialOpponent, 'battle_start', { turnNumber: 0 });
 
     return {
       battleId: buildBattleId(initialPlayer, initialOpponent),
@@ -136,6 +136,7 @@ export class ArenaCombatEngine {
       totalDamageDealt: fighter.totalDamageDealt ?? 0,
       perfectDefenses: fighter.perfectDefenses ?? 0,
       combosCompleted: fighter.combosCompleted ?? 0,
+      abilityRuntime: fighter.abilityRuntime ?? { firedCount: 0 },
     };
   }
 
@@ -245,6 +246,7 @@ export class ArenaCombatEngine {
     }
 
     this.applyCardEffects(card, actor, target, action);
+    this.applyAbilityTriggers(nextState, action, actor, target);
     this.advanceTurnState(nextState, actorRole, card);
 
     nextState.actionHistory.push(action);
@@ -261,32 +263,11 @@ export class ArenaCombatEngine {
   }
 
   /**
-   * Advances the turn without an action — used when the current actor has
-   * no playable card (stamina drained, everything on cooldown). Ticks
-   * cooldowns and regenerates stamina exactly like a played turn so a
-   * stalled fighter recovers instead of deadlocking the battle.
-   */
-  static passTurn(state: BattleState, actorRole: FighterRole): BattleState {
-    const nextState: BattleState = {
-      ...state,
-      player: this.recoverStamina(cloneFighter(state.player), TURN_STAMINA_REGEN),
-      opponent: this.recoverStamina(cloneFighter(state.opponent), TURN_STAMINA_REGEN),
-      playerCardCooldowns: tickCooldownMap({ ...(state.playerCardCooldowns ?? {}) }),
-      opponentCardCooldowns: tickCooldownMap({ ...(state.opponentCardCooldowns ?? {}) }),
-    };
-
-    nextState.turnNumber += 1;
-    nextState.currentActorId =
-      actorRole === 'player' ? nextState.opponent.holobotId : nextState.player.holobotId;
-    nextState.lastActionTimestamp = Date.now();
-
-    return nextState;
-  }
-
-  /**
    * Deterministic damage forecast mirroring resolveStrike/resolveCombo/
-   * resolveFinisher (combo multiplier, finisher doubling, and the target's
-   * armed-trap reduction, which finishers bypass). Drives AI decisions.
+   * resolveFinisher (combo multipliers, the technique-finisher capstone
+   * bonus, and the target's armed-trap reduction). Signature cards
+   * (templateId "signature.*") forecast the signature's doubled raw damage.
+   * Drives AI decisions.
    */
   static estimateCardDamage(
     attacker: ArenaFighter,
@@ -304,13 +285,138 @@ export class ArenaCombatEngine {
       damage = Math.floor(damage * this.calculateComboMultiplier(attacker.comboCounter));
     }
     if (card.type === 'finisher') {
-      damage = result.rawDamage * 2;
+      damage = card.templateId.startsWith('signature.')
+        ? result.rawDamage * 2
+        : Math.floor(damage * this.calculateComboMultiplier(attacker.comboCounter) * 1.25);
     }
-    if (defender.armedDefenseTrap && card.type !== 'finisher') {
+    if (defender.armedDefenseTrap) {
       damage = Math.max(0, Math.round(damage * (1 - defender.armedDefenseTrap.damageReduction)));
     }
 
     return damage;
+  }
+
+  // -------------------------------------------------------------------------
+  // Signature Finisher — innate Holobot identity, never part of the four-slot
+  // kit. Available at exactly 100 special meter, fired only by an explicit
+  // command (never auto-selected for the player), and consumes the full
+  // meter. Traps still apply, preserving counterplay.
+  // -------------------------------------------------------------------------
+
+  static readonly SIGNATURE_METER_COST = SPECIAL_METER_MAX;
+
+  static canUseSignatureFinisher(state: BattleState, role: FighterRole): boolean {
+    const fighter = role === 'player' ? state.player : state.opponent;
+    return state.status === 'active' && fighter.specialMeter >= SPECIAL_METER_MAX;
+  }
+
+  static buildSignatureCard(fighter: ArenaFighter): ActionCard {
+    const signature = fighter.signatureFinisher ?? {
+      id: 'signature.generic',
+      name: 'Arena Burst',
+      baseDamage: 38,
+      animationId: 'finisher_signature',
+    };
+
+    return {
+      id: signature.id,
+      templateId: signature.id,
+      name: signature.name,
+      type: 'finisher',
+      staminaCost: 0,
+      requirements: [],
+      baseDamage: signature.baseDamage,
+      speedModifier: 0.8,
+      effects: [],
+      animationId: signature.animationId,
+      description: `${fighter.name}'s signature finisher.`,
+    };
+  }
+
+  static resolveSignatureFinisher(state: BattleState, actorId: string): BattleState {
+    const actorRole: FighterRole = actorId === state.player.holobotId ? 'player' : 'opponent';
+    if (!this.canUseSignatureFinisher(state, actorRole)) {
+      return state;
+    }
+
+    const nextState: BattleState = {
+      ...state,
+      player: cloneFighter(state.player),
+      opponent: cloneFighter(state.opponent),
+      actionHistory: [...state.actionHistory],
+    };
+
+    const actor = actorRole === 'player' ? nextState.player : nextState.opponent;
+    const target = actorRole === 'player' ? nextState.opponent : nextState.player;
+    const card = this.buildSignatureCard(actor);
+    const now = Date.now();
+
+    const action: BattleAction = {
+      id: `arena-signature-${now}`,
+      battleId: nextState.battleId,
+      turnNumber: nextState.turnNumber,
+      actionOrder: nextState.actionHistory.length,
+      actorId: actor.holobotId,
+      actorRole,
+      targetId: target.holobotId,
+      card,
+      actionType: 'finisher',
+      timestamp: now,
+      elapsedMs: nextState.createdAt ? now - nextState.createdAt : 0,
+      outcome: 'hit',
+      damageDealt: 0,
+      actualDamage: 0,
+      staminaChange: 0,
+      specialMeterChange: -SPECIAL_METER_MAX,
+      wasCountered: false,
+      triggeredCombo: false,
+      perfectDefense: false,
+      comboLength: actor.comboCounter,
+      openedCounterWindow: false,
+      animationId: card.animationId,
+      animationDuration: 1100,
+    };
+
+    // Committing to the super drops the actor's own guard, like any attack.
+    if (actor.armedDefenseTrap) {
+      actor.armedDefenseTrap = null;
+      actor.isInDefenseMode = false;
+      actor.defenseActive = false;
+      actor.defendedAt = undefined;
+    }
+    actor.lastActionTime = now;
+
+    const damageResult = this.calculateDamage(actor, target, card, false, 0);
+    let actualDamage = damageResult.rawDamage * 2;
+    if (target.armedDefenseTrap) {
+      const trapResult = this.consumeDefenseTrap(actor, target, actualDamage);
+      if (trapResult) {
+        actualDamage = trapResult.finalDamage;
+        action.outcome = trapResult.outcome;
+        action.wasCountered = trapResult.counterDamage > 0;
+        action.perfectDefense = trapResult.evaded;
+      }
+    }
+
+    action.damageDealt = damageResult.rawDamage * 2;
+    action.actualDamage = actualDamage;
+
+    target.currentHP = Math.max(0, target.currentHP - actualDamage);
+    actor.specialMeter = 0;
+    actor.comboCounter = 0;
+    actor.totalDamageDealt = (actor.totalDamageDealt ?? 0) + actualDamage;
+
+    this.applyAbilityTriggers(nextState, action, actor, target);
+
+    nextState.actionHistory.push(action);
+    nextState.turnNumber += 1;
+    nextState.lastActionTimestamp = now;
+
+    if (this.checkWinCondition(nextState).isComplete) {
+      nextState.status = 'completed';
+    }
+
+    return nextState;
   }
 
   static resolveDefenseTrap({
@@ -473,6 +579,27 @@ export class ArenaCombatEngine {
     return fighter;
   }
 
+  /**
+   * Full AI decision including the Signature Finisher (plan §10): fire the
+   * signature when it kills, or as soon as the meter is full and the player
+   * has no armed trap to eat it; otherwise pick the best kit move.
+   */
+  static selectAICommand(
+    state: BattleState,
+    moves: ActionCard[],
+  ): { kind: 'signature' } | { kind: 'move'; card: ActionCard } | null {
+    if (this.canUseSignatureFinisher(state, 'opponent')) {
+      const signatureCard = this.buildSignatureCard(state.opponent);
+      const signatureDamage = this.estimateCardDamage(state.opponent, state.player, signatureCard);
+      if (signatureDamage >= state.player.currentHP || !state.player.armedDefenseTrap) {
+        return { kind: 'signature' };
+      }
+    }
+
+    const card = this.selectAIAction(state, moves);
+    return card ? { kind: 'move', card } : null;
+  }
+
   static selectAIAction(
     state: BattleState,
     cards: ActionCard[],
@@ -508,14 +635,14 @@ export class ArenaCombatEngine {
       return lethal;
     }
 
-    // 2) A full special meter is banked damage with nothing to gain from
-    //    holding it (further gains are wasted at the cap) — spend it.
-    if (situation.hasFinisherReady) {
-      const finisher = attacks.find((card) => card.type === 'finisher');
-      if (finisher) {
-        return finisher;
-      }
+    // 2) The kit finisher is an early meter cash-out (unlocks at 4/7 but
+    //    spends the whole charge). Cash it early only to press a kill window
+    //    — otherwise hold and build toward the full-strength signature.
+    const kitFinisher = attacks.find((card) => card.type === 'finisher');
+    if (kitFinisher && getFighterHealthPercent(opponent) < 0.35) {
+      return kitFinisher;
     }
+    const attackOptions = attacks.filter((card) => card.type !== 'finisher');
 
     // 3) Defense is for recovering stamina, not hiding: brace only when no
     //    attack is affordable, or when badly hurt while the player still has
@@ -530,7 +657,7 @@ export class ArenaCombatEngine {
     // 4) The player armed a trap: spring it with the cheapest attack so the
     //    real hits land after the trap is spent.
     if (opponentTrapArmed) {
-      const probe = [...attacks].sort(
+      const probe = [...attackOptions].sort(
         (left, right) => left.staminaCost - right.staminaCost || left.baseDamage - right.baseDamage,
       )[0];
       if (probe) {
@@ -541,7 +668,7 @@ export class ArenaCombatEngine {
     // 5) Cash in a hot combo counter — but keep one point of stamina in
     //    reserve unless the payoff is a big chunk of the player's health.
     if (situation.comboActive) {
-      const combos = attacks
+      const combos = attackOptions
         .filter((card) => card.type === 'combo')
         .sort(
           (left, right) =>
@@ -562,7 +689,7 @@ export class ArenaCombatEngine {
     //    low, damage-per-stamina matters more than raw damage; never dump the
     //    last point without a kill, and press harder while the player is winded.
     const staminaTight = self.stamina <= 3;
-    const scored = attacks
+    const scored = attackOptions
       .map((card) => {
         const damage = this.estimateCardDamage(self, opponent, card);
         const efficiency = getCardEfficiency(card);
@@ -629,12 +756,20 @@ export class ArenaCombatEngine {
     winnerId?: string;
     winType?: 'ko' | 'finisher' | 'timeout' | 'forfeit';
   } {
+    // A finisher is a big attack, not an auto-win: only a KO (or timeout)
+    // ends the battle. The old rule completed the battle for whoever landed
+    // a finisher even when the target had plenty of HP left, which handed
+    // out instant defeats the moment the AI's meter filled. The label still
+    // reports 'finisher' when the KO'ing blow was one.
+    const lastAction = state.actionHistory[state.actionHistory.length - 1];
+    const koWinType = lastAction?.actionType === 'finisher' ? 'finisher' : 'ko';
+
     if (state.player.currentHP <= 0) {
-      return { isComplete: true, winnerId: state.opponent.holobotId, winType: 'ko' };
+      return { isComplete: true, winnerId: state.opponent.holobotId, winType: koWinType };
     }
 
     if (state.opponent.currentHP <= 0) {
-      return { isComplete: true, winnerId: state.player.holobotId, winType: 'ko' };
+      return { isComplete: true, winnerId: state.player.holobotId, winType: koWinType };
     }
 
     if (state.config?.maxTurns && state.turnNumber >= state.config.maxTurns) {
@@ -645,15 +780,6 @@ export class ArenaCombatEngine {
             ? state.player.holobotId
             : state.opponent.holobotId,
         winType: 'timeout',
-      };
-    }
-
-    const lastAction = state.actionHistory[state.actionHistory.length - 1];
-    if (lastAction?.actionType === 'finisher' && lastAction.outcome === 'hit') {
-      return {
-        isComplete: true,
-        winnerId: lastAction.actorId,
-        winType: 'finisher',
       };
     }
 
@@ -684,9 +810,8 @@ export class ArenaCombatEngine {
     defender.currentHP = Math.max(0, defender.currentHP - finalDamage);
 
     const meterGain = this.getMeterGainForDamage('strike', finalDamage);
-    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain.attackerGain);
-    defender.specialMeter = capMeter(defender.specialMeter + meterGain.defenderGain);
-    action.specialMeterChange = meterGain.attackerGain;
+    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
+    action.specialMeterChange = meterGain;
 
     if (outcome === 'hit') {
       attacker.comboCounter += 1;
@@ -705,7 +830,6 @@ export class ArenaCombatEngine {
     const defenseTrap = createArmedDefenseTrap(action.card);
     const defenseCard = getDefenseTrapCard(action.card);
     const staminaRestore = defenseCard?.staminaGain ?? 2;
-    const specialMeterGain = defenseCard?.specialMeterGain ?? 6;
 
     defender.stamina = Math.min(defender.maxStamina, defender.stamina + staminaRestore);
     defender.staminaState = this.getStaminaState(defender.stamina);
@@ -718,10 +842,8 @@ export class ArenaCombatEngine {
     action.damageDealt = 0;
     action.actualDamage = 0;
     action.staminaChange = staminaRestore;
-    action.specialMeterChange = specialMeterGain;
+    action.specialMeterChange = 0;
     action.openedCounterWindow = true;
-
-    defender.specialMeter = capMeter(defender.specialMeter + specialMeterGain);
 
     if (defender.speed + defender.intelligence > attacker.attack + attacker.speed) {
       defender.perfectDefenses = (defender.perfectDefenses ?? 0) + 1;
@@ -757,30 +879,52 @@ export class ArenaCombatEngine {
     defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
 
     const meterGain = this.getMeterGainForDamage('combo', actualDamage);
-    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain.attackerGain);
-    defender.specialMeter = capMeter(defender.specialMeter + meterGain.defenderGain);
-    action.specialMeterChange = meterGain.attackerGain;
+    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
+    action.specialMeterChange = meterGain;
 
     attacker.comboCounter = 0;
     attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;
     attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + actualDamage;
   }
 
+  // Kit Finisher (slot 4): the EARLY meter cash-out. It unlocks at 4/7 of
+  // the special meter (availability requirement) and consumes the whole
+  // meter when used — lower damage than holding the charge to 7/7 for the
+  // Signature Finisher below. Blockable/counterable like any attack.
   private static resolveFinisher(
     action: BattleAction,
     attacker: ArenaFighter,
     defender: ArenaFighter,
   ): void {
-    const damageResult = this.calculateDamage(attacker, defender, action.card, false, 0);
-    const actualDamage = damageResult.rawDamage * 2;
+    const comboLength = attacker.comboCounter;
+    const capstoneBonus = 1.25;
+    const damageResult = this.calculateDamage(attacker, defender, action.card, false, comboLength);
+    let actualDamage = Math.floor(
+      damageResult.finalDamage * this.calculateComboMultiplier(comboLength) * capstoneBonus,
+    );
+    let outcome: ActionOutcome = 'hit';
 
-    action.damageDealt = actualDamage;
+    const trapResult = this.consumeDefenseTrap(attacker, defender, actualDamage);
+    if (trapResult) {
+      actualDamage = trapResult.finalDamage;
+      outcome = trapResult.outcome;
+      action.wasCountered = trapResult.counterDamage > 0;
+      action.perfectDefense = trapResult.evaded;
+    }
+
+    action.damageDealt = Math.floor(damageResult.rawDamage * capstoneBonus);
     action.actualDamage = actualDamage;
-    action.outcome = 'hit';
+    action.outcome = outcome;
+    action.comboLength = comboLength;
+    action.specialMeterChange = -attacker.specialMeter;
 
     defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
+
+    // Cash out: the finisher spends the built-up meter.
     attacker.specialMeter = 0;
+
     attacker.comboCounter = 0;
+    attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;
     attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + actualDamage;
   }
 
@@ -838,44 +982,74 @@ export class ArenaCombatEngine {
     return 1 + comboLength * 0.08;
   }
 
+  // The special meter charges ONLY from the fighter's own Strike and Combo
+  // plays — never from taking hits or arming defenses — so both finisher
+  // tiers have to be earned with offense. (Innate abilities may still grant
+  // bounded meter as explicit identity exceptions.)
   private static getMeterGainForDamage(
     cardType: ActionCard['type'],
     damage: number,
-  ): DamageMeterGain {
+  ): number {
     if (cardType === 'combo') {
-      return {
-        attackerGain: Math.floor(damage * 2.0),
-        defenderGain: Math.floor(damage * 0.8),
-      };
+      return Math.floor(damage * 2.0);
     }
-
-    if (cardType === 'finisher') {
-      return { attackerGain: 0, defenderGain: 0 };
+    if (cardType === 'strike') {
+      return Math.floor(damage * 1.5);
     }
-
-    return {
-      attackerGain: Math.floor(damage * 1.5),
-      defenderGain: Math.floor(damage * 0.5),
-    };
+    return 0;
   }
 
+  // Fires both fighters' innate abilities for whatever this action triggered:
+  // arming a defense, landing a hit, countering/evading with a trap, or
+  // taking damage. Stamina states are refreshed afterwards since abilities
+  // can restore stamina.
+  private static applyAbilityTriggers(
+    state: BattleState,
+    action: BattleAction,
+    actor: ArenaFighter,
+    target: ArenaFighter,
+  ): void {
+    const context = { turnNumber: state.turnNumber };
+
+    const dealtDamage = action.actualDamage ?? 0;
+
+    if (action.actionType === 'defense') {
+      fireAbility(actor, 'after_defend', context);
+    } else {
+      if (action.outcome === 'hit' && dealtDamage > 0) {
+        fireAbility(actor, 'after_hit', {
+          ...context,
+          damage: dealtDamage,
+          comboCount: Math.max(actor.comboCounter, action.comboLength ?? 0),
+        });
+      }
+      if (action.wasCountered || action.perfectDefense) {
+        fireAbility(target, 'on_counter', context);
+      }
+      if (dealtDamage > 0) {
+        fireAbility(target, 'on_damaged', { ...context, damage: dealtDamage });
+      }
+    }
+
+    actor.staminaState = this.getStaminaState(actor.stamina);
+    target.staminaState = this.getStaminaState(target.stamina);
+  }
+
+  // Combat is real-time: stamina regenerates on the store's timer (via
+  // regenerateStamina), not per action, and a cooldown counts the ACTOR's own
+  // subsequent plays — "CD 2" means locked for your next two cards.
   private static advanceTurnState(
     state: BattleState,
     actorRole: FighterRole,
     card: ActionCard,
   ): void {
-    state.playerCardCooldowns = tickCooldownMap({ ...(state.playerCardCooldowns ?? {}) });
-    state.opponentCardCooldowns = tickCooldownMap({ ...(state.opponentCardCooldowns ?? {}) });
-
     const cooldownField = actorRole === 'player' ? 'playerCardCooldowns' : 'opponentCardCooldowns';
-    const cooldownTurns = getCardCooldownTurns(card);
+    state[cooldownField] = tickCooldownMap({ ...(state[cooldownField] ?? {}) });
 
+    const cooldownTurns = getCardCooldownTurns(card);
     if (cooldownTurns > 0) {
       state[cooldownField]![card.templateId] = cooldownTurns;
     }
-
-    state.player = this.recoverStamina(state.player, TURN_STAMINA_REGEN);
-    state.opponent = this.recoverStamina(state.opponent, TURN_STAMINA_REGEN);
   }
 
   private static selectBestDefense(cards: ActionCard[], situation: AISituation): ActionCard {

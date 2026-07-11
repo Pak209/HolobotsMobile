@@ -11,6 +11,7 @@ import {
 import {
   buildBoosterPurchaseUpdates,
   buildItemPurchaseUpdates,
+  buildPartPurchaseUpdates,
   type MarketplaceBoosterId,
 } from "@/lib/marketplace";
 import type { UserProfile } from "@/types/profile";
@@ -34,6 +35,15 @@ const purchaseItemCallable = httpsCallable<
   { itemName: string },
   { holosTokens: number; itemName: string; price: number }
 >(functions, "purchaseMarketplaceItem");
+
+const purchasePartCallable = httpsCallable<
+  { partId: string },
+  {
+    holosTokens: number;
+    part: { name: string; rarity: string; slot: string };
+    price: number;
+  }
+>(functions, "purchaseMarketplacePart");
 
 const purchaseBoosterCallable = httpsCallable<
   { packId: MarketplaceBoosterId },
@@ -108,6 +118,28 @@ export async function purchaseMarketplaceItemAuthoritative(
     throw new Error("Not enough Holos.");
   }
   await updateProfile(result.updates);
+}
+
+export async function purchaseMarketplacePartAuthoritative(
+  profile: UserProfile,
+  updateProfile: UpdateProfileFn,
+  partId: string,
+): Promise<{ name: string; rarity: string; slot: string }> {
+  try {
+    const result = await purchasePartCallable({ partId });
+    return result.data.part;
+  } catch (error) {
+    if (!shouldFallBackToLocal(error)) {
+      throw error;
+    }
+  }
+
+  const result = buildPartPurchaseUpdates(profile, partId);
+  if (!result) {
+    throw new Error("Not enough Holos.");
+  }
+  await updateProfile(result.updates);
+  return result.part;
 }
 
 export type BoosterGrantSummary = {

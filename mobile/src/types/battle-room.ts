@@ -1,61 +1,66 @@
 import type { FieldValue, Timestamp } from "firebase/firestore";
 
+import type {
+  AbilityRuntimeState,
+  ActionCard,
+  ArmedDefenseTrap,
+  ResolvedSignatureFinisher,
+} from "@/types/arena";
+
+/**
+ * Realtime PvP room schema, version 2 (arena-card-to-move plan Phase 5).
+ *
+ * PvP battles resolve through the SAME ArenaCombatEngine, move catalog,
+ * kits, ranks, abilities, and signatures as PvE. Each player's entry is a
+ * serializable fighter snapshot (no image sources — clients resolve art
+ * from holobotName locally); every action is resolved inside a Firestore
+ * transaction by the acting client and both devices render the shared
+ * result. `rulesVersion` gates mismatched app versions out of each other's
+ * rooms.
+ */
+
+export const BATTLE_ROOM_RULES_VERSION = 2;
+
 export type RoomStatus = "waiting" | "active" | "completed" | "abandoned";
 export type PlayerRole = "p1" | "p2";
-export type CardType = "strike" | "defense" | "combo" | "finisher";
 
-export type BoostableStat = "attack" | "defense" | "speed";
-
-export type StatBoost = {
-  stat: BoostableStat;
-  stages: number;
-  expiresAt: number;
-  source: string;
-};
-
-export type RealtimeActionCard = {
-  id: string;
-  name: string;
-  type: CardType;
-  tier: 1 | 2 | 3;
-  staminaCost: number;
-  baseDamage?: number;
-  staminaRestore?: number;
-  statEffect?: {
-    target: "self" | "opponent";
-    stat: BoostableStat;
-    stages: number;
-    durationMs: number;
-  };
-};
-
-export type BattleHolobotStats = {
-  name: string;
+export type PvpFighterDoc = {
+  uid: string;
+  username: string;
+  holobotName: string;
   level: number;
+  archetype: "striker" | "grappler" | "technical" | "balanced";
+
+  // Combat stats (resolved once at entry, sync modifiers applied).
+  maxHP: number;
+  currentHP: number;
   attack: number;
   defense: number;
   speed: number;
   intelligence: number;
-  maxHealth: number;
-};
 
-export type BattleRoomPlayer = {
-  uid: string;
-  username: string;
-  holobot: BattleHolobotStats;
-  health: number;
-  maxHealth: number;
+  // Resources
   stamina: number;
   maxStamina: number;
   specialMeter: number;
-  hand: RealtimeActionCard[];
-  activeBoosts?: StatBoost[];
+
+  // Combat state
+  comboCounter: number;
+  isInDefenseMode: boolean;
+  defenseActive?: boolean;
+  defendedAt?: number | null;
+  armedDefenseTrap: ArmedDefenseTrap | null;
+  moveCooldowns: Record<string, number>;
+  abilityRuntime: AbilityRuntimeState;
+
+  // Content (resolved kit with ranks applied; signature identity)
+  moves: ActionCard[];
+  signatureFinisher: ResolvedSignatureFinisher;
+
+  // Telemetry / presence
+  totalDamageDealt: number;
   isConnected: boolean;
   lastHeartbeat?: Timestamp | FieldValue | number;
-  damageDealt: number;
-  damageTaken: number;
-  defenseActive?: boolean;
-  defendedAt?: number;
 };
 
 export type BattleLogEntry = {
@@ -67,7 +72,9 @@ export type BattleLogEntry = {
 export type BattlePoolEntry = {
   userId: string;
   username: string;
-  holobotStats: BattleHolobotStats;
+  /** The queuer's prebuilt fighter snapshot (self-authored kit + stats). */
+  fighter: PvpFighterDoc;
+  rulesVersion: number;
   isActive: boolean;
   roomId?: string;
   createdAt: Timestamp | FieldValue | number;
@@ -76,12 +83,13 @@ export type BattlePoolEntry = {
 export type BattleRoom = {
   roomId: string;
   roomCode: string;
+  rulesVersion: number;
   status: RoomStatus;
   players: {
-    p1: BattleRoomPlayer;
-    p2: BattleRoomPlayer;
+    p1: PvpFighterDoc;
+    p2: PvpFighterDoc;
   };
-  currentTurn: number;
+  turnNumber: number;
   winner: PlayerRole | null;
   battleLog: BattleLogEntry[];
   createdAt: Timestamp | FieldValue | number;

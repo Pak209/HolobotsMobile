@@ -77,9 +77,9 @@ export interface ArenaFighter {
   intelligence: number;
 
   // Arena-Specific State
-  stamina: number; // current hand size
-  maxStamina: number; // max hand size (7 base)
-  specialMeter: number; // 0-100
+  stamina: number; // current stamina points (regenerates in real time)
+  maxStamina: number; // stamina cap (7 base)
+  specialMeter: number; // 0-100; at 100 the Signature Finisher unlocks
 
   // Current Battle State
   staminaState: StaminaState;
@@ -106,12 +106,74 @@ export interface ArenaFighter {
   statusEffects?: StatusEffect[];
   damageMultiplier?: number;
   speedBonus?: number;
-  hand?: ActionCard[];
   totalDamageDealt?: number;
   perfectDefenses?: number;
   combosCompleted?: number;
   syncAbilities?: string[];
   syncModifiers?: SyncBattleModifiers;
+
+  // Innate identity: available at exactly 100 special meter, consumed on use.
+  // Never occupies a kit slot (arena-card-to-move-implementation-plan.md §6.2).
+  signatureFinisher?: ResolvedSignatureFinisher;
+
+  // Innate Ability: always active, fires on typed triggers. abilityRuntime
+  // holds only bounded facts (fire count / last fire) for charge tracking.
+  ability?: AbilityDefinition;
+  abilityRuntime?: AbilityRuntimeState;
+}
+
+export interface ResolvedSignatureFinisher {
+  id: string;
+  name: string;
+  baseDamage: number;
+  animationId: string;
+}
+
+// ---------------------------------------------------------------------------
+// Innate Abilities — one per Holobot, always active, never equipped or
+// upgraded (v1). Implemented through these shared typed triggers/effects
+// only; per-Holobot engine callbacks are not allowed.
+// ---------------------------------------------------------------------------
+
+export type AbilityTrigger =
+  | 'battle_start'
+  | 'after_hit'
+  | 'after_defend'
+  | 'on_counter'
+  | 'on_damaged';
+
+export type AbilityCondition =
+  | { type: 'stamina_below'; value: number }
+  | { type: 'stamina_at_least'; value: number }
+  | { type: 'hp_below_percent'; value: number }
+  | { type: 'combo_at_least'; value: number }
+  | { type: 'damage_at_least'; value: number };
+
+export type AbilityEffect =
+  | { type: 'special_meter'; value: number }
+  | { type: 'stamina_gain'; value: number }
+  | { type: 'heal'; value: number };
+
+export type AbilityCharges =
+  | { kind: 'unlimited' }
+  | { kind: 'once_per_battle' }
+  | { kind: 'cooldown_actions'; actions: number };
+
+export interface AbilityDefinition {
+  id: string;
+  holobotName: string;
+  name: string;
+  description: string;
+  trigger: AbilityTrigger;
+  conditions: AbilityCondition[];
+  effects: AbilityEffect[];
+  charges: AbilityCharges;
+  aiHints: string[];
+}
+
+export interface AbilityRuntimeState {
+  firedCount: number;
+  lastFiredAtTurn?: number;
 }
 
 // ============================================================================
@@ -277,6 +339,12 @@ export interface ArenaBattleConfig {
   globalModifiers?: BattleModifier[];
   playerBattleCards?: Record<string, number>;
   opponentBattleCards?: Record<string, number>;
+  /** Saved loadout order used to compose the kit when no saved kit exists. */
+  playerDeckTemplateIds?: string[];
+  /** The selected Holobot's saved four-slot kit (combatKit.slots). */
+  playerKitTemplateIds?: string[];
+  /** The selected Holobot's per-move rank/specialization. */
+  playerMoveProgress?: Record<string, { rank: number; specializationId?: string }>;
 }
 
 export interface BattleModifier {
