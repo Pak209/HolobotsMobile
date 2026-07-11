@@ -14,8 +14,11 @@ import {
 
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { mergeHolobotRoster } from "@/config/holobots";
-import { buildRealtimeHolobotStats, useRealtimeArena } from "@/hooks/useRealtimeArena";
-import type { BattleRoomPlayer, CardType, PlayerRole, RealtimeActionCard } from "@/types/battle-room";
+import { getSpecialMeterSegments, SPECIAL_METER_SEGMENTS } from "@/features/arena/moveKits";
+import { useRealtimeArena } from "@/hooks/useRealtimeArena";
+import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
+import type { ActionCard, CardType } from "@/types/arena";
+import type { PlayerRole, PvpFighterDoc } from "@/types/battle-room";
 import type { UserHolobot } from "@/types/profile";
 
 type PvpArenaModalProps = {
@@ -37,8 +40,8 @@ function cardColors(type: CardType) {
   }
 }
 
-function PlayerMeters({ label, player }: { label: string; player: BattleRoomPlayer }) {
-  const hpPercent = player.maxHealth > 0 ? Math.max(0, Math.min(100, (player.health / player.maxHealth) * 100)) : 0;
+function PlayerMeters({ label, player }: { label: string; player: PvpFighterDoc }) {
+  const hpPercent = player.maxHP > 0 ? Math.max(0, Math.min(100, (player.currentHP / player.maxHP) * 100)) : 0;
   const staminaPercent = player.maxStamina > 0 ? Math.max(0, Math.min(100, (player.stamina / player.maxStamina) * 100)) : 0;
 
   return (
@@ -47,14 +50,16 @@ function PlayerMeters({ label, player }: { label: string; player: BattleRoomPlay
         <Text style={styles.meterLabel}>{label}</Text>
         <Text style={styles.meterName}>{player.username || "Waiting"}</Text>
       </View>
-      <Text style={styles.meterBot}>{player.holobot?.name ? `${player.holobot.name} Lv ${player.holobot.level}` : "No pilot connected"}</Text>
+      <Text style={styles.meterBot}>
+        {player.holobotName ? `${player.holobotName} Lv ${player.level} • ◈ COMBO ×${player.comboCounter}` : "No pilot connected"}
+      </Text>
 
       <View style={styles.meterRow}>
         <Text style={styles.meterCaption}>HP</Text>
         <View style={styles.barTrack}>
           <View style={[styles.hpFill, { width: `${hpPercent}%` }]} />
         </View>
-        <Text style={styles.meterValue}>{`${player.health}/${player.maxHealth}`}</Text>
+        <Text style={styles.meterValue}>{`${player.currentHP}/${player.maxHP}`}</Text>
       </View>
 
       <View style={styles.meterRow}>
@@ -66,26 +71,47 @@ function PlayerMeters({ label, player }: { label: string; player: BattleRoomPlay
       </View>
 
       <View style={styles.meterRow}>
-        <Text style={styles.meterCaption}>SP</Text>
+        <Text style={styles.meterCaption}>✦</Text>
         <View style={styles.barTrack}>
           <View style={[styles.specialFill, { width: `${player.specialMeter}%` }]} />
         </View>
-        <Text style={styles.meterValue}>{`${player.specialMeter}%`}</Text>
+        <Text style={styles.meterValue}>
+          {`${getSpecialMeterSegments(player.specialMeter)}/${SPECIAL_METER_SEGMENTS}`}
+        </Text>
       </View>
     </View>
   );
 }
 
+function reasonLabel(availability?: ArenaCardAvailability): string | null {
+  if (!availability || availability.playable) return null;
+  switch (availability.reason) {
+    case "cooldown":
+      return `CD ${availability.cooldownTurns ?? "?"}`;
+    case "stamina":
+      return "LOW STA";
+    case "combo":
+      return "NEEDS COMBO";
+    case "special_meter":
+      return "NEEDS METER";
+    case "defense_lock":
+      return "LOCKED";
+    default:
+      return "LOCKED";
+  }
+}
+
 function BattleCard({
   card,
-  disabled,
+  availability,
   onPlay,
 }: {
-  card: RealtimeActionCard;
-  disabled: boolean;
-  onPlay: (cardId: string) => void;
+  card: ActionCard;
+  availability?: ArenaCardAvailability;
+  onPlay: (moveId: string) => void;
 }) {
   const colors = cardColors(card.type);
+  const disabled = availability ? !availability.playable : false;
 
   return (
     <Pressable
@@ -96,10 +122,10 @@ function BattleCard({
       <View style={styles.cardCost}>
         <Text style={styles.cardCostText}>{card.staminaCost}</Text>
       </View>
-      <Text style={[styles.cardType, { color: colors.text }]}>{card.type.toUpperCase()}</Text>
+      <Text style={[styles.cardType, { color: colors.text }]}>{card.type === "defense" ? "DEFEND" : card.type.toUpperCase()}</Text>
       <Text numberOfLines={2} style={styles.cardName}>{card.name}</Text>
-      {card.baseDamage ? <Text style={styles.cardDamage}>{card.baseDamage} DMG</Text> : <Text style={styles.cardDamage}>+STA</Text>}
-      <Text style={styles.cardPlay}>{disabled ? "LOCKED" : "PLAY"}</Text>
+      {card.baseDamage > 0 ? <Text style={styles.cardDamage}>{card.baseDamage} DMG</Text> : <Text style={styles.cardDamage}>BLOCK</Text>}
+      <Text style={styles.cardPlay}>{disabled ? (reasonLabel(availability) ?? "LOCKED") : "PLAY"}</Text>
     </Pressable>
   );
 }
@@ -110,6 +136,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
   const [joinCode, setJoinCode] = useState("");
   const {
     cancelMatchmaking,
+    canFireSignature,
     createRoom,
     enterMatchmaking,
     error,
@@ -117,10 +144,12 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     leaveRoom,
     loading,
     matchmakingStatus,
+    moveAvailability,
     myRole,
     opponentRole,
-    playCard,
+    playMove,
     room,
+    useSignature: fireSignature,
   } = useRealtimeArena();
 
   const roster = useMemo(
@@ -142,11 +171,11 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     }
   }, [leaveRoom, visible]);
 
-  const selectedStats = () => {
+  const selectedHolobotName = () => {
     if (!selectedHolobot) {
       throw new Error("Choose a Holobot before entering PvP.");
     }
-    return buildRealtimeHolobotStats(selectedHolobot);
+    return selectedHolobot.name;
   };
 
   const handleClose = async () => {
@@ -156,7 +185,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
   const handleCreateRoom = async () => {
     try {
-      await createRoom(selectedStats());
+      await createRoom(selectedHolobotName());
     } catch (createError: any) {
       Alert.alert("Create Room Failed", createError.message || "Unable to create a room.");
     }
@@ -168,7 +197,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
         Alert.alert("Room Code Needed", "Enter a room code to join a private PVP arena.");
         return;
       }
-      await joinRoom(joinCode.trim().toUpperCase(), selectedStats());
+      await joinRoom(joinCode.trim().toUpperCase(), selectedHolobotName());
     } catch (joinError: any) {
       Alert.alert("Join Room Failed", joinError.message || "Unable to join the room.");
     }
@@ -176,17 +205,25 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
   const handleQuickMatch = async () => {
     try {
-      await enterMatchmaking(selectedStats());
+      await enterMatchmaking(selectedHolobotName());
     } catch (matchError: any) {
       Alert.alert("Quick Match Failed", matchError.message || "Unable to enter matchmaking.");
     }
   };
 
-  const handlePlayCard = async (cardId: string) => {
+  const handlePlayMove = async (moveId: string) => {
     try {
-      await playCard(cardId);
+      await playMove(moveId);
     } catch (playError: any) {
-      Alert.alert("Card Locked", playError.message || "That card cannot be played yet.");
+      Alert.alert("Move Locked", playError.message || "That move cannot be used yet.");
+    }
+  };
+
+  const handleSignature = async () => {
+    try {
+      await fireSignature();
+    } catch (signatureError: any) {
+      Alert.alert("Signature Not Ready", signatureError.message || "Charge the special meter to 7/7 first.");
     }
   };
 
@@ -293,17 +330,24 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
                 {myPlayer && room.status === "active" ? (
                   <View style={styles.handPanel}>
-                    <Text style={styles.handTitle}>YOUR HAND</Text>
+                    <Text style={styles.handTitle}>YOUR MOVES</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.handScroll}>
-                      {myPlayer.hand.map((card) => (
+                      {myPlayer.moves.map((move) => (
                         <BattleCard
-                          key={card.id}
-                          card={card}
-                          disabled={myPlayer.stamina < card.staminaCost || (card.type === "finisher" && myPlayer.specialMeter < 100)}
-                          onPlay={handlePlayCard}
+                          key={move.id}
+                          card={move}
+                          availability={moveAvailability[move.id]}
+                          onPlay={handlePlayMove}
                         />
                       ))}
                     </ScrollView>
+                    {canFireSignature ? (
+                      <Pressable onPress={() => void handleSignature()} style={styles.signatureButton}>
+                        <Text style={styles.signatureButtonText}>
+                          {`✦ ${(myPlayer.signatureFinisher?.name || "SIGNATURE").toUpperCase()}`}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 ) : null}
 
@@ -478,6 +522,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.6,
+  },
+  signatureButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    borderRadius: 6,
+    marginTop: 10,
+    paddingVertical: 10,
+  },
+  signatureButtonText: {
+    color: "#050606",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   handPanel: {
     marginTop: 12,

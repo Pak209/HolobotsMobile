@@ -116,13 +116,35 @@ pattern the marketplace used pre-deploy.
       correct VICTORY/DEFEAT; tier runs advance rounds; rewards settle
       (server-authoritative).
 
-## Known deferred (by design — later plan phases)
+## 7. Realtime PvP (two devices — converged rules)
 
-- PvP still runs the old room-based system (Phase 5 convergence) — abilities
-  and kits apply to PvE only for now.
+Both devices must run this build (older apps are version-gated out of new
+rooms and matchmaking with a clear message).
+
+- [ ] Quick Match / room code / friend battle still connect two devices.
+- [ ] Both fighters enter with their own **Move Lab kit** (one move per
+      category, ranks applied) — not random hands. Check an upgraded move
+      shows its upgraded damage/cost on both screens.
+- [ ] Combat behaves exactly like PvE: same damage math, defense
+      traps/counters, combo chains (shown next to each pilot's name), the
+      4/7 kit finisher that consumes the meter, and the 7/7 gold signature
+      button with your Holobot's move name.
+- [ ] Abilities fire in PvP: an ERA player starts the match with meter
+      already charged; ACE's first hit visibly jumps its meter.
+- [ ] **The original desync symptom stays gone**: HP, stamina, meters, moves
+      played, and the battle log stay identical on both screens all match.
+- [ ] Move buttons show the same disabled reasons as PvE (LOW STA, NEEDS
+      METER, CD n), and an illegal tap is rejected with a readable message.
+- [ ] A KO shows Victory on one device and Defeat on the other.
+
+## Known deferred (by design — later plan phases)
 - Legacy card UI code and card-pack economy retirement (Phase 6; the dead
   Cards-tab code in InventoryScreen is flagged for cleanup).
 - Specialization respec (30 SP) — not yet exposed in UI.
+- PvP anti-tamper: kits/ranks come from the player's own server-validated
+  profile, but room writes are still client-authored (participant-gated by
+  rules). Full server-side move validation remains the SECURITY_AUDIT C4
+  follow-up.
 
 ## If something looks wrong
 

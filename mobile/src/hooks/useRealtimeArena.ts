@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -17,146 +17,75 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/config/firebase";
+import { ArenaCombatEngine } from "@/features/arena/combatEngine";
+import {
+  battleStateToRoomUpdates,
+  buildPvpFighterDoc,
+  PVP_FIGHTER_IDS,
+  roomToBattleState,
+} from "@/features/arena/pvpBattle";
 import { claimOpponentAndCreateRoom, isFreshPoolEntry } from "@/lib/pvpMatchmaking";
-import { getHolobotBaseProfile, type HolobotRosterEntry } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
-import type {
-  BattleHolobotStats,
-  BattlePoolEntry,
-  BattleRoom,
-  BattleRoomPlayer,
-  BoostableStat,
-  PlayerRole,
-  RealtimeActionCard,
-  StatBoost,
+import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
+import {
+  BATTLE_ROOM_RULES_VERSION,
+  type BattlePoolEntry,
+  type BattleRoom,
+  type PlayerRole,
+  type PvpFighterDoc,
 } from "@/types/battle-room";
+import type { UserHolobot } from "@/types/profile";
+
+/**
+ * Realtime PvP transport (rooms, matchmaking, presence, stamina cadence).
+ *
+ * Combat itself is NOT implemented here (plan Phase 5 convergence): every
+ * action rebuilds the shared room into an ArenaCombatEngine BattleState and
+ * resolves through the exact PvE rules — same move catalog, kits, ranks,
+ * abilities, and signature finishers — inside a Firestore transaction. Both
+ * devices render the committed shared state, and `rulesVersion` keeps
+ * old-app clients out of new rooms.
+ */
 
 const BATTLE_ROOMS = "battle_rooms";
 const BATTLE_POOL = "battle_pool_entries";
 const HEARTBEAT_INTERVAL_MS = 5000;
 const STAMINA_REGEN_INTERVAL_MS = 2000;
-const MAX_STAMINA = 7;
 
-const CARD_POOL: Array<Omit<RealtimeActionCard, "id">> = [
-  { name: "Jab", type: "strike", tier: 1, staminaCost: 1, baseDamage: 8 },
-  { name: "Cross", type: "strike", tier: 1, staminaCost: 1, baseDamage: 10 },
-  { name: "Hook", type: "strike", tier: 2, staminaCost: 2, baseDamage: 12, statEffect: { target: "opponent", stat: "speed", stages: -1, durationMs: 4000 } },
-  { name: "Body Blow", type: "strike", tier: 2, staminaCost: 2, baseDamage: 11, statEffect: { target: "opponent", stat: "attack", stages: -1, durationMs: 4000 } },
-  { name: "Overhand", type: "strike", tier: 3, staminaCost: 2, baseDamage: 15, statEffect: { target: "opponent", stat: "defense", stages: -2, durationMs: 5000 } },
-  { name: "Block", type: "defense", tier: 1, staminaCost: 0, staminaRestore: 2 },
-  { name: "Retreat", type: "defense", tier: 1, staminaCost: 0, staminaRestore: 2 },
-  { name: "Parry", type: "defense", tier: 2, staminaCost: 0, staminaRestore: 2, statEffect: { target: "self", stat: "defense", stages: 1, durationMs: 4000 } },
-  { name: "Sidestep", type: "defense", tier: 2, staminaCost: 0, staminaRestore: 2, statEffect: { target: "self", stat: "speed", stages: 1, durationMs: 4000 } },
-  { name: "Steel Guard", type: "defense", tier: 3, staminaCost: 1, staminaRestore: 1, statEffect: { target: "self", stat: "defense", stages: 2, durationMs: 6000 } },
-  { name: "Focus", type: "defense", tier: 3, staminaCost: 1, staminaRestore: 1, statEffect: { target: "self", stat: "attack", stages: 2, durationMs: 6000 } },
-  { name: "One-Two", type: "combo", tier: 1, staminaCost: 2, baseDamage: 18 },
-  { name: "Jab-Cross", type: "combo", tier: 1, staminaCost: 3, baseDamage: 22 },
-  { name: "Uppercut Chain", type: "combo", tier: 2, staminaCost: 3, baseDamage: 20, statEffect: { target: "self", stat: "attack", stages: 1, durationMs: 5000 } },
-  { name: "Rush", type: "combo", tier: 2, staminaCost: 2, baseDamage: 18, statEffect: { target: "self", stat: "speed", stages: 1, durationMs: 5000 } },
-  { name: "Blitz Rush", type: "combo", tier: 3, staminaCost: 3, baseDamage: 20, statEffect: { target: "self", stat: "attack", stages: 2, durationMs: 6000 } },
-  { name: "Overdrive", type: "combo", tier: 3, staminaCost: 4, baseDamage: 28, statEffect: { target: "opponent", stat: "defense", stages: -2, durationMs: 6000 } },
-];
-
-const FINISHER_CARD: Omit<RealtimeActionCard, "id"> = {
-  name: "FINISHER",
-  type: "finisher",
-  tier: 3,
-  staminaCost: 6,
-  baseDamage: 80,
-};
-
-const STAGE_MULTIPLIERS: Record<number, number> = {
-  [-3]: 0.5,
-  [-2]: 0.67,
-  [-1]: 0.8,
-  [0]: 1,
-  [1]: 1.25,
-  [2]: 1.5,
-  [3]: 2,
-};
+const VERSION_MISMATCH_MESSAGE = "This room was made on a different app version. Both players need the latest update.";
 
 function generateRoomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-function generateCardId() {
-  return Math.random().toString(36).slice(2, 11);
-}
-
-function weightedRandomTier(): 1 | 2 | 3 {
-  const roll = Math.random();
-  if (roll < 0.45) return 1;
-  if (roll < 0.9) return 2;
-  return 3;
-}
-
-function withId(card: Omit<RealtimeActionCard, "id">): RealtimeActionCard {
-  return { id: generateCardId(), ...card };
-}
-
-function drawCard(specialMeter: number, alreadyHasFinisher = false): RealtimeActionCard {
-  if (specialMeter >= 100 && !alreadyHasFinisher) {
-    return withId(FINISHER_CARD);
-  }
-  const tier = weightedRandomTier();
-  const tieredPool = CARD_POOL.filter((card) => card.tier === tier);
-  return withId(tieredPool[Math.floor(Math.random() * tieredPool.length)]);
-}
-
-function generateStartingHand() {
-  const defenseCards = CARD_POOL.filter((card) => card.type === "defense");
-  const hand = [
-    withId(defenseCards[Math.floor(Math.random() * defenseCards.length)]),
-    withId(defenseCards[Math.floor(Math.random() * defenseCards.length)]),
-  ];
-  for (let i = 0; i < 5; i += 1) {
-    hand.push(drawCard(0));
-  }
-  return hand;
-}
-
-function getEffectiveStat(baseStat: number, activeBoosts: StatBoost[] | undefined, stat: BoostableStat) {
-  const now = Date.now();
-  const stages = (activeBoosts ?? [])
-    .filter((boost) => boost.stat === stat && boost.expiresAt > now)
-    .reduce((sum, boost) => sum + boost.stages, 0);
-  const clamped = Math.max(-3, Math.min(3, stages));
-  return Math.round(baseStat * (STAGE_MULTIPLIERS[clamped] ?? 1));
-}
-
-function buildPlayer(uid: string, username: string, holobotStats: BattleHolobotStats): BattleRoomPlayer {
+function emptyPvpFighter(): PvpFighterDoc {
   return {
-    uid,
-    username,
-    holobot: holobotStats,
-    health: holobotStats.maxHealth,
-    maxHealth: holobotStats.maxHealth,
-    stamina: MAX_STAMINA,
-    maxStamina: MAX_STAMINA,
+    uid: "",
+    username: "",
+    holobotName: "",
+    level: 0,
+    archetype: "balanced",
+    maxHP: 0,
+    currentHP: 0,
+    attack: 0,
+    defense: 0,
+    speed: 0,
+    intelligence: 0,
+    stamina: 0,
+    maxStamina: 0,
     specialMeter: 0,
-    hand: generateStartingHand(),
-    activeBoosts: [],
-    isConnected: true,
-    lastHeartbeat: serverTimestamp(),
-    damageDealt: 0,
-    damageTaken: 0,
-  };
-}
-
-export function buildRealtimeHolobotStats(holobot: HolobotRosterEntry): BattleHolobotStats {
-  const base = getHolobotBaseProfile(holobot.name);
-  const levelBonus = 1 + (Math.max(1, holobot.level) - 1) * 0.05;
-  const pvpWins = "pvpWins" in holobot && typeof holobot.pvpWins === "number" ? holobot.pvpWins : 0;
-
-  return {
-    name: holobot.name,
-    level: holobot.level,
-    attack: Math.floor(base.attack * levelBonus) + (holobot.boostedAttributes?.attack || 0),
-    defense: Math.floor(base.defense * levelBonus) + (holobot.boostedAttributes?.defense || 0),
-    speed: Math.floor(base.speed * levelBonus) + (holobot.boostedAttributes?.speed || 0),
-    intelligence: base.intelligence + pvpWins * 2,
-    maxHealth: Math.floor(base.hp * levelBonus) + (holobot.boostedAttributes?.health || 0),
+    comboCounter: 0,
+    isInDefenseMode: false,
+    defenseActive: false,
+    defendedAt: null,
+    armedDefenseTrap: null,
+    moveCooldowns: {},
+    abilityRuntime: { firedCount: 0 },
+    moves: [],
+    signatureFinisher: { id: "signature.none", name: "", baseDamage: 0, animationId: "" },
+    totalDamageDealt: 0,
+    isConnected: false,
   };
 }
 
@@ -172,6 +101,30 @@ export function useRealtimeArena() {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const staminaRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const poolEntryIdRef = useRef<string | null>(null);
+
+  const findHolobot = useCallback(
+    (holobotName: string): UserHolobot => {
+      const normalized = holobotName.trim().toUpperCase();
+      const holobot = (profile?.holobots || []).find(
+        (candidate) => String(candidate.name || "").trim().toUpperCase() === normalized,
+      );
+      if (!holobot) {
+        throw new Error("Choose a Holobot you own before entering PvP.");
+      }
+      return holobot;
+    },
+    [profile?.holobots],
+  );
+
+  const buildOwnFighter = useCallback(
+    (holobotName: string): PvpFighterDoc => {
+      if (!user || !profile) {
+        throw new Error("Sign in before entering PvP.");
+      }
+      return buildPvpFighterDoc(user.uid, profile.username || "Pilot", findHolobot(holobotName), profile);
+    },
+    [findHolobot, profile, user],
+  );
 
   const cleanup = useCallback(() => {
     unsubscribeRef.current?.();
@@ -205,6 +158,8 @@ export function useRealtimeArena() {
     );
   }, [cleanup]);
 
+  // Presence + real-time stamina cadence (each client drives its own fighter,
+  // matching the PvE loop's +1 per 2 seconds).
   useEffect(() => {
     if (!room?.roomId || !myRole || !user) return;
 
@@ -238,7 +193,7 @@ export function useRealtimeArena() {
     };
   }, [myRole, room?.roomId, user]);
 
-  const createRoom = useCallback(async (holobotStats: BattleHolobotStats) => {
+  const createRoom = useCallback(async (holobotName: string) => {
     if (!user || !profile) throw new Error("Sign in before creating a room.");
     setLoading(true);
     setError(null);
@@ -248,26 +203,13 @@ export function useRealtimeArena() {
       const newRoom: BattleRoom = {
         roomId: roomRef.id,
         roomCode,
+        rulesVersion: BATTLE_ROOM_RULES_VERSION,
         status: "waiting",
         players: {
-          p1: buildPlayer(user.uid, profile.username || "Pilot", holobotStats),
-          p2: {
-            uid: "",
-            username: "",
-            holobot: {} as BattleHolobotStats,
-            health: 0,
-            maxHealth: 0,
-            stamina: 0,
-            maxStamina: 0,
-            specialMeter: 0,
-            hand: [],
-            activeBoosts: [],
-            isConnected: false,
-            damageDealt: 0,
-            damageTaken: 0,
-          },
+          p1: buildOwnFighter(holobotName),
+          p2: emptyPvpFighter(),
         },
-        currentTurn: 0,
+        turnNumber: 0,
         winner: null,
         battleLog: [],
         createdAt: serverTimestamp(),
@@ -282,9 +224,9 @@ export function useRealtimeArena() {
     } finally {
       setLoading(false);
     }
-  }, [profile, subscribeToRoom, user]);
+  }, [buildOwnFighter, profile, subscribeToRoom, user]);
 
-  const joinRoom = useCallback(async (roomCode: string, holobotStats: BattleHolobotStats) => {
+  const joinRoom = useCallback(async (roomCode: string, holobotName: string) => {
     if (!user || !profile) throw new Error("Sign in before joining a room.");
     setLoading(true);
     setError(null);
@@ -293,9 +235,10 @@ export function useRealtimeArena() {
       if (rooms.empty) throw new Error("Room not found.");
       const roomDoc = rooms.docs[0];
       const roomData = roomDoc.data() as BattleRoom;
+      if (roomData.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
       if (roomData.status !== "waiting" || roomData.players.p2.uid) throw new Error("Room is not available.");
       await updateDoc(doc(db, BATTLE_ROOMS, roomDoc.id), {
-        "players.p2": buildPlayer(user.uid, profile.username || "Pilot", holobotStats),
+        "players.p2": buildOwnFighter(holobotName),
         status: "active",
         startedAt: serverTimestamp(),
       });
@@ -307,21 +250,23 @@ export function useRealtimeArena() {
     } finally {
       setLoading(false);
     }
-  }, [profile, subscribeToRoom, user]);
+  }, [buildOwnFighter, profile, subscribeToRoom, user]);
 
   const joinRoomById = useCallback(async (roomId: string) => {
     if (!user) throw new Error("Sign in before joining a room.");
     const roomSnap = await getDoc(doc(db, BATTLE_ROOMS, roomId));
     if (!roomSnap.exists()) throw new Error("Room not found.");
     const roomData = roomSnap.data() as BattleRoom;
+    if (roomData.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
     if (roomData.players.p1.uid === user.uid) setMyRole("p1");
     else if (roomData.players.p2.uid === user.uid) setMyRole("p2");
     else throw new Error("You are not part of this room.");
     subscribeToRoom(roomId);
   }, [subscribeToRoom, user]);
 
-  const enterMatchmaking = useCallback(async (holobotStats: BattleHolobotStats) => {
+  const enterMatchmaking = useCallback(async (holobotName: string) => {
     if (!user || !profile) throw new Error("Sign in before matchmaking.");
+    const myFighter = buildOwnFighter(holobotName);
     setMatchmakingStatus("searching");
     setError(null);
     // Keyed by uid: one queue entry per player, and re-queueing overwrites
@@ -330,7 +275,8 @@ export function useRealtimeArena() {
     await setDoc(myPoolRef, {
       userId: user.uid,
       username: profile.username || "Pilot",
-      holobotStats,
+      fighter: myFighter,
+      rulesVersion: BATTLE_ROOM_RULES_VERSION,
       isActive: true,
       createdAt: serverTimestamp(),
     } satisfies BattlePoolEntry);
@@ -341,16 +287,18 @@ export function useRealtimeArena() {
       if (candidateDoc.id === user.uid) continue;
       const candidate = candidateDoc.data() as BattlePoolEntry;
       if (candidate.userId === user.uid || !isFreshPoolEntry(candidate)) continue;
+      if (candidate.rulesVersion !== BATTLE_ROOM_RULES_VERSION || !candidate.fighter?.uid) continue;
 
       const claim = await claimOpponentAndCreateRoom(db, user.uid, candidateDoc.id, (roomId, opponent) => ({
         roomId,
         roomCode: generateRoomCode(),
+        rulesVersion: BATTLE_ROOM_RULES_VERSION,
         status: "active",
         players: {
-          p1: buildPlayer(user.uid, profile.username || "Pilot", holobotStats),
-          p2: buildPlayer(opponent.userId, opponent.username, opponent.holobotStats),
+          p1: myFighter,
+          p2: opponent.fighter,
         },
-        currentTurn: 0,
+        turnNumber: 0,
         winner: null,
         battleLog: [],
         createdAt: serverTimestamp(),
@@ -380,7 +328,7 @@ export function useRealtimeArena() {
       setMatchmakingStatus("matched");
       void joinRoomById(entry.roomId);
     });
-  }, [joinRoomById, profile, subscribeToRoom, user]);
+  }, [buildOwnFighter, joinRoomById, profile, subscribeToRoom, user]);
 
   const cancelMatchmaking = useCallback(async () => {
     poolUnsubscribeRef.current?.();
@@ -391,113 +339,58 @@ export function useRealtimeArena() {
     setMatchmakingStatus("idle");
   }, []);
 
-  const playCard = useCallback(async (cardId: string) => {
+  // Resolves one of my kit moves through the shared combat engine inside a
+  // Firestore transaction (single-writer authority per action).
+  const playMove = useCallback(async (moveId: string) => {
     if (!room || !myRole || !user) throw new Error("You are not in a battle.");
     const roomRef = doc(db, BATTLE_ROOMS, room.roomId);
+    const engineRole = myRole === "p1" ? "player" : "opponent";
+
     await runTransaction(db, async (transaction) => {
       const roomSnap = await transaction.get(roomRef);
       if (!roomSnap.exists()) throw new Error("Battle room no longer exists.");
-      const freshRoom = roomSnap.data() as BattleRoom;
+      const freshRoom = { ...(roomSnap.data() as BattleRoom), roomId: roomSnap.id };
+      if (freshRoom.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
       if (freshRoom.status !== "active") throw new Error("Battle is not active.");
 
-      const opponentRole: PlayerRole = myRole === "p1" ? "p2" : "p1";
-      const myPlayer = freshRoom.players[myRole];
-      const opponent = freshRoom.players[opponentRole];
-      const card = myPlayer.hand.find((candidate) => candidate.id === cardId);
-      if (!card) throw new Error("Card not found in hand.");
-      if (myPlayer.stamina < card.staminaCost) throw new Error("Not enough stamina.");
-      if (card.type === "finisher" && myPlayer.specialMeter < 100) throw new Error("Special meter is not full.");
+      const move = freshRoom.players[myRole].moves.find((candidate) => candidate.id === moveId);
+      if (!move) throw new Error("That move is not in your kit.");
 
-      const now = Date.now();
-      if (card.type !== "defense" && myPlayer.defenseActive && myPlayer.defendedAt && now - myPlayer.defendedAt < 2000) {
-        throw new Error("Still in defensive stance.");
+      const state = roomToBattleState(freshRoom);
+      const availability = ArenaCombatEngine.getCardAvailability(state, engineRole, move);
+      if (!availability.playable) {
+        throw new Error(availabilityMessage(availability));
       }
 
-      let damageDealt = 0;
-      let staminaChange = 0;
-      let specialMeterGain = card.type === "combo" ? 15 : card.type === "strike" ? 10 : card.type === "defense" ? 5 : -100;
-      let logMessage = "";
-      let myBoosts = (myPlayer.activeBoosts ?? []).filter((boost) => boost.expiresAt > now);
-      let opponentBoosts = (opponent.activeBoosts ?? []).filter((boost) => boost.expiresAt > now);
+      const nextState = ArenaCombatEngine.resolveAction(state, move, PVP_FIGHTER_IDS[myRole]);
+      if (nextState === state) throw new Error("That move cannot be used right now.");
 
-      if (card.type === "defense") {
-        staminaChange = card.staminaRestore || 2;
-        const defenderScore = getEffectiveStat(myPlayer.holobot.speed, myBoosts, "speed") * 3 + myPlayer.holobot.intelligence * 4;
-        const attackerScore = getEffectiveStat(opponent.holobot.attack, opponentBoosts, "attack") * 2 + getEffectiveStat(opponent.holobot.speed, opponentBoosts, "speed") * 2;
-        if (defenderScore > attackerScore && Math.random() * 100 < Math.min(75, (defenderScore - attackerScore) / 2)) {
-          if (Math.random() < 0.5) {
-            damageDealt = Math.round(15 * (getEffectiveStat(myPlayer.holobot.speed, myBoosts, "speed") / 20));
-            staminaChange += 1;
-            logMessage = `${myPlayer.username} counter attacked for ${damageDealt} damage.`;
-          } else {
-            staminaChange += 2;
-            specialMeterGain = 15;
-            logMessage = `${myPlayer.username} perfect evaded.`;
-          }
-        } else {
-          logMessage = `${myPlayer.username} used ${card.name}.`;
-        }
-      } else {
-        staminaChange = -card.staminaCost;
-        const effectiveAttack = getEffectiveStat(myPlayer.holobot.attack, myBoosts, "attack");
-        const effectiveDefense = getEffectiveStat(opponent.holobot.defense, opponentBoosts, "defense");
-        let calculatedDamage = (card.baseDamage || 0) * (effectiveAttack / 20) * (20 / (20 + effectiveDefense * 0.3));
-        if (card.type === "finisher") calculatedDamage *= 2;
-        if (opponent.defenseActive && opponent.defendedAt && now - opponent.defendedAt < 3000) {
-          calculatedDamage *= 1 - Math.min(0.7, effectiveDefense / 50);
-          logMessage = `${myPlayer.username} used ${card.name} for ${Math.round(calculatedDamage)} damage. Blocked.`;
-        } else {
-          logMessage = `${myPlayer.username} used ${card.name} for ${Math.round(calculatedDamage)} damage.`;
-        }
-        damageDealt = Math.round(calculatedDamage);
+      transaction.update(roomRef, battleStateToRoomUpdates(freshRoom, nextState));
+    });
+  }, [myRole, room, user]);
+
+  // Fires my signature finisher (7/7 meter) through the shared engine.
+  const useSignature = useCallback(async () => {
+    if (!room || !myRole || !user) throw new Error("You are not in a battle.");
+    const roomRef = doc(db, BATTLE_ROOMS, room.roomId);
+    const engineRole = myRole === "p1" ? "player" : "opponent";
+
+    await runTransaction(db, async (transaction) => {
+      const roomSnap = await transaction.get(roomRef);
+      if (!roomSnap.exists()) throw new Error("Battle room no longer exists.");
+      const freshRoom = { ...(roomSnap.data() as BattleRoom), roomId: roomSnap.id };
+      if (freshRoom.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
+      if (freshRoom.status !== "active") throw new Error("Battle is not active.");
+
+      const state = roomToBattleState(freshRoom);
+      if (!ArenaCombatEngine.canUseSignatureFinisher(state, engineRole)) {
+        throw new Error("Your signature finisher needs a full special meter.");
       }
 
-      const newHand = myPlayer.hand.filter((candidate) => candidate.id !== cardId);
-      const newSpecialMeter = Math.max(0, Math.min(100, myPlayer.specialMeter + specialMeterGain));
-      newHand.push(drawCard(newSpecialMeter, newHand.some((candidate) => candidate.type === "finisher")));
+      const nextState = ArenaCombatEngine.resolveSignatureFinisher(state, PVP_FIGHTER_IDS[myRole]);
+      if (nextState === state) throw new Error("Signature finisher is not ready.");
 
-      const battleLog = [
-        ...(freshRoom.battleLog || []),
-        { turnNumber: freshRoom.currentTurn + 1, message: logMessage, timestamp: now },
-      ];
-
-      if (card.statEffect) {
-        const boost = {
-          stat: card.statEffect.stat,
-          stages: card.statEffect.stages,
-          expiresAt: now + card.statEffect.durationMs,
-          source: card.name,
-        };
-        if (card.statEffect.target === "self") myBoosts = [...myBoosts, boost];
-        else opponentBoosts = [...opponentBoosts, boost];
-        const target = card.statEffect.target === "self" ? myPlayer.username : opponent.username;
-        battleLog.push({
-          turnNumber: freshRoom.currentTurn + 1,
-          message: `${card.name}: ${target}'s ${card.statEffect.stat} ${card.statEffect.stages > 0 ? "rose" : "fell"}.`,
-          timestamp: now,
-        });
-      }
-
-      const opponentHealth = Math.max(0, opponent.health - damageDealt);
-      const winner = opponentHealth <= 0 ? myRole : null;
-      transaction.update(roomRef, {
-        [`players.${myRole}.hand`]: newHand,
-        [`players.${myRole}.stamina`]: Math.max(0, Math.min(myPlayer.maxStamina, myPlayer.stamina + staminaChange)),
-        [`players.${myRole}.specialMeter`]: newSpecialMeter,
-        [`players.${myRole}.damageDealt`]: myPlayer.damageDealt + damageDealt,
-        [`players.${myRole}.activeBoosts`]: myBoosts,
-        [`players.${myRole}.defenseActive`]: card.type === "defense",
-        [`players.${myRole}.defendedAt`]: card.type === "defense" ? now : myPlayer.defendedAt || null,
-        [`players.${opponentRole}.health`]: opponentHealth,
-        [`players.${opponentRole}.damageTaken`]: opponent.damageTaken + damageDealt,
-        [`players.${opponentRole}.activeBoosts`]: opponentBoosts,
-        battleLog,
-        currentTurn: freshRoom.currentTurn + 1,
-        lastActionAt: serverTimestamp(),
-        winner,
-        status: winner ? "completed" : "active",
-        completedAt: winner ? serverTimestamp() : freshRoom.completedAt || null,
-      });
+      transaction.update(roomRef, battleStateToRoomUpdates(freshRoom, nextState));
     });
   }, [myRole, room, user]);
 
@@ -515,8 +408,26 @@ export function useRealtimeArena() {
     cleanup();
   }, [cleanup, myRole, room?.roomId, room?.status]);
 
+  // Availability for my four moves + signature, computed from the shared
+  // room via the same engine rules the transaction will enforce.
+  const moveAvailability = useMemo<Record<string, ArenaCardAvailability>>(() => {
+    if (!room || !myRole || room.status !== "active") return {};
+    const engineRole = myRole === "p1" ? "player" : "opponent";
+    const state = roomToBattleState(room);
+    return room.players[myRole].moves.reduce<Record<string, ArenaCardAvailability>>((result, move) => {
+      result[move.id] = ArenaCombatEngine.getCardAvailability(state, engineRole, move);
+      return result;
+    }, {});
+  }, [myRole, room]);
+
+  const canFireSignature = useMemo(() => {
+    if (!room || !myRole || room.status !== "active") return false;
+    return ArenaCombatEngine.canUseSignatureFinisher(roomToBattleState(room), myRole === "p1" ? "player" : "opponent");
+  }, [myRole, room]);
+
   return {
     cancelMatchmaking,
+    canFireSignature,
     createRoom,
     enterMatchmaking,
     error,
@@ -524,9 +435,30 @@ export function useRealtimeArena() {
     leaveRoom,
     loading,
     matchmakingStatus,
+    moveAvailability,
     myRole,
     opponentRole: myRole === "p1" ? "p2" : myRole === "p2" ? "p1" : null,
-    playCard,
+    playMove,
     room,
+    useSignature,
   };
+}
+
+function availabilityMessage(availability: ArenaCardAvailability): string {
+  switch (availability.reason) {
+    case "stamina":
+      return "Not enough stamina.";
+    case "special_meter":
+      return "Your special meter is not charged enough yet.";
+    case "cooldown":
+      return `That move is cooling down (${availability.cooldownTurns ?? "?"} more plays).`;
+    case "combo":
+      return "You need an active combo chain.";
+    case "defense_lock":
+      return "A defense stance is already armed.";
+    case "opponent_state":
+      return "Your opponent is not vulnerable to that move.";
+    default:
+      return "That move cannot be used right now.";
+  }
 }
