@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ArenaPrebattleMenu } from "@/components/arena/ArenaPrebattleMenu";
 import { BattleArenaView } from "@/components/arena/BattleArenaView";
@@ -40,7 +40,9 @@ export function ArenaScreen() {
     isAnimating,
     lastAction,
     playerMoves,
+    paused,
     resetBattle,
+    setPaused,
     startBattle,
     useMove: playMove,
     useSignatureFinisher: playSignature,
@@ -214,7 +216,38 @@ export function ArenaScreen() {
 
   return (
     <View style={styles.page}>
-      <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} />
+      {phase !== "battle" ? <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} /> : null}
+
+      {phase === "battle" && currentBattle ? (
+        <Pressable onPress={() => setPaused(true)} style={styles.pauseButton}>
+          <Text style={styles.pauseButtonGlyph}>⚙</Text>
+        </Pressable>
+      ) : null}
+
+      {paused && phase === "battle" ? (
+        <View style={styles.pauseOverlay}>
+          <View style={styles.pauseCard}>
+            <Text style={styles.pauseEyebrow}>ARENA SETTINGS</Text>
+            <Text style={styles.pauseTitle}>Battle Paused</Text>
+            <Pressable
+              onPress={() => setPaused(false)}
+              style={styles.pausePrimaryButton}
+            >
+              <Text style={styles.pausePrimaryText}>CONTINUE BATTLE</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setPaused(false);
+                resetBattle();
+                setPhase("prebattle");
+              }}
+              style={styles.pauseSecondaryButton}
+            >
+              <Text style={styles.pauseSecondaryText}>QUIT BATTLE</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       {phase === "prebattle" || !currentBattle ? (
         <ArenaPrebattleMenu
@@ -271,6 +304,79 @@ export function ArenaScreen() {
 }
 
 const styles = StyleSheet.create({
+  pauseButton: {
+    alignItems: "center",
+    backgroundColor: "#0b0d13",
+    borderColor: "#f0bf14",
+    borderRadius: 22,
+    borderWidth: 2,
+    height: 44,
+    justifyContent: "center",
+    position: "absolute",
+    right: 14,
+    top: 54,
+    width: 44,
+    zIndex: 40,
+  },
+  pauseButtonGlyph: {
+    color: "#f0bf14",
+    fontSize: 20,
+  },
+  pauseCard: {
+    backgroundColor: "#0b0d13",
+    borderColor: "#f0bf14",
+    borderWidth: 2,
+    padding: 22,
+    width: "80%",
+  },
+  pauseEyebrow: {
+    color: "#f0bf14",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+  },
+  pauseOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.82)",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 60,
+  },
+  pausePrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    marginTop: 18,
+    paddingVertical: 13,
+  },
+  pausePrimaryText: {
+    color: "#07080d",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  pauseSecondaryButton: {
+    alignItems: "center",
+    borderColor: "#3a3f4b",
+    borderWidth: 1,
+    marginTop: 10,
+    paddingVertical: 13,
+  },
+  pauseSecondaryText: {
+    color: "#b7bdc9",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  pauseTitle: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 4,
+  },
   loadingOverlay: {
     alignItems: "center",
     backgroundColor: "rgba(5, 6, 6, 0.48)",

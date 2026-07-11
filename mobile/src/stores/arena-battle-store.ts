@@ -33,6 +33,8 @@ interface ArenaBattleStore {
 
   // UI State
   isAnimating: boolean;
+  /** Pause menu open: freezes AI cadence, stamina regen, and player input. */
+  paused: boolean;
   lastAction: BattleAction | null;
   battleResult: {
     winnerId: string;
@@ -58,6 +60,7 @@ interface ArenaBattleStore {
 
   // Animation
   setAnimating: (isAnimating: boolean) => void;
+  setPaused: (paused: boolean) => void;
 
   // Helpers
   getPlayableMoves: () => ActionCard[];
@@ -101,6 +104,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
     playerMoves: [],
     opponentMoves: [],
     isAnimating: false,
+    paused: false,
     lastAction: null,
     battleResult: null,
     gameLoopIntervalId: null,
@@ -126,6 +130,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
         playerMoves: [...playerKit.slots],
         opponentMoves: [...opponentKit.slots],
         isAnimating: false,
+        paused: false,
         lastAction: null,
         battleResult: null,
         lastAIActionTime: Date.now(),
@@ -136,7 +141,8 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
 
     // Player uses a kit move (real-time: any moment stamina/requirements allow)
     useMove: (moveId) => {
-      const { currentBattle, playerMoves } = get();
+      const { currentBattle, playerMoves, paused } = get();
+      if (paused) return;
       if (!currentBattle || currentBattle.status !== 'active') return;
 
       const move = playerMoves.find((candidate) => candidate.id === moveId);
@@ -154,7 +160,8 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
     // Player fires their Signature Finisher (explicit command; requires a
     // full special meter, which it consumes).
     useSignatureFinisher: () => {
-      const { currentBattle } = get();
+      const { currentBattle, paused } = get();
+      if (paused) return;
       if (!currentBattle || currentBattle.status !== 'active') return;
       if (!ArenaCombatEngine.canUseSignatureFinisher(currentBattle, 'player')) return;
 
@@ -219,6 +226,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
         playerMoves: [],
         opponentMoves: [],
         battleResult: null,
+        paused: false,
         gameLoopIntervalId: null,
       });
     },
@@ -249,12 +257,17 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
       let lastRegenAt = Date.now();
 
       const intervalId = setInterval(() => {
-        const { currentBattle, isAnimating, lastAIActionTime, opponentMoves } = get();
+        const { currentBattle, isAnimating, lastAIActionTime, opponentMoves, paused } = get();
         if (!currentBattle || currentBattle.status !== 'active') {
           return;
         }
 
         const now = Date.now();
+        if (paused) {
+          // Hold the regen/AI clocks in place while the pause menu is open.
+          lastRegenAt = now;
+          return;
+        }
         let battle = currentBattle;
         if (now - lastRegenAt >= STAMINA_REGEN_INTERVAL_MS) {
           lastRegenAt = now;
@@ -288,6 +301,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
 
     // Animation control
     setAnimating: (isAnimating) => set({ isAnimating }),
+    setPaused: (paused) => set({ paused, ...(paused ? {} : { lastAIActionTime: Date.now() }) }),
 
     // Helper: Get currently usable kit moves
     getPlayableMoves: () => {

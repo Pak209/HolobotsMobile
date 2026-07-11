@@ -1,3 +1,5 @@
+import { getAbility } from "@/features/arena/abilities";
+import { getSignatureFinisher, SPECIAL_METER_SEGMENTS } from "@/features/arena/moveKits";
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -104,6 +106,8 @@ export function HolobotStatsModal({
   const mintTier = getMintTier(blueprintCount);
   const syncStats = normalizeSyncStats(normalizedOwnedHolobot?.syncStats || getDefaultSyncStats());
   const syncAbilities = getSyncAbilityDefinitions(holobot.name);
+  const innateAbility = getAbility(holobot.name);
+  const signatureFinisher = getSignatureFinisher(holobot.name);
   const unlockedSyncAbilityIds = normalizedOwnedHolobot?.syncAbilityUnlocks || [];
   const totalSyncInvestment = getTotalSyncInvestment(syncStats);
   const progress = normalizedOwnedHolobot
@@ -261,6 +265,29 @@ export function HolobotStatsModal({
             ) : activeTab === "abilities" ? (
               normalizedOwnedHolobot ? (
                   <>
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>INNATE IDENTITY</Text>
+                      <View style={styles.innateRow}>
+                        <View style={styles.innateBody}>
+                          <Text style={styles.innateName}>{innateAbility.name.toUpperCase()}</Text>
+                          <Text style={styles.innateCopy}>{innateAbility.description}</Text>
+                        </View>
+                        <View style={styles.innateTag}><Text style={styles.innateTagText}>ABILITY</Text></View>
+                      </View>
+                      <View style={styles.innateRow}>
+                        <View style={styles.innateBody}>
+                          <Text style={styles.innateName}>{signatureFinisher.name.toUpperCase()}</Text>
+                          <Text style={styles.innateCopy}>
+                            {`Signature finisher • DMG ${signatureFinisher.baseDamage} • Unlocks at ${SPECIAL_METER_SEGMENTS}/${SPECIAL_METER_SEGMENTS} special meter`}
+                          </Text>
+                        </View>
+                        <View style={styles.innateTag}><Text style={styles.innateTagText}>SIGNATURE</Text></View>
+                      </View>
+                      <Text style={styles.innateFootnote}>
+                        Always active — never equipped, drawn, or upgraded. Every Holobot bends one combat rule.
+                      </Text>
+                    </View>
+
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>SYNC STATS</Text>
                       <Text style={styles.syncMeta}>{`Available SP ${availableSyncPoints}`}</Text>
@@ -496,6 +523,43 @@ const styles = StyleSheet.create({
     color: "#f1efea",
     fontSize: 20,
     fontWeight: "700",
+  },
+  innateBody: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  innateCopy: {
+    color: "#b7bdc9",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  innateFootnote: {
+    color: "#5a616e",
+    fontSize: 11,
+    marginTop: 8,
+  },
+  innateName: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  innateRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginTop: 10,
+  },
+  innateTag: {
+    backgroundColor: "#17d9ff",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  innateTagText: {
+    color: "#07080d",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   nameText: {
     color: "#f4f4f2",

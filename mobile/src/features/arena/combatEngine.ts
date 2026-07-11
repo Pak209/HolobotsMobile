@@ -11,7 +11,8 @@ import type {
   DamageResult,
   StaminaState,
 } from '@/types/arena';
-import { fireAbility } from './abilities';
+import { fireAbility, getRuleBend } from './abilities';
+import { FINISHER_METER_REQUIREMENT } from './moveKits';
 import {
   createArmedDefenseTrap,
   evaluateCardAvailability,
@@ -62,8 +63,8 @@ export class ArenaCombatEngine {
     config?: Partial<ArenaBattleConfig>,
   ): BattleState {
     const now = Date.now();
-    const initialPlayer = this.prepareFighter(player, now);
-    const initialOpponent = this.prepareFighter(opponent, now);
+    const initialPlayer = this.prepareFighterWithBends(player, now);
+    const initialOpponent = this.prepareFighterWithBends(opponent, now);
 
     // Innate abilities are live from the opening bell (e.g. ERA starts with
     // meter already charged).
@@ -140,6 +141,12 @@ export class ArenaCombatEngine {
     };
   }
 
+  static prepareFighterWithBends(fighter: ArenaFighter, now = Date.now()): ArenaFighter {
+    const prepared = this.prepareFighter(fighter, now);
+    this.applyMeterFloor(prepared);
+    return prepared;
+  }
+
   static getCardAvailability(
     state: BattleState,
     role: FighterRole,
@@ -162,6 +169,45 @@ export class ArenaCombatEngine {
     card: ActionCard,
   ): boolean {
     return this.getCardAvailability(state, role, card).playable;
+  }
+
+  /** Applies damage with GAMA's per-hit cap; returns the damage actually dealt. */
+  private static dealDamage(defender: ArenaFighter, amount: number): number {
+    let final = Math.max(0, amount);
+    const cap = getRuleBend(defender, 'max_hit_percent_cap');
+    if (cap && final > 0) {
+      final = Math.min(final, Math.max(1, Math.floor(defender.maxHP * cap.value)));
+    }
+    defender.currentHP = Math.max(0, defender.currentHP - final);
+    return final;
+  }
+
+  /** KURAI's bend: below the HP threshold, heal a bounded share of damage dealt. */
+  private static applyLifesteal(attacker: ArenaFighter, damage: number): void {
+    const bend = getRuleBend(attacker, 'lifesteal_below_percent');
+    if (!bend || damage <= 0 || attacker.maxHP <= 0) return;
+    if (attacker.currentHP / attacker.maxHP >= bend.threshold) return;
+    const accrued = attacker.abilityRuntime?.bendAccrued ?? 0;
+    const heal = Math.min(Math.floor(damage * bend.ratio), bend.battleCap - accrued);
+    if (heal <= 0) return;
+    attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
+    attacker.abilityRuntime = {
+      ...(attacker.abilityRuntime ?? { firedCount: 0 }),
+      bendAccrued: accrued + heal,
+    };
+  }
+
+  /** Meter writes honor ERA's floor bend. */
+  static applyMeterFloor(fighter: ArenaFighter): void {
+    const floor = getRuleBend(fighter, 'meter_floor');
+    if (floor) {
+      fighter.specialMeter = Math.max(floor.value, fighter.specialMeter);
+    }
+  }
+
+  private static setMeter(fighter: ArenaFighter, value: number): void {
+    fighter.specialMeter = capMeter(value);
+    this.applyMeterFloor(fighter);
   }
 
   static resolveAction(
@@ -215,16 +261,29 @@ export class ArenaCombatEngine {
     };
 
     if (card.type !== 'defense') {
-      actor.stamina = Math.max(0, actor.stamina - card.staminaCost);
+      // WAKE's bend: overflow pressure — a full tank discounts the next move.
+      let staminaCost = card.staminaCost;
+      const discount = getRuleBend(actor, 'full_stamina_discount');
+      if (discount && staminaCost > 0 && actor.stamina >= actor.maxStamina) {
+        staminaCost = Math.max(1, staminaCost - discount.value);
+      }
+      action.staminaChange = -staminaCost;
+      actor.stamina = Math.max(0, actor.stamina - staminaCost);
       actor.staminaState = this.getStaminaState(actor.stamina);
 
       // Attacking drops your own guard: an armed trap only persists while
-      // its owner holds the defensive stance.
+      // its owner holds the defensive stance. SHADOW's bend lets the trap
+      // survive the FIRST attack after arming.
       if (actor.armedDefenseTrap) {
-        actor.armedDefenseTrap = null;
-        actor.isInDefenseMode = false;
-        actor.defenseActive = false;
-        actor.defendedAt = undefined;
+        const grace = getRuleBend(actor, 'guard_holds_through_first_attack');
+        if (grace && !actor.armedDefenseTrap.graceUsed) {
+          actor.armedDefenseTrap = { ...actor.armedDefenseTrap, graceUsed: true };
+        } else {
+          actor.armedDefenseTrap = null;
+          actor.isInDefenseMode = false;
+          actor.defenseActive = false;
+          actor.defendedAt = undefined;
+        }
       }
     }
     actor.lastActionTime = now;
@@ -398,13 +457,14 @@ export class ArenaCombatEngine {
       }
     }
 
+    const dealt = this.dealDamage(target, actualDamage);
     action.damageDealt = damageResult.rawDamage * 2;
-    action.actualDamage = actualDamage;
+    action.actualDamage = dealt;
+    this.applyLifesteal(actor, dealt);
 
-    target.currentHP = Math.max(0, target.currentHP - actualDamage);
-    actor.specialMeter = 0;
+    this.setMeter(actor, 0);
     actor.comboCounter = 0;
-    actor.totalDamageDealt = (actor.totalDamageDealt ?? 0) + actualDamage;
+    actor.totalDamageDealt = (actor.totalDamageDealt ?? 0) + dealt;
 
     this.applyAbilityTriggers(nextState, action, actor, target);
 
@@ -487,7 +547,10 @@ export class ArenaCombatEngine {
       description: `x${defenseReduction.toFixed(2)} against ${defender.defense} DEF`,
     });
 
-    const staminaModifier = this.getStaminaModifier(attacker.staminaState);
+    // WOLF's bend: hits at full power regardless of stamina state.
+    const staminaModifier = getRuleBend(attacker, 'ignore_stamina_damage_penalty')
+      ? 1
+      : this.getStaminaModifier(attacker.staminaState);
     if (staminaModifier !== 1) {
       damage *= staminaModifier;
       modifiers.push({
@@ -803,23 +866,25 @@ export class ArenaCombatEngine {
       action.perfectDefense = trapResult.evaded;
     }
 
+    const dealt = this.dealDamage(defender, finalDamage);
     action.damageDealt = damageResult.rawDamage;
-    action.actualDamage = finalDamage;
+    action.actualDamage = dealt;
     action.outcome = outcome;
+    this.applyLifesteal(attacker, dealt);
 
-    defender.currentHP = Math.max(0, defender.currentHP - finalDamage);
-
-    const meterGain = this.getMeterGainForDamage('strike', finalDamage, outcome);
-    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
+    const meterGain = this.getMeterGainForDamage('strike', dealt, outcome);
+    this.setMeter(attacker, attacker.specialMeter + meterGain);
     action.specialMeterChange = meterGain;
 
     if (outcome === 'hit') {
       attacker.comboCounter += 1;
-    } else {
+    } else if (!(outcome === 'blocked' && getRuleBend(attacker, 'chain_survives_block'))) {
+      // KUMA's bend: a blocked hit doesn't break the chain (counters and
+      // evades still do).
       attacker.comboCounter = 0;
     }
 
-    attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + finalDamage;
+    attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + dealt;
   }
 
   private static resolveDefense(
@@ -836,7 +901,9 @@ export class ArenaCombatEngine {
     defender.isInDefenseMode = true;
     defender.defenseActive = true;
     defender.defendedAt = Date.now();
-    defender.armedDefenseTrap = defenseTrap;
+    defender.armedDefenseTrap = defenseTrap
+      ? { ...defenseTrap, charges: getRuleBend(defender, 'trap_extra_charge') ? 2 : 1 }
+      : defenseTrap;
 
     action.outcome = 'blocked';
     action.damageDealt = 0;
@@ -870,21 +937,25 @@ export class ArenaCombatEngine {
       action.perfectDefense = trapResult.evaded;
     }
 
+    const dealt = this.dealDamage(defender, actualDamage);
     action.damageDealt = Math.floor(damageResult.rawDamage * comboMultiplier);
-    action.actualDamage = actualDamage;
+    action.actualDamage = dealt;
     action.outcome = outcome;
     action.triggeredCombo = true;
     action.comboLength = comboLength + 1;
+    this.applyLifesteal(attacker, dealt);
 
-    defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
-
-    const meterGain = this.getMeterGainForDamage('combo', actualDamage, outcome);
-    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
+    const meterGain = this.getMeterGainForDamage('combo', dealt, outcome);
+    this.setMeter(attacker, attacker.specialMeter + meterGain);
     action.specialMeterChange = meterGain;
 
-    attacker.comboCounter = 0;
+    // KEN's bend: a landed combo cash-out keeps the chain alive; for
+    // everyone else (and on any stopped hit) the chain resets.
+    if (!(outcome === 'hit' && getRuleBend(attacker, 'chain_survives_combo_cash'))) {
+      attacker.comboCounter = 0;
+    }
     attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;
-    attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + actualDamage;
+    attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + dealt;
   }
 
   // Kit Finisher (slot 4): the EARLY meter cash-out. It unlocks at 4/7 of
@@ -912,20 +983,24 @@ export class ArenaCombatEngine {
       action.perfectDefense = trapResult.evaded;
     }
 
+    const dealt = this.dealDamage(defender, actualDamage);
     action.damageDealt = Math.floor(damageResult.rawDamage * capstoneBonus);
-    action.actualDamage = actualDamage;
+    action.actualDamage = dealt;
     action.outcome = outcome;
     action.comboLength = comboLength;
-    action.specialMeterChange = -attacker.specialMeter;
+    this.applyLifesteal(attacker, dealt);
 
-    defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
-
-    // Cash out: the finisher spends the built-up meter.
-    attacker.specialMeter = 0;
+    // Cash out: the finisher spends the built-up meter. TORA's bend spends
+    // only the 4/7 requirement; ERA's floor is applied by setMeter.
+    const remainder = getRuleBend(attacker, 'finisher_costs_requirement_only')
+      ? Math.max(0, attacker.specialMeter - FINISHER_METER_REQUIREMENT)
+      : 0;
+    action.specialMeterChange = remainder - attacker.specialMeter;
+    this.setMeter(attacker, remainder);
 
     attacker.comboCounter = 0;
     attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;
-    attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + actualDamage;
+    attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + dealt;
   }
 
   private static applyCardEffects(
@@ -975,7 +1050,9 @@ export class ArenaCombatEngine {
     }
   }
 
-  private static calculateComboMultiplier(comboLength: number): number {
+  private static calculateComboMultiplier(rawComboLength: number): number {
+    // Safety cap: KEN's persistent chain must not scale unboundedly.
+    const comboLength = Math.min(rawComboLength, 8);
     if (comboLength <= 0) return 1;
     if (comboLength <= 3) return 1 + comboLength * 0.15;
     if (comboLength <= 5) return 1 + comboLength * 0.12;
@@ -1090,6 +1167,19 @@ export class ArenaCombatEngine {
       return null;
     }
 
+    // ACE's bend: its first attack into an armed trap slips straight
+    // through — the trap neither triggers nor breaks.
+    if (
+      getRuleBend(attacker, 'pierce_traps_first_attack') &&
+      (attacker.abilityRuntime?.bendUses ?? 0) === 0
+    ) {
+      attacker.abilityRuntime = {
+        ...(attacker.abilityRuntime ?? { firedCount: 0 }),
+        bendUses: 1,
+      };
+      return null;
+    }
+
     const trapResult = this.resolveDefenseTrap({
       trap,
       attacker,
@@ -1098,13 +1188,19 @@ export class ArenaCombatEngine {
     });
 
     if (trapResult.counterDamage > 0) {
-      attacker.currentHP = Math.max(0, attacker.currentHP - trapResult.counterDamage);
+      this.dealDamage(attacker, trapResult.counterDamage);
     }
 
-    defender.armedDefenseTrap = null;
-    defender.isInDefenseMode = false;
-    defender.defenseActive = false;
-    defender.defendedAt = undefined;
+    // HARE's bend arms traps with two charges; everyone else's are one-shot.
+    const remainingCharges = (trap.charges ?? 1) - 1;
+    if (remainingCharges > 0) {
+      defender.armedDefenseTrap = { ...trap, charges: remainingCharges };
+    } else {
+      defender.armedDefenseTrap = null;
+      defender.isInDefenseMode = false;
+      defender.defenseActive = false;
+      defender.defendedAt = undefined;
+    }
 
     return trapResult;
   }
