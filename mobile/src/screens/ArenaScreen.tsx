@@ -41,8 +41,6 @@ export function ArenaScreen() {
     lastAction,
     playerMoves,
     resetBattle,
-    selectedCardId,
-    selectCard,
     startBattle,
     useMove: playMove,
     useSignatureFinisher: playSignature,
@@ -234,10 +232,8 @@ export function ArenaScreen() {
           playerCards={playerMoves}
           playableCardIds={playableCardIds}
           cardAvailability={cardAvailability}
-          selectedCardId={selectedCardId}
           lastAction={lastAction}
           isAnimating={isAnimating}
-          onCardSelect={selectCard}
           onCardPlay={(moveId) => {
             if (canUseMove(moveId)) {
               playMove(moveId);

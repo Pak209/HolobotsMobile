@@ -33,7 +33,6 @@ interface ArenaBattleStore {
 
   // UI State
   isAnimating: boolean;
-  selectedCardId: string | null;
   lastAction: BattleAction | null;
   battleResult: {
     winnerId: string;
@@ -59,7 +58,6 @@ interface ArenaBattleStore {
 
   // Animation
   setAnimating: (isAnimating: boolean) => void;
-  selectCard: (cardId: string | null) => void;
 
   // Helpers
   getPlayableMoves: () => ActionCard[];
@@ -72,7 +70,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
   // Shared post-action commit: state, ticker, animation lock, win check.
   const commitResolution = (
     newState: BattleState,
-    extra: Partial<Pick<ArenaBattleStore, 'playerMoves' | 'opponentMoves' | 'lastAIActionTime' | 'selectedCardId'>> = {},
+    extra: Partial<Pick<ArenaBattleStore, 'playerMoves' | 'opponentMoves' | 'lastAIActionTime'>> = {},
   ) => {
     const resolvedAction = newState.actionHistory[newState.actionHistory.length - 1];
 
@@ -103,7 +101,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
     playerMoves: [],
     opponentMoves: [],
     isAnimating: false,
-    selectedCardId: null,
     lastAction: null,
     battleResult: null,
     gameLoopIntervalId: null,
@@ -129,7 +126,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
         playerMoves: [...playerKit.slots],
         opponentMoves: [...opponentKit.slots],
         isAnimating: false,
-        selectedCardId: null,
         lastAction: null,
         battleResult: null,
         lastAIActionTime: Date.now(),
@@ -152,7 +148,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
       }
 
       const newState = ArenaCombatEngine.resolveAction(currentBattle, move, currentBattle.player.holobotId);
-      commitResolution(newState, { selectedCardId: null });
+      commitResolution(newState);
     },
 
     // Player fires their Signature Finisher (explicit command; requires a
@@ -168,7 +164,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
       );
       if (newState === currentBattle) return;
 
-      commitResolution(newState, { selectedCardId: null });
+      commitResolution(newState);
     },
 
     // Toggle player defense mode
@@ -235,7 +231,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
         playerMoves: [],
         opponentMoves: [],
         isAnimating: false,
-        selectedCardId: null,
         lastAction: null,
         battleResult: null,
         gameLoopIntervalId: null,
@@ -293,7 +288,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
 
     // Animation control
     setAnimating: (isAnimating) => set({ isAnimating }),
-    selectCard: (cardId) => set({ selectedCardId: cardId }),
 
     // Helper: Get currently usable kit moves
     getPlayableMoves: () => {

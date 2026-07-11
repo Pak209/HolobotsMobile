@@ -46,7 +46,6 @@ type AISituation = {
 function cloneFighter(fighter: ArenaFighter): ArenaFighter {
   return {
     ...fighter,
-    hand: [...(fighter.hand ?? [])],
     statusEffects: [...(fighter.statusEffects ?? [])],
   };
 }

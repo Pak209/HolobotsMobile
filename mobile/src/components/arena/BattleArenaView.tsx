@@ -21,10 +21,8 @@ type BattleArenaViewProps = {
   playerCards: ActionCard[];
   playableCardIds: string[];
   cardAvailability: Record<string, ArenaCardAvailability>;
-  selectedCardId: string | null;
   lastAction: BattleAction | null;
   isAnimating: boolean;
-  onCardSelect: (cardId: string | null) => void;
   onCardPlay: (cardId: string) => void;
   onSignaturePlay: () => void;
 };
@@ -125,14 +123,12 @@ function ArenaCard({
   card,
   disabled,
   isPlayable,
-  isSelected,
   reasonLabel,
   onPress,
 }: {
   card?: ActionCard;
   disabled: boolean;
   isPlayable: boolean;
-  isSelected: boolean;
   reasonLabel: string | null;
   onPress: () => void;
 }) {
@@ -157,7 +153,6 @@ function ArenaCard({
           backgroundColor: colors.glow,
           opacity: isPlayable ? 1 : 0.45,
         },
-        isSelected ? styles.cardSlotSelected : null,
       ]}
     >
       <View style={styles.cardCostBadge}>
@@ -190,10 +185,8 @@ export function BattleArenaView({
   playerCards,
   playableCardIds,
   cardAvailability,
-  selectedCardId: _selectedCardId,
   lastAction,
   isAnimating,
-  onCardSelect: _onCardSelect,
   onCardPlay,
   onSignaturePlay,
 }: BattleArenaViewProps) {
@@ -387,7 +380,6 @@ export function BattleArenaView({
                 card={card}
                 disabled={!card || isAnimating || !isPlayable}
                 isPlayable={isPlayable}
-                isSelected={false}
                 reasonLabel={card ? getAvailabilityLabel(cardAvailability[card.id]) : null}
                 onPress={() => {
                   if (card && isPlayable) {
@@ -644,13 +636,6 @@ const styles = StyleSheet.create({
   cardSlotEmpty: {
     backgroundColor: "#101010",
     borderColor: "#2b2b2b",
-  },
-  cardSlotSelected: {
-    shadowColor: "#f0bf14",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    transform: [{ translateY: -6 }],
   },
   cardTypeLabel: {
     fontSize: 9,

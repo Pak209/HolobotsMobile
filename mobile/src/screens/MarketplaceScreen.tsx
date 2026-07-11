@@ -5,6 +5,7 @@ import Svg, { Circle } from "react-native-svg";
 import { GameFeedbackModal } from "@/components/GameFeedbackModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
+import { BATTLE_CARD_TEMPLATES } from "@/lib/battleCards/catalog";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   purchaseMarketplaceBoosterAuthoritative,
@@ -28,6 +29,10 @@ const itemDescriptions: Record<string, string> = {
   "Rank Skip": "Skip to the next rank instantly.",
 };
 
+function getMoveDisplayName(templateId: string): string {
+  return BATTLE_CARD_TEMPLATES[templateId]?.name ?? templateId;
+}
+
 function HolosMark() {
   return (
     <Svg width={34} height={34} viewBox="0 0 34 34">
@@ -40,7 +45,7 @@ function HolosMark() {
 const marketplaceBoosterPacks = [
   {
     accent: "#17d9ff",
-    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with standard drop rates.",
+    description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with standard drop rates.",
     guaranteed: 3,
     icon: "□",
     id: "common",
@@ -50,7 +55,7 @@ const marketplaceBoosterPacks = [
   },
   {
     accent: "#2f87ff",
-    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with improved drop rates.",
+    description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with improved drop rates.",
     guaranteed: 3,
     icon: "⬡",
     id: "champion",
@@ -60,7 +65,7 @@ const marketplaceBoosterPacks = [
   },
   {
     accent: "#ae4cff",
-    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with enhanced rare-plus chances.",
+    description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with enhanced rare-plus chances.",
     guaranteed: 3,
     icon: "✦",
     id: "rare",
@@ -70,7 +75,7 @@ const marketplaceBoosterPacks = [
   },
   {
     accent: "#ff3b7d",
-    description: "Guaranteed 1 Part + 1 Item + 1 Battle Card with premium drop rates.",
+    description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with premium drop rates.",
     guaranteed: 3,
     icon: "★",
     id: "elite",
@@ -196,7 +201,7 @@ export function MarketplaceScreen() {
         lines: [
           `Part: ${granted.part.name}`,
           `Item: ${granted.itemName}`,
-          `Battle Card: ${granted.battleCardId}`,
+          `Move unlocked: ${getMoveDisplayName(granted.battleCardId)}`,
         ],
         message: `${pack.name} opened.`,
         title: "Booster Purchased",
@@ -309,7 +314,7 @@ export function MarketplaceScreen() {
       return (
         <View style={styles.packsSection}>
           <Text style={styles.packsTitle}>SELECT BOOSTER PACK</Text>
-          <Text style={styles.packsSubtitle}>Choose your boost pack and unlock parts, items, and battle cards.</Text>
+          <Text style={styles.packsSubtitle}>Choose your boost pack and unlock parts, items, and new moves.</Text>
           {marketplaceBoosterPacks.map((pack) => {
             const canAfford = (profile?.holosTokens || 0) >= pack.price;
 

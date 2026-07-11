@@ -106,7 +106,6 @@ export interface ArenaFighter {
   statusEffects?: StatusEffect[];
   damageMultiplier?: number;
   speedBonus?: number;
-  hand?: ActionCard[];
   totalDamageDealt?: number;
   perfectDefenses?: number;
   combosCompleted?: number;

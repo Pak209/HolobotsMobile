@@ -32,7 +32,6 @@ function makeFighter(overrides: Partial<ArenaFighter> = {}): ArenaFighter {
     counterDamageBonus: 1.25,
     damageMultiplier: 1,
     speedBonus: 0,
-    hand: [],
     totalDamageDealt: 0,
     perfectDefenses: 0,
     combosCompleted: 0,

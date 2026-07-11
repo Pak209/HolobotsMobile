@@ -137,10 +137,21 @@ rooms and matchmaking with a clear message).
       METER, CD n), and an illegal tap is rejected with a readable message.
 - [ ] A KO shows Victory on one device and Defeat on the other.
 
-## Known deferred (by design — later plan phases)
-- Legacy card UI code and card-pack economy retirement (Phase 6; the dead
-  Cards-tab code in InventoryScreen is flagged for cleanup).
+## 8. Phase 6 cleanup checks
+
+- [ ] Inventory header reads `Parts N • Items N • Moves N` (no "Cards").
+- [ ] Marketplace booster copy says "1 Part + 1 Item + 1 Move unlock", and
+      opening one reports "Move unlocked: <move name>" — buying boosters is
+      now how you acquire new moves for the Move Lab.
+- [ ] Buy a booster, then open the Move Lab: the granted move appears in the
+      matching category's REPLACE list.
+- [ ] No card/deck/hand language anywhere in Arena, Inventory, or PvP.
+
+## Known deferred (by design)
 - Specialization respec (30 SP) — not yet exposed in UI.
+- Duplicate move-unlock copies (battle_cards counts above 1) have no combat
+  effect; converting extras into SP/compensation is an open economy
+  decision.
 - PvP anti-tamper: kits/ranks come from the player's own server-validated
   profile, but room writes are still client-authored (participant-gated by
   rules). Full server-side move validation remains the SECURITY_AUDIT C4
