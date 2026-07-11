@@ -31,6 +31,12 @@ export type UserHolobot = {
   syncLevel?: number;
   lifetimeSPInvested?: number;
   career?: HolobotCareer;
+  /** Per-move Sync Point progression: templateId -> rank/specialization. */
+  moveProgress?: Record<string, { rank: number; specializationId?: string }>;
+  /** Saved four-slot combat kit ([strike, defense, combo, finisher] template ids). */
+  combatKit?: { slots: [string, string, string, string]; revision: number };
+  /** Bumped when the move system writes this record (migration idempotence). */
+  moveSystemVersion?: number;
 };
 
 export type HolobotCareer = {

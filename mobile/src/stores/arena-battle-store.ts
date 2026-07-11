@@ -113,8 +113,10 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
     startBattle: (player, opponent, config) => {
       const battle = ArenaCombatEngine.initializeBattle(player, opponent, config);
       const playerKit = resolveCombatKit({
+        savedKitTemplateIds: config?.playerKitTemplateIds,
         deckTemplateIds: config?.playerDeckTemplateIds,
         ownedBattleCards: config?.playerBattleCards,
+        moveProgress: config?.playerMoveProgress,
         idPrefix: 'player',
       });
       const opponentKit = resolveCombatKit({

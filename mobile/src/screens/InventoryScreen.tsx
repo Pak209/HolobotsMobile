@@ -4,6 +4,7 @@ import Svg, { Path } from "react-native-svg";
 
 import { HolobotStatsModal } from "@/components/HolobotStatsModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
+import { MoveLabPanel } from "@/components/MoveLabPanel";
 import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { BATTLE_CARD_TEMPLATES, STARTER_DECK_BALANCED_IDS } from "@/lib/battleCards/catalog";
 import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
@@ -17,7 +18,7 @@ import {
 import { canUpgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
-const tabs = ["Holobots", "Parts", "Items", "Cards"] as const;
+const tabs = ["Holobots", "Parts", "Items", "Move Lab"] as const;
 type InventoryTab = (typeof tabs)[number];
 const MAX_DECK_SIZE = STARTER_DECK_BALANCED_IDS.length;
 const CARD_TYPE_FILTERS = [
@@ -570,7 +571,7 @@ export function InventoryScreen() {
         {activeTab === "Holobots" ? renderHolobots() : null}
         {activeTab === "Parts" ? renderList(parts) : null}
         {activeTab === "Items" ? renderList(items) : null}
-        {activeTab === "Cards" ? renderCardsTab() : null}
+        {activeTab === "Move Lab" ? <MoveLabPanel /> : null}
       </ScrollView>
 
       <HolobotStatsModal

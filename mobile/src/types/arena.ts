@@ -288,8 +288,12 @@ export interface ArenaBattleConfig {
   globalModifiers?: BattleModifier[];
   playerBattleCards?: Record<string, number>;
   opponentBattleCards?: Record<string, number>;
-  /** Saved loadout order used to compose kit slots 1-3 and slot 4. */
+  /** Saved loadout order used to compose the kit when no saved kit exists. */
   playerDeckTemplateIds?: string[];
+  /** The selected Holobot's saved four-slot kit (combatKit.slots). */
+  playerKitTemplateIds?: string[];
+  /** The selected Holobot's per-move rank/specialization. */
+  playerMoveProgress?: Record<string, { rank: number; specializationId?: string }>;
 }
 
 export interface BattleModifier {

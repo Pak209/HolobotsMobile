@@ -71,11 +71,106 @@ export function resolveMove(templateId: string, instanceId: string): ActionCard 
   return card;
 }
 
+// ---------------------------------------------------------------------------
+// Move rank application (low-level; the Sync Point purchase flow lives in
+// moveProgression.ts, which re-exports these).
+// ---------------------------------------------------------------------------
+
+export type MoveRank = 0 | 1 | 2 | 3;
+
+export type HolobotMoveProgress = { rank: MoveRank; specializationId?: string };
+
+const RANK_ONE_DAMAGE_BONUS = 0.1;
+const RANK_ONE_DEFENSE_SPEED_BONUS = 0.15;
+const RANK_THREE_DEEPEN_DAMAGE_BONUS = 0.1;
+const RANK_THREE_DEEPEN_SPEED_BONUS = 0.15;
+
+const BRANCH_DAMAGE_BONUS: Record<string, number> = {
+  'combo.finish': 0.2,
+  'finisher.explosive': 0.25,
+  'strike.power': 0.2,
+};
+
+const BRANCH_COST_REDUCTION: Record<string, number> = {
+  'combo.flow': 1,
+  'defense.safety': 1,
+  'finisher.reliable': 1,
+  'strike.pressure': 1,
+};
+
+const BRANCH_SPEED_BONUS: Record<string, number> = {
+  'defense.counter': 0.25,
+};
+
+/**
+ * Applies a Holobot's rank/specialization to a BASE resolved move and
+ * returns a new card. Idempotent (always starts from the base) and bounded
+ * by the plan's guardrails: total stamina-cost reduction is capped at 1 and
+ * never takes a move below cost 1.
+ */
+export function applyMoveProgress(move: ActionCard, progress?: HolobotMoveProgress): ActionCard {
+  if (!progress || progress.rank <= 0) {
+    return move;
+  }
+
+  let damageMultiplier = 1;
+  let speedBonus = 0;
+  let costReduction = 0;
+
+  if (progress.rank >= 1) {
+    if (move.type === 'defense') {
+      speedBonus += RANK_ONE_DEFENSE_SPEED_BONUS;
+    } else {
+      damageMultiplier += RANK_ONE_DAMAGE_BONUS;
+    }
+  }
+
+  const branchId = progress.rank >= 2 ? progress.specializationId : undefined;
+  if (branchId) {
+    damageMultiplier += BRANCH_DAMAGE_BONUS[branchId] ?? 0;
+    speedBonus += BRANCH_SPEED_BONUS[branchId] ?? 0;
+    costReduction += BRANCH_COST_REDUCTION[branchId] ?? 0;
+
+    if (progress.rank >= 3) {
+      if (BRANCH_DAMAGE_BONUS[branchId]) {
+        damageMultiplier += RANK_THREE_DEEPEN_DAMAGE_BONUS;
+      } else if (BRANCH_SPEED_BONUS[branchId]) {
+        speedBonus += RANK_THREE_DEEPEN_SPEED_BONUS;
+      } else if (move.type === 'defense') {
+        // Cost branches sit at the -1 stamina cap; deepen on another axis.
+        speedBonus += RANK_THREE_DEEPEN_SPEED_BONUS;
+      } else {
+        damageMultiplier += RANK_THREE_DEEPEN_DAMAGE_BONUS;
+      }
+    }
+  }
+
+  const nextCost = Math.max(1, move.staminaCost - Math.min(1, costReduction));
+
+  // A damage bonus always lands: at least +1 even where the multiplier
+  // rounds away on low-damage moves (9 * 1.1 would floor back to 9).
+  const nextDamage =
+    move.baseDamage > 0 && damageMultiplier > 1
+      ? Math.max(move.baseDamage + 1, Math.floor(move.baseDamage * damageMultiplier))
+      : move.baseDamage;
+
+  return {
+    ...move,
+    baseDamage: nextDamage,
+    speedModifier: Number((move.speedModifier + speedBonus).toFixed(2)),
+    staminaCost: move.staminaCost > 0 ? nextCost : move.staminaCost,
+  };
+}
+
 export type ResolveKitOptions = {
-  /** Saved loadout order (arena_deck_template_ids); highest priority. */
+  /** The Holobot's saved four-slot kit (combatKit.slots); highest priority. */
+  savedKitTemplateIds?: string[] | null;
+  /** Saved loadout order (arena_deck_template_ids); next priority. */
   deckTemplateIds?: string[] | null;
   /** Owned collection (battle_cards); fallback source after the loadout. */
   ownedBattleCards?: Record<string, number> | null;
+  /** Per-move rank/specialization to apply to the resolved moves. */
+  moveProgress?: Record<string, { rank: number; specializationId?: string }> | null;
   /** Prefix for generated move instance ids (keeps both fighters' ids distinct). */
   idPrefix?: string;
 };
@@ -102,6 +197,7 @@ export function resolveCombatKit(options: ResolveKitOptions = {}): CombatKit {
     }
   };
 
+  (options.savedKitTemplateIds || []).forEach(pushCandidate);
   (options.deckTemplateIds || []).forEach(pushCandidate);
   Object.entries(options.ownedBattleCards || {})
     .filter(([, quantity]) => Number(quantity) > 0)
@@ -133,6 +229,17 @@ export function resolveCombatKit(options: ResolveKitOptions = {}): CombatKit {
 
   const kit: CombatKit = { slots };
   validateCombatKit(kit);
+
+  const progress = options.moveProgress;
+  if (progress) {
+    kit.slots = kit.slots.map((move) => {
+      const moveProgress = progress[move.templateId];
+      return moveProgress
+        ? applyMoveProgress(move, { rank: (moveProgress.rank ?? 0) as MoveRank, specializationId: moveProgress.specializationId })
+        : move;
+    }) as CombatKit['slots'];
+  }
+
   return kit;
 }
 

@@ -150,6 +150,8 @@ export function ArenaScreen() {
           allowPlayerControl: true,
           playerBattleCards: profile.battle_cards,
           playerDeckTemplateIds: profile.arena_deck_template_ids,
+          playerKitTemplateIds: selectedHolobot.combatKit?.slots,
+          playerMoveProgress: selectedHolobot.moveProgress,
           potentialRewards: getArenaPotentialRewards(tier, opponent.name),
           tier: ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id),
         });
