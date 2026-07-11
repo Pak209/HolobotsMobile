@@ -809,7 +809,7 @@ export class ArenaCombatEngine {
 
     defender.currentHP = Math.max(0, defender.currentHP - finalDamage);
 
-    const meterGain = this.getMeterGainForDamage('strike', finalDamage);
+    const meterGain = this.getMeterGainForDamage('strike', finalDamage, outcome);
     attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
     action.specialMeterChange = meterGain;
 
@@ -878,7 +878,7 @@ export class ArenaCombatEngine {
 
     defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
 
-    const meterGain = this.getMeterGainForDamage('combo', actualDamage);
+    const meterGain = this.getMeterGainForDamage('combo', actualDamage, outcome);
     attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
     action.specialMeterChange = meterGain;
 
@@ -986,17 +986,21 @@ export class ArenaCombatEngine {
   // plays — never from taking hits or arming defenses — so both finisher
   // tiers have to be earned with offense. (Innate abilities may still grant
   // bounded meter as explicit identity exceptions.)
+  // Flat, level-independent meter economy: a clean strike is +10 and a clean
+  // combo +14 no matter how hard the fighter hits, so a full meter is always
+  // ~10 strikes (4/7 finisher unlock around strike 6) at every level and
+  // tier. Blocked/countered attacks earn half; a fully evaded hit earns
+  // nothing.
   private static getMeterGainForDamage(
     cardType: ActionCard['type'],
     damage: number,
+    outcome: ActionOutcome = 'hit',
   ): number {
-    if (cardType === 'combo') {
-      return Math.floor(damage * 2.0);
+    if (damage <= 0) {
+      return 0;
     }
-    if (cardType === 'strike') {
-      return Math.floor(damage * 1.5);
-    }
-    return 0;
+    const base = cardType === 'combo' ? 14 : cardType === 'strike' ? 10 : 0;
+    return outcome === 'hit' ? base : Math.floor(base / 2);
   }
 
   // Fires both fighters' innate abilities for whatever this action triggered:
