@@ -37,8 +37,9 @@ pattern the marketplace used pre-deploy.
       signature move name (ACE → "1st Strike", GAMA → "Heavy Leap", …) and
       the hint reads FULL FINISHER READY. It **never fires by itself** — only
       on your tap — and it also empties the meter.
-- [ ] Meter sources all charge it: your strikes/combos, defense plays, and
-      taking hits (small amount).
+- [ ] The meter charges ONLY from your own landed Strikes and Combos —
+      defending, and taking hits, add nothing. (Innate abilities like ERA's
+      head start or TORA's defend bonus are the deliberate exceptions.)
 - [ ] Counterplay: if the CPU has a defense trap armed, your finisher (either
       kind) gets blocked/countered like any attack. Try wasting one into a
       trap once, deliberately.

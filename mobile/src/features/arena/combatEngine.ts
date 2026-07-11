@@ -29,11 +29,6 @@ const TURN_STAMINA_REGEN = 1;
 
 type FighterRole = 'player' | 'opponent';
 
-type DamageMeterGain = {
-  attackerGain: number;
-  defenderGain: number;
-};
-
 type AISituation = {
   isLowHP: boolean;
   isLowStamina: boolean;
@@ -815,9 +810,8 @@ export class ArenaCombatEngine {
     defender.currentHP = Math.max(0, defender.currentHP - finalDamage);
 
     const meterGain = this.getMeterGainForDamage('strike', finalDamage);
-    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain.attackerGain);
-    defender.specialMeter = capMeter(defender.specialMeter + meterGain.defenderGain);
-    action.specialMeterChange = meterGain.attackerGain;
+    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
+    action.specialMeterChange = meterGain;
 
     if (outcome === 'hit') {
       attacker.comboCounter += 1;
@@ -836,7 +830,6 @@ export class ArenaCombatEngine {
     const defenseTrap = createArmedDefenseTrap(action.card);
     const defenseCard = getDefenseTrapCard(action.card);
     const staminaRestore = defenseCard?.staminaGain ?? 2;
-    const specialMeterGain = defenseCard?.specialMeterGain ?? 6;
 
     defender.stamina = Math.min(defender.maxStamina, defender.stamina + staminaRestore);
     defender.staminaState = this.getStaminaState(defender.stamina);
@@ -849,10 +842,8 @@ export class ArenaCombatEngine {
     action.damageDealt = 0;
     action.actualDamage = 0;
     action.staminaChange = staminaRestore;
-    action.specialMeterChange = specialMeterGain;
+    action.specialMeterChange = 0;
     action.openedCounterWindow = true;
-
-    defender.specialMeter = capMeter(defender.specialMeter + specialMeterGain);
 
     if (defender.speed + defender.intelligence > attacker.attack + attacker.speed) {
       defender.perfectDefenses = (defender.perfectDefenses ?? 0) + 1;
@@ -888,9 +879,8 @@ export class ArenaCombatEngine {
     defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
 
     const meterGain = this.getMeterGainForDamage('combo', actualDamage);
-    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain.attackerGain);
-    defender.specialMeter = capMeter(defender.specialMeter + meterGain.defenderGain);
-    action.specialMeterChange = meterGain.attackerGain;
+    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain);
+    action.specialMeterChange = meterGain;
 
     attacker.comboCounter = 0;
     attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;
@@ -930,11 +920,8 @@ export class ArenaCombatEngine {
 
     defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
 
-    // Cash out: the finisher spends the built-up meter. The defender still
-    // charges from taking the hit.
+    // Cash out: the finisher spends the built-up meter.
     attacker.specialMeter = 0;
-    const meterGain = this.getMeterGainForDamage('combo', actualDamage);
-    defender.specialMeter = capMeter(defender.specialMeter + meterGain.defenderGain);
 
     attacker.comboCounter = 0;
     attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;
@@ -995,25 +982,21 @@ export class ArenaCombatEngine {
     return 1 + comboLength * 0.08;
   }
 
+  // The special meter charges ONLY from the fighter's own Strike and Combo
+  // plays — never from taking hits or arming defenses — so both finisher
+  // tiers have to be earned with offense. (Innate abilities may still grant
+  // bounded meter as explicit identity exceptions.)
   private static getMeterGainForDamage(
     cardType: ActionCard['type'],
     damage: number,
-  ): DamageMeterGain {
+  ): number {
     if (cardType === 'combo') {
-      return {
-        attackerGain: Math.floor(damage * 2.0),
-        defenderGain: Math.floor(damage * 0.8),
-      };
+      return Math.floor(damage * 2.0);
     }
-
-    if (cardType === 'finisher') {
-      return { attackerGain: 0, defenderGain: 0 };
+    if (cardType === 'strike') {
+      return Math.floor(damage * 1.5);
     }
-
-    return {
-      attackerGain: Math.floor(damage * 1.5),
-      defenderGain: Math.floor(damage * 0.5),
-    };
+    return 0;
   }
 
   // Fires both fighters' innate abilities for whatever this action triggered:

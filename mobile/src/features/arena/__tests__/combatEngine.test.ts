@@ -448,6 +448,42 @@ describe('ArenaCombatEngine', () => {
     });
   });
 
+  describe('special meter economy', () => {
+    const jab = makeCard({ id: 'jab-m', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+    const block = makeCard({ id: 'block-m', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+
+    it('charges only from the attacker\'s own strikes and combos', () => {
+      const battle = makeBattle();
+
+      const afterStrike = ArenaCombatEngine.resolveAction(battle, jab, battle.player.holobotId);
+
+      expect(afterStrike.player.specialMeter).toBeGreaterThan(0);
+      // Taking the hit does NOT charge the defender.
+      expect(afterStrike.opponent.specialMeter).toBe(0);
+    });
+
+    it('does not charge from arming a defense', () => {
+      const battle = makeBattle();
+
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+
+      expect(defended.player.specialMeter).toBe(0);
+    });
+
+    it('kit finishers deal no meter to either side', () => {
+      const kitFinisher = makeCard({
+        id: 'kf-m', templateId: 'finisher.kit', type: 'finisher', staminaCost: 3, baseDamage: 30,
+        requirements: [{ type: 'special_meter', operator: 'gte', value: FINISHER_METER_REQUIREMENT }],
+      });
+      const battle = makeBattle({ specialMeter: 80 });
+
+      const resolved = ArenaCombatEngine.resolveAction(battle, kitFinisher, battle.player.holobotId);
+
+      expect(resolved.player.specialMeter).toBe(0);
+      expect(resolved.opponent.specialMeter).toBe(0);
+    });
+  });
+
   it('damage formula respects ATK and DEF', () => {
     const strike = makeCard({ templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
     const highAttack = makeFighter({ attack: 60, defense: 20 });
