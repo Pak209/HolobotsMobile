@@ -38,6 +38,40 @@ export function getMarketplacePrice(itemName: string): number {
   return 100;
 }
 
+export type MarketplacePartRarity = "common" | "rare" | "epic";
+
+export type MarketplacePartOffer = {
+  id: string;
+  name: string;
+  price: number;
+  rarity: MarketplacePartRarity;
+  slot: string;
+};
+
+export const MARKETPLACE_PART_PRICES: Record<MarketplacePartRarity, number> = {
+  common: 300,
+  epic: 1500,
+  rare: 750,
+};
+
+// Every entry has bundled art in gameAssets.partNameImageMap. Prices scale by
+// rarity only, so the price table stays the single knob.
+export const MARKETPLACE_PART_CATALOG: MarketplacePartOffer[] = [
+  { id: "part.combatMask", name: "Combat Mask", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "head" },
+  { id: "part.voidMask", name: "Void Mask", price: MARKETPLACE_PART_PRICES.epic, rarity: "epic", slot: "head" },
+  { id: "part.reinforcedChassis", name: "Reinforced Chassis", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "torso" },
+  { id: "part.alloyChassis", name: "Alloy Chassis", price: MARKETPLACE_PART_PRICES.rare, rarity: "rare", slot: "torso" },
+  { id: "part.boxerGloves", name: "Boxer Gloves", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "arms" },
+  { id: "part.plasmaCannon", name: "Plasma Cannon", price: MARKETPLACE_PART_PRICES.rare, rarity: "rare", slot: "arms" },
+  { id: "part.infernoClaws", name: "Inferno Claws", price: MARKETPLACE_PART_PRICES.epic, rarity: "epic", slot: "arms" },
+  { id: "part.energyCore", name: "Energy Core", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "core" },
+  { id: "part.quantumCore", name: "Quantum Core", price: MARKETPLACE_PART_PRICES.epic, rarity: "epic", slot: "core" },
+];
+
+export function getMarketplacePartOffer(partId: string): MarketplacePartOffer | null {
+  return MARKETPLACE_PART_CATALOG.find((offer) => offer.id === partId) ?? null;
+}
+
 export type MarketplaceBoosterId = "common" | "champion" | "rare" | "elite";
 
 export const MARKETPLACE_BOOSTER_PRICES: Record<MarketplaceBoosterId, number> = {
@@ -124,6 +158,44 @@ export function buildItemPurchaseUpdates(
   }
 
   return { price, updates };
+}
+
+export type PartPurchaseResult = {
+  part: { name: string; rarity: MarketplacePartRarity; slot: string };
+  price: number;
+  updates: Record<string, unknown>;
+};
+
+/**
+ * Builds the profile updates for a marketplace part purchase, or null when
+ * the part is unknown or the player cannot afford it. The granted part uses
+ * the same `{ name, rarity, slot }` shape gacha grants write, so it equips
+ * through the existing inventory flow.
+ */
+export function buildPartPurchaseUpdates(
+  profile: Pick<UserProfile, "holosTokens" | "parts">,
+  partId: string,
+): PartPurchaseResult | null {
+  const offer = getMarketplacePartOffer(partId);
+  if (!offer) {
+    return null;
+  }
+
+  const holos = Number(profile.holosTokens || 0);
+  if (holos < offer.price) {
+    return null;
+  }
+
+  const part = { name: offer.name, rarity: offer.rarity, slot: offer.slot };
+
+  return {
+    part,
+    price: offer.price,
+    updates: {
+      holosTokens: holos - offer.price,
+      parts: [...(profile.parts || []), part],
+    },
+  };
 }
 
 export type BoosterPurchaseResult = {

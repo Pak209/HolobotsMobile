@@ -9,8 +9,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   purchaseMarketplaceBoosterAuthoritative,
   purchaseMarketplaceItemAuthoritative,
+  purchaseMarketplacePartAuthoritative,
 } from "@/lib/economyClient";
-import { getMarketplacePrice, MARKETPLACE_BOOSTER_PRICES } from "@/lib/marketplace";
+import {
+  getMarketplacePrice,
+  MARKETPLACE_BOOSTER_PRICES,
+  MARKETPLACE_PART_CATALOG,
+} from "@/lib/marketplace";
 
 const tabs = ["Items", "Parts", "Booster Packs"] as const;
 type MarketplaceTab = (typeof tabs)[number];
@@ -92,30 +97,53 @@ export function MarketplaceScreen() {
     { name: "EXP Booster", quantity: profile?.exp_boosters || 0 },
     { name: "Rank Skip", quantity: profile?.rank_skips || 0 },
   ];
-  const parts = useMemo(() => {
-    const grouped = new Map<string, { description: string; image: ReturnType<typeof getPartImageSource>; name: string; quantity: number }>();
+  // Owned counts per catalog part. Legacy inventory names may carry a rarity
+  // suffix ("Quantum Core (Epic)"), so match on the stripped base name.
+  const ownedPartCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const part of profile?.parts || []) {
+      const name = String((part as { name?: string }).name || "")
+        .replace(/\s*\(.*\)\s*$/, "")
+        .trim()
+        .toLowerCase();
+      if (!name) continue;
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    return counts;
+  }, [profile?.parts]);
 
-    for (const [index, part] of (profile?.parts || []).entries()) {
-      const name = String((part as { name?: string }).name || `Part ${index + 1}`);
-      const slot = String((part as { slot?: string }).slot || "");
-      const key = `${name}:${slot}`;
-      const existing = grouped.get(key);
+  const totalOwnedParts = profile?.parts?.length || 0;
 
-      if (existing) {
-        existing.quantity += 1;
-        continue;
-      }
-
-      grouped.set(key, {
-        description: slot ? `${slot.toUpperCase()} equipment part` : "Holobot equipment part",
-        image: getPartImageSource(name, slot),
-        name,
-        quantity: 1,
-      });
+  const purchasePart = async (partId: string) => {
+    if (!profile) {
+      Alert.alert("Sign in required", "Please sign in before making a purchase.");
+      return;
     }
 
-    return Array.from(grouped.values());
-  }, [profile?.parts]);
+    const offer = MARKETPLACE_PART_CATALOG.find((entry) => entry.id === partId);
+    if (!offer) {
+      return;
+    }
+
+    if ((profile.holosTokens || 0) < offer.price) {
+      Alert.alert("Not enough Holos", `You need ${offer.price - (profile.holosTokens || 0)} more Holos.`);
+      return;
+    }
+
+    try {
+      setPendingPurchaseId(partId);
+      const part = await purchaseMarketplacePartAuthoritative(profile, updateProfile, partId);
+      setFeedback({
+        accent: "#17d9ff",
+        message: `${part.name} has been added to your parts inventory. Equip it from a holobot's loadout.`,
+        title: "Part Acquired",
+      });
+    } catch (error) {
+      Alert.alert("Purchase failed", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setPendingPurchaseId(null);
+    }
+  };
 
   const purchaseItem = async (itemName: string) => {
     if (!profile) {
@@ -217,24 +245,43 @@ export function MarketplaceScreen() {
     }
 
     if (activeTab === "Parts") {
-      return parts.map((part, index) => (
-        <View key={`${part.name}:${index}`} style={styles.itemCard}>
-          <View style={styles.itemIconFrame}>
-            {part.image ? <Image source={part.image} style={styles.itemIcon} resizeMode="contain" /> : null}
-          </View>
-          <View style={styles.itemBody}>
-            <Text style={styles.itemTitle}>{part.name.toUpperCase()}</Text>
-            <View style={styles.itemDivider} />
-            <Text style={styles.itemCopy}>{part.description}</Text>
-          </View>
-          <View style={styles.itemActions}>
-            <View style={styles.qtyBox}>
-              <Text style={styles.qtyLabel}>QTY:</Text>
-              <Text style={styles.qtyValue}>{`x${part.quantity}`}</Text>
+      return MARKETPLACE_PART_CATALOG.map((offer) => {
+        const image = getPartImageSource(offer.name, offer.slot);
+        const owned = ownedPartCounts.get(offer.name.toLowerCase()) || 0;
+        const affordable = (profile?.holosTokens || 0) >= offer.price;
+        const pending = pendingPurchaseId === offer.id;
+
+        return (
+          <View key={offer.id} style={styles.itemCard}>
+            <View style={styles.itemIconFrame}>
+              {image ? <Image source={image} style={styles.itemIcon} resizeMode="contain" /> : null}
+            </View>
+            <View style={styles.itemBody}>
+              <Text style={styles.itemTitle}>{`${offer.name} (${offer.rarity})`.toUpperCase()}</Text>
+              <View style={styles.itemDivider} />
+              <Text style={styles.itemCopy}>{`${offer.slot.toUpperCase()} equipment part. Equip it to a holobot from Inventory.`}</Text>
+              <Text style={styles.partOwned}>{`OWNED x${owned}`}</Text>
+            </View>
+            <View style={styles.itemActions}>
+              <View style={styles.qtyBox}>
+                <View style={styles.priceRow}>
+                  <Text style={styles.qtyValue}>{offer.price.toLocaleString()}</Text>
+                  <HolosMark />
+                </View>
+              </View>
+              <Pressable
+                onPress={() => void purchasePart(offer.id)}
+                disabled={!affordable || pending}
+                style={[styles.useButton, (!affordable || pending) ? styles.useButtonDisabled : null]}
+              >
+                <Text style={[styles.useButtonText, (!affordable || pending) ? styles.useButtonTextDisabled : null]}>
+                  {pending ? "..." : "BUY"}
+                </Text>
+              </Pressable>
             </View>
           </View>
-        </View>
-      ));
+        );
+      });
     }
 
     if (activeTab === "Booster Packs") {
@@ -289,7 +336,7 @@ export function MarketplaceScreen() {
           <Text style={styles.headerEyebrow}>SHOP</Text>
           <Text style={styles.headerTitle}>Marketplace</Text>
           <Text style={styles.headerMeta}>
-            {`Holos ${profile?.holosTokens || 0} • Tickets ${profile?.gachaTickets || 0} • Parts ${parts.length}`}
+            {`Holos ${profile?.holosTokens || 0} • Tickets ${profile?.gachaTickets || 0} • Parts ${totalOwnedParts}`}
           </Text>
         </View>
 
@@ -526,6 +573,13 @@ const styles = StyleSheet.create({
     minWidth: 78,
     paddingHorizontal: 6,
     paddingVertical: 7,
+  },
+  partOwned: {
+    color: "#17d9ff",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginTop: 6,
   },
   qtyLabel: {
     color: "#9ca4b0",

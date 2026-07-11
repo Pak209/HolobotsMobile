@@ -264,6 +264,74 @@ export function getMarketplacePrice(itemName: string): number {
   return 100;
 }
 
+export type MarketplacePartRarity = "common" | "rare" | "epic";
+
+export type MarketplacePartOffer = {
+  id: string;
+  name: string;
+  price: number;
+  rarity: MarketplacePartRarity;
+  slot: string;
+};
+
+export const MARKETPLACE_PART_PRICES: Record<MarketplacePartRarity, number> = {
+  common: 300,
+  epic: 1500,
+  rare: 750,
+};
+
+export const MARKETPLACE_PART_CATALOG: MarketplacePartOffer[] = [
+  { id: "part.combatMask", name: "Combat Mask", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "head" },
+  { id: "part.voidMask", name: "Void Mask", price: MARKETPLACE_PART_PRICES.epic, rarity: "epic", slot: "head" },
+  { id: "part.reinforcedChassis", name: "Reinforced Chassis", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "torso" },
+  { id: "part.alloyChassis", name: "Alloy Chassis", price: MARKETPLACE_PART_PRICES.rare, rarity: "rare", slot: "torso" },
+  { id: "part.boxerGloves", name: "Boxer Gloves", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "arms" },
+  { id: "part.plasmaCannon", name: "Plasma Cannon", price: MARKETPLACE_PART_PRICES.rare, rarity: "rare", slot: "arms" },
+  { id: "part.infernoClaws", name: "Inferno Claws", price: MARKETPLACE_PART_PRICES.epic, rarity: "epic", slot: "arms" },
+  { id: "part.energyCore", name: "Energy Core", price: MARKETPLACE_PART_PRICES.common, rarity: "common", slot: "core" },
+  { id: "part.quantumCore", name: "Quantum Core", price: MARKETPLACE_PART_PRICES.epic, rarity: "epic", slot: "core" },
+];
+
+export function getMarketplacePartOffer(partId: string): MarketplacePartOffer | null {
+  return MARKETPLACE_PART_CATALOG.find((offer) => offer.id === partId) ?? null;
+}
+
+export type PartPurchaseResultRaw = {
+  part: { name: string; rarity: MarketplacePartRarity; slot: string };
+  price: number;
+  updates: Record<string, unknown>;
+};
+
+/**
+ * Raw-field version of the mobile buildPartPurchaseUpdates (holosTokens and
+ * parts use identical names on both sides).
+ */
+export function buildPartPurchaseUpdatesRaw(
+  userData: Record<string, unknown>,
+  partId: string,
+): PartPurchaseResultRaw | null {
+  const offer = getMarketplacePartOffer(partId);
+  if (!offer) {
+    return null;
+  }
+
+  const holos = Number(userData.holosTokens || 0);
+  if (holos < offer.price) {
+    return null;
+  }
+
+  const part = { name: offer.name, rarity: offer.rarity, slot: offer.slot };
+
+  return {
+    part,
+    price: offer.price,
+    updates: {
+      holosTokens: holos - offer.price,
+      parts: [...((userData.parts as Array<Record<string, unknown>>) || []), part],
+    },
+  };
+}
+
 export type MarketplaceBoosterId = "common" | "champion" | "rare" | "elite";
 
 export const MARKETPLACE_BOOSTER_PRICES: Record<MarketplaceBoosterId, number> = {

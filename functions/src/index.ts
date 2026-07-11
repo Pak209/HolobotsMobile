@@ -16,6 +16,7 @@ export { mintHolobot } from "./progression/mintHolobot";
 export { openGachaPack } from "./economy/openGachaPack";
 export { purchaseMarketplaceBooster } from "./economy/purchaseMarketplaceBooster";
 export { purchaseMarketplaceItem } from "./economy/purchaseMarketplaceItem";
+export { purchaseMarketplacePart } from "./economy/purchaseMarketplacePart";
 export { settleArenaBattle } from "./arena/settleArenaBattle";
 export { syncFitnessActivity } from "./fitness/syncFitnessActivity";
 export { syncWatchWorkoutRewards } from "./fitness/syncWatchWorkoutRewards";
