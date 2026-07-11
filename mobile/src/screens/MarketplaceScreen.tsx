@@ -245,40 +245,61 @@ export function MarketplaceScreen() {
     }
 
     if (activeTab === "Parts") {
-      return MARKETPLACE_PART_CATALOG.map((offer) => {
-        const image = getPartImageSource(offer.name, offer.slot);
-        const owned = ownedPartCounts.get(offer.name.toLowerCase()) || 0;
-        const affordable = (profile?.holosTokens || 0) >= offer.price;
-        const pending = pendingPurchaseId === offer.id;
+      const slotOrder = ["head", "torso", "arms", "core"];
+      return slotOrder.map((slot) => {
+        const offers = MARKETPLACE_PART_CATALOG.filter((offer) => offer.slot === slot).sort(
+          (left, right) => left.price - right.price || left.name.localeCompare(right.name),
+        );
+        if (offers.length === 0) {
+          return null;
+        }
 
         return (
-          <View key={offer.id} style={styles.itemCard}>
-            <View style={styles.itemIconFrame}>
-              {image ? <Image source={image} style={styles.itemIcon} resizeMode="contain" /> : null}
-            </View>
-            <View style={styles.itemBody}>
-              <Text style={styles.itemTitle}>{`${offer.name} (${offer.rarity})`.toUpperCase()}</Text>
-              <View style={styles.itemDivider} />
-              <Text style={styles.itemCopy}>{`${offer.slot.toUpperCase()} equipment part. Equip it to a holobot from Inventory.`}</Text>
-              <Text style={styles.partOwned}>{`OWNED x${owned}`}</Text>
-            </View>
-            <View style={styles.itemActions}>
-              <View style={styles.qtyBox}>
-                <View style={styles.priceRow}>
-                  <Text style={styles.qtyValue}>{offer.price.toLocaleString()}</Text>
-                  <HolosMark />
+          <View key={slot}>
+            <Text style={styles.partSectionLabel}>{`${slot.toUpperCase()} PARTS`}</Text>
+            {offers.map((offer) => {
+              const image = getPartImageSource(offer.name, offer.slot);
+              const owned = ownedPartCounts.get(offer.name.toLowerCase()) || 0;
+              const affordable = (profile?.holosTokens || 0) >= offer.price;
+              const pending = pendingPurchaseId === offer.id;
+
+              return (
+                <View key={offer.id} style={styles.itemCard}>
+                  <View style={styles.itemIconFrame}>
+                    {image ? <Image source={image} style={styles.itemIcon} resizeMode="contain" /> : null}
+                  </View>
+                  <View style={styles.itemBody}>
+                    <Text style={styles.itemTitle}>{`${offer.name} (${offer.rarity})`.toUpperCase()}</Text>
+                    <View style={styles.itemDivider} />
+                    <Text style={styles.itemCopy}>{`${offer.slot.toUpperCase()} equipment part. Equip it to a holobot from Inventory.`}</Text>
+                    <Text style={styles.partOwned}>{`OWNED x${owned}`}</Text>
+                  </View>
+                  <View style={styles.itemActions}>
+                    <View style={styles.qtyBox}>
+                      <View style={styles.priceRow}>
+                        <Text
+                          adjustsFontSizeToFit
+                          numberOfLines={1}
+                          style={[styles.qtyValue, styles.partPrice]}
+                        >
+                          {offer.price.toLocaleString()}
+                        </Text>
+                        <HolosMark />
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => void purchasePart(offer.id)}
+                      disabled={!affordable || pending}
+                      style={[styles.useButton, (!affordable || pending) ? styles.useButtonDisabled : null]}
+                    >
+                      <Text style={[styles.useButtonText, (!affordable || pending) ? styles.useButtonTextDisabled : null]}>
+                        {pending ? "..." : "BUY"}
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
-              <Pressable
-                onPress={() => void purchasePart(offer.id)}
-                disabled={!affordable || pending}
-                style={[styles.useButton, (!affordable || pending) ? styles.useButtonDisabled : null]}
-              >
-                <Text style={[styles.useButtonText, (!affordable || pending) ? styles.useButtonTextDisabled : null]}>
-                  {pending ? "..." : "BUY"}
-                </Text>
-              </Pressable>
-            </View>
+              );
+            })}
           </View>
         );
       });
@@ -580,6 +601,18 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1,
     marginTop: 6,
+  },
+  partPrice: {
+    flexShrink: 1,
+    fontSize: 13,
+  },
+  partSectionLabel: {
+    color: "#07080d",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginBottom: 8,
+    marginTop: 14,
   },
   qtyLabel: {
     color: "#9ca4b0",
