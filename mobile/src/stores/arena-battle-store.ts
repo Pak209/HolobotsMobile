@@ -95,7 +95,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
 
   // Player plays a card (real-time: any moment stamina and requirements allow)
   playCard: (cardId) => {
-    const { currentBattle, playerCards } = get();
+    const { currentBattle, playerCards, opponentCards } = get();
     if (!currentBattle || currentBattle.status !== 'active') return;
 
     const card = playerCards.find(c => c.id === cardId);
@@ -110,9 +110,19 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     const newState = ArenaCombatEngine.resolveAction(currentBattle, card, currentBattle.player.holobotId);
     const resolvedAction = newState.actionHistory[newState.actionHistory.length - 1];
 
+    // Either meter can fill from this action (attacking builds the actor's,
+    // taking damage builds the target's) — keep a finisher surfaced for
+    // whichever fighter is charged.
     set({
       currentBattle: newState,
-      playerCards: CardPoolGenerator.cycleHand(playerCards, cardId),
+      playerCards: CardPoolGenerator.surfaceFinisher(
+        CardPoolGenerator.cycleHand(playerCards, cardId),
+        newState.player.specialMeter >= 100,
+      ),
+      opponentCards: CardPoolGenerator.surfaceFinisher(
+        opponentCards,
+        newState.opponent.specialMeter >= 100,
+      ),
       lastAction: resolvedAction,
       isAnimating: true,
       selectedCardId: null,
@@ -174,7 +184,14 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
 
     set({
       currentBattle: newState,
-      opponentCards: CardPoolGenerator.cycleHand(opponentCards, selectedCard.id),
+      opponentCards: CardPoolGenerator.surfaceFinisher(
+        CardPoolGenerator.cycleHand(opponentCards, selectedCard.id),
+        newState.opponent.specialMeter >= 100,
+      ),
+      playerCards: CardPoolGenerator.surfaceFinisher(
+        get().playerCards,
+        newState.player.specialMeter >= 100,
+      ),
       lastAction: resolvedAction,
       lastAIActionTime: Date.now(),
     });

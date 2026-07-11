@@ -231,6 +231,14 @@ export function BattleArenaView({
               percent={playerStaminaPercent}
               value={`${battle.player.stamina} / ${battle.player.maxStamina}`}
             />
+            <Text
+              style={[
+                styles.comboCounter,
+                battle.player.comboCounter > 0 ? styles.comboCounterActive : null,
+              ]}
+            >
+              {`COMBO ×${battle.player.comboCounter}`}
+            </Text>
           </View>
         </View>
 
@@ -257,6 +265,15 @@ export function BattleArenaView({
               percent={opponentStaminaPercent}
               value={`${battle.opponent.stamina} / ${battle.opponent.maxStamina}`}
             />
+            <Text
+              style={[
+                styles.comboCounter,
+                styles.comboCounterRight,
+                battle.opponent.comboCounter > 0 ? styles.comboCounterActive : null,
+              ]}
+            >
+              {`COMBO ×${battle.opponent.comboCounter}`}
+            </Text>
           </View>
         </View>
       </View>
@@ -509,6 +526,19 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 6,
     width: 22,
+  },
+  comboCounter: {
+    color: "#5a5a52",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  comboCounterActive: {
+    color: "#f0bf14",
+  },
+  comboCounterRight: {
+    textAlign: "right",
   },
   cardCostText: {
     fontSize: 18,
