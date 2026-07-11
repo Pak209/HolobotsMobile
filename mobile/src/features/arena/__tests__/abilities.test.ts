@@ -6,13 +6,15 @@ import { fireAbility, getAbility, HOLOBOT_ABILITIES } from '../abilities';
 import type { AbilityDefinition, ArenaFighter } from '@/types/arena';
 
 const ALLOWED_TRIGGERS = ['battle_start', 'after_hit', 'after_defend', 'on_counter', 'on_damaged'];
-const ALLOWED_EFFECTS = ['special_meter', 'stamina_gain', 'heal'];
+const ALLOWED_EFFECTS = ['special_meter', 'special_meter_from_damage', 'stamina_gain', 'heal'];
 
 // Effect bounds: strong enough to shape play, never strong enough to decide
-// a match on their own (plan §5).
+// a match on their own (plan §5). special_meter_from_damage is a multiplier
+// (also bounded per proc in fireAbility).
 const EFFECT_CAPS: Record<string, number> = {
   heal: 10,
   special_meter: 25,
+  special_meter_from_damage: 0.5,
   stamina_gain: 2,
 };
 
@@ -140,6 +142,21 @@ describe('fireAbility', () => {
     expect(fireAbility(wake, 'after_hit', { turnNumber: 1, damage: 10 })).toBeNull();
     wake.stamina = 6;
     expect(fireAbility(wake, 'after_hit', { turnNumber: 2, damage: 10 })?.id).toBe('ability.wake');
+  });
+
+  it('TSUIN charges bonus meter proportional to damage, bounded per proc', () => {
+    const tsuin = makeFighter(getAbility('TSUIN'));
+
+    fireAbility(tsuin, 'after_hit', { turnNumber: 1, damage: 20 });
+    expect(tsuin.specialMeter).toBe(10); // floor(20 * 0.5)
+
+    // A monster hit is capped at +12 so one identity can't break the pacing.
+    fireAbility(tsuin, 'after_hit', { turnNumber: 2, damage: 100 });
+    expect(tsuin.specialMeter).toBe(22);
+
+    // No damage context -> no gain.
+    fireAbility(tsuin, 'after_hit', { turnNumber: 3 });
+    expect(tsuin.specialMeter).toBe(22);
   });
 
   it('effects clamp to resource caps', () => {

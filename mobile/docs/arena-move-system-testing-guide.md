@@ -40,6 +40,10 @@ pattern the marketplace used pre-deploy.
 - [ ] The meter charges ONLY from your own landed Strikes and Combos —
       defending, and taking hits, add nothing. (Innate abilities like ERA's
       head start or TORA's defend bonus are the deliberate exceptions.)
+- [ ] Pacing: flat gains — every clean strike is +10 meter and every clean
+      combo +14 REGARDLESS of level or damage, so 7/7 is always ~10 strikes
+      and the 4/7 unlock lands around strike 6. Blocked hits earn half;
+      evaded hits earn nothing.
 - [ ] Counterplay: if the CPU has a defense trap armed, your finisher (either
       kind) gets blocked/countered like any attack. Try wasting one into a
       trap once, deliberately.
@@ -70,6 +74,9 @@ pattern the marketplace used pre-deploy.
         landed hits, at most every 2 battle actions.
       - **TORA** gains meter every time it arms a defense; **HARE** gains a
         chunk whenever a counter/evade trap springs.
+      - **TSUIN** is the damage-proportional exception: its hits grant bonus
+        meter equal to half the damage dealt (capped per hit), so it charges
+        noticeably faster than the flat +10 everyone else earns.
 - [ ] Abilities never appear in the four kit slots and cost nothing — they
       fire on their own when their condition is met.
 

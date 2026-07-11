@@ -151,6 +151,8 @@ export type AbilityCondition =
 
 export type AbilityEffect =
   | { type: 'special_meter'; value: number }
+  /** Bonus meter = floor(damage dealt * value), bounded per proc. */
+  | { type: 'special_meter_from_damage'; value: number }
   | { type: 'stamina_gain'; value: number }
   | { type: 'heal'; value: number };
 

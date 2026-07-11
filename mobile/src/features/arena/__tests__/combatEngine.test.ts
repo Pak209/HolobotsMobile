@@ -452,14 +452,27 @@ describe('ArenaCombatEngine', () => {
     const jab = makeCard({ id: 'jab-m', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
     const block = makeCard({ id: 'block-m', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
 
-    it('charges only from the attacker\'s own strikes and combos', () => {
+    it('charges a flat +10 per clean strike regardless of damage dealt', () => {
       const battle = makeBattle();
+      const heavy = makeCard({ id: 'heavy-m', templateId: 'heavy', type: 'strike', staminaCost: 2, baseDamage: 40 });
 
       const afterStrike = ArenaCombatEngine.resolveAction(battle, jab, battle.player.holobotId);
+      const afterHeavy = ArenaCombatEngine.resolveAction(battle, heavy, battle.player.holobotId);
 
-      expect(afterStrike.player.specialMeter).toBeGreaterThan(0);
+      expect(afterStrike.player.specialMeter).toBe(10);
+      expect(afterHeavy.player.specialMeter).toBe(10);
       // Taking the hit does NOT charge the defender.
       expect(afterStrike.opponent.specialMeter).toBe(0);
+    });
+
+    it('blocked attacks earn half meter', () => {
+      const battle = makeBattle();
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.opponent.holobotId);
+
+      const blocked = ArenaCombatEngine.resolveAction(defended, jab, defended.player.holobotId);
+
+      expect(blocked.actionHistory.at(-1)?.outcome).toBe('blocked');
+      expect(blocked.player.specialMeter).toBe(5);
     });
 
     it('does not charge from arming a defense', () => {

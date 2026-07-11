@@ -134,12 +134,12 @@ export const HOLOBOT_ABILITIES: Record<string, AbilityDefinition> = {
     id: 'ability.tsuin',
     holobotName: 'TSUIN',
     name: 'Twin Rhythm',
-    description: 'Every landed hit grants +2 special meter.',
+    description: 'Landed hits grant bonus special meter equal to half the damage dealt.',
     trigger: 'after_hit',
     conditions: [],
-    effects: [{ type: 'special_meter', value: 2 }],
+    effects: [{ type: 'special_meter_from_damage', value: 0.5 }],
     charges: { kind: 'unlimited' },
-    aiHints: ['steady_pressure'],
+    aiHints: ['steady_pressure', 'press_damage'],
   },
   WOLF: {
     id: 'ability.wolf',
@@ -226,6 +226,11 @@ function chargesAvailable(fighter: ArenaFighter, context: AbilityTriggerContext)
   }
 }
 
+// The meter economy is flat everywhere else (+10 strike / +14 combo), so a
+// damage-proportional ability proc is bounded to keep one identity from
+// breaking the pacing.
+const SPECIAL_METER_DAMAGE_PROC_CAP = 12;
+
 /**
  * Fires the fighter's ability for a trigger if its conditions and charges
  * allow, mutating the fighter's resources and abilityRuntime in place (the
@@ -253,6 +258,14 @@ export function fireAbility(
       case 'special_meter':
         fighter.specialMeter = Math.max(0, Math.min(100, fighter.specialMeter + effect.value));
         break;
+      case 'special_meter_from_damage': {
+        const bonus = Math.min(
+          SPECIAL_METER_DAMAGE_PROC_CAP,
+          Math.floor((context.damage ?? 0) * effect.value),
+        );
+        fighter.specialMeter = Math.max(0, Math.min(100, fighter.specialMeter + bonus));
+        break;
+      }
       case 'stamina_gain':
         fighter.stamina = Math.min(fighter.maxStamina, fighter.stamina + effect.value);
         break;
