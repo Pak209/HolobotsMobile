@@ -54,6 +54,14 @@ export function ArenaScreen() {
   const [latestSetup, setLatestSetup] = useState<BattleSetup | null>(null);
   const [roundProgress, setRoundProgress] = useState<{ currentRound: number; totalRounds: number } | null>(null);
   const persistedBattleIdRef = useRef<string | null>(null);
+  const [runTotals, setRunTotals] = useState({
+    exp: 0,
+    syncPoints: 0,
+    holos: 0,
+    blueprints: {} as Record<string, number>,
+    rounds: 0,
+  });
+  const accumulatedBattleIdRef = useRef<string | null>(null);
 
   const holobots = profile?.holobots ?? [];
   const userTokens = profile?.holosTokens ?? 0;
@@ -107,6 +115,20 @@ export function ArenaScreen() {
 
   useEffect(() => {
     if (battleResult && currentBattle) {
+      if (accumulatedBattleIdRef.current !== currentBattle.battleId) {
+        accumulatedBattleIdRef.current = currentBattle.battleId;
+        const rewards = battleResult.rewards;
+        setRunTotals((totals) => ({
+          exp: totals.exp + rewards.exp,
+          syncPoints: totals.syncPoints + rewards.syncPoints,
+          holos: totals.holos + (rewards.holos ?? 0),
+          blueprints: (rewards.blueprintRewards ?? []).reduce(
+            (acc, reward) => ({ ...acc, [reward.holobotKey]: (acc[reward.holobotKey] ?? 0) + reward.amount }),
+            { ...totals.blueprints },
+          ),
+          rounds: totals.rounds + 1,
+        }));
+      }
       setPhase("results");
       void persistBattleOutcome();
     }
@@ -130,6 +152,11 @@ export function ArenaScreen() {
       }
 
       setIsStartingBattle(true);
+
+      if (roundIndex === 0) {
+        setRunTotals({ exp: 0, syncPoints: 0, holos: 0, blueprints: {}, rounds: 0 });
+        accumulatedBattleIdRef.current = null;
+      }
 
       try {
         if (shouldChargeEntry) {
@@ -281,6 +308,7 @@ export function ArenaScreen() {
           visible
           didWin={battleResult.winnerId === currentBattle.player.holobotId}
           rewards={battleResult.rewards}
+          runTotals={runTotals}
           continueLabel={hasMoreRounds ? `NEXT ROUND ${latestSetup!.roundIndex + 2}` : "REMATCH"}
           subtitle={roundProgress ? `Round ${roundProgress.currentRound} of ${roundProgress.totalRounds}` : undefined}
           onRematch={handleRematch}

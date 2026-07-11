@@ -245,9 +245,11 @@ export function BattleArenaView({
               </Text>
             ) : null}
             {battle.player.armedDefenseTrap ? (
-              <Text numberOfLines={1} style={styles.trapBadge}>
-                {`⛨ ${battle.player.armedDefenseTrap.name.toUpperCase()}${(battle.player.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}`}
-              </Text>
+              <View style={styles.trapChip}>
+                <Text numberOfLines={1} style={styles.trapChipText}>
+                  {`⛨ ${battle.player.armedDefenseTrap.name.toUpperCase()}${(battle.player.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}${(battle.player.armedDefenseTrap.stackLevel ?? 0) > 0 ? ` ▲${battle.player.armedDefenseTrap.stackLevel}` : ""}`}
+                </Text>
+              </View>
             ) : null}
           </View>
         </View>
@@ -290,16 +292,14 @@ export function BattleArenaView({
               </Text>
             ) : null}
             {battle.opponent.armedDefenseTrap ? (
-              <Text numberOfLines={1} style={[styles.trapBadge, styles.abilityBadgeRight]}>
-                {`⛨ ${battle.opponent.armedDefenseTrap.name.toUpperCase()}${(battle.opponent.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}`}
-              </Text>
+              <View style={[styles.trapChip, styles.trapChipRight]}>
+                <Text numberOfLines={1} style={styles.trapChipText}>
+                  {`⛨ ${battle.opponent.armedDefenseTrap.name.toUpperCase()}${(battle.opponent.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}${(battle.opponent.armedDefenseTrap.stackLevel ?? 0) > 0 ? ` ▲${battle.opponent.armedDefenseTrap.stackLevel}` : ""}`}
+                </Text>
+              </View>
             ) : null}
           </View>
         </View>
-      </View>
-
-      <View style={styles.arenaLabelFrame}>
-        <Text style={styles.arenaLabelText}>BATTLE ARENA</Text>
       </View>
 
       <View style={styles.battleStageWrap}>
@@ -451,22 +451,6 @@ const styles = StyleSheet.create({
     transform: [{ skewX: "-35deg" }],
     width: 184,
   },
-  arenaLabelFrame: {
-    alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: "#050606",
-    borderColor: "#f0bf14",
-    borderWidth: 3,
-    marginTop: 14,
-    minWidth: 174,
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-  },
-  arenaLabelText: {
-    color: "#f0bf14",
-    fontSize: 17,
-    fontWeight: "900",
-  },
   backgroundAngles: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -574,12 +558,23 @@ const styles = StyleSheet.create({
   abilityBadgeRight: {
     textAlign: "right",
   },
-  trapBadge: {
-    color: "#2d8fff",
-    fontSize: 9,
+  trapChip: {
+    alignSelf: "flex-start",
+    backgroundColor: "#123a6b",
+    borderColor: "#2d8fff",
+    borderWidth: 1.5,
+    marginTop: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  trapChipRight: {
+    alignSelf: "flex-end",
+  },
+  trapChipText: {
+    color: "#9cd0ff",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 0.5,
-    marginTop: 2,
   },
   comboCounter: {
     color: "#5a5a52",

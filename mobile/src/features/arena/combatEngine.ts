@@ -15,12 +15,15 @@ import { fireAbility, getRuleBend } from './abilities';
 import { FINISHER_METER_REQUIREMENT } from './moveKits';
 import {
   createArmedDefenseTrap,
+  enhanceTrapWithStacks,
   evaluateCardAvailability,
+  getDefenseCooldownMs,
   getDefenseTrapCard,
   getCardCooldownTurns,
   getCardEfficiency,
   getFighterHealthPercent,
   getPlayableCards,
+  MAX_GUARD_STACKS,
   tickCooldownMap,
   type ArenaCardAvailability,
 } from './arenaCards';
@@ -138,6 +141,7 @@ export class ArenaCombatEngine {
       perfectDefenses: fighter.perfectDefenses ?? 0,
       combosCompleted: fighter.combosCompleted ?? 0,
       abilityRuntime: fighter.abilityRuntime ?? { firedCount: 0 },
+      guardStacks: fighter.guardStacks ?? 0,
     };
   }
 
@@ -270,6 +274,9 @@ export class ArenaCombatEngine {
       action.staminaChange = -staminaCost;
       actor.stamina = Math.max(0, actor.stamina - staminaCost);
       actor.staminaState = this.getStaminaState(actor.stamina);
+
+      // Attacking breaks the consecutive-defense streak (Guard Stacks).
+      actor.guardStacks = 0;
 
       // Attacking drops your own guard: an armed trap only persists while
       // its owner holds the defensive stance. SHADOW's bend lets the trap
@@ -892,18 +899,31 @@ export class ArenaCombatEngine {
     defender: ArenaFighter,
     attacker: ArenaFighter,
   ): void {
-    const defenseTrap = createArmedDefenseTrap(action.card);
+    const baseTrap = createArmedDefenseTrap(action.card);
     const defenseCard = getDefenseTrapCard(action.card);
     const staminaRestore = defenseCard?.staminaGain ?? 2;
+    const now = Date.now();
 
     defender.stamina = Math.min(defender.maxStamina, defender.stamina + staminaRestore);
     defender.staminaState = this.getStaminaState(defender.stamina);
     defender.isInDefenseMode = true;
     defender.defenseActive = true;
-    defender.defendedAt = Date.now();
-    defender.armedDefenseTrap = defenseTrap
-      ? { ...defenseTrap, charges: getRuleBend(defender, 'trap_extra_charge') ? 2 : 1 }
-      : defenseTrap;
+    defender.defendedAt = now;
+
+    // Guard Stacks: consecutive defense plays overcharge the trap being
+    // armed; the streak only breaks when this fighter attacks.
+    const stacks = Math.min(MAX_GUARD_STACKS, defender.guardStacks ?? 0);
+    defender.armedDefenseTrap = baseTrap
+      ? {
+          ...enhanceTrapWithStacks(baseTrap, stacks),
+          charges: getRuleBend(defender, 'trap_extra_charge') ? 2 : 1,
+        }
+      : baseTrap;
+    defender.guardStacks = Math.min(MAX_GUARD_STACKS, stacks + 1);
+
+    // Defense cooldown is time-based: waiting it out (instead of attacking)
+    // is exactly how the stack streak is kept alive.
+    defender.defenseCooldownUntil = now + getDefenseCooldownMs(action.card);
 
     action.outcome = 'blocked';
     action.damageDealt = 0;
@@ -1127,7 +1147,9 @@ export class ArenaCombatEngine {
     const cooldownField = actorRole === 'player' ? 'playerCardCooldowns' : 'opponentCardCooldowns';
     state[cooldownField] = tickCooldownMap({ ...(state[cooldownField] ?? {}) });
 
-    const cooldownTurns = getCardCooldownTurns(card);
+    // Defense cooldowns are time-based (set in resolveDefense); the
+    // play-based map remains only for potential non-defense cooldowns.
+    const cooldownTurns = card.type === 'defense' ? 0 : getCardCooldownTurns(card);
     if (cooldownTurns > 0) {
       state[cooldownField]![card.templateId] = cooldownTurns;
     }

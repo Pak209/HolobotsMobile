@@ -46,7 +46,9 @@ export type PvpFighterDoc = {
 
   // Combat state
   comboCounter: number;
+  guardStacks: number;
   isInDefenseMode: boolean;
+  defenseCooldownUntil?: number | null;
   defenseActive?: boolean;
   defendedAt?: number | null;
   armedDefenseTrap: ArmedDefenseTrap | null;
