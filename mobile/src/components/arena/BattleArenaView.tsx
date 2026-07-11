@@ -246,6 +246,11 @@ export function BattleArenaView({
             >
               {`COMBO ×${battle.player.comboCounter}`}
             </Text>
+            {battle.player.ability ? (
+              <Text numberOfLines={1} style={styles.abilityBadge}>
+                {`◈ ${battle.player.ability.name.toUpperCase()}`}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -281,6 +286,11 @@ export function BattleArenaView({
             >
               {`COMBO ×${battle.opponent.comboCounter}`}
             </Text>
+            {battle.opponent.ability ? (
+              <Text numberOfLines={1} style={[styles.abilityBadge, styles.abilityBadgeRight]}>
+                {`◈ ${battle.opponent.ability.name.toUpperCase()}`}
+              </Text>
+            ) : null}
           </View>
         </View>
       </View>
@@ -551,6 +561,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 6,
     width: 22,
+  },
+  abilityBadge: {
+    color: "#2fb9c9",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  abilityBadgeRight: {
+    textAlign: "right",
   },
   comboCounter: {
     color: "#5a5a52",

@@ -11,6 +11,7 @@ import type {
   DamageResult,
   StaminaState,
 } from '@/types/arena';
+import { fireAbility } from './abilities';
 import {
   createArmedDefenseTrap,
   evaluateCardAvailability,
@@ -69,6 +70,11 @@ export class ArenaCombatEngine {
     const now = Date.now();
     const initialPlayer = this.prepareFighter(player, now);
     const initialOpponent = this.prepareFighter(opponent, now);
+
+    // Innate abilities are live from the opening bell (e.g. ERA starts with
+    // meter already charged).
+    fireAbility(initialPlayer, 'battle_start', { turnNumber: 0 });
+    fireAbility(initialOpponent, 'battle_start', { turnNumber: 0 });
 
     return {
       battleId: buildBattleId(initialPlayer, initialOpponent),
@@ -136,6 +142,7 @@ export class ArenaCombatEngine {
       totalDamageDealt: fighter.totalDamageDealt ?? 0,
       perfectDefenses: fighter.perfectDefenses ?? 0,
       combosCompleted: fighter.combosCompleted ?? 0,
+      abilityRuntime: fighter.abilityRuntime ?? { firedCount: 0 },
     };
   }
 
@@ -245,6 +252,7 @@ export class ArenaCombatEngine {
     }
 
     this.applyCardEffects(card, actor, target, action);
+    this.applyAbilityTriggers(nextState, action, actor, target);
     this.advanceTurnState(nextState, actorRole, card);
 
     nextState.actionHistory.push(action);
@@ -403,6 +411,8 @@ export class ArenaCombatEngine {
     actor.specialMeter = 0;
     actor.comboCounter = 0;
     actor.totalDamageDealt = (actor.totalDamageDealt ?? 0) + actualDamage;
+
+    this.applyAbilityTriggers(nextState, action, actor, target);
 
     nextState.actionHistory.push(action);
     nextState.turnNumber += 1;
@@ -1005,6 +1015,42 @@ export class ArenaCombatEngine {
       attackerGain: Math.floor(damage * 1.5),
       defenderGain: Math.floor(damage * 0.5),
     };
+  }
+
+  // Fires both fighters' innate abilities for whatever this action triggered:
+  // arming a defense, landing a hit, countering/evading with a trap, or
+  // taking damage. Stamina states are refreshed afterwards since abilities
+  // can restore stamina.
+  private static applyAbilityTriggers(
+    state: BattleState,
+    action: BattleAction,
+    actor: ArenaFighter,
+    target: ArenaFighter,
+  ): void {
+    const context = { turnNumber: state.turnNumber };
+
+    const dealtDamage = action.actualDamage ?? 0;
+
+    if (action.actionType === 'defense') {
+      fireAbility(actor, 'after_defend', context);
+    } else {
+      if (action.outcome === 'hit' && dealtDamage > 0) {
+        fireAbility(actor, 'after_hit', {
+          ...context,
+          damage: dealtDamage,
+          comboCount: Math.max(actor.comboCounter, action.comboLength ?? 0),
+        });
+      }
+      if (action.wasCountered || action.perfectDefense) {
+        fireAbility(target, 'on_counter', context);
+      }
+      if (dealtDamage > 0) {
+        fireAbility(target, 'on_damaged', { ...context, damage: dealtDamage });
+      }
+    }
+
+    actor.staminaState = this.getStaminaState(actor.stamina);
+    target.staminaState = this.getStaminaState(target.stamina);
   }
 
   // Combat is real-time: stamina regenerates on the store's timer (via

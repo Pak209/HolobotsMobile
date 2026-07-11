@@ -53,6 +53,25 @@ pattern the marketplace used pre-deploy.
       which case it pokes the trap with a cheap strike first.
 - [ ] When exhausted it defends to recover rather than sitting idle.
 
+## 3b. Innate Abilities (one per Holobot, always active)
+
+- [ ] In battle, a small cyan `◈ ABILITY NAME` badge sits under each
+      fighter's combo counter (yours and the CPU's).
+- [ ] In the Move Lab, the identity strip shows the ability name +
+      description with an INNATE badge (no equip/upgrade buttons).
+- [ ] Spot-check identities in battle:
+      - **ERA** starts every battle with the meter already at ~1–2 segments
+        (Time Warp, +25 at the opening bell).
+      - **ACE**'s first landed hit visibly jumps the meter (+12, once per
+        battle — later hits gain only the normal amount).
+      - **KURAI** below 40% HP heals 8 on taking a hit, once per battle.
+      - **WOLF** while gassed (under 3 stamina) claws back +1 stamina on
+        landed hits, at most every 2 battle actions.
+      - **TORA** gains meter every time it arms a defense; **HARE** gains a
+        chunk whenever a counter/evade trap springs.
+- [ ] Abilities never appear in the four kit slots and cost nothing — they
+      fire on their own when their condition is met.
+
 ## 4. Move Lab (Inventory → MOVE LAB tab)
 
 - [ ] The old Cards tab is gone; MOVE LAB shows: holobot chips, an INNATE
@@ -99,9 +118,8 @@ pattern the marketplace used pre-deploy.
 
 ## Known deferred (by design — later plan phases)
 
-- Innate Abilities (Phase 4 content) — signature identity exists, abilities
-  don't yet.
-- PvP still runs the old room-based system (Phase 5 convergence).
+- PvP still runs the old room-based system (Phase 5 convergence) — abilities
+  and kits apply to PvE only for now.
 - Legacy card UI code and card-pack economy retirement (Phase 6; the dead
   Cards-tab code in InventoryScreen is flagged for cleanup).
 - Specialization respec (30 SP) — not yet exposed in UI.

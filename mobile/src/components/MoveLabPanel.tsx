@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { getAbility } from '@/features/arena/abilities';
 import {
   FINISHER_UNLOCK_SEGMENTS,
   getSignatureFinisher,
@@ -239,6 +240,7 @@ export function MoveLabPanel() {
   }
 
   const signature = getSignatureFinisher(holobot.name);
+  const ability = getAbility(holobot.name);
   const equippedBranch = equippedProgress.specializationId
     ? CATEGORY_SPECIALIZATIONS[equippedMove.type]?.find(
         (branch) => branch.id === equippedProgress.specializationId,
@@ -280,6 +282,17 @@ export function MoveLabPanel() {
           <Text style={styles.signatureMeta}>
             {`DMG ${signature.baseDamage} • Unlocks at ${SPECIAL_METER_SEGMENTS}/${SPECIAL_METER_SEGMENTS} special meter`}
           </Text>
+        </View>
+        <View style={styles.innateBadge}>
+          <Text style={styles.innateBadgeText}>INNATE</Text>
+        </View>
+      </View>
+
+      <View style={styles.signatureStrip}>
+        <View style={styles.signatureBody}>
+          <Text style={styles.signatureEyebrow}>ABILITY</Text>
+          <Text style={styles.signatureName}>{ability.name.toUpperCase()}</Text>
+          <Text style={styles.signatureMeta}>{ability.description}</Text>
         </View>
         <View style={styles.innateBadge}>
           <Text style={styles.innateBadgeText}>INNATE</Text>

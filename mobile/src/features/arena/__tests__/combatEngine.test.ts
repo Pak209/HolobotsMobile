@@ -396,6 +396,59 @@ describe('ArenaCombatEngine', () => {
     });
   });
 
+  describe('innate abilities in battle', () => {
+    it('battle_start abilities apply at initialization (ERA meter head start)', () => {
+      const player = makeFighter({ holobotId: 'player-1' });
+      player.ability = {
+        id: 'ability.era', holobotName: 'ERA', name: 'Time Warp',
+        description: 'Starts charged.', trigger: 'battle_start',
+        conditions: [], effects: [{ type: 'special_meter', value: 25 }],
+        charges: { kind: 'once_per_battle' }, aiHints: [],
+      };
+      const opponent = makeFighter({ holobotId: 'opponent-1' });
+
+      const battle = ArenaCombatEngine.initializeBattle(player, opponent, {
+        battleType: 'pve', allowPlayerControl: true,
+        playerHolobotId: player.holobotId, opponentHolobotId: opponent.holobotId,
+      });
+
+      expect(battle.player.specialMeter).toBe(25);
+      expect(battle.opponent.specialMeter).toBe(0);
+    });
+
+    it('after_hit abilities fire when a strike lands (once per battle)', () => {
+      const battle = makeBattle();
+      const withAbility = {
+        ...battle,
+        player: {
+          ...battle.player,
+          ability: {
+            id: 'ability.ace', holobotName: 'ACE', name: 'First Strike Protocol',
+            description: 'First hit pays.', trigger: 'after_hit' as const,
+            conditions: [], effects: [{ type: 'special_meter' as const, value: 12 }],
+            charges: { kind: 'once_per_battle' as const }, aiHints: [],
+          },
+          abilityRuntime: { firedCount: 0 },
+        },
+      };
+      const jab = makeCard({ id: 'jab-ab', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+
+      // Baseline: the identical hit without the ability attached.
+      const baseline = ArenaCombatEngine.resolveAction(battle, jab, battle.player.holobotId);
+      const afterFirst = ArenaCombatEngine.resolveAction(withAbility, jab, withAbility.player.holobotId);
+
+      // The first hit includes the +12 ability grant on top of normal gain...
+      expect(afterFirst.player.specialMeter).toBe(baseline.player.specialMeter + 12);
+
+      // ...and the once-per-battle charge does not fire again.
+      const baselineSecond = ArenaCombatEngine.resolveAction(baseline, jab, baseline.player.holobotId);
+      const afterSecond = ArenaCombatEngine.resolveAction(afterFirst, jab, afterFirst.player.holobotId);
+      expect(afterSecond.player.specialMeter - afterFirst.player.specialMeter).toBe(
+        baselineSecond.player.specialMeter - baseline.player.specialMeter,
+      );
+    });
+  });
+
   it('damage formula respects ATK and DEF', () => {
     const strike = makeCard({ templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 20 });
     const highAttack = makeFighter({ attack: 60, defense: 20 });
