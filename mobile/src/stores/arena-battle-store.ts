@@ -15,6 +15,11 @@ import { CardPoolGenerator } from '../lib/arena/card-generator';
 // Arena Battle Store
 // ============================================================================
 
+// Real-time pacing: both fighters gain +1 stamina on this interval, and the
+// AI plays its next card on its own cadence (independent of the player).
+const STAMINA_REGEN_INTERVAL_MS = 2000;
+const AI_ACTION_INTERVAL_MS = 950;
+
 interface ArenaBattleStore {
   // Current Battle State
   currentBattle: BattleState | null;
@@ -88,11 +93,10 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     get().startGameLoop();
   },
 
-  // Player plays a card
+  // Player plays a card (real-time: any moment stamina and requirements allow)
   playCard: (cardId) => {
     const { currentBattle, playerCards } = get();
     if (!currentBattle || currentBattle.status !== 'active') return;
-    if (currentBattle.currentActorId !== currentBattle.player.holobotId) return;
 
     const card = playerCards.find(c => c.id === cardId);
     if (!card) return;
@@ -108,10 +112,10 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
 
     set({
       currentBattle: newState,
+      playerCards: CardPoolGenerator.cycleHand(playerCards, cardId),
       lastAction: resolvedAction,
       isAnimating: true,
       selectedCardId: null,
-      lastAIActionTime: Date.now(),
     });
 
     // Check for battle end
@@ -144,27 +148,22 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     get().playCard(defenseCard.id);
   },
 
-  // Process AI turn
+  // Process an AI action (real-time: fired on a cadence by the game loop)
   processAITurn: () => {
     const { currentBattle, opponentCards } = get();
     if (!currentBattle) return;
     if (currentBattle.status !== 'active') return;
     if (get().isAnimating) return;
-    if (currentBattle.currentActorId !== currentBattle.opponent.holobotId) return;
-
-    set({ isAnimating: true });
 
     const selectedCard = ArenaCombatEngine.selectAIAction(currentBattle, opponentCards);
     if (!selectedCard) {
-      // Nothing playable (stamina drained / cooldowns): pass the turn so the
-      // battle keeps moving instead of the loop spinning on the AI forever.
-      set({
-        currentBattle: ArenaCombatEngine.passTurn(currentBattle, 'opponent'),
-        isAnimating: false,
-        lastAIActionTime: Date.now(),
-      });
+      // Nothing playable (stamina drained / cooldowns): wait for the timed
+      // stamina regen and try again on the next cadence.
+      set({ lastAIActionTime: Date.now() });
       return;
     }
+
+    set({ isAnimating: true });
 
     const newState = ArenaCombatEngine.resolveAction(
       currentBattle,
@@ -175,6 +174,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
 
     set({
       currentBattle: newState,
+      opponentCards: CardPoolGenerator.cycleHand(opponentCards, selectedCard.id),
       lastAction: resolvedAction,
       lastAIActionTime: Date.now(),
     });
@@ -221,44 +221,40 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
     });
   },
 
+  // Real-time game loop: stamina regenerates for both fighters on a fixed
+  // interval, and the AI acts on its own cadence whenever it has a playable
+  // card — it does not wait for the player.
   startGameLoop: () => {
     const existing = get().gameLoopIntervalId;
     if (existing) {
       clearInterval(existing);
     }
 
+    let lastRegenAt = Date.now();
+
     const intervalId = setInterval(() => {
-      const { currentBattle, isAnimating, lastAIActionTime } = get();
+      const { currentBattle, isAnimating, lastAIActionTime, opponentCards } = get();
       if (!currentBattle || currentBattle.status !== 'active') {
         return;
+      }
+
+      const now = Date.now();
+      let battle = currentBattle;
+      if (now - lastRegenAt >= STAMINA_REGEN_INTERVAL_MS) {
+        lastRegenAt = now;
+        battle = ArenaCombatEngine.regenerateStamina(battle);
+        set({ currentBattle: battle });
       }
 
       if (isAnimating) {
         return;
       }
 
-      const enoughDelayPassed = Date.now() - lastAIActionTime > 950;
-
       if (
-        currentBattle.currentActorId === currentBattle.opponent.holobotId &&
-        enoughDelayPassed
+        now - lastAIActionTime > AI_ACTION_INTERVAL_MS &&
+        ArenaCombatEngine.getPlayableCards(battle, 'opponent', opponentCards).length > 0
       ) {
         get().processAITurn();
-        return;
-      }
-
-      // Liveness guard: if it's the player's turn but they have no playable
-      // card (stamina drained, cooldowns), auto-pass so per-turn regen can
-      // unstick them instead of soft-locking the battle.
-      if (
-        currentBattle.currentActorId === currentBattle.player.holobotId &&
-        enoughDelayPassed &&
-        ArenaCombatEngine.getPlayableCards(currentBattle, 'player', get().playerCards).length === 0
-      ) {
-        set({
-          currentBattle: ArenaCombatEngine.passTurn(currentBattle, 'player'),
-          lastAIActionTime: Date.now(),
-        });
       }
     }, 180);
 
@@ -281,7 +277,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
   getPlayableCards: () => {
     const { currentBattle, playerCards } = get();
     if (!currentBattle) return [];
-    if (currentBattle.currentActorId !== currentBattle.player.holobotId) return [];
     return ArenaCombatEngine.getPlayableCards(currentBattle, 'player', playerCards);
   },
 
@@ -289,7 +284,6 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => ({
   canPlayCard: (cardId) => {
     const { currentBattle, playerCards } = get();
     if (!currentBattle) return false;
-    if (currentBattle.currentActorId !== currentBattle.player.holobotId) return false;
     const card = playerCards.find(c => c.id === cardId);
     if (!card) return false;
     return ArenaCombatEngine.canPlayCard(currentBattle, 'player', card);

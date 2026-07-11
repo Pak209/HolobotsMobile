@@ -309,6 +309,25 @@ export class CardPoolGenerator {
     return cards;
   }
 
+  /**
+   * Cycles a played card out of the visible tray: it leaves its slot and is
+   * reinserted at a random position in the back half of the queue, so the
+   * tray keeps surfacing fresh cards from the player's full battle deck.
+   */
+  static cycleHand(cards: ActionCard[], playedCardId: string): ActionCard[] {
+    const index = cards.findIndex((card) => card.id === playedCardId);
+    if (index === -1 || cards.length <= 1) {
+      return cards;
+    }
+
+    const next = [...cards];
+    const [played] = next.splice(index, 1);
+    const minIndex = Math.max(1, Math.ceil(next.length / 2));
+    const insertAt = minIndex + Math.floor(Math.random() * (next.length - minIndex + 1));
+    next.splice(insertAt, 0, played);
+    return next;
+  }
+
   private static shuffle<T>(items: T[]): T[] {
     const shuffled = [...items];
     for (let index = shuffled.length - 1; index > 0; index -= 1) {

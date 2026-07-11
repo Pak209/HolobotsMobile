@@ -261,29 +261,6 @@ export class ArenaCombatEngine {
   }
 
   /**
-   * Advances the turn without an action — used when the current actor has
-   * no playable card (stamina drained, everything on cooldown). Ticks
-   * cooldowns and regenerates stamina exactly like a played turn so a
-   * stalled fighter recovers instead of deadlocking the battle.
-   */
-  static passTurn(state: BattleState, actorRole: FighterRole): BattleState {
-    const nextState: BattleState = {
-      ...state,
-      player: this.recoverStamina(cloneFighter(state.player), TURN_STAMINA_REGEN),
-      opponent: this.recoverStamina(cloneFighter(state.opponent), TURN_STAMINA_REGEN),
-      playerCardCooldowns: tickCooldownMap({ ...(state.playerCardCooldowns ?? {}) }),
-      opponentCardCooldowns: tickCooldownMap({ ...(state.opponentCardCooldowns ?? {}) }),
-    };
-
-    nextState.turnNumber += 1;
-    nextState.currentActorId =
-      actorRole === 'player' ? nextState.opponent.holobotId : nextState.player.holobotId;
-    nextState.lastActionTimestamp = Date.now();
-
-    return nextState;
-  }
-
-  /**
    * Deterministic damage forecast mirroring resolveStrike/resolveCombo/
    * resolveFinisher (combo multiplier, finisher doubling, and the target's
    * armed-trap reduction, which finishers bypass). Drives AI decisions.
@@ -858,23 +835,21 @@ export class ArenaCombatEngine {
     };
   }
 
+  // Combat is real-time: stamina regenerates on the store's timer (via
+  // regenerateStamina), not per action, and a cooldown counts the ACTOR's own
+  // subsequent plays — "CD 2" means locked for your next two cards.
   private static advanceTurnState(
     state: BattleState,
     actorRole: FighterRole,
     card: ActionCard,
   ): void {
-    state.playerCardCooldowns = tickCooldownMap({ ...(state.playerCardCooldowns ?? {}) });
-    state.opponentCardCooldowns = tickCooldownMap({ ...(state.opponentCardCooldowns ?? {}) });
-
     const cooldownField = actorRole === 'player' ? 'playerCardCooldowns' : 'opponentCardCooldowns';
-    const cooldownTurns = getCardCooldownTurns(card);
+    state[cooldownField] = tickCooldownMap({ ...(state[cooldownField] ?? {}) });
 
+    const cooldownTurns = getCardCooldownTurns(card);
     if (cooldownTurns > 0) {
       state[cooldownField]![card.templateId] = cooldownTurns;
     }
-
-    state.player = this.recoverStamina(state.player, TURN_STAMINA_REGEN);
-    state.opponent = this.recoverStamina(state.opponent, TURN_STAMINA_REGEN);
   }
 
   private static selectBestDefense(cards: ActionCard[], situation: AISituation): ActionCard {

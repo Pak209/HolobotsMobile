@@ -75,7 +75,9 @@ describe('ArenaCombatEngine', () => {
 
     const resolved = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
 
-    expect(resolved.player.stamina).toBe(6);
+    // +2 from the guard trap's staminaGain; ambient regen is time-based in
+    // the store loop, not per action.
+    expect(resolved.player.stamina).toBe(5);
   });
 
   it('defense applies cooldown', () => {
@@ -89,19 +91,36 @@ describe('ArenaCombatEngine', () => {
     expect(ArenaCombatEngine.canPlayCard(resolved, 'player', block)).toBe(false);
   });
 
-  it('cooldown ticks down each turn', () => {
+  it("defense cooldown ticks down with the defender's own plays", () => {
     const battle = makeBattle();
     const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
     const jab = makeCard({ id: 'jab-1', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
     const cross = makeCard({ id: 'cross-1', templateId: 'cross', type: 'strike', staminaCost: 1, baseDamage: 9 });
+    const hook = makeCard({ id: 'hook-1', templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 12 });
 
     const afterDefense = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
-    const afterOpponentTurn = ArenaCombatEngine.resolveAction(afterDefense, jab, afterDefense.opponent.holobotId);
-    const afterPlayerTurn = ArenaCombatEngine.resolveAction(afterOpponentTurn, cross, afterOpponentTurn.player.holobotId);
+    // The opponent acting does NOT burn the player's cooldown...
+    const afterOpponentAction = ArenaCombatEngine.resolveAction(afterDefense, jab, afterDefense.opponent.holobotId);
+    // ...only the player's own plays do.
+    const afterPlayerStrike = ArenaCombatEngine.resolveAction(afterOpponentAction, cross, afterOpponentAction.player.holobotId);
+    const afterSecondStrike = ArenaCombatEngine.resolveAction(afterPlayerStrike, hook, afterPlayerStrike.player.holobotId);
 
     expect(afterDefense.playerCardCooldowns?.block).toBe(2);
-    expect(afterOpponentTurn.playerCardCooldowns?.block).toBe(1);
-    expect(afterPlayerTurn.playerCardCooldowns?.block).toBeUndefined();
+    expect(afterOpponentAction.playerCardCooldowns?.block).toBe(2);
+    expect(afterPlayerStrike.playerCardCooldowns?.block).toBe(1);
+    expect(afterSecondStrike.playerCardCooldowns?.block).toBeUndefined();
+  });
+
+  it('only defense cards carry cooldowns', () => {
+    const battle = makeBattle();
+    const strike = makeCard({ id: 'hook-cd', templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 12 });
+    const combo = makeCard({ id: 'flurry-cd', templateId: 'flurry', type: 'combo', staminaCost: 3, baseDamage: 25 });
+
+    const afterStrike = ArenaCombatEngine.resolveAction(battle, strike, battle.player.holobotId);
+    const afterCombo = ArenaCombatEngine.resolveAction(afterStrike, combo, afterStrike.player.holobotId);
+
+    expect(afterStrike.playerCardCooldowns?.hook).toBeUndefined();
+    expect(afterCombo.playerCardCooldowns?.flurry).toBeUndefined();
   });
 
   it('blocked attacks deal reduced damage', () => {
@@ -173,19 +192,13 @@ describe('ArenaCombatEngine', () => {
     expect(playerAttacked.actionHistory.at(-1)?.outcome).toBe('blocked');
   });
 
-  it('passTurn regenerates stamina, ticks cooldowns, and hands the turn over', () => {
+  it('regenerateStamina adds a point to both fighters (real-time tick)', () => {
     const battle = makeBattle({ stamina: 2 }, { stamina: 3 });
-    const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
-    const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
-    expect(defended.currentActorId).toBe(defended.opponent.holobotId);
 
-    const passed = ArenaCombatEngine.passTurn(defended, 'opponent');
+    const regenerated = ArenaCombatEngine.regenerateStamina(battle);
 
-    expect(passed.currentActorId).toBe(passed.player.holobotId);
-    expect(passed.turnNumber).toBe(defended.turnNumber + 1);
-    expect(passed.player.stamina).toBe(defended.player.stamina + 1);
-    expect(passed.opponent.stamina).toBe(defended.opponent.stamina + 1);
-    expect(passed.playerCardCooldowns?.block).toBe((defended.playerCardCooldowns?.block ?? 1) - 1);
+    expect(regenerated.player.stamina).toBe(3);
+    expect(regenerated.opponent.stamina).toBe(4);
   });
 
   describe('AI card selection', () => {

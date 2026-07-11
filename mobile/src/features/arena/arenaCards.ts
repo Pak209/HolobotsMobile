@@ -106,11 +106,6 @@ const DEFENSE_TRAP_CARD_MAP = Object.fromEntries(
   ]),
 ) as Record<string, DefenseTrapCardDefinition>;
 
-const CARD_COOLDOWN_TURNS: Record<string, number> = {
-  flurry: 1,
-  ultimate_combo: 1,
-};
-
 export function getDefenseTrapCard(card: Pick<ActionCard, 'templateId' | 'type'>): DefenseTrapCardDefinition | null {
   if (card.type !== 'defense') {
     return null;
@@ -138,14 +133,12 @@ export function createArmedDefenseTrap(card: ActionCard): ArmedDefenseTrap | nul
   };
 }
 
+// Cooldowns exist ONLY on defense cards (per trap tier); strikes, combos,
+// and finishers are limited by stamina and requirements instead.
 export function getCardCooldownTurns(card: Pick<ActionCard, 'templateId' | 'type'>): number {
   const defenseCard = getDefenseTrapCard(card);
   if (defenseCard) {
     return defenseCard.cooldownTurns;
-  }
-
-  if (typeof CARD_COOLDOWN_TURNS[card.templateId] === 'number') {
-    return CARD_COOLDOWN_TURNS[card.templateId];
   }
 
   return card.type === 'defense' ? 2 : 0;
