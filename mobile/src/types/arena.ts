@@ -77,9 +77,9 @@ export interface ArenaFighter {
   intelligence: number;
 
   // Arena-Specific State
-  stamina: number; // current hand size
-  maxStamina: number; // max hand size (7 base)
-  specialMeter: number; // 0-100
+  stamina: number; // current stamina points (regenerates in real time)
+  maxStamina: number; // stamina cap (7 base)
+  specialMeter: number; // 0-100; at 100 the Signature Finisher unlocks
 
   // Current Battle State
   staminaState: StaminaState;
@@ -112,6 +112,17 @@ export interface ArenaFighter {
   combosCompleted?: number;
   syncAbilities?: string[];
   syncModifiers?: SyncBattleModifiers;
+
+  // Innate identity: available at exactly 100 special meter, consumed on use.
+  // Never occupies a kit slot (arena-card-to-move-implementation-plan.md §6.2).
+  signatureFinisher?: ResolvedSignatureFinisher;
+}
+
+export interface ResolvedSignatureFinisher {
+  id: string;
+  name: string;
+  baseDamage: number;
+  animationId: string;
 }
 
 // ============================================================================
@@ -277,6 +288,8 @@ export interface ArenaBattleConfig {
   globalModifiers?: BattleModifier[];
   playerBattleCards?: Record<string, number>;
   opponentBattleCards?: Record<string, number>;
+  /** Saved loadout order used to compose kit slots 1-3 and slot 4. */
+  playerDeckTemplateIds?: string[];
 }
 
 export interface BattleModifier {

@@ -1,3 +1,4 @@
+import { getSignatureFinisher } from "@/features/arena/moveKits";
 import { getHolobotBattleStats, getHolobotFullImageSource } from "@/config/holobots";
 import {
   ARENA_TIERS,
@@ -59,6 +60,7 @@ export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaF
     speed: clampPositive(Math.floor(stats.speed * syncModifiers.tempoSpeedMultiplier), 50),
     intelligence: clampPositive(Math.floor(stats.intelligence * syncModifiers.focusIntelligenceMultiplier), 50),
     specialMove: holobot.rank ? `${holobot.rank} protocol` : "Arena Burst",
+    signatureFinisher: getSignatureFinisher(holobot.name),
     abilityDescription: `${holobot.name.toUpperCase()} enters battle with a mobile-first Arena loadout.`,
     stamina: 7,
     maxStamina: 7,
@@ -107,6 +109,7 @@ export function buildOpponentFighter(
     speed: clampPositive(Math.floor(stats.speed * 1.02), 52),
     intelligence: clampPositive(Math.floor(stats.intelligence * 1.03), 52),
     specialMove: `${tier.label} Finisher`,
+    signatureFinisher: getSignatureFinisher(opponentName),
     abilityDescription: `${opponentName} is piloted by the ${tier.label} AI.`,
     stamina: 7,
     maxStamina: 7,

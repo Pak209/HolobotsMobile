@@ -33,18 +33,19 @@ export function ArenaScreen() {
   const { profile, user } = useAuth();
   const {
     battleResult,
-    canPlayCard,
+    canUseMove,
     currentBattle,
-    getCardAvailabilityMap,
-    getPlayableCards,
+    getMoveAvailabilityMap,
+    getPlayableMoves,
     isAnimating,
     lastAction,
-    playCard,
-    playerCards,
+    playerMoves,
     resetBattle,
     selectedCardId,
     selectCard,
     startBattle,
+    useMove: playMove,
+    useSignatureFinisher: playSignature,
   } = useArenaBattleStore();
 
   const [phase, setPhase] = useState<ArenaPhase>("prebattle");
@@ -58,12 +59,12 @@ export function ArenaScreen() {
   const userTokens = profile?.holosTokens ?? 0;
   const userArenaPasses = profile?.arena_passes ?? 0;
   const playableCardIds = useMemo(
-    () => getPlayableCards().map((card) => card.id),
-    [currentBattle, getPlayableCards],
+    () => getPlayableMoves().map((move) => move.id),
+    [currentBattle, getPlayableMoves],
   );
   const cardAvailability = useMemo(
-    () => getCardAvailabilityMap(),
-    [currentBattle, getCardAvailabilityMap],
+    () => getMoveAvailabilityMap(),
+    [currentBattle, getMoveAvailabilityMap],
   );
 
   const persistBattleOutcome = useCallback(async () => {
@@ -148,6 +149,7 @@ export function ArenaScreen() {
           opponentHolobotId: opponent.holobotId,
           allowPlayerControl: true,
           playerBattleCards: profile.battle_cards,
+          playerDeckTemplateIds: profile.arena_deck_template_ids,
           potentialRewards: getArenaPotentialRewards(tier, opponent.name),
           tier: ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id),
         });
@@ -227,18 +229,19 @@ export function ArenaScreen() {
         <BattleArenaView
           battle={currentBattle}
           roundProgress={roundProgress}
-          playerCards={playerCards}
+          playerCards={playerMoves}
           playableCardIds={playableCardIds}
           cardAvailability={cardAvailability}
           selectedCardId={selectedCardId}
           lastAction={lastAction}
           isAnimating={isAnimating}
           onCardSelect={selectCard}
-          onCardPlay={(cardId) => {
-            if (canPlayCard(cardId)) {
-              playCard(cardId);
+          onCardPlay={(moveId) => {
+            if (canUseMove(moveId)) {
+              playMove(moveId);
             }
           }}
+          onSignaturePlay={playSignature}
         />
       ) : null}
 

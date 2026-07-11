@@ -262,8 +262,10 @@ export class ArenaCombatEngine {
 
   /**
    * Deterministic damage forecast mirroring resolveStrike/resolveCombo/
-   * resolveFinisher (combo multiplier, finisher doubling, and the target's
-   * armed-trap reduction, which finishers bypass). Drives AI decisions.
+   * resolveFinisher (combo multipliers, the technique-finisher capstone
+   * bonus, and the target's armed-trap reduction). Signature cards
+   * (templateId "signature.*") forecast the signature's doubled raw damage.
+   * Drives AI decisions.
    */
   static estimateCardDamage(
     attacker: ArenaFighter,
@@ -281,13 +283,136 @@ export class ArenaCombatEngine {
       damage = Math.floor(damage * this.calculateComboMultiplier(attacker.comboCounter));
     }
     if (card.type === 'finisher') {
-      damage = result.rawDamage * 2;
+      damage = card.templateId.startsWith('signature.')
+        ? result.rawDamage * 2
+        : Math.floor(damage * this.calculateComboMultiplier(attacker.comboCounter) * 1.25);
     }
-    if (defender.armedDefenseTrap && card.type !== 'finisher') {
+    if (defender.armedDefenseTrap) {
       damage = Math.max(0, Math.round(damage * (1 - defender.armedDefenseTrap.damageReduction)));
     }
 
     return damage;
+  }
+
+  // -------------------------------------------------------------------------
+  // Signature Finisher — innate Holobot identity, never part of the four-slot
+  // kit. Available at exactly 100 special meter, fired only by an explicit
+  // command (never auto-selected for the player), and consumes the full
+  // meter. Traps still apply, preserving counterplay.
+  // -------------------------------------------------------------------------
+
+  static readonly SIGNATURE_METER_COST = SPECIAL_METER_MAX;
+
+  static canUseSignatureFinisher(state: BattleState, role: FighterRole): boolean {
+    const fighter = role === 'player' ? state.player : state.opponent;
+    return state.status === 'active' && fighter.specialMeter >= SPECIAL_METER_MAX;
+  }
+
+  static buildSignatureCard(fighter: ArenaFighter): ActionCard {
+    const signature = fighter.signatureFinisher ?? {
+      id: 'signature.generic',
+      name: 'Arena Burst',
+      baseDamage: 38,
+      animationId: 'finisher_signature',
+    };
+
+    return {
+      id: signature.id,
+      templateId: signature.id,
+      name: signature.name,
+      type: 'finisher',
+      staminaCost: 0,
+      requirements: [],
+      baseDamage: signature.baseDamage,
+      speedModifier: 0.8,
+      effects: [],
+      animationId: signature.animationId,
+      description: `${fighter.name}'s signature finisher.`,
+    };
+  }
+
+  static resolveSignatureFinisher(state: BattleState, actorId: string): BattleState {
+    const actorRole: FighterRole = actorId === state.player.holobotId ? 'player' : 'opponent';
+    if (!this.canUseSignatureFinisher(state, actorRole)) {
+      return state;
+    }
+
+    const nextState: BattleState = {
+      ...state,
+      player: cloneFighter(state.player),
+      opponent: cloneFighter(state.opponent),
+      actionHistory: [...state.actionHistory],
+    };
+
+    const actor = actorRole === 'player' ? nextState.player : nextState.opponent;
+    const target = actorRole === 'player' ? nextState.opponent : nextState.player;
+    const card = this.buildSignatureCard(actor);
+    const now = Date.now();
+
+    const action: BattleAction = {
+      id: `arena-signature-${now}`,
+      battleId: nextState.battleId,
+      turnNumber: nextState.turnNumber,
+      actionOrder: nextState.actionHistory.length,
+      actorId: actor.holobotId,
+      actorRole,
+      targetId: target.holobotId,
+      card,
+      actionType: 'finisher',
+      timestamp: now,
+      elapsedMs: nextState.createdAt ? now - nextState.createdAt : 0,
+      outcome: 'hit',
+      damageDealt: 0,
+      actualDamage: 0,
+      staminaChange: 0,
+      specialMeterChange: -SPECIAL_METER_MAX,
+      wasCountered: false,
+      triggeredCombo: false,
+      perfectDefense: false,
+      comboLength: actor.comboCounter,
+      openedCounterWindow: false,
+      animationId: card.animationId,
+      animationDuration: 1100,
+    };
+
+    // Committing to the super drops the actor's own guard, like any attack.
+    if (actor.armedDefenseTrap) {
+      actor.armedDefenseTrap = null;
+      actor.isInDefenseMode = false;
+      actor.defenseActive = false;
+      actor.defendedAt = undefined;
+    }
+    actor.lastActionTime = now;
+
+    const damageResult = this.calculateDamage(actor, target, card, false, 0);
+    let actualDamage = damageResult.rawDamage * 2;
+    if (target.armedDefenseTrap) {
+      const trapResult = this.consumeDefenseTrap(actor, target, actualDamage);
+      if (trapResult) {
+        actualDamage = trapResult.finalDamage;
+        action.outcome = trapResult.outcome;
+        action.wasCountered = trapResult.counterDamage > 0;
+        action.perfectDefense = trapResult.evaded;
+      }
+    }
+
+    action.damageDealt = damageResult.rawDamage * 2;
+    action.actualDamage = actualDamage;
+
+    target.currentHP = Math.max(0, target.currentHP - actualDamage);
+    actor.specialMeter = 0;
+    actor.comboCounter = 0;
+    actor.totalDamageDealt = (actor.totalDamageDealt ?? 0) + actualDamage;
+
+    nextState.actionHistory.push(action);
+    nextState.turnNumber += 1;
+    nextState.lastActionTimestamp = now;
+
+    if (this.checkWinCondition(nextState).isComplete) {
+      nextState.status = 'completed';
+    }
+
+    return nextState;
   }
 
   static resolveDefenseTrap({
@@ -450,6 +575,27 @@ export class ArenaCombatEngine {
     return fighter;
   }
 
+  /**
+   * Full AI decision including the Signature Finisher (plan §10): fire the
+   * signature when it kills, or as soon as the meter is full and the player
+   * has no armed trap to eat it; otherwise pick the best kit move.
+   */
+  static selectAICommand(
+    state: BattleState,
+    moves: ActionCard[],
+  ): { kind: 'signature' } | { kind: 'move'; card: ActionCard } | null {
+    if (this.canUseSignatureFinisher(state, 'opponent')) {
+      const signatureCard = this.buildSignatureCard(state.opponent);
+      const signatureDamage = this.estimateCardDamage(state.opponent, state.player, signatureCard);
+      if (signatureDamage >= state.player.currentHP || !state.player.armedDefenseTrap) {
+        return { kind: 'signature' };
+      }
+    }
+
+    const card = this.selectAIAction(state, moves);
+    return card ? { kind: 'move', card } : null;
+  }
+
   static selectAIAction(
     state: BattleState,
     cards: ActionCard[],
@@ -485,13 +631,11 @@ export class ArenaCombatEngine {
       return lethal;
     }
 
-    // 2) A full special meter is banked damage with nothing to gain from
-    //    holding it (further gains are wasted at the cap) — spend it.
-    if (situation.hasFinisherReady) {
-      const finisher = attacks.find((card) => card.type === 'finisher');
-      if (finisher) {
-        return finisher;
-      }
+    // 2) A playable Technique Finisher means the combo gate is already met —
+    //    it IS the payoff of the chain, so cash it.
+    const techniqueFinisher = attacks.find((card) => card.type === 'finisher');
+    if (techniqueFinisher) {
+      return techniqueFinisher;
     }
 
     // 3) Defense is for recovering stamina, not hiding: brace only when no
@@ -742,21 +886,45 @@ export class ArenaCombatEngine {
     attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + actualDamage;
   }
 
+  // Technique Finisher (kit slot 4): the capstone of a pressure chain. It is
+  // gated by stamina + combo requirements, works at ANY special-meter value,
+  // never consumes meter, and can be blocked/countered like other attacks.
+  // The 100-meter super is the separate Signature Finisher below.
   private static resolveFinisher(
     action: BattleAction,
     attacker: ArenaFighter,
     defender: ArenaFighter,
   ): void {
-    const damageResult = this.calculateDamage(attacker, defender, action.card, false, 0);
-    const actualDamage = damageResult.rawDamage * 2;
+    const comboLength = attacker.comboCounter;
+    const capstoneBonus = 1.25;
+    const damageResult = this.calculateDamage(attacker, defender, action.card, false, comboLength);
+    let actualDamage = Math.floor(
+      damageResult.finalDamage * this.calculateComboMultiplier(comboLength) * capstoneBonus,
+    );
+    let outcome: ActionOutcome = 'hit';
 
-    action.damageDealt = actualDamage;
+    const trapResult = this.consumeDefenseTrap(attacker, defender, actualDamage);
+    if (trapResult) {
+      actualDamage = trapResult.finalDamage;
+      outcome = trapResult.outcome;
+      action.wasCountered = trapResult.counterDamage > 0;
+      action.perfectDefense = trapResult.evaded;
+    }
+
+    action.damageDealt = Math.floor(damageResult.rawDamage * capstoneBonus);
     action.actualDamage = actualDamage;
-    action.outcome = 'hit';
+    action.outcome = outcome;
+    action.comboLength = comboLength;
 
     defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
-    attacker.specialMeter = 0;
+
+    const meterGain = this.getMeterGainForDamage('combo', actualDamage);
+    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain.attackerGain);
+    defender.specialMeter = capMeter(defender.specialMeter + meterGain.defenderGain);
+    action.specialMeterChange = meterGain.attackerGain;
+
     attacker.comboCounter = 0;
+    attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;
     attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + actualDamage;
   }
 

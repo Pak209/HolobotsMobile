@@ -309,57 +309,6 @@ export class CardPoolGenerator {
     return cards;
   }
 
-  static readonly BONUS_FINISHER_ID_PREFIX = 'bonus-finisher-';
-
-  /**
-   * Keeps a finisher on the tray while the special meter is charged: a
-   * finisher buried past the visible slots surfaces to the front, and a
-   * fighter whose deck owns no finisher at all is lent a default one. The
-   * loaner is taken back once the meter is no longer full.
-   */
-  static surfaceFinisher(cards: ActionCard[], meterReady: boolean, traySize = 4): ActionCard[] {
-    if (!meterReady) {
-      const withoutBonus = cards.filter((card) => !card.id.startsWith(this.BONUS_FINISHER_ID_PREFIX));
-      return withoutBonus.length === cards.length ? cards : withoutBonus;
-    }
-
-    if (cards.slice(0, traySize).some((card) => card.type === 'finisher')) {
-      return cards;
-    }
-
-    const buriedIndex = cards.findIndex((card) => card.type === 'finisher');
-    if (buriedIndex >= 0) {
-      const next = [...cards];
-      const [finisher] = next.splice(buriedIndex, 1);
-      next.unshift(finisher);
-      return next;
-    }
-
-    return [
-      { ...CARD_TEMPLATES.hyperStrike, id: `${this.BONUS_FINISHER_ID_PREFIX}${this.generateId()}` },
-      ...cards,
-    ];
-  }
-
-  /**
-   * Cycles a played card out of the visible tray: it leaves its slot and is
-   * reinserted at a random position in the back half of the queue, so the
-   * tray keeps surfacing fresh cards from the player's full battle deck.
-   */
-  static cycleHand(cards: ActionCard[], playedCardId: string): ActionCard[] {
-    const index = cards.findIndex((card) => card.id === playedCardId);
-    if (index === -1 || cards.length <= 1) {
-      return cards;
-    }
-
-    const next = [...cards];
-    const [played] = next.splice(index, 1);
-    const minIndex = Math.max(1, Math.ceil(next.length / 2));
-    const insertAt = minIndex + Math.floor(Math.random() * (next.length - minIndex + 1));
-    next.splice(insertAt, 0, played);
-    return next;
-  }
-
   private static shuffle<T>(items: T[]): T[] {
     const shuffled = [...items];
     for (let index = shuffled.length - 1; index > 0; index -= 1) {

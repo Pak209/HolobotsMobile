@@ -222,11 +222,37 @@ describe('ArenaCombatEngine', () => {
       expect(choice?.id).toBe(jab.id);
     });
 
-    it('spends a full special meter on its finisher', () => {
+    it('fires its signature the moment the meter is full', () => {
       const battle = makeBattle({}, { specialMeter: 100 });
-      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, finisher, block]);
+      const command = ArenaCombatEngine.selectAICommand(battle, [jab, hook, block]);
 
-      expect(choice?.type).toBe('finisher');
+      expect(command).toEqual({ kind: 'signature' });
+    });
+
+    it('holds its signature while the player has a trap armed and probes instead', () => {
+      const playerBlock = makeCard({ id: 'block-p', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+      const battle = makeBattle({}, { specialMeter: 100 });
+      const defended = ArenaCombatEngine.resolveAction(battle, playerBlock, battle.player.holobotId);
+
+      const command = ArenaCombatEngine.selectAICommand(defended, [jab, hook, block]);
+
+      expect(command?.kind).toBe('move');
+    });
+
+    it('cashes a playable technique finisher instead of extending the chain', () => {
+      const technique = makeCard({
+        id: 'tf-ai',
+        templateId: 'finisher.tech',
+        type: 'finisher',
+        staminaCost: 3,
+        baseDamage: 30,
+        requirements: [{ type: 'combo', operator: 'gte', value: 2 }],
+      });
+      const battle = makeBattle({}, { comboCounter: 2 });
+
+      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, technique, block]);
+
+      expect(choice?.id).toBe('tf-ai');
     });
 
     it('defends to recover when it cannot afford any attack', () => {
@@ -280,6 +306,80 @@ describe('ArenaCombatEngine', () => {
     expect(winCheck.isComplete).toBe(true);
     expect(winCheck.winnerId).toBe(battle.player.holobotId);
     expect(winCheck.winType).toBe('finisher');
+  });
+
+  describe('technique finisher (kit slot 4)', () => {
+    const technique = makeCard({
+      id: 'tf-1',
+      templateId: 'finisher.tech',
+      type: 'finisher',
+      staminaCost: 3,
+      baseDamage: 30,
+      requirements: [{ type: 'combo', operator: 'gte', value: 2 }],
+    });
+
+    it('is usable below full meter once the combo gate is met', () => {
+      const battle = makeBattle({ comboCounter: 2, specialMeter: 40 });
+
+      expect(ArenaCombatEngine.canPlayCard(battle, 'player', technique)).toBe(true);
+    });
+
+    it('is blocked without an active combo chain even at full meter', () => {
+      const battle = makeBattle({ comboCounter: 0, specialMeter: 100 });
+
+      expect(ArenaCombatEngine.canPlayCard(battle, 'player', technique)).toBe(false);
+    });
+
+    it('never consumes special meter and cashes the combo chain', () => {
+      const battle = makeBattle({ comboCounter: 2, specialMeter: 100 });
+
+      const resolved = ArenaCombatEngine.resolveAction(battle, technique, battle.player.holobotId);
+
+      expect(resolved.player.specialMeter).toBe(100);
+      expect(resolved.player.comboCounter).toBe(0);
+      expect(resolved.opponent.currentHP).toBeLessThan(battle.opponent.currentHP);
+    });
+
+    it('can be eaten by an armed defense trap', () => {
+      const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+      const battle = makeBattle({ comboCounter: 2 });
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.opponent.holobotId);
+
+      const resolved = ArenaCombatEngine.resolveAction(defended, technique, defended.player.holobotId);
+
+      expect(resolved.actionHistory.at(-1)?.outcome).toBe('blocked');
+      expect(resolved.opponent.armedDefenseTrap).toBeNull();
+    });
+  });
+
+  describe('signature finisher', () => {
+    it('is unavailable below 100 meter and a resolve attempt is a no-op', () => {
+      const battle = makeBattle({ specialMeter: 99 });
+
+      expect(ArenaCombatEngine.canUseSignatureFinisher(battle, 'player')).toBe(false);
+      expect(ArenaCombatEngine.resolveSignatureFinisher(battle, battle.player.holobotId)).toBe(battle);
+    });
+
+    it('consumes exactly the full meter and deals damage', () => {
+      const battle = makeBattle({ specialMeter: 100 });
+
+      const resolved = ArenaCombatEngine.resolveSignatureFinisher(battle, battle.player.holobotId);
+
+      expect(resolved.player.specialMeter).toBe(0);
+      expect(resolved.opponent.currentHP).toBeLessThan(battle.opponent.currentHP);
+      expect(resolved.actionHistory.at(-1)?.actionType).toBe('finisher');
+    });
+
+    it('respects an armed defense trap so counterplay is preserved', () => {
+      const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+      const battle = makeBattle({ specialMeter: 100 });
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.opponent.holobotId);
+
+      const resolved = ArenaCombatEngine.resolveSignatureFinisher(defended, defended.player.holobotId);
+
+      expect(resolved.actionHistory.at(-1)?.outcome).toBe('blocked');
+      expect(resolved.player.specialMeter).toBe(0);
+    });
   });
 
   it('damage formula respects ATK and DEF', () => {

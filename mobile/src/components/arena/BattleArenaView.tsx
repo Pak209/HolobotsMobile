@@ -21,6 +21,7 @@ type BattleArenaViewProps = {
   isAnimating: boolean;
   onCardSelect: (cardId: string | null) => void;
   onCardPlay: (cardId: string) => void;
+  onSignaturePlay: () => void;
 };
 
 function getCardColors(type: CardType) {
@@ -45,7 +46,7 @@ function getCardLabel(type: CardType) {
     case "defense":
       return "DEFEND";
     case "finisher":
-      return "FINISH";
+      return "TECHNIQUE";
   }
 }
 
@@ -189,6 +190,7 @@ export function BattleArenaView({
   isAnimating,
   onCardSelect: _onCardSelect,
   onCardPlay,
+  onSignaturePlay,
 }: BattleArenaViewProps) {
   const visibleCards = useMemo(() => {
     const slots = playerCards.slice(0, CARD_SLOTS);
@@ -324,22 +326,32 @@ export function BattleArenaView({
           <View style={styles.specialGaugeTrack}>
             <View style={[styles.specialGaugeFill, { width: `${playerSpecialPercent * 100}%` }]} />
           </View>
-          <View style={styles.specialCluster}>
-            <Text style={styles.specialIcon}>✦</Text>
-            <Text style={styles.specialText}>
-              {finisherReady ? "READY" : `${Math.floor(battle.player.specialMeter)}%`}
-            </Text>
-          </View>
+          {finisherReady ? (
+            <Pressable
+              disabled={isAnimating}
+              onPress={onSignaturePlay}
+              style={[styles.signatureButton, isAnimating ? styles.signatureButtonDisabled : null]}
+            >
+              <Text numberOfLines={1} style={styles.signatureButtonText}>
+                {`✦ ${(battle.player.signatureFinisher?.name || "SIGNATURE").toUpperCase()}`}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={styles.specialCluster}>
+              <Text style={styles.specialIcon}>{"✦"}</Text>
+              <Text style={styles.specialText}>{`${Math.floor(battle.player.specialMeter)}%`}</Text>
+            </View>
+          )}
         </View>
         <View style={styles.cardBayHeader}>
           <Text style={styles.deckHint}>
             {battle.player.armedDefenseTrap
               ? "DEFENSE TRAP ARMED"
               : finisherReady
-                ? "FINISHER READY"
+                ? "SIGNATURE READY — TAP THE GOLD BUTTON"
                 : playerCanAct
-                  ? "TAP A CARD TO PLAY"
-                  : "WAITING FOR ACTION"}
+                  ? "TAP A MOVE TO FIGHT"
+                  : "WAITING FOR STAMINA"}
           </Text>
         </View>
 
@@ -629,6 +641,23 @@ const styles = StyleSheet.create({
     height: "82%",
     marginTop: 12,
     width: "72%",
+  },
+  signatureButton: {
+    backgroundColor: "#f0bf14",
+    borderColor: "#07080d",
+    borderWidth: 2,
+    maxWidth: 190,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  signatureButtonDisabled: {
+    opacity: 0.55,
+  },
+  signatureButtonText: {
+    color: "#07080d",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   specialCluster: {
     alignItems: "center",
