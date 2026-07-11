@@ -33,6 +33,7 @@ export function buildPvpFighterDoc(
   // (battle_start, e.g. ERA's meter head start) fire here at entry instead.
   fighter.abilityRuntime = fighter.abilityRuntime ?? { firedCount: 0 };
   fireAbility(fighter, 'battle_start', { turnNumber: 0 });
+  ArenaCombatEngine.applyMeterFloor(fighter);
   const kit = resolveCombatKit({
     savedKitTemplateIds: holobot.combatKit?.slots,
     deckTemplateIds: profile.arena_deck_template_ids,

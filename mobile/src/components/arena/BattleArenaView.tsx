@@ -244,6 +244,11 @@ export function BattleArenaView({
                 {`◈ ${battle.player.ability.name.toUpperCase()}`}
               </Text>
             ) : null}
+            {battle.player.armedDefenseTrap ? (
+              <Text numberOfLines={1} style={styles.trapBadge}>
+                {`⛨ ${battle.player.armedDefenseTrap.name.toUpperCase()}${(battle.player.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}`}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -282,6 +287,11 @@ export function BattleArenaView({
             {battle.opponent.ability ? (
               <Text numberOfLines={1} style={[styles.abilityBadge, styles.abilityBadgeRight]}>
                 {`◈ ${battle.opponent.ability.name.toUpperCase()}`}
+              </Text>
+            ) : null}
+            {battle.opponent.armedDefenseTrap ? (
+              <Text numberOfLines={1} style={[styles.trapBadge, styles.abilityBadgeRight]}>
+                {`⛨ ${battle.opponent.armedDefenseTrap.name.toUpperCase()}${(battle.opponent.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}`}
               </Text>
             ) : null}
           </View>
@@ -563,6 +573,13 @@ const styles = StyleSheet.create({
   },
   abilityBadgeRight: {
     textAlign: "right",
+  },
+  trapBadge: {
+    color: "#2d8fff",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    marginTop: 2,
   },
   comboCounter: {
     color: "#5a5a52",

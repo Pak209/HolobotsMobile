@@ -51,7 +51,13 @@ function PlayerMeters({ label, player }: { label: string; player: PvpFighterDoc 
         <Text style={styles.meterName}>{player.username || "Waiting"}</Text>
       </View>
       <Text style={styles.meterBot}>
-        {player.holobotName ? `${player.holobotName} Lv ${player.level} • ◈ COMBO ×${player.comboCounter}` : "No pilot connected"}
+        {player.holobotName
+          ? `${player.holobotName} Lv ${player.level} • COMBO ×${player.comboCounter}${
+              player.armedDefenseTrap
+                ? ` • ⛨ ${player.armedDefenseTrap.name.toUpperCase()}${(player.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}`
+                : ""
+            }`
+          : "No pilot connected"}
       </Text>
 
       <View style={styles.meterRow}>

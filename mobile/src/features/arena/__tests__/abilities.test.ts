@@ -5,7 +5,20 @@ import { getSignatureFinisher } from '../moveKits';
 import { fireAbility, getAbility, HOLOBOT_ABILITIES } from '../abilities';
 import type { AbilityDefinition, ArenaFighter } from '@/types/arena';
 
-const ALLOWED_TRIGGERS = ['battle_start', 'after_hit', 'after_defend', 'on_counter', 'on_damaged'];
+const ALLOWED_TRIGGERS = ['battle_start', 'after_hit', 'after_defend', 'on_counter', 'on_damaged', 'passive'];
+const ALLOWED_BENDS = [
+  'pierce_traps_first_attack',
+  'chain_survives_block',
+  'guard_holds_through_first_attack',
+  'meter_floor',
+  'trap_extra_charge',
+  'finisher_costs_requirement_only',
+  'full_stamina_discount',
+  'max_hit_percent_cap',
+  'chain_survives_combo_cash',
+  'lifesteal_below_percent',
+  'ignore_stamina_damage_penalty',
+];
 const ALLOWED_EFFECTS = ['special_meter', 'special_meter_from_damage', 'stamina_gain', 'heal'];
 
 // Effect bounds: strong enough to shape play, never strong enough to decide
@@ -70,16 +83,51 @@ describe('ability content validation (12 Holobots)', () => {
     expect(abilityNames.size).toBe(HOLOBOT_NAMES.length);
   });
 
-  it('all abilities use shared triggers and bounded typed effects', () => {
+  it('all abilities use shared triggers and bounded typed mechanics', () => {
     for (const ability of Object.values(HOLOBOT_ABILITIES)) {
       expect(ALLOWED_TRIGGERS).toContain(ability.trigger);
-      expect(ability.effects.length).toBeGreaterThan(0);
       expect(ability.description.length).toBeGreaterThan(10);
+      // Every ability acts through at least one shared mechanism.
+      expect(ability.effects.length > 0 || Boolean(ability.ruleBend)).toBe(true);
 
       for (const effect of ability.effects) {
         expect(ALLOWED_EFFECTS).toContain(effect.type);
         expect(effect.value).toBeGreaterThan(0);
         expect(effect.value).toBeLessThanOrEqual(EFFECT_CAPS[effect.type]);
+      }
+
+      if (ability.ruleBend) {
+        expect(ALLOWED_BENDS).toContain(ability.ruleBend.kind);
+      }
+    }
+  });
+
+  it('rule bends stay inside their balance bounds', () => {
+    const bends = Object.values(HOLOBOT_ABILITIES)
+      .map((ability) => ability.ruleBend)
+      .filter((bend): bend is NonNullable<typeof bend> => Boolean(bend));
+
+    // One bend per Holobot, no duplicated rule.
+    expect(new Set(bends.map((bend) => bend.kind)).size).toBe(bends.length);
+
+    for (const bend of bends) {
+      switch (bend.kind) {
+        case 'meter_floor':
+          expect(bend.value).toBeLessThanOrEqual(25);
+          break;
+        case 'max_hit_percent_cap':
+          expect(bend.value).toBeGreaterThanOrEqual(0.2);
+          break;
+        case 'full_stamina_discount':
+          expect(bend.value).toBeLessThanOrEqual(1);
+          break;
+        case 'lifesteal_below_percent':
+          expect(bend.ratio).toBeLessThanOrEqual(0.25);
+          expect(bend.battleCap).toBeLessThanOrEqual(30);
+          expect(bend.threshold).toBeLessThanOrEqual(0.5);
+          break;
+        default:
+          break;
       }
     }
   });
@@ -101,47 +149,41 @@ describe('ability content validation (12 Holobots)', () => {
 });
 
 describe('fireAbility', () => {
-  it('once_per_battle fires exactly once (ACE)', () => {
-    const fighter = makeFighter(getAbility('ACE'));
+  const meterOnHit = (charges: AbilityDefinition['charges']): AbilityDefinition => ({
+    id: 'ability.test',
+    holobotName: 'TEST',
+    name: 'Test Surge',
+    description: 'Test ability that grants meter on hit.',
+    trigger: 'after_hit',
+    conditions: [],
+    effects: [{ type: 'special_meter', value: 12 }],
+    charges,
+    aiHints: [],
+  });
 
-    expect(fireAbility(fighter, 'after_hit', { turnNumber: 1, damage: 10, comboCount: 1 })?.id).toBe('ability.ace');
+  it('once_per_battle fires exactly once', () => {
+    const fighter = makeFighter(meterOnHit({ kind: 'once_per_battle' }));
+
+    expect(fireAbility(fighter, 'after_hit', { turnNumber: 1, damage: 10 })?.id).toBe('ability.test');
     expect(fighter.specialMeter).toBe(12);
-    expect(fireAbility(fighter, 'after_hit', { turnNumber: 2, damage: 10, comboCount: 2 })).toBeNull();
+    expect(fireAbility(fighter, 'after_hit', { turnNumber: 2, damage: 10 })).toBeNull();
     expect(fighter.specialMeter).toBe(12);
   });
 
-  it('conditions gate firing (KURAI heals only below 40% HP, once)', () => {
-    const fighter = makeFighter(getAbility('KURAI'), { currentHP: 80 });
+  it('cooldown charges respect the action window', () => {
+    const fighter = makeFighter(meterOnHit({ kind: 'cooldown_actions', actions: 2 }));
 
-    expect(fireAbility(fighter, 'on_damaged', { turnNumber: 1, damage: 20 })).toBeNull();
-
-    fighter.currentHP = 30;
-    expect(fireAbility(fighter, 'on_damaged', { turnNumber: 2, damage: 20 })?.id).toBe('ability.kurai');
-    expect(fighter.currentHP).toBe(38);
-
-    fighter.currentHP = 10;
-    expect(fireAbility(fighter, 'on_damaged', { turnNumber: 3, damage: 20 })).toBeNull();
-  });
-
-  it('cooldown charges respect the action window (WOLF)', () => {
-    const fighter = makeFighter(getAbility('WOLF'), { stamina: 2 });
-
-    expect(fireAbility(fighter, 'after_hit', { turnNumber: 5, damage: 8 })?.id).toBe('ability.wolf');
-    expect(fighter.stamina).toBe(3);
-
-    fighter.stamina = 2;
+    expect(fireAbility(fighter, 'after_hit', { turnNumber: 5, damage: 8 })).not.toBeNull();
     expect(fireAbility(fighter, 'after_hit', { turnNumber: 6, damage: 8 })).toBeNull();
-    expect(fireAbility(fighter, 'after_hit', { turnNumber: 7, damage: 8 })?.id).toBe('ability.wolf');
+    expect(fireAbility(fighter, 'after_hit', { turnNumber: 7, damage: 8 })).not.toBeNull();
   });
 
-  it('wrong trigger and unmet conditions are no-ops', () => {
-    const wake = makeFighter(getAbility('WAKE'), { stamina: 3 });
+  it('passive rule-bend abilities never fire as triggers', () => {
+    const gama = makeFighter(getAbility('GAMA'));
 
-    expect(fireAbility(wake, 'after_defend', { turnNumber: 1 })).toBeNull();
-    // WAKE requires stamina >= 5 when the hit lands.
-    expect(fireAbility(wake, 'after_hit', { turnNumber: 1, damage: 10 })).toBeNull();
-    wake.stamina = 6;
-    expect(fireAbility(wake, 'after_hit', { turnNumber: 2, damage: 10 })?.id).toBe('ability.wake');
+    expect(fireAbility(gama, 'after_hit', { turnNumber: 1, damage: 20 })).toBeNull();
+    expect(fireAbility(gama, 'on_damaged', { turnNumber: 1, damage: 20 })).toBeNull();
+    expect(gama.abilityRuntime?.firedCount ?? 0).toBe(0);
   });
 
   it('TSUIN charges bonus meter proportional to damage, bounded per proc', () => {
@@ -160,12 +202,8 @@ describe('fireAbility', () => {
   });
 
   it('effects clamp to resource caps', () => {
-    const era = makeFighter(getAbility('ERA'), { specialMeter: 90 });
-    fireAbility(era, 'battle_start', { turnNumber: 0 });
-    expect(era.specialMeter).toBe(100);
-
-    const gama = makeFighter(getAbility('GAMA'), { stamina: 7 });
-    fireAbility(gama, 'on_damaged', { turnNumber: 1, damage: 20 });
-    expect(gama.stamina).toBe(7);
+    const fighter = makeFighter(meterOnHit({ kind: 'unlimited' }), { specialMeter: 95 });
+    fireAbility(fighter, 'after_hit', { turnNumber: 1, damage: 10 });
+    expect(fighter.specialMeter).toBe(100);
   });
 });

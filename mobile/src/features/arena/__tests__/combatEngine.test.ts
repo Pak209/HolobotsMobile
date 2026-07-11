@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ActionCard, ArenaFighter } from '@/types/arena';
 import { ArenaCombatEngine } from '../combatEngine';
+import { getAbility } from '../abilities';
 import { FINISHER_METER_REQUIREMENT } from '../moveKits';
 
 function makeFighter(overrides: Partial<ArenaFighter> = {}): ArenaFighter {
@@ -494,6 +495,143 @@ describe('ArenaCombatEngine', () => {
 
       expect(resolved.player.specialMeter).toBe(0);
       expect(resolved.opponent.specialMeter).toBe(0);
+    });
+  });
+
+  describe('rule-bend abilities (one broken rule per Holobot)', () => {
+    const jab = makeCard({ id: 'jab-rb', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+    const cross = makeCard({ id: 'cross-rb', templateId: 'cross', type: 'strike', staminaCost: 2, baseDamage: 15 });
+    const block = makeCard({ id: 'block-rb', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+    const combo = makeCard({ id: 'combo-rb', templateId: 'combo_x', type: 'combo', staminaCost: 2, baseDamage: 12 });
+    const kitFinisher = makeCard({
+      id: 'kf-rb', templateId: 'finisher.kit', type: 'finisher', staminaCost: 3, baseDamage: 30,
+      requirements: [{ type: 'special_meter', operator: 'gte', value: FINISHER_METER_REQUIREMENT }],
+    });
+
+    const withAbility = (name: string, overrides: Partial<ArenaFighter> = {}) => ({
+      ability: getAbility(name),
+      abilityRuntime: { firedCount: 0 },
+      ...overrides,
+    });
+
+    it('ACE: the first attack into an armed trap pierces it, once', () => {
+      const battle = makeBattle(withAbility('ACE'));
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.opponent.holobotId);
+
+      const pierced = ArenaCombatEngine.resolveAction(defended, jab, defended.player.holobotId);
+      expect(pierced.actionHistory.at(-1)?.outcome).toBe('hit');
+      expect(pierced.opponent.armedDefenseTrap).not.toBeNull();
+
+      const second = ArenaCombatEngine.resolveAction(pierced, cross, pierced.player.holobotId);
+      expect(second.actionHistory.at(-1)?.outcome).toBe('blocked');
+    });
+
+    it('KUMA: a blocked hit does not break the chain', () => {
+      const battle = makeBattle(withAbility('KUMA', { comboCounter: 3 }));
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.opponent.holobotId);
+
+      const blocked = ArenaCombatEngine.resolveAction(defended, jab, defended.player.holobotId);
+
+      expect(blocked.actionHistory.at(-1)?.outcome).toBe('blocked');
+      expect(blocked.player.comboCounter).toBe(3);
+    });
+
+    it('SHADOW: the armed trap survives the first attack after arming', () => {
+      const battle = makeBattle(withAbility('SHADOW'));
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+
+      const attacked = ArenaCombatEngine.resolveAction(defended, jab, defended.player.holobotId);
+      expect(attacked.player.armedDefenseTrap).not.toBeNull();
+      expect(attacked.player.armedDefenseTrap?.graceUsed).toBe(true);
+
+      const second = ArenaCombatEngine.resolveAction(attacked, cross, attacked.player.holobotId);
+      expect(second.player.armedDefenseTrap).toBeNull();
+    });
+
+    it("ERA: the meter never drops below 25 (start and after finishers)", () => {
+      const battle = makeBattle(withAbility('ERA'));
+      expect(battle.player.specialMeter).toBe(25);
+
+      const charged = { ...battle, player: { ...battle.player, specialMeter: 70 } };
+      const cashed = ArenaCombatEngine.resolveAction(charged, kitFinisher, charged.player.holobotId);
+      expect(cashed.player.specialMeter).toBe(25);
+    });
+
+    it('HARE: traps trigger twice before they are spent', () => {
+      const battle = makeBattle(withAbility('HARE'));
+      const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+      expect(defended.player.armedDefenseTrap?.charges).toBe(2);
+
+      const first = ArenaCombatEngine.resolveAction(defended, jab, defended.opponent.holobotId);
+      expect(first.actionHistory.at(-1)?.outcome).toBe('blocked');
+      expect(first.player.armedDefenseTrap?.charges).toBe(1);
+
+      const second = ArenaCombatEngine.resolveAction(first, cross, first.opponent.holobotId);
+      expect(second.actionHistory.at(-1)?.outcome).toBe('blocked');
+      expect(second.player.armedDefenseTrap).toBeNull();
+    });
+
+    it('TORA: the kit finisher consumes only the 4/7 requirement', () => {
+      const battle = makeBattle(withAbility('TORA', { specialMeter: 90 }));
+
+      const cashed = ArenaCombatEngine.resolveAction(battle, kitFinisher, battle.player.holobotId);
+
+      expect(cashed.player.specialMeter).toBe(90 - FINISHER_METER_REQUIREMENT);
+    });
+
+    it('WAKE: a full tank discounts the next move by 1 (min 1)', () => {
+      const battle = makeBattle(withAbility('WAKE', { stamina: 7 }));
+
+      const swung = ArenaCombatEngine.resolveAction(battle, cross, battle.player.holobotId);
+      expect(swung.player.stamina).toBe(6); // paid 1 instead of 2
+
+      const second = ArenaCombatEngine.resolveAction(swung, cross, swung.player.holobotId);
+      expect(second.player.stamina).toBe(4); // not at max -> full price
+    });
+
+    it('GAMA: a single hit never exceeds 20% of max HP', () => {
+      const battle = makeBattle(
+        { attack: 80 },
+        withAbility('GAMA', { maxHP: 100, currentHP: 100, defense: 10 }),
+      );
+      const nuke = makeCard({ id: 'nuke-rb', templateId: 'nuke', type: 'strike', staminaCost: 3, baseDamage: 80 });
+
+      const hit = ArenaCombatEngine.resolveAction(battle, nuke, battle.player.holobotId);
+
+      expect(hit.opponent.currentHP).toBeGreaterThanOrEqual(80);
+      expect(hit.actionHistory.at(-1)?.actualDamage).toBeLessThanOrEqual(20);
+    });
+
+    it('KEN: a landed combo cash-out keeps the chain alive', () => {
+      const battle = makeBattle(withAbility('KEN', { comboCounter: 3 }));
+
+      const cashed = ArenaCombatEngine.resolveAction(battle, combo, battle.player.holobotId);
+
+      expect(cashed.actionHistory.at(-1)?.outcome).toBe('hit');
+      expect(cashed.player.comboCounter).toBe(3);
+    });
+
+    it('KURAI: heals a bounded quarter of damage dealt while below 40% HP', () => {
+      const battle = makeBattle(withAbility('KURAI', { currentHP: 30, maxHP: 120 }));
+
+      const hit = ArenaCombatEngine.resolveAction(battle, cross, battle.player.holobotId);
+      const dealt = hit.actionHistory.at(-1)?.actualDamage ?? 0;
+
+      expect(dealt).toBeGreaterThan(0);
+      expect(hit.player.currentHP).toBe(30 + Math.floor(dealt * 0.25));
+      expect(hit.player.abilityRuntime?.bendAccrued).toBe(Math.floor(dealt * 0.25));
+    });
+
+    it('WOLF: exhausted hits deal full-power damage', () => {
+      const exhausted = makeBattle(withAbility('WOLF', { stamina: 1 }));
+      const normal = makeBattle({ stamina: 1 });
+
+      const wolfHit = ArenaCombatEngine.resolveAction(exhausted, jab, exhausted.player.holobotId);
+      const normalHit = ArenaCombatEngine.resolveAction(normal, jab, normal.player.holobotId);
+
+      expect(wolfHit.actionHistory.at(-1)!.actualDamage!).toBeGreaterThan(
+        normalHit.actionHistory.at(-1)!.actualDamage!,
+      );
     });
   });
 

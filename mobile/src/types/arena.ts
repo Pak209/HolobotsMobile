@@ -49,6 +49,10 @@ export type DefenseTrapEffect = 'guard' | 'evade' | 'counter' | 'perfect_reversa
 export type DefenseTrapTier = 'common' | 'rare' | 'epic' | 'legendary';
 
 export interface ArmedDefenseTrap {
+  /** Remaining triggers (HARE's bend arms 2; everyone else 1). */
+  charges?: number;
+  /** SHADOW's bend: set once the trap has survived its owner's first attack. */
+  graceUsed?: boolean;
   cardId: string;
   templateId: string;
   name: string;
@@ -140,7 +144,9 @@ export type AbilityTrigger =
   | 'after_hit'
   | 'after_defend'
   | 'on_counter'
-  | 'on_damaged';
+  | 'on_damaged'
+  /** Never fires — the ability acts purely through its ruleBend. */
+  | 'passive';
 
 export type AbilityCondition =
   | { type: 'stamina_below'; value: number }
@@ -156,6 +162,24 @@ export type AbilityEffect =
   | { type: 'stamina_gain'; value: number }
   | { type: 'heal'; value: number };
 
+/**
+ * Rule bends: each Holobot may break exactly one core combat rule that every
+ * other fighter obeys. The engine consults these at fixed seams; there is
+ * still no per-Holobot engine code. Bounds enforced by abilities.test.ts.
+ */
+export type AbilityRuleBend =
+  | { kind: 'pierce_traps_first_attack' }
+  | { kind: 'chain_survives_block' }
+  | { kind: 'guard_holds_through_first_attack' }
+  | { kind: 'meter_floor'; value: number }
+  | { kind: 'trap_extra_charge' }
+  | { kind: 'finisher_costs_requirement_only' }
+  | { kind: 'full_stamina_discount'; value: number }
+  | { kind: 'max_hit_percent_cap'; value: number }
+  | { kind: 'chain_survives_combo_cash' }
+  | { kind: 'lifesteal_below_percent'; threshold: number; ratio: number; battleCap: number }
+  | { kind: 'ignore_stamina_damage_penalty' };
+
 export type AbilityCharges =
   | { kind: 'unlimited' }
   | { kind: 'once_per_battle' }
@@ -170,12 +194,18 @@ export interface AbilityDefinition {
   conditions: AbilityCondition[];
   effects: AbilityEffect[];
   charges: AbilityCharges;
+  /** The one core rule this Holobot is allowed to break (optional). */
+  ruleBend?: AbilityRuleBend;
   aiHints: string[];
 }
 
 export interface AbilityRuntimeState {
   firedCount: number;
   lastFiredAtTurn?: number;
+  /** One-shot rule-bend uses this battle (e.g. ACE's pierce). */
+  bendUses?: number;
+  /** Accumulated bounded budget (e.g. KURAI's total lifesteal). */
+  bendAccrued?: number;
 }
 
 // ============================================================================

@@ -58,27 +58,40 @@ pattern the marketplace used pre-deploy.
       which case it pokes the trap with a cheap strike first.
 - [ ] When exhausted it defends to recover rather than sitting idle.
 
-## 3b. Innate Abilities (one per Holobot, always active)
+## 3b. Innate Abilities — every Holobot bends ONE combat rule
 
-- [ ] In battle, a small cyan `◈ ABILITY NAME` badge sits under each
-      fighter's combo counter (yours and the CPU's).
-- [ ] In the Move Lab, the identity strip shows the ability name +
-      description with an INNATE badge (no equip/upgrade buttons).
-- [ ] Spot-check identities in battle:
-      - **ERA** starts every battle with the meter already at ~1–2 segments
-        (Time Warp, +25 at the opening bell).
-      - **ACE**'s first landed hit visibly jumps the meter (+12, once per
-        battle — later hits gain only the normal amount).
-      - **KURAI** below 40% HP heals 8 on taking a hit, once per battle.
-      - **WOLF** while gassed (under 3 stamina) claws back +1 stamina on
-        landed hits, at most every 2 battle actions.
-      - **TORA** gains meter every time it arms a defense; **HARE** gains a
-        chunk whenever a counter/evade trap springs.
-      - **TSUIN** is the damage-proportional exception: its hits grant bonus
-        meter equal to half the damage dealt (capped per hit), so it charges
-        noticeably faster than the flat +10 everyone else earns.
-- [ ] Abilities never appear in the four kit slots and cost nothing — they
-      fire on their own when their condition is met.
+- [ ] In battle, a cyan `◈ ABILITY` badge sits under each fighter's combo
+      counter; an armed defense shows a blue `⛨ TRAP` badge on BOTH sides
+      (HARE's shows ×2 while it has two charges left).
+- [ ] The stats popup's ABILITIES tab now opens with an INNATE IDENTITY
+      section (ability + signature); the Move Lab identity strip matches.
+- [ ] Spot-check the rule bends (each breaks a rule everyone else obeys):
+      - **ACE** — its first attack into an armed trap pierces clean (trap
+        survives, unsprung); the second one gets caught.
+      - **KUMA** — blocked hits do NOT reset its combo counter.
+      - **SHADOW** — its armed trap survives its first attack after arming.
+      - **ERA** — meter starts at 25 and never drops below it.
+      - **HARE** — one defense play eats TWO incoming hits.
+      - **TORA** — its 4/7 finisher only spends 4/7; the rest stays banked.
+      - **WAKE** — at 7/7 stamina its next move costs 1 less.
+      - **GAMA** — no single hit (even signatures) exceeds 20% of its max HP.
+      - **KEN** — cashing a combo keeps the chain (and multiplier) alive.
+      - **KURAI** — below 40% HP its hits heal 25% of damage (30 HP/battle cap).
+      - **TSUIN** — bonus meter equal to half its damage per hit (capped).
+      - **WOLF** — hits at full power even when gassed/exhausted.
+- [ ] Abilities never appear in the four kit slots, cost nothing, and apply
+      identically in PvE and PvP.
+
+## 3c. Arena pause menu (quick-nav removed from battle)
+
+- [ ] During a battle the floating quick-nav stack is GONE — only a single
+      gold gear button (top right).
+- [ ] Tapping it pauses everything: CPU stops acting, stamina/meter freeze,
+      your moves are locked.
+- [ ] CONTINUE BATTLE resumes exactly where it paused (no CPU sucker punch,
+      no regen jump); QUIT BATTLE returns to the tier select.
+- [ ] The quick-nav stack is still present on the prebattle and results
+      screens.
 
 ## 4. Move Lab (Inventory → MOVE LAB tab)
 

@@ -132,12 +132,11 @@ describe('buildPvpFighterDoc', () => {
     expect(JSON.parse(JSON.stringify(doc))).toEqual(doc);
   });
 
-  it('fires battle_start abilities at entry (ERA meter head start)', () => {
+  it('applies ERA\'s meter floor at entry (head start)', () => {
     const era = buildPvpFighterDoc('user-1', 'Pilot', makeHolobot('ERA'), makeProfile());
     const ace = buildPvpFighterDoc('user-2', 'Rival', makeHolobot('ACE'), makeProfile());
 
     expect(era.specialMeter).toBe(25);
-    expect(era.abilityRuntime.firedCount).toBe(1);
     expect(ace.specialMeter).toBe(0);
   });
 
@@ -209,25 +208,29 @@ describe('room <-> engine round trip', () => {
     expect((updates['players.p2'] as PvpFighterDoc).specialMeter).toBe(0);
   });
 
-  it('ability runtime persists across the room round trip (once-per-battle stays spent)', () => {
+  it('rule-bend state persists across the room round trip (ACE pierce is one-shot)', () => {
     const p1 = buildPvpFighterDoc('user-1', 'PilotOne', makeHolobot('ACE'), makeProfile());
     const p2 = buildPvpFighterDoc('user-2', 'PilotTwo', makeHolobot('KUMA'), makeProfile());
     const room = makeRoom(p1, p2);
 
-    // ACE's first landed hit fires First Strike Protocol (+12 meter, once).
+    // KUMA arms a trap; ACE's first attack pierces it (trap survives, hit clean).
     const state = roomToBattleState(room);
+    const defend = room.players.p2.moves.find((move) => move.type === 'defense')!;
+    const defended = ArenaCombatEngine.resolveAction(state, defend, PVP_FIGHTER_IDS.p2);
     const strike = room.players.p1.moves.find((move) => move.type === 'strike')!;
-    const next = ArenaCombatEngine.resolveAction(state, strike, PVP_FIGHTER_IDS.p1);
-    const nextRoom = applyUpdates(room, battleStateToRoomUpdates(room, next, 1));
+    const pierced = ArenaCombatEngine.resolveAction(defended, strike, PVP_FIGHTER_IDS.p1);
 
-    expect(nextRoom.players.p1.abilityRuntime.firedCount).toBe(1);
+    expect(pierced.actionHistory.at(-1)?.outcome).toBe('hit');
+    expect(pierced.opponent.armedDefenseTrap).not.toBeNull();
 
-    // Second hit, resolved from the committed room state, does not re-fire.
-    const state2 = roomToBattleState(nextRoom);
-    const strike2 = nextRoom.players.p1.moves.find((move) => move.type === 'strike')!;
-    const next2 = ArenaCombatEngine.resolveAction(state2, strike2, PVP_FIGHTER_IDS.p1);
-    const finalRoom = applyUpdates(nextRoom, battleStateToRoomUpdates(nextRoom, next2, 2));
+    // Commit to the room, rebuild, and attack again: the pierce is spent.
+    const roomAfter = applyUpdates(room, battleStateToRoomUpdates(room, pierced, 1));
+    expect(roomAfter.players.p1.abilityRuntime.bendUses).toBe(1);
 
-    expect(finalRoom.players.p1.abilityRuntime.firedCount).toBe(1);
+    const state2 = roomToBattleState(roomAfter);
+    const strike2 = roomAfter.players.p1.moves.find((move) => move.type === 'strike')!;
+    const second = ArenaCombatEngine.resolveAction(state2, strike2, PVP_FIGHTER_IDS.p1);
+
+    expect(second.actionHistory.at(-1)?.outcome).toBe('blocked');
   });
 });
