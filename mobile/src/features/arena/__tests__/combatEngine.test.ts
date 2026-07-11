@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ActionCard, ArenaFighter } from '@/types/arena';
 import { ArenaCombatEngine } from '../combatEngine';
 import { getAbility } from '../abilities';
+import { DEFENSE_COOLDOWN_MS_PER_TURN } from '../arenaCards';
 import { FINISHER_METER_REQUIREMENT } from '../moveKits';
 
 function makeFighter(overrides: Partial<ArenaFighter> = {}): ArenaFighter {
@@ -70,6 +71,10 @@ function makeBattle(playerOverrides: Partial<ArenaFighter> = {}, opponentOverrid
 }
 
 describe('ArenaCombatEngine', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('defense restores stamina', () => {
     const battle = makeBattle({ stamina: 3, maxStamina: 7 });
     const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
@@ -81,35 +86,73 @@ describe('ArenaCombatEngine', () => {
     expect(resolved.player.stamina).toBe(5);
   });
 
-  it('defense applies cooldown', () => {
+  it('defense applies a TIME-based cooldown that expires by waiting', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
     const battle = makeBattle();
     const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
 
     const resolved = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
 
-    expect(resolved.playerCardCooldowns?.block).toBe(2);
     expect(resolved.player.armedDefenseTrap?.templateId).toBe('block');
+    expect(resolved.player.defenseCooldownUntil).toBe(1_000_000 + 2 * DEFENSE_COOLDOWN_MS_PER_TURN);
     expect(ArenaCombatEngine.canPlayCard(resolved, 'player', block)).toBe(false);
+
+    // Spring the trap so only the clock gates the next defense…
+    const jab = makeCard({ id: 'jab-cd', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+    const sprung = ArenaCombatEngine.resolveAction(resolved, jab, resolved.opponent.holobotId);
+    expect(ArenaCombatEngine.canPlayCard(sprung, 'player', block)).toBe(false);
+
+    // …and waiting past the cooldown unlocks it without playing anything.
+    vi.setSystemTime(1_000_000 + 2 * DEFENSE_COOLDOWN_MS_PER_TURN + 1);
+    expect(ArenaCombatEngine.canPlayCard(sprung, 'player', block)).toBe(true);
   });
 
-  it("defense cooldown ticks down with the defender's own plays", () => {
-    const battle = makeBattle();
+  describe('guard stacks (consecutive defense plays)', () => {
     const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
-    const jab = makeCard({ id: 'jab-1', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
-    const cross = makeCard({ id: 'cross-1', templateId: 'cross', type: 'strike', staminaCost: 1, baseDamage: 9 });
-    const hook = makeCard({ id: 'hook-1', templateId: 'hook', type: 'strike', staminaCost: 2, baseDamage: 12 });
+    const slip = makeCard({ id: 'slip-gs', templateId: 'slip', type: 'defense', staminaCost: 2, baseDamage: 0 });
+    const jab = makeCard({ id: 'jab-gs', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
 
-    const afterDefense = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
-    // The opponent acting does NOT burn the player's cooldown...
-    const afterOpponentAction = ArenaCombatEngine.resolveAction(afterDefense, jab, afterDefense.opponent.holobotId);
-    // ...only the player's own plays do.
-    const afterPlayerStrike = ArenaCombatEngine.resolveAction(afterOpponentAction, cross, afterOpponentAction.player.holobotId);
-    const afterSecondStrike = ArenaCombatEngine.resolveAction(afterPlayerStrike, hook, afterPlayerStrike.player.holobotId);
+    function springTrapAndWait(state: ReturnType<typeof makeBattle>, ms: number) {
+      const sprung = ArenaCombatEngine.resolveAction(state, jab, state.opponent.holobotId);
+      vi.setSystemTime(Date.now() + ms);
+      return sprung;
+    }
 
-    expect(afterDefense.playerCardCooldowns?.block).toBe(2);
-    expect(afterOpponentAction.playerCardCooldowns?.block).toBe(2);
-    expect(afterPlayerStrike.playerCardCooldowns?.block).toBe(1);
-    expect(afterSecondStrike.playerCardCooldowns?.block).toBeUndefined();
+    it('back-to-back defends overcharge the next trap, and attacks reset the streak', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(2_000_000);
+      const battle = makeBattle();
+
+      // First defend: normal trap, streak starts.
+      const first = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+      expect(first.player.armedDefenseTrap?.stackLevel ?? 0).toBe(0);
+      expect(first.player.guardStacks).toBe(1);
+
+      // Opponent springs it; the player WAITS out the cooldown (no attack).
+      const sprung = springTrapAndWait(first, 2 * DEFENSE_COOLDOWN_MS_PER_TURN + 1);
+
+      // Second consecutive defend: +1 stack — stronger reduction.
+      const second = ArenaCombatEngine.resolveAction(sprung, block, sprung.player.holobotId);
+      expect(second.player.armedDefenseTrap?.stackLevel).toBe(1);
+      expect(second.player.armedDefenseTrap?.damageReduction).toBeCloseTo(0.65);
+      expect(second.player.guardStacks).toBe(2);
+
+      // Third consecutive defend (max stacks): an evade-capable trap becomes
+      // a GUARANTEED evade.
+      const sprung2 = springTrapAndWait(second, 3 * DEFENSE_COOLDOWN_MS_PER_TURN + 1);
+      const third = ArenaCombatEngine.resolveAction(sprung2, slip, sprung2.player.holobotId);
+      expect(third.player.armedDefenseTrap?.stackLevel).toBe(2);
+      expect(third.player.armedDefenseTrap?.evadeChance).toBe(1);
+
+      // Attacking resets the streak to zero.
+      const attacked = ArenaCombatEngine.resolveAction(
+        springTrapAndWait(third, 1),
+        jab,
+        third.player.holobotId,
+      );
+      expect(attacked.player.guardStacks).toBe(0);
+    });
   });
 
   it('only defense cards carry cooldowns', () => {

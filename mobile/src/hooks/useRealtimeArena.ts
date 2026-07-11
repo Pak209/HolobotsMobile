@@ -76,6 +76,7 @@ function emptyPvpFighter(): PvpFighterDoc {
     maxStamina: 0,
     specialMeter: 0,
     comboCounter: 0,
+    guardStacks: 0,
     isInDefenseMode: false,
     defenseActive: false,
     defendedAt: null,

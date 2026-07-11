@@ -51,6 +51,8 @@ export type DefenseTrapTier = 'common' | 'rare' | 'epic' | 'legendary';
 export interface ArmedDefenseTrap {
   /** Remaining triggers (HARE's bend arms 2; everyone else 1). */
   charges?: number;
+  /** Guard Stacks applied when this trap was armed (0-2). */
+  stackLevel?: number;
   /** SHADOW's bend: set once the trap has survived its owner's first attack. */
   graceUsed?: boolean;
   cardId: string;
@@ -92,6 +94,8 @@ export interface ArenaFighter {
   defenseActive?: boolean;
   defendedAt?: number;
   armedDefenseTrap?: ArmedDefenseTrap | null;
+  /** Consecutive defense plays without attacking (0-2); overcharges traps. */
+  guardStacks?: number;
   comboCounter: number;
   lastActionTime: number;
 

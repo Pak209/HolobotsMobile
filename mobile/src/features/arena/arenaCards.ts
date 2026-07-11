@@ -144,6 +144,42 @@ export function getCardCooldownTurns(card: Pick<ActionCard, 'templateId' | 'type
   return card.type === 'defense' ? 2 : 0;
 }
 
+/** Defense cooldowns run on the clock: each legacy "turn" is 3 seconds. */
+export const DEFENSE_COOLDOWN_MS_PER_TURN = 3000;
+
+export function getDefenseCooldownMs(card: Pick<ActionCard, 'templateId' | 'type'>): number {
+  return getCardCooldownTurns(card) * DEFENSE_COOLDOWN_MS_PER_TURN;
+}
+
+/**
+ * Guard Stacks: arming a defense while your streak of consecutive defense
+ * plays is alive overcharges the trap. +15% damage reduction and +15%
+ * evade/counter per stack; at max stacks (2) a trap that can evade at all
+ * becomes a GUARANTEED evade. Any attack resets the streak.
+ */
+export const MAX_GUARD_STACKS = 2;
+
+export function enhanceTrapWithStacks(trap: ArmedDefenseTrap, stackLevel: number): ArmedDefenseTrap {
+  const stacks = Math.max(0, Math.min(MAX_GUARD_STACKS, stackLevel));
+  if (stacks === 0) {
+    return trap;
+  }
+
+  return {
+    ...trap,
+    stackLevel: stacks,
+    damageReduction: Math.min(1, trap.damageReduction + 0.15 * stacks),
+    evadeChance:
+      trap.evadeChance > 0 && stacks >= MAX_GUARD_STACKS
+        ? 1
+        : Math.min(1, trap.evadeChance + (trap.evadeChance > 0 ? 0.15 * stacks : 0)),
+    counterDamageMultiplier:
+      trap.counterDamageMultiplier > 0
+        ? trap.counterDamageMultiplier + 0.15 * stacks
+        : trap.counterDamageMultiplier,
+  };
+}
+
 export function getRoleCardCooldowns(
   state: BattleState,
   role: 'player' | 'opponent',
@@ -157,6 +193,7 @@ export function evaluateCardAvailability(
   state: BattleState,
   role: 'player' | 'opponent',
   card: ActionCard,
+  now: number = Date.now(),
 ): ArenaCardAvailability {
   const fighter = role === 'player' ? state.player : state.opponent;
   const target = role === 'player' ? state.opponent : state.player;
@@ -164,6 +201,16 @@ export function evaluateCardAvailability(
 
   if (cooldownTurns > 0) {
     return { playable: false, reason: 'cooldown', cooldownTurns };
+  }
+
+  // Defense cooldowns are TIME-based (real-time combat): waiting out the
+  // cooldown lets you defend back-to-back and build Guard Stacks.
+  if (card.type === 'defense' && (fighter.defenseCooldownUntil ?? 0) > now) {
+    return {
+      playable: false,
+      reason: 'cooldown',
+      cooldownTurns: Math.ceil(((fighter.defenseCooldownUntil ?? 0) - now) / 1000),
+    };
   }
 
   // While a trap is armed only ADDITIONAL defense plays are locked (no

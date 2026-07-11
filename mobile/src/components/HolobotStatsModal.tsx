@@ -464,8 +464,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#080b11",
     borderColor: "#f0bf14",
     borderWidth: 2,
-    maxHeight: "92%",
+    flexShrink: 1,
+    maxHeight: "88%",
     maxWidth: 410,
+    overflow: "hidden",
     width: "92%",
   },
   closeHint: {
@@ -603,7 +605,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: 12,
     padding: 16,
-    paddingBottom: 22,
+    paddingBottom: 48,
   },
   section: {
     borderColor: "#f0bf14",

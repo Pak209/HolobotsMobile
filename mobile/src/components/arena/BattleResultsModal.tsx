@@ -11,10 +11,20 @@ import type { BattleRewards } from '../../types/arena';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+export type RunTotals = {
+  exp: number;
+  syncPoints: number;
+  holos: number;
+  blueprints: Record<string, number>;
+  rounds: number;
+};
+
 interface BattleResultsModalProps {
   visible: boolean;
   didWin: boolean;
   rewards: BattleRewards;
+  /** Accumulated rewards across the tier run; shown after round 1. */
+  runTotals?: RunTotals | null;
   continueLabel?: string;
   subtitle?: string;
   onRematch: () => void;
@@ -25,6 +35,7 @@ export function BattleResultsModal({
   visible,
   didWin,
   rewards,
+  runTotals,
   continueLabel,
   subtitle,
   onRematch,
@@ -104,6 +115,22 @@ export function BattleResultsModal({
                 </View>
               )}
             </View>
+
+            {runTotals && runTotals.rounds > 1 ? (
+              <View style={styles.runTotals}>
+                <Text style={styles.runTotalsTitle}>
+                  {`RUN TOTAL • ${runTotals.rounds} ROUNDS`}
+                </Text>
+                <Text style={styles.runTotalsLine}>
+                  {`EXP +${runTotals.exp} • SP +${runTotals.syncPoints}${runTotals.holos > 0 ? ` • HOLOS +${runTotals.holos}` : ''}`}
+                </Text>
+                {Object.entries(runTotals.blueprints).map(([holobotKey, amount]) => (
+                  <Text key={holobotKey} style={styles.runTotalsLine}>
+                    {`${holobotKey.toUpperCase()} BLUEPRINT +${amount}`}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.buttonsContainer}>
@@ -173,6 +200,26 @@ const styles = StyleSheet.create({
   },
   defeatText: {
     color: '#ef4444',
+  },
+  runTotals: {
+    borderColor: '#f0bf14',
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 10,
+  },
+  runTotalsLine: {
+    color: '#d8dbe2',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  runTotalsTitle: {
+    color: '#f0bf14',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    textAlign: 'center',
   },
   rewardsSection: {
     paddingHorizontal: 18,

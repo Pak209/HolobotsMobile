@@ -82,6 +82,23 @@ pattern the marketplace used pre-deploy.
 - [ ] Abilities never appear in the four kit slots, cost nothing, and apply
       identically in PvE and PvP.
 
+## 3b-2. Guard Stacks and trap visibility
+
+- [ ] The BATTLE ARENA banner is gone — HUD has more room.
+- [ ] Trap indicators are now bordered blue chips with the trap name, on
+      BOTH sides (bigger than before). HARE shows ×2 charges; stacked traps
+      show ▲1 / ▲2.
+- [ ] Defense cooldowns are TIME-based now: after defending, the defend slot
+      shows a ticking CD (seconds) and unlocks by simply waiting — no need
+      to attack.
+- [ ] **Guard Stacks**: defend, let the trap spring, WAIT out the cooldown
+      without attacking, defend again → the new trap shows ▲1 (+15%
+      reduction/evade/counter). A third consecutive defend arms ▲2 — an
+      evade-capable trap (Evasion Step / Counter Guard) becomes a GUARANTEED
+      evade. Any attack resets the streak to zero.
+- [ ] The trade: turtling for stacks earns zero meter (offense-only economy)
+      — stacks are survival power paid for with finisher tempo.
+
 ## 3c. Arena pause menu (quick-nav removed from battle)
 
 - [ ] During a battle the floating quick-nav stack is GONE — only a single
@@ -136,6 +153,11 @@ pattern the marketplace used pre-deploy.
 - [ ] A non-lethal finisher does NOT end the battle; results screen shows the
       correct VICTORY/DEFEAT; tier runs advance rounds; rewards settle
       (server-authoritative).
+- [ ] From round 2 of a tier run onward, the results modal shows a gold
+      "RUN TOTAL • N ROUNDS" section accumulating EXP/SP/Holos/blueprints
+      across the whole run; it resets when a new run starts.
+- [ ] The stats popup's ABILITIES tab scrolls all the way to the bottom
+      (INNATE IDENTITY + Sync stats + Sync abilities all reachable).
 
 ## 7. Realtime PvP (two devices — converged rules)
 
