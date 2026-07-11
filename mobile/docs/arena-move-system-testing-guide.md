@@ -40,6 +40,9 @@ pattern the marketplace used pre-deploy.
 - [ ] The meter charges ONLY from your own landed Strikes and Combos —
       defending, and taking hits, add nothing. (Innate abilities like ERA's
       head start or TORA's defend bonus are the deliberate exceptions.)
+- [ ] Pacing: a full 7/7 meter takes roughly 8-10 landed strikes (the 4/7
+      finisher unlock arrives around strike 5-6); combos charge a bit
+      faster.
 - [ ] Counterplay: if the CPU has a defense trap armed, your finisher (either
       kind) gets blocked/countered like any attack. Try wasting one into a
       trap once, deliberately.

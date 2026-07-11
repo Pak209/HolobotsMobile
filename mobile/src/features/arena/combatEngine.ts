@@ -986,15 +986,18 @@ export class ArenaCombatEngine {
   // plays — never from taking hits or arming defenses — so both finisher
   // tiers have to be earned with offense. (Innate abilities may still grant
   // bounded meter as explicit identity exceptions.)
+  // Pacing target: with typical strike damage (~10-13), a full meter takes
+  // roughly 8-10 landed strikes; combos charge ~35% faster per point of
+  // damage as the chain payoff.
   private static getMeterGainForDamage(
     cardType: ActionCard['type'],
     damage: number,
   ): number {
     if (cardType === 'combo') {
-      return Math.floor(damage * 2.0);
+      return Math.floor(damage * 1.35);
     }
     if (cardType === 'strike') {
-      return Math.floor(damage * 1.5);
+      return Math.floor(damage * 1.0);
     }
     return 0;
   }
