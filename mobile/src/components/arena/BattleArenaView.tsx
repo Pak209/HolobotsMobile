@@ -3,6 +3,11 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { ActionCard, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
+import {
+  FINISHER_UNLOCK_SEGMENTS,
+  getSpecialMeterSegments,
+  SPECIAL_METER_SEGMENTS,
+} from "../../features/arena/moveKits";
 
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
@@ -46,7 +51,7 @@ function getCardLabel(type: CardType) {
     case "defense":
       return "DEFEND";
     case "finisher":
-      return "TECHNIQUE";
+      return "FINISHER";
   }
 }
 
@@ -325,6 +330,12 @@ export function BattleArenaView({
         <View style={styles.cardBayTopBar}>
           <View style={styles.specialGaugeTrack}>
             <View style={[styles.specialGaugeFill, { width: `${playerSpecialPercent * 100}%` }]} />
+            <View
+              style={[
+                styles.specialGaugeUnlockTick,
+                { left: `${(FINISHER_UNLOCK_SEGMENTS / SPECIAL_METER_SEGMENTS) * 100}%` },
+              ]}
+            />
           </View>
           {finisherReady ? (
             <Pressable
@@ -339,7 +350,9 @@ export function BattleArenaView({
           ) : (
             <View style={styles.specialCluster}>
               <Text style={styles.specialIcon}>{"✦"}</Text>
-              <Text style={styles.specialText}>{`${Math.floor(battle.player.specialMeter)}%`}</Text>
+              <Text style={styles.specialText}>
+                {`${getSpecialMeterSegments(battle.player.specialMeter)}/${SPECIAL_METER_SEGMENTS}`}
+              </Text>
             </View>
           )}
         </View>
@@ -348,7 +361,7 @@ export function BattleArenaView({
             {battle.player.armedDefenseTrap
               ? "DEFENSE TRAP ARMED"
               : finisherReady
-                ? "SIGNATURE READY — TAP THE GOLD BUTTON"
+                ? "FULL FINISHER READY — TAP THE GOLD BUTTON"
                 : playerCanAct
                   ? "TAP A MOVE TO FIGHT"
                   : "WAITING FOR STAMINA"}
@@ -673,6 +686,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 12,
     overflow: "hidden",
+  },
+  specialGaugeUnlockTick: {
+    backgroundColor: "#07080d",
+    bottom: 0,
+    position: "absolute",
+    top: 0,
+    width: 2,
   },
   specialIcon: {
     color: "#f0bf14",

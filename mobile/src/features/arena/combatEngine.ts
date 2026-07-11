@@ -631,12 +631,14 @@ export class ArenaCombatEngine {
       return lethal;
     }
 
-    // 2) A playable Technique Finisher means the combo gate is already met —
-    //    it IS the payoff of the chain, so cash it.
-    const techniqueFinisher = attacks.find((card) => card.type === 'finisher');
-    if (techniqueFinisher) {
-      return techniqueFinisher;
+    // 2) The kit finisher is an early meter cash-out (unlocks at 4/7 but
+    //    spends the whole charge). Cash it early only to press a kill window
+    //    — otherwise hold and build toward the full-strength signature.
+    const kitFinisher = attacks.find((card) => card.type === 'finisher');
+    if (kitFinisher && getFighterHealthPercent(opponent) < 0.35) {
+      return kitFinisher;
     }
+    const attackOptions = attacks.filter((card) => card.type !== 'finisher');
 
     // 3) Defense is for recovering stamina, not hiding: brace only when no
     //    attack is affordable, or when badly hurt while the player still has
@@ -651,7 +653,7 @@ export class ArenaCombatEngine {
     // 4) The player armed a trap: spring it with the cheapest attack so the
     //    real hits land after the trap is spent.
     if (opponentTrapArmed) {
-      const probe = [...attacks].sort(
+      const probe = [...attackOptions].sort(
         (left, right) => left.staminaCost - right.staminaCost || left.baseDamage - right.baseDamage,
       )[0];
       if (probe) {
@@ -662,7 +664,7 @@ export class ArenaCombatEngine {
     // 5) Cash in a hot combo counter — but keep one point of stamina in
     //    reserve unless the payoff is a big chunk of the player's health.
     if (situation.comboActive) {
-      const combos = attacks
+      const combos = attackOptions
         .filter((card) => card.type === 'combo')
         .sort(
           (left, right) =>
@@ -683,7 +685,7 @@ export class ArenaCombatEngine {
     //    low, damage-per-stamina matters more than raw damage; never dump the
     //    last point without a kill, and press harder while the player is winded.
     const staminaTight = self.stamina <= 3;
-    const scored = attacks
+    const scored = attackOptions
       .map((card) => {
         const damage = this.estimateCardDamage(self, opponent, card);
         const efficiency = getCardEfficiency(card);
@@ -886,10 +888,10 @@ export class ArenaCombatEngine {
     attacker.totalDamageDealt = (attacker.totalDamageDealt ?? 0) + actualDamage;
   }
 
-  // Technique Finisher (kit slot 4): the capstone of a pressure chain. It is
-  // gated by stamina + combo requirements, works at ANY special-meter value,
-  // never consumes meter, and can be blocked/countered like other attacks.
-  // The 100-meter super is the separate Signature Finisher below.
+  // Kit Finisher (slot 4): the EARLY meter cash-out. It unlocks at 4/7 of
+  // the special meter (availability requirement) and consumes the whole
+  // meter when used — lower damage than holding the charge to 7/7 for the
+  // Signature Finisher below. Blockable/counterable like any attack.
   private static resolveFinisher(
     action: BattleAction,
     attacker: ArenaFighter,
@@ -915,13 +917,15 @@ export class ArenaCombatEngine {
     action.actualDamage = actualDamage;
     action.outcome = outcome;
     action.comboLength = comboLength;
+    action.specialMeterChange = -attacker.specialMeter;
 
     defender.currentHP = Math.max(0, defender.currentHP - actualDamage);
 
+    // Cash out: the finisher spends the built-up meter. The defender still
+    // charges from taking the hit.
+    attacker.specialMeter = 0;
     const meterGain = this.getMeterGainForDamage('combo', actualDamage);
-    attacker.specialMeter = capMeter(attacker.specialMeter + meterGain.attackerGain);
     defender.specialMeter = capMeter(defender.specialMeter + meterGain.defenderGain);
-    action.specialMeterChange = meterGain.attackerGain;
 
     attacker.comboCounter = 0;
     attacker.combosCompleted = (attacker.combosCompleted ?? 0) + 1;

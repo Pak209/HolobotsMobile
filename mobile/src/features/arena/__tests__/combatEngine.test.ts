@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ActionCard, ArenaFighter } from '@/types/arena';
 import { ArenaCombatEngine } from '../combatEngine';
+import { FINISHER_METER_REQUIREMENT } from '../moveKits';
 
 function makeFighter(overrides: Partial<ArenaFighter> = {}): ArenaFighter {
   return ArenaCombatEngine.prepareFighter({
@@ -239,20 +240,38 @@ describe('ArenaCombatEngine', () => {
       expect(command?.kind).toBe('move');
     });
 
-    it('cashes a playable technique finisher instead of extending the chain', () => {
-      const technique = makeCard({
-        id: 'tf-ai',
-        templateId: 'finisher.tech',
+    it('holds the kit finisher while the player is healthy', () => {
+      const kitFinisher = makeCard({
+        id: 'kf-ai',
+        templateId: 'finisher.kit',
         type: 'finisher',
         staminaCost: 3,
         baseDamage: 30,
-        requirements: [{ type: 'combo', operator: 'gte', value: 2 }],
+        requirements: [{ type: 'special_meter', operator: 'gte', value: FINISHER_METER_REQUIREMENT }],
       });
-      const battle = makeBattle({}, { comboCounter: 2 });
+      const battle = makeBattle({}, { specialMeter: FINISHER_METER_REQUIREMENT });
 
-      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, technique, block]);
+      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, kitFinisher, block]);
 
-      expect(choice?.id).toBe('tf-ai');
+      expect(choice?.id).not.toBe('kf-ai');
+    });
+
+    it('cashes the kit finisher early to close out a badly hurt player', () => {
+      const kitFinisher = makeCard({
+        id: 'kf-ai-2',
+        templateId: 'finisher.kit',
+        type: 'finisher',
+        staminaCost: 3,
+        baseDamage: 30,
+        requirements: [{ type: 'special_meter', operator: 'gte', value: FINISHER_METER_REQUIREMENT }],
+      });
+      // 40/120 HP = 33% (< 35% pressure threshold), but 37 estimated damage
+      // is not lethal, so this exercises the early-cash branch specifically.
+      const battle = makeBattle({ currentHP: 40 }, { specialMeter: FINISHER_METER_REQUIREMENT });
+
+      const choice = ArenaCombatEngine.selectAIAction(battle, [jab, kitFinisher, block]);
+
+      expect(choice?.id).toBe('kf-ai-2');
     });
 
     it('defends to recover when it cannot afford any attack', () => {
@@ -308,44 +327,39 @@ describe('ArenaCombatEngine', () => {
     expect(winCheck.winType).toBe('finisher');
   });
 
-  describe('technique finisher (kit slot 4)', () => {
-    const technique = makeCard({
-      id: 'tf-1',
-      templateId: 'finisher.tech',
+  describe('kit finisher (slot 4, early meter cash-out)', () => {
+    const kitFinisher = makeCard({
+      id: 'kf-1',
+      templateId: 'finisher.kit',
       type: 'finisher',
       staminaCost: 3,
       baseDamage: 30,
-      requirements: [{ type: 'combo', operator: 'gte', value: 2 }],
+      requirements: [{ type: 'special_meter', operator: 'gte', value: FINISHER_METER_REQUIREMENT }],
     });
 
-    it('is usable below full meter once the combo gate is met', () => {
-      const battle = makeBattle({ comboCounter: 2, specialMeter: 40 });
+    it('unlocks at 4/7 of the special meter', () => {
+      const locked = makeBattle({ specialMeter: FINISHER_METER_REQUIREMENT - 1 });
+      const unlocked = makeBattle({ specialMeter: FINISHER_METER_REQUIREMENT });
 
-      expect(ArenaCombatEngine.canPlayCard(battle, 'player', technique)).toBe(true);
+      expect(ArenaCombatEngine.canPlayCard(locked, 'player', kitFinisher)).toBe(false);
+      expect(ArenaCombatEngine.canPlayCard(unlocked, 'player', kitFinisher)).toBe(true);
     });
 
-    it('is blocked without an active combo chain even at full meter', () => {
-      const battle = makeBattle({ comboCounter: 0, specialMeter: 100 });
+    it('consumes the whole meter when used', () => {
+      const battle = makeBattle({ specialMeter: 80 });
 
-      expect(ArenaCombatEngine.canPlayCard(battle, 'player', technique)).toBe(false);
-    });
+      const resolved = ArenaCombatEngine.resolveAction(battle, kitFinisher, battle.player.holobotId);
 
-    it('never consumes special meter and cashes the combo chain', () => {
-      const battle = makeBattle({ comboCounter: 2, specialMeter: 100 });
-
-      const resolved = ArenaCombatEngine.resolveAction(battle, technique, battle.player.holobotId);
-
-      expect(resolved.player.specialMeter).toBe(100);
-      expect(resolved.player.comboCounter).toBe(0);
+      expect(resolved.player.specialMeter).toBe(0);
       expect(resolved.opponent.currentHP).toBeLessThan(battle.opponent.currentHP);
     });
 
     it('can be eaten by an armed defense trap', () => {
       const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
-      const battle = makeBattle({ comboCounter: 2 });
+      const battle = makeBattle({ specialMeter: 100 });
       const defended = ArenaCombatEngine.resolveAction(battle, block, battle.opponent.holobotId);
 
-      const resolved = ArenaCombatEngine.resolveAction(defended, technique, defended.player.holobotId);
+      const resolved = ArenaCombatEngine.resolveAction(defended, kitFinisher, defended.player.holobotId);
 
       expect(resolved.actionHistory.at(-1)?.outcome).toBe('blocked');
       expect(resolved.opponent.armedDefenseTrap).toBeNull();

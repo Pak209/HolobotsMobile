@@ -1,29 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
-import { getSignatureFinisher, resolveCombatKit, validateCombatKit } from '../moveKits';
+import {
+  FINISHER_METER_REQUIREMENT,
+  getSignatureFinisher,
+  getSpecialMeterSegments,
+  resolveCombatKit,
+  validateCombatKit,
+} from '../moveKits';
 
 describe('resolveCombatKit', () => {
-  it('builds a valid stock kit from nothing', () => {
+  it('builds a valid stock kit with one move of each category, in slot order', () => {
     const kit = resolveCombatKit();
 
-    expect(kit.slots).toHaveLength(4);
-    expect(kit.slots[3].type).toBe('finisher');
-    kit.slots.slice(0, 3).forEach((move) => expect(move.type).not.toBe('finisher'));
+    expect(kit.slots.map((move) => move.type)).toEqual(['strike', 'defense', 'combo', 'finisher']);
     expect(new Set(kit.slots.map((move) => move.templateId)).size).toBe(4);
   });
 
-  it('honors saved loadout order for slots 1-3', () => {
+  it('picks the first move of each category in saved loadout order', () => {
     const kit = resolveCombatKit({
-      deckTemplateIds: ['combo.chainBurst', 'strike.snapShot', 'defense.guardUp', 'strike.quickJab'],
+      deckTemplateIds: [
+        'combo.chainBurst',
+        'strike.snapShot',
+        'defense.guardUp',
+        'strike.quickJab',
+        'combo.doubleTap',
+      ],
     });
 
-    expect(kit.slots[0].templateId).toBe('combo.chainBurst');
-    expect(kit.slots[1].templateId).toBe('strike.snapShot');
-    expect(kit.slots[2].templateId).toBe('defense.guardUp');
+    expect(kit.slots[0].templateId).toBe('strike.snapShot');
+    expect(kit.slots[1].templateId).toBe('defense.guardUp');
+    expect(kit.slots[2].templateId).toBe('combo.chainBurst');
     expect(kit.slots[3].templateId).toBe('finisher.tacticalOverride');
   });
 
-  it('takes the first owned technique finisher for slot 4 and fills gaps with stock', () => {
+  it('takes the first owned finisher for slot 4 and fills gaps with stock', () => {
     const kit = resolveCombatKit({
       ownedBattleCards: { 'finisher.tacticalOverride': 1, 'strike.backhand': 1 },
     });
@@ -33,11 +43,25 @@ describe('resolveCombatKit', () => {
     expect(() => validateCombatKit(kit)).not.toThrow();
   });
 
-  it('replaces the legacy meter gate with a combo gate on technique finishers', () => {
+  it('gates the kit finisher at 4/7 of the special meter', () => {
     const finisher = resolveCombatKit().slots[3];
 
-    expect(finisher.requirements.some((req) => req.type === 'special_meter')).toBe(false);
-    expect(finisher.requirements.some((req) => req.type === 'combo')).toBe(true);
+    expect(
+      finisher.requirements.some(
+        (req) =>
+          req.type === 'special_meter' &&
+          req.operator === 'gte' &&
+          Number(req.value) === FINISHER_METER_REQUIREMENT,
+      ),
+    ).toBe(true);
+    expect(finisher.requirements.some((req) => req.type === 'combo')).toBe(false);
+  });
+
+  it('maps internal meter values to 7 display segments consistently with the gate', () => {
+    expect(getSpecialMeterSegments(0)).toBe(0);
+    expect(getSpecialMeterSegments(FINISHER_METER_REQUIREMENT - 1)).toBe(3);
+    expect(getSpecialMeterSegments(FINISHER_METER_REQUIREMENT)).toBe(4);
+    expect(getSpecialMeterSegments(100)).toBe(7);
   });
 
   it('ignores unknown templates and still resolves a legal kit', () => {

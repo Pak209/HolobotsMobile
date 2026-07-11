@@ -2,30 +2,51 @@ import type { ActionCard, CardRequirement, ResolvedSignatureFinisher } from '@/t
 import { createActionCardFromTemplate, STARTER_DECK_BALANCED_IDS } from '@/lib/battleCards/catalog';
 
 /**
- * Canonical combat-kit resolver (arena-card-to-move-implementation-plan.md).
+ * Canonical combat-kit resolver (arena-card-to-move-implementation-plan.md,
+ * with the revised finisher design below).
  *
  * A fighter battles with a fixed kit of four moves — no deck, hand, draw,
- * cycle, or duplicate-copy rules:
- *   slots 1–3: strike / defend / combo moves
- *   slot 4:    exactly one Technique Finisher (stamina + combo gated;
- *              never requires or consumes special meter)
- * plus one innate Signature Finisher derived from Holobot identity and
- * available only at exactly 100 special meter.
+ * cycle, or duplicate-copy rules — always one of each category, in order:
+ *   slot 1: Strike   slot 2: Defend   slot 3: Combo   slot 4: Finisher
+ *
+ * The special meter reads as 7 segments and powers BOTH finishers:
+ *   - the equipped slot-4 Finisher unlocks at 4/7 of the meter and CONSUMES
+ *     the meter when used — the early, lower-damage cash-out;
+ *   - the innate Signature Finisher (derived from Holobot identity, never
+ *     equipped) unlocks at 7/7 and consumes the full meter — the
+ *     full-strength option for players who hold the charge.
  *
  * Moves are resolved from the frozen legacy card catalog for now (Phase 1
- * compatibility layer); the canonical semantics — such as technique
- * finishers replacing the meter gate with a combo gate — are applied here.
+ * compatibility layer); the canonical semantics — such as the finisher's
+ * 4/7 meter gate — are applied here.
  */
 
 export type CombatKit = {
-  /** [strike/defend/combo ×3, technique finisher] — always 4 unique moves. */
+  /** [strike, defend, combo, finisher] — always 4 unique moves. */
   slots: [ActionCard, ActionCard, ActionCard, ActionCard];
 };
 
-// Technique Finishers cap a pressure sequence: they demand an active chain
-// and stamina, and work at any special-meter value (plan §6.1).
-const TECHNIQUE_FINISHER_REQUIREMENTS: CardRequirement[] = [
-  { type: 'combo', operator: 'gte', value: 2 },
+/** The special meter is presented as 7 segments (like the stamina bar). */
+export const SPECIAL_METER_SEGMENTS = 7;
+/** Segments needed to unlock the equipped slot-4 finisher. */
+export const FINISHER_UNLOCK_SEGMENTS = 4;
+/**
+ * Internal meter (0-100) value at which the 4th segment is reached:
+ * floor(m * 7 / 100) >= 4 first holds at m = 58.
+ */
+export const FINISHER_METER_REQUIREMENT = Math.ceil((100 * FINISHER_UNLOCK_SEGMENTS) / SPECIAL_METER_SEGMENTS);
+
+export function getSpecialMeterSegments(specialMeter: number): number {
+  return Math.max(
+    0,
+    Math.min(SPECIAL_METER_SEGMENTS, Math.floor((specialMeter * SPECIAL_METER_SEGMENTS) / 100)),
+  );
+}
+
+// The equipped finisher is the early meter cash-out: playable from 4/7 of
+// the special meter (it consumes the meter on use — see resolveFinisher).
+const KIT_FINISHER_REQUIREMENTS: CardRequirement[] = [
+  { type: 'special_meter', operator: 'gte', value: FINISHER_METER_REQUIREMENT },
 ];
 
 // Universal stock kit: every fighter can always form a legal kit from these
@@ -44,7 +65,7 @@ export function resolveMove(templateId: string, instanceId: string): ActionCard 
   }
 
   if (card.type === 'finisher') {
-    return { ...card, requirements: TECHNIQUE_FINISHER_REQUIREMENTS };
+    return { ...card, requirements: KIT_FINISHER_REQUIREMENTS };
   }
 
   return card;
@@ -59,12 +80,13 @@ export type ResolveKitOptions = {
   idPrefix?: string;
 };
 
+const KIT_SLOT_TYPES = ['strike', 'defense', 'combo', 'finisher'] as const;
+
 /**
- * Builds a valid kit from what the player saved and owns (plan §9.6–9.8):
- * slots 1–3 take the first three distinct compatible non-finisher moves in
- * saved-loadout order, slot 4 takes the first owned Technique Finisher, and
- * any gap is filled from the universal stock kit. Always returns a kit that
- * passes validateCombatKit.
+ * Builds a valid kit from what the player saved and owns: one move of each
+ * category — the first Strike, Defend, Combo, and Finisher found in
+ * saved-loadout order (then owned cards), with any gap filled from the
+ * universal stock kit. Always returns a kit that passes validateCombatKit.
  */
 export function resolveCombatKit(options: ResolveKitOptions = {}): CombatKit {
   const idPrefix = options.idPrefix ?? 'kit';
@@ -86,52 +108,35 @@ export function resolveCombatKit(options: ResolveKitOptions = {}): CombatKit {
     .forEach(([templateId]) => pushCandidate(templateId));
   STOCK_KIT_TEMPLATE_IDS.forEach(pushCandidate);
 
-  const normalSlots: ActionCard[] = [];
-  let techniqueFinisher: ActionCard | null = null;
+  const chosen: Partial<Record<(typeof KIT_SLOT_TYPES)[number], ActionCard>> = {};
 
   for (const templateId of orderedCandidates) {
     const move = resolveMove(templateId, nextId());
-    if (!move) {
+    if (!move || chosen[move.type]) {
       continue;
     }
-
-    if (move.type === 'finisher') {
-      if (!techniqueFinisher) {
-        techniqueFinisher = move;
-      }
-      continue;
-    }
-
-    if (normalSlots.length < 3) {
-      normalSlots.push(move);
-    }
-
-    if (normalSlots.length === 3 && techniqueFinisher) {
+    chosen[move.type] = move;
+    if (KIT_SLOT_TYPES.every((slotType) => chosen[slotType])) {
       break;
     }
   }
 
-  // The stock kit is part of the candidate list, so both of these are
-  // guaranteed as long as the stock templates exist in the catalog.
-  while (normalSlots.length < 3) {
-    const fallback = resolveMove(STOCK_KIT_TEMPLATE_IDS[normalSlots.length], nextId());
-    if (!fallback) {
-      throw new Error('Stock kit templates are missing from the battle catalog.');
+  // The stock kit is part of the candidate list (one move per category), so
+  // every category is guaranteed as long as the stock templates exist.
+  const slots = KIT_SLOT_TYPES.map((slotType) => {
+    const move = chosen[slotType];
+    if (!move) {
+      throw new Error(`Stock ${slotType} template is missing from the battle catalog.`);
     }
-    normalSlots.push(fallback);
-  }
-  if (!techniqueFinisher) {
-    throw new Error('Stock technique finisher is missing from the battle catalog.');
-  }
+    return move;
+  }) as CombatKit['slots'];
 
-  const kit: CombatKit = {
-    slots: [normalSlots[0], normalSlots[1], normalSlots[2], techniqueFinisher],
-  };
+  const kit: CombatKit = { slots };
   validateCombatKit(kit);
   return kit;
 }
 
-/** Enforces the non-negotiable kit invariants (plan §1). Throws on violation. */
+/** Enforces the kit invariants. Throws on violation. */
 export function validateCombatKit(kit: CombatKit): void {
   if (kit.slots.length !== 4) {
     throw new Error('A combat kit must contain exactly four moves.');
@@ -142,18 +147,22 @@ export function validateCombatKit(kit: CombatKit): void {
     throw new Error('A combat kit must contain four unique moves.');
   }
 
-  kit.slots.slice(0, 3).forEach((move) => {
-    if (move.type === 'finisher') {
-      throw new Error('Slots 1–3 cannot hold a Technique Finisher.');
+  KIT_SLOT_TYPES.forEach((slotType, index) => {
+    if (kit.slots[index].type !== slotType) {
+      throw new Error(`Kit slot ${index + 1} must hold a ${slotType} move.`);
     }
   });
 
   const finisher = kit.slots[3];
-  if (finisher.type !== 'finisher') {
-    throw new Error('Slot 4 must hold a Technique Finisher.');
-  }
-  if (finisher.requirements.some((requirement) => requirement.type === 'special_meter')) {
-    throw new Error('A Technique Finisher must not require special meter.');
+  if (
+    !finisher.requirements.some(
+      (requirement) =>
+        requirement.type === 'special_meter' &&
+        requirement.operator === 'gte' &&
+        Number(requirement.value) === FINISHER_METER_REQUIREMENT,
+    )
+  ) {
+    throw new Error('The kit finisher must carry the 4/7 special-meter gate.');
   }
 }
 
