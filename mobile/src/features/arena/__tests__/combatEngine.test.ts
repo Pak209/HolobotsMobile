@@ -736,3 +736,29 @@ describe('combo chain and the chain-ender finisher', () => {
     expect(ArenaCombatEngine.getFinisherCapstoneBonus(9)).toBeCloseTo(1.75);
   });
 });
+
+// The CPU has the same stamina mechanics as the player — including the
+// human one: PACING. A gassed AI with no kill pressure rests (returns no
+// command) so the timed regen can refill, instead of re-spending every
+// point the moment it arrives.
+describe('AI stamina pacing', () => {
+  const jab = makeCard({ id: 'jab-rest', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+
+  it('rests when gassed with no pressure on', () => {
+    const battle = makeBattle({}, { stamina: 2 });
+
+    expect(ArenaCombatEngine.selectAIAction(battle, [jab])).toBeNull();
+  });
+
+  it('keeps attacking through low stamina when the player is nearly down', () => {
+    const battle = makeBattle({ currentHP: 20, maxHP: 100 }, { stamina: 2 });
+
+    expect(ArenaCombatEngine.selectAIAction(battle, [jab])).not.toBeNull();
+  });
+
+  it('fights normally with a working stamina tank', () => {
+    const battle = makeBattle({}, { stamina: 5 });
+
+    expect(ArenaCombatEngine.selectAIAction(battle, [jab])).not.toBeNull();
+  });
+});

@@ -846,13 +846,20 @@ const styles = StyleSheet.create({
     width: 22,
   },
   abilityBadge: {
-    color: "#2fb9c9",
+    alignSelf: "flex-start",
+    backgroundColor: "#0b0d13",
+    borderRadius: 4,
+    color: "#2fd9e9",
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.5,
-    marginTop: 2,
+    marginTop: 3,
+    overflow: "hidden",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   abilityBadgeRight: {
+    alignSelf: "flex-end",
     textAlign: "right",
   },
   trapChip: {
@@ -873,17 +880,27 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.5,
   },
+  // The HUD stack can overflow the black band onto the yellow page, where
+  // the old gold-on-yellow active state disappeared — the counter sits on
+  // its own dark chip so it reads on any background.
   comboCounter: {
-    color: "#5a5a52",
+    alignSelf: "flex-start",
+    backgroundColor: "#0b0d13",
+    borderRadius: 4,
+    color: "#8f8f86",
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1,
-    marginTop: 2,
+    marginTop: 3,
+    overflow: "hidden",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   comboCounterActive: {
     color: "#f0bf14",
   },
   comboCounterRight: {
+    alignSelf: "flex-end",
     textAlign: "right",
   },
   cardCostText: {
