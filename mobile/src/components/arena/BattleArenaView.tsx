@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import type { ActionCard, BattleAction, BattleState, CardType } from "../../types/arena";
+import type { ActionCard, ArmedDefenseTrap, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
 import {
   FINISHER_UNLOCK_SEGMENTS,
@@ -93,9 +93,41 @@ function getAvailabilityLabel(availability?: ArenaCardAvailability) {
       return "TARGET SAFE";
     case "defense_lock":
       return "LOCKED";
+    case "bracing":
+      return "BRACING";
     default:
       return null;
   }
+}
+
+/** Spells out what the defender's trap did — the outcome used to be silent
+    unless it countered, so evades and blocks looked like nothing happened. */
+function getOutcomeLabel(action: BattleAction): string {
+  if (action.wasCountered) return " • COUNTERED!";
+  if (action.perfectDefense || action.outcome === "dodged" || action.outcome === "missed") {
+    return " • EVADED!";
+  }
+  if (action.outcome === "blocked" && action.actionType !== "defense") {
+    return " • BLOCKED BY TRAP";
+  }
+  if (action.actionType === "defense") return " • TRAP ARMED";
+  return "";
+}
+
+/** One-line plain-language summary of what an armed trap will do. */
+function describeTrap(trap: ArmedDefenseTrap): string {
+  const parts: string[] = [];
+  if (trap.evadeChance >= 1) {
+    parts.push("evades the next hit");
+  } else {
+    if (trap.damageReduction > 0) parts.push(`blocks ${Math.round(trap.damageReduction * 100)}%`);
+    if (trap.evadeChance > 0) parts.push(`${Math.round(trap.evadeChance * 100)}% evade`);
+  }
+  if (trap.counterDamageMultiplier > 0) {
+    parts.push(`counters for ${Math.round(trap.counterDamageMultiplier * 100)}%`);
+  }
+  if ((trap.charges ?? 1) > 1) parts.push(`${trap.charges} hits`);
+  return `Next incoming attack: ${parts.join(" · ") || "absorbed"}.`;
 }
 
 function getHealthPercent(current: number, max: number) {
@@ -398,9 +430,9 @@ export function BattleArenaView({
       {lastAction ? (
         <View style={styles.actionTicker}>
           <Text numberOfLines={1} style={styles.actionTickerText}>
-            {`${lastAction.card.name} ${lastActionDamage > 0 ? `• ${lastActionDamage} DMG` : ""}${
-              lastAction.perfectDefense ? " • PERFECT" : lastAction.wasCountered ? " • COUNTERED" : ""
-            }`}
+            {`${lastAction.card.name} ${lastActionDamage > 0 ? `• ${lastActionDamage} DMG` : ""}${getOutcomeLabel(
+              lastAction,
+            )}`}
           </Text>
         </View>
       ) : null}
@@ -536,6 +568,39 @@ export function BattleArenaView({
               />
             );
           })}
+        </View>
+
+        {/* Rule-bend crib sheet: how each fighter cheats, spelled out so
+            players learn the bends (and QA can verify them mid-fight). */}
+        <View style={styles.abilityDock}>
+          {[
+            { fighter: battle.player, label: "YOUR BEND" },
+            { fighter: battle.opponent, label: "CPU BEND" },
+          ].map(({ fighter, label }) => (
+            <View key={label} style={styles.abilityPanel}>
+              <Text style={styles.abilityPanelEyebrow}>{`${label} — ${fighter.name}`}</Text>
+              <Text style={styles.abilityPanelName}>
+                {`◈ ${(fighter.ability?.name ?? "COMBAT ROUTINE").toUpperCase()}`}
+              </Text>
+              <Text numberOfLines={3} style={styles.abilityPanelCopy}>
+                {fighter.ability?.description ?? "Every landed hit grants +1 special meter."}
+              </Text>
+              {fighter.armedDefenseTrap ? (
+                <>
+                  <Text numberOfLines={1} style={styles.abilityPanelTrapName}>
+                    {`⛨ ${fighter.armedDefenseTrap.name.toUpperCase()}${
+                      (fighter.armedDefenseTrap.stackLevel ?? 0) > 0
+                        ? ` ▲${fighter.armedDefenseTrap.stackLevel}`
+                        : ""
+                    }`}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.abilityPanelCopy}>
+                    {describeTrap(fighter.armedDefenseTrap)}
+                  </Text>
+                </>
+              ) : null}
+            </View>
+          ))}
         </View>
       </View>
     </View>
@@ -678,6 +743,46 @@ const styles = StyleSheet.create({
   benchHpFill: {
     backgroundColor: "#4bd060",
     height: "100%",
+  },
+  abilityDock: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  abilityPanel: {
+    backgroundColor: "#0b0d13",
+    borderColor: "#22262f",
+    borderRadius: 6,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  abilityPanelEyebrow: {
+    color: "#6b7280",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  abilityPanelName: {
+    color: "#2fd9e9",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    marginTop: 3,
+  },
+  abilityPanelCopy: {
+    color: "#9aa1ad",
+    fontSize: 9,
+    lineHeight: 13,
+    marginTop: 3,
+  },
+  abilityPanelTrapName: {
+    color: "#f0bf14",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    marginTop: 6,
   },
   cardBonusBadge: {
     backgroundColor: "#f0bf14",

@@ -296,12 +296,21 @@ export function ArenaScreen() {
     const totals = { exp: 0, syncPoints: 0, holos: 0, blueprints: {} as Record<string, number> };
     const settlements: Array<{ id: string; didWin: boolean; opponentName: string }> = [];
 
+    // The RUN is the unit: win it and every KO pays in full (blueprints,
+    // holos, the works); lose it and every round fought settles as
+    // consolation only (30% EXP / 20% SP — no holos, no blueprints).
+    // Grind-it-out rule: you bank the spoils by finishing the sweep.
+    const didWinRun = result.winnerSide === "player";
     team.opponent.slots.forEach((slot, index) => {
       if (slot.isKnockedOut) {
-        settlements.push({ id: `${teamSetup.battleId}-ko-${index}`, didWin: true, opponentName: slot.fighter.name });
+        settlements.push({
+          id: `${teamSetup.battleId}-ko-${index}`,
+          didWin: didWinRun,
+          opponentName: slot.fighter.name,
+        });
       }
     });
-    if (result.winnerSide === "opponent") {
+    if (!didWinRun) {
       const survivor = team.opponent.slots.find((slot) => !slot.isKnockedOut);
       settlements.push({
         id: `${teamSetup.battleId}-loss`,

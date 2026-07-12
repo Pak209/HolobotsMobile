@@ -91,6 +91,8 @@ export interface ArenaFighter {
   staminaState: StaminaState;
   isInDefenseMode: boolean;
   defenseCooldownUntil?: number;
+  /** Post-defend brace: non-defense plays stay locked until this time. */
+  actionLockUntil?: number;
   defenseActive?: boolean;
   defendedAt?: number;
   armedDefenseTrap?: ArmedDefenseTrap | null;

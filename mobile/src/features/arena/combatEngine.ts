@@ -24,6 +24,7 @@ import {
   getFighterHealthPercent,
   getPlayableCards,
   MAX_GUARD_STACKS,
+  POST_DEFENSE_ACTION_LOCK_MS,
   tickCooldownMap,
   type ArenaCardAvailability,
 } from './arenaCards';
@@ -382,7 +383,11 @@ export class ArenaCombatEngine {
 
   static canUseSignatureFinisher(state: BattleState, role: FighterRole): boolean {
     const fighter = role === 'player' ? state.player : state.opponent;
-    return state.status === 'active' && fighter.specialMeter >= SPECIAL_METER_MAX;
+    return (
+      state.status === 'active' &&
+      fighter.specialMeter >= SPECIAL_METER_MAX &&
+      (fighter.actionLockUntil ?? 0) <= Date.now()
+    );
   }
 
   static buildSignatureCard(fighter: ArenaFighter): ActionCard {
@@ -953,6 +958,10 @@ export class ArenaCombatEngine {
     // Defense cooldown is time-based: waiting it out (instead of attacking)
     // is exactly how the stack streak is kept alive.
     defender.defenseCooldownUntil = now + getDefenseCooldownMs(action.card);
+
+    // Brace: committing to the stance locks this fighter's ATTACKS for a
+    // beat — no defend-then-instant-strike.
+    defender.actionLockUntil = now + POST_DEFENSE_ACTION_LOCK_MS;
 
     action.outcome = 'blocked';
     action.damageDealt = 0;
