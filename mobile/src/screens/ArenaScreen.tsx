@@ -57,7 +57,12 @@ export function ArenaScreen() {
   const [teamMode, setTeamMode] = useState(false);
   const [teamSetup, setTeamSetup] = useState<{ tier: ArenaTier; teamNames: string[]; battleId: string } | null>(null);
   const teamSettledRef = useRef<string | null>(null);
-  const [teamRewards, setTeamRewards] = useState<{ exp: number; syncPoints: number; holos: number } | null>(null);
+  const [teamRewards, setTeamRewards] = useState<{
+    exp: number;
+    syncPoints: number;
+    holos: number;
+    blueprints: Record<string, number>;
+  } | null>(null);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPvpOpen, setIsPvpOpen] = useState(false);
   const [latestSetup, setLatestSetup] = useState<BattleSetup | null>(null);
@@ -288,8 +293,7 @@ export function ArenaScreen() {
     if (teamSettledRef.current === teamSetup.battleId) return;
     teamSettledRef.current = teamSetup.battleId;
 
-    const activePlayerName = team.player.slots[team.player.activeIndex].fighter.name;
-    const totals = { exp: 0, syncPoints: 0, holos: 0 };
+    const totals = { exp: 0, syncPoints: 0, holos: 0, blueprints: {} as Record<string, number> };
     const settlements: Array<{ id: string; didWin: boolean; opponentName: string }> = [];
 
     team.opponent.slots.forEach((slot, index) => {
@@ -306,7 +310,7 @@ export function ArenaScreen() {
       });
     }
 
-    for (const settlement of settlements) {
+    for (const [index, settlement] of settlements.entries()) {
       const input = {
         combosCompleted: 0,
         didWin: settlement.didWin,
@@ -319,9 +323,17 @@ export function ArenaScreen() {
         totals.exp += preview.exp;
         totals.syncPoints += preview.syncPoints;
         totals.holos += preview.holos ?? 0;
+        if (preview.blueprints) {
+          totals.blueprints[preview.blueprints.holobotKey] =
+            (totals.blueprints[preview.blueprints.holobotKey] ?? 0) + preview.blueprints.amount;
+        }
       }
+      // One settlement per team member (round-robin): a full sweep pays
+      // each of the three Holobots one round's EXP instead of piling the
+      // whole run onto whoever happened to be active at the end.
+      const recipient = teamSetup.teamNames[index % teamSetup.teamNames.length];
       try {
-        await settleArenaBattleAuthoritative(profile, user.uid, activePlayerName, settlement.id, input);
+        await settleArenaBattleAuthoritative(profile, user.uid, recipient, settlement.id, input);
       } catch (error) {
         console.error("[Arena] 3v3 settlement failed", error);
       }
@@ -531,9 +543,12 @@ export function ArenaScreen() {
             exp: teamRewards?.exp ?? 0,
             syncPoints: teamRewards?.syncPoints ?? 0,
             holos: teamRewards?.holos ?? 0,
+            blueprintRewards: Object.entries(teamRewards?.blueprints ?? {}).map(
+              ([holobotKey, amount]) => ({ holobotKey, amount }),
+            ),
           }}
-          subtitle="3V3 SHOWDOWN"
-          continueLabel="EXIT ARENA"
+          subtitle="3V3 SHOWDOWN • EXP SHARED ACROSS YOUR SQUAD"
+          hideRematch
           onRematch={handleExitResults}
           onExit={handleExitResults}
         />

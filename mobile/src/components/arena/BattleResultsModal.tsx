@@ -27,6 +27,8 @@ interface BattleResultsModalProps {
   runTotals?: RunTotals | null;
   continueLabel?: string;
   subtitle?: string;
+  /** When there is no rematch path (3v3), show a single primary EXIT. */
+  hideRematch?: boolean;
   onRematch: () => void;
   onExit: () => void;
 }
@@ -38,6 +40,7 @@ export function BattleResultsModal({
   runTotals,
   continueLabel,
   subtitle,
+  hideRematch,
   onRematch,
   onExit,
 }: BattleResultsModalProps) {
@@ -134,18 +137,22 @@ export function BattleResultsModal({
           </View>
 
           <View style={styles.buttonsContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.rematchButton]}
-              onPress={onRematch}
-            >
-              <Text style={styles.rematchButtonText}>{continueLabel || 'REMATCH'}</Text>
-            </TouchableOpacity>
+            {!hideRematch ? (
+              <TouchableOpacity
+                style={[styles.button, styles.rematchButton]}
+                onPress={onRematch}
+              >
+                <Text style={styles.rematchButtonText}>{continueLabel || 'REMATCH'}</Text>
+              </TouchableOpacity>
+            ) : null}
 
             <TouchableOpacity
-              style={[styles.button, styles.exitButton]}
+              style={[styles.button, hideRematch ? styles.rematchButton : styles.exitButton]}
               onPress={onExit}
             >
-              <Text style={styles.exitButtonText}>EXIT ARENA</Text>
+              <Text style={hideRematch ? styles.rematchButtonText : styles.exitButtonText}>
+                EXIT ARENA
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
