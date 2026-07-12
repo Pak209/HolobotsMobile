@@ -96,6 +96,14 @@ export const BOOSTER_PART_POOL = [
   { name: "Core Part", slot: "core" },
 ] as const;
 
+/**
+ * GOD PACK (Elite boosters only): the Pokemon-rip jackpot moment. A small
+ * roll turns the whole pack into triples — 3 parts, 3 move unlocks, and the
+ * item award ×3.
+ */
+export const GOD_PACK_CHANCE = 0.05;
+export const GOD_PACK_ROLLS = 3;
+
 export const BOOSTER_ITEM_AWARD_MAP: Record<MarketplaceBoosterId, MarketplaceItemName> = {
   champion: "Gacha Ticket",
   common: "Arena Pass",
@@ -218,12 +226,18 @@ export function buildPartPurchaseUpdates(
   };
 }
 
+export type BoosterGrantSummary = {
+  battleCardId: string;
+  battleCardIds: string[];
+  godPack: boolean;
+  itemName: MarketplaceItemName;
+  itemQuantity: number;
+  part: { name: string; slot: string };
+  parts: Array<{ name: string; slot: string }>;
+};
+
 export type BoosterPurchaseResult = {
-  granted: {
-    battleCardId: string;
-    itemName: MarketplaceItemName;
-    part: { name: string; slot: string };
-  };
+  granted: BoosterGrantSummary;
   price: number;
   updates: Record<string, unknown>;
 };
@@ -256,12 +270,21 @@ export function buildBoosterPurchaseUpdates(
     return null;
   }
 
-  const grantedPart = randomFrom(BOOSTER_PART_POOL, random);
+  // The god roll is consumed FIRST (elite only) so the client/server RNG
+  // streams stay aligned for the grants that follow.
+  const isGodPack = packId === "elite" && random() < GOD_PACK_CHANCE;
+  const rolls = isGodPack ? GOD_PACK_ROLLS : 1;
+
+  const grantedParts = Array.from({ length: rolls }, () => randomFrom(BOOSTER_PART_POOL, random));
   const grantedItem = BOOSTER_ITEM_AWARD_MAP[packId];
-  const grantedBattleCard = getRandomBattleCardGrant(packId, random);
-  const [grantedBattleCardId] = Object.keys(grantedBattleCard);
+  const battleCardIds: string[] = [];
+  let nextBattleCards: Record<string, number> = profile.battle_cards ?? {};
+  for (let index = 0; index < rolls; index += 1) {
+    const grantedBattleCard = getRandomBattleCardGrant(packId, random);
+    battleCardIds.push(Object.keys(grantedBattleCard)[0]);
+    nextBattleCards = mergeBattleCardCounts(nextBattleCards, grantedBattleCard);
+  }
   const packHistory = Array.isArray(profile.pack_history) ? profile.pack_history : [];
-  const nextBattleCards = mergeBattleCardCounts(profile.battle_cards, grantedBattleCard);
 
   const updates: Record<string, unknown> = {
     arena_deck_template_ids:
@@ -272,31 +295,39 @@ export function buildBoosterPurchaseUpdates(
     holosTokens: holos - price,
     pack_history: [
       {
+        godPack: isGodPack,
         id: `marketplace_${packId}_${now.getTime()}`,
         items: [
-          { name: grantedPart.name, quantity: 1, slot: grantedPart.slot, type: "part" },
-          { name: grantedItem, quantity: 1, type: "item" },
-          { name: grantedBattleCardId, quantity: 1, type: "battle_card" },
+          ...grantedParts.map((part) => ({ name: part.name, quantity: 1, slot: part.slot, type: "part" })),
+          { name: grantedItem, quantity: rolls, type: "item" },
+          ...battleCardIds.map((cardId) => ({ name: cardId, quantity: 1, type: "battle_card" })),
         ],
         openedAt: now.toISOString(),
         packId,
       },
       ...packHistory,
     ].slice(0, 50),
-    parts: [...(profile.parts || []), { name: grantedPart.name, slot: grantedPart.slot }],
+    parts: [
+      ...(profile.parts || []),
+      ...grantedParts.map((part) => ({ name: part.name, slot: part.slot })),
+    ],
     rewardSystem: incrementBoosterPacksToday(profile.rewardSystem, now),
   };
 
-  if (grantedItem === "Arena Pass") updates.arena_passes = Number(profile.arena_passes || 0) + 1;
-  if (grantedItem === "Gacha Ticket") updates.gachaTickets = Number(profile.gachaTickets || 0) + 1;
-  if (grantedItem === "Energy Refill") updates.energy_refills = Number(profile.energy_refills || 0) + 1;
-  if (grantedItem === "EXP Booster") updates.exp_boosters = Number(profile.exp_boosters || 0) + 1;
+  if (grantedItem === "Arena Pass") updates.arena_passes = Number(profile.arena_passes || 0) + rolls;
+  if (grantedItem === "Gacha Ticket") updates.gachaTickets = Number(profile.gachaTickets || 0) + rolls;
+  if (grantedItem === "Energy Refill") updates.energy_refills = Number(profile.energy_refills || 0) + rolls;
+  if (grantedItem === "EXP Booster") updates.exp_boosters = Number(profile.exp_boosters || 0) + rolls;
 
   return {
     granted: {
-      battleCardId: grantedBattleCardId,
+      battleCardId: battleCardIds[0],
+      battleCardIds,
+      godPack: isGodPack,
       itemName: grantedItem,
-      part: { name: grantedPart.name, slot: grantedPart.slot },
+      itemQuantity: rolls,
+      part: { name: grantedParts[0].name, slot: grantedParts[0].slot },
+      parts: grantedParts.map((part) => ({ name: part.name, slot: part.slot })),
     },
     price,
     updates,

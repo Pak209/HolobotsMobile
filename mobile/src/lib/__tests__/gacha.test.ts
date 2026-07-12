@@ -78,9 +78,9 @@ describe("buildPackGrantUpdates", () => {
     const updates = buildPackGrantUpdates(
       { arena_passes: 2, energy_refills: 0, exp_boosters: 5 },
       [
-        makeItem({ grant: { type: "consumable", key: "energy_refills" } }),
-        makeItem({ grant: { type: "consumable", key: "energy_refills" } }),
-        makeItem({ grant: { type: "consumable", key: "arena_passes" } }),
+        makeItem({ grant: { type: "consumable", key: "energy_refills", amount: 1 } }),
+        makeItem({ grant: { type: "consumable", key: "energy_refills", amount: 1 } }),
+        makeItem({ grant: { type: "consumable", key: "arena_passes", amount: 1 } }),
       ],
     );
 
@@ -119,5 +119,42 @@ describe("buildPackGrantUpdates", () => {
 
   it("returns an empty object when there is nothing to grant", () => {
     expect(buildPackGrantUpdates({}, [])).toEqual({});
+  });
+});
+
+// A gold reveal should feel gold: consumable drops scale with rarity.
+describe("rarity-scaled consumables", () => {
+  it("epic and legendary consumable pulls grant 2 and 3 copies", () => {
+    // Force label selection to a consumable and sweep rarities via buildPackRewards
+    // seeds; instead assert through the grant-updates fold with hand-built items.
+    const base = { arena_passes: 0, blueprints: {}, energy_refills: 0, exp_boosters: 0, parts: [], wildcardBlueprints: 0 };
+    const items = [
+      { grant: { type: "consumable", key: "energy_refills", amount: 1 }, id: "a", label: "Energy Refill", rarity: "common", subtitle: "" },
+      { grant: { type: "consumable", key: "energy_refills", amount: 2 }, id: "b", label: "Energy Refill", rarity: "epic", subtitle: "" },
+      { grant: { type: "consumable", key: "arena_passes", amount: 3 }, id: "c", label: "Arena Pass", rarity: "legendary", subtitle: "" },
+    ] as never;
+
+    const updates = buildPackGrantUpdates(base as never, items);
+    expect(updates.energy_refills).toBe(3);
+    expect(updates.arena_passes).toBe(3);
+  });
+
+  it("rolled packs never produce a consumable amount outside 1-3", () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      let state = seed >>> 0;
+      const random = () => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 2 ** 32;
+      };
+      for (const item of buildPackRewards("elite", random)) {
+        if (item.grant.type === "consumable") {
+          expect(item.grant.amount).toBeGreaterThanOrEqual(1);
+          expect(item.grant.amount).toBeLessThanOrEqual(3);
+          if (item.rarity === "legendary") expect(item.grant.amount).toBe(3);
+          if (item.rarity === "epic") expect(item.grant.amount).toBe(2);
+          if (item.grant.amount > 1) expect(item.subtitle).toContain(`×${item.grant.amount}`);
+        }
+      }
+    }
   });
 });

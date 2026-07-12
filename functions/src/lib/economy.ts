@@ -111,6 +111,15 @@ const BLUEPRINTS_BY_RARITY: Record<GachaRarity, number> = {
   legendary: 5,
 };
 
+// A gold reveal should FEEL gold: consumables scale with rarity instead of
+// always being a single copy.
+const CONSUMABLE_AMOUNT_BY_RARITY: Record<GachaRarity, number> = {
+  common: 1,
+  rare: 1,
+  epic: 2,
+  legendary: 3,
+};
+
 export type GachaGrantedItem = {
   id: string;
   label: GachaItemLabel;
@@ -118,7 +127,7 @@ export type GachaGrantedItem = {
   subtitle: string;
   grant:
     | { type: "part"; name: GachaItemLabel; slot: string }
-    | { type: "consumable"; key: "arena_passes" | "energy_refills" | "exp_boosters" }
+    | { type: "consumable"; key: "arena_passes" | "energy_refills" | "exp_boosters"; amount: number }
     | { type: "blueprints"; holobotKey: string; amount: number }
     | { type: "wildcard_blueprints"; amount: number };
 };
@@ -153,9 +162,10 @@ function buildGrant(
     return { type: "part", name: label, slot: partSlot };
   }
 
-  if (label === "Energy Refill") return { type: "consumable", key: "energy_refills" };
-  if (label === "Arena Pass") return { type: "consumable", key: "arena_passes" };
-  if (label === "EXP Booster") return { type: "consumable", key: "exp_boosters" };
+  const consumableAmount = CONSUMABLE_AMOUNT_BY_RARITY[rarity];
+  if (label === "Energy Refill") return { type: "consumable", key: "energy_refills", amount: consumableAmount };
+  if (label === "Arena Pass") return { type: "consumable", key: "arena_passes", amount: consumableAmount };
+  if (label === "EXP Booster") return { type: "consumable", key: "exp_boosters", amount: consumableAmount };
 
   if (rarity === "legendary") {
     return { type: "wildcard_blueprints", amount: BLUEPRINTS_BY_RARITY[rarity] };
@@ -176,6 +186,9 @@ function describeGrant(grant: GachaGrantedItem["grant"], index: number, total: n
   }
   if (grant.type === "wildcard_blueprints") {
     return `WILDCARD ×${grant.amount} · any Holobot · ${dropLabel}`;
+  }
+  if (grant.type === "consumable" && grant.amount > 1) {
+    return `×${grant.amount} · ${dropLabel}`;
   }
   return dropLabel;
 }
@@ -229,7 +242,7 @@ export function buildPackGrantUpdatesRaw(
       const rawKey = CONSUMABLE_RAW_KEYS[grant.key];
       const current =
         updates[rawKey] !== undefined ? Number(updates[rawKey]) : Number(userData[rawKey] || 0);
-      updates[rawKey] = current + 1;
+      updates[rawKey] = current + grant.amount;
       continue;
     }
 
@@ -367,6 +380,13 @@ export const BOOSTER_PART_POOL = [
   { name: "Core Part", slot: "core" },
 ] as const;
 
+/**
+ * GOD PACK (Elite boosters only): a small roll turns the whole pack into
+ * triples — 3 parts, 3 move unlocks, and the item award ×3.
+ */
+export const GOD_PACK_CHANCE = 0.05;
+export const GOD_PACK_ROLLS = 3;
+
 export const BOOSTER_ITEM_AWARD_MAP: Record<MarketplaceBoosterId, MarketplaceItemName> = {
   champion: "Gacha Ticket",
   common: "Arena Pass",
@@ -494,8 +514,12 @@ export function buildItemPurchaseUpdatesRaw(
 export type BoosterPurchaseResultRaw = {
   granted: {
     battleCardId: string;
+    battleCardIds: string[];
+    godPack: boolean;
     itemName: MarketplaceItemName;
+    itemQuantity: number;
     part: { name: string; slot: string };
+    parts: Array<{ name: string; slot: string }>;
   };
   price: number;
   updates: Record<string, unknown>;
@@ -516,21 +540,29 @@ export function buildBoosterPurchaseUpdatesRaw(
     return null;
   }
 
-  const grantedPart = randomFrom(BOOSTER_PART_POOL, random);
+  // The god roll is consumed FIRST (elite only) so the client/server RNG
+  // streams stay aligned for the grants that follow.
+  const isGodPack = packId === "elite" && random() < GOD_PACK_CHANCE;
+  const rolls = isGodPack ? GOD_PACK_ROLLS : 1;
+
+  const grantedParts = Array.from({ length: rolls }, () => randomFrom(BOOSTER_PART_POOL, random));
   const grantedItem = BOOSTER_ITEM_AWARD_MAP[packId];
-  const grantedBattleCard = getRandomBattleCardGrant(packId, random);
-  const [grantedBattleCardId] = Object.keys(grantedBattleCard);
+  const battleCardIds: string[] = [];
+  let nextBattleCards: Record<string, number> =
+    (userData.battle_cards as Record<string, number> | undefined) ??
+    (userData.battleCards as Record<string, number> | undefined) ??
+    {};
+  for (let index = 0; index < rolls; index += 1) {
+    const grantedBattleCard = getRandomBattleCardGrant(packId, random);
+    battleCardIds.push(Object.keys(grantedBattleCard)[0]);
+    nextBattleCards = mergeBattleCardCounts(nextBattleCards, grantedBattleCard);
+  }
   const packHistory = Array.isArray(userData.packHistory)
     ? (userData.packHistory as Array<Record<string, unknown>>)
     : [];
   const currentDeckIds = Array.isArray(userData.arena_deck_template_ids)
     ? (userData.arena_deck_template_ids as string[])
     : [];
-  const nextBattleCards = mergeBattleCardCounts(
-    (userData.battle_cards as Record<string, number> | undefined) ??
-      (userData.battleCards as Record<string, number> | undefined),
-    grantedBattleCard,
-  );
 
   const updates: Record<string, unknown> = {
     arena_deck_template_ids:
@@ -539,11 +571,12 @@ export function buildBoosterPurchaseUpdatesRaw(
     holosTokens: holos - price,
     packHistory: [
       {
+        godPack: isGodPack,
         id: `marketplace_${packId}_${now.getTime()}`,
         items: [
-          { name: grantedPart.name, quantity: 1, slot: grantedPart.slot, type: "part" },
-          { name: grantedItem, quantity: 1, type: "item" },
-          { name: grantedBattleCardId, quantity: 1, type: "battle_card" },
+          ...grantedParts.map((part) => ({ name: part.name, quantity: 1, slot: part.slot, type: "part" })),
+          { name: grantedItem, quantity: rolls, type: "item" },
+          ...battleCardIds.map((cardId) => ({ name: cardId, quantity: 1, type: "battle_card" })),
         ],
         openedAt: now.toISOString(),
         packId,
@@ -552,21 +585,25 @@ export function buildBoosterPurchaseUpdatesRaw(
     ].slice(0, 50),
     parts: [
       ...((userData.parts as Array<Record<string, unknown>>) || []),
-      { name: grantedPart.name, slot: grantedPart.slot },
+      ...grantedParts.map((part) => ({ name: part.name, slot: part.slot })),
     ],
     rewardSystem: incrementBoosterPacksToday(userData.rewardSystem, now),
   };
 
-  if (grantedItem === "Arena Pass") updates.arenaPassses = Number(userData.arenaPassses || 0) + 1;
-  if (grantedItem === "Gacha Ticket") updates.gachaTickets = Number(userData.gachaTickets || 0) + 1;
-  if (grantedItem === "Energy Refill") updates.energyRefills = Number(userData.energyRefills || 0) + 1;
-  if (grantedItem === "EXP Booster") updates.expBoosters = Number(userData.expBoosters || 0) + 1;
+  if (grantedItem === "Arena Pass") updates.arenaPassses = Number(userData.arenaPassses || 0) + rolls;
+  if (grantedItem === "Gacha Ticket") updates.gachaTickets = Number(userData.gachaTickets || 0) + rolls;
+  if (grantedItem === "Energy Refill") updates.energyRefills = Number(userData.energyRefills || 0) + rolls;
+  if (grantedItem === "EXP Booster") updates.expBoosters = Number(userData.expBoosters || 0) + rolls;
 
   return {
     granted: {
-      battleCardId: grantedBattleCardId,
+      battleCardId: battleCardIds[0],
+      battleCardIds,
+      godPack: isGodPack,
       itemName: grantedItem,
-      part: { name: grantedPart.name, slot: grantedPart.slot },
+      itemQuantity: rolls,
+      part: { name: grantedParts[0].name, slot: grantedParts[0].slot },
+      parts: grantedParts.map((part) => ({ name: part.name, slot: part.slot })),
     },
     price,
     updates,
