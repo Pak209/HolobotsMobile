@@ -78,6 +78,14 @@ type FirestoreUserDocument = {
   lastFitnessSyncAt?: { toDate?: () => Date };
   fitnessSource?: string;
   syncDistanceUnit?: "km" | "mi";
+  wildcardBlueprints?: number;
+  lastWildcardPackAt?: number;
+  referralCode?: string;
+  referredBy?: string;
+  referrals?: { pending?: number; qualified?: number };
+  referralQualified?: boolean;
+  genesisSquadClaimed?: string;
+  genesisBadge?: boolean;
 };
 
 function toIsoString(value?: { toDate?: () => Date } | string) {
@@ -180,6 +188,14 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     lastFitnessSyncAt: toIsoString(data.lastFitnessSyncAt),
     fitnessSource: data.fitnessSource ?? DEFAULT_USER_PROFILE.fitnessSource,
     syncDistanceUnit: data.syncDistanceUnit ?? DEFAULT_USER_PROFILE.syncDistanceUnit,
+    wildcardBlueprints: data.wildcardBlueprints ?? 0,
+    lastWildcardPackAt: data.lastWildcardPackAt,
+    referralCode: data.referralCode,
+    referredBy: data.referredBy,
+    referrals: data.referrals,
+    referralQualified: data.referralQualified ?? false,
+    genesisSquadClaimed: data.genesisSquadClaimed,
+    genesisBadge: data.genesisBadge ?? false,
   };
 }
 
@@ -245,6 +261,9 @@ type UserProfileUpdates = Partial<{
   rewardSystem: Record<string, unknown>;
   syncDistanceUnit: "km" | "mi";
   leaderboardScore: number;
+  wildcardBlueprints: number;
+  lastWildcardPackAt: number;
+  referralCode: string;
 }>;
 
 export async function updateUserProfile(userId: string, updates: UserProfileUpdates) {
@@ -285,6 +304,9 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.holobots !== undefined) firestoreUpdates.holobots = updates.holobots;
   if (updates.rewardSystem !== undefined) firestoreUpdates.rewardSystem = updates.rewardSystem;
   if (updates.syncDistanceUnit !== undefined) firestoreUpdates.syncDistanceUnit = updates.syncDistanceUnit;
+  if (updates.wildcardBlueprints !== undefined) firestoreUpdates.wildcardBlueprints = updates.wildcardBlueprints;
+  if (updates.lastWildcardPackAt !== undefined) firestoreUpdates.lastWildcardPackAt = updates.lastWildcardPackAt;
+  if (updates.referralCode !== undefined) firestoreUpdates.referralCode = updates.referralCode;
 
   if (
     updates.holobots !== undefined ||

@@ -119,7 +119,8 @@ export type GachaGrantedItem = {
   grant:
     | { type: "part"; name: GachaItemLabel; slot: string }
     | { type: "consumable"; key: "arena_passes" | "energy_refills" | "exp_boosters" }
-    | { type: "blueprints"; holobotKey: string; amount: number };
+    | { type: "blueprints"; holobotKey: string; amount: number }
+    | { type: "wildcard_blueprints"; amount: number };
 };
 
 export function rollPackRarity(packId: GachaPackId, roll: number): GachaRarity {
@@ -156,6 +157,10 @@ function buildGrant(
   if (label === "Arena Pass") return { type: "consumable", key: "arena_passes" };
   if (label === "EXP Booster") return { type: "consumable", key: "exp_boosters" };
 
+  if (rarity === "legendary") {
+    return { type: "wildcard_blueprints", amount: BLUEPRINTS_BY_RARITY[rarity] };
+  }
+
   const holobotName = randomFrom(HOLOBOT_NAMES, random);
   return {
     type: "blueprints",
@@ -168,6 +173,9 @@ function describeGrant(grant: GachaGrantedItem["grant"], index: number, total: n
   const dropLabel = `Drop ${index + 1} of ${total}`;
   if (grant.type === "blueprints") {
     return `${grant.holobotKey.toUpperCase()} ×${grant.amount} · ${dropLabel}`;
+  }
+  if (grant.type === "wildcard_blueprints") {
+    return `WILDCARD ×${grant.amount} · any Holobot · ${dropLabel}`;
   }
   return dropLabel;
 }
@@ -222,6 +230,15 @@ export function buildPackGrantUpdatesRaw(
       const current =
         updates[rawKey] !== undefined ? Number(updates[rawKey]) : Number(userData[rawKey] || 0);
       updates[rawKey] = current + 1;
+      continue;
+    }
+
+    if (grant.type === "wildcard_blueprints") {
+      const current =
+        updates.wildcardBlueprints !== undefined
+          ? Number(updates.wildcardBlueprints)
+          : Number(userData.wildcardBlueprints || 0);
+      updates.wildcardBlueprints = current + grant.amount;
       continue;
     }
 
@@ -423,9 +440,13 @@ export type ItemPurchaseResultRaw = {
 };
 
 /** Raw-field version of the mobile buildItemPurchaseUpdates. */
+export const WILDCARD_PACK_AMOUNT = 5;
+export const WILDCARD_PACK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function buildItemPurchaseUpdatesRaw(
   userData: Record<string, unknown>,
   itemName: string,
+  now: Date = new Date(),
 ): ItemPurchaseResultRaw | null {
   const price = getMarketplacePrice(itemName);
   const holos = Number(userData.holosTokens || 0);
@@ -454,6 +475,15 @@ export function buildItemPurchaseUpdatesRaw(
     case "Rank Skip":
       updates.rankSkips = Number(userData.rankSkips || 0) + 1;
       break;
+    case "Wildcard Blueprints": {
+      const lastAt = Number(userData.lastWildcardPackAt || 0);
+      if (now.getTime() - lastAt < WILDCARD_PACK_COOLDOWN_MS) {
+        return null;
+      }
+      updates.wildcardBlueprints = Number(userData.wildcardBlueprints || 0) + WILDCARD_PACK_AMOUNT;
+      updates.lastWildcardPackAt = now.getTime();
+      break;
+    }
     default:
       return null;
   }

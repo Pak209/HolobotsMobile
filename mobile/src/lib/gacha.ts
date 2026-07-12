@@ -62,7 +62,8 @@ export type GachaGrantedItem = {
   grant:
     | { type: "part"; name: GachaItemLabel; slot: string }
     | { type: "consumable"; key: "arena_passes" | "energy_refills" | "exp_boosters" }
-    | { type: "blueprints"; holobotKey: string; amount: number };
+    | { type: "blueprints"; holobotKey: string; amount: number }
+    | { type: "wildcard_blueprints"; amount: number };
 };
 
 export function rollPackRarity(packId: GachaPackId, roll: number): GachaRarity {
@@ -99,6 +100,12 @@ function buildGrant(label: GachaItemLabel, rarity: GachaRarity, random: () => nu
   if (label === "Arena Pass") return { type: "consumable", key: "arena_passes" };
   if (label === "EXP Booster") return { type: "consumable", key: "exp_boosters" };
 
+  // Legendary blueprint pulls are WILDCARDS — the player assigns them to
+  // any Holobot. Lower rarities stay a random bot (the fun lottery).
+  if (rarity === "legendary") {
+    return { type: "wildcard_blueprints", amount: BLUEPRINTS_BY_RARITY[rarity] };
+  }
+
   const holobotName = randomFrom(HOLOBOT_NAMES, random);
   return {
     type: "blueprints",
@@ -111,6 +118,9 @@ function describeGrant(grant: GachaGrantedItem["grant"], index: number, total: n
   const dropLabel = `Drop ${index + 1} of ${total}`;
   if (grant.type === "blueprints") {
     return `${grant.holobotKey.toUpperCase()} ×${grant.amount} · ${dropLabel}`;
+  }
+  if (grant.type === "wildcard_blueprints") {
+    return `WILDCARD ×${grant.amount} · any Holobot · ${dropLabel}`;
   }
   return dropLabel;
 }
@@ -139,6 +149,7 @@ export type GachaGrantUpdates = {
   energy_refills?: number;
   exp_boosters?: number;
   parts?: Array<Record<string, unknown>>;
+  wildcardBlueprints?: number;
 };
 
 /**
@@ -146,7 +157,7 @@ export type GachaGrantUpdates = {
  * player sees is actually granted. Returns only the fields that changed.
  */
 export function buildPackGrantUpdates(
-  profile: Pick<UserProfile, "arena_passes" | "blueprints" | "energy_refills" | "exp_boosters" | "parts">,
+  profile: Pick<UserProfile, "arena_passes" | "blueprints" | "energy_refills" | "exp_boosters" | "parts" | "wildcardBlueprints">,
   items: GachaGrantedItem[],
 ): GachaGrantUpdates {
   const updates: GachaGrantUpdates = {};
@@ -165,6 +176,11 @@ export function buildPackGrantUpdates(
     if (grant.type === "consumable") {
       const current = updates[grant.key] ?? Number(profile[grant.key] || 0);
       updates[grant.key] = current + 1;
+      continue;
+    }
+
+    if (grant.type === "wildcard_blueprints") {
+      updates.wildcardBlueprints = Number(updates.wildcardBlueprints ?? profile.wildcardBlueprints ?? 0) + grant.amount;
       continue;
     }
 

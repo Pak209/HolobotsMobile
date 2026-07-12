@@ -1,5 +1,13 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { FieldValue as AdminFieldValue } from "firebase-admin/firestore";
+
+import {
+  EXTRA_REFERRAL_WILDCARDS,
+  GENESIS_REFERRALS_REQUIRED,
+  REFERRAL_WELCOME_HOLOS,
+  REFERRAL_WELCOME_WILDCARDS,
+} from "../lib/referrals";
 
 import { db } from "../admin";
 import {
@@ -80,6 +88,24 @@ export const syncFitnessActivity = onCall(async (request): Promise<SyncFitnessAc
       return outcome.response;
     }
 
+    // Referral qualification (genesis-squad-monetization-plan.md): the
+    // invited player's FIRST settled workout is what makes their referral
+    // count — a physical act, hard to bot. All reads must precede writes in
+    // a Firestore transaction, so resolve the referrer snapshot up front.
+    const completedWorkout =
+      Number((outcome.dailyUpdates as Record<string, unknown>)?.workoutSessionsCompleted || 0) >= 1;
+    const shouldQualify =
+      completedWorkout && typeof userData.referredBy === "string" && !userData.referralQualified;
+    let referrerUpdate: { ref: FirebaseFirestore.DocumentReference; qualified: number } | null = null;
+    if (shouldQualify) {
+      const referrerRef = db.doc(`users/${String(userData.referredBy)}`);
+      const referrerSnapshot = await transaction.get(referrerRef);
+      if (referrerSnapshot.exists) {
+        const referrals = (referrerSnapshot.data()?.referrals ?? {}) as { qualified?: number };
+        referrerUpdate = { ref: referrerRef, qualified: Number(referrals.qualified || 0) + 1 };
+      }
+    }
+
     transaction.set(
       dailyRef,
       {
@@ -89,15 +115,52 @@ export const syncFitnessActivity = onCall(async (request): Promise<SyncFitnessAc
       { merge: true },
     );
 
+    const welcomeUpdates = shouldQualify && referrerUpdate
+      ? {
+          referralQualified: true,
+          wildcardBlueprints:
+            Number(userData.wildcardBlueprints || 0) +
+            Number((outcome.userUpdates as Record<string, unknown>).wildcardBlueprints || 0) +
+            REFERRAL_WELCOME_WILDCARDS,
+          holosTokens:
+            Number(
+              (outcome.userUpdates as Record<string, unknown>).holosTokens ??
+                userData.holosTokens ??
+                0,
+            ) + REFERRAL_WELCOME_HOLOS,
+        }
+      : {};
+
     transaction.set(
       userRef,
       {
         ...outcome.userUpdates,
+        ...welcomeUpdates,
         lastFitnessSyncAt: FieldValue.serverTimestamp(),
         lastStepSync: FieldValue.serverTimestamp(),
       },
       { merge: true },
     );
+
+    if (referrerUpdate) {
+      // No referral cap: every qualified referral past the Genesis Squad
+      // threshold pays wildcards instead.
+      const extras =
+        referrerUpdate.qualified > GENESIS_REFERRALS_REQUIRED
+          ? { wildcardBlueprints: AdminFieldValue.increment(EXTRA_REFERRAL_WILDCARDS) }
+          : {};
+      transaction.set(
+        referrerUpdate.ref,
+        {
+          referrals: {
+            qualified: referrerUpdate.qualified,
+            pending: AdminFieldValue.increment(-1),
+          },
+          ...extras,
+        },
+        { merge: true },
+      );
+    }
 
     return outcome.response;
   });

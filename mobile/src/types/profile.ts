@@ -71,6 +71,18 @@ export type UserProfile = {
   async_battle_tickets?: number;
   last_async_ticket_refresh?: string;
   blueprints?: Record<string, number>;
+  /** Wildcard blueprints: assignable to ANY Holobot (1:1) via callable. */
+  wildcardBlueprints?: number;
+  /** Referral growth state — server-written only. */
+  referralCode?: string;
+  referredBy?: string;
+  referrals?: { pending?: number; qualified?: number };
+  referralQualified?: boolean;
+  /** Genesis Squad entitlement: 'referral' | 'purchase' once claimed. */
+  genesisSquadClaimed?: string;
+  genesisBadge?: boolean;
+  /** Weekly wildcard pack throttle (ms epoch of last purchase). */
+  lastWildcardPackAt?: number;
   inventory?: Record<string, number>;
   parts?: Array<Record<string, unknown>>;
   equippedParts?: Record<string, Record<string, Record<string, unknown>>>;

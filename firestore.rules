@@ -51,6 +51,47 @@ service cloud.firestore {
       return !('isDevAccount' in data) || data.isDevAccount == false;
     }
 
+    // Epoch-millisecond timestamps written by client fallbacks (sane() caps
+    // at 1e8, far below Date.now()).
+    function saneEpochMsOptional(data, field) {
+      return !(field in data)
+        || (data[field] is number && data[field] >= 0 && data[field] < 100000000000000);
+    }
+
+    // Referral/Genesis fields are awarded only by the growth callables and
+    // the fitness-sync qualification hook (Admin SDK bypasses rules). The
+    // client may never introduce or change them: on update the post-merge
+    // value must equal what is already stored (same unchanged-or-absent
+    // shape as the isDevAccount flip-guard below).
+    function serverOnlyFieldFrozen(data, existing, field) {
+      return !(field in data) || (field in existing && data[field] == existing[field]);
+    }
+
+    function referralFieldsFrozen(data, existing) {
+      return serverOnlyFieldFrozen(data, existing, 'referredBy')
+        && serverOnlyFieldFrozen(data, existing, 'referrals')
+        && serverOnlyFieldFrozen(data, existing, 'referralQualified')
+        && serverOnlyFieldFrozen(data, existing, 'genesisSquadClaimed')
+        && serverOnlyFieldFrozen(data, existing, 'genesisBadge');
+    }
+
+    function referralFieldsAbsent(data) {
+      return !('referredBy' in data)
+        && !('referrals' in data)
+        && !('referralQualified' in data)
+        && !('genesisSquadClaimed' in data)
+        && !('genesisBadge' in data);
+    }
+
+    // referralCode IS client-writable (owners lazily publish their own code
+    // so applyReferralCode can query it). Spoofing someone else's code is
+    // inert — the callable re-derives the code from the matched doc's uid —
+    // so a length cap is the only constraint worth enforcing here.
+    function referralCodeSane(data) {
+      return !('referralCode' in data)
+        || (data.referralCode is string && data.referralCode.size() <= 12);
+    }
+
     // Numeric economy fields we sanity-check on write.
     function economyFieldsSane(data) {
       return saneOptional(data, 'holosTokens')
@@ -70,7 +111,9 @@ service cloud.firestore {
         && saneOptional(data, 'prestigeCount')
         && saneOptional(data, 'wins')
         && saneOptional(data, 'losses')
-        && saneOptional(data, 'todaySteps');
+        && saneOptional(data, 'todaySteps')
+        && saneOptional(data, 'wildcardBlueprints')
+        && saneEpochMsOptional(data, 'lastWildcardPackAt');
     }
 
     // ---- users -------------------------------------------------------------
@@ -85,7 +128,9 @@ service cloud.firestore {
 
       allow create: if isOwner(uid)
         && noPrivilegeEscalation(request.resource.data)
-        && economyFieldsSane(request.resource.data);
+        && economyFieldsSane(request.resource.data)
+        && referralFieldsAbsent(request.resource.data)
+        && referralCodeSane(request.resource.data);
 
       // NOTE: noPrivilegeEscalation applies to CREATE only. On update,
       // request.resource.data is the whole post-merge document, so a legacy
@@ -95,6 +140,8 @@ service cloud.firestore {
       // existing value or set false, but can never flip false -> true.
       allow update: if isOwner(uid)
         && economyFieldsSane(request.resource.data)
+        && referralFieldsFrozen(request.resource.data, resource.data)
+        && referralCodeSane(request.resource.data)
         && (!('isDevAccount' in request.resource.data)
             || request.resource.data.isDevAccount == resource.data.get('isDevAccount', false)
             || request.resource.data.isDevAccount == false);

@@ -43,6 +43,7 @@ describe("getMarketplacePrice", () => {
     expect(getMarketplacePrice("Rank Skip")).toBe(5000);
     expect(getMarketplacePrice("Arena Pass")).toBe(50);
     expect(getMarketplacePrice("Gacha Ticket")).toBe(100);
+    expect(getMarketplacePrice("Wildcard Blueprints")).toBe(300);
   });
 });
 
@@ -54,6 +55,7 @@ describe("buildItemPurchaseUpdates", () => {
       "Energy Refill": "energy_refills",
       "Gacha Ticket": "gachaTickets",
       "Rank Skip": "rank_skips",
+      "Wildcard Blueprints": "wildcardBlueprints",
     };
 
     for (const itemName of MARKETPLACE_ITEM_NAMES) {

@@ -95,7 +95,14 @@ export function computeArenaSettlement(input: ArenaSettlementInput): ArenaSettle
   const combos = Math.min(MAX_PERFORMANCE_EVENTS, Math.max(0, Math.floor(input.combosCompleted || 0)));
   const performanceBonus = 1 + perfectDefenses * 0.05 + combos * 0.1;
   const normalizedOpponent = input.opponentName?.trim().toUpperCase() ?? "";
-  const opponentInPool = tier.opponentPool.includes(normalizedOpponent);
+  // Rookie's third slot rotates GAMA/KUMA/SHADOW weekly on the client
+  // (Genesis rotation); settlements accept the union so week boundaries
+  // never invalidate an honest battle.
+  const acceptedPool =
+    tier.id === "rookie"
+      ? [...tier.opponentPool, "KUMA", "SHADOW"]
+      : [...tier.opponentPool];
+  const opponentInPool = acceptedPool.includes(normalizedOpponent);
 
   return {
     blueprints: opponentInPool
