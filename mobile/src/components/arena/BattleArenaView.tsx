@@ -147,12 +147,14 @@ function ArenaCard({
   disabled,
   isPlayable,
   reasonLabel,
+  bonusLabel,
   onPress,
 }: {
   card?: ActionCard;
   disabled: boolean;
   isPlayable: boolean;
   reasonLabel: string | null;
+  bonusLabel?: string | null;
   onPress: () => void;
 }) {
   if (!card) {
@@ -197,50 +199,40 @@ function ArenaCard({
         <View style={styles.cardReasonBadge}>
           <Text style={styles.cardReasonText}>{reasonLabel}</Text>
         </View>
+      ) : bonusLabel ? (
+        <View style={styles.cardBonusBadge}>
+          <Text style={styles.cardBonusText}>{bonusLabel}</Text>
+        </View>
       ) : null}
     </Pressable>
   );
 }
 
-function BenchChips({
-  chips,
-  align,
-  onPress,
-  pressableWhen,
-}: {
-  chips: TeamHudChip[];
-  align: "left" | "right";
-  onPress?: (index: number) => void;
-  pressableWhen?: (chip: TeamHudChip) => boolean;
-}) {
+/** Display-only roster strip (the CPU side); the player's tappable switch
+    dock lives in the card bay. */
+function BenchChips({ chips, align }: { chips: TeamHudChip[]; align: "left" | "right" }) {
   return (
     <View style={[styles.benchRow, align === "right" ? styles.benchRowRight : null]}>
-      {chips.map((chip) => {
-        const pressable = Boolean(onPress && pressableWhen?.(chip));
-        return (
-          <Pressable
-            key={chip.index}
-            disabled={!pressable}
-            onPress={() => onPress?.(chip.index)}
-            style={[
-              styles.benchChip,
-              chip.isActive ? styles.benchChipActive : null,
-              chip.isKnockedOut ? styles.benchChipKo : null,
-              pressable ? styles.benchChipReady : null,
-            ]}
-          >
-            <Text numberOfLines={1} style={styles.benchChipName}>
-              {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
-            </Text>
-            <View style={styles.benchBarTrack}>
-              <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
-            </View>
-            <View style={styles.benchBarTrack}>
-              <View style={[styles.benchMeterFill, { width: `${Math.round(chip.meterPct * 100)}%` }]} />
-            </View>
-          </Pressable>
-        );
-      })}
+      {chips.map((chip) => (
+        <View
+          key={chip.index}
+          style={[
+            styles.benchChip,
+            chip.isActive ? styles.benchChipActive : null,
+            chip.isKnockedOut ? styles.benchChipKo : null,
+          ]}
+        >
+          <Text numberOfLines={1} style={styles.benchChipName}>
+            {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
+          </Text>
+          <View style={styles.benchBarTrack}>
+            <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
+          </View>
+          <View style={styles.benchBarTrack}>
+            <View style={[styles.benchMeterFill, { width: `${Math.round(chip.meterPct * 100)}%` }]} />
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -266,6 +258,10 @@ export function BattleArenaView({
   }, [playerCards]);
 
   const playerCanAct = playableCardIds.length > 0 && !isAnimating;
+  const chainLength = battle.player.comboCounter;
+  const playableFinisher = playerCards.find(
+    (card) => card?.type === "finisher" && playableCardIds.includes(card.id),
+  );
   const playerHealthPercent = getHealthPercent(battle.player.currentHP, battle.player.maxHP);
   const opponentHealthPercent = getHealthPercent(battle.opponent.currentHP, battle.opponent.maxHP);
   const playerStaminaPercent = getHealthPercent(battle.player.stamina, battle.player.maxStamina);
@@ -318,21 +314,8 @@ export function BattleArenaView({
                 </Text>
               </View>
             ) : null}
-            {team ? (
-              <>
-                <BenchChips
-                  chips={team.playerChips}
-                  align="left"
-                  onPress={team.onSwitch}
-                  pressableWhen={(chip) => team.canSwitchNow && !chip.isActive && !chip.isKnockedOut}
-                />
-                {!team.canSwitchNow && team.switchSecondsLeft > 0 ? (
-                  <Text style={styles.benchLockHint}>{`SWITCH CD ${team.switchSecondsLeft}s`}</Text>
-                ) : team.playerChips.some((chip) => !chip.isActive && !chip.isKnockedOut) ? (
-                  <Text style={styles.benchSwitchHint}>TAP A BENCH BOT TO SWITCH</Text>
-                ) : null}
-              </>
-            ) : null}
+            {/* Player switch controls live down in the card bay where the
+                thumb already is; only the CPU's roster stays up here. */}
           </View>
         </View>
 
@@ -449,6 +432,42 @@ export function BattleArenaView({
       ) : null}
 
       <View style={styles.cardBay}>
+        {team ? (
+          <View style={styles.switchDock}>
+            {team.playerChips.map((chip) => {
+              const pressable = team.canSwitchNow && !chip.isActive && !chip.isKnockedOut;
+              return (
+                <Pressable
+                  key={chip.index}
+                  disabled={!pressable}
+                  onPress={() => team.onSwitch(chip.index)}
+                  style={[
+                    styles.switchChip,
+                    chip.isActive ? styles.switchChipActive : null,
+                    chip.isKnockedOut ? styles.switchChipKo : null,
+                    pressable ? styles.switchChipReady : null,
+                  ]}
+                >
+                  <Text numberOfLines={1} style={styles.switchChipName}>
+                    {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
+                  </Text>
+                  <View style={styles.benchBarTrack}>
+                    <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
+                  </View>
+                  <Text style={[styles.switchChipMeta, pressable ? styles.switchChipMetaReady : null]}>
+                    {chip.isActive
+                      ? "ACTIVE"
+                      : chip.isKnockedOut
+                        ? "DOWN"
+                        : team.canSwitchNow
+                          ? "TAP TO SWITCH"
+                          : `CD ${team.switchSecondsLeft}s`}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
         <View style={styles.cardBayTopBar}>
           <View style={styles.specialGaugeTrack}>
             <View style={[styles.specialGaugeFill, { width: `${playerSpecialPercent * 100}%` }]} />
@@ -486,9 +505,11 @@ export function BattleArenaView({
               ? "DEFENSE TRAP ARMED"
               : finisherReady
                 ? "FULL FINISHER READY — TAP THE GOLD BUTTON"
-                : playerCanAct
-                  ? "TAP A MOVE TO FIGHT"
-                  : "WAITING FOR STAMINA"}
+                : playableFinisher && chainLength >= 1
+                  ? `CHAIN ×${chainLength} LIVE — FINISHER CASHES IT (DEFENDING DROPS IT)`
+                  : playerCanAct
+                    ? "TAP A MOVE TO FIGHT"
+                    : "WAITING FOR STAMINA"}
           </Text>
         </View>
 
@@ -502,6 +523,11 @@ export function BattleArenaView({
                 disabled={!card || isAnimating || !isPlayable}
                 isPlayable={isPlayable}
                 reasonLabel={card ? getAvailabilityLabel(cardAvailability[card.id]) : null}
+                bonusLabel={
+                  card?.type === "finisher" && isPlayable && chainLength >= 1
+                    ? `CHAIN ENDER ×${chainLength}`
+                    : null
+                }
                 onPress={() => {
                   if (card && isPlayable) {
                     onCardPlay(card.id);
@@ -653,21 +679,57 @@ const styles = StyleSheet.create({
     backgroundColor: "#4bd060",
     height: "100%",
   },
-  benchChipReady: {
+  cardBonusBadge: {
+    backgroundColor: "#f0bf14",
+    borderRadius: 4,
+    bottom: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    position: "absolute",
+  },
+  cardBonusText: {
+    color: "#050606",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  switchDock: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  switchChip: {
+    backgroundColor: "#0b0d13",
+    borderColor: "#3a3f4b",
+    borderWidth: 1.5,
+    flex: 1,
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  switchChipActive: {
+    borderColor: "#f0bf14",
+  },
+  switchChipKo: {
+    opacity: 0.35,
+  },
+  switchChipReady: {
     borderColor: "#17d9ff",
   },
-  benchLockHint: {
-    color: "#5a5a52",
-    fontSize: 9,
-    fontWeight: "800",
-    marginTop: 2,
-  },
-  benchSwitchHint: {
-    color: "#17d9ff",
-    fontSize: 9,
-    fontWeight: "800",
+  switchChipName: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "900",
     letterSpacing: 0.5,
-    marginTop: 2,
+  },
+  switchChipMeta: {
+    color: "#5a5f6b",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+  },
+  switchChipMetaReady: {
+    color: "#17d9ff",
   },
   benchMeterFill: {
     backgroundColor: "#f0bf14",

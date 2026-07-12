@@ -583,23 +583,26 @@ export function ArenaScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Centered under the ROUND box, inside the HUD band's empty middle
+  // column — the old top-right spot covered the CPU's name and HP.
   pauseButton: {
     alignItems: "center",
     backgroundColor: "#0b0d13",
     borderColor: "#f0bf14",
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 2,
-    height: 44,
+    height: 40,
     justifyContent: "center",
+    left: "50%",
+    marginLeft: -20,
     position: "absolute",
-    right: 14,
-    top: 54,
-    width: 44,
+    top: 142,
+    width: 40,
     zIndex: 40,
   },
   pauseButtonGlyph: {
     color: "#f0bf14",
-    fontSize: 20,
+    fontSize: 18,
   },
   pauseCard: {
     backgroundColor: "#0b0d13",
