@@ -5,6 +5,7 @@ import {
   ARENA_TIERS,
   getArenaBaseRewards,
   getArenaBlueprintAmount,
+  getTierOpponentPool,
   type ArenaTier,
 } from "@/lib/arenaEconomy";
 import {
@@ -27,8 +28,9 @@ function hashString(value: string) {
 
 export function getTierOpponentLineup(tier: ArenaTier, selectedHolobotName: string) {
   const normalizedSelectedName = selectedHolobotName.trim().toUpperCase();
-  const poolWithoutMirror = tier.opponentPool.filter((name) => name !== normalizedSelectedName);
-  const basePool = (poolWithoutMirror.length >= 3 ? poolWithoutMirror : tier.opponentPool) as string[];
+  const rotatedPool = getTierOpponentPool(tier);
+  const poolWithoutMirror = rotatedPool.filter((name) => name !== normalizedSelectedName);
+  const basePool = (poolWithoutMirror.length >= 3 ? poolWithoutMirror : rotatedPool) as string[];
   const offset = hashString(`${tier.id}:${normalizedSelectedName}`) % basePool.length;
 
   return basePool.map((_, index) => basePool[(index + offset) % basePool.length]);

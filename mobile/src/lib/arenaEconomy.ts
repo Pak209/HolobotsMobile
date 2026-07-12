@@ -61,6 +61,27 @@ export const ARENA_TIERS: ArenaTier[] = [
   },
 ];
 
+/**
+ * Genesis rotation: Rookie's third slot cycles GAMA -> KUMA -> SHADOW by UTC
+ * week, so new players can target-farm the Genesis Squad bots without a
+ * tier climb (genesis-squad-monetization-plan.md §7). Other tiers are
+ * static. The server accepts the UNION for rookie settlements since a
+ * battle can straddle a week boundary.
+ */
+export const ROOKIE_ROTATION = ["GAMA", "KUMA", "SHADOW"] as const;
+
+export function getTierOpponentPool(
+  tier: Pick<ArenaTier, "id" | "opponentPool">,
+  date: Date = new Date(),
+): [string, string, string] {
+  if (tier.id !== "rookie") {
+    return [...tier.opponentPool] as [string, string, string];
+  }
+  const week = Math.floor(date.getTime() / (7 * 24 * 60 * 60 * 1000));
+  const featured = ROOKIE_ROTATION[week % ROOKIE_ROTATION.length];
+  return [tier.opponentPool[0], tier.opponentPool[1], featured];
+}
+
 export function getArenaTier(tierId: string): ArenaTier | null {
   return ARENA_TIERS.find((tier) => tier.id === tierId) ?? null;
 }
@@ -135,7 +156,12 @@ export function computeArenaSettlement(input: ArenaSettlementInput): ArenaSettle
   const combos = Math.min(MAX_PERFORMANCE_EVENTS, Math.max(0, Math.floor(input.combosCompleted || 0)));
   const performanceBonus = 1 + perfectDefenses * 0.05 + combos * 0.1;
   const normalizedOpponent = input.opponentName?.trim().toUpperCase() ?? "";
-  const opponentInPool = tier.opponentPool.includes(normalizedOpponent);
+  // Rookie's third slot rotates GAMA/KUMA/SHADOW weekly (Genesis rotation);
+  // settlements accept the union so week boundaries never invalidate an
+  // honest battle. Mirrors functions/src/lib/arenaEconomy.ts.
+  const acceptedPool =
+    tier.id === "rookie" ? [...tier.opponentPool, "KUMA", "SHADOW"] : [...tier.opponentPool];
+  const opponentInPool = acceptedPool.includes(normalizedOpponent);
 
   return {
     blueprints: opponentInPool

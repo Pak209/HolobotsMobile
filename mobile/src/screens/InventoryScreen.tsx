@@ -8,6 +8,7 @@ import { MoveLabPanel } from "@/components/MoveLabPanel";
 import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
+import { assignWildcardBlueprintsAuthoritative } from "@/lib/genesisClient";
 import { getTierByLabel, type UpgradeTierLabel } from "@/lib/minting";
 import {
   mintHolobotAuthoritative,
@@ -66,6 +67,7 @@ export function InventoryScreen() {
     { image: getMarketplaceItemImageSource("EXP Booster"), name: "EXP Booster", quantity: profile?.exp_boosters || 0 },
     { image: getMarketplaceItemImageSource("Rank Skip"), name: "Rank Skip", quantity: profile?.rank_skips || 0 },
     { image: getMarketplaceItemImageSource("Async Battle Ticket"), name: "Async Battle Ticket", quantity: profile?.async_battle_tickets || 0 },
+    { image: getMarketplaceItemImageSource("Wildcard Blueprints"), name: "Wildcard Blueprints", quantity: profile?.wildcardBlueprints || 0 },
   ].filter((entry) => entry.quantity > 0);
   const blueprints = Object.entries(profile?.blueprints || {})
     .map(([name, quantity]) => ({
@@ -213,6 +215,27 @@ export function InventoryScreen() {
     }
   };
 
+  const handleAssignWildcards = async (amount: number) => {
+    if (!profile || !selectedRosterHolobot) {
+      return;
+    }
+
+    try {
+      const { remaining } = await assignWildcardBlueprintsAuthoritative(
+        profile,
+        updateProfile,
+        selectedRosterHolobot.name,
+        amount,
+      );
+      Alert.alert(
+        "Wildcards Assigned",
+        `+${amount} blueprints for ${selectedRosterHolobot.name}. Wildcards left: ${remaining}.`,
+      );
+    } catch (error) {
+      Alert.alert("Assign failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
+
   const renderList = (entries: Array<{ image?: number | null; name: string; quantity: number; rarity?: string }>) =>
     entries.map((entry, index) => (
       <View key={`${entry.name}:${index}`} style={styles.assetRow}>
@@ -267,6 +290,8 @@ export function InventoryScreen() {
         holobot={selectedRosterHolobot}
         ownedHolobot={selectedOwnedHolobot}
         visible={!!selectedRosterHolobot}
+        wildcardCount={profile?.wildcardBlueprints || 0}
+        onAssignWildcards={(amount) => void handleAssignWildcards(amount)}
         onClose={() => setSelectedHolobotKey(null)}
         onMint={handleMintHolobot}
         onRankUpgrade={handleRankUpgrade}

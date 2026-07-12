@@ -28,12 +28,14 @@ type Props = {
   blueprintCount: number;
   holobot: HolobotRosterEntry | null;
   ownedHolobot: UserHolobot | null;
+  onAssignWildcards?: (amount: number) => void;
   onClose: () => void;
   onMint: (tierLabel: UpgradeTierLabel) => void;
   onRankUpgrade: (tierLabel: UpgradeTierLabel) => void;
   onUpgrade: (attribute: "attack" | "defense" | "speed" | "health") => void;
   onUpgradeSync: (stat: SyncStatKey) => void;
   visible: boolean;
+  wildcardCount?: number;
 };
 
 function getTierColor(label: UpgradeTierLabel) {
@@ -78,12 +80,14 @@ export function HolobotStatsModal({
   blueprintCount,
   holobot,
   ownedHolobot,
+  onAssignWildcards,
   onClose,
   onMint,
   onRankUpgrade,
   onUpgrade,
   onUpgradeSync,
   visible,
+  wildcardCount = 0,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"stats" | "abilities" | "blueprints">("stats");
 
@@ -367,6 +371,20 @@ export function HolobotStatsModal({
                   {normalizedOwnedHolobot ? "BLUEPRINT RANK UP" : "MINT WITH BLUEPRINTS"}
                 </Text>
                 <Text style={styles.blueprintSummary}>{`${holobot.name} blueprints: ${blueprintCount}`}</Text>
+                {onAssignWildcards && wildcardCount > 0 ? (
+                  <View style={styles.wildcardRow}>
+                    <View style={styles.wildcardInfo}>
+                      <Text style={styles.wildcardTitle}>{`WILDCARDS ×${wildcardCount}`}</Text>
+                      <Text style={styles.wildcardMeta}>Assignable to any Holobot</Text>
+                    </View>
+                    <Pressable onPress={() => onAssignWildcards(1)} style={styles.wildcardButton}>
+                      <Text style={styles.wildcardButtonText}>+1</Text>
+                    </Pressable>
+                    <Pressable onPress={() => onAssignWildcards(wildcardCount)} style={styles.wildcardButton}>
+                      <Text style={styles.wildcardButtonText}>ALL</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
                 <View style={styles.tierList}>
                   {BLUEPRINT_TIERS.map((tier) => {
                     const unlocked = blueprintCount >= tier.required;
@@ -426,6 +444,46 @@ const styles = StyleSheet.create({
     color: "#ddd2b5",
     fontSize: 14,
     marginBottom: 12,
+  },
+  wildcardRow: {
+    alignItems: "center",
+    backgroundColor: "#141b28",
+    borderColor: "#f0bf14",
+    borderRadius: 10,
+    borderWidth: 2,
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  wildcardInfo: {
+    flex: 1,
+  },
+  wildcardTitle: {
+    color: "#f0bf14",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  wildcardMeta: {
+    color: "#8f9bb0",
+    fontSize: 11,
+    marginTop: 2,
+  },
+  wildcardButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    borderRadius: 8,
+    justifyContent: "center",
+    minWidth: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  wildcardButtonText: {
+    color: "#050606",
+    fontSize: 12,
+    fontWeight: "900",
   },
   boostButton: {
     backgroundColor: "#141b28",

@@ -14,7 +14,8 @@ export type MarketplaceItemName =
   | "Gacha Ticket"
   | "Energy Refill"
   | "EXP Booster"
-  | "Rank Skip";
+  | "Rank Skip"
+  | "Wildcard Blueprints";
 
 export const MARKETPLACE_ITEM_NAMES: MarketplaceItemName[] = [
   "Arena Pass",
@@ -22,7 +23,12 @@ export const MARKETPLACE_ITEM_NAMES: MarketplaceItemName[] = [
   "Energy Refill",
   "EXP Booster",
   "Rank Skip",
+  "Wildcard Blueprints",
 ];
+
+/** The weekly wildcard pack: 5 assignable blueprints, one purchase a week. */
+export const WILDCARD_PACK_AMOUNT = 5;
+export const WILDCARD_PACK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function getMarketplacePrice(itemName: string): number {
   const normalized = itemName.trim().toLowerCase();
@@ -99,6 +105,8 @@ export const BOOSTER_ITEM_AWARD_MAP: Record<MarketplaceBoosterId, MarketplaceIte
 
 type PurchaseProfile = Pick<
   UserProfile,
+  | "lastWildcardPackAt"
+  | "wildcardBlueprints"
   | "arena_passes"
   | "arena_deck_template_ids"
   | "battle_cards"
@@ -125,6 +133,7 @@ export type ItemPurchaseResult = {
 export function buildItemPurchaseUpdates(
   profile: PurchaseProfile,
   itemName: string,
+  now: Date = new Date(),
 ): ItemPurchaseResult | null {
   const price = getMarketplacePrice(itemName);
   const holos = Number(profile.holosTokens || 0);
@@ -153,6 +162,17 @@ export function buildItemPurchaseUpdates(
     case "Rank Skip":
       updates.rank_skips = Number(profile.rank_skips || 0) + 1;
       break;
+    case "Wildcard Blueprints": {
+      // Weekly throttle: this is the scarce targeting valve of the
+      // blueprint economy (genesis-squad-monetization-plan.md §7).
+      const lastAt = Number(profile.lastWildcardPackAt || 0);
+      if (now.getTime() - lastAt < WILDCARD_PACK_COOLDOWN_MS) {
+        return null;
+      }
+      updates.wildcardBlueprints = Number(profile.wildcardBlueprints || 0) + WILDCARD_PACK_AMOUNT;
+      updates.lastWildcardPackAt = now.getTime();
+      break;
+    }
     default:
       return null;
   }

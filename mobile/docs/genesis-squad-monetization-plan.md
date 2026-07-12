@@ -1,8 +1,9 @@
 # Genesis Squad — Starter Bundle, Referrals, and Battle Pass Plan
 
-Status: design proposal, no implementation
+Status: Phase 1 (referrals + wildcard economy + blueprint cohesion) implemented — see §8. Phases 2–3 remain design.
 Scope: the game's first monetization + growth systems, built on the existing
-server-authoritative economy (18 callables) and the 3v3 Showdown mode
+server-authoritative economy (21 callables after Phase 1) and the 3v3
+Showdown mode
 
 ## 1. The product: Genesis Squad
 
@@ -36,7 +37,7 @@ Why the trio beats "1 starter + blueprint tickets":
 
 Identical rewards on every path is the fairness invariant. If a player
 already owns KUMA or SHADOW when claiming/purchasing, that bot converts to
-its blueprint equivalent (e.g., 40 blueprints toward the next rank) so no
+its blueprint equivalent (20 blueprints per owned bot — §6.3) so no
 path ever feels wasted — conversion computed server-side.
 
 ## 2. Referral system (the F2P path)
@@ -63,7 +64,7 @@ reward carries no stat advantage. The dangers are elsewhere:
 | Risk | Mitigation |
 |---|---|
 | Self-referral farms | Workout qualification (physical act) + one `referredBy` per account, set once, new accounts only |
-| Referral spam pressure | Cap at exactly 3 needed; no infinite referral ladder in v1 |
+| Referral spam pressure | Squad needs exactly 3; extra referrals pay a flat +5 wildcards each (no escalating ladder), and each still costs a real workout |
 | F2P path feeling worse than $5 | 3 friends is deliberately cheap; grind path also exists |
 | Code squatting/typos | Codes are display-only aliases; server resolves to uid |
 
@@ -128,16 +129,25 @@ Phase this AFTER the bundle ships; it's a system, not a product.
 Recommended order: 1 → 2 → 3. Referrals ship value immediately with zero
 Apple dependency and start the growth loop while the IAP paperwork clears.
 
-## 6. Open decisions for Pak
+## 6. Decisions (locked 2026-07-10)
 
-1. Bundle price point ($4.99 suggested) and celebration pack contents.
-2. Referral count (3 suggested) and invited-player welcome bonus size.
-3. Owned-bot conversion rate (suggested: 20 blueprints per already-owned
-   Genesis bot — one full Rare rank step; 40 would be Elite-tier money and
-   overshoots the mint cost of 5 by 8x).
-4. Battle pass season length and premium price.
-5. Whether the GENESIS badge is bundle-exclusive forever (scarcity) or
-   earnable later (kindness). Suggested: exclusive to year one.
+1. **Price: $4.99**, with a **$1.99 early-adopter tier for the first 10,000
+   users**. Implementation note for Phase 2: two separate App Store products
+   (`genesis_squad_499`, `genesis_squad_early_199`) plus a server-side global
+   claim counter (`config/genesisEarlyAdopters` doc, transactional increment)
+   that decides which product the client shows. Apple does not do dynamic
+   pricing; two SKUs is the standard pattern.
+2. **Referral count: 3** to claim the squad. **No referral cap** — every
+   qualified referral past the third pays +5 Wildcard Blueprints, forever.
+   Let them grind.
+3. **Owned-bot conversion: 20 blueprints** per already-owned Genesis bot.
+4. Battle pass parameters: still open (Phase 3).
+5. **GENESIS badge: exclusive forever.**
+6. **Wildcards unify the cohesion fixes**: the Referral Welcome bonus,
+   Legendary gacha drops, and the weekly marketplace pack all pay
+   `wildcardBlueprints` — a balance the player assigns 1:1 to ANY Holobot
+   from its stats screen. The "Weekly Featured Blueprint" concept became the
+   **Wildcard Blueprints ×5 pack** (300 Holos, one purchase per week).
 
 ## 7. Appendix: Blueprint economy review (the grind leg, audited)
 
@@ -183,3 +193,51 @@ breaks quietly.
    like real compensation without dwarfing the 5-cost mint.
 6. Already chipped: legacy case-variant blueprint keys (ACE/ace) need the
    one-off data-hygiene migration before any of this launches.
+
+## 8. Phase 1 implementation status (shipped in this PR)
+
+All four §7 modifications plus the referral loop are implemented:
+
+| Piece | Where |
+|---|---|
+| Wildcard economy fields | `wildcardBlueprints`, `lastWildcardPackAt` on the profile (same raw names both sides); mapped in `mobile/src/lib/profile.ts` |
+| Legendary gacha → wildcards | `mobile/src/lib/gacha.ts` + `functions/src/lib/economy.ts` (`WILDCARD ×N · any Holobot` drop text) |
+| Weekly Wildcard pack | "Wildcard Blueprints" marketplace item, 300 Holos, 7-day throttle via `lastWildcardPackAt`; cooldown surfaced on the BUY button |
+| Rookie Genesis rotation | `getTierOpponentPool` rotates slot 3 through GAMA/KUMA/SHADOW weekly; settlement (client fallback AND server) accepts the union so week boundaries never void a win |
+| Referral codes | uid-derived (first 6 chars, uppercased), self-verifying; published lazily to the profile when the Genesis tab opens |
+| `applyReferralCode` callable | write-once `referredBy`, accounts < 7 days old only, no self-referral |
+| Qualification hook | `syncFitnessActivity`: invitee's FIRST settled workout → invitee gets +5 wildcards +200 Holos; referrer gets qualified+1 (and +5 wildcards per referral past 3 — uncapped) |
+| `claimGenesisSquad` callable | 3 qualified referrals → KUMA+SHADOW minted (or +20 blueprints each if owned), +500 Holos, +50 SP, permanent GENESIS badge |
+| `assignWildcardBlueprints` callable | 1:1 conversion into any Holobot's blueprints; local fallback (own-doc only) |
+| Firestore rules | referral/genesis fields frozen against client writes (`referralFieldsFrozen`); `referralCode` writable (short string); wildcard fields sanity-capped |
+| UI | Marketplace **Genesis** tab (invite code + share sheet, qualified counter, claim button, code entry, wildcard balance); stats modal BLUEPRINTS tab wildcard assign (+1 / ALL) |
+| Tests | `genesisParity.test.ts`, wildcard/gacha additions in `economyServerParity.test.ts`, `rules-tests/tests/referral-fields.test.ts` |
+
+Referral cross-user writes are server-ONLY (no local fallback — rules block
+them by design), so **the referral loop is inert until the functions deploy**.
+
+### Deploy checklist (Pak)
+1. `firebase deploy --only firestore:rules`
+2. The scoped functions deploy from `functions/README.md` (now 21 functions —
+   adds `applyReferralCode`, `claimGenesisSquad`, `assignWildcardBlueprints`,
+   and updates `syncFitnessActivity`).
+
+### Testing guide
+1. **Wildcard pack**: Marketplace → Items → buy Wildcard Blueprints (300
+   Holos). Balance +5. BUY flips to a day countdown for 7 days.
+2. **Legendary gacha**: open elite packs until a legendary blueprint drops —
+   it reads `WILDCARD ×5 · any Holobot` and raises the wildcard balance
+   instead of a random bot's blueprints.
+3. **Assigning**: Inventory → any Holobot → BLUEPRINTS tab → WILDCARDS row →
+   +1 / ALL. Blueprint count rises 1:1, wildcard balance falls.
+4. **Rookie rotation**: Arena Rookie tier's third opponent is GAMA, KUMA, or
+   SHADOW depending on the week; beating the featured bot pays that bot's
+   blueprints.
+5. **Referral loop** (needs deploy + two accounts): Account A opens the
+   Genesis tab (publishes code) and shares it. Fresh account B enters the
+   code (Genesis tab → GOT AN INVITE CODE?), then completes a workout sync.
+   B: +5 wildcards +200 Holos. A: qualified 1/3. After three such friends, A
+   claims the squad; a fourth friend pays A +5 wildcards.
+6. **Anti-fraud spot checks**: self-code rejected; second code rejected;
+   code on a >7-day-old account rejected; claim with <3 qualified rejected;
+   double claim rejected.

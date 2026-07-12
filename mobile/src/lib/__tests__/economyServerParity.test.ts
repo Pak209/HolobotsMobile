@@ -148,14 +148,80 @@ describe("marketplace client/server parity", () => {
   it("item purchases produce raw-translated identical updates", () => {
     for (const itemName of MARKETPLACE_ITEM_NAMES) {
       const { clientProfile, rawDoc } = playerState();
-      const client = buildItemPurchaseUpdates(clientProfile as never, itemName);
-      const server = serverEconomy.buildItemPurchaseUpdatesRaw(rawDoc, itemName);
+      // Pin `now` on both sides: the wildcard pack stamps lastWildcardPackAt
+      // from it, and two default new Date() calls can straddle a millisecond.
+      const client = buildItemPurchaseUpdates(clientProfile as never, itemName, NOW);
+      const server = serverEconomy.buildItemPurchaseUpdatesRaw(rawDoc, itemName, NOW);
 
       expect(client).not.toBeNull();
       expect(server).not.toBeNull();
       expect(server!.price).toBe(client!.price);
       expect(server!.updates).toEqual(translateToRaw(client!.updates));
     }
+  });
+
+  it("the weekly wildcard pack grants, throttles, and reopens identically", () => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const { clientProfile, rawDoc } = playerState();
+
+    const clientFresh = buildItemPurchaseUpdates(clientProfile as never, "Wildcard Blueprints", NOW);
+    const serverFresh = serverEconomy.buildItemPurchaseUpdatesRaw(rawDoc, "Wildcard Blueprints", NOW);
+    expect(clientFresh!.updates.wildcardBlueprints).toBe(5);
+    expect(clientFresh!.updates.lastWildcardPackAt).toBe(NOW.getTime());
+    expect(serverFresh!.updates).toEqual(translateToRaw(clientFresh!.updates));
+
+    // Bought 3 days ago: throttled on both sides.
+    const throttledState = { lastWildcardPackAt: NOW.getTime() - 3 * dayMs, wildcardBlueprints: 5 };
+    expect(
+      buildItemPurchaseUpdates({ ...clientProfile, ...throttledState } as never, "Wildcard Blueprints", NOW),
+    ).toBeNull();
+    expect(
+      serverEconomy.buildItemPurchaseUpdatesRaw({ ...rawDoc, ...throttledState }, "Wildcard Blueprints", NOW),
+    ).toBeNull();
+
+    // Bought 8 days ago: available again, balance accumulates.
+    const reopenedState = { lastWildcardPackAt: NOW.getTime() - 8 * dayMs, wildcardBlueprints: 5 };
+    const clientAgain = buildItemPurchaseUpdates(
+      { ...clientProfile, ...reopenedState } as never,
+      "Wildcard Blueprints",
+      NOW,
+    );
+    const serverAgain = serverEconomy.buildItemPurchaseUpdatesRaw(
+      { ...rawDoc, ...reopenedState },
+      "Wildcard Blueprints",
+      NOW,
+    );
+    expect(clientAgain!.updates.wildcardBlueprints).toBe(10);
+    expect(serverAgain!.updates).toEqual(translateToRaw(clientAgain!.updates));
+  });
+
+  it("legendary gacha drops are wildcards and accumulate identically", () => {
+    // Sweep seeds so at least one legendary appears; every legendary
+    // blueprint grant must be the assignable wildcard type on both sides.
+    let wildcardsSeen = 0;
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const clientItems = buildPackRewards("elite", seededRandom(seed));
+      const serverItems = serverEconomy.buildPackRewards("elite", seededRandom(seed));
+      expect(stripIds(serverItems as never)).toEqual(stripIds(clientItems as never));
+
+      for (const item of clientItems) {
+        if (item.grant.type === "wildcard_blueprints") {
+          wildcardsSeen += 1;
+          expect(item.rarity).toBe("legendary");
+          expect(item.subtitle).toContain("WILDCARD");
+          expect(item.subtitle).toContain("any Holobot");
+        }
+        if (item.rarity === "legendary" && item.grant.type === "blueprints") {
+          throw new Error("legendary blueprint drop was not a wildcard");
+        }
+      }
+
+      const { clientProfile, rawDoc } = playerState();
+      const clientUpdates = buildPackGrantUpdates(clientProfile as never, clientItems);
+      const serverUpdates = serverEconomy.buildPackGrantUpdatesRaw(rawDoc, serverItems);
+      expect(serverUpdates).toEqual(translateToRaw(clientUpdates as Record<string, unknown>));
+    }
+    expect(wildcardsSeen).toBeGreaterThan(0);
   });
 
   it("part catalogs match and purchases produce identical updates", () => {

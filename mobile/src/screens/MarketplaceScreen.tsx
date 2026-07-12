@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View, Image } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View, Image } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { GameFeedbackModal } from "@/components/GameFeedbackModal";
@@ -12,13 +12,19 @@ import {
   purchaseMarketplaceItemAuthoritative,
   purchaseMarketplacePartAuthoritative,
 } from "@/lib/economyClient";
+import { deriveReferralCode, GENESIS_BOTS, GENESIS_REFERRALS_REQUIRED } from "@/lib/genesis";
+import {
+  applyReferralCodeAuthoritative,
+  claimGenesisSquadAuthoritative,
+} from "@/lib/genesisClient";
 import {
   getMarketplacePrice,
   MARKETPLACE_BOOSTER_PRICES,
   MARKETPLACE_PART_CATALOG,
+  WILDCARD_PACK_COOLDOWN_MS,
 } from "@/lib/marketplace";
 
-const tabs = ["Items", "Parts", "Booster Packs"] as const;
+const tabs = ["Items", "Parts", "Booster Packs", "Genesis"] as const;
 type MarketplaceTab = (typeof tabs)[number];
 
 const itemDescriptions: Record<string, string> = {
@@ -27,6 +33,7 @@ const itemDescriptions: Record<string, string> = {
   "EXP Booster": "Doubles experience gained from battles for 24 hours.",
   "Gacha Ticket": "Can be used for one pull in the Gacha system.",
   "Rank Skip": "Skip to the next rank instantly.",
+  "Wildcard Blueprints": "5 blueprint pieces assignable to ANY Holobot. One pack per week.",
 };
 
 function getMoveDisplayName(templateId: string): string {
@@ -86,9 +93,10 @@ const marketplaceBoosterPacks = [
 ] as const;
 
 export function MarketplaceScreen() {
-  const { profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<MarketplaceTab>("Items");
   const [pendingPurchaseId, setPendingPurchaseId] = useState<string | null>(null);
+  const [referralCodeInput, setReferralCodeInput] = useState("");
   const [feedback, setFeedback] = useState<{
     accent?: string;
     lines?: string[];
@@ -101,7 +109,21 @@ export function MarketplaceScreen() {
     { name: "Energy Refill", quantity: profile?.energy_refills || 0 },
     { name: "EXP Booster", quantity: profile?.exp_boosters || 0 },
     { name: "Rank Skip", quantity: profile?.rank_skips || 0 },
+    { name: "Wildcard Blueprints", quantity: profile?.wildcardBlueprints || 0 },
   ];
+
+  const myReferralCode = user ? deriveReferralCode(user.uid) : "";
+
+  // Lazy-publish the (uid-derived) code onto the profile so friends'
+  // applyReferralCode calls can find this account by query.
+  useEffect(() => {
+    if (activeTab !== "Genesis" || !profile || !myReferralCode) {
+      return;
+    }
+    if (profile.referralCode !== myReferralCode) {
+      void updateProfile({ referralCode: myReferralCode }).catch(() => undefined);
+    }
+  }, [activeTab, myReferralCode, profile, updateProfile]);
   // Owned counts per catalog part. Legacy inventory names may carry a rarity
   // suffix ("Quantum Core (Epic)"), so match on the stripped base name.
   const ownedPartCounts = useMemo(() => {
@@ -213,10 +235,72 @@ export function MarketplaceScreen() {
     }
   };
 
+  const shareReferralCode = async () => {
+    try {
+      await Share.share({
+        message: `Join me on Holobots! Use my invite code ${myReferralCode} when you sign up — complete your first workout and we both get rewards.`,
+      });
+    } catch {
+      // Share sheet dismissed — nothing to do.
+    }
+  };
+
+  const submitReferralCode = async () => {
+    const code = referralCodeInput.trim().toUpperCase();
+    if (!code) {
+      return;
+    }
+    try {
+      setPendingPurchaseId("apply_referral");
+      const { referrerUsername } = await applyReferralCodeAuthoritative(code);
+      setReferralCodeInput("");
+      setFeedback({
+        accent: "#17d9ff",
+        message: `You're linked to ${referrerUsername}. Complete your first workout to unlock the welcome bonus: 5 Wildcard Blueprints + 200 Holos.`,
+        title: "Invite Accepted",
+      });
+    } catch (error) {
+      Alert.alert("Code not applied", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setPendingPurchaseId(null);
+    }
+  };
+
+  const claimGenesisSquad = async () => {
+    try {
+      setPendingPurchaseId("claim_genesis");
+      const { granted, converted } = await claimGenesisSquadAuthoritative();
+      setFeedback({
+        accent: "#f0bf14",
+        lines: [
+          ...granted.map((name) => `${name} joined your roster!`),
+          ...converted.map((entry) => `${entry.name} owned — +${entry.blueprints} blueprints instead`),
+          "+500 Holos • +50 Sync Points",
+          "GENESIS badge unlocked — founders only, forever.",
+        ],
+        message: "The Genesis Squad is yours.",
+        title: "GENESIS SQUAD CLAIMED",
+      });
+    } catch (error) {
+      Alert.alert("Claim failed", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setPendingPurchaseId(null);
+    }
+  };
+
   const renderContent = () => {
     if (activeTab === "Items") {
       return items.map((item) => {
         const affordable = (profile?.holosTokens || 0) >= Number(getMarketplacePrice(item.name));
+        // The weekly wildcard pack surfaces its throttle up front instead of
+        // failing the purchase with a misleading "not enough Holos".
+        const wildcardCooldownMsLeft =
+          item.name === "Wildcard Blueprints"
+            ? Math.max(0, Number(profile?.lastWildcardPackAt || 0) + WILDCARD_PACK_COOLDOWN_MS - Date.now())
+            : 0;
+        const onCooldown = wildcardCooldownMsLeft > 0;
+        const cooldownDays = Math.max(1, Math.ceil(wildcardCooldownMsLeft / (24 * 60 * 60 * 1000)));
+        const disabled = !affordable || onCooldown || pendingPurchaseId === item.name;
         return (
           <View key={item.name} style={styles.itemCard}>
             <View style={styles.itemIconFrame}>
@@ -236,11 +320,15 @@ export function MarketplaceScreen() {
               </View>
               <Pressable
                 onPress={() => void purchaseItem(item.name)}
-                disabled={!affordable || pendingPurchaseId === item.name}
-                style={[styles.useButton, (!affordable || pendingPurchaseId === item.name) ? styles.useButtonDisabled : null]}
+                disabled={disabled}
+                style={[styles.useButton, disabled ? styles.useButtonDisabled : null]}
               >
-                <Text style={[styles.useButtonText, (!affordable || pendingPurchaseId === item.name) ? styles.useButtonTextDisabled : null]}>
-                  {pendingPurchaseId === item.name ? "..." : "BUY"}
+                <Text
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                  style={[styles.useButtonText, disabled ? styles.useButtonTextDisabled : null]}
+                >
+                  {pendingPurchaseId === item.name ? "..." : onCooldown ? `${cooldownDays}d` : "BUY"}
                 </Text>
               </Pressable>
             </View>
@@ -347,6 +435,110 @@ export function MarketplaceScreen() {
               </Pressable>
             );
           })}
+        </View>
+      );
+    }
+
+    if (activeTab === "Genesis") {
+      const qualified = Number(profile?.referrals?.qualified || 0);
+      const pending = Number(profile?.referrals?.pending || 0);
+      const claimed = Boolean(profile?.genesisSquadClaimed);
+      const claimable = !claimed && qualified >= GENESIS_REFERRALS_REQUIRED;
+      const wildcards = Number(profile?.wildcardBlueprints || 0);
+
+      return (
+        <View style={styles.packsSection}>
+          <View style={styles.genesisHero}>
+            <Text style={styles.genesisEyebrow}>FOUNDERS ONLY</Text>
+            <Text style={styles.genesisTitle}>GENESIS SQUAD</Text>
+            <Text style={styles.genesisCopy}>
+              {`Recruit ${GENESIS_REFERRALS_REQUIRED} friends and unlock ${GENESIS_BOTS.join(" + ")}, a 500 Holos + 50 SP celebration pack, and the permanent GENESIS badge. Every extra recruit after that pays 5 Wildcard Blueprints.`}
+            </Text>
+            {profile?.genesisBadge ? (
+              <Text style={styles.genesisBadge}>★ GENESIS FOUNDER ★</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.genesisCard}>
+            <Text style={styles.genesisCardTitle}>YOUR INVITE CODE</Text>
+            <Text style={styles.genesisCode}>{myReferralCode || "—"}</Text>
+            <Text style={styles.genesisMeta}>
+              {`Recruits qualify when they finish their first workout. Qualified: ${qualified} / ${GENESIS_REFERRALS_REQUIRED}${pending > 0 ? ` • Pending: ${pending}` : ""}`}
+            </Text>
+            <Pressable onPress={() => void shareReferralCode()} style={styles.genesisButton}>
+              <Text style={styles.genesisButtonText}>SHARE INVITE</Text>
+            </Pressable>
+            {claimed ? (
+              <Text style={styles.genesisClaimed}>GENESIS SQUAD CLAIMED ✓</Text>
+            ) : (
+              <Pressable
+                onPress={() => void claimGenesisSquad()}
+                disabled={!claimable || pendingPurchaseId === "claim_genesis"}
+                style={[styles.genesisButton, styles.genesisClaimButton, !claimable ? styles.useButtonDisabled : null]}
+              >
+                <Text style={[styles.genesisButtonText, !claimable ? styles.useButtonTextDisabled : null]}>
+                  {pendingPurchaseId === "claim_genesis"
+                    ? "..."
+                    : claimable
+                      ? "CLAIM GENESIS SQUAD"
+                      : `${GENESIS_REFERRALS_REQUIRED - qualified} MORE TO CLAIM`}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          {!profile?.referredBy ? (
+            <View style={styles.genesisCard}>
+              <Text style={styles.genesisCardTitle}>GOT AN INVITE CODE?</Text>
+              <Text style={styles.genesisMeta}>
+                Enter it within your first week, then complete a workout: you get 5 Wildcard Blueprints + 200 Holos.
+              </Text>
+              <TextInput
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={12}
+                onChangeText={setReferralCodeInput}
+                placeholder="FRIEND CODE"
+                placeholderTextColor="#6b6b58"
+                style={styles.genesisInput}
+                value={referralCodeInput}
+              />
+              <Pressable
+                onPress={() => void submitReferralCode()}
+                disabled={!referralCodeInput.trim() || pendingPurchaseId === "apply_referral"}
+                style={[
+                  styles.genesisButton,
+                  (!referralCodeInput.trim() || pendingPurchaseId === "apply_referral") ? styles.useButtonDisabled : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.genesisButtonText,
+                    (!referralCodeInput.trim() || pendingPurchaseId === "apply_referral") ? styles.useButtonTextDisabled : null,
+                  ]}
+                >
+                  {pendingPurchaseId === "apply_referral" ? "..." : "APPLY CODE"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.genesisCard}>
+              <Text style={styles.genesisCardTitle}>INVITE LINKED</Text>
+              <Text style={styles.genesisMeta}>
+                {profile?.referralQualified
+                  ? "Welcome bonus delivered. Wildcards can be assigned from any Holobot's stats screen."
+                  : "Complete your first workout to unlock the welcome bonus: 5 Wildcard Blueprints + 200 Holos."}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.genesisCard}>
+            <Text style={styles.genesisCardTitle}>WILDCARD BLUEPRINTS</Text>
+            <Text style={styles.genesisWildcardCount}>{`×${wildcards}`}</Text>
+            <Text style={styles.genesisMeta}>
+              Assign them to ANY Holobot from its stats screen. Earn more from referrals, Legendary gacha drops, or the weekly pack in Items.
+            </Text>
+          </View>
         </View>
       );
     }
@@ -700,5 +892,110 @@ const styles = StyleSheet.create({
   },
   useButtonTextDisabled: {
     color: "#1c1805",
+  },
+  genesisHero: {
+    backgroundColor: "#07080d",
+    borderColor: "#f0bf14",
+    borderRadius: 12,
+    borderWidth: 4,
+    marginBottom: 14,
+    padding: 18,
+  },
+  genesisEyebrow: {
+    color: "#f0bf14",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1.6,
+  },
+  genesisTitle: {
+    color: "#fef1e0",
+    fontSize: 28,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  genesisCopy: {
+    color: "#ddd2b5",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+  },
+  genesisBadge: {
+    color: "#f0bf14",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginTop: 12,
+  },
+  genesisCard: {
+    backgroundColor: "#07080d",
+    borderColor: "#2a2b33",
+    borderRadius: 12,
+    borderWidth: 2,
+    marginBottom: 14,
+    padding: 16,
+  },
+  genesisCardTitle: {
+    color: "#f0bf14",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  genesisCode: {
+    color: "#fef1e0",
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: 6,
+    marginTop: 8,
+  },
+  genesisMeta: {
+    color: "#ddd2b5",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  genesisButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    borderRadius: 8,
+    justifyContent: "center",
+    marginTop: 12,
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  genesisClaimButton: {
+    backgroundColor: "#17d9ff",
+  },
+  genesisButtonText: {
+    color: "#050606",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  genesisClaimed: {
+    color: "#38e08c",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginTop: 14,
+    textAlign: "center",
+  },
+  genesisInput: {
+    backgroundColor: "#101218",
+    borderColor: "#2a2b33",
+    borderRadius: 8,
+    borderWidth: 1,
+    color: "#fef1e0",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 3,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  genesisWildcardCount: {
+    color: "#fef1e0",
+    fontSize: 30,
+    fontWeight: "900",
+    marginTop: 6,
   },
 });

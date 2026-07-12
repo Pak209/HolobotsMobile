@@ -7,7 +7,10 @@
  *   lib/      — shared server-side domain logic (progression, scoring)
  *   shared/   — modules kept byte-identical with the mobile app (see check:shared)
  */
+export { applyReferralCode } from "./growth/applyReferralCode";
+export { assignWildcardBlueprints } from "./growth/assignWildcardBlueprints";
 export { chargeArenaEntry } from "./arena/chargeArenaEntry";
+export { claimGenesisSquad } from "./growth/claimGenesisSquad";
 export { claimQuestRun } from "./progression/claimQuestRun";
 export { claimTrainingSession } from "./progression/claimTrainingSession";
 export { clearWorkoutCooldown } from "./fitness/clearWorkoutCooldown";
