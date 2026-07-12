@@ -12,6 +12,7 @@ import {
   buildBoosterPurchaseUpdates,
   buildItemPurchaseUpdates,
   buildPartPurchaseUpdates,
+  type BoosterGrantSummary,
   type MarketplaceBoosterId,
 } from "@/lib/marketplace";
 import type { UserProfile } from "@/types/profile";
@@ -48,7 +49,17 @@ const purchasePartCallable = httpsCallable<
 const purchaseBoosterCallable = httpsCallable<
   { packId: MarketplaceBoosterId },
   {
-    granted: { battleCardId: string; itemName: string; part: { name: string; slot: string } };
+    // God-pack fields are optional so responses from a not-yet-redeployed
+    // callable still parse; the wrapper below normalizes them.
+    granted: {
+      battleCardId: string;
+      battleCardIds?: string[];
+      godPack?: boolean;
+      itemName: string;
+      itemQuantity?: number;
+      part: { name: string; slot: string };
+      parts?: Array<{ name: string; slot: string }>;
+    };
     holosTokens: number;
     price: number;
   }
@@ -142,11 +153,7 @@ export async function purchaseMarketplacePartAuthoritative(
   return result.part;
 }
 
-export type BoosterGrantSummary = {
-  battleCardId: string;
-  itemName: string;
-  part: { name: string; slot: string };
-};
+export type { BoosterGrantSummary } from "@/lib/marketplace";
 
 export async function purchaseMarketplaceBoosterAuthoritative(
   profile: UserProfile,
@@ -155,7 +162,15 @@ export async function purchaseMarketplaceBoosterAuthoritative(
 ): Promise<BoosterGrantSummary> {
   try {
     const result = await purchaseBoosterCallable({ packId });
-    return result.data.granted;
+    const granted = result.data.granted;
+    return {
+      ...granted,
+      battleCardIds: granted.battleCardIds ?? [granted.battleCardId],
+      godPack: granted.godPack ?? false,
+      itemName: granted.itemName as BoosterGrantSummary["itemName"],
+      itemQuantity: granted.itemQuantity ?? 1,
+      parts: granted.parts ?? [granted.part],
+    };
   } catch (error) {
     if (!shouldFallBackToLocal(error)) {
       throw error;

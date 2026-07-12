@@ -53,6 +53,15 @@ const BLUEPRINTS_BY_RARITY: Record<GachaRarity, number> = {
   legendary: 5,
 };
 
+// A gold reveal should FEEL gold: consumables scale with rarity instead of
+// always being a single copy.
+const CONSUMABLE_AMOUNT_BY_RARITY: Record<GachaRarity, number> = {
+  common: 1,
+  rare: 1,
+  epic: 2,
+  legendary: 3,
+};
+
 export type GachaGrantedItem = {
   id: string;
   label: GachaItemLabel;
@@ -61,7 +70,7 @@ export type GachaGrantedItem = {
   /** Concrete grant this reveal card represents. */
   grant:
     | { type: "part"; name: GachaItemLabel; slot: string }
-    | { type: "consumable"; key: "arena_passes" | "energy_refills" | "exp_boosters" }
+    | { type: "consumable"; key: "arena_passes" | "energy_refills" | "exp_boosters"; amount: number }
     | { type: "blueprints"; holobotKey: string; amount: number }
     | { type: "wildcard_blueprints"; amount: number };
 };
@@ -96,9 +105,10 @@ function buildGrant(label: GachaItemLabel, rarity: GachaRarity, random: () => nu
     return { type: "part", name: label, slot: partSlot };
   }
 
-  if (label === "Energy Refill") return { type: "consumable", key: "energy_refills" };
-  if (label === "Arena Pass") return { type: "consumable", key: "arena_passes" };
-  if (label === "EXP Booster") return { type: "consumable", key: "exp_boosters" };
+  const consumableAmount = CONSUMABLE_AMOUNT_BY_RARITY[rarity];
+  if (label === "Energy Refill") return { type: "consumable", key: "energy_refills", amount: consumableAmount };
+  if (label === "Arena Pass") return { type: "consumable", key: "arena_passes", amount: consumableAmount };
+  if (label === "EXP Booster") return { type: "consumable", key: "exp_boosters", amount: consumableAmount };
 
   // Legendary blueprint pulls are WILDCARDS — the player assigns them to
   // any Holobot. Lower rarities stay a random bot (the fun lottery).
@@ -121,6 +131,9 @@ function describeGrant(grant: GachaGrantedItem["grant"], index: number, total: n
   }
   if (grant.type === "wildcard_blueprints") {
     return `WILDCARD ×${grant.amount} · any Holobot · ${dropLabel}`;
+  }
+  if (grant.type === "consumable" && grant.amount > 1) {
+    return `×${grant.amount} · ${dropLabel}`;
   }
   return dropLabel;
 }
@@ -175,7 +188,7 @@ export function buildPackGrantUpdates(
 
     if (grant.type === "consumable") {
       const current = updates[grant.key] ?? Number(profile[grant.key] || 0);
-      updates[grant.key] = current + 1;
+      updates[grant.key] = current + grant.amount;
       continue;
     }
 
