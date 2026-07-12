@@ -105,7 +105,8 @@ export function ArenaPrebattleMenu({
 }: ArenaPrebattleMenuProps) {
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [selectedTierId, setSelectedTierId] = useState(ARENA_TIERS[0].id);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  // What the picker modal is choosing for: the 1v1 fighter, or a team slot.
+  const [pickerTarget, setPickerTarget] = useState<"main" | 0 | 1 | 2 | null>(null);
   const [mode, setMode] = useState<"1v1" | "3v3">("1v1");
   const [teamNames, setTeamNames] = useState<Array<string | null>>([null, null, null]);
   const roster = useMemo(
@@ -129,20 +130,41 @@ export function ArenaPrebattleMenu({
     userHolobots[0];
   const rewards = getArenaPotentialRewards(selectedTier);
   const blueprintAmount = getArenaBlueprintAmount(selectedTier);
-  const cpuLineup = getTierOpponentLineup(selectedTier, selectedHolobot.name);
+  // In 3v3 the LEAD slot drives the preview; the top bar is hidden there.
+  const previewHolobot =
+    mode === "3v3" && teamNames[0]
+      ? roster.find((holobot) => holobot.name === teamNames[0]) ?? selectedHolobot
+      : selectedHolobot;
+  const cpuLineup = getTierOpponentLineup(selectedTier, previewHolobot.name);
   const canUseTokens = userTokens >= selectedTier.entryFeeHolos;
   const canUsePass = userArenaPasses > 0;
   const teamComplete = teamNames.every(Boolean) && new Set(teamNames).size === 3;
   const teamReady = mode === "1v1" || teamComplete;
   const canField3v3 = roster.length >= 3;
 
-  const assignTeamSlot = (slotIndex: number) => {
-    const name = selectedHolobot.name;
+  const rosterFor = (name: string | null) =>
+    name ? roster.find((holobot) => holobot.name === name) ?? null : null;
+
+  const assignTeamSlot = (slotIndex: number, name: string) => {
     setTeamNames((current) => {
       const next = current.map((existing) => (existing === name ? null : existing));
       next[slotIndex] = name;
       return next;
     });
+  };
+
+  const handlePickerSelect = (index: number) => {
+    const picked = roster[index];
+    if (!picked) {
+      setPickerTarget(null);
+      return;
+    }
+    if (pickerTarget === "main") {
+      setSelectedHolobotIndex(index);
+    } else if (pickerTarget !== null) {
+      assignTeamSlot(pickerTarget, picked.name);
+    }
+    setPickerTarget(null);
   };
 
   const startPressed = (paymentMethod: "tokens" | "pass") => {
@@ -163,16 +185,18 @@ export function ArenaPrebattleMenu({
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Holobot</Text>
-          <Pressable onPress={() => setIsPickerOpen(true)} style={styles.changeHolobotBar}>
-            <Image source={selectedHolobot.imageSource} style={styles.changeHolobotArt} resizeMode="contain" />
-            <View style={styles.changeHolobotBody}>
-              <Text style={styles.changeHolobotName}>{selectedHolobot.name}</Text>
-              <Text style={styles.changeHolobotMeta}>{`Lv ${selectedHolobot.level} • Tap to change`}</Text>
-            </View>
-          </Pressable>
-        </View>
+        {mode === "1v1" ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Holobot</Text>
+            <Pressable onPress={() => setPickerTarget("main")} style={styles.changeHolobotBar}>
+              <Image source={selectedHolobot.imageSource} style={styles.changeHolobotArt} resizeMode="contain" />
+              <View style={styles.changeHolobotBody}>
+                <Text style={styles.changeHolobotName}>{selectedHolobot.name}</Text>
+                <Text style={styles.changeHolobotMeta}>{`Lv ${selectedHolobot.level} • Tap to change`}</Text>
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mode</Text>
@@ -192,19 +216,32 @@ export function ArenaPrebattleMenu({
             </Pressable>
           </View>
           {mode === "3v3" ? (
-            <>
-              <Text style={styles.teamHint}>
-                Pick a Holobot above, then tap a slot to assign it. Lead fights first.
-              </Text>
-              <View style={styles.teamRow}>
-                {teamNames.map((name, index) => (
-                  <Pressable key={index} onPress={() => assignTeamSlot(index)} style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}>
+            <View style={styles.teamRow}>
+              {teamNames.map((name, index) => {
+                const entry = rosterFor(name);
+                return (
+                  <Pressable
+                    key={index}
+                    onPress={() => setPickerTarget(index as 0 | 1 | 2)}
+                    style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}
+                  >
                     <Text style={styles.teamSlotLabel}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
-                    <Text style={styles.teamSlotName}>{name ?? "TAP TO SET"}</Text>
+                    {entry ? (
+                      <>
+                        <Image source={entry.imageSource} style={styles.teamSlotArt} resizeMode="contain" />
+                        <Text numberOfLines={1} style={styles.teamSlotName}>{entry.name}</Text>
+                        <Text style={styles.teamSlotMeta}>{`Lv ${entry.level}`}</Text>
+                      </>
+                    ) : (
+                      <View style={styles.teamSlotEmpty}>
+                        <Text style={styles.teamSlotPlus}>＋</Text>
+                        <Text style={styles.teamSlotName}>TAP TO PICK</Text>
+                      </View>
+                    )}
                   </Pressable>
-                ))}
-              </View>
-            </>
+                );
+              })}
+            </View>
           ) : null}
           {!canField3v3 ? (
             <Text style={styles.teamHint}>Own at least 3 Holobots to enter 3v3 Showdown.</Text>
@@ -222,10 +259,11 @@ export function ArenaPrebattleMenu({
                   onPress={() => setSelectedTierId(tier.id)}
                   style={[styles.tierCard, selected && styles.tierCardSelected]}
                 >
-                  <Text style={styles.tierName}>{tier.label}</Text>
-                  <Text style={styles.tierLevel}>{`Lv ${tier.opponentLevel}`}</Text>
-                  <Text style={styles.tierCopy}>{tier.rewardLabel}</Text>
-                  <Text style={styles.tierFee}>{`${tier.entryFeeHolos} Holos`}</Text>
+                  <Text numberOfLines={1} style={styles.tierName}>{tier.label}</Text>
+                  <View style={styles.tierMetaRow}>
+                    <Text style={styles.tierLevel}>{`Lv ${tier.opponentLevel}`}</Text>
+                    <Text style={styles.tierFee}>{`${tier.entryFeeHolos} Holos`}</Text>
+                  </View>
                 </Pressable>
               );
             })}
@@ -258,19 +296,20 @@ export function ArenaPrebattleMenu({
           lineup={cpuLineup}
           rewards={rewards}
           blueprintAmount={blueprintAmount}
-          selectedHolobot={selectedHolobot}
+          selectedHolobot={previewHolobot}
         />
       </ScrollView>
 
       <HolobotPickerModal
-        visible={isPickerOpen}
+        visible={pickerTarget !== null}
         roster={roster}
-        selectedIndex={selectedHolobotIndex}
-        onClose={() => setIsPickerOpen(false)}
-        onSelect={(index) => {
-          setSelectedHolobotIndex(index);
-          setIsPickerOpen(false);
-        }}
+        selectedIndex={
+          pickerTarget === "main" || pickerTarget === null
+            ? selectedHolobotIndex
+            : roster.findIndex((holobot) => holobot.name === teamNames[pickerTarget])
+        }
+        onClose={() => setPickerTarget(null)}
+        onSelect={handlePickerSelect}
       />
     </View>
   );
@@ -362,7 +401,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     paddingBottom: 6,
     paddingHorizontal: 22,
-    paddingTop: 72,
+    paddingTop: 64,
   },
   lineupChip: {
     alignItems: "center",
@@ -370,9 +409,9 @@ const styles = StyleSheet.create({
     borderColor: "#a68311",
     borderWidth: 1,
     flex: 1,
-    minHeight: 100,
+    minHeight: 86,
     paddingHorizontal: 6,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   lineupName: {
     color: "#fef1e0",
@@ -434,10 +473,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   teamSlot: {
+    alignItems: "center",
+    backgroundColor: "#090909",
     borderColor: "#3a3f4b",
     borderWidth: 1.5,
     flex: 1,
-    padding: 10,
+    minHeight: 108,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+  teamSlotArt: {
+    height: 48,
+    marginTop: 4,
+    width: 48,
+  },
+  teamSlotEmpty: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
   },
   teamSlotFilled: {
     borderColor: "#17d9ff",
@@ -448,11 +501,23 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1,
   },
+  teamSlotMeta: {
+    color: "#8b93a1",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 2,
+  },
   teamSlotName: {
     color: "#ffffff",
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "800",
     marginTop: 4,
+    textAlign: "center",
+  },
+  teamSlotPlus: {
+    color: "#17d9ff",
+    fontSize: 22,
+    fontWeight: "900",
   },
   page: {
     backgroundColor: "#f5c40d",
@@ -465,7 +530,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#090909",
     borderColor: "#f0bf14",
     borderWidth: 2,
-    minHeight: 188,
+    minHeight: 168,
     padding: 12,
   },
   previewEyebrow: {
@@ -480,8 +545,8 @@ const styles = StyleSheet.create({
   },
   previewHeroArt: {
     backgroundColor: "#111111",
-    height: 82,
-    width: 82,
+    height: 64,
+    width: 64,
   },
   previewHeroLevel: {
     color: "#f0bf14",
@@ -559,7 +624,7 @@ const styles = StyleSheet.create({
     borderColor: "#a68311",
     borderWidth: 2,
     gap: 4,
-    minHeight: 122,
+    minHeight: 64,
     paddingHorizontal: 12,
     paddingVertical: 10,
     width: "48%",
@@ -567,17 +632,16 @@ const styles = StyleSheet.create({
   tierCardSelected: {
     borderColor: "#f0bf14",
   },
-  tierCopy: {
-    color: "#ddd2b5",
-    fontSize: 11,
-    lineHeight: 14,
-    marginTop: 2,
-  },
   tierFee: {
     color: "#f0bf14",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "900",
-    marginTop: "auto",
+  },
+  tierMetaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 2,
   },
   tierGrid: {
     flexDirection: "row",
@@ -586,14 +650,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   tierLevel: {
-    color: "#f0bf14",
+    color: "#ddd2b5",
     fontSize: 12,
     fontWeight: "800",
-    marginTop: 2,
   },
   tierName: {
     color: "#fef1e0",
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "900",
   },
 });

@@ -226,6 +226,7 @@ function BenchChips({
               styles.benchChip,
               chip.isActive ? styles.benchChipActive : null,
               chip.isKnockedOut ? styles.benchChipKo : null,
+              pressable ? styles.benchChipReady : null,
             ]}
           >
             <Text numberOfLines={1} style={styles.benchChipName}>
@@ -327,6 +328,8 @@ export function BattleArenaView({
                 />
                 {!team.canSwitchNow && team.switchSecondsLeft > 0 ? (
                   <Text style={styles.benchLockHint}>{`SWITCH CD ${team.switchSecondsLeft}s`}</Text>
+                ) : team.playerChips.some((chip) => !chip.isActive && !chip.isKnockedOut) ? (
+                  <Text style={styles.benchSwitchHint}>TAP A BENCH BOT TO SWITCH</Text>
                 ) : null}
               </>
             ) : null}
@@ -650,10 +653,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#4bd060",
     height: "100%",
   },
+  benchChipReady: {
+    borderColor: "#17d9ff",
+  },
   benchLockHint: {
     color: "#5a5a52",
     fontSize: 9,
     fontWeight: "800",
+    marginTop: 2,
+  },
+  benchSwitchHint: {
+    color: "#17d9ff",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
     marginTop: 2,
   },
   benchMeterFill: {
