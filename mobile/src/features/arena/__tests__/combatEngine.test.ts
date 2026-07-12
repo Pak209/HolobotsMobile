@@ -694,3 +694,45 @@ describe('ArenaCombatEngine', () => {
     expect(lowDefenseDamage.finalDamage).toBeGreaterThan(highDefenseDamage.finalDamage);
   });
 });
+
+// The combo counter is a live streak, not a bank: strikes build it, going
+// defensive drops it, and the technical finisher is its premium cash-out
+// (combo multiplier PLUS a per-link capstone bonus).
+describe('combo chain and the chain-ender finisher', () => {
+  const jab = makeCard({ id: 'jab-cc', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+  const block = makeCard({ id: 'block-cc', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+  const finisher = makeCard({ id: 'fin-cc', templateId: 'hyper_strike', type: 'finisher', staminaCost: 4, baseDamage: 30 });
+
+  it('clean strikes build the chain and arming a defense drops it', () => {
+    const battle = makeBattle();
+
+    let state = ArenaCombatEngine.resolveAction(battle, jab, battle.player.holobotId);
+    state = ArenaCombatEngine.resolveAction(state, jab, state.player.holobotId);
+    expect(state.player.comboCounter).toBe(2);
+
+    state = ArenaCombatEngine.resolveAction(state, block, state.player.holobotId);
+    expect(state.player.comboCounter).toBe(0);
+  });
+
+  it('the technical finisher out-damages its chainless self and resets the chain', () => {
+    const cold = makeBattle({ specialMeter: 100, stamina: 7 }, { currentHP: 500, maxHP: 500 });
+    const hot = makeBattle({ specialMeter: 100, stamina: 7, comboCounter: 3 }, { currentHP: 500, maxHP: 500 });
+
+    const coldResolved = ArenaCombatEngine.resolveAction(cold, finisher, cold.player.holobotId);
+    const hotResolved = ArenaCombatEngine.resolveAction(hot, finisher, hot.player.holobotId);
+
+    const coldDamage = coldResolved.actionHistory[coldResolved.actionHistory.length - 1].actualDamage ?? 0;
+    const hotDamage = hotResolved.actionHistory[hotResolved.actionHistory.length - 1].actualDamage ?? 0;
+
+    expect(coldDamage).toBeGreaterThan(0);
+    expect(hotDamage).toBeGreaterThan(coldDamage);
+    expect(hotResolved.player.comboCounter).toBe(0);
+    expect(hotResolved.player.specialMeter).toBe(0);
+  });
+
+  it('the chain-ender capstone grows per link and caps at +50%', () => {
+    expect(ArenaCombatEngine.getFinisherCapstoneBonus(0)).toBeCloseTo(1.25);
+    expect(ArenaCombatEngine.getFinisherCapstoneBonus(2)).toBeCloseTo(1.45);
+    expect(ArenaCombatEngine.getFinisherCapstoneBonus(9)).toBeCloseTo(1.75);
+  });
+});

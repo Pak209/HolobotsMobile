@@ -30,6 +30,11 @@ import {
 
 const SPECIAL_METER_MAX = 100;
 const TURN_STAMINA_REGEN = 1;
+// Technical finisher = chain ender: base capstone plus a growing cut per
+// live combo link, capped so KEN's persistent chain can't run away with it.
+const FINISHER_CAPSTONE_BASE = 1.25;
+const CHAIN_ENDER_BONUS_PER_LINK = 0.1;
+const CHAIN_ENDER_BONUS_CAP = 0.5;
 
 type FighterRole = 'player' | 'opponent';
 
@@ -353,7 +358,11 @@ export class ArenaCombatEngine {
     if (card.type === 'finisher') {
       damage = card.templateId.startsWith('signature.')
         ? result.rawDamage * 2
-        : Math.floor(damage * this.calculateComboMultiplier(attacker.comboCounter) * 1.25);
+        : Math.floor(
+            damage *
+              this.calculateComboMultiplier(attacker.comboCounter) *
+              this.getFinisherCapstoneBonus(attacker.comboCounter),
+          );
     }
     if (defender.armedDefenseTrap) {
       damage = Math.max(0, Math.round(damage * (1 - defender.armedDefenseTrap.damageReduction)));
@@ -910,6 +919,11 @@ export class ArenaCombatEngine {
     defender.defenseActive = true;
     defender.defendedAt = now;
 
+    // Going defensive abandons the offensive chain (same rule as rotating
+    // out in 3v3): the combo counter is a live streak, not a bank. Cash it
+    // with a combo or the technical finisher BEFORE arming a defense.
+    defender.comboCounter = 0;
+
     // Guard Stacks: consecutive defense plays overcharge the trap being
     // armed; the streak only breaks when this fighter attacks.
     const stacks = Math.min(MAX_GUARD_STACKS, defender.guardStacks ?? 0);
@@ -982,13 +996,19 @@ export class ArenaCombatEngine {
   // the special meter (availability requirement) and consumes the whole
   // meter when used — lower damage than holding the charge to 7/7 for the
   // Signature Finisher below. Blockable/counterable like any attack.
+  //
+  // It is also the CHAIN ENDER: on top of the normal combo multiplier, the
+  // capstone bonus grows with the live chain, so building a combo with
+  // strikes and cashing it with the technical finisher out-damages a plain
+  // combo cash-out. This is the payoff for stamina discipline — arming a
+  // defense drops the chain, so the links must be sustained on offense.
   private static resolveFinisher(
     action: BattleAction,
     attacker: ArenaFighter,
     defender: ArenaFighter,
   ): void {
     const comboLength = attacker.comboCounter;
-    const capstoneBonus = 1.25;
+    const capstoneBonus = this.getFinisherCapstoneBonus(comboLength);
     const damageResult = this.calculateDamage(attacker, defender, action.card, false, comboLength);
     let actualDamage = Math.floor(
       damageResult.finalDamage * this.calculateComboMultiplier(comboLength) * capstoneBonus,
@@ -1068,6 +1088,14 @@ export class ArenaCombatEngine {
           break;
       }
     }
+  }
+
+  /** Technical-finisher capstone: 1.25 base, +10% per chain link (cap +50%). */
+  static getFinisherCapstoneBonus(comboLength: number): number {
+    return (
+      FINISHER_CAPSTONE_BASE +
+      Math.min(CHAIN_ENDER_BONUS_CAP, Math.max(0, comboLength) * CHAIN_ENDER_BONUS_PER_LINK)
+    );
   }
 
   private static calculateComboMultiplier(rawComboLength: number): number {
