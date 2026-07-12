@@ -764,6 +764,21 @@ export class ArenaCombatEngine {
       }
     }
 
+    // 5.5) Catch a breath: gassed with no kill pressure on, the AI RESTS
+    //    (plays nothing) so the timed regen can actually refill the tank —
+    //    the same pacing a human plays instead of re-spending every point
+    //    the moment it trickles in. Blood in the water overrides the rest:
+    //    a hurt or winded player, or a live chain worth cashing, keeps the
+    //    pressure up.
+    if (
+      self.stamina <= 2 &&
+      !situation.opponentLowHP &&
+      !opponentWinded &&
+      !situation.comboActive
+    ) {
+      return null;
+    }
+
     // 6) Default: best value for the current stamina budget. When the bar is
     //    low, damage-per-stamina matters more than raw damage; never dump the
     //    last point without a kill, and press harder while the player is winded.
