@@ -23,6 +23,11 @@ type ArenaPrebattleMenuProps = {
     tier: ArenaTier;
     paymentMethod: "tokens" | "pass";
   }) => void;
+  onStart3v3: (options: {
+    teamNames: [string, string, string];
+    tier: ArenaTier;
+    paymentMethod: "tokens" | "pass";
+  }) => void;
   userArenaPasses: number;
   userHolobots: UserHolobot[];
   userTokens: number;
@@ -93,6 +98,7 @@ function FlipPreviewCard({
 
 export function ArenaPrebattleMenu({
   onStartBattle,
+  onStart3v3,
   userArenaPasses,
   userHolobots,
   userTokens,
@@ -100,6 +106,8 @@ export function ArenaPrebattleMenu({
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [selectedTierId, setSelectedTierId] = useState(ARENA_TIERS[0].id);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [mode, setMode] = useState<"1v1" | "3v3">("1v1");
+  const [teamNames, setTeamNames] = useState<Array<string | null>>([null, null, null]);
   const roster = useMemo(
     () => mergeHolobotRoster(userHolobots, "full").filter((holobot) => holobot.owned),
     [userHolobots],
@@ -124,6 +132,29 @@ export function ArenaPrebattleMenu({
   const cpuLineup = getTierOpponentLineup(selectedTier, selectedHolobot.name);
   const canUseTokens = userTokens >= selectedTier.entryFeeHolos;
   const canUsePass = userArenaPasses > 0;
+  const teamComplete = teamNames.every(Boolean) && new Set(teamNames).size === 3;
+  const teamReady = mode === "1v1" || teamComplete;
+  const canField3v3 = roster.length >= 3;
+
+  const assignTeamSlot = (slotIndex: number) => {
+    const name = selectedHolobot.name;
+    setTeamNames((current) => {
+      const next = current.map((existing) => (existing === name ? null : existing));
+      next[slotIndex] = name;
+      return next;
+    });
+  };
+
+  const startPressed = (paymentMethod: "tokens" | "pass") => {
+    if (mode === "3v3") {
+      if (!teamComplete) return;
+      onStart3v3({ teamNames: teamNames as [string, string, string], tier: selectedTier, paymentMethod });
+      return;
+    }
+    if (selectedProfileHolobot) {
+      onStartBattle({ selectedHolobot: selectedProfileHolobot, tier: selectedTier, paymentMethod });
+    }
+  };
 
   return (
     <View style={styles.page}>
@@ -141,6 +172,43 @@ export function ArenaPrebattleMenu({
               <Text style={styles.changeHolobotMeta}>{`Lv ${selectedHolobot.level} • Tap to change`}</Text>
             </View>
           </Pressable>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Mode</Text>
+          <View style={styles.modeRow}>
+            <Pressable
+              onPress={() => setMode("1v1")}
+              style={[styles.modeButton, mode === "1v1" && styles.modeButtonActive]}
+            >
+              <Text style={[styles.modeButtonText, mode === "1v1" && styles.modeButtonTextActive]}>1V1 RUN</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canField3v3}
+              onPress={() => setMode("3v3")}
+              style={[styles.modeButton, mode === "3v3" && styles.modeButtonActive, !canField3v3 && styles.modeButtonDisabled]}
+            >
+              <Text style={[styles.modeButtonText, mode === "3v3" && styles.modeButtonTextActive]}>3V3 SHOWDOWN</Text>
+            </Pressable>
+          </View>
+          {mode === "3v3" ? (
+            <>
+              <Text style={styles.teamHint}>
+                Pick a Holobot above, then tap a slot to assign it. Lead fights first.
+              </Text>
+              <View style={styles.teamRow}>
+                {teamNames.map((name, index) => (
+                  <Pressable key={index} onPress={() => assignTeamSlot(index)} style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}>
+                    <Text style={styles.teamSlotLabel}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
+                    <Text style={styles.teamSlotName}>{name ?? "TAP TO SET"}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
+          {!canField3v3 ? (
+            <Text style={styles.teamHint}>Own at least 3 Holobots to enter 3v3 Showdown.</Text>
+          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -167,32 +235,18 @@ export function ArenaPrebattleMenu({
         <View style={styles.section}>
           <View style={styles.actionRow}>
             <Pressable
-              disabled={!canUseTokens}
-              onPress={() =>
-                selectedProfileHolobot &&
-                onStartBattle({
-                  selectedHolobot: selectedProfileHolobot,
-                  tier: selectedTier,
-                  paymentMethod: "tokens",
-                })
-              }
-              style={[styles.actionButton, !canUseTokens && styles.actionButtonDisabled]}
+              disabled={!canUseTokens || !teamReady}
+              onPress={() => startPressed("tokens")}
+              style={[styles.actionButton, (!canUseTokens || !teamReady) && styles.actionButtonDisabled]}
             >
               <Text style={styles.actionButtonTitle}>Pay Holos</Text>
               <Text style={styles.actionButtonMeta}>{`${selectedTier.entryFeeHolos} Holos`}</Text>
             </Pressable>
 
             <Pressable
-              disabled={!canUsePass}
-              onPress={() =>
-                selectedProfileHolobot &&
-                onStartBattle({
-                  selectedHolobot: selectedProfileHolobot,
-                  tier: selectedTier,
-                  paymentMethod: "pass",
-                })
-              }
-              style={[styles.actionButton, styles.passButton, !canUsePass && styles.actionButtonDisabled]}
+              disabled={!canUsePass || !teamReady}
+              onPress={() => startPressed("pass")}
+              style={[styles.actionButton, styles.passButton, (!canUsePass || !teamReady) && styles.actionButtonDisabled]}
             >
               <Text style={styles.actionButtonTitle}>Use Arena Pass</Text>
               <Text style={styles.actionButtonMeta}>{`${userArenaPasses} available`}</Text>
@@ -341,6 +395,64 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginTop: 10,
+  },
+  modeButton: {
+    borderColor: "#3a3f4b",
+    borderWidth: 1.5,
+    flex: 1,
+    paddingVertical: 10,
+  },
+  modeButtonActive: {
+    backgroundColor: "#f0bf14",
+    borderColor: "#f0bf14",
+  },
+  modeButtonDisabled: {
+    opacity: 0.4,
+  },
+  modeButtonText: {
+    color: "#b7bdc9",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textAlign: "center",
+  },
+  modeButtonTextActive: {
+    color: "#07080d",
+  },
+  modeRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  teamHint: {
+    color: "#8b93a1",
+    fontSize: 12,
+    marginTop: 8,
+  },
+  teamRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  teamSlot: {
+    borderColor: "#3a3f4b",
+    borderWidth: 1.5,
+    flex: 1,
+    padding: 10,
+  },
+  teamSlotFilled: {
+    borderColor: "#17d9ff",
+  },
+  teamSlotLabel: {
+    color: "#f0bf14",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  teamSlotName: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 4,
   },
   page: {
     backgroundColor: "#f5c40d",
