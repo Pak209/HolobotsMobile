@@ -159,6 +159,33 @@ pattern the marketplace used pre-deploy.
 - [ ] The stats popup's ABILITIES tab scrolls all the way to the bottom
       (INNATE IDENTITY + Sync stats + Sync abilities all reachable).
 
+## 6b. 3v3 Showdown (PvE)
+
+Requires owning at least 3 Holobots (the mode button is disabled otherwise).
+
+- [ ] Arena prebattle has a MODE row: 1V1 RUN / 3V3 SHOWDOWN. In 3v3, pick
+      a Holobot then tap LEAD / BENCH slots to assign; start needs 3
+      distinct bots. Entry costs the normal tier fee.
+- [ ] The battle HUD shows three bench chips per side (name + HP + meter
+      slivers); your active has a gold border, the CPU's team is visible too.
+- [ ] **Switching**: tap a living bench chip to rotate (gold "SWITCH CD Ns"
+      shows the 10s side cooldown). The incoming bot can't act for ~1.5s
+      ("ENTERING THE ARENA…"), and the outgoing bot LOSES its armed trap,
+      chain, and guard stacks — but keeps HP, stamina, meter, and spent
+      one-shot bends.
+- [ ] Benched bots visibly regain stamina; their meter and HP never change
+      on the bench.
+- [ ] **KO flow**: when your bot drops, a HOLOBOT DOWN overlay lists your
+      remaining team with a 5s countdown (auto-picks in order on timeout).
+      When the CPU's bot drops you see "OPPONENT SENDING IN…" for a beat.
+- [ ] **CPU rotation**: watch it rotate a badly hurt bot for a healthy one,
+      bring GAMA in when your signature is charged, and counterpick on
+      send-ins (ACE into your armed trap).
+- [ ] Win/lose ends the match with a 3V3 SHOWDOWN results modal showing
+      aggregated rewards (one settlement per enemy KO'd — same economy as a
+      3-round run; check SP/EXP/Holos actually land on the profile).
+- [ ] The pause gear works mid-3v3 (Continue / Quit both paths).
+
 ## 7. Realtime PvP (two devices — converged rules)
 
 Both devices must run this build (older apps are version-gated out of new

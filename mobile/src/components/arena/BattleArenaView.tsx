@@ -12,6 +12,27 @@ import {
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
 
+export type TeamHudChip = {
+  index: number;
+  name: string;
+  hpPct: number;
+  meterPct: number;
+  isKnockedOut: boolean;
+  isActive: boolean;
+};
+
+export type TeamHudProps = {
+  playerChips: TeamHudChip[];
+  opponentChips: TeamHudChip[];
+  canSwitchNow: boolean;
+  switchSecondsLeft: number;
+  entryLocked: boolean;
+  onSwitch: (index: number) => void;
+  sendIn: { secondsLeft: number; options: TeamHudChip[] } | null;
+  opponentChoosing: boolean;
+  onSendIn: (index: number) => void;
+};
+
 type BattleArenaViewProps = {
   battle: BattleState;
   roundProgress?: {
@@ -25,6 +46,8 @@ type BattleArenaViewProps = {
   isAnimating: boolean;
   onCardPlay: (cardId: string) => void;
   onSignaturePlay: () => void;
+  /** 3v3 Showdown HUD: bench chips, switching, and the send-in overlay. */
+  team?: TeamHudProps | null;
 };
 
 function getCardColors(type: CardType) {
@@ -179,6 +202,48 @@ function ArenaCard({
   );
 }
 
+function BenchChips({
+  chips,
+  align,
+  onPress,
+  pressableWhen,
+}: {
+  chips: TeamHudChip[];
+  align: "left" | "right";
+  onPress?: (index: number) => void;
+  pressableWhen?: (chip: TeamHudChip) => boolean;
+}) {
+  return (
+    <View style={[styles.benchRow, align === "right" ? styles.benchRowRight : null]}>
+      {chips.map((chip) => {
+        const pressable = Boolean(onPress && pressableWhen?.(chip));
+        return (
+          <Pressable
+            key={chip.index}
+            disabled={!pressable}
+            onPress={() => onPress?.(chip.index)}
+            style={[
+              styles.benchChip,
+              chip.isActive ? styles.benchChipActive : null,
+              chip.isKnockedOut ? styles.benchChipKo : null,
+            ]}
+          >
+            <Text numberOfLines={1} style={styles.benchChipName}>
+              {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
+            </Text>
+            <View style={styles.benchBarTrack}>
+              <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
+            </View>
+            <View style={styles.benchBarTrack}>
+              <View style={[styles.benchMeterFill, { width: `${Math.round(chip.meterPct * 100)}%` }]} />
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function BattleArenaView({
   battle,
   roundProgress,
@@ -189,6 +254,7 @@ export function BattleArenaView({
   isAnimating,
   onCardPlay,
   onSignaturePlay,
+  team,
 }: BattleArenaViewProps) {
   const visibleCards = useMemo(() => {
     const slots = playerCards.slice(0, CARD_SLOTS);
@@ -251,6 +317,19 @@ export function BattleArenaView({
                 </Text>
               </View>
             ) : null}
+            {team ? (
+              <>
+                <BenchChips
+                  chips={team.playerChips}
+                  align="left"
+                  onPress={team.onSwitch}
+                  pressableWhen={(chip) => team.canSwitchNow && !chip.isActive && !chip.isKnockedOut}
+                />
+                {!team.canSwitchNow && team.switchSecondsLeft > 0 ? (
+                  <Text style={styles.benchLockHint}>{`SWITCH CD ${team.switchSecondsLeft}s`}</Text>
+                ) : null}
+              </>
+            ) : null}
           </View>
         </View>
 
@@ -298,6 +377,7 @@ export function BattleArenaView({
                 </Text>
               </View>
             ) : null}
+            {team ? <BenchChips chips={team.opponentChips} align="right" /> : null}
           </View>
         </View>
       </View>
@@ -339,6 +419,32 @@ export function BattleArenaView({
         </View>
       ) : null}
 
+      {team?.sendIn ? (
+        <View style={styles.sendInOverlay}>
+          <View style={styles.sendInCard}>
+            <Text style={styles.sendInEyebrow}>HOLOBOT DOWN</Text>
+            <Text style={styles.sendInTitle}>{`Send in your next fighter (${Math.max(0, team.sendIn.secondsLeft)}s)`}</Text>
+            <View style={styles.sendInRow}>
+              {team.sendIn.options.map((chip) => (
+                <Pressable key={chip.index} onPress={() => team.onSendIn(chip.index)} style={styles.sendInOption}>
+                  <Text style={styles.sendInName}>{chip.name}</Text>
+                  <View style={styles.benchBarTrack}>
+                    <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
+                  </View>
+                  <Text style={styles.sendInMeta}>{`HP ${Math.round(chip.hpPct * 100)}%`}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      {team?.opponentChoosing ? (
+        <View style={styles.sendInBanner}>
+          <Text style={styles.sendInBannerText}>OPPONENT SENDING IN THE NEXT HOLOBOT…</Text>
+        </View>
+      ) : null}
+
       <View style={styles.cardBay}>
         <View style={styles.cardBayTopBar}>
           <View style={styles.specialGaugeTrack}>
@@ -371,7 +477,9 @@ export function BattleArenaView({
         </View>
         <View style={styles.cardBayHeader}>
           <Text style={styles.deckHint}>
-            {battle.player.armedDefenseTrap
+            {team?.entryLocked
+              ? "ENTERING THE ARENA…"
+              : battle.player.armedDefenseTrap
               ? "DEFENSE TRAP ARMED"
               : finisherReady
                 ? "FULL FINISHER READY — TAP THE GOLD BUTTON"
@@ -512,6 +620,120 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     marginVertical: 10,
+  },
+  benchBarTrack: {
+    backgroundColor: "#1a1d26",
+    height: 4,
+    marginTop: 3,
+    overflow: "hidden",
+  },
+  benchChip: {
+    backgroundColor: "#0b0d13",
+    borderColor: "#3a3f4b",
+    borderWidth: 1.5,
+    minWidth: 64,
+    padding: 5,
+  },
+  benchChipActive: {
+    borderColor: "#f0bf14",
+  },
+  benchChipKo: {
+    opacity: 0.35,
+  },
+  benchChipName: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  benchHpFill: {
+    backgroundColor: "#4bd060",
+    height: "100%",
+  },
+  benchLockHint: {
+    color: "#5a5a52",
+    fontSize: 9,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  benchMeterFill: {
+    backgroundColor: "#f0bf14",
+    height: "100%",
+  },
+  benchRow: {
+    flexDirection: "row",
+    gap: 5,
+    marginTop: 5,
+  },
+  benchRowRight: {
+    justifyContent: "flex-end",
+  },
+  sendInBanner: {
+    alignItems: "center",
+    backgroundColor: "#0b0d13",
+    borderColor: "#f0bf14",
+    borderWidth: 1.5,
+    marginHorizontal: 14,
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  sendInBannerText: {
+    color: "#f0bf14",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  sendInCard: {
+    backgroundColor: "#0b0d13",
+    borderColor: "#f0bf14",
+    borderWidth: 2,
+    padding: 18,
+    width: "86%",
+  },
+  sendInEyebrow: {
+    color: "#ff4538",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+  },
+  sendInMeta: {
+    color: "#8b93a1",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  sendInName: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  sendInOption: {
+    borderColor: "#17d9ff",
+    borderWidth: 1.5,
+    flex: 1,
+    padding: 10,
+  },
+  sendInOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.82)",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 55,
+  },
+  sendInRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  sendInTitle: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 4,
   },
   cardBay: {
     backgroundColor: "#080808",
