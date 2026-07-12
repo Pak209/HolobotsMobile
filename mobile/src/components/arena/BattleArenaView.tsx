@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import type { ActionCard, BattleAction, BattleState, CardType } from "../../types/arena";
+import type { ActionCard, ArmedDefenseTrap, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
 import {
   FINISHER_UNLOCK_SEGMENTS,
@@ -112,6 +112,22 @@ function getOutcomeLabel(action: BattleAction): string {
   }
   if (action.actionType === "defense") return " • TRAP ARMED";
   return "";
+}
+
+/** One-line plain-language summary of what an armed trap will do. */
+function describeTrap(trap: ArmedDefenseTrap): string {
+  const parts: string[] = [];
+  if (trap.evadeChance >= 1) {
+    parts.push("evades the next hit");
+  } else {
+    if (trap.damageReduction > 0) parts.push(`blocks ${Math.round(trap.damageReduction * 100)}%`);
+    if (trap.evadeChance > 0) parts.push(`${Math.round(trap.evadeChance * 100)}% evade`);
+  }
+  if (trap.counterDamageMultiplier > 0) {
+    parts.push(`counters for ${Math.round(trap.counterDamageMultiplier * 100)}%`);
+  }
+  if ((trap.charges ?? 1) > 1) parts.push(`${trap.charges} hits`);
+  return `Next incoming attack: ${parts.join(" · ") || "absorbed"}.`;
 }
 
 function getHealthPercent(current: number, max: number) {
@@ -569,6 +585,20 @@ export function BattleArenaView({
               <Text numberOfLines={3} style={styles.abilityPanelCopy}>
                 {fighter.ability?.description ?? "Every landed hit grants +1 special meter."}
               </Text>
+              {fighter.armedDefenseTrap ? (
+                <>
+                  <Text numberOfLines={1} style={styles.abilityPanelTrapName}>
+                    {`⛨ ${fighter.armedDefenseTrap.name.toUpperCase()}${
+                      (fighter.armedDefenseTrap.stackLevel ?? 0) > 0
+                        ? ` ▲${fighter.armedDefenseTrap.stackLevel}`
+                        : ""
+                    }`}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.abilityPanelCopy}>
+                    {describeTrap(fighter.armedDefenseTrap)}
+                  </Text>
+                </>
+              ) : null}
             </View>
           ))}
         </View>
@@ -746,6 +776,13 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 13,
     marginTop: 3,
+  },
+  abilityPanelTrapName: {
+    color: "#f0bf14",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    marginTop: 6,
   },
   cardBonusBadge: {
     backgroundColor: "#f0bf14",
