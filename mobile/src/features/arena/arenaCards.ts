@@ -13,7 +13,11 @@ export type ArenaCardDisabledReason =
   | 'combo'
   | 'special_meter'
   | 'opponent_state'
-  | 'defense_lock';
+  | 'defense_lock'
+  | 'bracing';
+
+/** After arming a defense the fighter braces: attacks unlock after this. */
+export const POST_DEFENSE_ACTION_LOCK_MS = 1_500;
 
 export interface ArenaCardAvailability {
   playable: boolean;
@@ -213,13 +217,16 @@ export function evaluateCardAvailability(
     };
   }
 
-  // While a trap is armed only ADDITIONAL defense plays are locked (no
-  // stacking). Attacks stay available — resolveAction drops the actor's own
-  // trap when they attack. Locking every card here used to deadlock the
-  // battle: once both fighters armed traps, neither side had a playable
-  // card and the trap could never be consumed.
-  if (card.type === 'defense' && fighter.armedDefenseTrap) {
-    return { playable: false, reason: 'defense_lock' };
+  // Re-defending over your own ARMED trap is allowed — that is the Guard
+  // Stack loop (wait out the cooldown, defend again, the replacement trap
+  // arms overcharged). The old lock here required the enemy to spring the
+  // trap before a second defend, which silently made stacking unreachable.
+  // Only the time cooldown above gates it, so it cannot loop for free.
+
+  // Bracing: right after arming a defense, ATTACKS stay locked for a beat
+  // (defense plays are already gated by their own longer cooldown).
+  if (card.type !== 'defense' && (fighter.actionLockUntil ?? 0) > now) {
+    return { playable: false, reason: 'bracing' };
   }
 
   if (fighter.stamina < card.staminaCost) {

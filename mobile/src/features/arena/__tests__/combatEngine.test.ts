@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ActionCard, ArenaFighter } from '@/types/arena';
 import { ArenaCombatEngine } from '../combatEngine';
 import { getAbility } from '../abilities';
-import { DEFENSE_COOLDOWN_MS_PER_TURN } from '../arenaCards';
+import { DEFENSE_COOLDOWN_MS_PER_TURN, POST_DEFENSE_ACTION_LOCK_MS } from '../arenaCards';
 import { FINISHER_METER_REQUIREMENT } from '../moveKits';
 
 function makeFighter(overrides: Partial<ArenaFighter> = {}): ArenaFighter {
@@ -145,9 +145,9 @@ describe('ArenaCombatEngine', () => {
       expect(third.player.armedDefenseTrap?.stackLevel).toBe(2);
       expect(third.player.armedDefenseTrap?.evadeChance).toBe(1);
 
-      // Attacking resets the streak to zero.
+      // Attacking (after the post-defend brace expires) resets the streak.
       const attacked = ArenaCombatEngine.resolveAction(
-        springTrapAndWait(third, 1),
+        springTrapAndWait(third, POST_DEFENSE_ACTION_LOCK_MS + 1),
         jab,
         third.player.holobotId,
       );
@@ -216,6 +216,8 @@ describe('ArenaCombatEngine', () => {
   // opponent defended too, both sides were trap-armed with zero playable
   // cards and the battle deadlocked permanently.
   it('attacking while your own trap is armed is allowed and drops the trap', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(5_000_000);
     const battle = makeBattle();
     const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
     const opponentBlock = makeCard({ id: 'block-opp', templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
@@ -224,7 +226,9 @@ describe('ArenaCombatEngine', () => {
     const playerDefended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
     const bothDefended = ArenaCombatEngine.resolveAction(playerDefended, opponentBlock, playerDefended.opponent.holobotId);
 
-    // Both fighters trap-armed — previously zero playable cards for either side.
+    // Both fighters trap-armed — previously zero playable cards for either
+    // side. Attacks unlock once the short post-defend brace passes.
+    vi.setSystemTime(5_000_000 + POST_DEFENSE_ACTION_LOCK_MS + 1);
     expect(ArenaCombatEngine.canPlayCard(bothDefended, 'player', jab)).toBe(true);
 
     const playerAttacked = ArenaCombatEngine.resolveAction(bothDefended, jab, bothDefended.player.holobotId);
@@ -580,9 +584,13 @@ describe('ArenaCombatEngine', () => {
     });
 
     it('SHADOW: the armed trap survives the first attack after arming', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(6_000_000);
       const battle = makeBattle(withAbility('SHADOW'));
       const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
 
+      // Wait out the post-defend brace before attacking.
+      vi.setSystemTime(6_000_000 + POST_DEFENSE_ACTION_LOCK_MS + 1);
       const attacked = ArenaCombatEngine.resolveAction(defended, jab, defended.player.holobotId);
       expect(attacked.player.armedDefenseTrap).not.toBeNull();
       expect(attacked.player.armedDefenseTrap?.graceUsed).toBe(true);
@@ -760,5 +768,63 @@ describe('AI stamina pacing', () => {
     const battle = makeBattle({}, { stamina: 5 });
 
     expect(ArenaCombatEngine.selectAIAction(battle, [jab])).not.toBeNull();
+  });
+});
+
+// The reported stacking flow: defend, WAIT OUT the cooldown, defend again —
+// with the first trap still armed and never sprung. The old availability
+// rule locked the second defend behind "enemy must spring your trap first",
+// which made stacking unreachable whenever the CPU held back.
+describe('guard stacking without the trap being sprung', () => {
+  const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+
+  it('re-defending over an armed trap overcharges it', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(3_000_000);
+    const battle = makeBattle();
+
+    const first = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+    expect(first.player.armedDefenseTrap?.stackLevel ?? 0).toBe(0);
+
+    // Cooldown still running: the second defend is gated by TIME only.
+    expect(ArenaCombatEngine.canPlayCard(first, 'player', block)).toBe(false);
+
+    vi.setSystemTime(3_000_000 + 2 * DEFENSE_COOLDOWN_MS_PER_TURN + 1);
+    expect(ArenaCombatEngine.canPlayCard(first, 'player', block)).toBe(true);
+
+    const second = ArenaCombatEngine.resolveAction(first, block, first.player.holobotId);
+    expect(second.player.armedDefenseTrap?.stackLevel).toBe(1);
+    expect(second.player.armedDefenseTrap?.damageReduction).toBeCloseTo(0.65);
+    expect(second.player.guardStacks).toBe(2);
+  });
+});
+
+// Post-defend brace: arming a defense locks that fighter's ATTACKS for a
+// beat (the defense family keeps its own longer cooldown).
+describe('post-defend action brace', () => {
+  const block = makeCard({ templateId: 'block', type: 'defense', staminaCost: 1, baseDamage: 0 });
+  const jab = makeCard({ id: 'jab-brace', templateId: 'jab', type: 'strike', staminaCost: 1, baseDamage: 8 });
+
+  it('locks attacks for the brace window, then releases', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(4_000_000);
+    const battle = makeBattle();
+
+    const defended = ArenaCombatEngine.resolveAction(battle, block, battle.player.holobotId);
+
+    expect(ArenaCombatEngine.getCardAvailability(defended, 'player', jab)).toEqual({
+      playable: false,
+      reason: 'bracing',
+    });
+    expect(ArenaCombatEngine.canUseSignatureFinisher({
+      ...defended,
+      player: { ...defended.player, specialMeter: 100 },
+    }, 'player')).toBe(false);
+
+    vi.setSystemTime(4_000_000 + POST_DEFENSE_ACTION_LOCK_MS + 1);
+    expect(ArenaCombatEngine.canPlayCard(defended, 'player', jab)).toBe(true);
+
+    // The opponent was never braced by the player's defend.
+    expect(ArenaCombatEngine.canPlayCard(defended, 'opponent', jab)).toBe(true);
   });
 });
