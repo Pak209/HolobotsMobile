@@ -1,6 +1,9 @@
 # Arena 3v3 Showdown — Design & Implementation Plan
 
-Status: design proposal, no implementation
+Status: Phases A+B IMPLEMENTED (PvE); Phase C (PvP) pending
+Decisions taken: entry = 1x tier fee with one server settlement per enemy KO
+(economically identical to a 3-round run — no server changes needed); full
+send-in freeze; bench meter frozen; mode blocked under 3 owned Holobots.
 Companion docs: `arena-card-to-move-implementation-plan.md`, `arena-move-system-testing-guide.md`
 Scope: PvE (CPU teams) and realtime PvP, built on the converged ArenaCombatEngine
 
