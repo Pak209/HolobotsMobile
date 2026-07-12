@@ -82,13 +82,14 @@ const marketplaceBoosterPacks = [
   },
   {
     accent: "#ff3b7d",
-    description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with premium drop rates.",
+    description:
+      "Guaranteed 1 Part + 1 Item + 1 Move unlock with premium drop rates. Rare chance of a GOD PACK: everything tripled.",
     guaranteed: 3,
     icon: "★",
     id: "elite",
     name: "Elite Rank Booster",
     price: MARKETPLACE_BOOSTER_PRICES.elite,
-    subtitle: "PREMIUM DROP RATES",
+    subtitle: "PREMIUM RATES • GOD PACK ⚡",
   },
 ] as const;
 
@@ -218,16 +219,29 @@ export function MarketplaceScreen() {
     try {
       setPendingPurchaseId(pack.id);
       const granted = await purchaseMarketplaceBoosterAuthoritative(profile, updateProfile, pack.id);
-      setFeedback({
-        accent: pack.accent,
-        lines: [
-          `Part: ${granted.part.name}`,
-          `Item: ${granted.itemName}`,
-          `Move unlocked: ${getMoveDisplayName(granted.battleCardId)}`,
-        ],
-        message: `${pack.name} opened.`,
-        title: "Booster Purchased",
-      });
+      setFeedback(
+        granted.godPack
+          ? {
+              accent: "#f0bf14",
+              lines: [
+                ...granted.parts.map((part) => `Part: ${part.name}`),
+                `Item: ${granted.itemName} ×${granted.itemQuantity}`,
+                ...granted.battleCardIds.map((cardId) => `Move unlocked: ${getMoveDisplayName(cardId)}`),
+              ],
+              message: "The whole pack hit — everything is TRIPLED.",
+              title: "⚡ GOD PACK ⚡",
+            }
+          : {
+              accent: pack.accent,
+              lines: [
+                `Part: ${granted.part.name}`,
+                `Item: ${granted.itemName}`,
+                `Move unlocked: ${getMoveDisplayName(granted.battleCardId)}`,
+              ],
+              message: `${pack.name} opened.`,
+              title: "Booster Purchased",
+            },
+      );
     } catch (error) {
       Alert.alert("Purchase failed", error instanceof Error ? error.message : "Please try again.");
     } finally {

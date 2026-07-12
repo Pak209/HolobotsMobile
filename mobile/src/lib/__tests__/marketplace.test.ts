@@ -128,3 +128,51 @@ describe("buildBoosterPurchaseUpdates", () => {
     ).toBeNull();
   });
 });
+
+// GOD PACK: elite boosters only — a low roll triples the entire pack.
+describe("god pack (elite boosters)", () => {
+  function sequenceRandom(values: number[]) {
+    let index = 0;
+    return () => values[Math.min(index++, values.length - 1)];
+  }
+
+  it("a winning god roll triples parts, moves, and the item award", () => {
+    const result = buildBoosterPurchaseUpdates(richProfile(), "elite", {
+      random: sequenceRandom([0.01, 0.1, 0.4, 0.7, 0.2, 0.5, 0.8, 0.3, 0.6]),
+    });
+
+    expect(result!.granted.godPack).toBe(true);
+    expect(result!.granted.parts).toHaveLength(3);
+    expect(result!.granted.battleCardIds).toHaveLength(3);
+    expect(result!.granted.itemQuantity).toBe(3);
+    // Elite's item award is EXP Booster — tripled.
+    expect(result!.updates.exp_boosters).toBe(3);
+    // Three parts appended on top of the one owned.
+    expect((result!.updates.parts as unknown[]).length).toBe(4);
+    // Price unchanged: the jackpot is free.
+    expect(result!.updates.holosTokens).toBe(10_000 - result!.price);
+  });
+
+  it("a losing god roll grants the normal single set", () => {
+    const result = buildBoosterPurchaseUpdates(richProfile(), "elite", {
+      random: sequenceRandom([0.99, 0.1, 0.4]),
+    });
+
+    expect(result!.granted.godPack).toBe(false);
+    expect(result!.granted.parts).toHaveLength(1);
+    expect(result!.granted.battleCardIds).toHaveLength(1);
+    expect(result!.granted.itemQuantity).toBe(1);
+    expect(result!.updates.exp_boosters).toBe(1);
+  });
+
+  it("non-elite tiers never god-roll (and do not consume the roll)", () => {
+    // First value would win a god roll on elite; commons must ignore it and
+    // use it for the part pick instead.
+    const result = buildBoosterPurchaseUpdates(richProfile(), "common", {
+      random: sequenceRandom([0.01, 0.1, 0.4]),
+    });
+
+    expect(result!.granted.godPack).toBe(false);
+    expect(result!.granted.parts).toHaveLength(1);
+  });
+});
