@@ -132,8 +132,54 @@ Apple dependency and start the growth loop while the IAP paperwork clears.
 
 1. Bundle price point ($4.99 suggested) and celebration pack contents.
 2. Referral count (3 suggested) and invited-player welcome bonus size.
-3. Owned-bot conversion rate (suggested: 40 blueprints per already-owned
-   Genesis bot).
+3. Owned-bot conversion rate (suggested: 20 blueprints per already-owned
+   Genesis bot — one full Rare rank step; 40 would be Elite-tier money and
+   overshoots the mint cost of 5 by 8x).
 4. Battle pass season length and premium price.
 5. Whether the GENESIS badge is bundle-exclusive forever (scarcity) or
    earnable later (kindness). Suggested: exclusive to year one.
+
+## 7. Appendix: Blueprint economy review (the grind leg, audited)
+
+### Current shape
+| | Cost / Yield |
+|---|---|
+| Mint a Holobot | **5** blueprints (Common tier, starts Lv 1) |
+| Rank ups (Champion→Legendary) | 10 / 20 / 40 / 80 — **155 cumulative** |
+| Arena win | 5/10/15/20 by tier, keyed to the DEFEATED opponent |
+| Gacha Blueprint Fragment | 1/2/3/5 by rarity, RANDOM Holobot (1-in-12) |
+| Marketplace | dead price entry (300 Holos), item never sold |
+
+Verdict: structurally sound. Acquisition (width) is cheap — one Rookie win
+mints a bot; a new player is ~3 wins from a 3v3 team — while power (ranks)
+is the long grind for everyone. Defeat-to-recruit is a keeper.
+
+### Incoherence found
+KUMA and SHADOW sit in the CHALLENGER (tier 2) opponent pool; Rookie farms
+HARE/WAKE/GAMA. The grind leg therefore builds a different trio than the
+Genesis bundle, and target-farming the actual Genesis bots requires a tier
+climb with only ACE. The triangle's "same reward on every path" invariant
+breaks quietly.
+
+### Modifications (in priority order)
+1. **Genesis rotation in Rookie tier**: weekend/rotating featured slot that
+   swaps one Rookie pool opponent for KUMA or SHADOW (config-level change;
+   the blueprint target follows the beaten opponent automatically). The
+   grind leg can then literally farm the Genesis trio, restoring the
+   invariant without touching tier difficulty.
+2. **Wildcard fragments (the "blueprint ticket" idea, at the right layer)**:
+   legendary-rarity gacha blueprint drops become wildcards the player
+   assigns to a bot of choice on claim. Targeting stays scarce (legendary
+   only); commons/rares stay random. Kills the worst of the 1-in-12
+   lottery without making gacha a mint vending machine.
+3. **Referral welcome bonus in blueprints**: the invited player's
+   qualifying workout grants +5 blueprints to a bot of their choice —
+   seeds their second mint and teaches the loop on day one.
+4. **Resolve the dead marketplace entry**: either delete the price path or
+   ship a "Featured Blueprint" marketplace item (300 Holos for 5 of a
+   weekly-featured bot) as a Holos sink that doubles as targeting. Prefer
+   shipping it — the economy wants more Holos sinks.
+5. **Duplicate conversion at 20/bot** (not 40): one Rare rank step feels
+   like real compensation without dwarfing the 5-cost mint.
+6. Already chipped: legacy case-variant blueprint keys (ACE/ace) need the
+   one-off data-hygiene migration before any of this launches.
