@@ -199,7 +199,12 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("stats")}
                 style={[styles.tabButton, activeTab === "stats" ? styles.tabButtonActive : null]}
               >
-                <Text style={[styles.tabButtonText, activeTab === "stats" ? styles.tabButtonTextActive : null]}>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                  style={[styles.tabButtonText, activeTab === "stats" ? styles.tabButtonTextActive : null]}
+                >
                   STATS
                 </Text>
               </Pressable>
@@ -207,7 +212,12 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("abilities")}
                 style={[styles.tabButton, activeTab === "abilities" ? styles.tabButtonActive : null]}
               >
-                <Text style={[styles.tabButtonText, activeTab === "abilities" ? styles.tabButtonTextActive : null]}>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                  style={[styles.tabButtonText, activeTab === "abilities" ? styles.tabButtonTextActive : null]}
+                >
                   ABILITIES
                 </Text>
               </Pressable>
@@ -215,7 +225,12 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("blueprints")}
                 style={[styles.tabButton, activeTab === "blueprints" ? styles.tabButtonActive : null]}
               >
-                <Text style={[styles.tabButtonText, activeTab === "blueprints" ? styles.tabButtonTextActive : null]}>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                  style={[styles.tabButtonText, activeTab === "blueprints" ? styles.tabButtonTextActive : null]}
+                >
                   BLUEPRINTS
                 </Text>
               </Pressable>
@@ -420,20 +435,7 @@ export function HolobotStatsModal({
                     </Pressable>
                   </View>
                 ) : null}
-                <View style={styles.blueprintHeaderRow}>
-                  <Text style={styles.blueprintSummary}>{`${holobot.name} blueprints: ${blueprintCount}`}</Text>
-                  {onAssignWildcards && wildcardCount > 0 ? (
-                    <View style={styles.wildcardChip}>
-                      <Text style={styles.wildcardChipLabel}>{`WILD ×${wildcardCount}`}</Text>
-                      <Pressable onPress={() => onAssignWildcards(1)} style={styles.wildcardChipButton}>
-                        <Text style={styles.wildcardChipButtonText}>+1</Text>
-                      </Pressable>
-                      <Pressable onPress={() => onAssignWildcards(wildcardCount)} style={styles.wildcardChipButton}>
-                        <Text style={styles.wildcardChipButtonText}>ALL</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </View>                <View style={styles.tierList}>
+                <View style={styles.tierList}>
                   {BLUEPRINT_TIERS.map((tier) => {
                     const unlocked = blueprintCount >= tier.required;
                     const upgradeBlocked = normalizedOwnedHolobot ? getTierNumber(tier.label) <= currentTierNumber : false;
@@ -910,6 +912,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     minHeight: 42,
+    paddingHorizontal: 6,
   },
   tabButtonActive: {
     backgroundColor: "#f0bf14",

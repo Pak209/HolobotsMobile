@@ -1,9 +1,11 @@
 import {
   doc,
   getDoc,
+  onSnapshot,
   runTransaction,
   serverTimestamp,
   type Firestore,
+  type Unsubscribe,
 } from "firebase/firestore";
 import {
   applyHolobotExperience,
@@ -242,6 +244,31 @@ export async function getDailyWorkoutState(
       Math.max(0, Number(data.workoutSessionsCompleted ?? 0)),
     ),
   };
+}
+
+/**
+ * Live subscription to the day's workout state. Keeps every surface (phone
+ * Sync screen, watch session-state pushes) in step with sessions completed
+ * on OTHER devices — a one-shot read goes stale the moment a watch workout
+ * lands on the same daily doc.
+ */
+export function watchDailyWorkoutState(
+  db: Firestore,
+  uid: string,
+  date: string,
+  onState: (state: DailyWorkoutState) => void,
+): Unsubscribe {
+  const dailyRef = doc(db, "users", uid, "fitness_daily", date);
+  return onSnapshot(dailyRef, (snapshot) => {
+    const data = snapshot.data() ?? {};
+    onState({
+      cooldownEndsAt: toIsoString(data.workoutCooldownEndsAt),
+      sessionsCompleted: Math.min(
+        DAILY_WORKOUT_CAP,
+        Math.max(0, Number(data.workoutSessionsCompleted ?? 0)),
+      ),
+    });
+  });
 }
 
 export async function unlockDailyWorkoutRefill(

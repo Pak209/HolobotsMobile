@@ -349,56 +349,6 @@ export function MoveLabPanel() {
       </View>
 
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>{`REPLACE • ${slotMeta.label}`}</Text>
-        <Text style={styles.sectionMeta}>
-          {`Moves you can slot as your ${slotMeta.label.toLowerCase()} option.`}
-        </Text>
-        <View style={styles.optionList}>
-          {replaceOptions.length ? (
-            replaceOptions.map((option) => {
-              const optionProgress = progressOf(option.templateId);
-              const isEquipped = option.templateId === equippedMove.templateId;
-              const isPendingEquip = pendingAction === `equip:${option.templateId}`;
-
-              return (
-                <View
-                  key={option.templateId}
-                  style={[styles.optionRow, isEquipped ? styles.optionRowEquipped : null]}
-                >
-                  <View style={styles.optionBody}>
-                    <Text style={styles.optionName}>{option.name.toUpperCase()}</Text>
-                    <Text style={styles.optionMeta}>
-                      {`COST ${option.staminaCost} • ${describeImpact(option)} • RANK ${RANK_ROMAN[optionProgress.rank]}`}
-                    </Text>
-                  </View>
-                  {isEquipped ? (
-                    <Text style={styles.optionActionDisabled}>EQUIPPED</Text>
-                  ) : (
-                    <Pressable
-                      disabled={isBusy}
-                      hitSlop={8}
-                      onPress={() => void handleEquip(option.templateId)}
-                    >
-                      <Text
-                        style={[
-                          styles.optionAction,
-                          isBusy && !isPendingEquip ? styles.optionActionDisabled : null,
-                        ]}
-                      >
-                        {isPendingEquip ? "..." : "EQUIP"}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              );
-            })
-          ) : (
-            <Text style={styles.emptyBody}>No other moves available for this slot yet.</Text>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>{`UPGRADE • ${equippedMove.name.toUpperCase()}`}</Text>
         <View style={styles.upgradeRankRow}>
           <Text style={styles.rankText}>{`RANK ${RANK_ROMAN[currentRank]}`}</Text>
@@ -480,6 +430,56 @@ export function MoveLabPanel() {
           </View>
         )}
       </View>
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>{`REPLACE • ${slotMeta.label}`}</Text>
+        <Text style={styles.sectionMeta}>
+          {`Moves you can slot as your ${slotMeta.label.toLowerCase()} option.`}
+        </Text>
+        <View style={styles.optionList}>
+          {replaceOptions.length ? (
+            replaceOptions.map((option) => {
+              const optionProgress = progressOf(option.templateId);
+              const isEquipped = option.templateId === equippedMove.templateId;
+              const isPendingEquip = pendingAction === `equip:${option.templateId}`;
+
+              return (
+                <View
+                  key={option.templateId}
+                  style={[styles.optionRow, isEquipped ? styles.optionRowEquipped : null]}
+                >
+                  <View style={styles.optionBody}>
+                    <Text style={styles.optionName}>{option.name.toUpperCase()}</Text>
+                    <Text style={styles.optionMeta}>
+                      {`COST ${option.staminaCost} • ${describeImpact(option)} • RANK ${RANK_ROMAN[optionProgress.rank]}`}
+                    </Text>
+                  </View>
+                  {isEquipped ? (
+                    <Text style={styles.optionActionDisabled}>EQUIPPED</Text>
+                  ) : (
+                    <Pressable
+                      disabled={isBusy}
+                      hitSlop={8}
+                      onPress={() => void handleEquip(option.templateId)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionAction,
+                          isBusy && !isPendingEquip ? styles.optionActionDisabled : null,
+                        ]}
+                      >
+                        {isPendingEquip ? "..." : "EQUIP"}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              );
+            })
+          ) : (
+            <Text style={styles.emptyBody}>No other moves available for this slot yet.</Text>
+          )}
+        </View>
+      </View>
+
     </View>
   );
 }

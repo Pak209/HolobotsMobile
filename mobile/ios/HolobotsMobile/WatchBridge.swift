@@ -7,14 +7,47 @@ import WatchConnectivity
 
   private let ownedHolobotsKey = "holobots.watch.ownedHolobotNames"
   private let pendingEventsKey = "holobots.watch.pendingWorkoutEvents"
+  private let dailySessionStateKey = "holobots.watch.dailySessionState"
   private var pendingReplies: [String: ([String: Any]) -> Void] = [:]
   private var pendingWorkoutEvents: [[String: Any]]
   private var lastSyncedOwnedHolobotNames: [String]
+  // Last known authoritative daily workout counts (mirrors fitness_daily):
+  // ["dailyDate": "yyyy-mm-dd", "sessionsCompleted": Int, "sessionsRemaining": Int]
+  private var lastDailySessionState: [String: Any]
 
   private override init() {
     lastSyncedOwnedHolobotNames = UserDefaults.standard.array(forKey: ownedHolobotsKey) as? [String] ?? []
     pendingWorkoutEvents = UserDefaults.standard.array(forKey: pendingEventsKey) as? [[String: Any]] ?? []
+    lastDailySessionState = UserDefaults.standard.dictionary(forKey: dailySessionStateKey) ?? [:]
     super.init()
+  }
+
+  private func sessionStatePayload() -> [String: Any] {
+    var payload: [String: Any] = [
+      "type": "sessionState",
+      "ownedHolobotNames": lastSyncedOwnedHolobotNames,
+    ]
+    for (key, value) in lastDailySessionState {
+      payload[key] = value
+    }
+    return payload
+  }
+
+  private func pushSessionState() {
+    guard WCSession.isSupported() else { return }
+
+    let payload = sessionStatePayload()
+    do {
+      try WCSession.default.updateApplicationContext(payload)
+    } catch {
+      print("[WatchBridge] updateApplicationContext error: \(error)")
+    }
+
+    if WCSession.default.isReachable {
+      WCSession.default.sendMessage(payload, replyHandler: nil)
+    } else {
+      WCSession.default.transferUserInfo(payload)
+    }
   }
 
   func getPendingWatchWorkouts() -> [[String: Any]] {
@@ -61,8 +94,6 @@ import WatchConnectivity
   }
 
   func syncOwnedHolobots(_ ownedHolobotNames: [String]) {
-    guard WCSession.isSupported() else { return }
-
     let normalizedNames = Array(
       Set(
         ownedHolobotNames
@@ -72,23 +103,22 @@ import WatchConnectivity
     ).sorted()
     lastSyncedOwnedHolobotNames = normalizedNames
     UserDefaults.standard.set(normalizedNames, forKey: ownedHolobotsKey)
+    pushSessionState()
+  }
 
-    let payload: [String: Any] = [
-      "type": "sessionState",
-      "ownedHolobotNames": normalizedNames,
+  func syncDailySessionState(_ state: [String: Any]) {
+    guard let date = state["dailyDate"] as? String else { return }
+    let sessionsCompleted = (state["sessionsCompleted"] as? NSNumber)?.intValue ?? 0
+    let sessionsRemaining = (state["sessionsRemaining"] as? NSNumber)?.intValue
+      ?? max(0, 4 - sessionsCompleted)
+
+    lastDailySessionState = [
+      "dailyDate": date,
+      "sessionsCompleted": sessionsCompleted,
+      "sessionsRemaining": sessionsRemaining,
     ]
-
-    do {
-      try WCSession.default.updateApplicationContext(payload)
-    } catch {
-      print("[WatchBridge] updateApplicationContext error: \(error)")
-    }
-
-    if WCSession.default.isReachable {
-      WCSession.default.sendMessage(payload, replyHandler: nil)
-    } else {
-      WCSession.default.transferUserInfo(payload)
-    }
+    UserDefaults.standard.set(lastDailySessionState, forKey: dailySessionStateKey)
+    pushSessionState()
   }
 
   private func normalizeWorkoutPayload(_ payload: [String: Any]) -> [String: Any] {
@@ -161,10 +191,7 @@ extension WatchBridge: WCSessionDelegate {
     replyHandler: @escaping ([String: Any]) -> Void
   ) {
     if message["type"] as? String == "requestState" {
-      replyHandler([
-        "type": "sessionState",
-        "ownedHolobotNames": lastSyncedOwnedHolobotNames,
-      ])
+      replyHandler(sessionStatePayload())
       return
     }
 
@@ -235,5 +262,9 @@ class WatchBridgeModule: RCTEventEmitter {
 
   @objc func syncOwnedHolobots(_ ownedHolobotNames: [String]) {
     WatchBridge.shared.syncOwnedHolobots(ownedHolobotNames)
+  }
+
+  @objc func syncDailySessionState(_ state: NSDictionary) {
+    WatchBridge.shared.syncDailySessionState(state as? [String: Any] ?? [:])
   }
 }
