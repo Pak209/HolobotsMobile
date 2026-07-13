@@ -159,6 +159,8 @@ final class WorkoutViewModel: ObservableObject {
     private static let workoutModeKey = "holobots.watch.workoutMode"
     private static let distanceUnitKey = "holobots.watch.distanceUnit"
     private static let selectedHolobotKey = "holobots.watch.selectedHolobotName"
+    private static let sessionCountKey = "holobots.watch.sessionsCompleted"
+    private static let sessionDateKey = "holobots.watch.sessionsDate"
 
     var selectedHolobot: WatchHolobot {
         WatchHolobot.named(selectedHolobotName)
@@ -181,6 +183,29 @@ final class WorkoutViewModel: ObservableObject {
         if let storedHolobot = UserDefaults.standard.string(forKey: Self.selectedHolobotKey) {
             self.selectedHolobotName = WatchHolobot.named(storedHolobot).name
         }
+
+        // Restore today's session count across app launches — a fresh 0/4
+        // after every relaunch is exactly the "counts don't match" bug.
+        // Yesterday's count is discarded on day rollover.
+        if UserDefaults.standard.string(forKey: Self.sessionDateKey) == localDateKey() {
+            let stored = UserDefaults.standard.integer(forKey: Self.sessionCountKey)
+            self.sessionsCompleted = max(0, min(WorkoutConfig.maxDailySessions, stored))
+            self.sessionsRemaining = max(0, WorkoutConfig.maxDailySessions - self.sessionsCompleted)
+        }
+    }
+
+    private func persistSessionCounts() {
+        UserDefaults.standard.set(sessionsCompleted, forKey: Self.sessionCountKey)
+        UserDefaults.standard.set(localDateKey(), forKey: Self.sessionDateKey)
+    }
+
+    /// Adopt the authoritative daily counts pushed from the phone (mirroring
+    /// the server), so phone workouts show up in the watch's X/4 too.
+    func adoptDailySessionState(_ state: DailySessionState) {
+        guard state.date == localDateKey() else { return }
+        sessionsCompleted = state.sessionsCompleted
+        sessionsRemaining = state.sessionsRemaining
+        persistSessionCounts()
     }
 
     // ── Start / Pause toggle ─────────────────────────────────────────────────
@@ -281,6 +306,7 @@ final class WorkoutViewModel: ObservableObject {
         sessionsCompleted = rewards.sessionsCompleted
         sessionsRemaining = rewards.sessionsRemaining
         totalSyncPoints   = rewards.totalSyncPoints
+        persistSessionCounts()
         pendingWorkoutPayload = nil
         let nextAction = pendingRewardAction
         pendingRewardAction = nil
@@ -343,7 +369,27 @@ final class WorkoutViewModel: ObservableObject {
         guard syncStatus != .sending else { return }
         pendingRewardAction = action
         syncStatus = .sending
+        let claimedWorkoutId = pendingWorkoutPayload.workoutId
         WatchConnectivityManager.shared.claimWorkoutRewards(pendingWorkoutPayload)
+
+        // Unreachable-phone fallback: don't wedge the buttons at SYNCING…
+        // forever. After a grace period, queue the payload for guaranteed
+        // delivery (server sync is idempotent by workoutId, the phone bridge
+        // de-dupes) and let the player continue with the local numbers.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
+            guard let self,
+                  self.syncStatus == .sending,
+                  let stillPending = self.pendingWorkoutPayload,
+                  stillPending.workoutId == claimedWorkoutId,
+                  let timedOutAction = self.pendingRewardAction
+            else { return }
+
+            WatchConnectivityManager.shared.queueWorkoutClaim(stillPending)
+            self.pendingWorkoutPayload = nil
+            self.pendingRewardAction = nil
+            self.syncStatus = .idle
+            self.completePendingRewardAction(timedOutAction)
+        }
     }
 
     private func completePendingRewardAction(_ action: PendingRewardAction) {
@@ -396,6 +442,7 @@ final class WorkoutViewModel: ObservableObject {
         sessionsCompleted = completed
         sessionsRemaining = remaining
         totalSyncPoints = fallback.totalSyncPoints
+        persistSessionCounts()
         usedLocalRewardFallback = true
         showRewards = true
     }

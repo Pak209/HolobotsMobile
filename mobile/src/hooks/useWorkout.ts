@@ -4,8 +4,8 @@ import { Pedometer } from "expo-sensors";
 
 import { db } from "@/config/firebase";
 import {
-  getDailyWorkoutState,
   getLocalDateKey,
+  watchDailyWorkoutState,
 } from "@/lib/fitnessSync";
 import {
   clearWorkoutCooldownAuthoritative,
@@ -214,32 +214,20 @@ function useLiveWorkout(
     return () => clearInterval(interval);
   }, []);
 
+  // Live daily-state subscription: watch workouts land on the same
+  // fitness_daily doc, so the phone's session count / cooldown must track
+  // server writes made by OTHER devices, not just this hook's own syncs.
   useEffect(() => {
-    let cancelled = false;
-
     if (!userId) {
       setCooldownEndsAt(null);
       setSessionsCompleted(0);
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
-    void getDailyWorkoutState(db, userId, getLocalDateKey())
-      .then((nextState) => {
-        if (cancelled) return;
-        setCooldownEndsAt(nextState.cooldownEndsAt);
-        setSessionsCompleted(nextState.sessionsCompleted);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setCooldownEndsAt(null);
-        setSessionsCompleted(0);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    return watchDailyWorkoutState(db, userId, getLocalDateKey(), (nextState) => {
+      setCooldownEndsAt(nextState.cooldownEndsAt);
+      setSessionsCompleted(nextState.sessionsCompleted);
+    });
   }, [userId]);
 
   useEffect(() => {

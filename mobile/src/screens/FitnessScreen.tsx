@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Image as RNImage,
   Modal,
@@ -59,7 +59,7 @@ export function FitnessScreen() {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [localDistanceUnit, setLocalDistanceUnit] = useState<DistanceUnit>("km");
-  const autoCollectedCompletionIdRef = useRef<string | null>(null);
+  const [claimAction, setClaimAction] = useState<"finish" | "continue" | null>(null);
 
   useEffect(() => {
     if (profile?.syncDistanceUnit) {
@@ -127,21 +127,41 @@ export function FitnessScreen() {
     return retried;
   };
 
-  const handleCollectRewards = async () => {
-    const saved = await persistWorkoutRewards();
-    if (saved) {
-      workout.resetWorkout();
+  // Between-session rewards modal: the session pauses here so the player
+  // chooses CLAIM & FINISH, or QUICK REFILL to skip the cooldown and roll
+  // straight into the next of their 4 daily sessions.
+  const handleClaimAndFinish = async () => {
+    if (claimAction) {
+      return;
+    }
+    setClaimAction("finish");
+    try {
+      const saved = await persistWorkoutRewards();
+      if (saved) {
+        workout.resetWorkout();
+      }
+    } finally {
+      setClaimAction(null);
     }
   };
 
-  useEffect(() => {
-    if (!completionResult || autoCollectedCompletionIdRef.current === completionResult.id) {
+  const handleClaimAndContinue = async () => {
+    if (claimAction) {
       return;
     }
-
-    autoCollectedCompletionIdRef.current = completionResult.id;
-    void handleCollectRewards();
-  }, [completionResult]);
+    setClaimAction("continue");
+    try {
+      const saved = await persistWorkoutRewards();
+      if (!saved) {
+        return;
+      }
+      await workout.unlockQuickRefill();
+      workout.continueQuickRefillChain();
+      await workout.toggleRunning();
+    } finally {
+      setClaimAction(null);
+    }
+  };
 
   return (
     <FigmaCanvas>
@@ -382,6 +402,70 @@ export function FitnessScreen() {
             </View>
           </View>
         </Modal>
+        <Modal
+          animationType="fade"
+          presentationStyle="overFullScreen"
+          transparent
+          visible={completionResult != null}
+          onRequestClose={() => void handleClaimAndFinish()}
+        >
+          <View style={styles.settingsBackdrop}>
+            <View style={styles.settingsCard}>
+              <RNText style={styles.settingsEyebrow}>SYNC RESULT</RNText>
+              <RNText style={styles.settingsTitle}>Workout Complete</RNText>
+
+              <View style={styles.rewardsList}>
+                <View style={styles.rewardRow}>
+                  <RNText style={styles.rewardLabel}>SYNC POINTS</RNText>
+                  <RNText style={styles.rewardValue}>{`+${completionResult?.syncPointsReward ?? 0}`}</RNText>
+                </View>
+                <View style={styles.rewardRow}>
+                  <RNText style={styles.rewardLabel}>HOLOS</RNText>
+                  <RNText style={styles.rewardValue}>{`+${completionResult?.holosReward ?? 0}`}</RNText>
+                </View>
+                <View style={styles.rewardRow}>
+                  <RNText style={styles.rewardLabel}>EXP</RNText>
+                  <RNText style={styles.rewardValue}>{`+${completionResult?.expReward ?? 0}`}</RNText>
+                </View>
+              </View>
+
+              <RNText style={styles.settingsCopySmall}>
+                {`${completionResult?.sessionsCompleted ?? 0}/4 workouts used today`}
+              </RNText>
+              <RNText style={styles.settingsMeta}>
+                {(completionResult?.sessionsRemaining ?? 0) > 0
+                  ? `${completionResult?.sessionsRemaining} session${(completionResult?.sessionsRemaining ?? 0) === 1 ? "" : "s"} left • Quick Refill skips the cooldown`
+                  : "Daily workout limit reached. Come back tomorrow."}
+              </RNText>
+              {completionResult && !completionResult.rewardsPersisted ? (
+                <RNText style={styles.rewardsSyncWarning}>
+                  Rewards not synced yet — CLAIM retries the sync.
+                </RNText>
+              ) : null}
+
+              {(completionResult?.sessionsRemaining ?? 0) > 0 ? (
+                <Pressable
+                  disabled={claimAction != null}
+                  style={[styles.continueButton, claimAction != null ? styles.claimButtonBusy : null]}
+                  onPress={() => void handleClaimAndContinue()}
+                >
+                  <RNText style={styles.continueButtonText}>
+                    {claimAction === "continue" ? "STARTING..." : "REFILL • NEXT WORKOUT"}
+                  </RNText>
+                </Pressable>
+              ) : null}
+              <Pressable
+                disabled={claimAction != null}
+                style={[styles.closeSettingsButton, claimAction != null ? styles.claimButtonBusy : null]}
+                onPress={() => void handleClaimAndFinish()}
+              >
+                <RNText style={styles.closeSettingsText}>
+                  {claimAction === "finish" ? "CLAIMING..." : "CLAIM & FINISH"}
+                </RNText>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </FigmaCanvas>
   );
@@ -551,5 +635,52 @@ const styles = StyleSheet.create({
   },
   refillButtonDisabled: {
     opacity: 0.45,
+  },
+  claimButtonBusy: {
+    opacity: 0.55,
+  },
+  continueButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    justifyContent: "center",
+    marginTop: 18,
+    minHeight: 52,
+  },
+  continueButtonText: {
+    color: "#050606",
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  rewardLabel: {
+    color: "#ddd2b5",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1.1,
+  },
+  rewardRow: {
+    alignItems: "center",
+    backgroundColor: "#090909",
+    borderColor: "#2a2a2a",
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 44,
+    paddingHorizontal: 14,
+  },
+  rewardValue: {
+    color: "#fef1e0",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  rewardsList: {
+    gap: 8,
+    marginTop: 16,
+  },
+  rewardsSyncWarning: {
+    color: "#e88a2a",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 10,
   },
 });

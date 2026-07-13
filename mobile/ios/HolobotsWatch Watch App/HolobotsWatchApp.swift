@@ -19,6 +19,10 @@ struct HolobotsWatchApp: App {
                     guard let rewards else { return }
                     viewModel.applyRewards(rewards)
                 }
+                .onReceive(connectivity.$dailySessionState) { state in
+                    guard let state else { return }
+                    viewModel.adoptDailySessionState(state)
+                }
         }
     }
 }

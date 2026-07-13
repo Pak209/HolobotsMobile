@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, NativeEventEmitter, NativeModules, Platform } from "react-native";
 
-import { functions, httpsCallable } from "@/config/firebase";
+import { db, functions, httpsCallable } from "@/config/firebase";
+import { getLocalDateKey, watchDailyWorkoutState } from "@/lib/fitnessSync";
 
 const { WatchBridgeModule } = NativeModules;
 const syncWatchWorkoutRewards = httpsCallable<
@@ -229,6 +230,23 @@ export function useWatchBridge(
       clearInterval(pollId);
     };
   }, [canUseBridge, processWorkoutEvent, refreshPendingWatchWorkouts]);
+
+  // Push the authoritative daily workout counts to the watch whenever the
+  // server's fitness_daily doc changes (phone workouts, watch claims, quick
+  // refills all land there) — otherwise the watch's X/4 drifts from reality.
+  useEffect(() => {
+    if (!canUseBridge) return;
+    if (typeof WatchBridgeModule.syncDailySessionState !== "function") return;
+
+    const dateKey = getLocalDateKey();
+    return watchDailyWorkoutState(db, userId as string, dateKey, (state) => {
+      WatchBridgeModule.syncDailySessionState({
+        dailyDate: dateKey,
+        sessionsCompleted: state.sessionsCompleted,
+        sessionsRemaining: Math.max(0, 4 - state.sessionsCompleted),
+      });
+    });
+  }, [canUseBridge, userId]);
 
   useEffect(() => {
     if (Platform.OS !== "ios" || !WatchBridgeModule) return;

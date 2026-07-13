@@ -1,6 +1,15 @@
 import Foundation
 import WatchConnectivity
 
+/// Authoritative daily workout counts pushed from the phone (which mirrors
+/// the server's fitness_daily doc). Keyed by local date so a stale push from
+/// yesterday can never overwrite today's counts.
+struct DailySessionState: Equatable {
+    let date: String
+    let sessionsCompleted: Int
+    let sessionsRemaining: Int
+}
+
 @MainActor
 final class WatchConnectivityManager: NSObject, ObservableObject {
 
@@ -9,6 +18,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published var incomingRewards: WorkoutRewardsPayload? = nil
     @Published var isPhoneReachable: Bool = false
     @Published var ownedHolobots: [WatchHolobot] = []
+    @Published var dailySessionState: DailySessionState? = nil
 
     private static let ownedHolobotNamesKey = "holobots.watch.ownedHolobotNames"
 
@@ -26,6 +36,21 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
             self.ownedHolobots = [WatchHolobot.defaultHolobot]
         }
         super.init()
+    }
+
+    private func applySessionStatePayload(_ payload: [String: Any]) {
+        applyOwnedHolobotNames(payload["ownedHolobotNames"] as? [Any])
+
+        if let date = payload["dailyDate"] as? String,
+           let completed = payload["sessionsCompleted"] as? Int {
+            let remaining = payload["sessionsRemaining"] as? Int
+                ?? max(0, WorkoutConfig.maxDailySessions - completed)
+            dailySessionState = DailySessionState(
+                date: date,
+                sessionsCompleted: max(0, min(WorkoutConfig.maxDailySessions, completed)),
+                sessionsRemaining: max(0, min(WorkoutConfig.maxDailySessions, remaining))
+            )
+        }
     }
 
     private func applyOwnedHolobotNames(_ rawNames: [Any]?) {
@@ -56,13 +81,20 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
             replyHandler: { [weak self] reply in
                 Task { @MainActor [weak self] in
                     guard reply["type"] as? String == WatchMessageType.sessionState else { return }
-                    self?.applyOwnedHolobotNames(reply["ownedHolobotNames"] as? [Any])
+                    self?.applySessionStatePayload(reply)
                 }
             },
             errorHandler: { error in
                 print("[Watch] requestState error: \(error)")
             }
         )
+    }
+
+    /// Queue a claim for guaranteed delivery without waiting on a reply —
+    /// used when a live claim timed out so the payout still lands later.
+    func queueWorkoutClaim(_ payload: WorkoutCompletePayload) {
+        guard WCSession.isSupported() else { return }
+        WCSession.default.transferUserInfo(payload.asClaimDictionary)
     }
 
     // ── Claim rewards on the phone ────────────────────────────────────────────
@@ -122,7 +154,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
     ) {
         guard applicationContext["type"] as? String == WatchMessageType.sessionState else { return }
         Task { @MainActor in
-            self.applyOwnedHolobotNames(applicationContext["ownedHolobotNames"] as? [Any])
+            self.applySessionStatePayload(applicationContext)
         }
     }
 
@@ -133,7 +165,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
     ) {
         if message["type"] as? String == WatchMessageType.sessionState {
             Task { @MainActor in
-                self.applyOwnedHolobotNames(message["ownedHolobotNames"] as? [Any])
+                self.applySessionStatePayload(message)
             }
             return
         }
@@ -153,7 +185,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
     ) {
         if userInfo["type"] as? String == WatchMessageType.sessionState {
             Task { @MainActor in
-                self.applyOwnedHolobotNames(userInfo["ownedHolobotNames"] as? [Any])
+                self.applySessionStatePayload(userInfo)
             }
             return
         }
