@@ -111,14 +111,20 @@ export function FitnessScreen() {
 
     // Rewards are persisted atomically inside the server-side fitness sync
     // transaction (EXP, Holos, and Sync Points). The old local profile-write
-    // fallback was removed with the economy-field rules freeze — if the
-    // server sync failed, surface it and let the player retry online.
+    // fallback was removed with the economy-field rules freeze — when the
+    // sync failed or timed out, COLLECT retries it (idempotent by
+    // activityId), so the button can never wedge and rewards are never
+    // stranded.
     if (completionResult.rewardsPersisted) {
       workout.clearCompletionResult();
       return true;
     }
 
-    return false;
+    const retried = await workout.retryCompletionSync();
+    if (retried) {
+      workout.clearCompletionResult();
+    }
+    return retried;
   };
 
   const handleCollectRewards = async () => {

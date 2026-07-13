@@ -1,4 +1,5 @@
 import { functions, httpsCallable } from "@/config/firebase";
+import { CALLABLE_TIMEOUT_MS, withTimeout } from "@/lib/async";
 import { toServerActionError } from "@/lib/callables";
 import {
   type SyncFitnessActivityRequest,
@@ -31,7 +32,11 @@ export async function clearWorkoutCooldownAuthoritative(
   date: string,
 ): Promise<{ cooldownEndsAt: string | null; sessionsCompleted: number }> {
   try {
-    const result = await clearWorkoutCooldownCallable({ date });
+    const result = await withTimeout(
+      clearWorkoutCooldownCallable({ date }),
+      CALLABLE_TIMEOUT_MS,
+      "Quick Refill timed out. Check your connection and try again.",
+    );
     return result.data;
   } catch (error) {
     throw toServerActionError(error);
@@ -44,7 +49,15 @@ export async function syncFitnessActivityAuthoritative(
   const { uid: _uid, cooldownEndsAt: _cooldownEndsAt, ...payload } = request;
 
   try {
-    const result = await syncFitnessActivityCallable(payload);
+    // Deadline (bake bug 2): a stalled callable froze the claim button
+    // forever. Timing out surfaces the retry path — the sync is idempotent
+    // by activityId, so retrying a timed-out-but-landed sync double-pays
+    // nothing.
+    const result = await withTimeout(
+      syncFitnessActivityCallable(payload),
+      CALLABLE_TIMEOUT_MS,
+      "Workout sync timed out. Check your connection and tap COLLECT to retry.",
+    );
     return result.data;
   } catch (error) {
     throw toServerActionError(error);
