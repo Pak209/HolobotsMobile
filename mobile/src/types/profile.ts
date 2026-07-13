@@ -75,6 +75,8 @@ export type UserProfile = {
   wildcardBlueprints?: number;
   /** Legendary Blueprint easter-egg items (ascend any bot to Legendary). */
   legendaryBlueprints?: number;
+  /** Server-set: doubled arena EXP until this epoch-ms (EXP Booster item). */
+  expBoosterActiveUntil?: number;
   /** Referral growth state — server-written only. */
   referralCode?: string;
   referredBy?: string;

@@ -31,6 +31,8 @@ type Props = {
   onAssignWildcards?: (amount: number) => void;
   onAscendLegendary?: () => void;
   legendaryBlueprintCount?: number;
+  onUseRankSkip?: () => void;
+  rankSkipCount?: number;
   onClose: () => void;
   onMint: (tierLabel: UpgradeTierLabel) => void;
   onRankUpgrade: (tierLabel: UpgradeTierLabel) => void;
@@ -85,6 +87,8 @@ export function HolobotStatsModal({
   onAssignWildcards,
   onAscendLegendary,
   legendaryBlueprintCount = 0,
+  onUseRankSkip,
+  rankSkipCount = 0,
   onClose,
   onMint,
   onRankUpgrade,
@@ -392,6 +396,17 @@ export function HolobotStatsModal({
                     </Pressable>
                   </View>
                 ) : null}
+                {onUseRankSkip && rankSkipCount > 0 && normalizedOwnedHolobot && currentTierNumber < 5 ? (
+                  <View style={[styles.wildcardRow, styles.rankSkipRow]}>
+                    <View style={styles.wildcardInfo}>
+                      <Text style={styles.rankSkipTitle}>{`RANK SKIP ×${rankSkipCount}`}</Text>
+                      <Text style={styles.wildcardMeta}>Jump to the next rank — no blueprints needed</Text>
+                    </View>
+                    <Pressable onPress={onUseRankSkip} style={[styles.wildcardButton, styles.rankSkipButton]}>
+                      <Text style={styles.wildcardButtonText}>SKIP</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
                 {onAssignWildcards && wildcardCount > 0 ? (
                   <View style={styles.wildcardRow}>
                     <View style={styles.wildcardInfo}>
@@ -517,6 +532,18 @@ const styles = StyleSheet.create({
   },
   legendaryButton: {
     backgroundColor: "#ff9d00",
+  },
+  rankSkipRow: {
+    borderColor: "#ae4cff",
+  },
+  rankSkipTitle: {
+    color: "#c88bff",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  rankSkipButton: {
+    backgroundColor: "#ae4cff",
   },
   boostButton: {
     backgroundColor: "#141b28",

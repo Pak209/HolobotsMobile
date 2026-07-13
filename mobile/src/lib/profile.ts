@@ -80,6 +80,7 @@ type FirestoreUserDocument = {
   syncDistanceUnit?: "km" | "mi";
   wildcardBlueprints?: number;
   legendaryBlueprints?: number;
+  expBoosterActiveUntil?: number;
   lastWildcardPackAt?: number;
   referralCode?: string;
   referredBy?: string;
@@ -191,6 +192,7 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     syncDistanceUnit: data.syncDistanceUnit ?? DEFAULT_USER_PROFILE.syncDistanceUnit,
     wildcardBlueprints: data.wildcardBlueprints ?? 0,
     legendaryBlueprints: data.legendaryBlueprints ?? 0,
+    expBoosterActiveUntil: data.expBoosterActiveUntil,
     lastWildcardPackAt: data.lastWildcardPackAt,
     referralCode: data.referralCode,
     referredBy: data.referredBy,

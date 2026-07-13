@@ -180,3 +180,49 @@ describe("settlement write parity", () => {
     }
   });
 });
+
+describe("exp booster doubling in settlements", () => {
+  it("doubles EXP while the window is active, both sides identically", () => {
+    const input = {
+      combosCompleted: 0,
+      didWin: true,
+      opponentName: "HARE",
+      perfectDefenses: 0,
+      tierId: "rookie" as const,
+    };
+    const holobots = [{ name: "ACE", level: 10, experience: 0, nextLevelExp: 1000, rank: "Champion" }];
+    const NOW_MS = NOW.getTime();
+
+    const base = buildArenaSettlementUpdates(
+      { holobots, stats: { wins: 0, losses: 0 } } as never,
+      "ACE",
+      input,
+      NOW,
+    );
+    const boosted = buildArenaSettlementUpdates(
+      { holobots, stats: { wins: 0, losses: 0 }, expBoosterActiveUntil: NOW_MS + 1000 } as never,
+      "ACE",
+      input,
+      NOW,
+    );
+    const boostedRaw = serverArena.buildArenaSettlementUpdatesRaw(
+      { holobots, expBoosterActiveUntil: NOW_MS + 1000 },
+      "ACE",
+      input,
+      NOW,
+    );
+    const expired = buildArenaSettlementUpdates(
+      { holobots, stats: { wins: 0, losses: 0 }, expBoosterActiveUntil: NOW_MS - 1000 } as never,
+      "ACE",
+      input,
+      NOW,
+    );
+
+    const expOf = (updates: Record<string, unknown>) =>
+      (updates.holobots as Array<{ experience: number }>)[0].experience;
+
+    expect(expOf(boosted!.updates)).toBe(expOf(base!.updates) * 2);
+    expect(expOf(boostedRaw!.updates)).toBe(expOf(boosted!.updates));
+    expect(expOf(expired!.updates)).toBe(expOf(base!.updates));
+  });
+});

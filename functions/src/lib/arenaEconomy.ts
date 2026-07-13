@@ -177,6 +177,12 @@ export function buildArenaSettlementUpdatesRaw(
     return null;
   }
 
+  // EXP Booster (marketplace item): doubled arena EXP while active. The
+  // timestamp is server-set by useExpBooster and rules-frozen, so the
+  // multiplier cannot be forged.
+  const boosted = Number(userData.expBoosterActiveUntil || 0) > now.getTime();
+  const awardedExp = boosted ? settlement.exp * 2 : settlement.exp;
+
   const currentHolobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
   const updatedHolobots = currentHolobots.map((holobot) => {
     const name =
@@ -184,7 +190,7 @@ export function buildArenaSettlementUpdatesRaw(
     if (name !== holobotName) {
       return holobot;
     }
-    return applyHolobotExperience(holobot, settlement.exp);
+    return applyHolobotExperience(holobot, awardedExp);
   });
 
   const updatedBlueprints = { ...((userData.blueprints as Record<string, number>) || {}) };

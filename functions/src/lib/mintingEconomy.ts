@@ -234,6 +234,98 @@ export function buildLegendaryAscensionRaw(
   };
 }
 
+export type RankSkipResult =
+  | { refusal: "no_item" | "not_owned" | "already_legendary" }
+  | { refusal: null; nextTierLabel: string; updates: Record<string, unknown> };
+
+/**
+ * Rank Skip (marketplace item, 5000 Holos): consumes one rankSkips and
+ * jumps the chosen bot to the NEXT tier with the exact rank-up semantics —
+ * minus the blueprint cost. That is the item's whole value proposition:
+ * one tier of the blueprint grind, bought.
+ */
+export function buildRankSkipRaw(
+  userData: Record<string, unknown>,
+  holobotName: string,
+): RankSkipResult {
+  const balance = Number(userData.rankSkips || 0);
+  if (balance < 1) {
+    return { refusal: "no_item" };
+  }
+
+  const holobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
+  const target = holobots.find(
+    (holobot) => upperName((holobot as { name?: unknown })?.name) === upperName(holobotName),
+  ) as Record<string, unknown> | undefined;
+  if (!target) {
+    return { refusal: "not_owned" };
+  }
+
+  // The next tier is the first whose start level exceeds the bot's current
+  // level — identical gating to buildRankUpgradeUpdates.
+  const level = Number(target.level || 1);
+  const nextTier = BLUEPRINT_TIERS.find((tier) => tier.startLevel > level);
+  if (!nextTier) {
+    return { refusal: "already_legendary" };
+  }
+
+  const normalizedTarget = normalizeUserHolobot(target);
+  const updatedHolobots = holobots.map((holobot) => {
+    if (upperName((holobot as { name?: unknown })?.name) !== upperName(normalizedTarget.name)) {
+      return holobot;
+    }
+    return {
+      ...normalizedTarget,
+      attributePoints: Number(normalizedTarget.attributePoints || 0) + nextTier.attributePoints,
+      boostedAttributes:
+        (normalizedTarget.boostedAttributes as Record<string, unknown> | undefined) || {},
+      experience: 0,
+      level: nextTier.startLevel,
+      nextLevelExp: calculateExperience(nextTier.startLevel + 1),
+      rank: getHolobotRank(nextTier.startLevel),
+    };
+  });
+
+  return {
+    refusal: null,
+    nextTierLabel: nextTier.label,
+    updates: {
+      holobots: updatedHolobots,
+      rankSkips: balance - 1,
+    },
+  };
+}
+
+/** EXP Booster: 24 hours of doubled arena EXP from activation. */
+export const EXP_BOOSTER_DURATION_MS = 24 * 60 * 60 * 1000;
+
+export type ExpBoosterResult =
+  | { refusal: "no_item" | "already_active" }
+  | { refusal: null; activeUntil: number; updates: Record<string, unknown> };
+
+export function buildExpBoosterActivationRaw(
+  userData: Record<string, unknown>,
+  now: number = Date.now(),
+): ExpBoosterResult {
+  const balance = Number(userData.expBoosters || 0);
+  if (balance < 1) {
+    return { refusal: "no_item" };
+  }
+  if (Number(userData.expBoosterActiveUntil || 0) > now) {
+    return { refusal: "already_active" };
+  }
+
+  const activeUntil = now + EXP_BOOSTER_DURATION_MS;
+  return {
+    refusal: null,
+    activeUntil,
+    updates: {
+      expBoosters: balance - 1,
+      expBoosterActiveUntil: activeUntil,
+    },
+  };
+}
+
 /** Raw-field energy refill consumption (mirror of TrainingScreen's write). */
 export function buildEnergyRefillUpdates(
   userData: Record<string, unknown>,

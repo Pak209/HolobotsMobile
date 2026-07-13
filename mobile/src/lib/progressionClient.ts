@@ -43,6 +43,16 @@ const useEnergyRefillCallable = httpsCallable<
   { dailyEnergy: number; energyRefills: number }
 >(functions, "useEnergyRefill");
 
+const useRankSkipCallable = httpsCallable<
+  { holobotName: string },
+  { holobotName: string; nextTierLabel: string }
+>(functions, "useRankSkip");
+
+const useExpBoosterCallable = httpsCallable<Record<string, never>, { activeUntil: number }>(
+  functions,
+  "useExpBooster",
+);
+
 const redeemLegendaryBlueprintCallable = httpsCallable<
   { holobotName: string },
   { holobotName: string; outcome: "minted" | "ascended" | "converted"; wildcards?: number }
@@ -129,6 +139,28 @@ export async function redeemLegendaryBlueprintAuthoritative(
   try {
     const result = await redeemLegendaryBlueprintCallable({ holobotName });
     return { outcome: result.data.outcome, wildcards: result.data.wildcards };
+  } catch (error) {
+    throw toServerActionError(error);
+  }
+}
+
+/** Rank Skip item: jump the chosen bot to its next tier, no blueprints. */
+export async function useRankSkipAuthoritative(
+  holobotName: string,
+): Promise<{ nextTierLabel: string }> {
+  try {
+    const result = await useRankSkipCallable({ holobotName });
+    return { nextTierLabel: result.data.nextTierLabel };
+  } catch (error) {
+    throw toServerActionError(error);
+  }
+}
+
+/** EXP Booster item: doubled arena EXP for 24 hours. */
+export async function useExpBoosterAuthoritative(): Promise<{ activeUntil: number }> {
+  try {
+    const result = await useExpBoosterCallable({});
+    return { activeUntil: result.data.activeUntil };
   } catch (error) {
     throw toServerActionError(error);
   }

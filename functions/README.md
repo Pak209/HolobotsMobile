@@ -18,7 +18,7 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:clearWorkoutCooldown,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:purchaseMarketplacePart,functions:useEnergyRefill,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:upgradeHolobotMove,functions:saveHolobotCombatKit,functions:mintHolobot,functions:upgradeHolobotRank,functions:deleteUserAccountV2,functions:applyReferralCode,functions:claimGenesisSquad,functions:assignWildcardBlueprints,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:redeemLegendaryBlueprint
+firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:clearWorkoutCooldown,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:purchaseMarketplacePart,functions:useEnergyRefill,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:upgradeHolobotMove,functions:saveHolobotCombatKit,functions:mintHolobot,functions:upgradeHolobotRank,functions:deleteUserAccountV2,functions:applyReferralCode,functions:claimGenesisSquad,functions:assignWildcardBlueprints,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:redeemLegendaryBlueprint,functions:useExpBooster,functions:useRankSkip
 ```
 
 Deliberately still client-side (documented, not forgotten): quest/training
