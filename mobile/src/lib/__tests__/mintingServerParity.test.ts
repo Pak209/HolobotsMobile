@@ -132,3 +132,64 @@ describe("energy refill", () => {
     expect(server.buildEnergyRefillUpdates({ dailyEnergy: 5, energyRefills: 0 })).toBeNull();
   });
 });
+
+// The two formerly-dead marketplace items, now server-consumable.
+describe("rank skip (server builder)", () => {
+  it("jumps to the next tier with rank-up semantics, no blueprint cost", () => {
+    const result = server.buildRankSkipRaw(
+      {
+        rankSkips: 2,
+        holobots: [{ name: "ACE", level: 12, rank: "Champion", attributePoints: 4 }],
+      },
+      "ACE",
+    );
+
+    expect(result.refusal).toBeNull();
+    if (result.refusal === null) {
+      expect(result.nextTierLabel).toBe("Rare");
+      const bots = result.updates.holobots as Array<Record<string, unknown>>;
+      expect(bots[0].level).toBe(21);
+      expect(bots[0].rank).toBe("Rare");
+      expect(bots[0].attributePoints).toBe(24);
+      expect(result.updates.rankSkips).toBe(1);
+    }
+  });
+
+  it("refuses at the top rank, when unowned, and without the item", () => {
+    expect(
+      server.buildRankSkipRaw(
+        { rankSkips: 1, holobots: [{ name: "ACE", level: 41, rank: "Legendary" }] },
+        "ACE",
+      ).refusal,
+    ).toBe("already_legendary");
+    expect(
+      server.buildRankSkipRaw({ rankSkips: 1, holobots: [] }, "ACE").refusal,
+    ).toBe("not_owned");
+    expect(
+      server.buildRankSkipRaw({ holobots: [{ name: "ACE", level: 1 }] }, "ACE").refusal,
+    ).toBe("no_item");
+  });
+});
+
+describe("exp booster (server builder + settlement doubling)", () => {
+  it("activates a 24h window and consumes the item", () => {
+    const result = server.buildExpBoosterActivationRaw({ expBoosters: 2 }, 1_000_000);
+
+    expect(result.refusal).toBeNull();
+    if (result.refusal === null) {
+      expect(result.activeUntil).toBe(1_000_000 + 24 * 60 * 60 * 1000);
+      expect(result.updates.expBoosters).toBe(1);
+      expect(result.updates.expBoosterActiveUntil).toBe(result.activeUntil);
+    }
+  });
+
+  it("refuses without the item or while one is running", () => {
+    expect(server.buildExpBoosterActivationRaw({}, 1_000).refusal).toBe("no_item");
+    expect(
+      server.buildExpBoosterActivationRaw(
+        { expBoosters: 1, expBoosterActiveUntil: 2_000 },
+        1_000,
+      ).refusal,
+    ).toBe("already_active");
+  });
+});

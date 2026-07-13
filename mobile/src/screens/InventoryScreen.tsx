@@ -9,7 +9,7 @@ import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@
 import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { assignWildcardBlueprintsAuthoritative } from "@/lib/genesisClient";
-import { redeemLegendaryBlueprintAuthoritative } from "@/lib/progressionClient";
+import { redeemLegendaryBlueprintAuthoritative, useExpBoosterAuthoritative, useRankSkipAuthoritative } from "@/lib/progressionClient";
 import { describePartBoosts } from "@/lib/partStats";
 import { getTierByLabel, type UpgradeTierLabel } from "@/lib/minting";
 import {
@@ -69,7 +69,6 @@ export function InventoryScreen() {
     { image: getMarketplaceItemImageSource("Energy Refill"), name: "Energy Refill", quantity: profile?.energy_refills || 0 },
     { image: getMarketplaceItemImageSource("EXP Booster"), name: "EXP Booster", quantity: profile?.exp_boosters || 0 },
     { image: getMarketplaceItemImageSource("Rank Skip"), name: "Rank Skip", quantity: profile?.rank_skips || 0 },
-    { image: getMarketplaceItemImageSource("Async Battle Ticket"), name: "Async Battle Ticket", quantity: profile?.async_battle_tickets || 0 },
     { image: getMarketplaceItemImageSource("Wildcard Blueprints"), name: "Wildcard Blueprints", quantity: profile?.wildcardBlueprints || 0 },
     { image: getMarketplaceItemImageSource("Legendary Blueprint"), name: "Legendary Blueprint", quantity: profile?.legendaryBlueprints || 0 },
   ].filter((entry) => entry.quantity > 0);
@@ -219,6 +218,29 @@ export function InventoryScreen() {
     }
   };
 
+  const handleUseRankSkip = async () => {
+    if (!profile || !selectedRosterHolobot) {
+      return;
+    }
+
+    try {
+      const { nextTierLabel } = await useRankSkipAuthoritative(selectedRosterHolobot.name);
+      Alert.alert("Rank Skip Used", `${selectedRosterHolobot.name} jumped to ${nextTierLabel} rank!`);
+    } catch (error) {
+      Alert.alert("Rank Skip failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
+
+  const handleActivateExpBooster = async () => {
+    try {
+      const { activeUntil } = await useExpBoosterAuthoritative();
+      const hours = Math.round((activeUntil - Date.now()) / (60 * 60 * 1000));
+      Alert.alert("EXP Booster Active", `Arena EXP is DOUBLED for the next ${hours} hours.`);
+    } catch (error) {
+      Alert.alert("Activation failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
+
   const handleAssignWildcards = async (amount: number) => {
     if (!profile || !selectedRosterHolobot) {
       return;
@@ -260,6 +282,12 @@ export function InventoryScreen() {
     }
   };
 
+  const expBoosterActive = Number(profile?.expBoosterActiveUntil || 0) > Date.now();
+  const expBoosterHoursLeft = Math.max(
+    1,
+    Math.ceil((Number(profile?.expBoosterActiveUntil || 0) - Date.now()) / (60 * 60 * 1000)),
+  );
+
   const renderList = (entries: Array<{ image?: number | null; name: string; quantity: number; rarity?: string }>) =>
     entries.map((entry, index) => (
       <View key={`${entry.name}:${index}`} style={styles.assetRow}>
@@ -270,8 +298,16 @@ export function InventoryScreen() {
           <View style={styles.assetBody}>
             <Text style={styles.simpleName}>{entry.name}</Text>
             {entry.rarity ? <Text style={styles.simpleMeta}>{entry.rarity}</Text> : null}
+            {entry.name === "EXP Booster" && expBoosterActive ? (
+              <Text style={styles.boosterActiveText}>{`2× ARENA EXP · ${expBoosterHoursLeft}h left`}</Text>
+            ) : null}
           </View>
         </View>
+        {entry.name === "EXP Booster" && !expBoosterActive ? (
+          <Pressable onPress={() => void handleActivateExpBooster()} style={styles.useItemButton}>
+            <Text style={styles.useItemButtonText}>ACTIVATE</Text>
+          </Pressable>
+        ) : null}
         <Text style={styles.simpleQty}>{`x${entry.quantity}`}</Text>
       </View>
     ));
@@ -316,7 +352,9 @@ export function InventoryScreen() {
         visible={!!selectedRosterHolobot}
         wildcardCount={profile?.wildcardBlueprints || 0}
         legendaryBlueprintCount={profile?.legendaryBlueprints || 0}
+        rankSkipCount={profile?.rank_skips || 0}
         onAssignWildcards={(amount) => void handleAssignWildcards(amount)}
+        onUseRankSkip={() => void handleUseRankSkip()}
         onAscendLegendary={() => void handleAscendLegendary()}
         onClose={() => setSelectedHolobotKey(null)}
         onMint={handleMintHolobot}
@@ -329,6 +367,27 @@ export function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  boosterActiveText: {
+    color: "#39d98a",
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 3,
+  },
+  useItemButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    borderRadius: 8,
+    justifyContent: "center",
+    marginRight: 12,
+    minHeight: 36,
+    paddingHorizontal: 12,
+  },
+  useItemButtonText: {
+    color: "#050606",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
   assetBody: {
     flex: 1,
     justifyContent: "center",

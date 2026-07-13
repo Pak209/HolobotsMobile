@@ -208,7 +208,7 @@ export function buildArenaEntryUpdates(
 
 type SettlementProfile = Pick<
   UserProfile,
-  "blueprints" | "holobots" | "holosTokens" | "rewardSystem" | "stats" | "syncPoints"
+  "blueprints" | "expBoosterActiveUntil" | "holobots" | "holosTokens" | "rewardSystem" | "stats" | "syncPoints"
 >;
 
 /**
@@ -229,11 +229,15 @@ export function buildArenaSettlementUpdates(
     return null;
   }
 
+  // EXP Booster: doubled arena EXP while the server-set window is active.
+  const boosted = Number(profile.expBoosterActiveUntil || 0) > now.getTime();
+  const awardedExp = boosted ? settlement.exp * 2 : settlement.exp;
+
   const updatedHolobots = (profile.holobots || []).map((holobot) => {
     if (holobot.name !== holobotName) {
       return holobot;
     }
-    return applyHolobotExperience(holobot, settlement.exp);
+    return applyHolobotExperience(holobot, awardedExp);
   });
 
   const updatedBlueprints = { ...(profile.blueprints || {}) };
