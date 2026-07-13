@@ -384,7 +384,7 @@ export const BOOSTER_PART_POOL = [
  * GOD PACK (Elite boosters only): a small roll turns the whole pack into
  * triples — 3 parts, 3 move unlocks, and the item award ×3.
  */
-export const GOD_PACK_CHANCE = 0.05;
+export const GOD_PACK_CHANCE = 0.01;
 export const GOD_PACK_ROLLS = 3;
 
 export const BOOSTER_ITEM_AWARD_MAP: Record<MarketplaceBoosterId, MarketplaceItemName> = {
