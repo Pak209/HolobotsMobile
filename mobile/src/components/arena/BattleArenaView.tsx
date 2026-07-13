@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import type { ImageStyle } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
 import type { ActionCard, ArmedDefenseTrap, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
@@ -11,6 +13,18 @@ import {
 
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
+const arenaMoveIcons: Record<CardType, number> = {
+  strike: require("../../../assets/game/arena-moves/strike.png"),
+  defense: require("../../../assets/game/arena-moves/defend.png"),
+  combo: require("../../../assets/game/arena-moves/combo.png"),
+  finisher: require("../../../assets/game/arena-moves/finisher.png"),
+};
+const arenaMoveIconOffsets: Record<CardType, Pick<ImageStyle, "transform">> = {
+  strike: { transform: [{ translateX: 1 }] },
+  defense: { transform: [{ translateX: 3 }] },
+  combo: { transform: [{ translateX: 3 }] },
+  finisher: { transform: [{ translateX: 3 }, { translateY: 2 }] },
+};
 
 export type TeamHudChip = {
   index: number;
@@ -206,20 +220,60 @@ function ArenaCard({
       style={[
         styles.cardSlot,
         {
-          borderColor: colors.accent,
-          backgroundColor: colors.glow,
           opacity: isPlayable ? 1 : 0.45,
         },
       ]}
     >
+      <Svg
+        height="100%"
+        pointerEvents="none"
+        preserveAspectRatio="none"
+        style={styles.cardFrame}
+        viewBox="0 0 100 146"
+        width="100%"
+      >
+        <Path
+          d="M16 1 H86 L99 14 V132 L86 145 H14 L1 132 V22 L16 7 Z"
+          fill={colors.glow}
+          stroke={colors.accent}
+          strokeLinejoin="miter"
+          strokeWidth="3"
+        />
+        <Path
+          d="M17 7 H82 L93 18 V127 L82 138 H18 L7 127 V29 L17 19 Z"
+          fill="rgba(5, 6, 6, 0.86)"
+          stroke={colors.accent}
+          strokeOpacity="0.42"
+          strokeWidth="1"
+        />
+        <Path
+          d="M7 36 H28 L37 27 V7 M29 36 L37 28"
+          fill="none"
+          stroke={colors.accent}
+          strokeOpacity="0.8"
+          strokeWidth="1.5"
+        />
+        <Path
+          d="M14 141 H39 M61 141 H84 M91 21 V48 M4 95 V125"
+          fill="none"
+          stroke={colors.accent}
+          strokeOpacity="0.65"
+          strokeWidth="1.2"
+        />
+      </Svg>
       <View style={styles.cardCostBadge}>
         <Text style={[styles.cardCostText, { color: colors.accent }]}>{card.staminaCost}</Text>
       </View>
       <Text numberOfLines={1} style={[styles.cardTypeLabel, { color: colors.accent }]}>
         {getCardLabel(card.type)}
       </Text>
-      <View style={[styles.cardArtPlaceholder, { borderColor: colors.accent }]}>
-        <View style={[styles.cardDiamond, { borderColor: colors.accent }]} />
+      <View style={styles.cardArtPlaceholder}>
+        <Image
+          accessibilityIgnoresInvertColors
+          resizeMode="contain"
+          source={arenaMoveIcons[card.type]}
+          style={[styles.cardMoveIcon, arenaMoveIconOffsets[card.type], { tintColor: colors.accent }]}
+        />
       </View>
       <Text numberOfLines={2} style={styles.cardName}>
         {card.name}
@@ -709,11 +763,15 @@ const styles = StyleSheet.create({
   },
   cardArtPlaceholder: {
     alignItems: "center",
-    borderRadius: 10,
-    borderWidth: 2,
     flex: 1,
     justifyContent: "center",
-    marginVertical: 10,
+    marginBottom: 5,
+    marginTop: 8,
+    width: "100%",
+  },
+  cardMoveIcon: {
+    height: 54,
+    width: 54,
   },
   benchBarTrack: {
     backgroundColor: "#1a1d26",
@@ -1055,14 +1113,15 @@ const styles = StyleSheet.create({
   },
   cardSlot: {
     alignItems: "center",
-    borderRadius: 14,
-    borderWidth: 3,
     flex: 1,
     height: 146,
     justifyContent: "flex-start",
     overflow: "hidden",
     paddingHorizontal: 6,
     paddingTop: 12,
+  },
+  cardFrame: {
+    ...StyleSheet.absoluteFillObject,
   },
   cardSlotEmpty: {
     backgroundColor: "#101010",
