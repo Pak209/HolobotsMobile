@@ -21,6 +21,7 @@ export { mintHolobot } from "./progression/mintHolobot";
 export { openGachaPack } from "./economy/openGachaPack";
 export { purchaseMarketplaceBooster } from "./economy/purchaseMarketplaceBooster";
 export { purchaseMarketplaceItem } from "./economy/purchaseMarketplaceItem";
+export { redeemLegendaryBlueprint } from "./progression/redeemLegendaryBlueprint";
 export { purchaseMarketplacePart } from "./economy/purchaseMarketplacePart";
 export { saveHolobotCombatKit } from "./progression/saveHolobotCombatKit";
 export { settleArenaBattle } from "./arena/settleArenaBattle";

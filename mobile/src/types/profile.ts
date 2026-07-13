@@ -73,6 +73,8 @@ export type UserProfile = {
   blueprints?: Record<string, number>;
   /** Wildcard blueprints: assignable to ANY Holobot (1:1) via callable. */
   wildcardBlueprints?: number;
+  /** Legendary Blueprint easter-egg items (ascend any bot to Legendary). */
+  legendaryBlueprints?: number;
   /** Referral growth state — server-written only. */
   referralCode?: string;
   referredBy?: string;

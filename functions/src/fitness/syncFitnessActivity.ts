@@ -5,6 +5,8 @@ import { FieldValue as AdminFieldValue } from "firebase-admin/firestore";
 import {
   EXTRA_REFERRAL_WILDCARDS,
   GENESIS_REFERRALS_REQUIRED,
+  REFERRAL_MILESTONE_GACHA_TICKETS,
+  REFERRAL_MILESTONE_QUALIFIED,
   REFERRAL_WELCOME_HOLOS,
   REFERRAL_WELCOME_WILDCARDS,
 } from "../lib/referrals";
@@ -144,11 +146,16 @@ export const syncFitnessActivity = onCall(async (request): Promise<SyncFitnessAc
 
     if (referrerUpdate) {
       // No referral cap: every qualified referral past the Genesis Squad
-      // threshold pays wildcards instead.
-      const extras =
-        referrerUpdate.qualified > GENESIS_REFERRALS_REQUIRED
+      // threshold pays wildcards instead — and the 10th recruit lands a
+      // one-time Elite-pack's worth of gacha tickets as a thank-you.
+      const extras = {
+        ...(referrerUpdate.qualified > GENESIS_REFERRALS_REQUIRED
           ? { wildcardBlueprints: AdminFieldValue.increment(EXTRA_REFERRAL_WILDCARDS) }
-          : {};
+          : {}),
+        ...(referrerUpdate.qualified === REFERRAL_MILESTONE_QUALIFIED
+          ? { gachaTickets: AdminFieldValue.increment(REFERRAL_MILESTONE_GACHA_TICKETS) }
+          : {}),
+      };
       transaction.set(
         referrerUpdate.ref,
         {

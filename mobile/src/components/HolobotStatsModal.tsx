@@ -29,6 +29,8 @@ type Props = {
   holobot: HolobotRosterEntry | null;
   ownedHolobot: UserHolobot | null;
   onAssignWildcards?: (amount: number) => void;
+  onAscendLegendary?: () => void;
+  legendaryBlueprintCount?: number;
   onClose: () => void;
   onMint: (tierLabel: UpgradeTierLabel) => void;
   onRankUpgrade: (tierLabel: UpgradeTierLabel) => void;
@@ -81,6 +83,8 @@ export function HolobotStatsModal({
   holobot,
   ownedHolobot,
   onAssignWildcards,
+  onAscendLegendary,
+  legendaryBlueprintCount = 0,
   onClose,
   onMint,
   onRankUpgrade,
@@ -371,6 +375,23 @@ export function HolobotStatsModal({
                   {normalizedOwnedHolobot ? "BLUEPRINT RANK UP" : "MINT WITH BLUEPRINTS"}
                 </Text>
                 <Text style={styles.blueprintSummary}>{`${holobot.name} blueprints: ${blueprintCount}`}</Text>
+                {onAscendLegendary && legendaryBlueprintCount > 0 ? (
+                  <View style={[styles.wildcardRow, styles.legendaryRow]}>
+                    <View style={styles.wildcardInfo}>
+                      <Text style={styles.legendaryTitle}>{`LEGENDARY BLUEPRINT ×${legendaryBlueprintCount}`}</Text>
+                      <Text style={styles.wildcardMeta}>
+                        {currentTierNumber >= 5
+                          ? "Already Legendary — converts to +80 wildcards"
+                          : normalizedOwnedHolobot
+                            ? "Ascend this Holobot straight to LEGENDARY"
+                            : "Mint this Holobot at LEGENDARY rank"}
+                      </Text>
+                    </View>
+                    <Pressable onPress={onAscendLegendary} style={[styles.wildcardButton, styles.legendaryButton]}>
+                      <Text style={styles.wildcardButtonText}>ASCEND</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
                 {onAssignWildcards && wildcardCount > 0 ? (
                   <View style={styles.wildcardRow}>
                     <View style={styles.wildcardInfo}>
@@ -484,6 +505,18 @@ const styles = StyleSheet.create({
     color: "#050606",
     fontSize: 12,
     fontWeight: "900",
+  },
+  legendaryRow: {
+    borderColor: "#ff9d00",
+  },
+  legendaryTitle: {
+    color: "#ffb638",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  legendaryButton: {
+    backgroundColor: "#ff9d00",
   },
   boostButton: {
     backgroundColor: "#141b28",

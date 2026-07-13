@@ -9,6 +9,7 @@ import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@
 import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { assignWildcardBlueprintsAuthoritative } from "@/lib/genesisClient";
+import { redeemLegendaryBlueprintAuthoritative } from "@/lib/progressionClient";
 import { getTierByLabel, type UpgradeTierLabel } from "@/lib/minting";
 import {
   mintHolobotAuthoritative,
@@ -68,6 +69,7 @@ export function InventoryScreen() {
     { image: getMarketplaceItemImageSource("Rank Skip"), name: "Rank Skip", quantity: profile?.rank_skips || 0 },
     { image: getMarketplaceItemImageSource("Async Battle Ticket"), name: "Async Battle Ticket", quantity: profile?.async_battle_tickets || 0 },
     { image: getMarketplaceItemImageSource("Wildcard Blueprints"), name: "Wildcard Blueprints", quantity: profile?.wildcardBlueprints || 0 },
+    { image: getMarketplaceItemImageSource("Legendary Blueprint"), name: "Legendary Blueprint", quantity: profile?.legendaryBlueprints || 0 },
   ].filter((entry) => entry.quantity > 0);
   const blueprints = Object.entries(profile?.blueprints || {})
     .map(([name, quantity]) => ({
@@ -236,6 +238,26 @@ export function InventoryScreen() {
     }
   };
 
+  const handleAscendLegendary = async () => {
+    if (!profile || !selectedRosterHolobot) {
+      return;
+    }
+
+    try {
+      const result = await redeemLegendaryBlueprintAuthoritative(selectedRosterHolobot.name);
+      Alert.alert(
+        "LEGENDARY ASCENSION",
+        result.outcome === "converted"
+          ? `${selectedRosterHolobot.name} is already Legendary — converted to +${result.wildcards} Wildcard Blueprints.`
+          : result.outcome === "minted"
+            ? `${selectedRosterHolobot.name} joins your roster at LEGENDARY rank!`
+            : `${selectedRosterHolobot.name} ascended to LEGENDARY rank!`,
+      );
+    } catch (error) {
+      Alert.alert("Ascension failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
+
   const renderList = (entries: Array<{ image?: number | null; name: string; quantity: number; rarity?: string }>) =>
     entries.map((entry, index) => (
       <View key={`${entry.name}:${index}`} style={styles.assetRow}>
@@ -291,7 +313,9 @@ export function InventoryScreen() {
         ownedHolobot={selectedOwnedHolobot}
         visible={!!selectedRosterHolobot}
         wildcardCount={profile?.wildcardBlueprints || 0}
+        legendaryBlueprintCount={profile?.legendaryBlueprints || 0}
         onAssignWildcards={(amount) => void handleAssignWildcards(amount)}
+        onAscendLegendary={() => void handleAscendLegendary()}
         onClose={() => setSelectedHolobotKey(null)}
         onMint={handleMintHolobot}
         onRankUpgrade={handleRankUpgrade}

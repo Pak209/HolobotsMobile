@@ -15,6 +15,10 @@ import { toHolobotKey } from "./mintingEconomy";
 export const GENESIS_REFERRALS_REQUIRED = 3;
 /** No referral cap: every qualified referral past the squad grants wildcards. */
 export const EXTRA_REFERRAL_WILDCARDS = 5;
+/** Milestone thank-you: the 10th qualified recruit pays an Elite pack's
+    worth of gacha tickets on top of the usual wildcards. */
+export const REFERRAL_MILESTONE_QUALIFIED = 10;
+export const REFERRAL_MILESTONE_GACHA_TICKETS = 5;
 export const REFERRAL_WELCOME_WILDCARDS = 5;
 export const REFERRAL_WELCOME_HOLOS = 200;
 export const GENESIS_PACK_HOLOS = 500;
