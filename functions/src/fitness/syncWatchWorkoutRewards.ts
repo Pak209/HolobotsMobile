@@ -24,6 +24,10 @@ type WatchWorkoutPayload = RawWorkoutRewardInput & {
 
 type WorkoutRewardResult = {
   alreadyProcessed: boolean;
+  /** True when the daily session cap swallowed the reward (paid zero). */
+  capped: boolean;
+  /** What was ACTUALLY paid after clamping/capping — relay these to the watch. */
+  awarded: { syncPoints: number; holos: number; exp: number };
   totalSyncPoints: number;
   workoutSessionsCompleted: number;
 };
@@ -58,8 +62,40 @@ async function persistWatchWorkoutReward(
     if (activityId && (processedActivityIds[activityId] || processedWorkoutEvents[activityId])) {
       return {
         alreadyProcessed: true,
+        capped: false,
+        awarded: { syncPoints: 0, holos: 0, exp: 0 },
         totalSyncPoints: Number(userData.syncPoints || 0),
         workoutSessionsCompleted: Math.max(0, Number(dailyData.workoutSessionsCompleted || 0)),
+      };
+    }
+
+    const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted || 0));
+
+    // Enforce the daily session cap for real: sessions past the cap are
+    // recorded (idempotently, so retries can't farm them) but pay NOTHING.
+    // Previously only the counter saturated while every extra session kept
+    // paying full rewards — and the watch UI showed phantom earnings.
+    if (previousSessionsCompleted >= DAILY_WORKOUT_CAP) {
+      transaction.set(
+        dailyRef,
+        {
+          date,
+          processedActivityIds: activityId
+            ? { ...processedActivityIds, [activityId]: true }
+            : processedActivityIds,
+          processedWorkoutEvents: activityId
+            ? { ...processedWorkoutEvents, [activityId]: true }
+            : processedWorkoutEvents,
+          workoutSessionsCompleted: previousSessionsCompleted,
+        },
+        { merge: true },
+      );
+      return {
+        alreadyProcessed: false,
+        capped: true,
+        awarded: { syncPoints: 0, holos: 0, exp: 0 },
+        totalSyncPoints: Number(userData.syncPoints || 0),
+        workoutSessionsCompleted: previousSessionsCompleted,
       };
     }
 
@@ -67,7 +103,6 @@ async function persistWatchWorkoutReward(
     const awardedSyncPoints = clampedReward.syncPoints;
     const awardedHolos = clampedReward.holos;
     const awardedExp = clampedReward.exp;
-    const previousSessionsCompleted = Math.max(0, Number(dailyData.workoutSessionsCompleted || 0));
     const nextSessionsCompleted = Math.min(DAILY_WORKOUT_CAP, previousSessionsCompleted + 1);
 
     const currentHolobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
@@ -150,6 +185,8 @@ async function persistWatchWorkoutReward(
 
     return {
       alreadyProcessed: false,
+      capped: false,
+      awarded: { syncPoints: awardedSyncPoints, holos: awardedHolos, exp: awardedExp },
       totalSyncPoints: nextSyncPoints,
       workoutSessionsCompleted: nextSessionsCompleted,
     };
@@ -185,21 +222,43 @@ export const syncWatchWorkoutRewards = onCall(async (request) => {
 
   let latestResult: WorkoutRewardResult = {
     alreadyProcessed: false,
+    capped: false,
+    awarded: { syncPoints: 0, holos: 0, exp: 0 },
     totalSyncPoints: 0,
     workoutSessionsCompleted: 0,
   };
   let processedCount = 0;
+  const results: Array<{
+    workoutId: string;
+    alreadyProcessed: boolean;
+    capped: boolean;
+    syncPoints: number;
+    holos: number;
+    exp: number;
+  }> = [];
 
   for (const workout of workouts) {
-    const result = await persistWatchWorkoutReward(uid, workout as WatchWorkoutPayload);
+    const payload = workout as WatchWorkoutPayload;
+    const result = await persistWatchWorkoutReward(uid, payload);
     latestResult = result;
     if (!result.alreadyProcessed) {
       processedCount += 1;
     }
+    results.push({
+      workoutId: typeof payload.workoutId === "string" ? payload.workoutId.trim() : "",
+      alreadyProcessed: result.alreadyProcessed,
+      capped: result.capped,
+      syncPoints: result.awarded.syncPoints,
+      holos: result.awarded.holos,
+      exp: result.awarded.exp,
+    });
   }
 
   return {
     processedCount,
+    // Per-workout AWARDED amounts so the phone relays real payouts to the
+    // watch instead of echoing back the watch's own claimed numbers.
+    results,
     sessionsCompleted: latestResult.workoutSessionsCompleted,
     sessionsRemaining: Math.max(0, DAILY_WORKOUT_CAP - latestResult.workoutSessionsCompleted),
     totalSyncPoints: latestResult.totalSyncPoints,
