@@ -53,15 +53,31 @@ describe("mobile write replay", () => {
       );
     });
 
-    it("allows the owner to write their fitness_daily subcollection doc", async () => {
+    it("DENIES even the owner writing fitness_daily (server-only since 2026-07-13)", async () => {
+      // The sync callables trust workoutSessionsCompleted from this doc for
+      // the daily reward cap — a client write could dodge it.
       await seedUser(env, "alice", buildUserDoc());
 
-      await assertSucceeds(
+      await assertFails(
         setDoc(
           doc(authedDb(env, "alice"), "users/alice/fitness_daily/2026-07-06"),
           FITNESS_DAILY_UPDATES,
           { merge: true },
         ),
+      );
+    });
+
+    it("still allows the owner to READ their fitness_daily doc", async () => {
+      await seedUser(env, "alice", buildUserDoc());
+
+      await assertSucceeds(getDoc(doc(authedDb(env, "alice"), "users/alice/fitness_daily/2026-07-06")));
+    });
+
+    it("still allows owner writes to OTHER subcollections", async () => {
+      await seedUser(env, "alice", buildUserDoc());
+
+      await assertSucceeds(
+        setDoc(doc(authedDb(env, "alice"), "users/alice/settings/prefs"), { theme: "dark" }),
       );
     });
 

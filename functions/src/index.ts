@@ -18,6 +18,7 @@ export { claimTrainingSession } from "./progression/claimTrainingSession";
 export { clearWorkoutCooldown } from "./fitness/clearWorkoutCooldown";
 export { deleteUserAccountV2 } from "./account/deleteUserAccount";
 export { mintHolobot } from "./progression/mintHolobot";
+export { mirrorLeaderboardEntry } from "./leaderboard/mirrorLeaderboardEntry";
 export { openGachaPack } from "./economy/openGachaPack";
 export { purchaseMarketplaceBooster } from "./economy/purchaseMarketplaceBooster";
 export { purchaseMarketplaceItem } from "./economy/purchaseMarketplaceItem";
