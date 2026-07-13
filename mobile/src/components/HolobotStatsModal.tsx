@@ -378,7 +378,20 @@ export function HolobotStatsModal({
                 <Text style={styles.sectionTitle}>
                   {normalizedOwnedHolobot ? "BLUEPRINT RANK UP" : "MINT WITH BLUEPRINTS"}
                 </Text>
-                <Text style={styles.blueprintSummary}>{`${holobot.name} blueprints: ${blueprintCount}`}</Text>
+                <View style={styles.blueprintHeaderRow}>
+                  <Text style={styles.blueprintSummary}>{`${holobot.name} blueprints: ${blueprintCount}`}</Text>
+                  {onAssignWildcards && wildcardCount > 0 ? (
+                    <View style={styles.wildcardChip}>
+                      <Text style={styles.wildcardChipLabel}>{`WILD ×${wildcardCount}`}</Text>
+                      <Pressable onPress={() => onAssignWildcards(1)} style={styles.wildcardChipButton}>
+                        <Text style={styles.wildcardChipButtonText}>+1</Text>
+                      </Pressable>
+                      <Pressable onPress={() => onAssignWildcards(wildcardCount)} style={styles.wildcardChipButton}>
+                        <Text style={styles.wildcardChipButtonText}>ALL</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
                 {onAscendLegendary && legendaryBlueprintCount > 0 ? (
                   <View style={[styles.wildcardRow, styles.legendaryRow]}>
                     <View style={styles.wildcardInfo}>
@@ -407,21 +420,20 @@ export function HolobotStatsModal({
                     </Pressable>
                   </View>
                 ) : null}
-                {onAssignWildcards && wildcardCount > 0 ? (
-                  <View style={styles.wildcardRow}>
-                    <View style={styles.wildcardInfo}>
-                      <Text style={styles.wildcardTitle}>{`WILDCARDS ×${wildcardCount}`}</Text>
-                      <Text style={styles.wildcardMeta}>Assignable to any Holobot</Text>
+                <View style={styles.blueprintHeaderRow}>
+                  <Text style={styles.blueprintSummary}>{`${holobot.name} blueprints: ${blueprintCount}`}</Text>
+                  {onAssignWildcards && wildcardCount > 0 ? (
+                    <View style={styles.wildcardChip}>
+                      <Text style={styles.wildcardChipLabel}>{`WILD ×${wildcardCount}`}</Text>
+                      <Pressable onPress={() => onAssignWildcards(1)} style={styles.wildcardChipButton}>
+                        <Text style={styles.wildcardChipButtonText}>+1</Text>
+                      </Pressable>
+                      <Pressable onPress={() => onAssignWildcards(wildcardCount)} style={styles.wildcardChipButton}>
+                        <Text style={styles.wildcardChipButtonText}>ALL</Text>
+                      </Pressable>
                     </View>
-                    <Pressable onPress={() => onAssignWildcards(1)} style={styles.wildcardButton}>
-                      <Text style={styles.wildcardButtonText}>+1</Text>
-                    </Pressable>
-                    <Pressable onPress={() => onAssignWildcards(wildcardCount)} style={styles.wildcardButton}>
-                      <Text style={styles.wildcardButtonText}>ALL</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-                <View style={styles.tierList}>
+                  ) : null}
+                </View>                <View style={styles.tierList}>
                   {BLUEPRINT_TIERS.map((tier) => {
                     const unlocked = blueprintCount >= tier.required;
                     const upgradeBlocked = normalizedOwnedHolobot ? getTierNumber(tier.label) <= currentTierNumber : false;
@@ -478,8 +490,46 @@ export function HolobotStatsModal({
 const styles = StyleSheet.create({
   blueprintSummary: {
     color: "#ddd2b5",
+    flexShrink: 1,
     fontSize: 14,
+  },
+  blueprintHeaderRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between",
     marginBottom: 12,
+  },
+  wildcardChip: {
+    alignItems: "center",
+    backgroundColor: "#141b28",
+    borderColor: "#f0bf14",
+    borderRadius: 8,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  wildcardChipLabel: {
+    color: "#f0bf14",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  wildcardChipButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    borderRadius: 5,
+    justifyContent: "center",
+    minWidth: 32,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  wildcardChipButtonText: {
+    color: "#050606",
+    fontSize: 11,
+    fontWeight: "900",
   },
   wildcardRow: {
     alignItems: "center",
