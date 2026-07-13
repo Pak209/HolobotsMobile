@@ -12,6 +12,7 @@ import {
   calculateSyncBattleModifiers,
   getUnlockedSyncAbilities,
 } from "@/lib/syncProgression";
+import { EMPTY_PART_BOOSTS, type PartBoosts } from "@/lib/partStats";
 import type { UserHolobot } from "@/types/profile";
 import type { ArenaFighter, BattleRewards } from "@/types/arena";
 
@@ -40,7 +41,11 @@ export function getTierOpponentPreview(tier: ArenaTier, selectedHolobotName: str
   return getTierOpponentLineup(tier, selectedHolobotName)[0] ?? "KUMA";
 }
 
-export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaFighter {
+export function buildPlayerFighter(
+  userId: string,
+  holobot: UserHolobot,
+  partBoosts: PartBoosts = EMPTY_PART_BOOSTS,
+): ArenaFighter {
   const stats = getHolobotBattleStats(
     holobot.name,
     holobot.level || 1,
@@ -56,12 +61,14 @@ export function buildPlayerFighter(userId: string, holobot: UserHolobot): ArenaF
     avatar: getHolobotFullImageSource(holobot.name),
     archetype: stats.archetype,
     level: holobot.level || 1,
-    maxHP: clampPositive(stats.maxHP, 150),
-    currentHP: clampPositive(stats.maxHP, 150),
-    attack: clampPositive(Math.floor(stats.attack * syncModifiers.powerDamageMultiplier), 50),
-    defense: clampPositive(Math.floor(stats.defense * syncModifiers.guardDefenseMultiplier), 50),
-    speed: clampPositive(Math.floor(stats.speed * syncModifiers.tempoSpeedMultiplier), 50),
-    intelligence: clampPositive(Math.floor(stats.intelligence * syncModifiers.focusIntelligenceMultiplier), 50),
+    // Equipped parts add FLAT boosts after the sync multipliers — a
+    // Legendary primary is worth 10 attribute points (see lib/partStats).
+    maxHP: clampPositive(stats.maxHP, 150) + partBoosts.hp,
+    currentHP: clampPositive(stats.maxHP, 150) + partBoosts.hp,
+    attack: clampPositive(Math.floor(stats.attack * syncModifiers.powerDamageMultiplier), 50) + partBoosts.attack,
+    defense: clampPositive(Math.floor(stats.defense * syncModifiers.guardDefenseMultiplier), 50) + partBoosts.defense,
+    speed: clampPositive(Math.floor(stats.speed * syncModifiers.tempoSpeedMultiplier), 50) + partBoosts.speed,
+    intelligence: clampPositive(Math.floor(stats.intelligence * syncModifiers.focusIntelligenceMultiplier), 50) + partBoosts.special,
     specialMove: holobot.rank ? `${holobot.rank} protocol` : "Arena Burst",
     signatureFinisher: getSignatureFinisher(holobot.name),
     ability: getAbility(holobot.name),
