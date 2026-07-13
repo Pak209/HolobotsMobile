@@ -146,6 +146,94 @@ export function buildRankUpgradeUpdates(
   };
 }
 
+export type LegendaryAscensionResult =
+  | { outcome: "minted" | "ascended"; updates: Record<string, unknown> }
+  | { outcome: "converted"; updates: Record<string, unknown>; wildcards: number }
+  | { outcome: "refused"; reason: "no_item" };
+
+/** Converted-duplicate payout when the chosen bot is already Legendary. */
+export const LEGENDARY_DUPLICATE_WILDCARDS = 80;
+
+/**
+ * The Legendary Blueprint (0.1% gacha easter egg): consumes one
+ * `legendaryBlueprints` item and takes the CHOSEN bot straight to
+ * Legendary through the same semantics as the existing direct paths —
+ * unowned mints at the Legendary tier (Lv 41, +40 AP, exactly like an
+ * 80-blueprint direct mint), owned-below-Legendary jumps like a single
+ * Legendary rank-up, and an already-Legendary pick converts to wildcards
+ * (mirroring the Genesis duplicate rule).
+ */
+export function buildLegendaryAscensionRaw(
+  userData: Record<string, unknown>,
+  holobotName: string,
+): LegendaryAscensionResult {
+  const balance = Number(userData.legendaryBlueprints || 0);
+  if (balance < 1) {
+    return { outcome: "refused", reason: "no_item" };
+  }
+
+  const tier = getTierByLabel("Legendary")!;
+  const holobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
+  const target = holobots.find(
+    (holobot) => upperName((holobot as { name?: unknown })?.name) === upperName(holobotName),
+  ) as Record<string, unknown> | undefined;
+
+  if (!target) {
+    const nextHolobot: ServerHolobot = {
+      attributePoints: tier.attributePoints,
+      boostedAttributes: {},
+      experience: 0,
+      level: tier.startLevel,
+      name: holobotName,
+      nextLevelExp: calculateExperience(tier.startLevel + 1),
+      rank: getHolobotRank(tier.startLevel),
+    };
+    return {
+      outcome: "minted",
+      updates: {
+        holobots: [...holobots, nextHolobot],
+        legendaryBlueprints: balance - 1,
+      },
+    };
+  }
+
+  if (tier.startLevel <= Number(target.level || 1)) {
+    return {
+      outcome: "converted",
+      wildcards: LEGENDARY_DUPLICATE_WILDCARDS,
+      updates: {
+        legendaryBlueprints: balance - 1,
+        wildcardBlueprints: Number(userData.wildcardBlueprints || 0) + LEGENDARY_DUPLICATE_WILDCARDS,
+      },
+    };
+  }
+
+  const normalizedTarget = normalizeUserHolobot(target);
+  const updatedHolobots = holobots.map((holobot) => {
+    if (upperName((holobot as { name?: unknown })?.name) !== upperName(normalizedTarget.name)) {
+      return holobot;
+    }
+    return {
+      ...normalizedTarget,
+      attributePoints: Number(normalizedTarget.attributePoints || 0) + tier.attributePoints,
+      boostedAttributes:
+        (normalizedTarget.boostedAttributes as Record<string, unknown> | undefined) || {},
+      experience: 0,
+      level: tier.startLevel,
+      nextLevelExp: calculateExperience(tier.startLevel + 1),
+      rank: getHolobotRank(tier.startLevel),
+    };
+  });
+
+  return {
+    outcome: "ascended",
+    updates: {
+      holobots: updatedHolobots,
+      legendaryBlueprints: balance - 1,
+    },
+  };
+}
+
 /** Raw-field energy refill consumption (mirror of TrainingScreen's write). */
 export function buildEnergyRefillUpdates(
   userData: Record<string, unknown>,

@@ -26,7 +26,8 @@ export type GachaItemLabel =
   | "Arena Pass"
   | "EXP Booster"
   | "Blueprint Fragment"
-  | "Void Mask";
+  | "Void Mask"
+  | "Legendary Blueprint";
 
 export const GACHA_ITEM_LABELS: GachaItemLabel[] = [
   "Plasma Cannon",
@@ -53,6 +54,13 @@ const BLUEPRINTS_BY_RARITY: Record<GachaRarity, number> = {
   legendary: 5,
 };
 
+/**
+ * The Legendary Blueprint easter egg: a thank-you to whoever actually
+ * plays. Rolled FIRST for every drop (0.1% per drop, all packs) so the
+ * client/server RNG streams stay aligned for everything after it.
+ */
+export const LEGENDARY_BLUEPRINT_DROP_CHANCE = 0.001;
+
 // A gold reveal should FEEL gold: consumables scale with rarity instead of
 // always being a single copy.
 const CONSUMABLE_AMOUNT_BY_RARITY: Record<GachaRarity, number> = {
@@ -72,7 +80,8 @@ export type GachaGrantedItem = {
     | { type: "part"; name: GachaItemLabel; slot: string }
     | { type: "consumable"; key: "arena_passes" | "energy_refills" | "exp_boosters"; amount: number }
     | { type: "blueprints"; holobotKey: string; amount: number }
-    | { type: "wildcard_blueprints"; amount: number };
+    | { type: "wildcard_blueprints"; amount: number }
+    | { type: "legendary_blueprint" };
 };
 
 export function rollPackRarity(packId: GachaPackId, roll: number): GachaRarity {
@@ -135,6 +144,9 @@ function describeGrant(grant: GachaGrantedItem["grant"], index: number, total: n
   if (grant.type === "consumable" && grant.amount > 1) {
     return `×${grant.amount} · ${dropLabel}`;
   }
+  if (grant.type === "legendary_blueprint") {
+    return `ASCEND ANY HOLOBOT TO LEGENDARY · ${dropLabel}`;
+  }
   return dropLabel;
 }
 
@@ -142,6 +154,18 @@ export function buildPackRewards(packId: GachaPackId, random: () => number = Mat
   const pack = GACHA_PACKS.find((candidate) => candidate.id === packId) ?? GACHA_PACKS[0];
 
   return Array.from({ length: pack.guaranteed }, (_, index) => {
+    // Easter-egg roll comes FIRST so both sides' RNG streams stay aligned.
+    if (random() < LEGENDARY_BLUEPRINT_DROP_CHANCE) {
+      const grant = { type: "legendary_blueprint" as const };
+      return {
+        grant,
+        id: `${packId}-${Date.now()}-${index}`,
+        label: "Legendary Blueprint",
+        rarity: "legendary" as GachaRarity,
+        subtitle: describeGrant(grant, index, pack.guaranteed),
+      };
+    }
+
     const rarity = rollPackRarity(packId, random());
     const label = randomFrom(GACHA_ITEM_LABELS, random);
     const grant = buildGrant(label, rarity, random);
@@ -161,6 +185,7 @@ export type GachaGrantUpdates = {
   blueprints?: Record<string, number>;
   energy_refills?: number;
   exp_boosters?: number;
+  legendaryBlueprints?: number;
   parts?: Array<Record<string, unknown>>;
   wildcardBlueprints?: number;
 };
@@ -170,7 +195,7 @@ export type GachaGrantUpdates = {
  * player sees is actually granted. Returns only the fields that changed.
  */
 export function buildPackGrantUpdates(
-  profile: Pick<UserProfile, "arena_passes" | "blueprints" | "energy_refills" | "exp_boosters" | "parts" | "wildcardBlueprints">,
+  profile: Pick<UserProfile, "arena_passes" | "blueprints" | "energy_refills" | "exp_boosters" | "legendaryBlueprints" | "parts" | "wildcardBlueprints">,
   items: GachaGrantedItem[],
 ): GachaGrantUpdates {
   const updates: GachaGrantUpdates = {};
@@ -194,6 +219,11 @@ export function buildPackGrantUpdates(
 
     if (grant.type === "wildcard_blueprints") {
       updates.wildcardBlueprints = Number(updates.wildcardBlueprints ?? profile.wildcardBlueprints ?? 0) + grant.amount;
+      continue;
+    }
+
+    if (grant.type === "legendary_blueprint") {
+      updates.legendaryBlueprints = Number(updates.legendaryBlueprints ?? profile.legendaryBlueprints ?? 0) + 1;
       continue;
     }
 

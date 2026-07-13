@@ -39,6 +39,7 @@ describe("economy field freeze", () => {
     await assertFails(updateDoc(aliceDoc, { wins: 99 }));
     await assertFails(updateDoc(aliceDoc, { losses: 0 - 0 + 5 }));
     await assertFails(updateDoc(aliceDoc, { blueprints: { ace: 999 } }));
+    await assertFails(updateDoc(aliceDoc, { legendaryBlueprints: 1 }));
     await assertFails(updateDoc(aliceDoc, { parts: [{ name: "Forged Part", slot: "core" }] }));
     await assertFails(updateDoc(aliceDoc, { packHistory: [{ id: "forged" }] }));
     await assertFails(updateDoc(aliceDoc, { todaySteps: 60000 }));

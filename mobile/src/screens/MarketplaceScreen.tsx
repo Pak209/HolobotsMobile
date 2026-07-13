@@ -466,7 +466,7 @@ export function MarketplaceScreen() {
             <Text style={styles.genesisEyebrow}>FOUNDERS ONLY</Text>
             <Text style={styles.genesisTitle}>GENESIS SQUAD</Text>
             <Text style={styles.genesisCopy}>
-              {`Recruit ${GENESIS_REFERRALS_REQUIRED} friends and unlock ${GENESIS_BOTS.join(" + ")}, a 500 Holos + 50 SP celebration pack, and the permanent GENESIS badge. Every extra recruit after that pays 5 Wildcard Blueprints.`}
+              {`Recruit ${GENESIS_REFERRALS_REQUIRED} friends and unlock ${GENESIS_BOTS.join(" + ")}, a 500 Holos + 50 SP celebration pack, and the permanent GENESIS badge. Every extra recruit after that pays 5 Wildcard Blueprints — and your 10th recruit drops an Elite Pack's worth of Gacha Tickets.`}
             </Text>
             {profile?.genesisBadge ? (
               <Text style={styles.genesisBadge}>★ GENESIS FOUNDER ★</Text>

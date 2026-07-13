@@ -7,7 +7,7 @@ import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
 import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
-import { getRarity } from "@/components/dashboard/holobotPresentation";
+import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, homeAssets } from "@/config/figmaAssets";
 import { getPartImageSource } from "@/config/gameAssets";
@@ -27,9 +27,9 @@ const DASHBOARD_SLOT_Y = 2216;
 const DASHBOARD_SLOT_WIDTH = 248;
 const DASHBOARD_SLOT_HEIGHT = 260;
 const DASHBOARD_SLOT_OVERLAY_WIDTH = 208;
-// Shortened so the part icon sits clear of the new level plate at the
-// bottom of the JRPG frame.
-const DASHBOARD_SLOT_OVERLAY_HEIGHT = 170;
+// Shortened + lowered so the part icon sits clear of the star row above it
+// and the rarity plate below it.
+const DASHBOARD_SLOT_OVERLAY_HEIGHT = 138;
 
 /** Angular corner-cut frame for the equipped-part slots (JRPG handoff). */
 function buildPartFramePath(x: number, inset = 0) {
@@ -261,7 +261,7 @@ export function HomeScreen() {
 
           {/* Hologram glow centered under the Holobot (portrait is zIndex 20,
               this vector layer is zIndex 10, so the bot stands on it). */}
-          <HologramPlatform centerX={1183} centerY={1700} />
+          <HologramPlatform centerX={1183} centerY={1630} />
 
           <G>
             {[0.2, 0.4, 0.6, 0.8].map((scale) => (
@@ -333,7 +333,8 @@ export function HomeScreen() {
           {/* JRPG part frames: rarity-tinted corner-cut outline, star tier,
               and a level plate. Icons render above at zIndex 20. */}
           {abilitySlots.map(({ part, x }) => {
-            const stars = part?.stars ?? getRarity(part?.rarity).stars;
+            const rarityInfo = getRarity(part?.rarity);
+            const stars = part?.stars ?? rarityInfo.stars;
             const strong = stars >= 4;
             const borderColor = strong ? "#ffd227" : stars >= 3 ? "#ff596f" : "#24d5dc";
             return (
@@ -341,9 +342,11 @@ export function HomeScreen() {
                 {strong ? <Path d={buildPartFramePath(x)} fill="none" stroke="#ffd227" strokeWidth={18} opacity={0.18} /> : null}
                 <Path d={buildPartFramePath(x)} fill="#080b0c" stroke={borderColor} strokeWidth={strong ? 7 : 4} />
                 <Path d={buildPartFramePath(x, 12)} fill="none" stroke="#5e530f" strokeWidth={2} opacity={0.9} />
-                <Text x={x + 22} y={DASHBOARD_SLOT_Y + 42} fill={borderColor} fontSize={30} fontWeight="800">{"★".repeat(stars)}</Text>
+                {/* Star tier centered ABOVE the part art. */}
+                <Text x={x + 124} y={DASHBOARD_SLOT_Y + 42} fill={borderColor} fontSize={30} fontWeight="800" textAnchor="middle">{"★".repeat(stars)}</Text>
+                {/* Rarity plate: every part carries its tier label. */}
                 <Path d={`M ${x + 22} ${DASHBOARD_SLOT_Y + 198} H ${x + 226} V ${DASHBOARD_SLOT_Y + 250} H ${x + 38} L ${x + 22} ${DASHBOARD_SLOT_Y + 236} Z`} fill="#050606" stroke={borderColor} strokeWidth={2} />
-                <Text x={x + 124} y={DASHBOARD_SLOT_Y + 236} fill="#ffffff" fontSize={33} fontWeight="800" textAnchor="middle">{part?.level ? `Lv ${part.level}` : "Lv —"}</Text>
+                <Text x={x + 124} y={DASHBOARD_SLOT_Y + 236} fill={borderColor} fontSize={31} fontWeight="800" textAnchor="middle">{getRarityShortLabel(part?.rarity)}</Text>
               </G>
             );
           })}
@@ -676,7 +679,7 @@ const styles = StyleSheet.create({
   },
   partOverlay: {
     position: "absolute",
-    top: `${((DASHBOARD_SLOT_Y + 24) / ARTBOARD_HEIGHT) * 100}%`,
+    top: `${((DASHBOARD_SLOT_Y + 54) / ARTBOARD_HEIGHT) * 100}%`,
     width: `${(DASHBOARD_SLOT_OVERLAY_WIDTH / ARTBOARD_WIDTH) * 100}%`,
     height: `${(DASHBOARD_SLOT_OVERLAY_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
     zIndex: 20,

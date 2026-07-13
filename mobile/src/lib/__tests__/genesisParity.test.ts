@@ -4,6 +4,8 @@ import {
   buildWildcardAssignUpdates,
   deriveReferralCode,
   EXTRA_REFERRAL_WILDCARDS,
+  REFERRAL_MILESTONE_GACHA_TICKETS,
+  REFERRAL_MILESTONE_QUALIFIED,
   GENESIS_BOTS,
   GENESIS_REFERRALS_REQUIRED,
   REFERRAL_CODE_LENGTH,
@@ -18,6 +20,9 @@ import {
 } from "@/lib/arenaEconomy";
 
 import * as serverReferrals from "../../../../functions/src/lib/referrals";
+import * as serverMinting from "../../../../functions/src/lib/mintingEconomy";
+import * as serverEconomy from "../../../../functions/src/lib/economy";
+import { buildPackGrantUpdates, buildPackRewards, LEGENDARY_BLUEPRINT_DROP_CHANCE } from "@/lib/gacha";
 import * as serverArena from "../../../../functions/src/lib/arenaEconomy";
 
 describe("genesis client/server parity", () => {
@@ -152,5 +157,100 @@ describe("rookie Genesis rotation", () => {
       expect(server!.blueprints).toEqual(client!.blueprints);
       expect(client!.blueprints!.holobotKey).toBe(featured.toLowerCase());
     }
+  });
+});
+
+describe("legendary blueprint (the 0.1% easter egg)", () => {
+  it("drop chance and referral milestone constants match across sides", () => {
+    expect(serverEconomy.LEGENDARY_BLUEPRINT_DROP_CHANCE).toBe(LEGENDARY_BLUEPRINT_DROP_CHANCE);
+    expect(serverReferrals.REFERRAL_MILESTONE_QUALIFIED).toBe(REFERRAL_MILESTONE_QUALIFIED);
+    expect(serverReferrals.REFERRAL_MILESTONE_GACHA_TICKETS).toBe(REFERRAL_MILESTONE_GACHA_TICKETS);
+  });
+
+  it("a winning egg roll produces the legendary blueprint drop on both sides", () => {
+    // First roll (the egg roll) wins; the rest never do.
+    let first = true;
+    const makeRandom = () => {
+      let mine = first;
+      first = false;
+      let calls = 0;
+      return () => {
+        calls += 1;
+        return mine && calls === 1 ? 0.0004 : 0.5;
+      };
+    };
+
+    const clientItems = buildPackRewards("basic", makeRandom());
+    first = true;
+    const serverItems = serverEconomy.buildPackRewards("basic", makeRandom());
+
+    expect(clientItems[0].grant.type).toBe("legendary_blueprint");
+    expect(clientItems[0].subtitle).toContain("ASCEND ANY HOLOBOT TO LEGENDARY");
+    expect(serverItems[0].grant.type).toBe("legendary_blueprint");
+
+    const updates = buildPackGrantUpdates({ legendaryBlueprints: 0 } as never, clientItems);
+    const rawUpdates = serverEconomy.buildPackGrantUpdatesRaw({ legendaryBlueprints: 0 }, serverItems);
+    expect(updates.legendaryBlueprints).toBe(1);
+    expect(rawUpdates.legendaryBlueprints).toBe(1);
+  });
+});
+
+describe("legendary ascension builder (server)", () => {
+  it("mints an unowned bot straight at Legendary", () => {
+    const result = serverMinting.buildLegendaryAscensionRaw(
+      { legendaryBlueprints: 1, holobots: [] },
+      "KUMA",
+    );
+
+    expect(result.outcome).toBe("minted");
+    if (result.outcome === "minted") {
+      const bots = result.updates.holobots as Array<Record<string, unknown>>;
+      expect(bots[0].name).toBe("KUMA");
+      expect(bots[0].level).toBe(41);
+      expect(bots[0].rank).toBe("Legendary");
+      expect(bots[0].attributePoints).toBe(40);
+      expect(result.updates.legendaryBlueprints).toBe(0);
+    }
+  });
+
+  it("ascends an owned lower-rank bot like a Legendary rank-up", () => {
+    const result = serverMinting.buildLegendaryAscensionRaw(
+      {
+        legendaryBlueprints: 2,
+        holobots: [{ name: "ACE", level: 12, experience: 500, rank: "Champion", attributePoints: 3 }],
+      },
+      "ACE",
+    );
+
+    expect(result.outcome).toBe("ascended");
+    if (result.outcome === "ascended") {
+      const bots = result.updates.holobots as Array<Record<string, unknown>>;
+      expect(bots[0].level).toBe(41);
+      expect(bots[0].rank).toBe("Legendary");
+      expect(bots[0].attributePoints).toBe(43);
+      expect(result.updates.legendaryBlueprints).toBe(1);
+    }
+  });
+
+  it("converts an already-Legendary pick to wildcards", () => {
+    const result = serverMinting.buildLegendaryAscensionRaw(
+      {
+        legendaryBlueprints: 1,
+        wildcardBlueprints: 5,
+        holobots: [{ name: "ACE", level: 41, rank: "Legendary" }],
+      },
+      "ACE",
+    );
+
+    expect(result.outcome).toBe("converted");
+    if (result.outcome === "converted") {
+      expect(result.wildcards).toBe(80);
+      expect(result.updates.wildcardBlueprints).toBe(85);
+      expect(result.updates.legendaryBlueprints).toBe(0);
+    }
+  });
+
+  it("refuses without the item", () => {
+    expect(serverMinting.buildLegendaryAscensionRaw({ holobots: [] }, "ACE").outcome).toBe("refused");
   });
 });

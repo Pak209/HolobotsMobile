@@ -43,6 +43,11 @@ const useEnergyRefillCallable = httpsCallable<
   { dailyEnergy: number; energyRefills: number }
 >(functions, "useEnergyRefill");
 
+const redeemLegendaryBlueprintCallable = httpsCallable<
+  { holobotName: string },
+  { holobotName: string; outcome: "minted" | "ascended" | "converted"; wildcards?: number }
+>(functions, "redeemLegendaryBlueprint");
+
 export async function claimQuestRunAuthoritative(
   _profile: UserProfile,
   _updateProfile: UpdateProfileFn,
@@ -112,6 +117,18 @@ export async function upgradeSyncStatAuthoritative(
 ): Promise<void> {
   try {
     await upgradeSyncStatCallable({ holobotName, stat });
+  } catch (error) {
+    throw toServerActionError(error);
+  }
+}
+
+/** The 0.1% gacha easter egg: ascend the chosen Holobot to Legendary. */
+export async function redeemLegendaryBlueprintAuthoritative(
+  holobotName: string,
+): Promise<{ outcome: "minted" | "ascended" | "converted"; wildcards?: number }> {
+  try {
+    const result = await redeemLegendaryBlueprintCallable({ holobotName });
+    return { outcome: result.data.outcome, wildcards: result.data.wildcards };
   } catch (error) {
     throw toServerActionError(error);
   }
