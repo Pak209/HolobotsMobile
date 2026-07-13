@@ -107,12 +107,19 @@ function getNormalizedStatsForChart(
   const finalHp = Math.floor(base.hp * levelBonus) + (boostedAttributes?.health || 0);
   const finalSpecial = Math.floor(base.intelligence * levelBonus) + (boostedAttributes?.special || 0);
 
+  // 0-100 display scale for the attribute chart. The old multipliers (x8,
+  // x10, x12) pegged every leveled bot at the cap, so the pentagon rendered
+  // solid red. Raw combat finals already land in a ~5-120 band (HP ~100-450),
+  // so the finals ARE the chart values, with HP quartered onto the same
+  // axis. Floor of 15 keeps a fresh bot's shape visible. NOTE: equipped
+  // parts carry no stat values in the data model yet, so they cannot
+  // contribute here until part stats become a real combat feature.
   return {
-    attack: Math.min(100, Math.max(25, finalAttack * 8)),
-    defense: Math.min(100, Math.max(25, finalDefense * 8)),
-    hp: Math.min(100, Math.max(25, finalHp / 2)),
-    special: Math.min(100, Math.max(25, finalSpecial * 12)),
-    speed: Math.min(100, Math.max(25, finalSpeed * 10)),
+    attack: Math.min(100, Math.max(15, finalAttack)),
+    defense: Math.min(100, Math.max(15, finalDefense)),
+    hp: Math.min(100, Math.max(15, Math.round(finalHp / 4))),
+    special: Math.min(100, Math.max(15, finalSpecial)),
+    speed: Math.min(100, Math.max(15, finalSpeed)),
   };
 }
 

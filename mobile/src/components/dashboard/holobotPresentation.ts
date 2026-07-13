@@ -98,3 +98,15 @@ export function getSyncPercent(profile?: UserProfile | null) {
 export function getAttributeValue(stats: HolobotRosterEntry["stats"], key: AttributeKey) {
   return stats[key];
 }
+
+/** Compact tier label for the dashboard part plates — every part gets one
+    (unlabeled legacy parts read as common). */
+export function getRarityShortLabel(rarity?: string) {
+  const normalized = (rarity || "").toLowerCase();
+  if (normalized.includes("legend")) return "LGND";
+  if (normalized.includes("elite")) return "ELITE";
+  if (normalized.includes("epic")) return "EPIC";
+  if (normalized.includes("rare")) return "RARE";
+  if (normalized.includes("champion")) return "CHMP";
+  return "CMN";
+}

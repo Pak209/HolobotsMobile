@@ -19,11 +19,14 @@ const arenaMoveIcons: Record<CardType, number> = {
   combo: require("../../../assets/game/arena-moves/combo.png"),
   finisher: require("../../../assets/game/arena-moves/finisher.png"),
 };
+// Optical centering inside the corner-cut frame (reference: the arena-cards
+// prototype spacing) — the frame's art window sits a hair right of true
+// center, so the icons shift LEFT to compensate.
 const arenaMoveIconOffsets: Record<CardType, Pick<ImageStyle, "transform">> = {
-  strike: { transform: [{ translateX: 1 }] },
-  defense: { transform: [{ translateX: 3 }] },
-  combo: { transform: [{ translateX: 3 }] },
-  finisher: { transform: [{ translateX: 3 }, { translateY: 2 }] },
+  strike: { transform: [{ translateX: -3 }] },
+  defense: { transform: [{ translateX: -2 }] },
+  combo: { transform: [{ translateX: -2 }] },
+  finisher: { transform: [{ translateX: -2 }, { translateY: 2 }] },
 };
 
 export type TeamHudChip = {
