@@ -15,19 +15,23 @@ vi.mock('@/config/arenaConfig', async () => {
   const { getSignatureFinisher } = await vi.importActual<typeof import('../moveKits')>('../moveKits');
   const { getAbility } = await vi.importActual<typeof import('../abilities')>('../abilities');
   return {
-    buildPlayerFighter: (uid: string, holobot: UserHolobot): ArenaFighter => ({
+    buildPlayerFighter: (
+      uid: string,
+      holobot: UserHolobot,
+      partBoosts?: { attack: number; defense: number; speed: number; special: number; hp: number },
+    ): ArenaFighter => ({
       holobotId: `player-${holobot.name.toLowerCase()}`,
       ownerUserId: uid,
       name: holobot.name.toUpperCase(),
       avatar: 'test://avatar',
       archetype: 'balanced',
       level: holobot.level || 1,
-      maxHP: 150,
-      currentHP: 150,
-      attack: 40,
-      defense: 30,
-      speed: 25,
-      intelligence: 25,
+      maxHP: 150 + (partBoosts?.hp ?? 0),
+      currentHP: 150 + (partBoosts?.hp ?? 0),
+      attack: 40 + (partBoosts?.attack ?? 0),
+      defense: 30 + (partBoosts?.defense ?? 0),
+      speed: 25 + (partBoosts?.speed ?? 0),
+      intelligence: 25 + (partBoosts?.special ?? 0),
       stamina: 7,
       maxStamina: 7,
       specialMeter: 0,
@@ -232,5 +236,27 @@ describe('room <-> engine round trip', () => {
     const second = ArenaCombatEngine.resolveAction(state2, strike2, PVP_FIGHTER_IDS.p1);
 
     expect(second.actionHistory.at(-1)?.outcome).toBe('blocked');
+  });
+});
+
+describe('equipped-part boosts in PvP fighters', () => {
+  it('flat part boosts land on the self-authored fighter doc', () => {
+    const bare = buildPvpFighterDoc('user-1', 'Pilot', makeHolobot('ACE'), makeProfile());
+    const loaded = buildPvpFighterDoc('user-1', 'Pilot', makeHolobot('ACE'), {
+      ...makeProfile(),
+      equippedParts: {
+        ACE: {
+          arms: { name: 'Plasma Cannon', slot: 'arms', rarity: 'legendary' },
+          core: { name: 'Quantum Core (Epic)', slot: 'core' },
+        },
+      },
+    });
+
+    // Legendary arms: +10 ATK +2 SPD. Epic core: +80 HP +2 SPECIAL.
+    expect(loaded.attack).toBe(bare.attack + 10);
+    expect(loaded.speed).toBe(bare.speed + 2);
+    expect(loaded.maxHP).toBe(bare.maxHP + 80);
+    expect(loaded.currentHP).toBe(bare.currentHP + 80);
+    expect(loaded.intelligence).toBe(bare.intelligence + 2);
   });
 });

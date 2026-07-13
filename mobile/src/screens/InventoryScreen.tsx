@@ -10,6 +10,7 @@ import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/conf
 import { useAuth } from "@/contexts/AuthContext";
 import { assignWildcardBlueprintsAuthoritative } from "@/lib/genesisClient";
 import { redeemLegendaryBlueprintAuthoritative } from "@/lib/progressionClient";
+import { describePartBoosts } from "@/lib/partStats";
 import { getTierByLabel, type UpgradeTierLabel } from "@/lib/minting";
 import {
   mintHolobotAuthoritative,
@@ -50,11 +51,12 @@ export function InventoryScreen() {
         return acc;
       }
 
+      const boostLabel = describePartBoosts(rawPart as { name?: string; slot?: string; rarity?: string });
       acc.push({
         image: getPartImageSource(name, slot),
         name,
         quantity: 1,
-        rarity: slot ? `${slot.toUpperCase()} PART` : "PART",
+        rarity: `${slot ? `${slot.toUpperCase()} PART` : "PART"}${boostLabel ? ` · ${boostLabel}` : ""}`,
         slot,
       });
       return acc;

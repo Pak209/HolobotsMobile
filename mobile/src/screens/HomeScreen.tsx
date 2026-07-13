@@ -8,6 +8,7 @@ import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
 import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
 import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
+import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/partStats";
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, homeAssets } from "@/config/figmaAssets";
 import { getPartImageSource } from "@/config/gameAssets";
@@ -230,12 +231,15 @@ export function HomeScreen() {
       return true;
     });
   }, [inventoryParts, selectedPartSlot]);
+  // Equipped-part boosts feed both real combat (buildPlayerFighter) and
+  // this chart — same numbers, no display-only fiction.
+  const partBoosts = getEquippedPartBoosts(equippedParts);
   const attributeValues = {
-    ATK: selectedHolobot.stats.attack,
-    DEF: selectedHolobot.stats.defense,
-    SPECIAL: selectedHolobot.stats.special,
-    HP: selectedHolobot.stats.hp,
-    SPEED: selectedHolobot.stats.speed,
+    ATK: Math.min(100, selectedHolobot.stats.attack + partBoosts.attack),
+    DEF: Math.min(100, selectedHolobot.stats.defense + partBoosts.defense),
+    SPECIAL: Math.min(100, selectedHolobot.stats.special + partBoosts.special),
+    HP: Math.min(100, selectedHolobot.stats.hp + Math.round(partBoosts.hp / 4)),
+    SPEED: Math.min(100, selectedHolobot.stats.speed + partBoosts.speed),
   };
   return (
     <FigmaCanvas>
@@ -333,8 +337,7 @@ export function HomeScreen() {
           {/* JRPG part frames: rarity-tinted corner-cut outline, star tier,
               and a level plate. Icons render above at zIndex 20. */}
           {abilitySlots.map(({ part, x }) => {
-            const rarityInfo = getRarity(part?.rarity);
-            const stars = part?.stars ?? rarityInfo.stars;
+            const stars = part?.stars ?? getPartStars(part);
             const strong = stars >= 4;
             const borderColor = strong ? "#ffd227" : stars >= 3 ? "#ff596f" : "#24d5dc";
             return (
@@ -578,6 +581,9 @@ export function HomeScreen() {
                         <View style={styles.partOptionBody}>
                           <RNText style={styles.partOptionName}>{part.name}</RNText>
                           <RNText style={styles.partOptionMeta}>{part.slot || selectedPartSlot}</RNText>
+                          <RNText style={styles.partOptionBoost}>
+                            {describePartBoosts({ ...part, slot: part.slot || selectedPartSlot || undefined }) || "No boost"}
+                          </RNText>
                         </View>
                       </Pressable>
                     );
@@ -758,6 +764,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#101010",
     height: 72,
     width: 72,
+  },
+  partOptionBoost: {
+    color: "#39d98a",
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 3,
   },
   partOptionMeta: {
     color: "#ddd2b5",
