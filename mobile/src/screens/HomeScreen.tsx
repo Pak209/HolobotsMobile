@@ -6,6 +6,8 @@ import { DashboardSettingsModal } from "@/components/DashboardSettingsModal";
 import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
+import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
+import { getRarity } from "@/components/dashboard/holobotPresentation";
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, homeAssets } from "@/config/figmaAssets";
 import { getPartImageSource } from "@/config/gameAssets";
@@ -25,8 +27,21 @@ const DASHBOARD_SLOT_Y = 2216;
 const DASHBOARD_SLOT_WIDTH = 248;
 const DASHBOARD_SLOT_HEIGHT = 260;
 const DASHBOARD_SLOT_OVERLAY_WIDTH = 208;
-const DASHBOARD_SLOT_OVERLAY_HEIGHT = 200;
-type EquippedPartRecord = { id?: string; name?: string; rarity?: string; slot?: string };
+// Shortened so the part icon sits clear of the new level plate at the
+// bottom of the JRPG frame.
+const DASHBOARD_SLOT_OVERLAY_HEIGHT = 170;
+
+/** Angular corner-cut frame for the equipped-part slots (JRPG handoff). */
+function buildPartFramePath(x: number, inset = 0) {
+  const left = x + inset;
+  const top = DASHBOARD_SLOT_Y + inset;
+  const right = x + DASHBOARD_SLOT_WIDTH - inset;
+  const bottom = DASHBOARD_SLOT_Y + DASHBOARD_SLOT_HEIGHT - inset;
+  const cut = 26;
+
+  return `M ${left + cut} ${top} H ${right - cut} L ${right} ${top + cut} V ${bottom - cut} L ${right - cut} ${bottom} H ${left + cut} L ${left} ${bottom - cut} V ${top + cut} Z`;
+}
+type EquippedPartRecord = { id?: string; level?: number; name?: string; rarity?: string; slot?: string; stars?: number };
 type DashboardSlot = "head" | "torso" | "arms" | "legs" | "core";
 
 function getAttributePoint(index: number, scale = 1) {
@@ -81,11 +96,17 @@ function resolveDashboardParts(equippedParts: Record<string, EquippedPartRecord>
 
       return {
         key,
+        level: part?.level,
         name: part?.name || key,
+        rarity: part?.rarity,
         slot: part?.slot || key,
+        stars: part?.stars,
       };
     })
-    .filter((entry): entry is { key: string; name: string; slot: string } => Boolean(entry));
+    .filter(
+      (entry): entry is { key: string; level: number | undefined; name: string; rarity: string | undefined; slot: string; stars: number | undefined } =>
+        entry !== null,
+    );
 
   const takeFirst = (matcher: (entry: { key: string; name: string; slot: string }) => boolean) => {
     const index = entries.findIndex(matcher);
@@ -176,6 +197,7 @@ export function HomeScreen() {
     (profile?.equippedParts?.[selectedHolobot.name.toLowerCase()] as Record<string, { id?: string; name?: string; slot?: string }> | undefined) ??
     {};
   const dashboardParts = resolveDashboardParts(equippedParts);
+  const rarity = getRarity(selectedHolobot.rank);
   const abilitySlots = [
     { part: dashboardParts[0], slot: "head", x: 68 },
     { part: dashboardParts[1], slot: "torso", x: 338 },
@@ -237,6 +259,10 @@ export function HomeScreen() {
         <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
           <Text x={126} y={228} fill="#fef1e0" fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
 
+          {/* Hologram glow centered under the Holobot (portrait is zIndex 20,
+              this vector layer is zIndex 10, so the bot stands on it). */}
+          <HologramPlatform centerX={1183} centerY={1700} />
+
           <G>
             {[0.2, 0.4, 0.6, 0.8].map((scale) => (
               <Path
@@ -289,6 +315,10 @@ export function HomeScreen() {
             fill="#050606"
           />
           <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill="#ffffff" fontSize={49.915}>{selectedHolobot.name}</Text>
+          {/* Ranking tag: the Holobot's ACTUAL rank with its star tier. */}
+          <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill="#0c0d0e" stroke="#ff526d" strokeWidth={3} />
+          <Text x={677} y={HOME_INFO_CARD_Y + 62} fill="#ff6d9d" fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
+          <Text x={677} y={HOME_INFO_CARD_Y + 106} fill="#ff6d9d" fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
           <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill="#171717" />
           <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill="#f4c312" />
           <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill="#ffffff" fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
@@ -299,6 +329,24 @@ export function HomeScreen() {
             fill="#050606"
           />
           <Text x={902} y={HOME_CHANGE_BAR_Y + 62.5} fill="#e9dfc5" fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
+
+          {/* JRPG part frames: rarity-tinted corner-cut outline, star tier,
+              and a level plate. Icons render above at zIndex 20. */}
+          {abilitySlots.map(({ part, x }) => {
+            const stars = part?.stars ?? getRarity(part?.rarity).stars;
+            const strong = stars >= 4;
+            const borderColor = strong ? "#ffd227" : stars >= 3 ? "#ff596f" : "#24d5dc";
+            return (
+              <G key={`part-frame-${x}`}>
+                {strong ? <Path d={buildPartFramePath(x)} fill="none" stroke="#ffd227" strokeWidth={18} opacity={0.18} /> : null}
+                <Path d={buildPartFramePath(x)} fill="#080b0c" stroke={borderColor} strokeWidth={strong ? 7 : 4} />
+                <Path d={buildPartFramePath(x, 12)} fill="none" stroke="#5e530f" strokeWidth={2} opacity={0.9} />
+                <Text x={x + 22} y={DASHBOARD_SLOT_Y + 42} fill={borderColor} fontSize={30} fontWeight="800">{"★".repeat(stars)}</Text>
+                <Path d={`M ${x + 22} ${DASHBOARD_SLOT_Y + 198} H ${x + 226} V ${DASHBOARD_SLOT_Y + 250} H ${x + 38} L ${x + 22} ${DASHBOARD_SLOT_Y + 236} Z`} fill="#050606" stroke={borderColor} strokeWidth={2} />
+                <Text x={x + 124} y={DASHBOARD_SLOT_Y + 236} fill="#ffffff" fontSize={33} fontWeight="800" textAnchor="middle">{part?.level ? `Lv ${part.level}` : "Lv —"}</Text>
+              </G>
+            );
+          })}
 
           <Rect x={0} y={2942} width={1800} height={258} fill="#050606" />
           <Text x={210} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">ARENA</Text>
