@@ -15,6 +15,7 @@ import {
   getTierOpponentLineup,
 } from "@/config/arenaConfig";
 import { useAuth } from "@/contexts/AuthContext";
+import { getEquippedPartBoosts, getHolobotEquippedParts } from "@/lib/partStats";
 import { chargeArenaEntryAuthoritative, settleArenaBattleAuthoritative } from "@/lib/arenaClient";
 import type { ArenaTierId } from "@/lib/arenaEconomy";
 import { useArenaBattleStore } from "@/stores/arena-battle-store";
@@ -177,7 +178,11 @@ export function ArenaScreen() {
           await chargeArenaEntryAuthoritative(profile, user.uid, tier.id, paymentMethod);
         }
 
-        const player = buildPlayerFighter(user.uid, selectedHolobot);
+        const player = buildPlayerFighter(
+          user.uid,
+          selectedHolobot,
+          getEquippedPartBoosts(getHolobotEquippedParts(profile.equippedParts, selectedHolobot.name)),
+        );
         const opponent = buildOpponentFighter(tier, selectedHolobot.name, roundIndex);
 
         persistedBattleIdRef.current = null;
@@ -241,7 +246,11 @@ export function ArenaScreen() {
             throw new Error(`You do not own ${name}.`);
           }
           return {
-            fighter: buildPlayerFighter(user.uid, holobot),
+            fighter: buildPlayerFighter(
+              user.uid,
+              holobot,
+              getEquippedPartBoosts(getHolobotEquippedParts(profile.equippedParts, holobot.name)),
+            ),
             moves: [
               ...resolveCombatKit({
                 savedKitTemplateIds: holobot.combatKit?.slots,

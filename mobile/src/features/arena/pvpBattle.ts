@@ -3,6 +3,7 @@ import { getHolobotFullImageSource } from '@/config/holobots';
 import { fireAbility, getAbility } from '@/features/arena/abilities';
 import { ArenaCombatEngine } from '@/features/arena/combatEngine';
 import { resolveCombatKit } from '@/features/arena/moveKits';
+import { getEquippedPartBoosts, getHolobotEquippedParts } from '@/lib/partStats';
 import type { ArenaFighter, BattleAction, BattleState } from '@/types/arena';
 import type { BattleLogEntry, BattleRoom, PlayerRole, PvpFighterDoc } from '@/types/battle-room';
 import type { UserHolobot, UserProfile } from '@/types/profile';
@@ -26,9 +27,15 @@ export function buildPvpFighterDoc(
   uid: string,
   username: string,
   holobot: UserHolobot,
-  profile: Pick<UserProfile, 'arena_deck_template_ids' | 'battle_cards'>,
+  profile: Pick<UserProfile, 'arena_deck_template_ids' | 'battle_cards' | 'equippedParts'>,
 ): PvpFighterDoc {
-  const fighter = buildPlayerFighter(uid, holobot);
+  // Equipped-part boosts ride the same self-authored stat path as levels
+  // and ranks (C4's documented PvP trust model).
+  const fighter = buildPlayerFighter(
+    uid,
+    holobot,
+    getEquippedPartBoosts(getHolobotEquippedParts(profile.equippedParts, holobot.name)),
+  );
   // PvP rooms never pass through initializeBattle, so opening-bell abilities
   // (battle_start, e.g. ERA's meter head start) fire here at entry instead.
   fighter.abilityRuntime = fighter.abilityRuntime ?? { firedCount: 0 };
