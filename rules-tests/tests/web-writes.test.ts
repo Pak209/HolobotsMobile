@@ -106,3 +106,24 @@ describe("web app write/read patterns", () => {
     );
   });
 });
+
+describe("remote app config", () => {
+  let env: RulesTestEnvironment;
+
+  beforeAll(async () => {
+    env = await initTestEnv();
+  });
+
+  afterAll(async () => {
+    await env.cleanup();
+  });
+
+  it("config docs are readable signed-in and never client-writable", async () => {
+    await seedDoc(env, "config/appDistribution", { inviteUrl: "https://testflight.apple.com/join/x" });
+
+    await assertSucceeds(getDocs(query(collection(authedDb(env, "alice"), "config"), limit(5))));
+    await assertFails(
+      setDoc(doc(authedDb(env, "alice"), "config/appDistribution"), { inviteUrl: "https://evil.example" }),
+    );
+  });
+});
