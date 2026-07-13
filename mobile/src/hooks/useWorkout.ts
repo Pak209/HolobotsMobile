@@ -160,6 +160,10 @@ function useLiveWorkout(
   const [now, setNow] = useState(() => Date.now());
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
   const [completionResult, setCompletionResult] = useState<WorkoutCompletionResult | null>(null);
+  const completionSyncArgsRef = useRef<{
+    snapshot: LiveWorkoutState;
+    extras: Parameters<typeof syncCurrentActivity>[2];
+  } | null>(null);
   const [carryoverDistanceKm, setCarryoverDistanceKm] = useState(0);
   const [rewardedBoostCount, setRewardedBoostCount] = useState(0);
 
@@ -335,11 +339,42 @@ function useLiveWorkout(
       setSyncState("error");
       setSyncMessage(
         reason === "complete"
-          ? "Cloud sync failed. Collect your rewards to save them from this device."
+          ? "Cloud sync failed. Tap COLLECT to retry when you're back online."
           : "Cloud sync failed. Steps will sync with your next workout update.",
       );
       return null;
     }
+  };
+
+  /**
+   * COLLECT retry (bake bug 2 follow-through): when the completion sync
+   * failed or timed out, re-send the SAME payload — idempotent by
+   * activityId — and flip the completion result to persisted on success.
+   */
+  const retryCompletionSync = async (): Promise<boolean> => {
+    const args = completionSyncArgsRef.current;
+    if (!args) {
+      return false;
+    }
+
+    const result = await syncCurrentActivity(args.snapshot, "complete", args.extras);
+    if (result == null) {
+      return false;
+    }
+
+    setCompletionResult((current) =>
+      current
+        ? {
+            ...current,
+            cooldownEndsAt: result.cooldownEndsAt,
+            rewardsPersisted: true,
+            sessionsCompleted: result.workoutSessionsCompleted,
+            sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - result.workoutSessionsCompleted),
+            totalSyncPoints: result.totalSyncPoints,
+          }
+        : current,
+    );
+    return true;
   };
 
   const requestPermissions = async () => {
@@ -514,8 +549,11 @@ function useLiveWorkout(
         : new Date(Date.now() + WORKOUT_COOLDOWN_MS).toISOString();
     const completionId = `workout_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    try {
-      const result = await syncCurrentActivity(finalSnapshot, "complete", {
+    // Kept for COLLECT retries: the activityId makes the server sync
+    // idempotent, so re-sending the identical payload can never double-pay.
+    completionSyncArgsRef.current = {
+      snapshot: finalSnapshot,
+      extras: {
         activityId: completionId,
         cooldownEndsAt: nextCooldownEndsAt,
         expAwarded: rewards.expReward,
@@ -523,7 +561,11 @@ function useLiveWorkout(
         holosAwarded: rewards.holosReward,
         sessionIncrement: 1,
         syncPointsAwarded: rewards.syncPointsReward,
-      });
+      },
+    };
+
+    try {
+      const result = await syncCurrentActivity(finalSnapshot, "complete", completionSyncArgsRef.current.extras);
 
       const resolvedSessionsCompleted =
         result?.workoutSessionsCompleted ??
@@ -683,6 +725,7 @@ function useLiveWorkout(
     canQuickRefill: cooldownRemainingMs > 0 && sessionsCompleted < MAX_DAILY_SESSION_CAP,
     clearCompletionResult: () => setCompletionResult(null),
     completionResult,
+    retryCompletionSync,
     cooldownEndsAt,
     cooldownRemainingMinutes,
     displayDistanceKm: stackedDistanceKm,

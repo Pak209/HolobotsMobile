@@ -26,6 +26,7 @@ import {
   type User,
 } from "@/config/firebase";
 import { createGenesisStarterHolobot, getHolobotRank } from "@/config/holobots";
+import { AUTH_TIMEOUT_MS, FIRESTORE_TIMEOUT_MS, withTimeout } from "@/lib/async";
 import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
 import { computeLeaderboardScore, subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
 import { getSyncRank } from "@/lib/syncProgression";
@@ -284,9 +285,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
 
         setLoading(true);
-        await persistAuthPreferences(nextPreferences);
-        manualLoginRef.current = true;
-        await signInWithEmailAndPassword(auth, normalizedEmail, password);
+        try {
+          await persistAuthPreferences(nextPreferences);
+          manualLoginRef.current = true;
+          // Deadline (bake bug 1 class): flaky networks can stall Firebase
+          // Auth forever; the button must always resolve or error.
+          await withTimeout(
+            signInWithEmailAndPassword(auth, normalizedEmail, password),
+            AUTH_TIMEOUT_MS,
+            "Sign-in timed out. Check your connection and try again.",
+          );
+        } catch (error) {
+          setLoading(false);
+          throw error;
+        }
       },
       signup: async ({ email, password, rememberMe, faceId, starterHolobot, username }) => {
         const normalizedEmail = email.trim();
@@ -378,7 +390,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let createdUser: User | null = null;
 
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+          // Deadline (bake bug 1): the CREATE PILOT spinner hung forever on
+          // stalled auth/Firestore calls — every await in this flow now has
+          // a timeout with a readable error.
+          const userCredential = await withTimeout(
+            createUserWithEmailAndPassword(auth, normalizedEmail, password),
+            AUTH_TIMEOUT_MS,
+            "Signup timed out. Check your connection and try again.",
+          );
           createdUser = userCredential.user;
 
           setUser(createdUser);
@@ -400,13 +419,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (errorCode === "auth/email-already-in-use") {
             try {
-              const existingCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+              const existingCredential = await withTimeout(
+                signInWithEmailAndPassword(auth, normalizedEmail, password),
+                AUTH_TIMEOUT_MS,
+                "That email is already registered, and checking it timed out. Please try Sign In instead.",
+              );
               const existingUser = existingCredential.user;
               const existingProfileRef = doc(db, "users", existingUser.uid);
-              const existingProfileSnap = await getDoc(existingProfileRef);
+              const existingProfileSnap = await withTimeout(
+                getDoc(existingProfileRef),
+                FIRESTORE_TIMEOUT_MS,
+                "That email is already registered, and loading its account timed out. Please try Sign In instead.",
+              );
 
               if (!existingProfileSnap.exists()) {
-                await setDoc(existingProfileRef, userRefData, { merge: true });
+                await withTimeout(
+                  setDoc(existingProfileRef, userRefData, { merge: true }),
+                  FIRESTORE_TIMEOUT_MS,
+                  "Restoring this account timed out. Check your connection and try again.",
+                );
                 setUser(existingUser);
                 setSessionLocked(false);
                 setProfile({
