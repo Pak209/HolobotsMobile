@@ -19,10 +19,19 @@ import type {
  * rooms.
  */
 
-export const BATTLE_ROOM_RULES_VERSION = 2;
+/**
+ * Version 3: adds 3v3 Showdown rooms (mode/teams/phase) and rides the
+ * combat-engine changes (post-defend brace, chain-ender finisher, streak
+ * combo rules) — mixed-version rooms would resolve different physics from
+ * the same document, so the gate bumps for 1v1 too.
+ */
+export const BATTLE_ROOM_RULES_VERSION = 3;
 
 export type RoomStatus = "waiting" | "active" | "completed" | "abandoned";
 export type PlayerRole = "p1" | "p2";
+export type BattleMode = "1v1" | "3v3";
+/** 3v3 only: a KO freezes the room until the downed side sends in. */
+export type RoomPhase = "active" | "awaiting_send_in";
 
 export type PvpFighterDoc = {
   uid: string;
@@ -74,12 +83,30 @@ export type BattleLogEntry = {
 export type BattlePoolEntry = {
   userId: string;
   username: string;
-  /** The queuer's prebuilt fighter snapshot (self-authored kit + stats). */
+  /** The queuer's prebuilt fighter snapshot (self-authored kit + stats).
+      In 3v3 this is the LEAD; the full lineup is in `team`. */
   fighter: PvpFighterDoc;
+  /** 3v3 lineup (lead first). Absent on 1v1/legacy entries. */
+  team?: PvpFighterDoc[];
+  /** Absent (legacy) means "1v1"; matchmaking only pairs equal modes. */
+  mode?: BattleMode;
   rulesVersion: number;
   isActive: boolean;
   roomId?: string;
   createdAt: Timestamp | FieldValue | number;
+};
+
+/**
+ * One side's 3v3 state. `players.pX` stays the LIVE active fighter (all
+ * 1v1 transactions and rendering work unchanged); `members` holds the
+ * persistent docs — authoritative for benched/KO'd fighters, a stale
+ * entry snapshot for the currently active slot.
+ */
+export type PvpTeamSide = {
+  members: PvpFighterDoc[];
+  activeIndex: number;
+  switchCooldownUntil: number;
+  entryLockUntil: number;
 };
 
 export type BattleRoom = {
@@ -87,6 +114,16 @@ export type BattleRoom = {
   roomCode: string;
   rulesVersion: number;
   status: RoomStatus;
+  /** Absent (legacy) means "1v1". */
+  mode?: BattleMode;
+  /** 3v3 only. */
+  phase?: RoomPhase;
+  pendingSendInRole?: PlayerRole | null;
+  sendInDeadline?: number | null;
+  teams?: {
+    p1: PvpTeamSide;
+    p2: PvpTeamSide;
+  };
   players: {
     p1: PvpFighterDoc;
     p2: PvpFighterDoc;

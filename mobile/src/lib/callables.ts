@@ -1,7 +1,8 @@
 /**
- * Shared policy for callable-first economy paths: which errors mean "the
- * server path was unusable" (fall back to the legacy client-side write)
- * versus "the server said no" (surface to the user).
+ * Shared policy for the server-authoritative economy paths. The legacy
+ * client-side fallbacks were removed on 2026-07-12 (rules now freeze the
+ * economy fields, so a local write would be denied anyway): availability
+ * errors surface as a readable "needs a connection" message instead.
  */
 
 const FALLBACK_ERROR_CODES = new Set([
@@ -23,4 +24,13 @@ export function shouldFallBackToLocal(error: unknown): boolean {
   }
 
   return FALLBACK_ERROR_CODES.has(code);
+}
+
+/** Availability-class failures become a friendly retry message; server
+    refusals pass through untouched. */
+export function toServerActionError(error: unknown): unknown {
+  if (shouldFallBackToLocal(error)) {
+    return new Error("This action needs a connection. Check your network and try again.");
+  }
+  return error;
 }

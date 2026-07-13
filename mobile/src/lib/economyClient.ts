@@ -1,28 +1,14 @@
 import { functions, httpsCallable } from "@/config/firebase";
-import { shouldFallBackToLocal } from "@/lib/callables";
-import { incrementBoosterPacksToday } from "@/lib/dailyMissions";
-import {
-  buildPackGrantUpdates,
-  buildPackRewards,
-  GACHA_PACKS,
-  type GachaGrantedItem,
-  type GachaPackId,
-} from "@/lib/gacha";
-import {
-  buildBoosterPurchaseUpdates,
-  buildItemPurchaseUpdates,
-  buildPartPurchaseUpdates,
-  type BoosterGrantSummary,
-  type MarketplaceBoosterId,
-} from "@/lib/marketplace";
+import { toServerActionError } from "@/lib/callables";
+import { type GachaGrantedItem, type GachaPackId } from "@/lib/gacha";
+import { type BoosterGrantSummary, type MarketplaceBoosterId } from "@/lib/marketplace";
 import type { UserProfile } from "@/types/profile";
 
 /**
- * Callable-first gacha/marketplace actions with a legacy client-side
- * fallback for availability only (offline, or functions not yet deployed).
- * Once the callables bake in production, the fallbacks are scheduled for
- * removal together with the client's Firestore economy write permissions
- * (SECURITY_AUDIT.md C2/C3).
+ * Server-authoritative gacha/marketplace/mission actions. The legacy
+ * client-side fallbacks were removed on 2026-07-12 together with the rules
+ * freeze on economy fields (SECURITY_AUDIT.md C2/C3): the server is the
+ * only writer of currency, items, and loot.
  */
 
 type UpdateProfileFn = (updates: Record<string, unknown>) => Promise<void>;
@@ -65,99 +51,54 @@ const purchaseBoosterCallable = httpsCallable<
   }
 >(functions, "purchaseMarketplaceBooster");
 
+const claimDailyMissionCallable = httpsCallable<
+  { missionId: string },
+  { gachaTickets: number; holosTokens: number; missionId: string }
+>(functions, "claimDailyMission");
+
 export async function openGachaPackAuthoritative(
-  profile: UserProfile,
-  updateProfile: UpdateProfileFn,
+  _profile: UserProfile,
+  _updateProfile: UpdateProfileFn,
   packId: GachaPackId,
 ): Promise<{ items: GachaGrantedItem[] }> {
   try {
     const result = await openGachaPackCallable({ packId });
     return { items: result.data.items };
   } catch (error) {
-    if (!shouldFallBackToLocal(error)) {
-      throw error;
-    }
+    throw toServerActionError(error);
   }
-
-  // Legacy client-side path (pre-deploy / offline).
-  const pack = GACHA_PACKS.find((candidate) => candidate.id === packId);
-  if (!pack) {
-    throw new Error("Unknown gacha pack.");
-  }
-  const tickets = Number(profile.gachaTickets || 0);
-  if (tickets < pack.price) {
-    throw new Error("Not enough Gacha Tickets.");
-  }
-
-  const items = buildPackRewards(packId);
-  const grantUpdates = buildPackGrantUpdates(profile, items);
-
-  await updateProfile({
-    ...grantUpdates,
-    gachaTickets: Math.max(0, tickets - pack.price),
-    pack_history: [
-      {
-        id: `gacha_${packId}_${Date.now()}`,
-        items: items.map((item) => ({ name: item.label, rarity: item.rarity })),
-        openedAt: new Date().toISOString(),
-        packId,
-      },
-      ...(profile.pack_history || []),
-    ].slice(0, 50),
-    rewardSystem: incrementBoosterPacksToday(profile.rewardSystem),
-  });
-
-  return { items };
 }
 
 export async function purchaseMarketplaceItemAuthoritative(
-  profile: UserProfile,
-  updateProfile: UpdateProfileFn,
+  _profile: UserProfile,
+  _updateProfile: UpdateProfileFn,
   itemName: string,
 ): Promise<void> {
   try {
     await purchaseItemCallable({ itemName });
-    return;
   } catch (error) {
-    if (!shouldFallBackToLocal(error)) {
-      throw error;
-    }
+    throw toServerActionError(error);
   }
-
-  const result = buildItemPurchaseUpdates(profile, itemName);
-  if (!result) {
-    throw new Error("Not enough Holos.");
-  }
-  await updateProfile(result.updates);
 }
 
 export async function purchaseMarketplacePartAuthoritative(
-  profile: UserProfile,
-  updateProfile: UpdateProfileFn,
+  _profile: UserProfile,
+  _updateProfile: UpdateProfileFn,
   partId: string,
 ): Promise<{ name: string; rarity: string; slot: string }> {
   try {
     const result = await purchasePartCallable({ partId });
     return result.data.part;
   } catch (error) {
-    if (!shouldFallBackToLocal(error)) {
-      throw error;
-    }
+    throw toServerActionError(error);
   }
-
-  const result = buildPartPurchaseUpdates(profile, partId);
-  if (!result) {
-    throw new Error("Not enough Holos.");
-  }
-  await updateProfile(result.updates);
-  return result.part;
 }
 
 export type { BoosterGrantSummary } from "@/lib/marketplace";
 
 export async function purchaseMarketplaceBoosterAuthoritative(
-  profile: UserProfile,
-  updateProfile: UpdateProfileFn,
+  _profile: UserProfile,
+  _updateProfile: UpdateProfileFn,
   packId: MarketplaceBoosterId,
 ): Promise<BoosterGrantSummary> {
   try {
@@ -172,15 +113,19 @@ export async function purchaseMarketplaceBoosterAuthoritative(
       parts: granted.parts ?? [granted.part],
     };
   } catch (error) {
-    if (!shouldFallBackToLocal(error)) {
-      throw error;
-    }
+    throw toServerActionError(error);
   }
+}
 
-  const result = buildBoosterPurchaseUpdates(profile, packId);
-  if (!result) {
-    throw new Error("Not enough Holos.");
+/** Daily mission claims pay from the server-side table; the progress
+    counters they validate against are themselves server-incremented. */
+export async function claimDailyMissionAuthoritative(
+  missionId: string,
+): Promise<{ gachaTickets: number; holosTokens: number }> {
+  try {
+    const result = await claimDailyMissionCallable({ missionId });
+    return { gachaTickets: result.data.gachaTickets, holosTokens: result.data.holosTokens };
+  } catch (error) {
+    throw toServerActionError(error);
   }
-  await updateProfile(result.updates);
-  return result.granted;
 }

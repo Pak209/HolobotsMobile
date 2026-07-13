@@ -24,11 +24,25 @@ import {
   PVP_FIGHTER_IDS,
   roomToBattleState,
 } from "@/features/arena/pvpBattle";
+import {
+  autoPickSendInIndex,
+  buildPvpTeamSide,
+  buildSendInUpdates,
+  buildSwitchUpdates,
+  getRoomMode,
+  interceptTeamKo,
+  regenBenchMembers,
+  validatePvpSendIn,
+  validatePvpSwitch,
+  validateTeamAct,
+  TEAM_SIZE,
+} from "@/features/arena/pvpTeamBattle";
 import { claimOpponentAndCreateRoom, isFreshPoolEntry } from "@/lib/pvpMatchmaking";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
 import {
   BATTLE_ROOM_RULES_VERSION,
+  type BattleMode,
   type BattlePoolEntry,
   type BattleRoom,
   type PlayerRole,
@@ -127,6 +141,21 @@ export function useRealtimeArena() {
     [findHolobot, profile, user],
   );
 
+  /** 1v1: one name. 3v3: three DISTINCT names, lead first. */
+  const buildOwnLineup = useCallback(
+    (holobotNames: string[], mode: BattleMode): PvpFighterDoc[] => {
+      const distinct = new Set(holobotNames.map((name) => name.trim().toUpperCase()));
+      if (mode === "3v3" && (holobotNames.length !== TEAM_SIZE || distinct.size !== TEAM_SIZE)) {
+        throw new Error("Pick three different Holobots for 3v3.");
+      }
+      if (mode === "1v1" && holobotNames.length !== 1) {
+        throw new Error("Pick one Holobot for 1v1.");
+      }
+      return holobotNames.map((name) => buildOwnFighter(name));
+    },
+    [buildOwnFighter],
+  );
+
   const cleanup = useCallback(() => {
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
@@ -178,11 +207,40 @@ export function useRealtimeArena() {
         if (!roomSnap.exists()) return;
         const battleRoom = roomSnap.data() as BattleRoom;
         if (battleRoom.status !== "active") return;
+
+        // Send-in self-heal: past the deadline, either client commits the
+        // auto-pick so an AWOL chooser can't freeze the room forever.
+        if (
+          getRoomMode(battleRoom) === "3v3" &&
+          battleRoom.phase === "awaiting_send_in" &&
+          battleRoom.pendingSendInRole &&
+          Date.now() >= (battleRoom.sendInDeadline ?? 0) &&
+          battleRoom.teams
+        ) {
+          const pick = autoPickSendInIndex(battleRoom.teams[battleRoom.pendingSendInRole]);
+          if (pick >= 0) {
+            transaction.update(roomRef, buildSendInUpdates({ ...battleRoom, roomId: room.roomId }, pick));
+          }
+          return;
+        }
+
         const player = battleRoom.players[myRole];
-        if (player.stamina >= player.maxStamina) return;
-        transaction.update(roomRef, {
-          [`players.${myRole}.stamina`]: Math.min(player.maxStamina, player.stamina + 1),
-        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Firestore update map
+        const updates: { [key: string]: any } = {};
+        if (battleRoom.phase !== "awaiting_send_in" && player.stamina < player.maxStamina) {
+          updates[`players.${myRole}.stamina`] = Math.min(player.maxStamina, player.stamina + 1);
+        }
+        // Bench catches its breath too (3v3): +1 stamina, meter frozen.
+        if (getRoomMode(battleRoom) === "3v3" && battleRoom.teams) {
+          const side = battleRoom.teams[myRole];
+          const regenerated = regenBenchMembers(side);
+          if (regenerated.some((member, index) => member !== side.members[index])) {
+            updates[`teams.${myRole}.members`] = regenerated;
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          transaction.update(roomRef, updates);
+        }
       }).catch((staminaError) => setError(staminaError.message));
     }, STAMINA_REGEN_INTERVAL_MS);
 
@@ -194,11 +252,12 @@ export function useRealtimeArena() {
     };
   }, [myRole, room?.roomId, user]);
 
-  const createRoom = useCallback(async (holobotName: string) => {
+  const createRoom = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {
     if (!user || !profile) throw new Error("Sign in before creating a room.");
     setLoading(true);
     setError(null);
     try {
+      const lineup = buildOwnLineup(holobotNames, mode);
       const roomRef = doc(collection(db, BATTLE_ROOMS));
       const roomCode = generateRoomCode();
       const newRoom: BattleRoom = {
@@ -206,8 +265,17 @@ export function useRealtimeArena() {
         roomCode,
         rulesVersion: BATTLE_ROOM_RULES_VERSION,
         status: "waiting",
+        mode,
+        ...(mode === "3v3"
+          ? {
+              phase: "active" as const,
+              pendingSendInRole: null,
+              sendInDeadline: null,
+              teams: { p1: buildPvpTeamSide(lineup), p2: buildPvpTeamSide([]) },
+            }
+          : {}),
         players: {
-          p1: buildOwnFighter(holobotName),
+          p1: lineup[0],
           p2: emptyPvpFighter(),
         },
         turnNumber: 0,
@@ -225,9 +293,9 @@ export function useRealtimeArena() {
     } finally {
       setLoading(false);
     }
-  }, [buildOwnFighter, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, profile, subscribeToRoom, user]);
 
-  const joinRoom = useCallback(async (roomCode: string, holobotName: string) => {
+  const joinRoom = useCallback(async (roomCode: string, holobotNames: string[]) => {
     if (!user || !profile) throw new Error("Sign in before joining a room.");
     setLoading(true);
     setError(null);
@@ -238,8 +306,14 @@ export function useRealtimeArena() {
       const roomData = roomDoc.data() as BattleRoom;
       if (roomData.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
       if (roomData.status !== "waiting" || roomData.players.p2.uid) throw new Error("Room is not available.");
+      const roomMode = getRoomMode(roomData);
+      if (roomMode === "3v3" && holobotNames.length !== TEAM_SIZE) {
+        throw new Error("This is a 3v3 room — pick three Holobots to join.");
+      }
+      const lineup = buildOwnLineup(holobotNames, roomMode);
       await updateDoc(doc(db, BATTLE_ROOMS, roomDoc.id), {
-        "players.p2": buildOwnFighter(holobotName),
+        "players.p2": lineup[0],
+        ...(roomMode === "3v3" ? { "teams.p2": buildPvpTeamSide(lineup) } : {}),
         status: "active",
         startedAt: serverTimestamp(),
       });
@@ -251,7 +325,7 @@ export function useRealtimeArena() {
     } finally {
       setLoading(false);
     }
-  }, [buildOwnFighter, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, profile, subscribeToRoom, user]);
 
   const joinRoomById = useCallback(async (roomId: string) => {
     if (!user) throw new Error("Sign in before joining a room.");
@@ -265,9 +339,10 @@ export function useRealtimeArena() {
     subscribeToRoom(roomId);
   }, [subscribeToRoom, user]);
 
-  const enterMatchmaking = useCallback(async (holobotName: string) => {
+  const enterMatchmaking = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {
     if (!user || !profile) throw new Error("Sign in before matchmaking.");
-    const myFighter = buildOwnFighter(holobotName);
+    const myLineup = buildOwnLineup(holobotNames, mode);
+    const myFighter = myLineup[0];
     setMatchmakingStatus("searching");
     setError(null);
     // Keyed by uid: one queue entry per player, and re-queueing overwrites
@@ -277,6 +352,8 @@ export function useRealtimeArena() {
       userId: user.uid,
       username: profile.username || "Pilot",
       fighter: myFighter,
+      ...(mode === "3v3" ? { team: myLineup } : {}),
+      mode,
       rulesVersion: BATTLE_ROOM_RULES_VERSION,
       isActive: true,
       createdAt: serverTimestamp(),
@@ -289,12 +366,27 @@ export function useRealtimeArena() {
       const candidate = candidateDoc.data() as BattlePoolEntry;
       if (candidate.userId === user.uid || !isFreshPoolEntry(candidate)) continue;
       if (candidate.rulesVersion !== BATTLE_ROOM_RULES_VERSION || !candidate.fighter?.uid) continue;
+      // Only pair identical modes (legacy entries without a mode are 1v1).
+      if ((candidate.mode ?? "1v1") !== mode) continue;
+      if (mode === "3v3" && (candidate.team?.length ?? 0) !== TEAM_SIZE) continue;
 
       const claim = await claimOpponentAndCreateRoom(db, user.uid, candidateDoc.id, (roomId, opponent) => ({
         roomId,
         roomCode: generateRoomCode(),
         rulesVersion: BATTLE_ROOM_RULES_VERSION,
         status: "active",
+        mode,
+        ...(mode === "3v3"
+          ? {
+              phase: "active" as const,
+              pendingSendInRole: null,
+              sendInDeadline: null,
+              teams: {
+                p1: buildPvpTeamSide(myLineup),
+                p2: buildPvpTeamSide(opponent.team ?? [opponent.fighter]),
+              },
+            }
+          : {}),
         players: {
           p1: myFighter,
           p2: opponent.fighter,
@@ -329,7 +421,7 @@ export function useRealtimeArena() {
       setMatchmakingStatus("matched");
       void joinRoomById(entry.roomId);
     });
-  }, [buildOwnFighter, joinRoomById, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, joinRoomById, profile, subscribeToRoom, user]);
 
   const cancelMatchmaking = useCallback(async () => {
     poolUnsubscribeRef.current?.();
@@ -357,6 +449,10 @@ export function useRealtimeArena() {
       const move = freshRoom.players[myRole].moves.find((candidate) => candidate.id === moveId);
       if (!move) throw new Error("That move is not in your kit.");
 
+      const actGate = validateTeamAct(freshRoom, myRole);
+      if (actGate === "awaiting_send_in") throw new Error("A Holobot is down — the send-in comes first.");
+      if (actGate === "entry_locked") throw new Error("Your Holobot is still entering the arena.");
+
       const state = roomToBattleState(freshRoom);
       const availability = ArenaCombatEngine.getCardAvailability(state, engineRole, move);
       if (!availability.playable) {
@@ -366,7 +462,9 @@ export function useRealtimeArena() {
       const nextState = ArenaCombatEngine.resolveAction(state, move, PVP_FIGHTER_IDS[myRole]);
       if (nextState === state) throw new Error("That move cannot be used right now.");
 
-      transaction.update(roomRef, battleStateToRoomUpdates(freshRoom, nextState));
+      // In a team room a KO with bench remaining freezes into the send-in
+      // phase instead of completing the match.
+      transaction.update(roomRef, interceptTeamKo(freshRoom, battleStateToRoomUpdates(freshRoom, nextState)));
     });
   }, [myRole, room, user]);
 
@@ -383,6 +481,10 @@ export function useRealtimeArena() {
       if (freshRoom.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
       if (freshRoom.status !== "active") throw new Error("Battle is not active.");
 
+      const actGate = validateTeamAct(freshRoom, myRole);
+      if (actGate === "awaiting_send_in") throw new Error("A Holobot is down — the send-in comes first.");
+      if (actGate === "entry_locked") throw new Error("Your Holobot is still entering the arena.");
+
       const state = roomToBattleState(freshRoom);
       if (!ArenaCombatEngine.canUseSignatureFinisher(state, engineRole)) {
         throw new Error("Your signature finisher needs a full special meter.");
@@ -391,7 +493,38 @@ export function useRealtimeArena() {
       const nextState = ArenaCombatEngine.resolveSignatureFinisher(state, PVP_FIGHTER_IDS[myRole]);
       if (nextState === state) throw new Error("Signature finisher is not ready.");
 
-      transaction.update(roomRef, battleStateToRoomUpdates(freshRoom, nextState));
+      transaction.update(roomRef, interceptTeamKo(freshRoom, battleStateToRoomUpdates(freshRoom, nextState)));
+    });
+  }, [myRole, room, user]);
+
+  // 3v3: voluntary rotation (10s side cooldown, 1.5s entry lock).
+  const switchActive = useCallback(async (toIndex: number) => {
+    if (!room || !myRole || !user) throw new Error("You are not in a battle.");
+    const roomRef = doc(db, BATTLE_ROOMS, room.roomId);
+
+    await runTransaction(db, async (transaction) => {
+      const roomSnap = await transaction.get(roomRef);
+      if (!roomSnap.exists()) throw new Error("Battle room no longer exists.");
+      const freshRoom = { ...(roomSnap.data() as BattleRoom), roomId: roomSnap.id };
+      const refusal = validatePvpSwitch(freshRoom, myRole, toIndex);
+      if (refusal) throw new Error(switchRefusalMessage(refusal));
+      transaction.update(roomRef, buildSwitchUpdates(freshRoom, myRole, toIndex));
+    });
+  }, [myRole, room, user]);
+
+  // 3v3: pick the replacement after a KO. After the deadline EITHER client
+  // may commit the auto-pick for an AWOL chooser (self-healing).
+  const sendIn = useCallback(async (toIndex: number) => {
+    if (!room || !myRole || !user) throw new Error("You are not in a battle.");
+    const roomRef = doc(db, BATTLE_ROOMS, room.roomId);
+
+    await runTransaction(db, async (transaction) => {
+      const roomSnap = await transaction.get(roomRef);
+      if (!roomSnap.exists()) throw new Error("Battle room no longer exists.");
+      const freshRoom = { ...(roomSnap.data() as BattleRoom), roomId: roomSnap.id };
+      const refusal = validatePvpSendIn(freshRoom, myRole, toIndex);
+      if (refusal) throw new Error(sendInRefusalMessage(refusal));
+      transaction.update(roomRef, buildSendInUpdates(freshRoom, toIndex));
     });
   }, [myRole, room, user]);
 
@@ -441,8 +574,36 @@ export function useRealtimeArena() {
     opponentRole: myRole === "p1" ? "p2" : myRole === "p2" ? "p1" : null,
     playMove,
     room,
+    sendIn,
+    switchActive,
     useSignature,
   };
+}
+
+function switchRefusalMessage(refusal: NonNullable<ReturnType<typeof validatePvpSwitch>>): string {
+  switch (refusal) {
+    case "cooldown":
+      return "Your side's switch is still cooling down.";
+    case "knocked_out":
+      return "That Holobot is down.";
+    case "already_active":
+      return "That Holobot is already fighting.";
+    case "awaiting_send_in":
+      return "A Holobot is down — the send-in comes first.";
+    default:
+      return "You cannot switch right now.";
+  }
+}
+
+function sendInRefusalMessage(refusal: NonNullable<ReturnType<typeof validatePvpSendIn>>): string {
+  switch (refusal) {
+    case "not_your_pick":
+      return "Waiting for your opponent's send-in.";
+    case "knocked_out":
+      return "That Holobot cannot fight.";
+    default:
+      return "No send-in is pending.";
+  }
 }
 
 function availabilityMessage(availability: ArenaCardAvailability): string {

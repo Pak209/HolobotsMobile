@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, NativeEventEmitter, NativeModules, Platform } from "react-native";
 
 import { functions, httpsCallable } from "@/config/firebase";
@@ -8,6 +8,15 @@ const syncWatchWorkoutRewards = httpsCallable<
   { workouts: WatchWorkoutEvent[] },
   {
     processedCount: number;
+    // Optional for compatibility with a not-yet-redeployed function.
+    results?: Array<{
+      workoutId: string;
+      alreadyProcessed: boolean;
+      capped: boolean;
+      syncPoints: number;
+      holos: number;
+      exp: number;
+    }>;
     sessionsCompleted: number;
     sessionsRemaining: number;
     totalSyncPoints: number;
@@ -54,6 +63,9 @@ export function useWatchBridge(
 
   const canUseBridge = Platform.OS === "ios" && !!WatchBridgeModule && !!userId;
   const processedWorkoutIds = useMemo(() => new Set<string>(), []);
+  // Lets the live-event handler (declared first) call the claim flow
+  // (declared later) without a circular useCallback dependency.
+  const processPendingWatchWorkoutsRef = useRef<(() => Promise<void>) | null>(null);
 
   const refreshPendingWatchWorkouts = useCallback(async () => {
     if (!canUseBridge) {
@@ -82,7 +94,13 @@ export function useWatchBridge(
     if (processedWorkoutIds.has(workoutId)) return;
     setDismissedWhilePending(false);
     await refreshPendingWatchWorkouts();
-  }, [processedWorkoutIds, userId]);
+    // The watch is literally waiting on a reply handler for this workout —
+    // sync NOW so its rewards screen and session counter update in seconds,
+    // instead of parking the payout behind a manual claim tap in the app.
+    // (On failure the event stays queued and the claim prompt remains the
+    // fallback.)
+    await processPendingWatchWorkoutsRef.current?.();
+  }, [processedWorkoutIds, refreshPendingWatchWorkouts, userId]);
 
   const processPendingWatchWorkouts = useCallback(async () => {
     if (!canUseBridge) return;
@@ -120,13 +138,18 @@ export function useWatchBridge(
         const workoutId = event.workoutId?.trim();
         if (!workoutId) continue;
 
+        // Relay what the server ACTUALLY paid (clamped, capped, or zero on a
+        // replay) — not the watch's own claimed numbers. Older deployed
+        // functions without per-workout results fall back to the claim.
+        const awarded = result.data.results?.find((entry) => entry.workoutId === workoutId);
+
         if (typeof WatchBridgeModule.sendRewardsToWatch === "function") {
           WatchBridgeModule.sendRewardsToWatch(workoutId, {
-            exp: event.expEarned,
-            holos: event.holosEarned,
+            exp: awarded ? awarded.exp : event.expEarned,
+            holos: awarded ? awarded.holos : event.holosEarned,
             sessionsCompleted: result.data.sessionsCompleted,
             sessionsRemaining: result.data.sessionsRemaining,
-            syncPoints: event.syncPointsEarned,
+            syncPoints: awarded ? awarded.syncPoints : event.syncPointsEarned,
             totalSyncPoints: result.data.totalSyncPoints,
           });
         }
@@ -155,7 +178,9 @@ export function useWatchBridge(
     } finally {
       setProcessing(false);
     }
-  }, [canUseBridge, processWorkoutEvent, refreshPendingWatchWorkouts]);
+  }, [canUseBridge, refreshPendingWatchWorkouts]);
+
+  processPendingWatchWorkoutsRef.current = processPendingWatchWorkouts;
 
   useEffect(() => {
     if (!canUseBridge) {

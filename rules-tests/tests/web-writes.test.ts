@@ -24,10 +24,13 @@ describe("web app write/read patterns", () => {
     await env.clearFirestore();
   });
 
-  it("allows the owner to apply the web app's profile update field mapping", async () => {
+  // The 2026-07-12 economy freeze DELIBERATELY breaks the web app's
+  // client-side economy writes (owner decision: mobile is the product;
+  // the web app must migrate to callables or sunset its economy actions).
+  it("DENIES the web app's client-side economy profile update (frozen fields)", async () => {
     await seedUser(env, "alice", buildUserDoc());
 
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(authedDb(env, "alice"), "users/alice"), WEB_PROFILE_UPDATE),
     );
   });

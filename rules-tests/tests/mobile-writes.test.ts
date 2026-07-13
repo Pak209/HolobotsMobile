@@ -44,11 +44,11 @@ describe("mobile write replay", () => {
     });
   });
 
-  describe("fitness sync (fitnessSync.ts setDoc merge:true)", () => {
-    it("allows the owner to write fitness user updates, including holobots[].career", async () => {
+  describe("fitness sync (server-authoritative since the 2026-07-12 freeze)", () => {
+    it("DENIES the old client-side fitness reward write (holosTokens is frozen)", async () => {
       await seedUser(env, "alice", buildUserDoc());
 
-      await assertSucceeds(
+      await assertFails(
         setDoc(doc(authedDb(env, "alice"), "users/alice"), FITNESS_USER_UPDATES, { merge: true }),
       );
     });
@@ -92,11 +92,11 @@ describe("mobile write replay", () => {
     });
   });
 
-  describe("gacha grant (gacha.ts / GachaScreen.tsx updateDoc)", () => {
-    it("allows the owner to update gacha grant fields", async () => {
+  describe("gacha grant (server-authoritative since the 2026-07-12 freeze)", () => {
+    it("DENIES the old client-side gacha grant write (loot fields are frozen)", async () => {
       await seedUser(env, "alice", buildUserDoc());
 
-      await assertSucceeds(updateDoc(doc(authedDb(env, "alice"), "users/alice"), GACHA_GRANT_UPDATE));
+      await assertFails(updateDoc(doc(authedDb(env, "alice"), "users/alice"), GACHA_GRANT_UPDATE));
     });
   });
 

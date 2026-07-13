@@ -11,14 +11,14 @@ repositories**:
   `settleArenaBattle`, `claimQuestRun`, `claimTrainingSession`,
   `upgradeSyncStat`, `mintHolobot`, `upgradeHolobotRank`,
   `deleteUserAccountV2`)
-- the `holobots-fun` web repo (`createWebviewBridgeToken`, possibly others)
+- the `holobots-fun` web repo (`matchmaker`, `cleanupAbandonedRooms` — web PvP triggers; `createWebviewBridgeToken` moved INTO this repo 2026-07-12 after its source was lost and an old unscoped deploy removed it from prod)
 
 A bare `firebase deploy --only functions` from this repo will offer to
 **delete every function not defined here**, including the web app's WebView
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:clearWorkoutCooldown,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:purchaseMarketplacePart,functions:useEnergyRefill,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:upgradeHolobotMove,functions:saveHolobotCombatKit,functions:mintHolobot,functions:upgradeHolobotRank,functions:deleteUserAccountV2,functions:applyReferralCode,functions:claimGenesisSquad,functions:assignWildcardBlueprints
+firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:clearWorkoutCooldown,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:purchaseMarketplacePart,functions:useEnergyRefill,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:upgradeHolobotMove,functions:saveHolobotCombatKit,functions:mintHolobot,functions:upgradeHolobotRank,functions:deleteUserAccountV2,functions:applyReferralCode,functions:claimGenesisSquad,functions:assignWildcardBlueprints,functions:createWebviewBridgeToken,functions:claimDailyMission
 ```
 
 Deliberately still client-side (documented, not forgotten): quest/training

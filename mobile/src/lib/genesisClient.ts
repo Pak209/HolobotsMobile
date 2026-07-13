@@ -1,6 +1,5 @@
 import { functions, httpsCallable } from "@/config/firebase";
 import { shouldFallBackToLocal } from "@/lib/callables";
-import { buildWildcardAssignUpdates } from "@/lib/genesis";
 import type { UserProfile } from "@/types/profile";
 
 /**
@@ -59,8 +58,8 @@ export async function claimGenesisSquadAuthoritative(): Promise<{
 }
 
 export async function assignWildcardBlueprintsAuthoritative(
-  profile: UserProfile,
-  updateProfile: UpdateProfileFn,
+  _profile: UserProfile,
+  _updateProfile: UpdateProfileFn,
   holobotName: string,
   amount: number,
 ): Promise<{ remaining: number }> {
@@ -68,16 +67,9 @@ export async function assignWildcardBlueprintsAuthoritative(
     const result = await assignWildcardBlueprintsCallable({ holobotName, amount });
     return { remaining: result.data.remaining };
   } catch (error) {
-    if (!shouldFallBackToLocal(error)) {
-      throw error;
+    if (shouldFallBackToLocal(error)) {
+      throw new Error("Assigning wildcards needs a connection. Try again when you're online.");
     }
+    throw error;
   }
-
-  // Legacy client-side path (pre-deploy / offline): owner-doc only.
-  const updates = buildWildcardAssignUpdates(profile, holobotName, amount);
-  if (!updates) {
-    throw new Error("Not enough Wildcard Blueprints.");
-  }
-  await updateProfile(updates);
-  return { remaining: updates.wildcardBlueprints };
 }

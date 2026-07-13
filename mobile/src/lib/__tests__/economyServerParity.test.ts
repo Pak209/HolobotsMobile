@@ -8,6 +8,7 @@ import {
   rollPackRarity,
   type GachaPackId,
 } from "@/lib/gacha";
+import { DAILY_MISSION_TABLE } from "@/lib/dailyMissions";
 import {
   buildBoosterPurchaseUpdates,
   buildItemPurchaseUpdates,
@@ -280,5 +281,53 @@ describe("marketplace client/server parity", () => {
         expect(server!.updates).toEqual(translateToRaw(client!.updates));
       }
     }
+  });
+});
+
+describe("daily mission table parity", () => {
+  it("the server claim table matches the mobile mission table", () => {
+    const clientTable = DAILY_MISSION_TABLE.map(({ id, target, reward }) => ({
+      id,
+      target,
+      reward: { gachaTickets: reward.gachaTickets, holosTokens: reward.holosTokens },
+    }));
+    const serverTable = serverEconomy.DAILY_MISSION_TABLE.map(({ id, target, reward }) => ({
+      id,
+      target,
+      reward: { gachaTickets: reward.gachaTickets, holosTokens: reward.holosTokens },
+    }));
+
+    expect(serverTable).toEqual(clientTable);
+  });
+
+  it("claims pay the table amount once, then refuse", () => {
+    const userData = {
+      gachaTickets: 3,
+      holosTokens: 50,
+      rewardSystem: {
+        arenaBattlesToday: 3,
+        boosterPacksToday: 0,
+        lastDailyMissionReset: new Date().toISOString().slice(0, 10),
+        missionClaims: {},
+      },
+    };
+
+    const claim = serverEconomy.buildMissionClaimUpdatesRaw(userData, "arena_v2_battle");
+    expect(claim.refusal).toBeNull();
+    if (claim.refusal === null) {
+      expect(claim.updates.gachaTickets).toBe(5);
+      expect(claim.updates.holosTokens).toBe(150);
+
+      const again = serverEconomy.buildMissionClaimUpdatesRaw(
+        { ...userData, rewardSystem: claim.updates.rewardSystem },
+        "arena_v2_battle",
+      );
+      expect(again.refusal).toBe("already_claimed");
+    }
+
+    expect(serverEconomy.buildMissionClaimUpdatesRaw(userData, "open_booster_pack").refusal).toBe(
+      "not_completed",
+    );
+    expect(serverEconomy.buildMissionClaimUpdatesRaw(userData, "nope").refusal).toBe("unknown_mission");
   });
 });

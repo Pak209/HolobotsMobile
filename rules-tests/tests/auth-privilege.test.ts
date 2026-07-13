@@ -51,7 +51,8 @@ describe("auth boundaries", () => {
     const aliceDb = authedDb(env, "alice");
 
     await assertSucceeds(setDoc(doc(aliceDb, "users/alice"), buildUserDoc()));
-    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { holosTokens: 10 }));
+    // Economy fields are frozen; a non-frozen field stands in for "update".
+    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 42 }));
     await assertSucceeds(deleteDoc(doc(aliceDb, "users/alice")));
   });
 });
@@ -104,8 +105,9 @@ describe("privilege escalation", () => {
   it("allows normal updates on a legacy account with isDevAccount already true", async () => {
     await seedUser(env, "alice", buildUserDoc({ isDevAccount: true }));
 
+    // (dailyEnergy stands in — economy fields are frozen since 2026-07-12.)
     await assertSucceeds(
-      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { gachaTickets: 5 }),
+      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { dailyEnergy: 42 }),
     );
   });
 
@@ -125,9 +127,9 @@ describe("privilege escalation", () => {
     await seedUser(env, "alice", buildUserDoc({ isDevAccount: true }));
     const aliceDb = authedDb(env, "alice");
 
-    // Writing the unchanged value alongside an economy field is fine...
+    // Writing the unchanged value alongside a normal field is fine...
     await assertSucceeds(
-      updateDoc(doc(aliceDb, "users/alice"), { holosTokens: 10, isDevAccount: true }),
+      updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 11, isDevAccount: true }),
     );
     // ...and so is turning it off.
     await assertSucceeds(
@@ -152,11 +154,11 @@ describe("economy sanity caps", () => {
     await seedUser(env, "alice", buildUserDoc());
   });
 
-  it("rejects holosTokens over the cap and accepts the boundary value", async () => {
+  it("rejects dailyEnergy over the cap and accepts the boundary value", async () => {
     const aliceDb = authedDb(env, "alice");
 
-    await assertFails(updateDoc(doc(aliceDb, "users/alice"), { holosTokens: 100000001 }));
-    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { holosTokens: 100000000 }));
+    await assertFails(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100000001 }));
+    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100000000 }));
   });
 
   it("rejects negative syncPoints and accepts zero", async () => {

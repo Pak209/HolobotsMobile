@@ -5,6 +5,7 @@ import { Svg, Path } from "@/components/FigmaSvg";
 import { DailyMissionsModal } from "@/components/DailyMissionsModal";
 import { fitnessAssets } from "@/config/figmaAssets";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEnergyRefillAuthoritative } from "@/lib/progressionClient";
 import { getDailyMissionSummary } from "@/lib/dailyMissions";
 import type { UserProfile } from "@/types/profile";
 
@@ -121,10 +122,9 @@ export function UserStatsModal({
     }
 
     try {
-      await updateProfile({
-        dailyEnergy: profile.maxDailyEnergy || 100,
-        energy_refills: Math.max(0, (profile.energy_refills || 0) - 1),
-      });
+      // Server-authoritative: consumes the refill item and tops up energy
+      // in one transaction (energy_refills is a frozen economy field now).
+      await useEnergyRefillAuthoritative(profile, updateProfile);
     } catch (error) {
       Alert.alert("Refill failed", error instanceof Error ? error.message : "Please try again.");
     }
