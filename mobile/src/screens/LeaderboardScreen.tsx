@@ -3,13 +3,22 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-nat
 
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { collection, db, limit, onSnapshot, orderBy, query } from "@/config/firebase";
-import { computeLeaderboardScore, mapFirestoreToUserProfile } from "@/lib/profile";
-import type { UserProfile } from "@/types/profile";
 
-function getPlayerRankName(profile: UserProfile) {
-  const highestLevel = Math.max(0, ...(profile.holobots || []).map((holobot) => holobot.level || 0));
-  const wins = profile.stats?.wins || 0;
-  const score = highestLevel + wins * 0.35 + (profile.prestigeCount || 0) * 8;
+/** Public projection maintained by the mirrorLeaderboardEntry trigger —
+    full /users documents are owner-read-only since the privacy hardening. */
+type LeaderboardEntry = {
+  id: string;
+  username?: string;
+  leaderboardScore?: number;
+  wins?: number;
+  prestigeCount?: number;
+  highestHolobotLevel?: number;
+};
+
+function getPlayerRankName(entry: LeaderboardEntry) {
+  const highestLevel = entry.highestHolobotLevel || 0;
+  const wins = entry.wins || 0;
+  const score = highestLevel + wins * 0.35 + (entry.prestigeCount || 0) * 8;
 
   if (score >= 80) return "Legend";
   if (score >= 55) return "Elite";
@@ -18,26 +27,31 @@ function getPlayerRankName(profile: UserProfile) {
 }
 
 export function LeaderboardScreen() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const usersQuery = query(collection(db, "users"), orderBy("leaderboardScore", "desc"), limit(10));
+    const leaderboardQuery = query(
+      collection(db, "leaderboard"),
+      orderBy("leaderboardScore", "desc"),
+      limit(10),
+    );
 
     const unsubscribe = onSnapshot(
-      usersQuery,
+      leaderboardQuery,
       (snapshot) => {
-        const nextUsers = snapshot.docs.map((docSnapshot) =>
-          mapFirestoreToUserProfile(docSnapshot.id, docSnapshot.data() as Record<string, unknown>),
+        setEntries(
+          snapshot.docs.map((docSnapshot) => ({
+            id: docSnapshot.id,
+            ...(docSnapshot.data() as Omit<LeaderboardEntry, "id">),
+          })),
         );
-
-        setUsers(nextUsers);
         setLoading(false);
         setError(null);
       },
       (nextError) => {
-        console.error("[Leaderboard] Failed to load users", nextError);
+        console.error("[Leaderboard] Failed to load leaderboard", nextError);
         setError("Could not load leaderboard data.");
         setLoading(false);
       },
@@ -48,22 +62,15 @@ export function LeaderboardScreen() {
 
   const leaderboardRows = useMemo(
     () =>
-      users
-        .map((profile) => ({
-          id: profile.id,
-          name: profile.username || "Pilot",
-          rank: getPlayerRankName(profile),
-          score:
-            profile.leaderboardScore ??
-            computeLeaderboardScore({
-              holobots: profile.holobots,
-              prestigeCount: profile.prestigeCount,
-              seasonSyncPoints: profile.seasonSyncPoints,
-              wins: profile.stats?.wins,
-            }),
+      entries
+        .map((entry) => ({
+          id: entry.id,
+          name: entry.username || "Pilot",
+          rank: getPlayerRankName(entry),
+          score: entry.leaderboardScore ?? 0,
         }))
         .sort((left, right) => right.score - left.score),
-    [users],
+    [entries],
   );
 
   return (

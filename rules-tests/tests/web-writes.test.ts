@@ -1,8 +1,8 @@
-import { collection, doc, getDocs, limit, orderBy, query, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, limit, orderBy, query, setDoc, updateDoc } from "firebase/firestore";
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { authedDb, initTestEnv, seedUser, unauthedDb } from "../src/helpers";
+import { authedDb, initTestEnv, seedDoc, seedUser, unauthedDb } from "../src/helpers";
 import { buildUserDoc, WEB_ENERGY_UPDATE, WEB_PROFILE_UPDATE } from "../src/fixtures";
 
 // Replays the holobots-fun WEB app's real Firestore access patterns
@@ -51,10 +51,9 @@ describe("web app write/read patterns", () => {
     );
   });
 
-  it("supports the web leaderboard query (top-N by leaderboardScore) for a signed-in user", async () => {
+  it("DENIES the old users-collection leaderboard query (projection replaces it)", async () => {
     await seedUser(env, "alice", buildUserDoc({ leaderboardScore: 100 }));
     await seedUser(env, "bob", buildUserDoc({ leaderboardScore: 300 }));
-    await seedUser(env, "carol", buildUserDoc({ leaderboardScore: 200 }));
 
     const leaderboardQuery = query(
       collection(authedDb(env, "bob"), "users"),
@@ -62,10 +61,27 @@ describe("web app write/read patterns", () => {
       limit(10),
     );
 
-    const snapshot = await assertSucceeds(getDocs(leaderboardQuery));
+    await assertFails(getDocs(leaderboardQuery));
+  });
 
-    expect(snapshot.docs).toHaveLength(3);
-    expect(snapshot.docs.map((d) => d.data().leaderboardScore)).toEqual([300, 200, 100]);
+  it("serves the top-N from the /leaderboard projection (read-only)", async () => {
+    await seedDoc(env, "leaderboard/alice", { username: "alice", leaderboardScore: 100 });
+    await seedDoc(env, "leaderboard/bob", { username: "bob", leaderboardScore: 300 });
+    await seedDoc(env, "leaderboard/carol", { username: "carol", leaderboardScore: 200 });
+
+    const projectionQuery = query(
+      collection(authedDb(env, "bob"), "leaderboard"),
+      orderBy("leaderboardScore", "desc"),
+      limit(10),
+    );
+
+    const snapshot = await assertSucceeds(getDocs(projectionQuery));
+    expect(snapshot.docs.map((entry) => entry.data().leaderboardScore)).toEqual([300, 200, 100]);
+
+    // Clients can never write the projection — only the mirror trigger.
+    await assertFails(
+      setDoc(doc(authedDb(env, "bob"), "leaderboard/bob"), { leaderboardScore: 999999 }),
+    );
   });
 
   it("denies the leaderboard query for an unauthenticated reader", async () => {

@@ -32,10 +32,11 @@ describe("auth boundaries", () => {
     await assertFails(setDoc(doc(unauthedDb(env), "users/alice"), buildUserDoc()));
   });
 
-  it("allows a signed-in user to read another user's document (leaderboard reads)", async () => {
+  it("DENIES a signed-in user reading another user's document (privacy hardening)", async () => {
     await seedUser(env, "alice", buildUserDoc());
 
-    await assertSucceeds(getDoc(doc(authedDb(env, "bob"), "users/alice")));
+    await assertFails(getDoc(doc(authedDb(env, "bob"), "users/alice")));
+    await assertSucceeds(getDoc(doc(authedDb(env, "alice"), "users/alice")));
   });
 
   it("denies a signed-in user from updating or deleting another user's document", async () => {
