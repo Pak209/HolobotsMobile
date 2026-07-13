@@ -15,10 +15,15 @@ import {
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { getSpecialMeterSegments, SPECIAL_METER_SEGMENTS } from "@/features/arena/moveKits";
+import {
+  isDocKnockedOut,
+  livingBenchIndexes,
+  TEAM_SIZE,
+} from "@/features/arena/pvpTeamBattle";
 import { useRealtimeArena } from "@/hooks/useRealtimeArena";
 import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
 import type { ActionCard, CardType } from "@/types/arena";
-import type { PlayerRole, PvpFighterDoc } from "@/types/battle-room";
+import type { BattleMode, PlayerRole, PvpFighterDoc } from "@/types/battle-room";
 import type { UserHolobot } from "@/types/profile";
 
 type PvpArenaModalProps = {
@@ -136,9 +141,71 @@ function BattleCard({
   );
 }
 
+function TeamDock({
+  side,
+  activeDoc,
+  label,
+  switchReadyAt,
+  onSwitch,
+  disabled,
+}: {
+  side: { members: PvpFighterDoc[]; activeIndex: number };
+  activeDoc: PvpFighterDoc | null;
+  label: string;
+  switchReadyAt?: number;
+  onSwitch?: (index: number) => void;
+  disabled?: boolean;
+}) {
+  const now = Date.now();
+  const coolingDown = switchReadyAt !== undefined && now < switchReadyAt;
+
+  return (
+    <View style={styles.teamDock}>
+      <Text style={styles.teamDockLabel}>
+        {label}
+        {coolingDown ? ` • CD ${Math.max(1, Math.ceil((switchReadyAt! - now) / 1000))}s` : ""}
+      </Text>
+      <View style={styles.teamDockRow}>
+        {side.members.map((member, index) => {
+          const isActive = index === side.activeIndex;
+          // The live doc is authoritative for the active slot.
+          const shown = isActive && activeDoc ? activeDoc : member;
+          const down = isDocKnockedOut(shown);
+          const tappable = !!onSwitch && !disabled && !isActive && !down && !coolingDown;
+          const hpPct = Math.max(0, Math.min(1, shown.currentHP / Math.max(1, shown.maxHP)));
+
+          return (
+            <Pressable
+              key={index}
+              disabled={!tappable}
+              onPress={() => onSwitch?.(index)}
+              style={[
+                styles.teamDockChip,
+                isActive ? styles.teamDockChipActive : null,
+                down ? styles.teamDockChipKo : null,
+                tappable ? styles.teamDockChipReady : null,
+              ]}
+            >
+              <Text numberOfLines={1} style={styles.teamDockChipName}>
+                {down ? `✕ ${shown.holobotName}` : shown.holobotName}
+              </Text>
+              <View style={styles.teamDockBar}>
+                <View style={[styles.teamDockHp, { width: `${Math.round(hpPct * 100)}%` }]} />
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalProps) {
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  // Which slot the picker fills: the 1v1 fighter, or a 3v3 team slot.
+  const [pickerTarget, setPickerTarget] = useState<"main" | 0 | 1 | 2 | null>(null);
+  const [mode, setMode] = useState<BattleMode>("1v1");
+  const [teamNames, setTeamNames] = useState<Array<string | null>>([null, null, null]);
   const [joinCode, setJoinCode] = useState("");
   const {
     cancelMatchmaking,
@@ -155,6 +222,8 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     opponentRole,
     playMove,
     room,
+    sendIn,
+    switchActive,
     useSignature: fireSignature,
   } = useRealtimeArena();
 
@@ -163,6 +232,9 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     [userHolobots],
   );
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
+  const canField3v3 = roster.length >= TEAM_SIZE;
+  const teamComplete = teamNames.every(Boolean) && new Set(teamNames).size === TEAM_SIZE;
+  const lineupReady = mode === "3v3" ? teamComplete : !!selectedHolobot;
 
   useEffect(() => {
     if (error) {
@@ -177,11 +249,17 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     }
   }, [leaveRoom, visible]);
 
-  const selectedHolobotName = () => {
+  const lineupNames = (): string[] => {
+    if (mode === "3v3") {
+      if (!teamComplete) {
+        throw new Error("Pick three different Holobots for 3v3.");
+      }
+      return teamNames as string[];
+    }
     if (!selectedHolobot) {
       throw new Error("Choose a Holobot before entering PvP.");
     }
-    return selectedHolobot.name;
+    return [selectedHolobot.name];
   };
 
   const handleClose = async () => {
@@ -191,7 +269,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
   const handleCreateRoom = async () => {
     try {
-      await createRoom(selectedHolobotName());
+      await createRoom(lineupNames(), mode);
     } catch (createError: any) {
       Alert.alert("Create Room Failed", createError.message || "Unable to create a room.");
     }
@@ -203,7 +281,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
         Alert.alert("Room Code Needed", "Enter a room code to join a private PVP arena.");
         return;
       }
-      await joinRoom(joinCode.trim().toUpperCase(), selectedHolobotName());
+      await joinRoom(joinCode.trim().toUpperCase(), lineupNames());
     } catch (joinError: any) {
       Alert.alert("Join Room Failed", joinError.message || "Unable to join the room.");
     }
@@ -211,10 +289,48 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
   const handleQuickMatch = async () => {
     try {
-      await enterMatchmaking(selectedHolobotName());
+      await enterMatchmaking(lineupNames(), mode);
     } catch (matchError: any) {
       Alert.alert("Quick Match Failed", matchError.message || "Unable to enter matchmaking.");
     }
+  };
+
+  const handleSwitch = async (index: number) => {
+    try {
+      await switchActive(index);
+    } catch (switchError: any) {
+      Alert.alert("Switch Locked", switchError.message || "You cannot switch right now.");
+    }
+  };
+
+  const handleSendIn = async (index: number) => {
+    try {
+      await sendIn(index);
+    } catch (sendInError: any) {
+      Alert.alert("Send-In", sendInError.message || "That Holobot cannot be sent in.");
+    }
+  };
+
+  const assignTeamSlot = (slotIndex: number, name: string) => {
+    setTeamNames((current) => {
+      const next = current.map((existing) => (existing === name ? null : existing));
+      next[slotIndex] = name;
+      return next;
+    });
+  };
+
+  const handlePickerSelect = (index: number) => {
+    const picked = roster[index];
+    if (!picked) {
+      setPickerTarget(null);
+      return;
+    }
+    if (pickerTarget === "main") {
+      setSelectedHolobotIndex(index);
+    } else if (pickerTarget !== null) {
+      assignTeamSlot(pickerTarget, picked.name);
+    }
+    setPickerTarget(null);
   };
 
   const handlePlayMove = async (moveId: string) => {
@@ -237,6 +353,14 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
   const opponent = room && opponentRole ? room.players[opponentRole as PlayerRole] : null;
   const isWaiting = room?.status === "waiting";
   const isComplete = room?.status === "completed";
+  const isTeamRoom = room?.mode === "3v3" && !!room.teams;
+  const mySide = isTeamRoom && myRole ? room!.teams![myRole] : null;
+  const opponentSide = isTeamRoom && opponentRole ? room!.teams![opponentRole as PlayerRole] : null;
+  const awaitingMySendIn =
+    isTeamRoom && room?.phase === "awaiting_send_in" && room.pendingSendInRole === myRole;
+  const awaitingOpponentSendIn =
+    isTeamRoom && room?.phase === "awaiting_send_in" && room.pendingSendInRole !== myRole;
+  const switchReadyAt = mySide?.switchCooldownUntil ?? 0;
 
   return (
     <>
@@ -255,8 +379,50 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
             {!room ? (
               <>
-                {selectedHolobot ? (
-                  <Pressable onPress={() => setIsPickerOpen(true)} style={styles.holobotBar}>
+                <View style={styles.modeRow}>
+                  {(["1v1", "3v3"] as const).map((candidate) => (
+                    <Pressable
+                      key={candidate}
+                      disabled={candidate === "3v3" && !canField3v3}
+                      onPress={() => setMode(candidate)}
+                      style={[
+                        styles.modeButton,
+                        mode === candidate ? styles.modeButtonActive : null,
+                        candidate === "3v3" && !canField3v3 ? styles.modeButtonDisabled : null,
+                      ]}
+                    >
+                      <Text style={[styles.modeButtonText, mode === candidate ? styles.modeButtonTextActive : null]}>
+                        {candidate === "1v1" ? "1V1 DUEL" : "3V3 SHOWDOWN"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {mode === "3v3" ? (
+                  <View style={styles.teamRow}>
+                    {teamNames.map((name, index) => {
+                      const entry = name ? roster.find((holobot) => holobot.name === name) ?? null : null;
+                      return (
+                        <Pressable
+                          key={index}
+                          onPress={() => setPickerTarget(index as 0 | 1 | 2)}
+                          style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}
+                        >
+                          <Text style={styles.teamSlotLabel}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
+                          {entry ? (
+                            <>
+                              <Image source={entry.imageSource} style={styles.teamSlotArt} resizeMode="contain" />
+                              <Text numberOfLines={1} style={styles.teamSlotName}>{entry.name}</Text>
+                            </>
+                          ) : (
+                            <Text style={styles.teamSlotName}>TAP TO PICK</Text>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : selectedHolobot ? (
+                  <Pressable onPress={() => setPickerTarget("main")} style={styles.holobotBar}>
                     <Image source={selectedHolobot.imageSource} style={styles.holobotArt} resizeMode="contain" />
                     <View style={styles.holobotBody}>
                       <Text style={styles.holobotName}>{selectedHolobot.name}</Text>
@@ -271,7 +437,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                 )}
 
                 <View style={styles.optionColumn}>
-                  <Pressable disabled={!selectedHolobot || loading || matchmakingStatus === "searching"} onPress={handleQuickMatch} style={[styles.optionCard, (!selectedHolobot || loading) && styles.optionCardDisabled]}>
+                  <Pressable disabled={!lineupReady || loading || matchmakingStatus === "searching"} onPress={handleQuickMatch} style={[styles.optionCard, (!lineupReady || loading) && styles.optionCardDisabled]}>
                     <Text style={styles.optionTitle}>Quick Match</Text>
                     <Text style={styles.optionCopy}>
                       {matchmakingStatus === "searching" ? "Searching for another pilot..." : "Sync with the next pilot looking for a live battle."}
@@ -297,7 +463,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                         style={styles.codeInput}
                         value={joinCode}
                       />
-                      <Pressable disabled={!selectedHolobot || loading} onPress={handleJoinRoom} style={[styles.inlineButton, (!selectedHolobot || loading) && styles.optionCardDisabled]}>
+                      <Pressable disabled={!lineupReady || loading} onPress={handleJoinRoom} style={[styles.inlineButton, (!lineupReady || loading) && styles.optionCardDisabled]}>
                         <Text style={styles.inlineButtonText}>JOIN</Text>
                       </Pressable>
                     </View>
@@ -306,7 +472,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                   <View style={styles.optionCard}>
                     <Text style={styles.optionTitle}>Friend Battle</Text>
                     <Text style={styles.optionCopy}>Create a synced room code and send it to a friend for a direct challenge.</Text>
-                    <Pressable disabled={!selectedHolobot || loading} onPress={handleCreateRoom} style={[styles.createButton, (!selectedHolobot || loading) && styles.optionCardDisabled]}>
+                    <Pressable disabled={!lineupReady || loading} onPress={handleCreateRoom} style={[styles.createButton, (!lineupReady || loading) && styles.optionCardDisabled]}>
                       {loading ? <ActivityIndicator color="#050606" /> : <Text style={styles.inlineButtonText}>CREATE ROOM</Text>}
                     </Pressable>
                   </View>
@@ -322,7 +488,44 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                 </View>
 
                 {opponent ? <PlayerMeters label="OPPONENT" player={opponent} /> : null}
+                {isTeamRoom && opponentSide ? (
+                  <TeamDock side={opponentSide} activeDoc={opponent} label="THEIR SQUAD" />
+                ) : null}
                 {myPlayer ? <PlayerMeters label="YOU" player={myPlayer} /> : null}
+                {isTeamRoom && mySide && myPlayer ? (
+                  <TeamDock
+                    side={mySide}
+                    activeDoc={myPlayer}
+                    label="YOUR SQUAD — TAP TO SWITCH"
+                    switchReadyAt={switchReadyAt}
+                    onSwitch={(index) => void handleSwitch(index)}
+                    disabled={room.status !== "active" || room.phase === "awaiting_send_in"}
+                  />
+                ) : null}
+
+                {awaitingMySendIn && mySide ? (
+                  <View style={styles.sendInPanel}>
+                    <Text style={styles.sendInTitle}>HOLOBOT DOWN — SEND IN YOUR NEXT FIGHTER</Text>
+                    <View style={styles.sendInRow}>
+                      {livingBenchIndexes(mySide).map((index) => {
+                        const member = mySide.members[index];
+                        return (
+                          <Pressable key={index} onPress={() => void handleSendIn(index)} style={styles.sendInOption}>
+                            <Text style={styles.sendInName}>{member.holobotName}</Text>
+                            <Text style={styles.sendInMeta}>
+                              {`HP ${Math.max(0, Math.round((member.currentHP / Math.max(1, member.maxHP)) * 100))}%`}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+                {awaitingOpponentSendIn ? (
+                  <View style={styles.sendInBanner}>
+                    <Text style={styles.sendInBannerText}>OPPONENT IS SENDING IN THEIR NEXT HOLOBOT…</Text>
+                  </View>
+                ) : null}
 
                 <View style={styles.logPanel}>
                   <Text style={styles.logTitle}>BATTLE LOG</Text>
@@ -334,7 +537,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                   {!room.battleLog.length ? <Text style={styles.logEmpty}>Battle feed will appear here.</Text> : null}
                 </View>
 
-                {myPlayer && room.status === "active" ? (
+                {myPlayer && room.status === "active" && room.phase !== "awaiting_send_in" ? (
                   <View style={styles.handPanel}>
                     <Text style={styles.handTitle}>YOUR MOVES</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.handScroll}>
@@ -370,20 +573,186 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
       </Modal>
 
       <HolobotPickerModal
-        visible={isPickerOpen}
+        visible={pickerTarget !== null}
         roster={roster}
-        selectedIndex={selectedHolobotIndex}
-        onClose={() => setIsPickerOpen(false)}
-        onSelect={(index) => {
-          setSelectedHolobotIndex(index);
-          setIsPickerOpen(false);
-        }}
+        selectedIndex={
+          pickerTarget === "main" || pickerTarget === null
+            ? selectedHolobotIndex
+            : roster.findIndex((holobot) => holobot.name === teamNames[pickerTarget])
+        }
+        onClose={() => setPickerTarget(null)}
+        onSelect={handlePickerSelect}
       />
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  modeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  modeButton: {
+    borderColor: "#3a3f4b",
+    borderWidth: 1.5,
+    flex: 1,
+    paddingVertical: 9,
+  },
+  modeButtonActive: {
+    backgroundColor: "#f0bf14",
+    borderColor: "#f0bf14",
+  },
+  modeButtonDisabled: {
+    opacity: 0.4,
+  },
+  modeButtonText: {
+    color: "#b7bdc9",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textAlign: "center",
+  },
+  modeButtonTextActive: {
+    color: "#07080d",
+  },
+  teamRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  teamSlot: {
+    alignItems: "center",
+    backgroundColor: "#0b0d13",
+    borderColor: "#3a3f4b",
+    borderWidth: 1.5,
+    flex: 1,
+    minHeight: 92,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+  teamSlotFilled: {
+    borderColor: "#17d9ff",
+  },
+  teamSlotLabel: {
+    color: "#f0bf14",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  teamSlotArt: {
+    height: 40,
+    marginTop: 4,
+    width: 40,
+  },
+  teamSlotName: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  teamDock: {
+    marginTop: 6,
+  },
+  teamDockLabel: {
+    color: "#8b93a1",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  teamDockRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  teamDockChip: {
+    backgroundColor: "#0b0d13",
+    borderColor: "#3a3f4b",
+    borderWidth: 1.5,
+    flex: 1,
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+  },
+  teamDockChipActive: {
+    borderColor: "#f0bf14",
+  },
+  teamDockChipKo: {
+    opacity: 0.35,
+  },
+  teamDockChipReady: {
+    borderColor: "#17d9ff",
+  },
+  teamDockChipName: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  teamDockBar: {
+    backgroundColor: "#252525",
+    height: 4,
+    overflow: "hidden",
+  },
+  teamDockHp: {
+    backgroundColor: "#4bd060",
+    height: "100%",
+  },
+  sendInPanel: {
+    backgroundColor: "#160b0b",
+    borderColor: "#ef4444",
+    borderWidth: 2,
+    marginTop: 8,
+    padding: 10,
+  },
+  sendInTitle: {
+    color: "#fca5a5",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+    textAlign: "center",
+  },
+  sendInRow: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  sendInOption: {
+    alignItems: "center",
+    backgroundColor: "#0b0d13",
+    borderColor: "#17d9ff",
+    borderWidth: 1.5,
+    minWidth: 96,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  sendInName: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  sendInMeta: {
+    color: "#8b93a1",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  sendInBanner: {
+    backgroundColor: "#101218",
+    borderColor: "#3a3f4b",
+    borderWidth: 1,
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  sendInBannerText: {
+    color: "#b7bdc9",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textAlign: "center",
+  },
   backdrop: {
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.84)",
