@@ -92,6 +92,66 @@ service cloud.firestore {
         || (data.referralCode is string && data.referralCode.size() <= 12);
     }
 
+    // ---- economy freeze (2026-07-12) ----------------------------------------
+    // Currency, items, loot, and fitness-derived stats are paid ONLY by the
+    // callables (Admin SDK bypasses rules). The mobile client fallbacks were
+    // removed the same day; the holobots-fun web app's client-side economy
+    // writes break by design until it migrates (owner decision).
+    // Still client-writable on purpose: dailyEnergy + energy timestamps
+    // (regen/quest/training starts), holobots (attribute-point spends),
+    // battle_cards + arena_deck_template_ids + starter_deck_claimed (deck
+    // building & signup starter grant), equippedParts, inventory,
+    // rewardSystem (mission/quest state), leaderboardScore (recomputed by
+    // legit holobots writes), asyncBattleTickets, prestigeCount.
+    function economyFrozenOnUpdate(data, existing) {
+      return serverOnlyFieldFrozen(data, existing, 'holosTokens')
+        && serverOnlyFieldFrozen(data, existing, 'syncPoints')
+        && serverOnlyFieldFrozen(data, existing, 'lifetimeSyncPoints')
+        && serverOnlyFieldFrozen(data, existing, 'seasonSyncPoints')
+        && serverOnlyFieldFrozen(data, existing, 'syncRank')
+        && serverOnlyFieldFrozen(data, existing, 'gachaTickets')
+        && serverOnlyFieldFrozen(data, existing, 'arenaPassses')
+        && serverOnlyFieldFrozen(data, existing, 'expBoosters')
+        && serverOnlyFieldFrozen(data, existing, 'energyRefills')
+        && serverOnlyFieldFrozen(data, existing, 'rankSkips')
+        && serverOnlyFieldFrozen(data, existing, 'wins')
+        && serverOnlyFieldFrozen(data, existing, 'losses')
+        && serverOnlyFieldFrozen(data, existing, 'blueprints')
+        && serverOnlyFieldFrozen(data, existing, 'wildcardBlueprints')
+        && serverOnlyFieldFrozen(data, existing, 'lastWildcardPackAt')
+        && serverOnlyFieldFrozen(data, existing, 'parts')
+        && serverOnlyFieldFrozen(data, existing, 'packHistory')
+        && serverOnlyFieldFrozen(data, existing, 'todaySteps');
+    }
+
+    // On CREATE the frozen fields may only carry their signup defaults.
+    function frozenZeroOnCreate(data, field) {
+      return !(field in data) || data[field] == 0;
+    }
+    function frozenEmptyOnCreate(data, field) {
+      return !(field in data) || data[field].size() == 0;
+    }
+    function economyFrozenOnCreate(data) {
+      return frozenZeroOnCreate(data, 'holosTokens')
+        && frozenZeroOnCreate(data, 'syncPoints')
+        && frozenZeroOnCreate(data, 'lifetimeSyncPoints')
+        && frozenZeroOnCreate(data, 'seasonSyncPoints')
+        && (!('syncRank' in data) || data.syncRank == 'Rookie')
+        && frozenZeroOnCreate(data, 'gachaTickets')
+        && frozenZeroOnCreate(data, 'arenaPassses')
+        && frozenZeroOnCreate(data, 'expBoosters')
+        && frozenZeroOnCreate(data, 'energyRefills')
+        && frozenZeroOnCreate(data, 'rankSkips')
+        && frozenZeroOnCreate(data, 'wins')
+        && frozenZeroOnCreate(data, 'losses')
+        && frozenEmptyOnCreate(data, 'blueprints')
+        && frozenZeroOnCreate(data, 'wildcardBlueprints')
+        && !('lastWildcardPackAt' in data)
+        && frozenEmptyOnCreate(data, 'parts')
+        && frozenEmptyOnCreate(data, 'packHistory')
+        && frozenZeroOnCreate(data, 'todaySteps');
+    }
+
     // Numeric economy fields we sanity-check on write.
     function economyFieldsSane(data) {
       return saneOptional(data, 'holosTokens')
@@ -129,6 +189,7 @@ service cloud.firestore {
       allow create: if isOwner(uid)
         && noPrivilegeEscalation(request.resource.data)
         && economyFieldsSane(request.resource.data)
+        && economyFrozenOnCreate(request.resource.data)
         && referralFieldsAbsent(request.resource.data)
         && referralCodeSane(request.resource.data);
 
@@ -140,6 +201,7 @@ service cloud.firestore {
       // existing value or set false, but can never flip false -> true.
       allow update: if isOwner(uid)
         && economyFieldsSane(request.resource.data)
+        && economyFrozenOnUpdate(request.resource.data, resource.data)
         && referralFieldsFrozen(request.resource.data, resource.data)
         && referralCodeSane(request.resource.data)
         && (!('isDevAccount' in request.resource.data)

@@ -109,69 +109,16 @@ export function FitnessScreen() {
       return false;
     }
 
-    // The happy path already persisted everything atomically inside the
-    // fitness sync transaction (EXP, Holos, and Sync Points). Only fall back
-    // to a local profile write when that transaction failed.
+    // Rewards are persisted atomically inside the server-side fitness sync
+    // transaction (EXP, Holos, and Sync Points). The old local profile-write
+    // fallback was removed with the economy-field rules freeze — if the
+    // server sync failed, surface it and let the player retry online.
     if (completionResult.rewardsPersisted) {
       workout.clearCompletionResult();
       return true;
     }
 
-    const nextHolobots = [...(profile.holobots || [])];
-    const targetName = selectedHolobot.name.trim().toUpperCase();
-    const targetIndex = nextHolobots.findIndex(
-      (holobot) => holobot.name.trim().toUpperCase() === targetName,
-    );
-
-    if (targetIndex >= 0) {
-      nextHolobots[targetIndex] = applyHolobotExperience(nextHolobots[targetIndex], completionResult.expReward);
-    } else {
-      const fallbackHolobot: UserHolobot = {
-        attributePoints: selectedHolobot.attributePoints ?? 0,
-        boostedAttributes: selectedHolobot.boostedAttributes,
-        experience: selectedHolobot.experience,
-        level: selectedHolobot.level,
-        name: selectedHolobot.name,
-        nextLevelExp: selectedHolobot.nextLevelExp,
-        rank: selectedHolobot.rank,
-      };
-      nextHolobots.push(applyHolobotExperience(fallbackHolobot, completionResult.expReward));
-    }
-
-    try {
-      const syncProgressionUpdates =
-        completionResult.totalSyncPoints == null
-          ? (() => {
-              const rewardSyncPoints = (profile.syncPoints || 0) + completionResult.syncPointsReward;
-              const nextLifetimeSyncPoints = (profile.lifetimeSyncPoints || 0) + completionResult.syncPointsReward;
-              const nextSeasonSyncPoints = (profile.seasonSyncPoints || 0) + completionResult.syncPointsReward;
-
-              return {
-                leaderboardScore: computeLeaderboardScore({
-                  holobots: nextHolobots,
-                  prestigeCount: profile.prestigeCount,
-                  seasonSyncPoints: nextSeasonSyncPoints,
-                  wins: profile.stats?.wins,
-                }),
-                lifetimeSyncPoints: nextLifetimeSyncPoints,
-                seasonSyncPoints: nextSeasonSyncPoints,
-                syncPoints: rewardSyncPoints,
-                syncRank: getSyncRank(nextLifetimeSyncPoints),
-              };
-            })()
-          : {};
-
-      await updateProfile({
-        holobots: nextHolobots,
-        holosTokens: (profile.holosTokens || 0) + completionResult.holosReward,
-        ...syncProgressionUpdates,
-      });
-      workout.clearCompletionResult();
-      return true;
-    } catch (error) {
-      console.error("[Fitness] Failed to persist workout rewards", error);
-      return false;
-    }
+    return false;
   };
 
   const handleCollectRewards = async () => {

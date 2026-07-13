@@ -45,37 +45,58 @@ export function normalizeRewardSystem(value: unknown, date = new Date()): Mobile
   };
 }
 
+/**
+ * The daily mission table — mirrored in functions/src/lib/economy.ts where
+ * claimDailyMission validates completion (against server-incremented
+ * counters) and pays. Parity-tested; change both together.
+ */
+export const DAILY_MISSION_TABLE = [
+  {
+    id: "daily_login",
+    name: "Daily Check-in",
+    description: "Log in to the game",
+    target: 1,
+    reward: { gachaTickets: 1, holosTokens: 0 },
+  },
+  {
+    id: "arena_v2_battle",
+    name: "Arena V2 Warrior",
+    description: "Complete Arena V2 battles",
+    target: 3,
+    reward: { gachaTickets: 2, holosTokens: 100 },
+  },
+  {
+    id: "open_booster_pack",
+    name: "Pack Collector",
+    description: "Open booster packs",
+    target: 1,
+    reward: { gachaTickets: 1, holosTokens: 0 },
+  },
+] as const;
+
+function getMissionProgress(
+  missionId: string,
+  profile: UserProfile | null,
+  rewardSystem: MobileRewardSystem,
+): number {
+  if (missionId === "daily_login") return profile ? 1 : 0;
+  if (missionId === "arena_v2_battle") return rewardSystem.arenaBattlesToday;
+  if (missionId === "open_booster_pack") return rewardSystem.boosterPacksToday;
+  return 0;
+}
+
 export function buildDailyMissions(profile: UserProfile | null, date = new Date()): MobileDailyMission[] {
   const todayKey = getTodayMissionKey(date);
   const rewardSystem = normalizeRewardSystem(profile?.rewardSystem, date);
   const claimedToday = rewardSystem.missionClaims || {};
 
-  const missions: Omit<MobileDailyMission, "claimed" | "completed">[] = [
-    {
-      id: "daily_login",
-      name: "Daily Check-in",
-      description: "Log in to the game",
-      target: 1,
-      progress: profile ? 1 : 0,
-      reward: { gachaTickets: 1 },
-    },
-    {
-      id: "arena_v2_battle",
-      name: "Arena V2 Warrior",
-      description: "Complete Arena V2 battles",
-      target: 3,
-      progress: rewardSystem.arenaBattlesToday,
-      reward: { gachaTickets: 2, holosTokens: 100 },
-    },
-    {
-      id: "open_booster_pack",
-      name: "Pack Collector",
-      description: "Open booster packs",
-      target: 1,
-      progress: rewardSystem.boosterPacksToday,
-      reward: { gachaTickets: 1 },
-    },
-  ];
+  const missions: Omit<MobileDailyMission, "claimed" | "completed">[] = DAILY_MISSION_TABLE.map(
+    (mission) => ({
+      ...mission,
+      reward: { ...mission.reward },
+      progress: getMissionProgress(mission.id, profile, rewardSystem),
+    }),
+  );
 
   return missions.map((mission) => {
     const completed = mission.progress >= mission.target;

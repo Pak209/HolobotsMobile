@@ -76,7 +76,7 @@ describe("referral field protection", () => {
     });
 
     await assertSucceeds(
-      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { holosTokens: 10 }),
+      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { dailyEnergy: 55 }),
     );
   });
 
@@ -89,15 +89,13 @@ describe("referral field protection", () => {
     await assertFails(updateDoc(aliceDoc, { referralCode: 123 }));
   });
 
-  it("allows client-fallback wildcard economy writes within sane bounds", async () => {
+  it("DENIES client wildcard writes since the 2026-07-12 economy freeze", async () => {
     await seedUser(env, "alice", { ...buildUserDoc(), wildcardBlueprints: 5 });
     const aliceDoc = doc(authedDb(env, "alice"), "users/alice");
 
-    await assertSucceeds(
+    await assertFails(
       updateDoc(aliceDoc, { wildcardBlueprints: 10, lastWildcardPackAt: Date.now() }),
     );
     await assertFails(updateDoc(aliceDoc, { wildcardBlueprints: -1 }));
-    await assertFails(updateDoc(aliceDoc, { wildcardBlueprints: 999999999999 }));
-    await assertFails(updateDoc(aliceDoc, { lastWildcardPackAt: -5 }));
   });
 });

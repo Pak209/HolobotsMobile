@@ -1,27 +1,27 @@
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { buildDailyMissions, markMissionClaimed } from "@/lib/dailyMissions";
+import { buildDailyMissions } from "@/lib/dailyMissions";
+import { claimDailyMissionAuthoritative } from "@/lib/economyClient";
 
 type DailyMissionsModalProps = {
   onClose: () => void;
 };
 
 export function DailyMissionsModal({ onClose }: DailyMissionsModalProps) {
-  const { profile, updateProfile } = useAuth();
+  const { profile } = useAuth();
   const missions = buildDailyMissions(profile);
   const completed = missions.filter((mission) => mission.completed).length;
   const unclaimed = missions.filter((mission) => mission.completed && !mission.claimed).length;
 
-  const handleClaim = async (missionId: string, reward: { gachaTickets: number; holosTokens?: number }) => {
+  const handleClaim = async (missionId: string) => {
     if (!profile) return;
 
     try {
-      await updateProfile({
-        gachaTickets: (profile.gachaTickets || 0) + reward.gachaTickets,
-        holosTokens: (profile.holosTokens || 0) + (reward.holosTokens || 0),
-        rewardSystem: markMissionClaimed(profile.rewardSystem, missionId),
-      });
+      // Server validates completion (against server-incremented counters)
+      // and pays from the mission table; the profile snapshot listener
+      // reflects the payout.
+      await claimDailyMissionAuthoritative(missionId);
     } catch (error) {
       Alert.alert("Claim failed", error instanceof Error ? error.message : "Please try again.");
     }
@@ -56,7 +56,7 @@ export function DailyMissionsModal({ onClose }: DailyMissionsModalProps) {
                 </View>
                 <Pressable
                   disabled={!canClaim}
-                  onPress={() => void handleClaim(mission.id, mission.reward)}
+                  onPress={() => void handleClaim(mission.id)}
                   style={[styles.claimButton, !canClaim ? styles.claimButtonDisabled : null]}
                 >
                   <Text style={[styles.claimButtonText, !canClaim ? styles.claimButtonTextDisabled : null]}>

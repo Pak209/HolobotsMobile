@@ -63,6 +63,73 @@ export function incrementBoosterPacksToday(value: unknown, date = new Date()): R
   };
 }
 
+/**
+ * Daily mission table — mirror of DAILY_MISSION_TABLE in
+ * mobile/src/lib/dailyMissions.ts (parity-tested). Completion validates
+ * against SERVER-incremented counters: arenaBattlesToday is bumped by
+ * settleArenaBattle and boosterPacksToday by purchaseMarketplaceBooster.
+ */
+export const DAILY_MISSION_TABLE = [
+  { id: "daily_login", target: 1, reward: { gachaTickets: 1, holosTokens: 0 } },
+  { id: "arena_v2_battle", target: 3, reward: { gachaTickets: 2, holosTokens: 100 } },
+  { id: "open_booster_pack", target: 1, reward: { gachaTickets: 1, holosTokens: 0 } },
+] as const;
+
+export type MissionClaimRefusal = "unknown_mission" | "not_completed" | "already_claimed";
+
+export function buildMissionClaimUpdatesRaw(
+  userData: Record<string, unknown>,
+  missionId: string,
+  date = new Date(),
+):
+  | { refusal: MissionClaimRefusal }
+  | { refusal: null; reward: { gachaTickets: number; holosTokens: number }; updates: Record<string, unknown> } {
+  const mission = DAILY_MISSION_TABLE.find((candidate) => candidate.id === missionId);
+  if (!mission) {
+    return { refusal: "unknown_mission" };
+  }
+
+  const todayKey = getTodayMissionKey(date);
+  const raw = (userData.rewardSystem && typeof userData.rewardSystem === "object"
+    ? userData.rewardSystem
+    : {}) as Record<string, unknown>;
+  const hasFreshCounters = raw.lastDailyMissionReset === todayKey;
+  const arenaBattlesToday = hasFreshCounters ? Number(raw.arenaBattlesToday || 0) : 0;
+  const boosterPacksToday = hasFreshCounters ? Number(raw.boosterPacksToday || 0) : 0;
+  const missionClaims = (raw.missionClaims && typeof raw.missionClaims === "object"
+    ? raw.missionClaims
+    : {}) as Record<string, unknown>;
+
+  const progress =
+    missionId === "daily_login"
+      ? 1 // being signed in IS the mission
+      : missionId === "arena_v2_battle"
+        ? arenaBattlesToday
+        : boosterPacksToday;
+  if (progress < mission.target) {
+    return { refusal: "not_completed" };
+  }
+
+  if (missionClaims[missionId] === todayKey) {
+    return { refusal: "already_claimed" };
+  }
+
+  return {
+    refusal: null,
+    reward: { ...mission.reward },
+    updates: {
+      gachaTickets: Number(userData.gachaTickets || 0) + mission.reward.gachaTickets,
+      holosTokens: Number(userData.holosTokens || 0) + mission.reward.holosTokens,
+      rewardSystem: {
+        arenaBattlesToday,
+        boosterPacksToday,
+        lastDailyMissionReset: todayKey,
+        missionClaims: { ...missionClaims, [missionId]: todayKey },
+      },
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Gacha (mirror of gacha.ts)
 // ---------------------------------------------------------------------------
