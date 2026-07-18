@@ -29,6 +29,7 @@ import { createGenesisStarterHolobot, getHolobotRank } from "@/config/holobots";
 import { AUTH_TIMEOUT_MS, FIRESTORE_TIMEOUT_MS, withTimeout } from "@/lib/async";
 import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
 import { computeLeaderboardScore, subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
+import { initPurchases } from "@/lib/purchases";
 import { getSyncRank } from "@/lib/syncProgression";
 import type { UserProfile } from "@/types/profile";
 
@@ -224,6 +225,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     return unsubscribe;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    // Post-sign-in purchases init. Dormant until Season 1: no-ops unless
+    // config/monetization.iapEnabled is true AND a RevenueCat key is pasted
+    // in (see mobile/src/lib/purchases.ts) — today this does nothing.
+    void initPurchases(user.uid);
   }, [user]);
 
   useEffect(() => {

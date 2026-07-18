@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { isIapEnabled, restorePurchases } from "@/lib/purchases";
 
 type DashboardSettingsModalProps = {
   onClose: () => void;
@@ -22,6 +24,28 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [canRestorePurchases, setCanRestorePurchases] = useState(false);
+  const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
+
+  // Apple requires a Restore Purchases control once IAP ships; the row only
+  // renders when the remote iapEnabled flag (plus key + platform) resolves
+  // true, so it is invisible for the entire dormant beta period.
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    let cancelled = false;
+    void isIapEnabled().then((enabled) => {
+      if (!cancelled) {
+        setCanRestorePurchases(enabled);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   const canConfirmDelete = deleteConfirmationText.trim().toUpperCase() === "DELETE";
   const pilotLabel = useMemo(
@@ -61,6 +85,40 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                   >
                     <Text style={styles.primaryActionText}>SIGN OUT</Text>
                   </Pressable>
+                  {canRestorePurchases ? (
+                    <Pressable
+                      disabled={isRestoringPurchases}
+                      style={styles.secondaryAction}
+                      onPress={async () => {
+                        setIsRestoringPurchases(true);
+                        try {
+                          const customerInfo = await restorePurchases();
+                          const restoredCount = customerInfo
+                            ? Object.keys(customerInfo.entitlements.active).length
+                            : 0;
+                          Alert.alert(
+                            "Restore Purchases",
+                            restoredCount > 0
+                              ? "Your purchases were restored. Rewards are applied by the server and may take a moment to appear."
+                              : "No previous purchases were found for this App Store account.",
+                          );
+                        } catch (error) {
+                          Alert.alert(
+                            "Restore failed",
+                            error instanceof Error ? error.message : "Please try again.",
+                          );
+                        } finally {
+                          setIsRestoringPurchases(false);
+                        }
+                      }}
+                    >
+                      {isRestoringPurchases ? (
+                        <ActivityIndicator color="#f0bf14" />
+                      ) : (
+                        <Text style={styles.secondaryActionText}>RESTORE PURCHASES</Text>
+                      )}
+                    </Pressable>
+                  ) : null}
                 </View>
 
                 <View style={styles.section}>
