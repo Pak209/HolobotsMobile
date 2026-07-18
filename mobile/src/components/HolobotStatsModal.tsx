@@ -157,8 +157,16 @@ export function HolobotStatsModal({
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      {/* The close-on-tap backdrop is a SIBLING behind the card, not a
+          wrapper: a Pressable ancestor competes with the ScrollView for
+          drag gestures on iOS and the tabs stop scrolling. */}
+      <View style={styles.overlay}>
+        <Pressable
+          accessibilityLabel="Close holobot stats"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.card}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.section}>
               <View style={styles.levelRow}>
@@ -483,8 +491,8 @@ export function HolobotStatsModal({
 
             <Text style={styles.closeHint}>TAP OUTSIDE TO CLOSE</Text>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
