@@ -237,6 +237,14 @@ service cloud.firestore {
       }
     }
 
+    // ---- remote app config ---------------------------------------------------
+    // Console/Admin-edited documents (e.g. config/appDistribution.inviteUrl:
+    // the TestFlight link during beta, the App Store URL after launch).
+    match /config/{document} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // ---- public leaderboard projection --------------------------------------
     // Written ONLY by the mirrorLeaderboardEntry trigger (Admin SDK).
     // Contains public fields exclusively: username, leaderboardScore, wins,

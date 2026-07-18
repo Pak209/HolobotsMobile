@@ -12,6 +12,7 @@ import {
   purchaseMarketplaceItemAuthoritative,
   purchaseMarketplacePartAuthoritative,
 } from "@/lib/economyClient";
+import { getInviteUrl } from "@/lib/appConfig";
 import { deriveReferralCode, GENESIS_BOTS, GENESIS_REFERRALS_REQUIRED } from "@/lib/genesis";
 import {
   applyReferralCodeAuthoritative,
@@ -251,8 +252,12 @@ export function MarketplaceScreen() {
 
   const shareReferralCode = async () => {
     try {
+      // Remote-configured: TestFlight public beta today, the App Store URL
+      // after launch — swapped server-side with no app update.
+      const inviteUrl = await getInviteUrl();
       await Share.share({
-        message: `Join me on Holobots! Use my invite code ${myReferralCode} when you sign up — complete your first workout and we both get rewards.`,
+        message: `Join me on Holobots!${inviteUrl ? ` Get the app: ${inviteUrl}` : ""}
+Use my invite code ${myReferralCode} when you sign up — complete your first workout and we both get rewards.`,
       });
     } catch {
       // Share sheet dismissed — nothing to do.
