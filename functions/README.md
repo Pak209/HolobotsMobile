@@ -10,7 +10,7 @@ repositories**:
   `purchaseMarketplaceBooster`, `useEnergyRefill`, `chargeArenaEntry`,
   `settleArenaBattle`, `claimQuestRun`, `claimTrainingSession`,
   `upgradeSyncStat`, `mintHolobot`, `upgradeHolobotRank`,
-  `deleteUserAccountV2`)
+  `deleteUserAccountV2`, `revenuecatWebhook`)
 - the `holobots-fun` web repo (`matchmaker`, `cleanupAbandonedRooms` — web PvP triggers; `createWebviewBridgeToken` moved INTO this repo 2026-07-12 after its source was lost and an old unscoped deploy removed it from prod)
 
 A bare `firebase deploy --only functions` from this repo will offer to
@@ -18,8 +18,13 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:clearWorkoutCooldown,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:purchaseMarketplacePart,functions:useEnergyRefill,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:upgradeHolobotMove,functions:saveHolobotCombatKit,functions:mintHolobot,functions:upgradeHolobotRank,functions:deleteUserAccountV2,functions:applyReferralCode,functions:claimGenesisSquad,functions:assignWildcardBlueprints,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:redeemLegendaryBlueprint,functions:useExpBooster,functions:useRankSkip,functions:mirrorLeaderboardEntry
+firebase deploy --only functions:syncWatchWorkoutRewards,functions:syncFitnessActivity,functions:clearWorkoutCooldown,functions:openGachaPack,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:purchaseMarketplacePart,functions:useEnergyRefill,functions:chargeArenaEntry,functions:settleArenaBattle,functions:claimQuestRun,functions:claimTrainingSession,functions:upgradeSyncStat,functions:upgradeHolobotMove,functions:saveHolobotCombatKit,functions:mintHolobot,functions:upgradeHolobotRank,functions:deleteUserAccountV2,functions:applyReferralCode,functions:claimGenesisSquad,functions:assignWildcardBlueprints,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:redeemLegendaryBlueprint,functions:useExpBooster,functions:useRankSkip,functions:mirrorLeaderboardEntry,functions:revenuecatWebhook
 ```
+
+`revenuecatWebhook` requires the `REVENUECAT_WEBHOOK_AUTH` secret to exist
+before its first deploy (`firebase functions:secrets:set
+REVENUECAT_WEBHOOK_AUTH` — the same value goes into the RevenueCat webhook's
+Authorization header field; see `mobile/docs/revenuecat-setup.md`).
 
 Deliberately still client-side (documented, not forgotten): quest/training
 STARTS (energy spend, board refresh, session records — the endsAt/startedAt

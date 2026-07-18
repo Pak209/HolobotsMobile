@@ -200,11 +200,21 @@ tracking** (no ad SDKs, no cross-app identifiers):
 
 ## 10. When RevenueCat/IAP lands (next release, not this one)
 
-- App Store Connect: Paid Apps agreement + banking/tax 🖐 (start early —
-  it gates everything and can take days)
-- Create IAP products (`genesis_squad_499`, `genesis_squad_early_199`),
-  attach to the version, provide IAP review screenshot
-- Add In-App Purchase capability to the Xcode target
-- Update the privacy label: add Purchases
+The code groundwork is DONE and dormant (see
+`mobile/docs/revenuecat-setup.md` for the full step-by-step): client wrapper
++ Restore Purchases button gated behind `config/monetization.iapEnabled`,
+and the `revenuecatWebhook` Cloud Function for server-side fulfillment.
+Remaining hands-on items:
+
+- ~~App Store Connect: Paid Apps agreement + banking/tax~~ ✅ Active
+- ~~Create IAP products~~ ✅ 3 drafts exist (`genesis_squad_499`,
+  `genesis_squad_early_199`, `battle_pass_monthly`) — still 🖐 attach to a
+  submitted version + IAP review screenshot at launch
+- RevenueCat dashboard setup (project, entitlements `genesis_squad` +
+  `battle_pass`, offering, SDK key, webhook + secret) 🖐
+- `pod install` in `mobile/ios` + add In-App Purchase capability to the
+  Xcode target 🖐
+- Update the privacy label: add Purchases 🖐
 - Add gacha odds disclosure if randomized items become purchasable
-- Restore Purchases button (RevenueCat handles the flow; UI must expose it)
+- ~~Restore Purchases button~~ ✅ ships dormant; renders only when
+  `iapEnabled` is true

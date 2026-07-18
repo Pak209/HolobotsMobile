@@ -23,6 +23,7 @@ export { openGachaPack } from "./economy/openGachaPack";
 export { purchaseMarketplaceBooster } from "./economy/purchaseMarketplaceBooster";
 export { purchaseMarketplaceItem } from "./economy/purchaseMarketplaceItem";
 export { redeemLegendaryBlueprint } from "./progression/redeemLegendaryBlueprint";
+export { revenuecatWebhook } from "./monetization/revenuecatWebhook";
 export { purchaseMarketplacePart } from "./economy/purchaseMarketplacePart";
 export { saveHolobotCombatKit } from "./progression/saveHolobotCombatKit";
 export { settleArenaBattle } from "./arena/settleArenaBattle";
