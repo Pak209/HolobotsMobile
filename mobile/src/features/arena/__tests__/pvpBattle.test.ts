@@ -104,6 +104,7 @@ function applyUpdates(room: BattleRoom, updates: Record<string, unknown>): Battl
     status: updates.status as BattleRoom['status'],
     winner: updates.winner as BattleRoom['winner'],
     battleLog: updates.battleLog as BattleRoom['battleLog'],
+    lastAction: updates.lastAction as BattleRoom['lastAction'],
   };
 }
 
@@ -179,6 +180,16 @@ describe('room <-> engine round trip', () => {
     expect(rebuilt.player.currentHP).toBe(next.player.currentHP);
     expect(rebuilt.opponent.stamina).toBe(next.opponent.stamina);
     expect(rebuilt.opponent.specialMeter).toBe(next.opponent.specialMeter);
+
+    // The shared arena view's action ticker rides the room doc: the resolved
+    // action is stored serializable — undefined anywhere would break setDoc.
+    expect(nextRoom.lastAction?.card.name).toBe(strike.name);
+    const hasUndefinedDeep = (value: unknown): boolean => {
+      if (value === undefined) return true;
+      if (value === null || typeof value !== 'object') return false;
+      return Object.values(value as Record<string, unknown>).some(hasUndefinedDeep);
+    };
+    expect(hasUndefinedDeep(updates.lastAction)).toBe(false);
   });
 
   it('kit finishers obey the same 4/7 meter gate as PvE', () => {

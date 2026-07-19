@@ -253,6 +253,7 @@ export function battleStateToRoomUpdates(
     status: state.status === 'completed' ? 'completed' : 'active',
     winner: winnerRole,
     battleLog,
+    lastAction: lastAction ? pruneUndefinedDeep(lastAction) : null,
     lastActionAt: now,
     ...(state.status === 'completed' ? { completedAt: now } : {}),
   };

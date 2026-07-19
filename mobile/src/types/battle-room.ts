@@ -4,6 +4,7 @@ import type {
   AbilityRuntimeState,
   ActionCard,
   ArmedDefenseTrap,
+  BattleAction,
   ResolvedSignatureFinisher,
 } from "@/types/arena";
 
@@ -131,6 +132,9 @@ export type BattleRoom = {
   turnNumber: number;
   winner: PlayerRole | null;
   battleLog: BattleLogEntry[];
+  /** Last resolved engine action (undefined-pruned) so BOTH clients can
+      render the shared arena view's action ticker. Absent on old rooms. */
+  lastAction?: BattleAction | null;
   createdAt: Timestamp | FieldValue | number;
   startedAt?: Timestamp | FieldValue | number;
   lastActionAt?: Timestamp | FieldValue | number;
