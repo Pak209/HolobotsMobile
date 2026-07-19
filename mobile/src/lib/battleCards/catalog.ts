@@ -29,7 +29,11 @@ function makeCard(params: {
   return {
     animationId: typeToAnimation[params.type],
     baseDamage: damage,
-    battleTier: params.battleTier,
+    // Only present when a tier was given: an explicit `battleTier: undefined`
+    // key survives every spread into the PvP fighter doc, and Firestore
+    // rejects setDoc payloads containing undefined (broke quick match for
+    // every kit holding the stock finisher).
+    ...(params.battleTier !== undefined ? { battleTier: params.battleTier } : {}),
     description: params.description,
     effects: damage > 0 ? [{ type: "damage", target: "opponent", value: damage }] : [],
     iconName: params.type,
