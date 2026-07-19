@@ -5,25 +5,27 @@ import {
   Image,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 
+import {
+  BattleArenaView,
+  type TeamHudChip,
+  type TeamHudProps,
+} from "@/components/arena/BattleArenaView";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { mergeHolobotRoster } from "@/config/holobots";
-import { getSpecialMeterSegments, SPECIAL_METER_SEGMENTS } from "@/features/arena/moveKits";
+import { roomToBattleState } from "@/features/arena/pvpBattle";
 import {
   isDocKnockedOut,
   livingBenchIndexes,
   TEAM_SIZE,
 } from "@/features/arena/pvpTeamBattle";
 import { useRealtimeArena } from "@/hooks/useRealtimeArena";
-import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
-import type { ActionCard, CardType } from "@/types/arena";
-import type { BattleMode, PlayerRole, PvpFighterDoc } from "@/types/battle-room";
+import type { BattleMode, PlayerRole, PvpFighterDoc, PvpTeamSide } from "@/types/battle-room";
 import type { UserHolobot } from "@/types/profile";
 
 type PvpArenaModalProps = {
@@ -31,174 +33,6 @@ type PvpArenaModalProps = {
   userHolobots: UserHolobot[];
   visible: boolean;
 };
-
-function cardColors(type: CardType) {
-  switch (type) {
-    case "strike":
-      return { bg: "#7f1d1d", border: "#ef4444", text: "#fca5a5" };
-    case "defense":
-      return { bg: "#15365f", border: "#3b82f6", text: "#93c5fd" };
-    case "combo":
-      return { bg: "#4c1d95", border: "#8b5cf6", text: "#c4b5fd" };
-    case "finisher":
-      return { bg: "#713f12", border: "#f59e0b", text: "#fcd34d" };
-  }
-}
-
-function PlayerMeters({ label, player }: { label: string; player: PvpFighterDoc }) {
-  const hpPercent = player.maxHP > 0 ? Math.max(0, Math.min(100, (player.currentHP / player.maxHP) * 100)) : 0;
-  const staminaPercent = player.maxStamina > 0 ? Math.max(0, Math.min(100, (player.stamina / player.maxStamina) * 100)) : 0;
-
-  return (
-    <View style={styles.meterPanel}>
-      <View style={styles.meterHeader}>
-        <Text style={styles.meterLabel}>{label}</Text>
-        <Text style={styles.meterName}>{player.username || "Waiting"}</Text>
-      </View>
-      <Text style={styles.meterBot}>
-        {player.holobotName
-          ? `${player.holobotName} Lv ${player.level} • COMBO ×${player.comboCounter}${
-              player.armedDefenseTrap
-                ? ` • ⛨ ${player.armedDefenseTrap.name.toUpperCase()}${(player.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}`
-                : ""
-            }`
-          : "No pilot connected"}
-      </Text>
-
-      <View style={styles.meterRow}>
-        <Text style={styles.meterCaption}>HP</Text>
-        <View style={styles.barTrack}>
-          <View style={[styles.hpFill, { width: `${hpPercent}%` }]} />
-        </View>
-        <Text style={styles.meterValue}>{`${player.currentHP}/${player.maxHP}`}</Text>
-      </View>
-
-      <View style={styles.meterRow}>
-        <Text style={styles.meterCaption}>STA</Text>
-        <View style={styles.barTrack}>
-          <View style={[styles.staminaFill, { width: `${staminaPercent}%` }]} />
-        </View>
-        <Text style={styles.meterValue}>{`${player.stamina}/${player.maxStamina}`}</Text>
-      </View>
-
-      <View style={styles.meterRow}>
-        <Text style={styles.meterCaption}>✦</Text>
-        <View style={styles.barTrack}>
-          <View style={[styles.specialFill, { width: `${player.specialMeter}%` }]} />
-        </View>
-        <Text style={styles.meterValue}>
-          {`${getSpecialMeterSegments(player.specialMeter)}/${SPECIAL_METER_SEGMENTS}`}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function reasonLabel(availability?: ArenaCardAvailability): string | null {
-  if (!availability || availability.playable) return null;
-  switch (availability.reason) {
-    case "cooldown":
-      return `CD ${availability.cooldownTurns ?? "?"}`;
-    case "stamina":
-      return "LOW STA";
-    case "combo":
-      return "NEEDS COMBO";
-    case "special_meter":
-      return "NEEDS METER";
-    case "defense_lock":
-      return "LOCKED";
-    default:
-      return "LOCKED";
-  }
-}
-
-function BattleCard({
-  card,
-  availability,
-  onPlay,
-}: {
-  card: ActionCard;
-  availability?: ArenaCardAvailability;
-  onPlay: (moveId: string) => void;
-}) {
-  const colors = cardColors(card.type);
-  const disabled = availability ? !availability.playable : false;
-
-  return (
-    <Pressable
-      disabled={disabled}
-      onPress={() => onPlay(card.id)}
-      style={[styles.battleCard, { backgroundColor: colors.bg, borderColor: colors.border, opacity: disabled ? 0.45 : 1 }]}
-    >
-      <View style={styles.cardCost}>
-        <Text style={styles.cardCostText}>{card.staminaCost}</Text>
-      </View>
-      <Text style={[styles.cardType, { color: colors.text }]}>{card.type === "defense" ? "DEFEND" : card.type.toUpperCase()}</Text>
-      <Text numberOfLines={2} style={styles.cardName}>{card.name}</Text>
-      {card.baseDamage > 0 ? <Text style={styles.cardDamage}>{card.baseDamage} DMG</Text> : <Text style={styles.cardDamage}>BLOCK</Text>}
-      <Text style={styles.cardPlay}>{disabled ? (reasonLabel(availability) ?? "LOCKED") : "PLAY"}</Text>
-    </Pressable>
-  );
-}
-
-function TeamDock({
-  side,
-  activeDoc,
-  label,
-  switchReadyAt,
-  onSwitch,
-  disabled,
-}: {
-  side: { members: PvpFighterDoc[]; activeIndex: number };
-  activeDoc: PvpFighterDoc | null;
-  label: string;
-  switchReadyAt?: number;
-  onSwitch?: (index: number) => void;
-  disabled?: boolean;
-}) {
-  const now = Date.now();
-  const coolingDown = switchReadyAt !== undefined && now < switchReadyAt;
-
-  return (
-    <View style={styles.teamDock}>
-      <Text style={styles.teamDockLabel}>
-        {label}
-        {coolingDown ? ` • CD ${Math.max(1, Math.ceil((switchReadyAt! - now) / 1000))}s` : ""}
-      </Text>
-      <View style={styles.teamDockRow}>
-        {side.members.map((member, index) => {
-          const isActive = index === side.activeIndex;
-          // The live doc is authoritative for the active slot.
-          const shown = isActive && activeDoc ? activeDoc : member;
-          const down = isDocKnockedOut(shown);
-          const tappable = !!onSwitch && !disabled && !isActive && !down && !coolingDown;
-          const hpPct = Math.max(0, Math.min(1, shown.currentHP / Math.max(1, shown.maxHP)));
-
-          return (
-            <Pressable
-              key={index}
-              disabled={!tappable}
-              onPress={() => onSwitch?.(index)}
-              style={[
-                styles.teamDockChip,
-                isActive ? styles.teamDockChipActive : null,
-                down ? styles.teamDockChipKo : null,
-                tappable ? styles.teamDockChipReady : null,
-              ]}
-            >
-              <Text numberOfLines={1} style={styles.teamDockChipName}>
-                {down ? `✕ ${shown.holobotName}` : shown.holobotName}
-              </Text>
-              <View style={styles.teamDockBar}>
-                <View style={[styles.teamDockHp, { width: `${Math.round(hpPct * 100)}%` }]} />
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
 
 export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalProps) {
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
@@ -209,7 +43,6 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
   const [joinCode, setJoinCode] = useState("");
   const {
     cancelMatchmaking,
-    canFireSignature,
     createRoom,
     enterMatchmaking,
     error,
@@ -360,7 +193,111 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     isTeamRoom && room?.phase === "awaiting_send_in" && room.pendingSendInRole === myRole;
   const awaitingOpponentSendIn =
     isTeamRoom && room?.phase === "awaiting_send_in" && room.pendingSendInRole !== myRole;
-  const switchReadyAt = mySide?.switchCooldownUntil ?? 0;
+  const inLiveBattle = !!room && room.status === "active" && !!myRole && !!myPlayer;
+
+  // Cooldown countdowns need a clock; only tick while a live battle renders.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!inLiveBattle) return;
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [inLiveBattle]);
+
+  // The shared arena view always draws battle.player at the bottom as "you".
+  // The room maps p1 -> player FIXED on both clients (so the engine resolves
+  // identically everywhere), so p2 flips the fighters for display only.
+  const battleState = useMemo(() => {
+    if (!room || !myRole) return null;
+    const state = roomToBattleState(room);
+    return myRole === "p1" ? state : { ...state, player: state.opponent, opponent: state.player };
+  }, [myRole, room]);
+
+  const playerCards = myPlayer?.moves ?? [];
+  const playableCardIds = useMemo(
+    () => playerCards.filter((move) => moveAvailability[move.id]?.playable).map((move) => move.id),
+    [moveAvailability, playerCards],
+  );
+
+  const docToChip = (side: PvpTeamSide, liveActiveDoc: PvpFighterDoc | null) =>
+    side.members.map((member, index): TeamHudChip => {
+      // The live players.{role} doc is authoritative for the active slot.
+      const shown = index === side.activeIndex && liveActiveDoc ? liveActiveDoc : member;
+      return {
+        index,
+        name: shown.holobotName,
+        hpPct: shown.maxHP > 0 ? Math.max(0, shown.currentHP / shown.maxHP) : 0,
+        meterPct: Math.max(0, Math.min(1, shown.specialMeter / 100)),
+        isKnockedOut: isDocKnockedOut(shown),
+        isActive: index === side.activeIndex,
+      };
+    });
+
+  const teamHud: TeamHudProps | null =
+    isTeamRoom && mySide && opponentSide && room
+      ? {
+          playerChips: docToChip(mySide, myPlayer),
+          opponentChips: docToChip(opponentSide, opponent),
+          canSwitchNow:
+            room.status === "active" &&
+            room.phase !== "awaiting_send_in" &&
+            nowTick >= (mySide.switchCooldownUntil ?? 0) &&
+            nowTick >= (mySide.entryLockUntil ?? 0),
+          switchSecondsLeft: Math.max(0, Math.ceil(((mySide.switchCooldownUntil ?? 0) - nowTick) / 1000)),
+          entryLocked: nowTick < (mySide.entryLockUntil ?? 0),
+          onSwitch: (index) => void handleSwitch(index),
+          sendIn: awaitingMySendIn
+            ? {
+                secondsLeft: Math.max(0, Math.ceil(((room.sendInDeadline ?? nowTick) - nowTick) / 1000)),
+                options: livingBenchIndexes(mySide).map((index): TeamHudChip => {
+                  const member = mySide.members[index];
+                  return {
+                    index,
+                    name: member.holobotName,
+                    hpPct: member.maxHP > 0 ? Math.max(0, member.currentHP / member.maxHP) : 0,
+                    meterPct: Math.max(0, Math.min(1, member.specialMeter / 100)),
+                    isKnockedOut: false,
+                    isActive: false,
+                  };
+                }),
+              }
+            : null,
+          opponentChoosing: awaitingOpponentSendIn,
+          onSendIn: (index) => void handleSendIn(index),
+        }
+      : null;
+
+  if (inLiveBattle && battleState) {
+    // Live battle: the SAME arena battle screen as PvE — the opponent is
+    // simply the other pilot. Lobby/waiting/results keep the card layout.
+    return (
+      <>
+        <Modal animationType="fade" presentationStyle="overFullScreen" transparent visible={visible} onRequestClose={handleClose}>
+          <View style={styles.battleFull}>
+            <View style={styles.battleTopBar}>
+              <Text style={styles.battleTopText}>
+                {`ROOM ${room!.roomCode} • VS ${opponent?.username || "PILOT"}`}
+              </Text>
+              <Pressable style={styles.closeChip} onPress={handleClose}>
+                <Text style={styles.closeChipText}>X</Text>
+              </Pressable>
+            </View>
+            <BattleArenaView
+              battle={battleState}
+              roundProgress={null}
+              playerCards={playerCards}
+              playableCardIds={playableCardIds}
+              cardAvailability={moveAvailability}
+              lastAction={room!.lastAction ?? null}
+              isAnimating={false}
+              onCardPlay={(moveId) => void handlePlayMove(moveId)}
+              onSignaturePlay={() => void handleSignature()}
+              team={teamHud}
+            />
+          </View>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <>
@@ -483,82 +420,15 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                 <View style={styles.roomBanner}>
                   <Text style={styles.roomBannerText}>ROOM {room.roomCode}</Text>
                   <Text style={styles.roomBannerSub}>
-                    {isWaiting ? "Waiting for opponent" : isComplete ? (room.winner === myRole ? "Victory" : "Defeat") : "Both devices render this shared Firebase battle state"}
+                    {isWaiting
+                      ? "Waiting for opponent"
+                      : isComplete
+                        ? room.winner === myRole
+                          ? "Victory"
+                          : "Defeat"
+                        : "Connecting to battle"}
                   </Text>
                 </View>
-
-                {opponent ? <PlayerMeters label="OPPONENT" player={opponent} /> : null}
-                {isTeamRoom && opponentSide ? (
-                  <TeamDock side={opponentSide} activeDoc={opponent} label="THEIR SQUAD" />
-                ) : null}
-                {myPlayer ? <PlayerMeters label="YOU" player={myPlayer} /> : null}
-                {isTeamRoom && mySide && myPlayer ? (
-                  <TeamDock
-                    side={mySide}
-                    activeDoc={myPlayer}
-                    label="YOUR SQUAD — TAP TO SWITCH"
-                    switchReadyAt={switchReadyAt}
-                    onSwitch={(index) => void handleSwitch(index)}
-                    disabled={room.status !== "active" || room.phase === "awaiting_send_in"}
-                  />
-                ) : null}
-
-                {awaitingMySendIn && mySide ? (
-                  <View style={styles.sendInPanel}>
-                    <Text style={styles.sendInTitle}>HOLOBOT DOWN — SEND IN YOUR NEXT FIGHTER</Text>
-                    <View style={styles.sendInRow}>
-                      {livingBenchIndexes(mySide).map((index) => {
-                        const member = mySide.members[index];
-                        return (
-                          <Pressable key={index} onPress={() => void handleSendIn(index)} style={styles.sendInOption}>
-                            <Text style={styles.sendInName}>{member.holobotName}</Text>
-                            <Text style={styles.sendInMeta}>
-                              {`HP ${Math.max(0, Math.round((member.currentHP / Math.max(1, member.maxHP)) * 100))}%`}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ) : null}
-                {awaitingOpponentSendIn ? (
-                  <View style={styles.sendInBanner}>
-                    <Text style={styles.sendInBannerText}>OPPONENT IS SENDING IN THEIR NEXT HOLOBOT…</Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.logPanel}>
-                  <Text style={styles.logTitle}>BATTLE LOG</Text>
-                  {(room.battleLog || []).slice(-4).reverse().map((entry) => (
-                    <Text key={`${entry.timestamp}-${entry.message}`} style={styles.logLine}>
-                      {entry.message}
-                    </Text>
-                  ))}
-                  {!room.battleLog.length ? <Text style={styles.logEmpty}>Battle feed will appear here.</Text> : null}
-                </View>
-
-                {myPlayer && room.status === "active" && room.phase !== "awaiting_send_in" ? (
-                  <View style={styles.handPanel}>
-                    <Text style={styles.handTitle}>YOUR MOVES</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.handScroll}>
-                      {myPlayer.moves.map((move) => (
-                        <BattleCard
-                          key={move.id}
-                          card={move}
-                          availability={moveAvailability[move.id]}
-                          onPlay={handlePlayMove}
-                        />
-                      ))}
-                    </ScrollView>
-                    {canFireSignature ? (
-                      <Pressable onPress={() => void handleSignature()} style={styles.signatureButton}>
-                        <Text style={styles.signatureButtonText}>
-                          {`✦ ${(myPlayer.signatureFinisher?.name || "SIGNATURE").toUpperCase()}`}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ) : null}
 
                 {isWaiting ? (
                   <View style={styles.waitingPanel}>
@@ -588,6 +458,24 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 }
 
 const styles = StyleSheet.create({
+  battleFull: {
+    backgroundColor: "#05060a",
+    flex: 1,
+  },
+  battleTopBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingBottom: 6,
+    paddingTop: 54,
+  },
+  battleTopText: {
+    color: "#f0bf14",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
   modeRow: {
     flexDirection: "row",
     gap: 8,
@@ -652,128 +540,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
-  teamDock: {
-    marginTop: 6,
-  },
-  teamDockLabel: {
-    color: "#8b93a1",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  teamDockRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  teamDockChip: {
-    backgroundColor: "#0b0d13",
-    borderColor: "#3a3f4b",
-    borderWidth: 1.5,
-    flex: 1,
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 5,
-  },
-  teamDockChipActive: {
-    borderColor: "#f0bf14",
-  },
-  teamDockChipKo: {
-    opacity: 0.35,
-  },
-  teamDockChipReady: {
-    borderColor: "#17d9ff",
-  },
-  teamDockChipName: {
-    color: "#ffffff",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.4,
-  },
-  teamDockBar: {
-    backgroundColor: "#252525",
-    height: 4,
-    overflow: "hidden",
-  },
-  teamDockHp: {
-    backgroundColor: "#4bd060",
-    height: "100%",
-  },
-  sendInPanel: {
-    backgroundColor: "#160b0b",
-    borderColor: "#ef4444",
-    borderWidth: 2,
-    marginTop: 8,
-    padding: 10,
-  },
-  sendInTitle: {
-    color: "#fca5a5",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-    textAlign: "center",
-  },
-  sendInRow: {
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "center",
-    marginTop: 8,
-  },
-  sendInOption: {
-    alignItems: "center",
-    backgroundColor: "#0b0d13",
-    borderColor: "#17d9ff",
-    borderWidth: 1.5,
-    minWidth: 96,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  sendInName: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  sendInMeta: {
-    color: "#8b93a1",
-    fontSize: 10,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  sendInBanner: {
-    backgroundColor: "#101218",
-    borderColor: "#3a3f4b",
-    borderWidth: 1,
-    marginTop: 8,
-    paddingVertical: 8,
-  },
-  sendInBannerText: {
-    color: "#b7bdc9",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-    textAlign: "center",
-  },
   backdrop: {
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.84)",
     flex: 1,
     justifyContent: "center",
     padding: 18,
-  },
-  barTrack: {
-    backgroundColor: "#252525",
-    borderColor: "#363636",
-    borderWidth: 1,
-    flex: 1,
-    height: 12,
-    overflow: "hidden",
-  },
-  battleCard: {
-    borderRadius: 8,
-    borderWidth: 2,
-    height: 128,
-    padding: 8,
-    width: 92,
   },
   battleShell: {
     maxWidth: 520,
@@ -796,50 +568,6 @@ const styles = StyleSheet.create({
     maxWidth: 430,
     padding: 18,
     width: "100%",
-  },
-  cardCost: {
-    alignItems: "center",
-    alignSelf: "flex-end",
-    backgroundColor: "#050606",
-    borderColor: "#f0bf14",
-    borderRadius: 12,
-    borderWidth: 1,
-    height: 24,
-    justifyContent: "center",
-    width: 24,
-  },
-  cardCostText: {
-    color: "#f0bf14",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  cardDamage: {
-    color: "#fef1e0",
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  cardName: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "900",
-    minHeight: 34,
-    textAlign: "center",
-  },
-  cardPlay: {
-    color: "#f0bf14",
-    fontSize: 10,
-    fontWeight: "900",
-    marginTop: "auto",
-    textAlign: "center",
-  },
-  cardType: {
-    fontSize: 10,
-    fontWeight: "900",
-    marginBottom: 6,
-    marginTop: 4,
-    textAlign: "center",
   },
   closeChip: {
     alignItems: "center",
@@ -898,32 +626,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1.6,
   },
-  signatureButton: {
-    alignItems: "center",
-    backgroundColor: "#f0bf14",
-    borderRadius: 6,
-    marginTop: 10,
-    paddingVertical: 10,
-  },
-  signatureButtonText: {
-    color: "#050606",
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  handPanel: {
-    marginTop: 12,
-  },
-  handScroll: {
-    gap: 10,
-    paddingVertical: 8,
-  },
-  handTitle: {
-    color: "#f0bf14",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-  },
   holobotArt: {
     backgroundColor: "#050606",
     height: 68,
@@ -953,10 +655,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "900",
   },
-  hpFill: {
-    backgroundColor: "#ef4444",
-    height: "100%",
-  },
   inlineButton: {
     alignItems: "center",
     backgroundColor: "#f0bf14",
@@ -974,77 +672,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginTop: 12,
-  },
-  logEmpty: {
-    color: "#777",
-    fontSize: 12,
-    fontStyle: "italic",
-  },
-  logLine: {
-    color: "#d5cbb2",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  logPanel: {
-    backgroundColor: "#050606",
-    borderColor: "#272727",
-    borderWidth: 1,
-    marginTop: 10,
-    maxHeight: 92,
-    padding: 10,
-  },
-  logTitle: {
-    color: "#17d9ff",
-    fontSize: 11,
-    fontWeight: "900",
-    marginBottom: 6,
-  },
-  meterBot: {
-    color: "#d5cbb2",
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  meterCaption: {
-    color: "#9ca3af",
-    fontSize: 11,
-    fontWeight: "900",
-    width: 34,
-  },
-  meterHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  meterLabel: {
-    color: "#f0bf14",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-  },
-  meterName: {
-    color: "#fef1e0",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  meterPanel: {
-    backgroundColor: "#090909",
-    borderColor: "#2a2a2a",
-    borderWidth: 1,
-    marginTop: 10,
-    padding: 12,
-  },
-  meterRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 6,
-  },
-  meterValue: {
-    color: "#fef1e0",
-    fontSize: 11,
-    fontWeight: "800",
-    textAlign: "right",
-    width: 62,
   },
   optionCard: {
     backgroundColor: "#090909",
@@ -1087,14 +714,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1.4,
-  },
-  specialFill: {
-    backgroundColor: "#17d9ff",
-    height: "100%",
-  },
-  staminaFill: {
-    backgroundColor: "#f0bf14",
-    height: "100%",
   },
   title: {
     color: "#fef1e0",
