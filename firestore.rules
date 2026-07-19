@@ -59,22 +59,8 @@ service cloud.firestore {
     }
 
     // Referral/Genesis fields are awarded only by the growth callables and
-    // the fitness-sync qualification hook (Admin SDK bypasses rules). The
-    // client may never introduce or change them: on update the post-merge
-    // value must equal what is already stored (same unchanged-or-absent
-    // shape as the isDevAccount flip-guard below).
-    function serverOnlyFieldFrozen(data, existing, field) {
-      return !(field in data) || (field in existing && data[field] == existing[field]);
-    }
-
-    function referralFieldsFrozen(data, existing) {
-      return serverOnlyFieldFrozen(data, existing, 'referredBy')
-        && serverOnlyFieldFrozen(data, existing, 'referrals')
-        && serverOnlyFieldFrozen(data, existing, 'referralQualified')
-        && serverOnlyFieldFrozen(data, existing, 'genesisSquadClaimed')
-        && serverOnlyFieldFrozen(data, existing, 'genesisBadge');
-    }
-
+    // the fitness-sync qualification hook (Admin SDK bypasses rules). On
+    // update they are covered by protectedFieldsUntouched below.
     function referralFieldsAbsent(data) {
       return !('referredBy' in data)
         && !('referrals' in data)
@@ -103,27 +89,25 @@ service cloud.firestore {
     // building & signup starter grant), equippedParts, inventory,
     // rewardSystem (mission/quest state), leaderboardScore (recomputed by
     // legit holobots writes), asyncBattleTickets, prestigeCount.
-    function economyFrozenOnUpdate(data, existing) {
-      return serverOnlyFieldFrozen(data, existing, 'holosTokens')
-        && serverOnlyFieldFrozen(data, existing, 'syncPoints')
-        && serverOnlyFieldFrozen(data, existing, 'lifetimeSyncPoints')
-        && serverOnlyFieldFrozen(data, existing, 'seasonSyncPoints')
-        && serverOnlyFieldFrozen(data, existing, 'syncRank')
-        && serverOnlyFieldFrozen(data, existing, 'gachaTickets')
-        && serverOnlyFieldFrozen(data, existing, 'arenaPassses')
-        && serverOnlyFieldFrozen(data, existing, 'expBoosters')
-        && serverOnlyFieldFrozen(data, existing, 'energyRefills')
-        && serverOnlyFieldFrozen(data, existing, 'rankSkips')
-        && serverOnlyFieldFrozen(data, existing, 'wins')
-        && serverOnlyFieldFrozen(data, existing, 'losses')
-        && serverOnlyFieldFrozen(data, existing, 'blueprints')
-        && serverOnlyFieldFrozen(data, existing, 'wildcardBlueprints')
-        && serverOnlyFieldFrozen(data, existing, 'legendaryBlueprints')
-        && serverOnlyFieldFrozen(data, existing, 'expBoosterActiveUntil')
-        && serverOnlyFieldFrozen(data, existing, 'lastWildcardPackAt')
-        && serverOnlyFieldFrozen(data, existing, 'parts')
-        && serverOnlyFieldFrozen(data, existing, 'packHistory')
-        && serverOnlyFieldFrozen(data, existing, 'todaySteps');
+    // EVALUATION BUDGET (2026-07-18): rules abort past 1000 expression
+    // evaluations per request. The old shape chained ~30 per-field frozen
+    // checks whose cost grew with every POPULATED field, so real accounts
+    // (post-gacha, post-referral) blew the budget and got PERMISSION_DENIED
+    // on every client write — equips failed on device while thin test
+    // fixtures passed. One MapDiff covers all protected fields in a single
+    // expression, and is stricter: it also blocks DELETING a frozen field,
+    // which the unchanged-or-absent shape silently allowed. Writing a frozen
+    // field with an UNCHANGED value stays legal (full-profile merges).
+    function protectedFieldsUntouched(data, existing) {
+      return !data.diff(existing).affectedKeys().hasAny([
+        'holosTokens', 'syncPoints', 'lifetimeSyncPoints', 'seasonSyncPoints',
+        'syncRank', 'gachaTickets', 'arenaPassses', 'expBoosters',
+        'energyRefills', 'rankSkips', 'wins', 'losses', 'blueprints',
+        'wildcardBlueprints', 'legendaryBlueprints', 'expBoosterActiveUntil',
+        'lastWildcardPackAt', 'parts', 'packHistory', 'todaySteps',
+        'referredBy', 'referrals', 'referralQualified', 'genesisSquadClaimed',
+        'genesisBadge', 'isDevAccount'
+      ]);
     }
 
     // On CREATE the frozen fields may only carry their signup defaults.
@@ -195,20 +179,14 @@ service cloud.firestore {
         && referralFieldsAbsent(request.resource.data)
         && referralCodeSane(request.resource.data);
 
-      // NOTE: noPrivilegeEscalation applies to CREATE only. On update,
-      // request.resource.data is the whole post-merge document, so a legacy
-      // account that already has isDevAccount: true would fail it on EVERY
-      // write (bricking all economy actions for that account). The clause
-      // below enforces the actual invariant: the client may keep the
-      // existing value or set false, but can never flip false -> true.
+      // isDevAccount is inside the protected set: a MapDiff "affected" key
+      // means added/removed/CHANGED, so a legacy account that already has
+      // isDevAccount: true keeps writing normally (unchanged value is not
+      // affected) while any flip in either direction is denied.
       allow update: if isOwner(uid)
         && economyFieldsSane(request.resource.data)
-        && economyFrozenOnUpdate(request.resource.data, resource.data)
-        && referralFieldsFrozen(request.resource.data, resource.data)
-        && referralCodeSane(request.resource.data)
-        && (!('isDevAccount' in request.resource.data)
-            || request.resource.data.isDevAccount == resource.data.get('isDevAccount', false)
-            || request.resource.data.isDevAccount == false);
+        && protectedFieldsUntouched(request.resource.data, resource.data)
+        && referralCodeSane(request.resource.data);
 
       allow delete: if isOwner(uid);
 

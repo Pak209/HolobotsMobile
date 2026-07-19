@@ -124,16 +124,18 @@ describe("privilege escalation", () => {
     );
   });
 
-  it("allows a legacy-true account to keep or renounce the flag", async () => {
+  it("allows a legacy-true account to keep the flag, but only the server may change it", async () => {
     await seedUser(env, "alice", buildUserDoc({ isDevAccount: true }));
     const aliceDb = authedDb(env, "alice");
 
-    // Writing the unchanged value alongside a normal field is fine...
+    // Writing the unchanged value alongside a normal field is fine
+    // (full-profile merges keep working)...
     await assertSucceeds(
       updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 11, isDevAccount: true }),
     );
-    // ...and so is turning it off.
-    await assertSucceeds(
+    // ...but since the MapDiff guard (2026-07-18), ANY client-side flip is
+    // denied — including renouncing. isDevAccount changes are Admin-SDK-only.
+    await assertFails(
       updateDoc(doc(aliceDb, "users/alice"), { isDevAccount: false }),
     );
   });
