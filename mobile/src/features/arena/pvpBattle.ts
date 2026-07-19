@@ -22,6 +22,26 @@ export const PVP_FIGHTER_IDS: Record<PlayerRole, string> = {
   p2: 'pvp-p2',
 };
 
+/**
+ * Firestore rejects any payload containing `undefined` — even nested inside
+ * arrays (that's how an optional template field broke quick match). Fighter
+ * docs are plain JSON at build time, so a deep prune at this boundary keeps
+ * every future optional field from wedging pool entries and rooms.
+ */
+function pruneUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => pruneUndefinedDeep(item)) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, child]) => child !== undefined)
+        .map(([key, child]) => [key, pruneUndefinedDeep(child)]),
+    ) as T;
+  }
+  return value;
+}
+
 /** Builds a player's serializable room entry from their own profile. */
 export function buildPvpFighterDoc(
   uid: string,
@@ -49,7 +69,7 @@ export function buildPvpFighterDoc(
     idPrefix: `pvp-${uid.slice(0, 6)}`,
   });
 
-  return {
+  return pruneUndefinedDeep({
     uid,
     username,
     holobotName: holobot.name.toUpperCase(),
@@ -82,7 +102,7 @@ export function buildPvpFighterDoc(
     },
     totalDamageDealt: 0,
     isConnected: true,
-  };
+  });
 }
 
 /** Rehydrates a room entry into an engine fighter (art/ability from identity). */
