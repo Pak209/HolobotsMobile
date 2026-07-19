@@ -8,6 +8,14 @@ export default defineConfig({
     // two SDK copies whose Firestore instances reject each other.
     dedupe: ["firebase", "@firebase/firestore", "@firebase/app", "@firebase/util"],
   },
+  esbuild: {
+    // Transforming mobile/src files makes vite discover mobile/tsconfig.json,
+    // which extends "expo/tsconfig.base" — a package only installed in the
+    // mobile CI job, so the rules CI job crashed on suite load. An inline
+    // tsconfig skips tsconfig discovery entirely (plain TS transform is all
+    // these tests need).
+    tsconfigRaw: '{"compilerOptions":{}}',
+  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
