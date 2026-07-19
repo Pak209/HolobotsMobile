@@ -16,6 +16,7 @@ import { Svg, Defs, G, Image, Mask, Path, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, fitnessAssets } from "@/config/figmaAssets";
 import { applyHolobotExperience, getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWatchWorkoutPresence } from "@/hooks/useWatchBridge";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
 import { computeLeaderboardScore } from "@/lib/profile";
 import { normalizeProgressionSystem } from "@/lib/progressionSystems";
@@ -94,11 +95,25 @@ export function FitnessScreen() {
 
   const completionResult = workout.completionResult;
   const syncBoostCopy = formatSyncBoostCopy(workout.syncPointBoostCount, distanceUnit);
+  const watchWorkoutActive = useWatchWorkoutPresence();
+  // Soft cross-device lock: block only a FRESH start while the watch is
+  // mid-workout — pausing/resuming this phone's own session stays allowed.
+  const blockedByWatch =
+    watchWorkoutActive && !workout.isRunning && workout.elapsedSeconds <= 0;
   const goLabel = workout.isRunning
     ? "PAUSE"
     : workout.elapsedSeconds > 0
       ? "RESUME"
-      : "GO";
+      : blockedByWatch
+        ? "ON WATCH"
+        : "GO";
+
+  const handleGoPress = () => {
+    if (blockedByWatch) {
+      return;
+    }
+    void workout.toggleRunning();
+  };
 
   const persistWorkoutRewards = async () => {
     if (!completionResult) {
@@ -157,7 +172,11 @@ export function FitnessScreen() {
       }
       await workout.unlockQuickRefill();
       workout.continueQuickRefillChain();
-      await workout.toggleRunning();
+      // If a watch workout started while the modal was up, stop at the
+      // ready state — the GO button will show ON WATCH until it finishes.
+      if (!watchWorkoutActive) {
+        await workout.toggleRunning();
+      }
     } finally {
       setClaimAction(null);
     }
@@ -306,15 +325,34 @@ export function FitnessScreen() {
           <Text x={882} y={2494} fill="#e9dfc5" fontSize={95.215} fontWeight="700">{`+${workout.holosReward}`}</Text>
           <Text x={1353} y={2493.96} fill="#e9dfc5" fontSize={91.406} fontWeight="700">{`+${workout.expReward}`}</Text>
 
+          {blockedByWatch ? (
+            <Text x={430} y={2588} fill="#f0bf14" fontSize={52} fontWeight="700">
+              WORKOUT RUNNING ON APPLE WATCH
+            </Text>
+          ) : null}
           <Image href={fitnessAssets.goButton} x={20} y={2606} width={1695} height={446} preserveAspectRatio="none" />
-          <Text x={goLabel === "PAUSE" ? 635 : goLabel === "RESUME" ? 610 : 740} y={2868} fill="#eeb818" fontSize={204.86} fontWeight="700">{goLabel}</Text>
+          <Text
+            x={goLabel === "PAUSE" ? 635 : goLabel === "RESUME" ? 610 : goLabel === "ON WATCH" ? 480 : 740}
+            y={2868}
+            fill="#eeb818"
+            fontSize={goLabel === "ON WATCH" ? 160 : 204.86}
+            fontWeight="700"
+          >
+            {goLabel}
+          </Text>
         </Svg>
 
         <Pressable
-          accessibilityLabel={workout.isRunning ? "Pause workout" : "Start workout"}
+          accessibilityLabel={
+            blockedByWatch
+              ? "Workout running on Apple Watch"
+              : workout.isRunning
+                ? "Pause workout"
+                : "Start workout"
+          }
           accessibilityRole="button"
           onLongPress={workout.resetWorkout}
-          onPress={workout.toggleRunning}
+          onPress={handleGoPress}
           style={styles.goHotspot}
         />
         <Pressable

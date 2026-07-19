@@ -25,6 +25,56 @@ enum WatchMessageType {
     static let workoutRewards  = "workoutRewards"
     static let sessionState    = "sessionState"
     static let requestState    = "requestState"
+    static let workoutPresence = "workoutPresence"
+}
+
+// ─────────────────────────────────────────────
+// Cross-device workout presence (soft lock)
+// ─────────────────────────────────────────────
+// Broadcast by whichever device is running a Sync session so the other
+// can show "workout in progress" and refuse to start a second one.
+// Self-expiring: sessions are a fixed 5 minutes, so expiresAtMs bounds
+// staleness even if the sender dies without broadcasting inactive.
+struct WorkoutPresencePayload {
+    let device: String        // "phone" | "watch"
+    let workoutActive: Bool
+    let startedAtMs: Double
+    let expiresAtMs: Double
+
+    static let graceSeconds = 60
+
+    func isCurrentlyActive(now: Date = Date()) -> Bool {
+        workoutActive && now.timeIntervalSince1970 * 1000 < expiresAtMs
+    }
+
+    init(device: String, workoutActive: Bool, remainingSeconds: Int, now: Date = Date()) {
+        let nowMs = now.timeIntervalSince1970 * 1000
+        self.device = device
+        self.workoutActive = workoutActive
+        self.startedAtMs = nowMs
+        self.expiresAtMs = nowMs + Double(max(0, remainingSeconds) + Self.graceSeconds) * 1000
+    }
+
+    init?(from dict: [String: Any]) {
+        guard
+            let device = dict["device"] as? String,
+            let active = dict["workoutActive"] as? Bool
+        else { return nil }
+        self.device = device
+        self.workoutActive = active
+        self.startedAtMs = (dict["startedAtMs"] as? NSNumber)?.doubleValue ?? 0
+        self.expiresAtMs = (dict["expiresAtMs"] as? NSNumber)?.doubleValue ?? 0
+    }
+
+    var asDictionary: [String: Any] {
+        [
+            "type":          WatchMessageType.workoutPresence,
+            "device":        device,
+            "workoutActive": workoutActive,
+            "startedAtMs":   startedAtMs,
+            "expiresAtMs":   expiresAtMs,
+        ]
+    }
 }
 
 struct WorkoutCompletePayload {

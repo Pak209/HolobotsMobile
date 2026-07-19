@@ -8,5 +8,7 @@ RCT_EXTERN_METHOD(getPendingWatchWorkouts:(RCTPromiseResolveBlock)resolve reject
 RCT_EXTERN_METHOD(ackWatchWorkout:(NSString *)workoutId)
 RCT_EXTERN_METHOD(syncOwnedHolobots:(NSArray<NSString *> *)ownedHolobotNames)
 RCT_EXTERN_METHOD(syncDailySessionState:(NSDictionary *)state)
+RCT_EXTERN_METHOD(syncWorkoutPresence:(NSDictionary *)presence)
+RCT_EXTERN_METHOD(getWatchWorkoutPresence:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 
 @end

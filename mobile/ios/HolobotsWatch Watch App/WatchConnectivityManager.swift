@@ -19,6 +19,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published var isPhoneReachable: Bool = false
     @Published var ownedHolobots: [WatchHolobot] = []
     @Published var dailySessionState: DailySessionState? = nil
+    @Published var phoneWorkoutPresence: WorkoutPresencePayload? = nil
 
     private static let ownedHolobotNamesKey = "holobots.watch.ownedHolobotNames"
 
@@ -50,6 +51,36 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
                 sessionsCompleted: max(0, min(WorkoutConfig.maxDailySessions, completed)),
                 sessionsRemaining: max(0, min(WorkoutConfig.maxDailySessions, remaining))
             )
+        }
+
+        // Phone workout presence rides inside the same session-state payload
+        // so it can never race or clobber the counts channel.
+        if let presenceDict = payload["workoutPresence"] as? [String: Any],
+           let presence = WorkoutPresencePayload(from: presenceDict),
+           presence.device == "phone" {
+            phoneWorkoutPresence = presence
+        }
+    }
+
+    /// Broadcast this watch's workout state to the phone. Application context
+    /// is latest-state-wins and survives the phone app being closed; the live
+    /// message makes the phone banner appear immediately when reachable.
+    func broadcastWorkoutPresence(active: Bool, remainingSeconds: Int) {
+        guard WCSession.isSupported() else { return }
+        let payload = WorkoutPresencePayload(
+            device: "watch",
+            workoutActive: active,
+            remainingSeconds: remainingSeconds
+        ).asDictionary
+
+        do {
+            try WCSession.default.updateApplicationContext(payload)
+        } catch {
+            print("[Watch] presence context error: \(error)")
+        }
+
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
         }
     }
 

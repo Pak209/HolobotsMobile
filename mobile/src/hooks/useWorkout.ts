@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { NativeModules, Platform } from "react-native";
 import * as Location from "expo-location";
 import { Pedometer } from "expo-sensors";
 
@@ -63,6 +64,28 @@ type SyncState = "idle" | "syncing" | "synced" | "error";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+/** Presence lock staleness bound: session remainder + this grace. */
+const PRESENCE_GRACE_MS = 60 * 1000;
+
+/**
+ * Tell the watch whether this phone is mid-workout (soft cross-device
+ * lock). Self-expiring by timestamp so a killed app never leaves the
+ * watch blocked. No-op off iOS or when the native bridge is absent.
+ */
+function broadcastPhoneWorkoutPresence(active: boolean, remainingSeconds = 0) {
+  const bridge = NativeModules.WatchBridgeModule;
+  if (Platform.OS !== "ios" || typeof bridge?.syncWorkoutPresence !== "function") {
+    return;
+  }
+  const now = Date.now();
+  bridge.syncWorkoutPresence({
+    device: "phone",
+    workoutActive: active,
+    startedAtMs: now,
+    expiresAtMs: now + Math.max(0, remainingSeconds) * 1000 + PRESENCE_GRACE_MS,
+  });
 }
 
 function getDistanceMeters(
@@ -408,6 +431,10 @@ function useLiveWorkout(
     }));
     setSyncMessage(userId ? "Workout running..." : "Workout running. Sign in to sync rewards.");
     completionLockRef.current = false;
+    broadcastPhoneWorkoutPresence(
+      true,
+      TOTAL_WORKOUT_SECONDS - elapsedOffsetSecondsRef.current,
+    );
 
     startTimestampRef.current = Date.now();
 
@@ -502,6 +529,7 @@ function useLiveWorkout(
     completionLockRef.current = true;
     stopLiveTracking();
     startTimestampRef.current = null;
+    broadcastPhoneWorkoutPresence(false);
 
     const finalElapsedSeconds =
       reason === "complete"
@@ -602,6 +630,7 @@ function useLiveWorkout(
         isRunning: false,
         speedKmh: 0,
       }));
+      broadcastPhoneWorkoutPresence(false);
       void syncCurrentActivity(pausedSnapshot, "pause");
       return;
     }
@@ -614,6 +643,7 @@ function useLiveWorkout(
     startTimestampRef.current = null;
     elapsedOffsetSecondsRef.current = 0;
     completionLockRef.current = false;
+    broadcastPhoneWorkoutPresence(false);
     setState({
       distanceKm: 0,
       elapsedSeconds: 0,
