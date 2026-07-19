@@ -11,4 +11,4 @@
  * dormant (mobile/src/lib/purchases.ts no-ops). Paste-in step documented in
  * mobile/docs/revenuecat-setup.md.
  */
-export const REVENUECAT_IOS_API_KEY = "";
+export const REVENUECAT_IOS_API_KEY = "appl_dWSuhbvwnFotFCPaGYTxQzUnEVv";
