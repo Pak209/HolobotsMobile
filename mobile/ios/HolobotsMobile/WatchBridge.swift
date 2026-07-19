@@ -14,6 +14,11 @@ import WatchConnectivity
   // Last known authoritative daily workout counts (mirrors fitness_daily):
   // ["dailyDate": "yyyy-mm-dd", "sessionsCompleted": Int, "sessionsRemaining": Int]
   private var lastDailySessionState: [String: Any]
+  // This phone's workout presence (soft cross-device lock). Rides INSIDE the
+  // sessionState payload so it shares the counts channel instead of racing it.
+  private var lastPhonePresence: [String: Any]?
+  // Latest presence broadcast from the watch, relayed to JS.
+  private var latestWatchPresence: [String: Any]?
 
   private override init() {
     lastSyncedOwnedHolobotNames = UserDefaults.standard.array(forKey: ownedHolobotsKey) as? [String] ?? []
@@ -30,7 +35,41 @@ import WatchConnectivity
     for (key, value) in lastDailySessionState {
       payload[key] = value
     }
+    if let lastPhonePresence {
+      payload["workoutPresence"] = lastPhonePresence
+    }
     return payload
+  }
+
+  func syncWorkoutPresence(_ presence: [String: Any]) {
+    guard let workoutActive = presence["workoutActive"] as? Bool else { return }
+    lastPhonePresence = [
+      "device": "phone",
+      "workoutActive": workoutActive,
+      "startedAtMs": (presence["startedAtMs"] as? NSNumber)?.doubleValue ?? 0,
+      "expiresAtMs": (presence["expiresAtMs"] as? NSNumber)?.doubleValue ?? 0,
+    ]
+    pushSessionState()
+  }
+
+  func getWatchWorkoutPresence() -> [String: Any]? {
+    if let latestWatchPresence {
+      return latestWatchPresence
+    }
+    // Cold start: the watch's application context persists across phone app
+    // launches, so a workout started while this app was closed is still seen.
+    guard WCSession.isSupported() else { return nil }
+    let context = WCSession.default.receivedApplicationContext
+    guard context["type"] as? String == "workoutPresence" else { return nil }
+    return context
+  }
+
+  private func handleWatchPresence(_ payload: [String: Any]) {
+    guard payload["device"] as? String == "watch" else { return }
+    latestWatchPresence = payload
+    if let module = WatchBridgeModule.shared, module.hasListeners {
+      module.sendEvent(withName: "watchWorkoutPresence", body: payload)
+    }
   }
 
   private func pushSessionState() {
@@ -203,10 +242,33 @@ extension WatchBridge: WCSessionDelegate {
     handleWorkoutClaim(message, replyHandler: replyHandler)
   }
 
+  // Watch presence arrives via reply-less messages (live) and application
+  // context (queued) — neither touches the claim path above.
+  public func session(
+    _ session: WCSession,
+    didReceiveMessage message: [String: Any]
+  ) {
+    guard message["type"] as? String == "workoutPresence" else { return }
+    handleWatchPresence(message)
+  }
+
+  public func session(
+    _ session: WCSession,
+    didReceiveApplicationContext applicationContext: [String: Any]
+  ) {
+    guard applicationContext["type"] as? String == "workoutPresence" else { return }
+    handleWatchPresence(applicationContext)
+  }
+
   public func session(
     _ session: WCSession,
     didReceiveUserInfo userInfo: [String: Any] = [:]
   ) {
+    if userInfo["type"] as? String == "workoutPresence" {
+      handleWatchPresence(userInfo)
+      return
+    }
+
     let messageType = userInfo["type"] as? String
     guard
       messageType == "claimWorkoutRewards" ||
@@ -227,7 +289,7 @@ class WatchBridgeModule: RCTEventEmitter {
   }
 
   override func supportedEvents() -> [String]! {
-    ["watchWorkoutComplete"]
+    ["watchWorkoutComplete", "watchWorkoutPresence"]
   }
 
   override func startObserving() {
@@ -266,5 +328,16 @@ class WatchBridgeModule: RCTEventEmitter {
 
   @objc func syncDailySessionState(_ state: NSDictionary) {
     WatchBridge.shared.syncDailySessionState(state as? [String: Any] ?? [:])
+  }
+
+  @objc func syncWorkoutPresence(_ presence: NSDictionary) {
+    WatchBridge.shared.syncWorkoutPresence(presence as? [String: Any] ?? [:])
+  }
+
+  @objc func getWatchWorkoutPresence(
+    _ resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    resolve(WatchBridge.shared.getWatchWorkoutPresence())
   }
 }

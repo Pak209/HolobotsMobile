@@ -220,6 +220,10 @@ final class WorkoutViewModel: ObservableObject {
         startTimer()
         startPedometer()
         startHKWorkout(indoor: isIndoorMode)
+        WatchConnectivityManager.shared.broadcastWorkoutPresence(
+            active: true,
+            remainingSeconds: remainingSeconds
+        )
     }
 
     func pause() {
@@ -228,6 +232,7 @@ final class WorkoutViewModel: ObservableObject {
         stopTimer()
         stopPedometer()
         workoutSession?.pause()
+        WatchConnectivityManager.shared.broadcastWorkoutPresence(active: false, remainingSeconds: 0)
     }
 
     // ── Finish early ─────────────────────────────────────────────────────────
@@ -243,6 +248,7 @@ final class WorkoutViewModel: ObservableObject {
         stopTimer()
         stopPedometer()
         endHKWorkout()
+        WatchConnectivityManager.shared.broadcastWorkoutPresence(active: false, remainingSeconds: 0)
 
         accumulatedElapsedSeconds += elapsedSeconds
         accumulatedStepCount += roundStepCount
@@ -332,6 +338,7 @@ final class WorkoutViewModel: ObservableObject {
     func resetWorkout() {
         stopTimer()
         stopPedometer()
+        WatchConnectivityManager.shared.broadcastWorkoutPresence(active: false, remainingSeconds: 0)
         accumulatedElapsedSeconds = 0
         accumulatedStepCount = 0
         accumulatedDistanceKm = 0

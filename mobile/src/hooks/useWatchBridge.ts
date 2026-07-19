@@ -53,6 +53,52 @@ type WatchRewardsSyncState = {
   visible: boolean;
 };
 
+type WatchWorkoutPresence = {
+  device?: string;
+  expiresAtMs?: number;
+  startedAtMs?: number;
+  workoutActive?: boolean;
+};
+
+/**
+ * True while the watch reports a live Sync workout (soft cross-device
+ * lock). Presence is self-expiring — sessions are a fixed 5 minutes —
+ * so a dead watch can never leave the phone blocked.
+ */
+export function useWatchWorkoutPresence(): boolean {
+  const [presence, setPresence] = useState<WatchWorkoutPresence | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const canUseBridge = Platform.OS === "ios" && !!WatchBridgeModule;
+
+  useEffect(() => {
+    if (!canUseBridge) return;
+
+    if (typeof WatchBridgeModule.getWatchWorkoutPresence === "function") {
+      void WatchBridgeModule.getWatchWorkoutPresence()
+        .then((initial: WatchWorkoutPresence | null) => {
+          if (initial) setPresence(initial);
+        })
+        .catch(() => {});
+    }
+
+    const emitter = new NativeEventEmitter(WatchBridgeModule);
+    const sub = emitter.addListener("watchWorkoutPresence", (event: WatchWorkoutPresence) => {
+      setPresence(event ?? null);
+    });
+    return () => sub.remove();
+  }, [canUseBridge]);
+
+  const active = !!presence?.workoutActive && Number(presence?.expiresAtMs || 0) > now;
+
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setNow(Date.now()), 2000);
+    return () => clearInterval(id);
+  }, [active]);
+
+  return active;
+}
+
 export function useWatchBridge(
   userId: string | null | undefined,
   ownedHolobotNames: string[],

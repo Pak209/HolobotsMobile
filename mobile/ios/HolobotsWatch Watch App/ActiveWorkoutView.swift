@@ -237,12 +237,18 @@ struct PreWorkoutView: View {
     @EnvironmentObject var connectivity: WatchConnectivityManager
     @State private var showSettings = false
     @State private var showHolobotPicker = false
+    @State private var presenceNow = Date()
+    private let presenceTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     private let gold = Color(red: 0.94, green: 0.75, blue: 0.08)
     private let brightGold = Color(red: 0.98, green: 0.80, blue: 0.10)
     private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
     private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
     private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
+
+    private var phoneWorkoutActive: Bool {
+        connectivity.phoneWorkoutPresence?.isCurrentlyActive(now: presenceNow) ?? false
+    }
 
     var body: some View {
         ZStack {
@@ -354,26 +360,42 @@ struct PreWorkoutView: View {
             .padding(.horizontal, 8)
         }
         .overlay(alignment: .bottom) {
-            Button(action: viewModel.start) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(brightGold)
-                    HStack(spacing: 6) {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 11, weight: .black))
-                        Text("START SYNC")
-                            .font(.system(size: 11, weight: .black))
-                            .kerning(1.1)
-                    }
-                    .foregroundColor(darkBg)
+            VStack(spacing: 4) {
+                if phoneWorkoutActive {
+                    Text("WORKOUT RUNNING ON IPHONE")
+                        .font(.system(size: 8, weight: .black))
+                        .foregroundColor(cream.opacity(0.85))
+                        .kerning(0.8)
                 }
+                Button(action: {
+                    guard !phoneWorkoutActive else { return }
+                    viewModel.start()
+                }) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(phoneWorkoutActive ? panel : brightGold)
+                        if phoneWorkoutActive {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(brightGold.opacity(0.55), lineWidth: 0.9)
+                        }
+                        HStack(spacing: 6) {
+                            Image(systemName: phoneWorkoutActive ? "iphone" : "play.fill")
+                                .font(.system(size: 11, weight: .black))
+                            Text(phoneWorkoutActive ? "ON IPHONE" : "START SYNC")
+                                .font(.system(size: 11, weight: .black))
+                                .kerning(1.1)
+                        }
+                        .foregroundColor(phoneWorkoutActive ? brightGold : darkBg)
+                    }
+                    .frame(width: 148, height: 28)
+                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .buttonStyle(.plain)
                 .frame(width: 148, height: 28)
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            .buttonStyle(.plain)
-            .frame(width: 148, height: 28)
             .padding(.bottom, 18)
         }
+        .onReceive(presenceTimer) { presenceNow = $0 }
         .onAppear {
             viewModel.sanitizeSelectedHolobot(availableHolobots: connectivity.ownedHolobots)
             connectivity.requestSessionState()
