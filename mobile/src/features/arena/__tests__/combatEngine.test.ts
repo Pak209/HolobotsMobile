@@ -701,6 +701,22 @@ describe('ArenaCombatEngine', () => {
     expect(highAttackDamage.finalDamage).toBeGreaterThan(lowAttackDamage.finalDamage);
     expect(lowDefenseDamage.finalDamage).toBeGreaterThan(highDefenseDamage.finalDamage);
   });
+
+  it('applies only the equipped Sync Ability to damage calculation', () => {
+    const strike = makeCard({ templateId: 'sync-jab', type: 'strike', staminaCost: 1, baseDamage: 20 });
+    const defender = makeFighter({ holobotId: 'sync-defender', defense: 20 });
+    const baseline = makeFighter({ holobotId: 'sync-base' });
+    const equipped = makeFighter({
+      holobotId: 'sync-equipped',
+      syncAbilities: ['ace_combo_ignition'],
+    });
+
+    const baseDamage = ArenaCombatEngine.calculateDamage(baseline, defender, strike, false, 3);
+    const syncDamage = ArenaCombatEngine.calculateDamage(equipped, defender, strike, false, 3);
+
+    expect(syncDamage.finalDamage).toBeGreaterThan(baseDamage.finalDamage);
+    expect(syncDamage.modifiers.some((modifier) => modifier.source === 'Combo Ignition')).toBe(true);
+  });
 });
 
 // The combo counter is a live streak, not a bank: strikes build it, going

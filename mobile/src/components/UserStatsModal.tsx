@@ -3,6 +3,7 @@ import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text
 
 import { Svg, Path } from "@/components/FigmaSvg";
 import { DailyMissionsModal } from "@/components/DailyMissionsModal";
+import { GameDialogFrame } from "@/components/ui/GameSurfaceFrame";
 import { fitnessAssets } from "@/config/figmaAssets";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRefillAuthoritative } from "@/lib/progressionClient";
@@ -149,6 +150,7 @@ export function UserStatsModal({
       >
         <View style={styles.backdrop}>
           <View style={[styles.card, activeLegalCopy && styles.legalCard]}>
+            <GameDialogFrame />
             {activeLegalCopy ? (
               <>
                 <Text style={styles.eyebrow}>LEGAL</Text>
@@ -267,11 +269,11 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   card: {
-    backgroundColor: "#111111",
-    borderColor: "#f0bf14",
-    borderWidth: 3,
+    backgroundColor: "transparent",
     maxWidth: 420,
+    overflow: "hidden",
     padding: 22,
+    position: "relative",
     width: "100%",
   },
   closeButton: {

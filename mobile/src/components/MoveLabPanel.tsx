@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  AvailableMovesPanel,
+  type AvailableMoveItem,
+} from "@/components/move-lab/AvailableMovesPanel";
+import { BattleLoadoutPanel } from "@/components/move-lab/BattleLoadoutPanel";
+import { MoveDetailPanel } from "@/components/move-lab/MoveDetailPanel";
 import { getAbility } from '@/features/arena/abilities';
 import {
-  FINISHER_UNLOCK_SEGMENTS,
   getSignatureFinisher,
   resolveCombatKit,
   resolveMove,
-  SPECIAL_METER_SEGMENTS,
   STOCK_KIT_TEMPLATE_IDS,
 } from "@/features/arena/moveKits";
 import {
@@ -24,6 +28,7 @@ import {
   upgradeHolobotMoveAuthoritative,
 } from "@/lib/moveLabClient";
 import type { ActionCard, CardType } from "@/types/arena";
+import { getSyncAbilityDefinition } from "@/lib/syncProgression";
 
 const SLOT_META: Array<{ label: string; type: CardType }> = [
   { label: "STRIKE", type: "strike" },
@@ -32,7 +37,6 @@ const SLOT_META: Array<{ label: string; type: CardType }> = [
   { label: "FINISHER", type: "finisher" },
 ];
 
-const RANK_ROMAN: Record<MoveRank, string> = { 0: "0", 1: "I", 2: "II", 3: "III" };
 const MAX_MOVE_RANK: MoveRank = 3;
 
 function toMoveRank(value: unknown): MoveRank {
@@ -41,10 +45,6 @@ function toMoveRank(value: unknown): MoveRank {
   if (numeric === 2) return 2;
   if (numeric === 1) return 1;
   return 0;
-}
-
-function describeImpact(move: { baseDamage: number; type: CardType }): string {
-  return move.type === "defense" && move.baseDamage <= 0 ? "BLOCK" : `DMG ${move.baseDamage}`;
 }
 
 function diffMovePreview(before: ActionCard, after: ActionCard): string[] {
@@ -67,6 +67,7 @@ export function MoveLabPanel() {
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(0);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [showAvailableMoves, setShowAvailableMoves] = useState(false);
 
   const holobots = profile?.holobots || [];
   const holobot =
@@ -107,6 +108,7 @@ export function MoveLabPanel() {
 
   useEffect(() => {
     setSelectedBranchId(null);
+    setShowAvailableMoves(false);
   }, [holobot?.name, slotIndex, equippedTemplateId]);
 
   const replaceOptions = useMemo(() => {
@@ -129,7 +131,9 @@ export function MoveLabPanel() {
       .map(([templateId, template]) => ({
         baseDamage: template.baseDamage,
         battleTier: template.battleTier || 0,
+        description: template.description,
         name: template.name,
+        speedModifier: template.speedModifier,
         staminaCost: template.staminaCost,
         templateId,
         type: template.type,
@@ -175,6 +179,12 @@ export function MoveLabPanel() {
     syncPoints >= upgradeCost &&
     (!branchRequired || !!selectedBranchId) &&
     !isBusy;
+  const handleDetailTabChange = useCallback(
+    (tab: "details" | "upgrade" | "available") => {
+      setShowAvailableMoves(tab === "available");
+    },
+    [],
+  );
 
   const handleEquip = async (templateId: string) => {
     if (!profile || !holobot || !kit) {
@@ -241,6 +251,7 @@ export function MoveLabPanel() {
 
   const signature = getSignatureFinisher(holobot.name);
   const ability = getAbility(holobot.name);
+  const equippedSyncAbility = getSyncAbilityDefinition(holobot.equippedSyncAbilityId);
   const equippedBranch = equippedProgress.specializationId
     ? CATEGORY_SPECIALIZATIONS[equippedMove.type]?.find(
         (branch) => branch.id === equippedProgress.specializationId,
@@ -275,210 +286,69 @@ export function MoveLabPanel() {
         })}
       </ScrollView>
 
-      <View style={styles.signatureStrip}>
-        <View style={styles.signatureBody}>
-          <Text style={styles.signatureEyebrow}>SIGNATURE FINISHER</Text>
-          <Text style={styles.signatureName}>{signature.name.toUpperCase()}</Text>
-          <Text style={styles.signatureMeta}>
-            {`DMG ${signature.baseDamage} • Unlocks at ${SPECIAL_METER_SEGMENTS}/${SPECIAL_METER_SEGMENTS} special meter`}
-          </Text>
-        </View>
-        <View style={styles.innateBadge}>
-          <Text style={styles.innateBadgeText}>INNATE</Text>
-        </View>
-      </View>
-
-      <View style={styles.signatureStrip}>
-        <View style={styles.signatureBody}>
-          <Text style={styles.signatureEyebrow}>ABILITY</Text>
-          <Text style={styles.signatureName}>{ability.name.toUpperCase()}</Text>
-          <Text style={styles.signatureMeta}>{ability.description}</Text>
-        </View>
-        <View style={styles.innateBadge}>
-          <Text style={styles.innateBadgeText}>INNATE</Text>
-        </View>
-      </View>
+      <BattleLoadoutPanel
+        abilityDescription={ability.description}
+        abilityName={ability.name}
+        moves={kit.slots}
+        onSelectMove={setSelectedSlotIndex}
+        rankOf={(templateId) => progressOf(templateId).rank}
+        selectedIndex={slotIndex}
+        signatureDamage={signature.baseDamage}
+        signatureName={signature.name}
+        syncAbilityDescription={equippedSyncAbility?.description}
+        syncAbilityName={equippedSyncAbility?.name}
+      />
 
       <View style={styles.spRow}>
         <Text style={styles.spLabel}>SYNC POINTS</Text>
         <Text style={styles.spValue}>{`SP ${syncPoints}`}</Text>
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>COMBAT KIT</Text>
-        <Text style={styles.sectionMeta}>Four moves, one per slot. Tap a slot to tune it.</Text>
-        <View style={styles.slotGrid}>
-          {kit.slots.map((move, index) => {
-            const meta = SLOT_META[index];
-            const progress = progressOf(move.templateId);
-            const isSelected = index === slotIndex;
+      <MoveDetailPanel
+        branchOptions={CATEGORY_SPECIALIZATIONS[equippedMove.type]}
+        canUpgrade={canUpgrade}
+        currentRank={currentRank}
+        equippedBranchName={equippedBranch?.name}
+        isBusy={pendingAction === "upgrade"}
+        move={equippedMove}
+        nextRank={nextRank}
+        onAvailablePress={() => setSelectedBranchId(null)}
+        onPreview={() => {
+          Alert.alert(
+            equippedMove.name,
+            `${equippedMove.description}\n\nCost ${equippedMove.staminaCost} • Speed ${equippedMove.speedModifier.toFixed(2)}`,
+          );
+        }}
+        onSelectBranch={setSelectedBranchId}
+        onTabChange={handleDetailTabChange}
+        onUpgrade={() => void handleUpgrade()}
+        previewRows={previewRows}
+        selectedBranchId={selectedBranchId}
+        syncPoints={syncPoints}
+        upgradeCost={upgradeCost}
+      />
 
-            return (
-              <Pressable
-                key={meta.label}
-                style={[styles.slotCard, isSelected ? styles.slotCardActive : null]}
-                onPress={() => setSelectedSlotIndex(index)}
-              >
-                <Text style={[styles.slotLabel, isSelected ? styles.slotLabelActive : null]}>
-                  {meta.label}
-                </Text>
-                <Text style={styles.slotMoveName}>{move.name.toUpperCase()}</Text>
-                <Text style={styles.slotMeta}>
-                  {`COST ${move.staminaCost} • ${describeImpact(move)}`}
-                </Text>
-                {meta.type === "finisher" ? (
-                  <Text style={styles.slotSubMeta}>
-                    {`READY AT ${FINISHER_UNLOCK_SEGMENTS}/${SPECIAL_METER_SEGMENTS} METER`}
-                  </Text>
-                ) : null}
-                <View style={styles.rankRow}>
-                  <Text style={styles.rankText}>{`RANK ${RANK_ROMAN[progress.rank]}`}</Text>
-                  <View style={styles.pipRow}>
-                    {([1, 2, 3] as const).map((step) => (
-                      <View
-                        key={step}
-                        style={[styles.pip, progress.rank >= step ? styles.pipFilled : null]}
-                      />
-                    ))}
-                  </View>
-                </View>
-              </Pressable>
-            );
+      {showAvailableMoves ? (
+        <AvailableMovesPanel
+          disabled={isBusy}
+          items={replaceOptions.map((option): AvailableMoveItem => {
+            const progress = progressOf(option.templateId);
+            return {
+              baseDamage: option.baseDamage,
+              description: option.description,
+              equipped: option.templateId === equippedMove.templateId,
+              name: option.name,
+              pending: pendingAction === `equip:${option.templateId}`,
+              rank: progress.rank,
+              staminaCost: option.staminaCost,
+              templateId: option.templateId,
+              type: option.type,
+            };
           })}
-        </View>
-      </View>
-
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>{`UPGRADE • ${equippedMove.name.toUpperCase()}`}</Text>
-        <View style={styles.upgradeRankRow}>
-          <Text style={styles.rankText}>{`RANK ${RANK_ROMAN[currentRank]}`}</Text>
-          <View style={styles.pipRow}>
-            {([1, 2, 3] as const).map((step) => (
-              <View
-                key={step}
-                style={[styles.pip, currentRank >= step ? styles.pipFilled : null]}
-              />
-            ))}
-          </View>
-          {equippedBranch ? (
-            <Text style={styles.branchTag}>{equippedBranch.name.toUpperCase()}</Text>
-          ) : null}
-        </View>
-
-        {nextRank === null ? (
-          <Text style={styles.maxRankText}>MAX RANK</Text>
-        ) : (
-          <View style={styles.upgradeBlock}>
-            {branchRequired ? (
-              <View style={styles.branchRow}>
-                {CATEGORY_SPECIALIZATIONS[equippedMove.type].map((branch) => {
-                  const isChosen = selectedBranchId === branch.id;
-                  return (
-                    <Pressable
-                      key={branch.id}
-                      style={[styles.branchCard, isChosen ? styles.branchCardActive : null]}
-                      onPress={() => setSelectedBranchId(branch.id)}
-                    >
-                      <Text
-                        style={[styles.branchName, isChosen ? styles.branchNameActive : null]}
-                      >
-                        {branch.name.toUpperCase()}
-                      </Text>
-                      <Text style={styles.branchDescription}>{branch.description}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {previewRows.length ? (
-              <View style={styles.previewBlock}>
-                <Text style={styles.previewTitle}>
-                  {`RANK ${RANK_ROMAN[currentRank]} → RANK ${RANK_ROMAN[nextRank]}`}
-                </Text>
-                {previewRows.map((row) => (
-                  <Text key={row} style={styles.previewRow}>
-                    {row}
-                  </Text>
-                ))}
-              </View>
-            ) : branchRequired && !selectedBranchId ? (
-              <Text style={styles.previewHint}>
-                Choose a specialization to preview this upgrade.
-              </Text>
-            ) : null}
-
-            <Pressable
-              disabled={!canUpgrade}
-              style={[styles.upgradeButton, !canUpgrade ? styles.upgradeButtonDisabled : null]}
-              onPress={() => void handleUpgrade()}
-            >
-              <Text
-                style={[
-                  styles.upgradeButtonText,
-                  !canUpgrade ? styles.upgradeButtonTextDisabled : null,
-                ]}
-              >
-                {pendingAction === "upgrade" ? "..." : `UPGRADE • ${upgradeCost} SP`}
-              </Text>
-            </Pressable>
-            {syncPoints < upgradeCost ? (
-              <Text style={styles.previewHint}>
-                {`Not enough Sync Points (need ${upgradeCost}).`}
-              </Text>
-            ) : null}
-          </View>
-        )}
-      </View>
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>{`REPLACE • ${slotMeta.label}`}</Text>
-        <Text style={styles.sectionMeta}>
-          {`Moves you can slot as your ${slotMeta.label.toLowerCase()} option.`}
-        </Text>
-        <View style={styles.optionList}>
-          {replaceOptions.length ? (
-            replaceOptions.map((option) => {
-              const optionProgress = progressOf(option.templateId);
-              const isEquipped = option.templateId === equippedMove.templateId;
-              const isPendingEquip = pendingAction === `equip:${option.templateId}`;
-
-              return (
-                <View
-                  key={option.templateId}
-                  style={[styles.optionRow, isEquipped ? styles.optionRowEquipped : null]}
-                >
-                  <View style={styles.optionBody}>
-                    <Text style={styles.optionName}>{option.name.toUpperCase()}</Text>
-                    <Text style={styles.optionMeta}>
-                      {`COST ${option.staminaCost} • ${describeImpact(option)} • RANK ${RANK_ROMAN[optionProgress.rank]}`}
-                    </Text>
-                  </View>
-                  {isEquipped ? (
-                    <Text style={styles.optionActionDisabled}>EQUIPPED</Text>
-                  ) : (
-                    <Pressable
-                      disabled={isBusy}
-                      hitSlop={8}
-                      onPress={() => void handleEquip(option.templateId)}
-                    >
-                      <Text
-                        style={[
-                          styles.optionAction,
-                          isBusy && !isPendingEquip ? styles.optionActionDisabled : null,
-                        ]}
-                      >
-                        {isPendingEquip ? "..." : "EQUIP"}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              );
-            })
-          ) : (
-            <Text style={styles.emptyBody}>No other moves available for this slot yet.</Text>
-          )}
-        </View>
-      </View>
+          onEquip={(templateId) => void handleEquip(templateId)}
+          slotLabel={slotMeta.label}
+        />
+      ) : null}
 
     </View>
   );

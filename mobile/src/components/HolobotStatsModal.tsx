@@ -2,6 +2,7 @@ import { getAbility } from "@/features/arena/abilities";
 import { getSignatureFinisher, SPECIAL_METER_SEGMENTS } from "@/features/arena/moveKits";
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
 import {
   getExpProgress,
@@ -20,6 +21,14 @@ import {
   type SyncStatKey,
 } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
+import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
+import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
+import {
+  InnateSystemFrame,
+  MoveActionFrame,
+  MoveRowFrame,
+  MoveTelemetryFrame,
+} from "@/components/move-lab/MoveLabFrames";
 
 import { BLUEPRINT_TIERS, type UpgradeTierLabel } from "@/lib/minting";
 
@@ -38,6 +47,7 @@ type Props = {
   onRankUpgrade: (tierLabel: UpgradeTierLabel) => void;
   onUpgrade: (attribute: "attack" | "defense" | "speed" | "health") => void;
   onUpgradeSync: (stat: SyncStatKey) => void;
+  onEquipSyncAbility: (abilityId: string) => void;
   visible: boolean;
   wildcardCount?: number;
 };
@@ -75,6 +85,16 @@ function getTierNumber(label?: string) {
   }
 }
 
+function getTierAccent(label: UpgradeTierLabel) {
+  switch (label) {
+    case "Common": return "#4cc6ff";
+    case "Champion": return "#39d98a";
+    case "Rare": return "#9b4dff";
+    case "Elite": return "#f0bf14";
+    case "Legendary": return "#ff8a2a";
+  }
+}
+
 function getMintTier(blueprintCount: number) {
   return [...BLUEPRINT_TIERS].reverse().find((tier) => blueprintCount >= tier.required) ?? null;
 }
@@ -94,14 +114,21 @@ export function HolobotStatsModal({
   onRankUpgrade,
   onUpgrade,
   onUpgradeSync,
+  onEquipSyncAbility,
   visible,
   wildcardCount = 0,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"stats" | "abilities" | "blueprints">("stats");
+  const [innateExpanded, setInnateExpanded] = useState(false);
+  const [syncAbilitiesExpanded, setSyncAbilitiesExpanded] = useState(false);
+  const [profileFlipped, setProfileFlipped] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setActiveTab("stats");
+      setInnateExpanded(false);
+      setSyncAbilitiesExpanded(false);
+      setProfileFlipped(false);
     }
   }, [visible]);
 
@@ -121,6 +148,7 @@ export function HolobotStatsModal({
   const innateAbility = getAbility(holobot.name);
   const signatureFinisher = getSignatureFinisher(holobot.name);
   const unlockedSyncAbilityIds = normalizedOwnedHolobot?.syncAbilityUnlocks || [];
+  const equippedSyncAbilityId = normalizedOwnedHolobot?.equippedSyncAbilityId;
   const totalSyncInvestment = getTotalSyncInvestment(syncStats);
   const progress = normalizedOwnedHolobot
     ? getExpProgress(normalizedOwnedHolobot)
@@ -168,45 +196,66 @@ export function HolobotStatsModal({
         />
         <View style={styles.card}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.section}>
-              <View style={styles.levelRow}>
-                <Text style={styles.levelText}>
-                  {normalizedOwnedHolobot ? `LV ${normalizedOwnedHolobot.level || 1}` : "UNMINTED"}
-                </Text>
-                <View style={[styles.rankBadge, getTierColor((normalizedOwnedHolobot?.rank as UpgradeTierLabel) || "Common")]}>
-                  <Text style={styles.rankText}>
-                    {normalizedOwnedHolobot ? currentRank : mintTier?.label || "Blueprint"}
-                  </Text>
+            <Pressable
+              disabled={activeTab !== "stats" || !careerSummary}
+              onPress={() => setProfileFlipped((value) => !value)}
+              style={[styles.section, styles.profilePanel]}
+            >
+              <GameSurfaceFrame accent="#f0bf14" strong />
+              {profileFlipped && activeTab === "stats" && careerSummary ? (
+                <View style={styles.careerFace}>
+                  <View style={styles.levelRow}>
+                    <Text style={styles.levelText}>CAREER LINK</Text>
+                    <Text style={styles.flipHint}>TAP FOR PROFILE ↻</Text>
+                  </View>
+                  <Text style={styles.careerLead}>{careerSummary}</Text>
+                  {careerSince ? <Text style={styles.metaText}>{careerSince}</Text> : null}
+                  <View style={styles.careerRail} />
                 </View>
-              </View>
-
-              <Text style={styles.nameText}>{holobot.name}</Text>
-
-              <View style={styles.expRow}>
-                <Text style={styles.mutedLabel}>{normalizedOwnedHolobot ? "XP" : "BLUEPRINTS"}</Text>
-                <Text style={styles.expValue}>
-                  {normalizedOwnedHolobot
-                    ? `${normalizedOwnedHolobot.experience || 0}/${normalizedOwnedHolobot.nextLevelExp || 100}`
-                    : `${blueprintCount}/${mintTier?.required || BLUEPRINT_TIERS[0].required}`}
-                </Text>
-              </View>
-              <View style={styles.expTrack}>
-                <View style={[styles.expFill, { width: `${progress * 100}%` }]} />
-              </View>
-              <Text style={styles.metaText}>
-                {normalizedOwnedHolobot
-                  ? `${blueprintCount} blueprints available for rank upgrades`
-                  : mintTier
-                    ? `${mintTier.label} mint unlocked with blueprints`
-                    : `Collect ${BLUEPRINT_TIERS[0].required - blueprintCount} more blueprints to mint`}
-              </Text>
-            </View>
+              ) : (
+                <>
+                  <View style={styles.levelRow}>
+                    <Text style={styles.levelText}>
+                      {normalizedOwnedHolobot ? `LV ${normalizedOwnedHolobot.level || 1}` : "UNMINTED"}
+                    </Text>
+                    <View style={[styles.rankBadge, getTierColor((normalizedOwnedHolobot?.rank as UpgradeTierLabel) || "Common")]}>
+                      <Text style={styles.rankText}>
+                        {normalizedOwnedHolobot ? currentRank : mintTier?.label || "Blueprint"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.nameText}>{holobot.name}</Text>
+                  <View style={styles.expRow}>
+                    <Text style={styles.mutedLabel}>{normalizedOwnedHolobot ? "XP" : "BLUEPRINTS"}</Text>
+                    <Text style={styles.expValue}>
+                      {normalizedOwnedHolobot
+                        ? `${normalizedOwnedHolobot.experience || 0}/${normalizedOwnedHolobot.nextLevelExp || 100}`
+                        : `${blueprintCount}/${mintTier?.required || BLUEPRINT_TIERS[0].required}`}
+                    </Text>
+                  </View>
+                  <View style={styles.expTrack}>
+                    <View style={[styles.expFill, { width: `${progress * 100}%` }]} />
+                  </View>
+                  <View style={styles.profileFooter}>
+                    <Text style={styles.metaText}>
+                      {normalizedOwnedHolobot
+                        ? `${blueprintCount} blueprints available for rank upgrades`
+                        : mintTier
+                          ? `${mintTier.label} mint unlocked with blueprints`
+                          : `Collect ${BLUEPRINT_TIERS[0].required - blueprintCount} more blueprints to mint`}
+                    </Text>
+                    {activeTab === "stats" && careerSummary ? <Text style={styles.flipHint}>CAREER ↻</Text> : null}
+                  </View>
+                </>
+              )}
+            </Pressable>
 
             <View style={styles.tabRow}>
               <Pressable
                 onPress={() => setActiveTab("stats")}
                 style={[styles.tabButton, activeTab === "stats" ? styles.tabButtonActive : null]}
               >
+                <ArenaControlFrame accent="#f0bf14" selected={activeTab === "stats"} />
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -220,6 +269,7 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("abilities")}
                 style={[styles.tabButton, activeTab === "abilities" ? styles.tabButtonActive : null]}
               >
+                <ArenaControlFrame accent="#17d9ff" selected={activeTab === "abilities"} />
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -233,6 +283,7 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("blueprints")}
                 style={[styles.tabButton, activeTab === "blueprints" ? styles.tabButtonActive : null]}
               >
+                <ArenaControlFrame accent="#9b4dff" selected={activeTab === "blueprints"} />
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -246,17 +297,11 @@ export function HolobotStatsModal({
 
             {activeTab === "stats" ? (
               <>
-                {careerSummary ? (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>CAREER</Text>
-                    <Text style={styles.metaText}>{careerSummary}</Text>
-                    {careerSince ? <Text style={styles.metaText}>{careerSince}</Text> : null}
-                  </View>
-                ) : null}
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>STATS</Text>
                   {stats.map((stat) => (
                     <View key={stat.label} style={styles.statRow}>
+                      <MoveRowFrame accent="#8e75ff" />
                       <Text style={styles.statLabel}>{`${stat.label}: ${stat.baseValue}`}</Text>
                       {stat.bonus ? <Text style={styles.statBonus}>{`+${stat.bonus}`}</Text> : null}
                     </View>
@@ -281,6 +326,7 @@ export function HolobotStatsModal({
                           onPress={() => onUpgrade(stat.key)}
                           style={[styles.boostButton, availablePoints <= 0 ? styles.boostButtonDisabled : null]}
                         >
+                          <MoveActionFrame accent="#17d9ff" variant="secondary" />
                           <Text style={[styles.boostButtonText, availablePoints <= 0 ? styles.boostButtonTextDisabled : null]}>
                             {stat.upgrade}
                           </Text>
@@ -301,35 +347,54 @@ export function HolobotStatsModal({
               normalizedOwnedHolobot ? (
                   <>
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>INNATE IDENTITY</Text>
-                      <View style={styles.innateRow}>
-                        <View style={styles.innateBody}>
-                          <Text style={styles.innateName}>{innateAbility.name.toUpperCase()}</Text>
-                          <Text style={styles.innateCopy}>{innateAbility.description}</Text>
+                      <Pressable
+                        accessibilityState={{ expanded: innateExpanded }}
+                        onPress={() => setInnateExpanded((value) => !value)}
+                        style={styles.consoleHeader}
+                      >
+                        <InnateSystemFrame accent="#17d9ff" />
+                        <View>
+                          <Text style={styles.sectionTitle}>INNATE IDENTITY</Text>
+                          <Text style={styles.consoleSummary}>{`${innateAbility.name} • ${signatureFinisher.name}`}</Text>
                         </View>
-                        <View style={styles.innateTag}><Text style={styles.innateTagText}>ABILITY</Text></View>
-                      </View>
-                      <View style={styles.innateRow}>
-                        <View style={styles.innateBody}>
-                          <Text style={styles.innateName}>{signatureFinisher.name.toUpperCase()}</Text>
-                          <Text style={styles.innateCopy}>
-                            {`Signature finisher • DMG ${signatureFinisher.baseDamage} • Unlocks at ${SPECIAL_METER_SEGMENTS}/${SPECIAL_METER_SEGMENTS} special meter`}
-                          </Text>
+                        <View style={styles.expandButton}>
+                          <Svg height={16} viewBox="0 0 16 16" width={16}>
+                            <Path d={innateExpanded ? "M3 10.5 L8 5.5 L13 10.5" : "M3 5.5 L8 10.5 L13 5.5"} fill="none" stroke="#17d9ff" strokeWidth={2} />
+                          </Svg>
                         </View>
-                        <View style={styles.innateTag}><Text style={styles.innateTagText}>SIGNATURE</Text></View>
-                      </View>
-                      <Text style={styles.innateFootnote}>
-                        Always active — never equipped, drawn, or upgraded. Every Holobot bends one combat rule.
-                      </Text>
+                      </Pressable>
+                      {innateExpanded ? (
+                        <>
+                          <View style={styles.innateRow}>
+                            <View style={styles.innateBody}>
+                              <Text style={styles.innateName}>{innateAbility.name.toUpperCase()}</Text>
+                              <Text style={styles.innateCopy}>{innateAbility.description}</Text>
+                            </View>
+                            <View style={styles.innateTag}><Text style={styles.innateTagText}>ABILITY</Text></View>
+                          </View>
+                          <View style={styles.innateRow}>
+                            <View style={styles.innateBody}>
+                              <Text style={styles.innateName}>{signatureFinisher.name.toUpperCase()}</Text>
+                              <Text style={styles.innateCopy}>
+                                {`Signature finisher • DMG ${signatureFinisher.baseDamage} • Unlocks at ${SPECIAL_METER_SEGMENTS}/${SPECIAL_METER_SEGMENTS} meter`}
+                              </Text>
+                            </View>
+                            <View style={styles.innateTag}><Text style={styles.innateTagText}>SIGNATURE</Text></View>
+                          </View>
+                        </>
+                      ) : null}
                     </View>
 
-                    <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>SYNC STATS</Text>
-                      <Text style={styles.syncMeta}>{`Available SP ${availableSyncPoints}`}</Text>
-                      <Text style={styles.syncMeta}>
-                        {`Sync Level ${normalizedOwnedHolobot.syncLevel || totalSyncInvestment} • Total Investment ${totalSyncInvestment}/120`}
-                      </Text>
-                      <Text style={styles.syncMeta}>{`Lifetime SP Invested ${normalizedOwnedHolobot.lifetimeSPInvested || 0}`}</Text>
+                    <View style={[styles.section, styles.syncConsole]}>
+                      <View style={styles.syncConsoleHeader}>
+                        <View>
+                          <Text style={styles.sectionTitle}>SYNC STATS</Text>
+                          <Text style={styles.syncMeta}>{`LEVEL ${normalizedOwnedHolobot.syncLevel || totalSyncInvestment} • ${totalSyncInvestment}/120 INVESTED`}</Text>
+                        </View>
+                        <View style={styles.pointsBadge}>
+                          <Text style={styles.pointsText}>{`${availableSyncPoints} SP`}</Text>
+                        </View>
+                      </View>
                       <View style={styles.syncStatList}>
                         {syncRows.map((entry) => {
                           const nextCost = getSyncStatUpgradeCost(entry.value);
@@ -339,15 +404,17 @@ export function HolobotStatsModal({
 
                           return (
                             <View key={entry.key} style={styles.syncStatRow}>
+                              <MoveRowFrame accent="#9b4dff" />
                               <View style={styles.syncStatCopy}>
                                 <Text style={styles.syncStatName}>{getSyncStatLabel(entry.key).toUpperCase()}</Text>
-                                <Text style={styles.syncStatValue}>{`LV ${entry.value} • NEXT ${nextCost} SP`}</Text>
+                                <Text style={styles.syncStatValue}>{`LV ${entry.value}  /  NEXT ${nextCost} SP`}</Text>
                               </View>
                               <Pressable
                                 disabled={!canUpgrade}
                                 onPress={() => onUpgradeSync(entry.key)}
                                 style={[styles.syncUpgradeButton, !canUpgrade ? styles.boostButtonDisabled : null]}
                               >
+                                <MoveActionFrame accent="#9b4dff" variant="equip" />
                                 <Text style={[styles.syncUpgradeButtonText, !canUpgrade ? styles.boostButtonTextDisabled : null]}>
                                   {lockedByCap ? "MAX" : "UPGRADE"}
                                 </Text>
@@ -359,13 +426,33 @@ export function HolobotStatsModal({
                     </View>
 
                     <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
-                      {syncAbilities.length ? (
+                      <Pressable
+                        accessibilityState={{ expanded: syncAbilitiesExpanded }}
+                        onPress={() => setSyncAbilitiesExpanded((value) => !value)}
+                        style={styles.consoleHeader}
+                      >
+                        <InnateSystemFrame accent="#9b4dff" />
+                        <View>
+                          <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
+                          <Text style={styles.consoleSummary}>
+                            {equippedSyncAbilityId
+                              ? `${syncAbilities.find((ability) => ability.id === equippedSyncAbilityId)?.name || "Equipped"} installed`
+                              : `${unlockedSyncAbilityIds.length}/${syncAbilities.length} unlocked`}
+                          </Text>
+                        </View>
+                        <View style={styles.expandButton}>
+                          <Svg height={16} viewBox="0 0 16 16" width={16}>
+                            <Path d={syncAbilitiesExpanded ? "M3 10.5 L8 5.5 L13 10.5" : "M3 5.5 L8 10.5 L13 5.5"} fill="none" stroke="#9b4dff" strokeWidth={2} />
+                          </Svg>
+                        </View>
+                      </Pressable>
+                      {syncAbilitiesExpanded && syncAbilities.length ? (
                         <View style={styles.syncAbilityList}>
                           {syncAbilities.map((ability) => {
                             const unlocked = unlockedSyncAbilityIds.includes(ability.id);
                             return (
                               <View key={ability.id} style={[styles.syncAbilityCard, unlocked ? styles.syncAbilityUnlocked : null]}>
+                                <MoveTelemetryFrame accent={equippedSyncAbilityId === ability.id ? "#f0bf14" : unlocked ? "#39d98a" : "#46505d"} />
                                 <View style={styles.syncAbilityHeader}>
                                   <Text style={styles.syncAbilityName}>{ability.name}</Text>
                                   <Text style={styles.syncAbilityTier}>{`T${ability.tier}`}</Text>
@@ -376,16 +463,23 @@ export function HolobotStatsModal({
                                     : `${getSyncStatLabel(ability.primaryStat)} ${ability.primaryRequired}`}
                                 </Text>
                                 <Text style={styles.syncAbilityDescription}>{ability.description}</Text>
-                                <Text style={[styles.syncAbilityState, unlocked ? styles.syncAbilityStateUnlocked : null]}>
-                                  {unlocked ? "UNLOCKED" : "LOCKED"}
-                                </Text>
+                                <Pressable
+                                  disabled={!unlocked || equippedSyncAbilityId === ability.id}
+                                  onPress={() => onEquipSyncAbility(ability.id)}
+                                  style={[styles.syncAbilityEquip, !unlocked ? styles.boostButtonDisabled : null]}
+                                >
+                                  <ArenaControlFrame accent={equippedSyncAbilityId === ability.id ? "#f0bf14" : "#39d98a"} selected={equippedSyncAbilityId === ability.id} />
+                                  <Text style={[styles.syncAbilityState, unlocked ? styles.syncAbilityStateUnlocked : null]}>
+                                    {equippedSyncAbilityId === ability.id ? "EQUIPPED" : unlocked ? "EQUIP" : "LOCKED"}
+                                  </Text>
+                                </Pressable>
                               </View>
                             );
                           })}
                         </View>
-                      ) : (
+                      ) : syncAbilitiesExpanded ? (
                         <Text style={styles.emptyStateText}>This holobot does not have Sync Abilities configured yet.</Text>
-                      )}
+                      ) : null}
                     </View>
                   </>
               ) : (
@@ -465,6 +559,7 @@ export function HolobotStatsModal({
                           (!unlocked || upgradeBlocked) ? styles.tierButtonDisabled : null,
                         ]}
                       >
+                        <GameSurfaceFrame accent={getTierAccent(tier.label)} />
                         <View style={styles.tierHeader}>
                           <Text style={styles.tierTitle}>{tier.label}</Text>
                           <Text style={styles.tierMeta}>{`LV ${tier.startLevel}`}</Text>
@@ -491,6 +586,11 @@ export function HolobotStatsModal({
 
             <Text style={styles.closeHint}>TAP OUTSIDE TO CLOSE</Text>
           </ScrollView>
+          <View pointerEvents="none" style={[styles.frameMask, styles.frameMaskTop]} />
+          <View pointerEvents="none" style={[styles.frameMask, styles.frameMaskBottom]} />
+          <View pointerEvents="none" style={[styles.frameMask, styles.frameMaskLeft]} />
+          <View pointerEvents="none" style={[styles.frameMask, styles.frameMaskRight]} />
+          <GameDialogFrame accent="#f0bf14" fill="transparent" />
         </View>
       </View>
     </Modal>
@@ -606,13 +706,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#ae4cff",
   },
   boostButton: {
-    backgroundColor: "#141b28",
-    borderColor: "#44516b",
-    borderWidth: 2,
+    alignItems: "center",
+    backgroundColor: "transparent",
     flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
     minWidth: "47%",
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    position: "relative",
   },
   boostButtonDisabled: {
     borderColor: "#373737",
@@ -630,7 +731,7 @@ const styles = StyleSheet.create({
   boostGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 7,
   },
   boostHeader: {
     alignItems: "center",
@@ -639,13 +740,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   card: {
-    backgroundColor: "#080b11",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexShrink: 1,
     maxHeight: "88%",
     maxWidth: 410,
     overflow: "hidden",
+    position: "relative",
     width: "92%",
   },
   closeHint: {
@@ -664,6 +764,35 @@ const styles = StyleSheet.create({
     backgroundColor: "#4cc6ff",
     borderRadius: 999,
     height: "100%",
+  },
+  frameMask: {
+    backgroundColor: "#07080a",
+    position: "absolute",
+    zIndex: 8,
+  },
+  frameMaskBottom: {
+    bottom: 0,
+    height: 18,
+    left: 0,
+    right: 0,
+  },
+  frameMaskLeft: {
+    bottom: 16,
+    left: 0,
+    top: 16,
+    width: 16,
+  },
+  frameMaskRight: {
+    bottom: 16,
+    right: 0,
+    top: 16,
+    width: 16,
+  },
+  frameMaskTop: {
+    height: 18,
+    left: 0,
+    right: 0,
+    top: 0,
   },
   expRow: {
     alignItems: "center",
@@ -782,13 +911,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     gap: 12,
-    padding: 16,
-    paddingBottom: 48,
+    paddingBottom: 64,
+    paddingHorizontal: 22,
+    paddingTop: 22,
   },
   section: {
-    borderColor: "#f0bf14",
-    borderWidth: 1.5,
+    backgroundColor: "rgba(9, 12, 17, 0.72)",
+    borderLeftColor: "#343b48",
+    borderLeftWidth: 2,
     padding: 12,
+    position: "relative",
   },
   sectionTitle: {
     color: "#f0bf14",
@@ -818,13 +950,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 8,
-    marginBottom: 8,
+    minHeight: 45,
+    paddingHorizontal: 12,
+    position: "relative",
   },
   syncAbilityCard: {
-    backgroundColor: "#0d1219",
-    borderColor: "#32404d",
-    borderWidth: 1,
-    padding: 12,
+    minHeight: 128,
+    padding: 14,
+    position: "relative",
   },
   syncAbilityDescription: {
     color: "#d7cfb7",
@@ -838,7 +971,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   syncAbilityList: {
-    gap: 10,
+    gap: 7,
+    marginTop: 10,
   },
   syncAbilityName: {
     color: "#f4f4f2",
@@ -857,7 +991,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.7,
-    marginTop: 8,
+    textAlign: "center",
   },
   syncAbilityStateUnlocked: {
     color: "#66d68d",
@@ -868,21 +1002,30 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   syncAbilityUnlocked: {
-    borderColor: "#66d68d",
+  },
+  syncAbilityEquip: {
+    alignItems: "center",
+    alignSelf: "flex-end",
+    justifyContent: "center",
+    marginTop: 8,
+    minHeight: 32,
+    minWidth: 92,
+    position: "relative",
   },
   syncMeta: {
-    color: "#d5cbb2",
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 6,
+    color: "#8fa6bf",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.35,
+    marginTop: 2,
   },
   syncStatCopy: {
     flex: 1,
     marginRight: 12,
   },
   syncStatList: {
-    gap: 10,
-    marginTop: 6,
+    gap: 2,
+    marginTop: 9,
   },
   syncStatName: {
     color: "#f4f4f2",
@@ -892,6 +1035,15 @@ const styles = StyleSheet.create({
   syncStatRow: {
     alignItems: "center",
     flexDirection: "row",
+    minHeight: 54,
+    paddingHorizontal: 13,
+    position: "relative",
+  },
+  syncStatAccent: {
+    backgroundColor: "#9b4dff",
+    height: 24,
+    marginRight: 9,
+    width: 3,
   },
   syncStatValue: {
     color: "#8fa6bf",
@@ -900,31 +1052,29 @@ const styles = StyleSheet.create({
   },
   syncUpgradeButton: {
     alignItems: "center",
-    backgroundColor: "#1a2534",
-    borderColor: "#4f79aa",
-    borderWidth: 1.5,
-    minWidth: 90,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    minWidth: 76,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    position: "relative",
   },
   syncUpgradeButtonText: {
     color: "#dceeff",
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.6,
   },
   tabButton: {
     alignItems: "center",
-    borderColor: "#6a5718",
-    borderWidth: 1,
     flex: 1,
     justifyContent: "center",
     minHeight: 42,
     paddingHorizontal: 6,
+    position: "relative",
   },
   tabButtonActive: {
-    backgroundColor: "#f0bf14",
-    borderColor: "#f0bf14",
+    backgroundColor: "transparent",
   },
   tabButtonText: {
     color: "#f0bf14",
@@ -933,11 +1083,74 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   tabButtonTextActive: {
-    color: "#080b11",
+    color: "#fef1e0",
   },
   tabRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 7,
+  },
+  consoleHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 48,
+    overflow: "hidden",
+    paddingHorizontal: 12,
+    position: "relative",
+  },
+  consoleSummary: {
+    color: "#8f98aa",
+    fontSize: 10,
+    marginTop: 1,
+  },
+  expandButton: {
+    alignItems: "center",
+    backgroundColor: "#10151d",
+    borderColor: "#343d4b",
+    borderWidth: 1,
+    height: 30,
+    justifyContent: "center",
+    width: 34,
+    zIndex: 1,
+  },
+  careerFace: {
+    minHeight: 126,
+  },
+  careerLead: {
+    color: "#fef1e0",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  careerRail: {
+    backgroundColor: "#17d9ff",
+    height: 3,
+    marginTop: 15,
+    width: "58%",
+  },
+  flipHint: {
+    color: "#f0bf14",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  profileFooter: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  profilePanel: {
+    minHeight: 148,
+    overflow: "hidden",
+  },
+  syncConsole: {
+    borderLeftColor: "#9b4dff",
+  },
+  syncConsoleHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   tierAction: {
     color: "#f5f3eb",

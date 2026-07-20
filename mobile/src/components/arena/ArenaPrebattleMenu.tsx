@@ -15,6 +15,9 @@ import {
   type HolobotRosterEntry,
 } from "@/config/holobots";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
+import { ArenaTierCard } from "@/components/arena/ArenaTierCard";
+import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
+import { GameSectionLabel, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import type { UserHolobot } from "@/types/profile";
 
 type ArenaPrebattleMenuProps = {
@@ -48,6 +51,7 @@ function FlipPreviewCard({
 
   return (
     <Pressable onPress={() => setShowBack((value) => !value)} style={styles.previewCard}>
+      <GameSurfaceFrame strong />
       {!showBack ? (
         <>
           <View style={styles.previewHeader}>
@@ -187,8 +191,9 @@ export function ArenaPrebattleMenu({
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {mode === "1v1" ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Holobot</Text>
+            <GameSectionLabel label="Holobot" />
             <Pressable onPress={() => setPickerTarget("main")} style={styles.changeHolobotBar}>
+              <GameSurfaceFrame strong />
               <Image source={selectedHolobot.imageSource} style={styles.changeHolobotArt} resizeMode="contain" />
               <View style={styles.changeHolobotBody}>
                 <Text style={styles.changeHolobotName}>{selectedHolobot.name}</Text>
@@ -199,12 +204,13 @@ export function ArenaPrebattleMenu({
         ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mode</Text>
+          <GameSectionLabel label="Mode" />
           <View style={styles.modeRow}>
             <Pressable
               onPress={() => setMode("1v1")}
               style={[styles.modeButton, mode === "1v1" && styles.modeButtonActive]}
             >
+              <ArenaControlFrame accent="#f0bf14" selected={mode === "1v1"} />
               <Text style={[styles.modeButtonText, mode === "1v1" && styles.modeButtonTextActive]}>1V1 RUN</Text>
             </Pressable>
             <Pressable
@@ -212,6 +218,7 @@ export function ArenaPrebattleMenu({
               onPress={() => setMode("3v3")}
               style={[styles.modeButton, mode === "3v3" && styles.modeButtonActive, !canField3v3 && styles.modeButtonDisabled]}
             >
+              <ArenaControlFrame accent="#20dff2" selected={mode === "3v3"} />
               <Text style={[styles.modeButtonText, mode === "3v3" && styles.modeButtonTextActive]}>3V3 SHOWDOWN</Text>
             </Pressable>
           </View>
@@ -225,6 +232,7 @@ export function ArenaPrebattleMenu({
                     onPress={() => setPickerTarget(index as 0 | 1 | 2)}
                     style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}
                   >
+                    <GameSurfaceFrame accent={name ? "#17d9ff" : "#f0bf14"} />
                     <Text style={styles.teamSlotLabel}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
                     {entry ? (
                       <>
@@ -249,45 +257,54 @@ export function ArenaPrebattleMenu({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Arena Tiers</Text>
+          <GameSectionLabel label="Arena Tiers" />
           <View style={styles.tierGrid}>
             {ARENA_TIERS.map((tier) => {
               const selected = tier.id === selectedTier.id;
               return (
-                <Pressable
+                <ArenaTierCard
+                  compact
+                  entryFeeHolos={tier.entryFeeHolos}
                   key={tier.id}
+                  label={tier.label}
+                  level={tier.opponentLevel}
                   onPress={() => setSelectedTierId(tier.id)}
-                  style={[styles.tierCard, selected && styles.tierCardSelected]}
-                >
-                  <Text numberOfLines={1} style={styles.tierName}>{tier.label}</Text>
-                  <View style={styles.tierMetaRow}>
-                    <Text style={styles.tierLevel}>{`Lv ${tier.opponentLevel}`}</Text>
-                    <Text style={styles.tierFee}>{`${tier.entryFeeHolos} Holos`}</Text>
-                  </View>
-                </Pressable>
+                  selected={selected}
+                  tier={tier.id}
+                />
               );
             })}
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <View style={styles.actionRow}>
+          <View style={styles.paymentRow}>
             <Pressable
               disabled={!canUseTokens || !teamReady}
               onPress={() => startPressed("tokens")}
               style={[styles.actionButton, (!canUseTokens || !teamReady) && styles.actionButtonDisabled]}
             >
-              <Text style={styles.actionButtonTitle}>Pay Holos</Text>
-              <Text style={styles.actionButtonMeta}>{`${selectedTier.entryFeeHolos} Holos`}</Text>
+              <ArenaControlFrame accent="#f0bf14" selected={canUseTokens && teamReady} />
+              <View style={[styles.paymentMark, styles.paymentMarkHolos]}>
+                <Text style={styles.paymentMarkText}>H</Text>
+              </View>
+              <View style={styles.actionButtonCopy}>
+                <Text style={styles.actionButtonTitle}>PAY HOLOS</Text>
+                <Text style={styles.actionButtonMeta}>{`${selectedTier.entryFeeHolos} HOLOS`}</Text>
+              </View>
             </Pressable>
 
             <Pressable
               disabled={!canUsePass || !teamReady}
               onPress={() => startPressed("pass")}
-              style={[styles.actionButton, styles.passButton, (!canUsePass || !teamReady) && styles.actionButtonDisabled]}
+              style={[styles.actionButton, (!canUsePass || !teamReady) && styles.actionButtonDisabled]}
             >
-              <Text style={styles.actionButtonTitle}>Use Arena Pass</Text>
-              <Text style={styles.actionButtonMeta}>{`${userArenaPasses} available`}</Text>
+              <ArenaControlFrame accent="#20dff2" selected={canUsePass && teamReady} />
+              <View style={[styles.paymentMark, styles.paymentMarkPass]}>
+                <Text style={styles.paymentMarkText}>P</Text>
+              </View>
+              <View style={styles.actionButtonCopy}>
+                <Text style={styles.actionButtonTitle}>USE ARENA PASS</Text>
+                <Text style={styles.actionButtonMeta}>{`${userArenaPasses} AVAILABLE`}</Text>
+              </View>
             </Pressable>
           </View>
         </View>
@@ -317,26 +334,37 @@ export function ArenaPrebattleMenu({
 
 const styles = StyleSheet.create({
   actionButton: {
-    backgroundColor: "#f0bf14",
+    alignItems: "center",
+    backgroundColor: "transparent",
     flex: 1,
-    minHeight: 68,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    flexDirection: "row",
+    gap: 9,
+    justifyContent: "center",
+    minHeight: 54,
+    overflow: "hidden",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    position: "relative",
   },
   actionButtonDisabled: {
-    backgroundColor: "#6b5c1e",
-    opacity: 0.55,
+    opacity: 0.46,
+  },
+  actionButtonCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   actionButtonMeta: {
-    color: "#050606",
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 6,
+    color: "#9aa1ad",
+    fontSize: 8,
+    fontWeight: "800",
+    marginTop: 2,
+    zIndex: 1,
   },
   actionButtonTitle: {
-    color: "#050606",
-    fontSize: 15,
+    color: "#fef1e0",
+    fontSize: 11,
     fontWeight: "900",
+    zIndex: 1,
   },
   actionRow: {
     flexDirection: "row",
@@ -349,13 +377,13 @@ const styles = StyleSheet.create({
   },
   changeHolobotBar: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 12,
+    overflow: "hidden",
     paddingHorizontal: 12,
     paddingVertical: 10,
+    position: "relative",
   },
   changeHolobotBody: {
     flex: 1,
@@ -436,27 +464,29 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   modeButton: {
-    borderColor: "#3a3f4b",
-    borderWidth: 1.5,
+    backgroundColor: "transparent",
     flex: 1,
+    minHeight: 44,
+    overflow: "hidden",
     paddingVertical: 10,
+    position: "relative",
   },
   modeButtonActive: {
-    backgroundColor: "#f0bf14",
-    borderColor: "#f0bf14",
+    backgroundColor: "transparent",
   },
   modeButtonDisabled: {
     opacity: 0.4,
   },
   modeButtonText: {
-    color: "#b7bdc9",
+    color: "#fef1e0",
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1,
     textAlign: "center",
+    zIndex: 1,
   },
   modeButtonTextActive: {
-    color: "#07080d",
+    color: "#f0bf14",
   },
   modeRow: {
     flexDirection: "row",
@@ -474,13 +504,13 @@ const styles = StyleSheet.create({
   },
   teamSlot: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#3a3f4b",
-    borderWidth: 1.5,
+    backgroundColor: "transparent",
     flex: 1,
     minHeight: 108,
+    overflow: "hidden",
     paddingHorizontal: 6,
     paddingVertical: 8,
+    position: "relative",
   },
   teamSlotArt: {
     height: 48,
@@ -524,14 +554,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   passButton: {
-    backgroundColor: "#fef1e0",
+    backgroundColor: "transparent",
+  },
+  paymentMark: {
+    alignItems: "center",
+    borderWidth: 2,
+    height: 31,
+    justifyContent: "center",
+    transform: [{ rotate: "45deg" }],
+    width: 31,
+    zIndex: 1,
+  },
+  paymentMarkHolos: {
+    borderColor: "#f0bf14",
+  },
+  paymentMarkPass: {
+    borderColor: "#20dff2",
+  },
+  paymentMarkText: {
+    color: "#fef1e0",
+    fontSize: 11,
+    fontWeight: "900",
+    transform: [{ rotate: "-45deg" }],
+  },
+  paymentRow: {
+    flexDirection: "row",
+    gap: 8,
   },
   previewCard: {
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     minHeight: 168,
+    overflow: "hidden",
     padding: 12,
+    position: "relative",
   },
   previewEyebrow: {
     color: "#fef1e0",
@@ -646,7 +701,7 @@ const styles = StyleSheet.create({
   tierGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 6,
     justifyContent: "space-between",
   },
   tierLevel: {

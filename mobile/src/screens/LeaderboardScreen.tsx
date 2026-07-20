@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HomeCogButton } from "@/components/HomeCogButton";
+import { CompactSectionHeader } from "@/components/navigation/GameSectionChrome";
+import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { collection, db, limit, onSnapshot, orderBy, query } from "@/config/firebase";
 
 /** Public projection maintained by the mirrorLeaderboardEntry trigger —
@@ -24,6 +26,13 @@ function getPlayerRankName(entry: LeaderboardEntry) {
   if (score >= 55) return "Elite";
   if (score >= 30) return "Champion";
   return "Rookie";
+}
+
+function getPositionAccent(index: number) {
+  if (index === 0) return "#ffc51b";
+  if (index === 1) return "#20dff2";
+  if (index === 2) return "#b34cff";
+  return "#f0bf14";
 }
 
 export function LeaderboardScreen() {
@@ -76,10 +85,11 @@ export function LeaderboardScreen() {
   return (
     <View style={styles.page}>
       <HomeCogButton />
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>PILOT NETWORK</Text>
-        <Text style={styles.title}>Leaderboard</Text>
-      </View>
+      <CompactSectionHeader
+        eyebrow="PILOT NETWORK"
+        meta="TOP 10 RANKED PILOTS"
+        title="Leaderboard"
+      />
 
       {loading ? (
         <View style={styles.centerState}>
@@ -94,7 +104,18 @@ export function LeaderboardScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {leaderboardRows.map((row, index) => (
             <View key={row.id} style={styles.row}>
-              <Text style={styles.position}>{`#${index + 1}`}</Text>
+              <GameSurfaceFrame accent={getPositionAccent(index)} strong={index < 3} />
+              <View style={[styles.positionBadge, { borderColor: getPositionAccent(index) }]}>
+                <Text
+                  style={[
+                    styles.position,
+                    styles.positionBadgeText,
+                    { color: getPositionAccent(index) },
+                  ]}
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </Text>
+              </View>
               <View style={styles.rowBody}>
                 <Text style={styles.name}>{row.name}</Text>
                 <Text style={styles.rank}>{row.rank}</Text>
@@ -121,20 +142,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-  eyebrow: {
-    color: "#f0bf14",
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-  },
-  header: {
-    backgroundColor: "#050606",
-    borderBottomColor: "#f0bf14",
-    borderBottomWidth: 3,
-    paddingBottom: 18,
-    paddingHorizontal: 24,
-    paddingTop: 94,
-  },
   helperText: {
     color: "#ddd2b5",
     fontSize: 14,
@@ -146,14 +153,25 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   page: {
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#f5c40d",
     flex: 1,
   },
   position: {
-    color: "#f0bf14",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "900",
-    width: 44,
+  },
+  positionBadge: {
+    alignItems: "center",
+    backgroundColor: "#030405",
+    borderWidth: 1,
+    height: 38,
+    justifyContent: "center",
+    marginRight: 12,
+    transform: [{ rotate: "45deg" }],
+    width: 38,
+  },
+  positionBadgeText: {
+    transform: [{ rotate: "-45deg" }],
   },
   rank: {
     color: "#ddd2b5",
@@ -162,12 +180,12 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     minHeight: 72,
+    overflow: "hidden",
     paddingHorizontal: 16,
+    position: "relative",
   },
   rowBody: {
     flex: 1,
@@ -181,11 +199,5 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 18,
     paddingBottom: 28,
-  },
-  title: {
-    color: "#fef1e0",
-    fontSize: 34,
-    fontWeight: "900",
-    marginTop: 6,
   },
 });

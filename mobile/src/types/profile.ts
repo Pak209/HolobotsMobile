@@ -28,6 +28,8 @@ export type UserHolobot = {
   pvpLosses?: number;
   syncStats?: SyncStats;
   syncAbilityUnlocks?: string[];
+  /** One unlocked Sync Ability actively installed in the combat loadout. */
+  equippedSyncAbilityId?: string;
   syncLevel?: number;
   lifetimeSPInvested?: number;
   career?: HolobotCareer;

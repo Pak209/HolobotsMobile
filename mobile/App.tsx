@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Asset } from "expo-asset";
@@ -48,14 +48,14 @@ const navTheme = {
   },
 };
 
-function AuthedApp() {
+function AuthedApp({ fitnessAssetsReady }: { fitnessAssetsReady: boolean }) {
   const { bootLoading, profile, profileLoading, sessionLocked, user } = useAuth();
   const watchRewardsSync = useWatchBridge(
     user?.uid,
     (profile?.holobots || []).map((holobot) => holobot.name),
   );
 
-  if (bootLoading || (user && profileLoading && !profile)) {
+  if (!fitnessAssetsReady || bootLoading || (user && profileLoading && !profile)) {
     return <AppLoadingScreen />;
   }
 
@@ -103,15 +103,29 @@ function AuthedApp() {
 }
 
 export default function App() {
+  const [fitnessAssetsReady, setFitnessAssetsReady] = useState(false);
+
   useEffect(() => {
-    void Asset.loadAsync(fitnessAssetList);
+    let mounted = true;
+    void Asset.loadAsync(fitnessAssetList)
+      .catch((error) => {
+        console.warn("[App] Fitness asset preload failed; native requires will retry.", error);
+      })
+      .finally(() => {
+        if (mounted) {
+          setFitnessAssetsReady(true);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <AuthedApp />
+          <AuthedApp fitnessAssetsReady={fitnessAssetsReady} />
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

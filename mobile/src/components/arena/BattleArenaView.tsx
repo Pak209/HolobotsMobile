@@ -10,6 +10,7 @@ import {
   getSpecialMeterSegments,
   SPECIAL_METER_SEGMENTS,
 } from "../../features/arena/moveKits";
+import { GameSurfaceFrame } from "../ui/GameSurfaceFrame";
 
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
@@ -486,6 +487,7 @@ export function BattleArenaView({
 
       {lastAction ? (
         <View style={styles.actionTicker}>
+          <GameSurfaceFrame accent="#f0bf14" />
           <Text numberOfLines={1} style={styles.actionTickerText}>
             {`${lastAction.card.name} ${lastActionDamage > 0 ? `• ${lastActionDamage} DMG` : ""}${getOutcomeLabel(
               lastAction,
@@ -521,6 +523,7 @@ export function BattleArenaView({
       ) : null}
 
       <View style={styles.cardBay}>
+        <GameSurfaceFrame accent="#f0bf14" strong />
         {team ? (
           <View style={styles.switchDock}>
             {team.playerChips.map((chip) => {
@@ -635,6 +638,7 @@ export function BattleArenaView({
             { fighter: battle.opponent, label: "CPU BEND" },
           ].map(({ fighter, label }) => (
             <View key={label} style={styles.abilityPanel}>
+              <GameSurfaceFrame accent={label === "YOUR BEND" ? "#17d9ff" : "#596273"} />
               <Text style={styles.abilityPanelEyebrow}>{`${label} — ${fighter.name}`}</Text>
               <Text style={styles.abilityPanelName}>
                 {`◈ ${(fighter.ability?.name ?? "COMBAT ROUTINE").toUpperCase()}`}
@@ -667,14 +671,12 @@ export function BattleArenaView({
 const styles = StyleSheet.create({
   actionTicker: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
     marginHorizontal: 18,
     marginTop: -4,
     minHeight: 34,
     justifyContent: "center",
     paddingHorizontal: 12,
+    position: "relative",
   },
   actionTickerText: {
     color: "#fef1e0",
@@ -811,13 +813,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   abilityPanel: {
-    backgroundColor: "#0b0d13",
-    borderColor: "#22262f",
-    borderRadius: 6,
-    borderWidth: 1,
     flex: 1,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
+    minHeight: 82,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    position: "relative",
   },
   abilityPanelEyebrow: {
     color: "#6b7280",
@@ -977,15 +977,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   cardBay: {
-    backgroundColor: "#080808",
-    borderColor: "#1f1f1f",
-    borderWidth: 3,
     marginHorizontal: 18,
     marginTop: 0,
     marginBottom: 14,
-    paddingBottom: 10,
-    paddingHorizontal: 10,
-    paddingTop: 10,
+    paddingBottom: 13,
+    paddingHorizontal: 12,
+    paddingTop: 13,
+    position: "relative",
   },
   cardBayHeader: {
     alignItems: "center",
@@ -1205,7 +1203,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   hudBarBlock: {
-    gap: 4,
+    gap: 2,
     width: "100%",
   },
   hudBarBlockRight: {
@@ -1218,52 +1216,56 @@ const styles = StyleSheet.create({
   hudBarLabelRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 8,
+    gap: 4,
+    minHeight: 11,
   },
   hudBarTrack: {
     backgroundColor: "#1c1c1c",
     borderColor: "#0f0f0f",
     borderWidth: 1,
-    height: 20,
+    height: 15,
     overflow: "hidden",
     width: "100%",
   },
   hudName: {
     color: "#fef1e0",
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: "900",
-    marginBottom: 4,
+    letterSpacing: 0.3,
+    marginBottom: 1,
   },
   hudNameRight: {
     textAlign: "right",
   },
   hudInfoStack: {
     flex: 1,
-    gap: 5,
+    gap: 3,
+    minWidth: 0,
   },
   hudSide: {
     flex: 1,
-    gap: 7,
+    minWidth: 0,
   },
   hudStatLabel: {
-    fontSize: 11,
+    fontSize: 8,
     fontWeight: "900",
+    letterSpacing: 0.35,
   },
   hudStatValue: {
     color: "#fef1e0",
     flex: 1,
-    fontSize: 11,
+    fontSize: 8,
     fontWeight: "900",
   },
   roundCore: {
     alignItems: "center",
     backgroundColor: "#050606",
     borderColor: "#f0bf14",
-    borderWidth: 3,
-    height: 80,
+    borderWidth: 2,
+    height: 62,
     justifyContent: "center",
-    marginHorizontal: 8,
-    width: 80,
+    marginHorizontal: 4,
+    width: 58,
   },
   roundLabel: {
     color: "#fef1e0",
@@ -1279,7 +1281,7 @@ const styles = StyleSheet.create({
   },
   roundValue: {
     color: "#fef1e0",
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "900",
     marginTop: 0,
   },
@@ -1293,8 +1295,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#050606",
     flexDirection: "row",
     marginHorizontal: 0,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   vsBadge: {
     alignItems: "center",

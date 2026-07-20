@@ -13,12 +13,14 @@ type HomeCogButtonProps = {
   onOpenPvp?: () => void;
   showSettings?: boolean;
   showStats?: boolean;
+  topOffset?: number;
 };
 
 export function HomeCogButton({
   onOpenPvp,
   showSettings = true,
   showStats = true,
+  topOffset = 72,
 }: HomeCogButtonProps) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const { profile } = useAuth();
@@ -27,7 +29,7 @@ export function HomeCogButton({
 
   return (
     <>
-      <View style={styles.cluster}>
+      <View style={[styles.cluster, { top: topOffset }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go to home dashboard"
@@ -129,7 +131,6 @@ const styles = StyleSheet.create({
     gap: 10,
     position: "absolute",
     right: 18,
-    top: 72,
     zIndex: 20,
   },
   button: {},

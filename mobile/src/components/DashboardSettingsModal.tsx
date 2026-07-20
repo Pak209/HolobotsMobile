@@ -11,6 +11,8 @@ import {
 } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
+import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
 import { isIapEnabled, restorePurchases } from "@/lib/purchases";
 
 type DashboardSettingsModalProps = {
@@ -64,6 +66,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
       >
         <View style={styles.backdrop}>
           <View style={styles.card}>
+            <GameDialogFrame accent={isDeleteFlowOpen ? "#ef4444" : "#f0bf14"} fill="#07080a" />
             {!isDeleteFlowOpen ? (
               <>
                 <Text style={styles.eyebrow}>DASHBOARD SETTINGS</Text>
@@ -73,6 +76,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                 </Text>
 
                 <View style={styles.section}>
+                  <GameSurfaceFrame accent="#f0bf14" />
                   <Text style={styles.label}>ACCOUNT</Text>
                   <Text style={styles.copySmall}>{pilotLabel}</Text>
                   {user?.email ? <Text style={styles.meta}>{user.email}</Text> : null}
@@ -83,6 +87,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                       void logout();
                     }}
                   >
+                    <ArenaControlFrame accent="#f0bf14" />
                     <Text style={styles.primaryActionText}>SIGN OUT</Text>
                   </Pressable>
                   {canRestorePurchases ? (
@@ -112,6 +117,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                         }
                       }}
                     >
+                      <ArenaControlFrame accent="#f0bf14" />
                       {isRestoringPurchases ? (
                         <ActivityIndicator color="#f0bf14" />
                       ) : (
@@ -122,6 +128,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                 </View>
 
                 <View style={styles.section}>
+                  <GameSurfaceFrame accent="#ef4444" />
                   <Text style={styles.dangerLabel}>DANGER ZONE</Text>
                   <Text style={styles.meta}>
                     Permanently remove this account and all saved pilot data from Holobots Mobile.
@@ -134,11 +141,13 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                       setIsDeleteFlowOpen(true);
                     }}
                   >
+                    <ArenaControlFrame accent="#ef4444" />
                     <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
                   </Pressable>
                 </View>
 
                 <Pressable style={styles.closeButton} onPress={onClose}>
+                  <ArenaControlFrame accent="#f0bf14" selected />
                   <Text style={styles.closeText}>CLOSE</Text>
                 </Pressable>
               </>
@@ -151,6 +160,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                 </Text>
 
                 <View style={styles.section}>
+                  <GameSurfaceFrame accent="#ef4444" />
                   <Text style={styles.label}>TYPE DELETE TO CONFIRM</Text>
                   <TextInput
                     autoCapitalize="characters"
@@ -193,6 +203,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                     }
                   }}
                 >
+                  <ArenaControlFrame accent="#ef4444" selected={canConfirmDelete} />
                   {isDeletingAccount ? (
                     <ActivityIndicator color="#fef1e0" />
                   ) : (
@@ -208,6 +219,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                     setIsDeleteFlowOpen(false);
                   }}
                 >
+                  <ArenaControlFrame accent="#f0bf14" />
                   <Text style={styles.closeText}>CANCEL</Text>
                 </Pressable>
               </>
@@ -228,21 +240,20 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   card: {
-    backgroundColor: "#111111",
-    borderColor: "#f0bf14",
-    borderWidth: 3,
+    backgroundColor: "transparent",
     maxWidth: 420,
+    overflow: "hidden",
     padding: 20,
+    position: "relative",
     width: "100%",
   },
   closeButton: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#2a2a2a",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     justifyContent: "center",
     marginTop: 16,
     minHeight: 48,
+    position: "relative",
   },
   closeText: {
     color: "#f0bf14",
@@ -270,12 +281,11 @@ const styles = StyleSheet.create({
   },
   deleteAccountButton: {
     alignItems: "center",
-    backgroundColor: "#2c0d0d",
-    borderColor: "#ef4444",
-    borderWidth: 1,
+    backgroundColor: "transparent",
     justifyContent: "center",
     marginTop: 12,
     minHeight: 48,
+    position: "relative",
   },
   deleteAccountButtonDisabled: {
     opacity: 0.45,
@@ -324,12 +334,11 @@ const styles = StyleSheet.create({
   },
   primaryAction: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 1,
+    backgroundColor: "transparent",
     justifyContent: "center",
     marginTop: 12,
     minHeight: 48,
+    position: "relative",
   },
   primaryActionText: {
     color: "#fef1e0",
@@ -339,12 +348,11 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#5b4b18",
-    borderWidth: 1,
+    backgroundColor: "transparent",
     justifyContent: "center",
     marginTop: 12,
     minHeight: 44,
+    position: "relative",
   },
   secondaryActionText: {
     color: "#f0bf14",
@@ -353,11 +361,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   section: {
-    backgroundColor: "#090909",
-    borderColor: "#2a2a2a",
-    borderWidth: 1,
+    backgroundColor: "transparent",
     marginTop: 14,
     padding: 14,
+    position: "relative",
   },
   title: {
     color: "#fef1e0",

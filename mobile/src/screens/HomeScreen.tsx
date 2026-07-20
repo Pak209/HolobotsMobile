@@ -6,6 +6,8 @@ import { DashboardSettingsModal } from "@/components/DashboardSettingsModal";
 import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
+import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
+import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
 import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
 import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
 import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/partStats";
@@ -538,6 +540,7 @@ export function HomeScreen() {
         >
           <View style={styles.partModalBackdrop}>
             <View style={styles.partModalSheet}>
+              <GameDialogFrame accent="#f0bf14" fill="#07080a" />
               <RNText style={styles.partModalTitle}>
                 {selectedPartSlot ? `Equip ${selectedPartSlot.toUpperCase()} Part` : "Equip Part"}
               </RNText>
@@ -575,6 +578,7 @@ export function HomeScreen() {
                           }
                         }}
                       >
+                        <GameSurfaceFrame accent={part.rarity?.toLowerCase().includes("epic") ? "#9b4dff" : "#17d9ff"} />
                         <View style={styles.partOptionIcon}>
                           {source ? <RNImage source={source} style={styles.fillImage} resizeMode="contain" /> : null}
                         </View>
@@ -593,6 +597,7 @@ export function HomeScreen() {
                 )}
               </ScrollView>
               <Pressable style={styles.partBackButton} onPress={() => setSelectedPartSlot(null)}>
+                <ArenaControlFrame accent="#f0bf14" selected />
                 <RNText style={styles.partBackText}>BACK</RNText>
               </Pressable>
             </View>
@@ -704,13 +709,12 @@ const styles = StyleSheet.create({
   partBackButton: {
     alignItems: "center",
     alignSelf: "center",
-    backgroundColor: "#050606",
-    borderColor: "#1b1b1b",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     marginTop: 16,
     minWidth: 180,
+    minHeight: 52,
     paddingHorizontal: 34,
-    paddingVertical: 16,
+    position: "relative",
   },
   partBackText: {
     color: "#f0bf14",
@@ -736,11 +740,12 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   partModalSheet: {
-    backgroundColor: "#252525",
-    borderRadius: 12,
+    backgroundColor: "transparent",
     maxHeight: "82%",
     maxWidth: 420,
+    overflow: "hidden",
     padding: 20,
+    position: "relative",
     width: "100%",
   },
   partModalTitle: {
@@ -752,10 +757,11 @@ const styles = StyleSheet.create({
   },
   partOption: {
     alignItems: "center",
-    backgroundColor: "#050606",
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 12,
     padding: 12,
+    position: "relative",
   },
   partOptionBody: {
     flex: 1,

@@ -52,7 +52,10 @@ export function buildPlayerFighter(
     holobot.boostedAttributes,
   );
   const syncModifiers = calculateSyncBattleModifiers(holobot);
-  const syncAbilityIds = getUnlockedSyncAbilities(holobot);
+  const unlockedSyncAbilityIds = getUnlockedSyncAbilities(holobot);
+  const equippedSyncAbilityId = unlockedSyncAbilityIds.includes(holobot.equippedSyncAbilityId || "")
+    ? holobot.equippedSyncAbilityId
+    : undefined;
 
   return {
     holobotId: `player-${holobot.name.toLowerCase()}`,
@@ -90,7 +93,7 @@ export function buildPlayerFighter(
     totalDamageDealt: 0,
     perfectDefenses: 0,
     combosCompleted: 0,
-    syncAbilities: syncAbilityIds,
+    syncAbilities: equippedSyncAbilityId ? [equippedSyncAbilityId] : [],
     syncModifiers,
   };
 }

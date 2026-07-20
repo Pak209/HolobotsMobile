@@ -1,6 +1,8 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, Image } from "react-native";
 
 import { getExpProgress, type HolobotRosterEntry } from "@/config/holobots";
+import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
+import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 
 type HolobotPickerModalProps = {
   onClose: () => void;
@@ -27,6 +29,12 @@ export function HolobotPickerModal({
     >
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
+          <GameDialogFrame accent="#f0bf14" fill="#07080a" />
+          <View style={styles.header}>
+            <Text style={styles.headerEyebrow}>ARENA LOADOUT</Text>
+            <Text style={styles.headerTitle}>SELECT HOLOBOT</Text>
+            <View style={styles.headerRail} />
+          </View>
           <ScrollView
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
@@ -42,7 +50,15 @@ export function HolobotPickerModal({
                   accessibilityRole="button"
                   accessibilityLabel={`${holobot.owned ? "Select" : "View"} ${holobot.name}`}
                 >
-                  <Image source={holobot.imageSource} style={styles.portrait} resizeMode="contain" />
+                  <GameSurfaceFrame
+                    accent={isSelected ? "#31e75f" : holobot.owned ? "#f0bf14" : "#525762"}
+                    fill={isSelected ? "#07140b" : "#090a0d"}
+                    strong={isSelected}
+                  />
+                  <View style={styles.portraitWell}>
+                    <Image source={holobot.imageSource} style={styles.portrait} resizeMode="contain" />
+                    <Text style={styles.slotIndex}>{String(index + 1).padStart(2, "0")}</Text>
+                  </View>
                   <View style={styles.card}>
                     {isSelected ? (
                       <View style={styles.selectedBadge}>
@@ -51,11 +67,15 @@ export function HolobotPickerModal({
                     ) : null}
 
                     <Text style={styles.name}>{holobot.name}</Text>
-                    <Text style={styles.expText}>{`EXP ${holobot.experience}/${holobot.nextLevelExp}`}</Text>
+                    <Text style={styles.expText}>
+                      {holobot.owned ? `EXP ${holobot.experience}/${holobot.nextLevelExp}` : "BLUEPRINTS REQUIRED"}
+                    </Text>
                     <View style={styles.expTrack}>
                       <View style={[styles.expProgress, { width: `${getExpProgress(holobot) * 100}%` }]} />
                     </View>
-                    <Text style={styles.level}>{holobot.owned ? `Lv ${holobot.level}` : "UNOWNED"}</Text>
+                    <Text style={[styles.level, !holobot.owned ? styles.levelLocked : null]}>
+                      {holobot.owned ? `LV ${holobot.level}` : "LOCKED"}
+                    </Text>
                   </View>
                 </Pressable>
               );
@@ -68,6 +88,7 @@ export function HolobotPickerModal({
             accessibilityRole="button"
             accessibilityLabel="Close holobot picker"
           >
+            <ArenaControlFrame accent="#f0bf14" selected />
             <Text style={styles.backButtonText}>BACK</Text>
           </Pressable>
         </View>
@@ -89,68 +110,109 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 420,
     maxHeight: "92%",
-    backgroundColor: "#252525",
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingTop: 28,
-    paddingBottom: 24,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 16,
+    position: "relative",
+  },
+  header: {
+    paddingHorizontal: 8,
+    paddingBottom: 12,
+  },
+  headerEyebrow: {
+    color: "#f0bf14",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  headerRail: {
+    backgroundColor: "#f0bf14",
+    height: 2,
+    marginTop: 8,
+    width: 72,
+  },
+  headerTitle: {
+    color: "#fef1e0",
+    fontSize: 21,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    marginTop: 3,
   },
   listContent: {
-    paddingBottom: 20,
-    gap: 16,
+    paddingBottom: 12,
+    gap: 8,
   },
   row: {
     flexDirection: "row",
-    alignItems: "stretch",
-    gap: 10,
+    alignItems: "center",
+    minHeight: 92,
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    position: "relative",
   },
   rowDisabled: {
-    opacity: 0.58,
+    opacity: 0.62,
+  },
+  portraitWell: {
+    alignItems: "center",
+    borderRightColor: "#343841",
+    borderRightWidth: 1,
+    height: 72,
+    justifyContent: "center",
+    marginRight: 12,
+    position: "relative",
+    width: 80,
   },
   portrait: {
-    width: 92,
-    height: 92,
-    backgroundColor: "#111111",
+    width: 66,
+    height: 66,
+  },
+  slotIndex: {
+    color: "#f0bf14",
+    fontSize: 7,
+    fontWeight: "900",
+    left: 1,
+    position: "absolute",
+    top: 0,
   },
   card: {
     flex: 1,
-    backgroundColor: "#050505",
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 12,
+    justifyContent: "center",
+    minWidth: 0,
     position: "relative",
-    overflow: "hidden",
   },
   selectedBadge: {
     position: "absolute",
-    top: 0,
+    top: -4,
     right: 0,
-    backgroundColor: "#1ca942",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: "#31e75f",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   selectedBadgeText: {
     color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.7,
   },
   name: {
-    color: "#ffffff",
-    fontSize: 21,
-    fontWeight: "500",
-    marginTop: 2,
+    color: "#fef1e0",
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
   expText: {
-    color: "#ffffff",
+    color: "#9ca3af",
     fontSize: 9,
     fontWeight: "700",
-    marginTop: 8,
+    marginTop: 5,
   },
   expTrack: {
-    width: "78%",
-    height: 6,
-    backgroundColor: "#4c4538",
-    marginTop: 6,
+    width: "88%",
+    height: 5,
+    backgroundColor: "#2d3038",
+    marginTop: 5,
   },
   expProgress: {
     width: "68%",
@@ -158,25 +220,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1c316",
   },
   level: {
-    color: "#ffffff",
-    fontSize: 26,
-    marginTop: 8,
+    color: "#f0bf14",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    marginTop: 6,
+  },
+  levelLocked: {
+    color: "#777d88",
   },
   backButton: {
     alignSelf: "center",
-    marginTop: 8,
-    backgroundColor: "#060606",
-    paddingHorizontal: 38,
-    paddingVertical: 18,
-    minWidth: 190,
+    marginTop: 2,
+    minHeight: 48,
+    minWidth: 180,
     alignItems: "center",
-    borderColor: "#1b1b1b",
-    borderWidth: 2,
+    justifyContent: "center",
+    position: "relative",
   },
   backButtonText: {
-    color: "#edbe17",
-    fontSize: 28,
-    fontWeight: "800",
+    color: "#f0bf14",
+    fontSize: 16,
+    fontWeight: "900",
     letterSpacing: 1,
   },
 });
