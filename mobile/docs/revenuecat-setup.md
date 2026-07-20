@@ -1,22 +1,33 @@
 # RevenueCat Setup — Manual Checklist
 
-The code side of IAP is done and DORMANT: nothing initializes, renders, or
-prompts until `config/monetization.iapEnabled` is `true` AND the public SDK
-key is pasted in. Everything below is dashboard/console work only you can
-do. Steps 1–8 are safe to do any time (the app stays inert); step 9 is the
-Season 1 switch.
+**Status 2026-07-20: steps 1–9 are ALL done.** The purchases layer is LIVE
+behind the kill switch: `config/monetization.iapEnabled` is `true`, the SDK
+key is committed, and the Season 1 store UI ships in the Marketplace
+("Season 1" tab, PR #50) — it renders only while the flag resolves true, so
+setting the flag to `false` in Firestore hides all of it instantly with no
+app update. The ONLY remaining step is outside this checklist and gated on
+Apple: when the next app version after 1.0 is created, add the 3 IAPs to
+that submission (tracked in PakOS Actions Needed: "Submit the 3 IAPs with
+the next app version").
 
-State of play (already true):
+State of play:
 
 - App Store Connect (app `6762533312`, bundle `fun.holobots.mobile`) has
-  3 DRAFT products: `genesis_squad_499` ($4.99 non-consumable),
+  3 products, all "Prepare for Submission" with complete metadata and
+  review screenshots: `genesis_squad_499` ($4.99 non-consumable),
   `genesis_squad_early_199` ($1.99 non-consumable),
-  `battle_pass_monthly` ($1.99/month auto-renewable).
+  `battle_pass_monthly` ($1.99/month auto-renewable). App version 1.0 is
+  in review WITHOUT them (intended — ASC requires first IAPs to ride with
+  a NEW version, and Season 1 pricing starts on the early-adopter SKU).
 - Paid Apps agreement, banking, and tax: Active.
 - Server fulfillment ships in this repo: the `revenuecatWebhook` Cloud
   Function grants the Genesis Squad (same builder as the referral path,
   source `"purchase"`) and stamps `battlePassActiveUntil` — clients never
   write economy fields.
+- Client store UI: `mobile/src/components/SeasonStoreSection.tsx` sells
+  the RevenueCat `default` offering with live `priceString` prices;
+  owned/active states read the server-written `genesisSquadClaimed` /
+  `battlePassActiveUntil` fields.
 
 ## 1. RevenueCat account + project
 
@@ -110,17 +121,27 @@ State of play (already true):
 
 ## 9. Season 1 launch (the actual switch — do LAST)
 
-- [ ] Firebase console → Firestore → create doc `config/monetization` with
+- [x] Firebase console → Firestore → create doc `config/monetization` with
       field `iapEnabled` (boolean) = `true`. This is the kill switch; the
       generic `config/{document}` rule already gives signed-in clients
       read-only access. To pull IAP back out, set it to `false`.
-- [ ] App Store Connect: attach the 3 IAP products to a submitted app
-      version and provide the IAP review screenshot (products go through
-      review with that version).
-- [ ] Update the privacy nutrition label: add **Purchases** (App
-      Functionality, linked to identity).
-- [ ] Verify the Restore Purchases row appears (Pilot Stats → Settings)
-      and completes.
+      (Created 2026-07-20. Safe because builds without the SDK key no-op
+      regardless of the flag.)
+- [x] Provide the IAP review screenshot on each of the 3 product pages.
+      (Uploaded 2026-07-20 — a simulator capture of the Season 1 store,
+      resized to 1284×2778; ASC rejects the iPhone 17 Pro simulator's
+      native 1206×2622. All 3 products now show "Prepare for Submission"
+      with no metadata warnings. NOTE: ASC's old "attach IAPs to a
+      version" picker is gone — IAPs are added during the SUBMISSION flow
+      of a new app version, which is the one remaining step above.)
+- [x] Update the privacy nutrition label: add **Purchases** (App
+      Functionality, linked to identity). (Published 2026-07-20; the
+      website policy also gained a Purchase Information section naming
+      Apple + RevenueCat — holobots-fun PR #9.)
+- [x] Verify the Restore Purchases row appears (Pilot Stats → Settings)
+      and completes. (Verified on simulator 2026-07-20. Gotcha: the
+      monetization config is cached once per app session — an app
+      launched before the flag flip must be fully restarted to see it.)
 
 ## Compliance notes
 
@@ -130,6 +151,12 @@ State of play (already true):
   a drop-rates screen to the gacha UI and update the age-rating
   questionnaire's "Simulated Gambling" answer.
 - **Privacy label**: "Purchases" must be declared from the first version
-  that ships live IAP (step 9), not before.
+  that ships live IAP (step 9), not before. (Declared 2026-07-20 — one
+  version early on purpose: build 37 already initializes the RevenueCat
+  SDK, so purchase-infrastructure data collection is real from 1.0.)
 - Apple requires the **Restore Purchases** button whenever IAP is live —
   it ships in this code, gated behind the same `iapEnabled` flag.
+- **Battle Pass subscription disclosure**: the store card carries the
+  Apple-required auto-renew terms plus working Terms of Use / Privacy
+  Policy links (holobots.fun/terms, holobots.fun/privacy) — keep those
+  pages alive.
