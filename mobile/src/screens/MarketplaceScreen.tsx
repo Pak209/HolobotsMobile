@@ -4,6 +4,16 @@ import Svg, { Circle } from "react-native-svg";
 
 import { GameFeedbackModal } from "@/components/GameFeedbackModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
+import {
+  AngularPageTabs,
+  CompactSectionHeader,
+} from "@/components/navigation/GameSectionChrome";
+import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
+import {
+  BOOSTER_TIER_ACCENTS,
+  BoosterPackOutline,
+  BoosterPriceOutline,
+} from "@/components/marketplace/BoosterPackFrames";
 import { getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { BATTLE_CARD_TEMPLATES } from "@/lib/battleCards/catalog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,41 +62,41 @@ function HolosMark() {
 
 const marketplaceBoosterPacks = [
   {
-    accent: "#17d9ff",
+    accent: BOOSTER_TIER_ACCENTS.common,
+    art: require("../../assets/game/booster-packs/common-booster.png"),
     description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with standard drop rates.",
     guaranteed: 3,
-    icon: "□",
     id: "common",
     name: "Common Rank Booster",
     price: MARKETPLACE_BOOSTER_PRICES.common,
     subtitle: "STANDARD DROP RATES",
   },
   {
-    accent: "#2f87ff",
+    accent: BOOSTER_TIER_ACCENTS.champion,
+    art: require("../../assets/game/booster-packs/champion-booster.png"),
     description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with improved drop rates.",
     guaranteed: 3,
-    icon: "⬡",
     id: "champion",
     name: "Champion Rank Booster",
     price: MARKETPLACE_BOOSTER_PRICES.champion,
     subtitle: "IMPROVED DROP RATES",
   },
   {
-    accent: "#ae4cff",
+    accent: BOOSTER_TIER_ACCENTS.rare,
+    art: require("../../assets/game/booster-packs/rare-booster.png"),
     description: "Guaranteed 1 Part + 1 Item + 1 Move unlock with enhanced rare-plus chances.",
     guaranteed: 3,
-    icon: "✦",
     id: "rare",
     name: "Rare Rank Booster",
     price: MARKETPLACE_BOOSTER_PRICES.rare,
     subtitle: "ENHANCED RARE+ CHANCES",
   },
   {
-    accent: "#ff3b7d",
+    accent: BOOSTER_TIER_ACCENTS.elite,
+    art: require("../../assets/game/booster-packs/elite-booster.png"),
     description:
       "Guaranteed 1 Part + 1 Item + 1 Move unlock with premium drop rates. Rare chance of a GOD PACK: everything tripled.",
     guaranteed: 3,
-    icon: "★",
     id: "elite",
     name: "Elite Rank Booster",
     price: MARKETPLACE_BOOSTER_PRICES.elite,
@@ -322,6 +332,7 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
         const disabled = !affordable || onCooldown || pendingPurchaseId === item.name;
         return (
           <View key={item.name} style={styles.itemCard}>
+            <GameSurfaceFrame accent="#00e3ff" />
             <View style={styles.itemIconFrame}>
               <Image source={getMarketplaceItemImageSource(item.name)} style={styles.itemIcon} resizeMode="contain" />
             </View>
@@ -377,6 +388,7 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
 
               return (
                 <View key={offer.id} style={styles.itemCard}>
+                  <GameSurfaceFrame accent="#00e3ff" />
                   <View style={styles.itemIconFrame}>
                     {image ? <Image source={image} style={styles.itemIcon} resizeMode="contain" /> : null}
                   </View>
@@ -426,18 +438,22 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
             const canAfford = (profile?.holosTokens || 0) >= pack.price;
 
             return (
-              <Pressable key={pack.id} style={[styles.packCard, { borderColor: pack.accent }]}>
-                <View style={[styles.packIconFrame, { borderColor: pack.accent }]}>
-                  <Text style={[styles.packIconGlyph, { color: pack.accent }]}>{pack.icon}</Text>
+              <Pressable key={pack.id} style={styles.packCard}>
+                <BoosterPackOutline tier={pack.id} />
+                <View style={styles.packIconFrame}>
+                  <Image resizeMode="contain" source={pack.art} style={styles.packIconArt} />
                 </View>
                 <View style={styles.packBody}>
                   <Text style={styles.packTitle}>{pack.name.toUpperCase()}</Text>
-                  <Text style={styles.packGuaranteed}>{`${pack.guaranteed} ITEMS GUARANTEED`}</Text>
+                  <Text style={[styles.packGuaranteed, { color: pack.accent }]}>
+                    {`${pack.guaranteed} ITEMS GUARANTEED`}
+                  </Text>
                   <Text style={styles.packSubtitleLine}>{pack.subtitle}</Text>
                   <Text style={styles.packDescription}>{pack.description}</Text>
                 </View>
                 <View style={styles.packRight}>
-                  <View style={[styles.packPriceBox, { borderColor: pack.accent }]}>
+                  <View style={styles.packPriceBox}>
+                    <BoosterPriceOutline tier={pack.id} />
                     <Text style={styles.packPrice}>{pack.price.toLocaleString()}</Text>
                     <HolosMark />
                   </View>
@@ -568,28 +584,14 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
   return (
     <>
       <View style={styles.page}>
-        <HomeCogButton showSettings={false} />
-        <View style={styles.header}>
-          <Text style={styles.headerEyebrow}>SHOP</Text>
-          <Text style={styles.headerTitle}>Marketplace</Text>
-          <Text style={styles.headerMeta}>
-            {`Holos ${profile?.holosTokens || 0} • Tickets ${profile?.gachaTickets || 0} • Parts ${totalOwnedParts}`}
-          </Text>
-        </View>
+        <HomeCogButton showSettings={false} topOffset={160} />
+        <CompactSectionHeader
+          eyebrow="SHOP"
+          meta={`Holos ${profile?.holosTokens || 0} • Tickets ${profile?.gachaTickets || 0} • Parts ${totalOwnedParts}`}
+          title="Marketplace"
+        />
 
-        <View style={styles.tabRow}>
-          {tabs.map((tab) => (
-            <Pressable
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tabButton, activeTab === tab ? styles.tabButtonActive : null]}
-            >
-              <Text style={[styles.tabButtonText, activeTab === tab ? styles.tabButtonTextActive : null]}>
-                {tab}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <AngularPageTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {renderContent()}
@@ -653,13 +655,13 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   itemCard: {
-    backgroundColor: "#07080d",
-    borderColor: "#f0bf14",
-    borderWidth: 4,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 9,
     minHeight: 146,
+    overflow: "hidden",
     padding: 12,
+    position: "relative",
   },
   itemCopy: {
     color: "#aeb6c3",
@@ -714,15 +716,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   packCard: {
-    backgroundColor: "#07080d",
-    borderBottomWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 4,
-    borderTopWidth: 4,
     flexDirection: "row",
     gap: 10,
-    minHeight: 106,
-    padding: 10,
+    minHeight: 126,
+    overflow: "hidden",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    position: "relative",
   },
   packDescription: {
     color: "#8e98aa",
@@ -730,24 +730,19 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   packGuaranteed: {
-    color: "#c8cfdb",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
   packIconFrame: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderWidth: 2,
-    height: 58,
+    height: 90,
     justifyContent: "center",
-    marginTop: 2,
-    width: 58,
+    width: 90,
   },
-  packIconGlyph: {
-    fontSize: 26,
-    fontWeight: "900",
-    lineHeight: 28,
+  packIconArt: {
+    height: 88,
+    width: 88,
   },
   packPrice: {
     color: "#ffffff",
@@ -758,11 +753,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 4,
+    height: 42,
     justifyContent: "center",
     minWidth: 82,
+    overflow: "hidden",
     paddingHorizontal: 6,
-    paddingVertical: 5,
-    borderWidth: 2,
+    position: "relative",
   },
   packRight: {
     alignItems: "flex-end",

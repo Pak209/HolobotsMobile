@@ -5,6 +5,12 @@ import Svg, { Path } from "react-native-svg";
 import { HolobotStatsModal } from "@/components/HolobotStatsModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { MoveLabPanel } from "@/components/MoveLabPanel";
+import {
+  AngularPageTabs,
+  CompactSectionHeader,
+} from "@/components/navigation/GameSectionChrome";
+import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
+import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
 import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@/config/gameAssets";
 import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
@@ -91,6 +97,7 @@ export function InventoryScreen() {
           style={[styles.holobotCard, !holobot.owned ? styles.holobotCardLocked : null]}
           onPress={() => setSelectedHolobotKey(holobot.key)}
         >
+          <GameSurfaceFrame />
           <Image source={holobot.imageSource} style={styles.holobotImage} resizeMode="contain" />
           <View style={styles.holobotContent}>
             <View style={styles.holobotHeaderRow}>
@@ -162,6 +169,26 @@ export function InventoryScreen() {
       await upgradeSyncStatAuthoritative(profile, updateProfile, selectedOwnedHolobot.name, stat);
     } catch (error) {
       Alert.alert("Sync Upgrade Failed", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
+
+  const handleEquipSyncAbility = async (abilityId: string) => {
+    if (!profile?.holobots || !selectedOwnedHolobot) return;
+    const normalized = normalizeUserHolobot(selectedOwnedHolobot);
+    if (!(normalized.syncAbilityUnlocks || []).includes(abilityId)) {
+      Alert.alert("Sync Ability Locked", "Meet the listed Sync Stat requirements before equipping this ability.");
+      return;
+    }
+    try {
+      await updateProfile({
+        holobots: profile.holobots.map((entry) =>
+          entry.name.toUpperCase() === normalized.name.toUpperCase()
+            ? { ...entry, equippedSyncAbilityId: abilityId }
+            : entry,
+        ),
+      });
+    } catch (error) {
+      Alert.alert("Equip failed", error instanceof Error ? error.message : "Please try again.");
     }
   };
 
@@ -291,8 +318,10 @@ export function InventoryScreen() {
   const renderList = (entries: Array<{ image?: number | null; name: string; quantity: number; rarity?: string }>) =>
     entries.map((entry, index) => (
       <View key={`${entry.name}:${index}`} style={styles.assetRow}>
+        <GameSurfaceFrame accent={entry.rarity?.includes("EPIC") ? "#9b4dff" : entry.rarity ? "#17d9ff" : "#f0bf14"} />
         <View style={styles.assetLeft}>
           <View style={styles.assetImageFrame}>
+            <ArenaControlFrame accent={entry.rarity ? "#17d9ff" : "#f0bf14"} />
             {entry.image ? <Image source={entry.image} style={styles.assetImage} resizeMode="contain" /> : null}
           </View>
           <View style={styles.assetBody}>
@@ -305,6 +334,7 @@ export function InventoryScreen() {
         </View>
         {entry.name === "EXP Booster" && !expBoosterActive ? (
           <Pressable onPress={() => void handleActivateExpBooster()} style={styles.useItemButton}>
+            <ArenaControlFrame accent="#f0bf14" selected />
             <Text style={styles.useItemButtonText}>ACTIVATE</Text>
           </Pressable>
         ) : null}
@@ -314,28 +344,14 @@ export function InventoryScreen() {
 
   return (
     <View style={styles.page}>
-      <HomeCogButton showStats={false} />
-      <View style={styles.header}>
-        <Text style={styles.headerEyebrow}>LOADOUT</Text>
-        <Text style={styles.headerTitle}>Inventory</Text>
-        <Text style={styles.headerMeta}>
-          {`Parts ${profile?.parts?.length || 0} • Items ${items.length} • Moves ${Object.keys(profile?.battle_cards || {}).length}`}
-        </Text>
-      </View>
+      <HomeCogButton showStats={false} topOffset={160} />
+      <CompactSectionHeader
+        eyebrow="LOADOUT"
+        meta={`Parts ${profile?.parts?.length || 0} • Items ${items.length} • Moves ${Object.keys(profile?.battle_cards || {}).length}`}
+        title="Inventory"
+      />
 
-      <View style={styles.tabRow}>
-        {tabs.map((tab) => (
-          <Pressable
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[styles.tabButton, activeTab === tab ? styles.tabButtonActive : null]}
-          >
-            <Text style={[styles.tabButtonText, activeTab === tab ? styles.tabButtonTextActive : null]}>
-              {tab}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <AngularPageTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {activeTab === "Holobots" ? renderHolobots() : null}
@@ -361,6 +377,7 @@ export function InventoryScreen() {
         onRankUpgrade={handleRankUpgrade}
         onUpgrade={handleUpgradeStat}
         onUpgradeSync={handleUpgradeSyncStat}
+        onEquipSyncAbility={(abilityId) => void handleEquipSyncAbility(abilityId)}
       />
     </View>
   );
@@ -375,12 +392,12 @@ const styles = StyleSheet.create({
   },
   useItemButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
-    borderRadius: 8,
+    backgroundColor: "transparent",
     justifyContent: "center",
     marginRight: 12,
     minHeight: 36,
     paddingHorizontal: 12,
+    position: "relative",
   },
   useItemButtonText: {
     color: "#050606",
@@ -398,12 +415,11 @@ const styles = StyleSheet.create({
   },
   assetImageFrame: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#7a6412",
-    borderWidth: 1,
+    backgroundColor: "transparent",
     height: 84,
     justifyContent: "center",
     width: 84,
+    position: "relative",
   },
   assetLeft: {
     alignItems: "center",
@@ -414,12 +430,11 @@ const styles = StyleSheet.create({
   },
   assetRow: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 14,
+    position: "relative",
   },
   expFill: {
     backgroundColor: "#f0bf14",
@@ -459,12 +474,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   holobotCard: {
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 14,
+    overflow: "hidden",
     padding: 14,
+    position: "relative",
   },
   holobotCardLocked: {
     opacity: 0.95,

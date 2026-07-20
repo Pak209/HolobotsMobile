@@ -8,6 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import type { BattleRewards } from '../../types/arena';
+import { ArenaControlFrame } from './ArenaTierFrames';
+import { GameDialogFrame, GameSurfaceFrame } from '../ui/GameSurfaceFrame';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -53,10 +55,14 @@ export function BattleResultsModal({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
+          <GameDialogFrame accent={didWin ? "#f0bf14" : "#ef2b23"} fill="#050606" />
           <View style={[
             styles.resultHeader,
             didWin ? styles.victoryHeader : styles.defeatHeader,
           ]}>
+            <View style={styles.headerRail}>
+              <View style={[styles.headerRailFill, didWin ? styles.headerRailVictory : styles.headerRailDefeat]} />
+            </View>
             <Text style={styles.resultEyebrow}>ARENA RESULT</Text>
             <Text style={[
               styles.resultText,
@@ -76,12 +82,14 @@ export function BattleResultsModal({
 
             <View style={styles.rewardsList}>
               <View style={styles.rewardItem}>
+                <GameSurfaceFrame accent="#596273" />
                 <Text style={styles.rewardIcon}>EXP</Text>
                 <Text style={styles.rewardLabel}>EXP</Text>
                 <Text style={styles.rewardValue}>+{rewards.exp}</Text>
               </View>
 
               <View style={styles.rewardItem}>
+                <GameSurfaceFrame accent="#f0bf14" />
                 <Text style={styles.rewardIcon}>SP</Text>
                 <Text style={styles.rewardLabel}>Sync Points</Text>
                 <Text style={styles.rewardValue}>+{rewards.syncPoints}</Text>
@@ -89,6 +97,7 @@ export function BattleResultsModal({
 
               {typeof rewards.holos === "number" && rewards.holos > 0 ? (
                 <View style={[styles.rewardItem, styles.rareReward]}>
+                  <GameSurfaceFrame accent="#00d9ff" />
                   <Text style={styles.rewardIcon}>H</Text>
                   <Text style={styles.rewardLabel}>HOLOS</Text>
                   <Text style={[styles.rewardValue, styles.rareValue]}>
@@ -99,6 +108,7 @@ export function BattleResultsModal({
 
               {rewards.blueprintRewards?.map((reward) => (
                 <View key={reward.holobotKey} style={[styles.rewardItem, styles.rareReward]}>
+                  <GameSurfaceFrame accent="#00d9ff" />
                   <Text style={styles.rewardIcon}>BP</Text>
                   <Text style={styles.rewardLabel}>{`${reward.holobotKey.toUpperCase()} BLUEPRINT`}</Text>
                   <Text style={[styles.rewardValue, styles.rareValue]}>+{reward.amount}</Text>
@@ -107,6 +117,7 @@ export function BattleResultsModal({
 
               {rewards.eloChange !== undefined && (
                 <View style={styles.rewardItem}>
+                  <GameSurfaceFrame accent={rewards.eloChange >= 0 ? "#f0bf14" : "#ef4444"} />
                   <Text style={styles.rewardIcon}>RT</Text>
                   <Text style={styles.rewardLabel}>Rating</Text>
                   <Text style={[
@@ -142,6 +153,7 @@ export function BattleResultsModal({
                 style={[styles.button, styles.rematchButton]}
                 onPress={onRematch}
               >
+                <ArenaControlFrame accent="#f0bf14" selected />
                 <Text style={styles.rematchButtonText}>{continueLabel || 'REMATCH'}</Text>
               </TouchableOpacity>
             ) : null}
@@ -150,6 +162,7 @@ export function BattleResultsModal({
               style={[styles.button, hideRematch ? styles.rematchButton : styles.exitButton]}
               onPress={onExit}
             >
+              <ArenaControlFrame accent={hideRematch ? "#f0bf14" : "#596273"} selected={hideRematch} />
               <Text style={hideRematch ? styles.rematchButtonText : styles.exitButtonText}>
                 EXIT ARENA
               </Text>
@@ -171,25 +184,41 @@ const styles = StyleSheet.create({
   },
   container: {
     width: SCREEN_WIDTH - 48,
-    backgroundColor: '#050606',
-    borderRadius: 0,
-    overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: '#f0bf14',
+    maxWidth: 380,
+    paddingHorizontal: 4,
+    paddingVertical: 5,
+    position: 'relative',
   },
   resultHeader: {
-    backgroundColor: '#090909',
-    borderBottomWidth: 3,
     paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingBottom: 14,
+    paddingTop: 17,
     alignItems: 'center',
     gap: 6,
+    position: 'relative',
   },
   victoryHeader: {
-    borderBottomColor: '#f0bf14',
   },
   defeatHeader: {
-    borderBottomColor: '#ef2b23',
+  },
+  headerRail: {
+    backgroundColor: '#17191d',
+    bottom: 0,
+    height: 3,
+    left: 24,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 24,
+  },
+  headerRailFill: {
+    height: '100%',
+    width: '62%',
+  },
+  headerRailVictory: {
+    backgroundColor: '#f0bf14',
+  },
+  headerRailDefeat: {
+    backgroundColor: '#ef2b23',
   },
   resultEyebrow: {
     color: '#f0bf14',
@@ -255,16 +284,12 @@ const styles = StyleSheet.create({
   rewardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0b0d10',
-    borderColor: '#25291c',
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    minHeight: 43,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    position: 'relative',
   },
   rareReward: {
-    backgroundColor: '#071016',
-    borderWidth: 1,
-    borderColor: '#00d9ff',
   },
   rewardIcon: {
     color: '#f0bf14',
@@ -300,11 +325,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   button: {
-    paddingVertical: 14,
+    justifyContent: 'center',
+    minHeight: 48,
     alignItems: 'center',
+    position: 'relative',
   },
   rematchButton: {
-    backgroundColor: '#f5c40d',
   },
   rematchButtonText: {
     color: '#050606',
@@ -313,9 +339,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   exitButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#343434',
   },
   exitButtonText: {
     color: '#ddd2b5',

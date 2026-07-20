@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 
 type GameFeedbackModalProps = {
   confirmLabel?: string;
@@ -29,6 +30,7 @@ export function GameFeedbackModal({
     >
       <View style={styles.backdrop}>
         <View style={[styles.card, { borderColor: accent }]}>
+          <GameSurfaceFrame accent={accent} strong />
           <Text style={[styles.eyebrow, { color: accent }]}>SYSTEM UPDATE</Text>
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -71,10 +73,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   card: {
-    backgroundColor: "#111111",
-    borderWidth: 3,
+    backgroundColor: "transparent",
     maxWidth: 420,
+    overflow: "hidden",
     padding: 22,
+    position: "relative",
     width: "100%",
   },
   eyebrow: {

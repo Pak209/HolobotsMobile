@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { PackOpeningAnimation, type GachaRevealItem } from "@/components/gacha/PackOpeningAnimation";
@@ -8,6 +8,11 @@ import { openGachaPackAuthoritative } from "@/lib/economyClient";
 import { GACHA_PACKS } from "@/lib/gacha";
 
 const PACKS = GACHA_PACKS;
+const PACK_ICONS = {
+  basic: require("../../assets/game/gacha-packs/basic-pack.png"),
+  elite: require("../../assets/game/gacha-packs/elite-pack.png"),
+  premium: require("../../assets/game/gacha-packs/premium-pack.png"),
+} as const;
 
 export function GachaScreen() {
   const { profile, updateProfile } = useAuth();
@@ -59,9 +64,11 @@ export function GachaScreen() {
               onPress={() => setActivePack(pack)}
             >
               <View style={[styles.packIconFrame, { borderColor: pack.accent }]}>
-                <Text style={[styles.packIconGlyph, { color: pack.accent }]}>
-                  {pack.id === "basic" ? "□" : pack.id === "premium" ? "◈" : "★"}
-                </Text>
+                <Image
+                  source={PACK_ICONS[pack.id]}
+                  resizeMode="contain"
+                  style={styles.packIcon}
+                />
               </View>
               <View style={styles.packBody}>
                 <Text style={styles.packTitle}>{pack.name.toUpperCase()}</Text>
@@ -155,14 +162,14 @@ const styles = StyleSheet.create({
   },
   packIconFrame: {
     alignItems: "center",
-    borderWidth: 2,
-    height: 74,
+    borderWidth: 0,
+    height: 82,
     justifyContent: "center",
-    width: 74,
+    width: 82,
   },
-  packIconGlyph: {
-    fontSize: 28,
-    fontWeight: "900",
+  packIcon: {
+    height: 82,
+    width: 82,
   },
   packPrice: {
     color: "#f0bf14",

@@ -3,6 +3,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "rea
 
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
+import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
@@ -135,6 +136,7 @@ export function QuestsScreen() {
         <View style={styles.topRow}>
           {selectedHolobot ? (
             <Pressable style={styles.selectedHolobotCard} onPress={() => setIsPickerOpen(true)}>
+              <GameSurfaceFrame strong />
               <Image source={selectedHolobot.imageSource} style={styles.selectedHolobotImage} resizeMode="contain" />
               <View style={styles.selectedHolobotBody}>
                 <Text numberOfLines={1} style={styles.selectedHolobotName}>{selectedHolobot.name}</Text>
@@ -157,6 +159,7 @@ export function QuestsScreen() {
           )}
 
           <View style={styles.questCounterCard}>
+            <GameSurfaceFrame />
             <Text style={styles.questCounterLabel}>ACTIVE QUESTS</Text>
             <Text style={styles.questCounterValue}>{`${progression.activeQuests.length}/3`}</Text>
             <Pressable
@@ -176,6 +179,7 @@ export function QuestsScreen() {
               const isReady = isSessionComplete(quest.endsAt, new Date(nowTick));
               return (
                 <View key={quest.id} style={styles.activeQuestCard}>
+                  <GameSurfaceFrame accent={questDefinition.accent} />
                   <View style={[styles.questBadge, styles.activeQuestBadge, { borderColor: questDefinition.accent }]}>
                     <Text style={[styles.questBadgeText, { color: questDefinition.accent }]}>{questDefinition.difficulty}</Text>
                   </View>
@@ -220,6 +224,7 @@ export function QuestsScreen() {
 
             return (
               <View key={quest.id} style={styles.questCard}>
+                <GameSurfaceFrame accent={quest.accent} />
                 <View style={[styles.questBadge, { borderColor: quest.accent }]}>
                   <Text style={[styles.questBadgeText, { color: quest.accent }]}>{quest.difficulty}</Text>
                 </View>
@@ -292,14 +297,14 @@ const styles = StyleSheet.create({
   },
   activeQuestCard: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 10,
     minHeight: 74,
+    overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 7,
+    position: "relative",
   },
   activeQuestStack: {
     gap: 6,
@@ -412,23 +417,23 @@ const styles = StyleSheet.create({
   },
   questCard: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 8,
     minHeight: 96,
+    overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 7,
+    position: "relative",
     width: "100%",
   },
   questCounterCard: {
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     justifyContent: "space-between",
     minHeight: 96,
+    overflow: "hidden",
     padding: 10,
+    position: "relative",
     width: 116,
   },
   questCounterLabel: {
@@ -527,14 +532,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   selectedHolobotCard: {
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flex: 1,
     flexDirection: "row",
     gap: 8,
     minHeight: 96,
+    overflow: "hidden",
     padding: 8,
+    position: "relative",
   },
   selectedHolobotImage: {
     height: 74,

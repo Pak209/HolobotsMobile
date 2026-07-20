@@ -147,6 +147,11 @@ export function getSyncAbilityDefinitions(holobotName: string) {
   return SYNC_ABILITIES.filter((ability) => ability.holobot === holobotName.trim().toUpperCase());
 }
 
+export function getSyncAbilityDefinition(abilityId?: string | null) {
+  if (!abilityId) return null;
+  return SYNC_ABILITIES.find((ability) => ability.id === abilityId) ?? null;
+}
+
 export function calculateSyncBattleModifiers(holobot: Pick<UserHolobot, "syncStats">): SyncBattleModifiers {
   const stats = normalizeSyncStats(holobot.syncStats);
 

@@ -3,6 +3,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } f
 
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
+import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
@@ -132,6 +133,7 @@ export function TrainingScreen() {
 
         {selectedHolobot ? (
           <Pressable style={styles.heroCard} onPress={() => setIsPickerOpen(true)}>
+            <GameSurfaceFrame strong />
             <Image source={selectedHolobot.imageSource} style={styles.heroImage} resizeMode="contain" />
             <View style={styles.heroContent}>
               <View style={styles.heroTopRow}>
@@ -184,6 +186,7 @@ export function TrainingScreen() {
 
         {activeTraining ? (
           <View style={styles.activePanel}>
+            <GameSurfaceFrame strong />
             <Text style={styles.sectionTitle}>ACTIVE TRAINING</Text>
             <Text style={styles.activeCopy}>
               {`${activeTraining.holobotName} is in ${getTrainingCourse(activeTraining.courseId).attributeLabel} training.`}
@@ -212,6 +215,7 @@ export function TrainingScreen() {
         <View style={styles.courseStack}>
           {TRAINING_COURSES.map((course) => (
             <View key={course.id} style={styles.courseCard}>
+              <GameSurfaceFrame accent={course.accent} />
               <View style={[styles.courseIcon, { borderColor: course.accent }]}>
                 <Text style={[styles.courseIconText, { color: course.textColor }]}>{course.attributeLabel}</Text>
               </View>
@@ -296,10 +300,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   activePanel: {
-    backgroundColor: "#0b0b0b",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
+    overflow: "hidden",
     padding: 10,
+    position: "relative",
   },
   activeRewards: {
     color: "#9fe4ff",
@@ -335,14 +339,14 @@ const styles = StyleSheet.create({
   },
   courseCard: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 9,
     minHeight: 82,
+    overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 7,
+    position: "relative",
     width: "100%",
   },
   courseCopy: {
@@ -457,12 +461,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroCard: {
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 10,
+    overflow: "hidden",
     padding: 8,
+    position: "relative",
   },
   heroContent: {
     flex: 1,

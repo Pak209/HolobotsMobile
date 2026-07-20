@@ -13,6 +13,7 @@ import type {
 } from '@/types/arena';
 import { fireAbility, getRuleBend } from './abilities';
 import { FINISHER_METER_REQUIREMENT } from './moveKits';
+import { getSyncAbilityDefinition } from '@/lib/syncProgression';
 import {
   createArmedDefenseTrap,
   enhanceTrapWithStacks,
@@ -602,6 +603,37 @@ export class ArenaCombatEngine {
         value: comboBonus,
         description: `x${comboBonus.toFixed(2)} combo bonus`,
       });
+    }
+
+    const equippedSyncAbility = getSyncAbilityDefinition(attacker.syncAbilities?.[0]);
+    if (equippedSyncAbility?.effectType === 'combo_bonus' && comboLength > 0) {
+      const syncComboBonus = 1 + Math.min(5, comboLength) * equippedSyncAbility.value;
+      damage *= syncComboBonus;
+      modifiers.push({
+        source: equippedSyncAbility.name,
+        type: 'multiply',
+        value: syncComboBonus,
+        description: `x${syncComboBonus.toFixed(2)} equipped Sync Ability`,
+      });
+    } else if (equippedSyncAbility?.effectType === 'damage_bonus') {
+      const applies =
+        equippedSyncAbility.id === 'ace_knockout_rhythm'
+          ? card.type === 'finisher' && comboLength > 0
+          : equippedSyncAbility.id === 'ken_blade_focus'
+            ? card.type === 'strike' && attacker.specialMeter > 50
+            : equippedSyncAbility.id === 'wolf_pack_instinct'
+              ? attacker.currentHP / Math.max(1, attacker.maxHP) < 0.5
+              : true;
+      if (applies) {
+        const syncDamageBonus = 1 + equippedSyncAbility.value;
+        damage *= syncDamageBonus;
+        modifiers.push({
+          source: equippedSyncAbility.name,
+          type: 'multiply',
+          value: syncDamageBonus,
+          description: `x${syncDamageBonus.toFixed(2)} equipped Sync Ability`,
+        });
+      }
     }
 
     if ((attacker.damageMultiplier ?? 1) !== 1) {

@@ -17,6 +17,8 @@ import {
   type TeamHudProps,
 } from "@/components/arena/BattleArenaView";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
+import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
+import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { roomToBattleState } from "@/features/arena/pvpBattle";
 import {
@@ -304,6 +306,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
       <Modal animationType="fade" presentationStyle="overFullScreen" transparent visible={visible} onRequestClose={handleClose}>
         <View style={styles.backdrop}>
           <View style={[styles.card, room && styles.battleShell]}>
+            <GameDialogFrame accent={room ? "#17d9ff" : "#f0bf14"} fill="#07080a" />
             <View style={styles.topRow}>
               <View>
                 <Text style={styles.eyebrow}>PVP ARENA</Text>
@@ -328,6 +331,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                         candidate === "3v3" && !canField3v3 ? styles.modeButtonDisabled : null,
                       ]}
                     >
+                      <ArenaControlFrame accent={candidate === "1v1" ? "#f0bf14" : "#17d9ff"} selected={mode === candidate} />
                       <Text style={[styles.modeButtonText, mode === candidate ? styles.modeButtonTextActive : null]}>
                         {candidate === "1v1" ? "1V1 DUEL" : "3V3 SHOWDOWN"}
                       </Text>
@@ -345,6 +349,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                           onPress={() => setPickerTarget(index as 0 | 1 | 2)}
                           style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}
                         >
+                          <GameSurfaceFrame accent={name ? "#17d9ff" : "#596273"} />
                           <Text style={styles.teamSlotLabel}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
                           {entry ? (
                             <>
@@ -360,6 +365,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                   </View>
                 ) : selectedHolobot ? (
                   <Pressable onPress={() => setPickerTarget("main")} style={styles.holobotBar}>
+                    <GameSurfaceFrame accent="#f0bf14" strong />
                     <Image source={selectedHolobot.imageSource} style={styles.holobotArt} resizeMode="contain" />
                     <View style={styles.holobotBody}>
                       <Text style={styles.holobotName}>{selectedHolobot.name}</Text>
@@ -375,6 +381,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
                 <View style={styles.optionColumn}>
                   <Pressable disabled={!lineupReady || loading || matchmakingStatus === "searching"} onPress={handleQuickMatch} style={[styles.optionCard, (!lineupReady || loading) && styles.optionCardDisabled]}>
+                    <GameSurfaceFrame accent="#17d9ff" />
                     <Text style={styles.optionTitle}>Quick Match</Text>
                     <Text style={styles.optionCopy}>
                       {matchmakingStatus === "searching" ? "Searching for another pilot..." : "Sync with the next pilot looking for a live battle."}
@@ -388,6 +395,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                   ) : null}
 
                   <View style={styles.optionCard}>
+                    <GameSurfaceFrame accent="#f0bf14" />
                     <Text style={styles.optionTitle}>Join Room</Text>
                     <Text style={styles.optionCopy}>Use a room code from another pilot to jump straight into a private battle.</Text>
                     <View style={styles.joinRow}>
@@ -401,15 +409,18 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                         value={joinCode}
                       />
                       <Pressable disabled={!lineupReady || loading} onPress={handleJoinRoom} style={[styles.inlineButton, (!lineupReady || loading) && styles.optionCardDisabled]}>
+                        <ArenaControlFrame accent="#f0bf14" selected />
                         <Text style={styles.inlineButtonText}>JOIN</Text>
                       </Pressable>
                     </View>
                   </View>
 
                   <View style={styles.optionCard}>
+                    <GameSurfaceFrame accent="#ef4444" />
                     <Text style={styles.optionTitle}>Friend Battle</Text>
                     <Text style={styles.optionCopy}>Create a synced room code and send it to a friend for a direct challenge.</Text>
                     <Pressable disabled={!lineupReady || loading} onPress={handleCreateRoom} style={[styles.createButton, (!lineupReady || loading) && styles.optionCardDisabled]}>
+                      <ArenaControlFrame accent="#f0bf14" selected />
                       {loading ? <ActivityIndicator color="#050606" /> : <Text style={styles.inlineButtonText}>CREATE ROOM</Text>}
                     </Pressable>
                   </View>
@@ -495,14 +506,16 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   modeButtonText: {
-    color: "#b7bdc9",
+    color: "#eef2f7",
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1,
+    position: "relative",
     textAlign: "center",
+    zIndex: 3,
   },
   modeButtonTextActive: {
-    color: "#07080d",
+    color: "#fff2bd",
   },
   teamRow: {
     flexDirection: "row",
@@ -594,6 +607,8 @@ const styles = StyleSheet.create({
     height: 46,
     letterSpacing: 1.2,
     paddingHorizontal: 14,
+    position: "relative",
+    zIndex: 3,
   },
   createButton: {
     alignItems: "center",
@@ -663,10 +678,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   inlineButtonText: {
-    color: "#050606",
+    color: "#fff2bd",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.8,
+    position: "relative",
+    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    zIndex: 3,
   },
   joinRow: {
     flexDirection: "row",
@@ -687,15 +707,22 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   optionCopy: {
-    color: "#c3bba6",
+    color: "#ddd5c4",
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,
+    position: "relative",
+    zIndex: 2,
   },
   optionTitle: {
-    color: "#fef1e0",
+    color: "#ffffff",
     fontSize: 18,
     fontWeight: "900",
+    position: "relative",
+    textShadowColor: "rgba(0,0,0,0.95)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    zIndex: 2,
   },
   roomBanner: {
     backgroundColor: "#050606",
