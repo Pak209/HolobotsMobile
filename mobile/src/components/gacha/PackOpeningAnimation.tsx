@@ -4,6 +4,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -109,7 +110,14 @@ export function PackOpeningAnimation({
           <Text style={styles.packSubtitle}>{isComplete ? "Rewards ready" : "Opening pack..."}</Text>
         </Animated.View>
 
-        <View style={styles.revealColumn}>
+        {/* Big packs (Elite = 10 drops) overflow the screen: the column must
+            scroll and COLLECT must stay reachable below it, or the reveal
+            becomes an inescapable overlay (found in sim QA). */}
+        <ScrollView
+          style={styles.revealScroll}
+          contentContainerStyle={styles.revealColumn}
+          showsVerticalScrollIndicator={false}
+        >
           {visibleItems.map((item) => (
             <View
               key={item.id}
@@ -125,7 +133,7 @@ export function PackOpeningAnimation({
               <Text style={styles.revealSubtitle}>{item.subtitle}</Text>
             </View>
           ))}
-        </View>
+        </ScrollView>
 
         {isComplete ? (
           <Pressable style={[styles.collectButton, { borderColor: accentColor }]} onPress={onComplete}>
@@ -186,6 +194,13 @@ const styles = StyleSheet.create({
   },
   revealColumn: {
     gap: 10,
+    paddingBottom: 4,
+    width: "100%",
+  },
+  revealScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    marginVertical: 10,
     width: "100%",
   },
   revealLabel: {
