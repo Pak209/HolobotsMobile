@@ -4,6 +4,7 @@ import Svg, { Circle } from "react-native-svg";
 
 import { GameFeedbackModal } from "@/components/GameFeedbackModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
+import { SeasonStoreSection, useIapEnabled } from "@/components/SeasonStoreSection";
 import {
   AngularPageTabs,
   CompactSectionHeader,
@@ -36,7 +37,10 @@ import {
 } from "@/lib/marketplace";
 
 const tabs = ["Items", "Parts", "Booster Packs", "Genesis"] as const;
-type MarketplaceTab = (typeof tabs)[number];
+// "Season 1" (the real-money store) only joins the tab row while the remote
+// iapEnabled flag is on — beta builds never show it.
+const tabsWithStore = [...tabs, "Season 1"] as const;
+type MarketplaceTab = (typeof tabsWithStore)[number];
 
 const itemDescriptions: Record<string, string> = {
   "Arena Pass": "Grants entry to one arena battle without costing HOLOS tokens.",
@@ -106,6 +110,7 @@ const marketplaceBoosterPacks = [
 
 export function MarketplaceScreen() {
   const { user, profile, updateProfile } = useAuth();
+  const iapEnabled = useIapEnabled();
   const [activeTab, setActiveTab] = useState<MarketplaceTab>("Items");
   const [pendingPurchaseId, setPendingPurchaseId] = useState<string | null>(null);
   const [referralCodeInput, setReferralCodeInput] = useState("");
@@ -578,6 +583,10 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
       );
     }
 
+    if (activeTab === "Season 1") {
+      return <SeasonStoreSection onFeedback={setFeedback} />;
+    }
+
     return null;
   };
 
@@ -591,7 +600,11 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
           title="Marketplace"
         />
 
-        <AngularPageTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
+        <AngularPageTabs
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          tabs={iapEnabled ? tabsWithStore : tabs}
+        />
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {renderContent()}
