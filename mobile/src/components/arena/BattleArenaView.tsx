@@ -11,6 +11,7 @@ import {
   SPECIAL_METER_SEGMENTS,
 } from "../../features/arena/moveKits";
 import { GameSurfaceFrame } from "../ui/GameSurfaceFrame";
+import { HolobotAnimatedCharacter } from "../character/HolobotAnimatedCharacter";
 
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
@@ -469,6 +470,15 @@ export function BattleArenaView({
                   style={styles.stageFighterImage}
                   resizeMode="contain"
                 />
+                {battle.player.name.trim().toUpperCase() === "ACE" ? (
+                  <HolobotAnimatedCharacter
+                    animationState="idle"
+                    context="arena"
+                    holobotId={battle.player.name}
+                    staticFallback={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
+                    style={StyleSheet.absoluteFill}
+                  />
+                ) : null}
               </View>
               <View style={[styles.stageFighter, styles.stageFighterRight]}>
                 <Image
@@ -476,6 +486,15 @@ export function BattleArenaView({
                   style={[styles.stageFighterImage, styles.stageFighterImageMirrored]}
                   resizeMode="contain"
                 />
+                {battle.opponent.name.trim().toUpperCase() === "ACE" ? (
+                  <HolobotAnimatedCharacter
+                    animationState="idle"
+                    context="arena"
+                    holobotId={battle.opponent.name}
+                    staticFallback={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
+                    style={[StyleSheet.absoluteFill, styles.stageFighterImageMirrored]}
+                  />
+                ) : null}
               </View>
             </View>
             <View style={styles.vsBadge}>
