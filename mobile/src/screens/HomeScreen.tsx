@@ -9,6 +9,7 @@ import { UserStatsModal } from "@/components/UserStatsModal";
 import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
 import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
+import { HolobotAnimatedCharacter } from "@/components/character/HolobotAnimatedCharacter";
 import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
 import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/partStats";
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
@@ -468,6 +469,15 @@ export function HomeScreen() {
         </View>
         <View pointerEvents="none" style={styles.holobotPortrait}>
           <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" />
+          {selectedHolobot.name.trim().toUpperCase() === "ACE" ? (
+            <HolobotAnimatedCharacter
+              animationState="idle"
+              context="companion"
+              holobotId={selectedHolobot.name}
+              staticFallback={getHolobotFullImageSource(selectedHolobot.name)}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
         </View>
         {abilitySlots.map(({ part, x }, index) => {
           const source = getPartImageSource(part?.name, part?.slot);
