@@ -607,6 +607,26 @@ private struct WorkoutSettingsView: View {
                         unitButton(unit: .kilometers, title: "KM")
                         unitButton(unit: .miles, title: "MI")
                     }
+
+                    // App Review 2.5.1: HealthKit use must be identified in
+                    // the UI of the binary that uses it (this watch app).
+                    Text("APPLE HEALTH")
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundColor(brightGold.opacity(0.8))
+                        .kerning(1.3)
+                        .padding(.top, 4)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.red)
+                        Text("Sync workouts are recorded to Apple Health as workout sessions using HealthKit.")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(cream.opacity(0.85))
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .padding(10)
             }

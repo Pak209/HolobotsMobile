@@ -49,10 +49,6 @@
 	</dict>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Holobots uses Face ID to quickly unlock your remembered session.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Holobots reads your step count and workout data to convert activity into Sync Points.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Holobots writes workout rewards and sync summaries connected to your activity.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Holobots uses your location during a workout to measure live movement speed and distance for Sync Point rewards.</string>
 	<key>NSMotionUsageDescription</key>

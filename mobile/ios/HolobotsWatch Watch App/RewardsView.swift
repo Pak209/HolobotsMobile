@@ -93,6 +93,16 @@ struct RewardsView: View {
                         .foregroundColor(dimGold)
                 }
                 .padding(.top, 7)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.red)
+                    Text("Workout saved to Apple Health")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(dimGold)
+                }
+                .padding(.top, 4)
                 .padding(.bottom, 6)
 
                 Spacer(minLength: 0)

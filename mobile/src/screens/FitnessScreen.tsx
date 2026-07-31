@@ -434,6 +434,14 @@ export function FitnessScreen() {
                 </View>
               </View>
 
+              <View style={styles.settingsSection}>
+                <RNText style={styles.settingsLabel}>APPLE HEALTH</RNText>
+                <RNText style={styles.settingsMeta}>
+                  Apple Watch Sync workouts are recorded to Apple Health as workout sessions using
+                  HealthKit. iPhone workouts use on-device motion and location only.
+                </RNText>
+              </View>
+
               <Pressable style={styles.closeSettingsButton} onPress={() => setIsSettingsOpen(false)}>
                 <RNText style={styles.closeSettingsText}>CLOSE</RNText>
               </Pressable>
