@@ -21,6 +21,7 @@
     "expo-location": "~18.1.6",
     "expo-sensors": "~14.1.4",
     "expo-status-bar": "^2.0.1",
+    "expo-video": "~2.2.2",
     "firebase": "^11.6.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",

@@ -26,6 +26,9 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#f0aa22"
       }
-    }
+    },
+    "plugins": [
+      "expo-video"
+    ]
   }
 }

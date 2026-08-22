@@ -1,0 +1,143 @@
+:root {
+  color: #050606;
+  font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
+  background: #f4c900;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #111;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+}
+
+.mobile-prototype {
+  width: min(100vw, 390px);
+  height: 844px;
+  margin-inline: auto;
+  overflow: hidden;
+  position: relative;
+  background: #f4c900;
+}
+
+.arena-panel {
+  padding: 20px 15px 24px;
+}
+
+.section-heading {
+  align-items: center;
+  color: #080908;
+  display: flex;
+  font-size: 13px;
+  font-weight: 950;
+  gap: 8px;
+  letter-spacing: 0.5px;
+  margin-bottom: 7px;
+}
+
+.section-rule {
+  background: #080908;
+  flex: 1;
+  height: 2px;
+  opacity: 0.25;
+}
+
+.tier-grid {
+  display: grid;
+  gap: 7px 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tier-card {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: white;
+  cursor: pointer;
+  height: 91px;
+  min-width: 0;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tier-card:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.tier-outline {
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  position: absolute;
+  width: 100%;
+}
+
+.tier-card.is-selected {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 80%, transparent));
+}
+
+.tier-icon {
+  height: 76px;
+  left: 4px;
+  object-fit: contain;
+  position: absolute;
+  top: 7px;
+  width: 76px;
+}
+
+.tier-copy {
+  display: flex;
+  flex-direction: column;
+  left: 82px;
+  position: absolute;
+  right: 8px;
+  top: 15px;
+}
+
+.tier-name {
+  font-family: "Arial Black", "Arial Narrow", sans-serif;
+  font-size: 12px;
+  font-stretch: condensed;
+  font-weight: 950;
+  letter-spacing: -0.25px;
+  line-height: 12.5px;
+}
+
+.tier-card[data-tier="challenger"] .tier-name {
+  font-size: 10.5px;
+}
+
+.tier-level {
+  color: #96999e;
+  font-size: 10.5px;
+  font-weight: 900;
+  margin-top: 6px;
+}
+
+.tier-fee {
+  color: #ffd518;
+  font-size: 10.5px;
+  font-weight: 950;
+  margin-top: 3px;
+}
+
+.preview-note {
+  color: rgba(5, 6, 6, 0.58);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.85px;
+  margin: 8px 2px 0;
+  text-align: right;
+}
