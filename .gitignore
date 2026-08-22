@@ -49,3 +49,5 @@ coverage/
 .vscode/
 *.swp
 *.swo
+
+.claude/worktrees/
