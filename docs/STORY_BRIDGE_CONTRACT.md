@@ -102,3 +102,13 @@ Deliberately **absent** inbound: `GRANT_REWARD`, any combat verb (`PLAY_CARD`, `
 
 If slice 0 needs **more than 2 inbound verbs beyond §C**, or **any** inbound reward/combat verb is proposed, the
 "not a JRPG" premise is already failing — stop and re-plan before building further.
+
+## H. Amendments
+
+- **2026-08-22 (slice 0 build)** — Adds inbound `TALK_NPC { npcId: string }` (allowlisted npcIds, slice 0: `guide`;
+  native opens the dialogue overlay; the resulting progression flag `npc.guide.met` is **native-authored**, never
+  WebView-authored). This consumes **1 of the 2** extra inbound verbs permitted by §G. `START_ENCOUNTER` and
+  `REQUEST_REGION_ACCESS` are accepted in slice 0 but answer `LOCKED` / `unlocked:false, reason:'NOT_IN_SLICE_0'`.
+  Native implementation: `mobile/src/lib/story/storyBridge.ts` (pure core + vitest), `mobile/src/config/storyMode.ts`
+  (protocol version, dev-origin gate), `mobile/src/screens/OverworldScreen.tsx` (host; injects only
+  `window.__HOLOBOTS_STORY_BRIDGE__={protocolVersion}` — no auth token).
