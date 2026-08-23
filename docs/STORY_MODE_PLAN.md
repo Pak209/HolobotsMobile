@@ -4,7 +4,7 @@
 
 Story Mode is a Power Quest (Game Boy) blend: explore town → talk → robot battle. It is a compact motivation layer around existing Holobots systems, not a full JRPG and not a second game competing with them.
 
-- The overworld is the existing Vite/Pixi preview (`package.json`: `holobots-overworld-preview`, `src/App.tsx`) hosted in a WebView following `mobile/src/screens/WebSectionScreen.tsx`.
+- The overworld is the existing root Vite/Pixi preview (`package.json`: `holobots-overworld-preview`; Pixi scene in `overworld/OverworldScene.ts`, `overworld/TileTypes.ts`, `overworld/Player.ts`; note root `src/App.tsx` is the Figma dashboard preview, not the overworld) hosted in a WebView following `mobile/src/screens/WebSectionScreen.tsx`.
 - Story encounters use scripted opponents in the existing `combatEngine.ts`, `arena-battle-store.ts`, and shared `BattleArenaView.tsx`; Slice 1 adds no second combat engine.
 - A typed `postMessage` bridge connects the overworld and native app; rewards use validated Firebase paths and are never minted in the WebView.
 - Story flags are server-side. Fitness-gated map regions are the differentiator to protect.
