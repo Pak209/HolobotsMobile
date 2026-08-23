@@ -2,10 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Holobots Story Mode</title>
     <style>
-      html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #1d1d1d; touch-action: none; }
+      html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #1d1d1d; }
+      html, body, #root, #root canvas, #root button {
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body { overscroll-behavior: none; }
     </style>
   </head>
   <body>
