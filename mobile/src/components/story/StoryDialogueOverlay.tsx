@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image,
   Pressable,
@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GameDialogFrame } from "@/components/ui/GameSurfaceFrame";
+import { createDialogueSequencer, type DialogueSequencer } from "@/lib/story/dialogueSequencer";
 
 type StoryDialogueOverlayProps = {
   visible: boolean;
@@ -20,17 +21,47 @@ type StoryDialogueOverlayProps = {
   onFinished: () => void;
 };
 
-const TYPEWRITER_MS = 31;
-const BLINK_MS = 450;
+const TICK_MS = 33;
 const NARROW_BREAKPOINT = 380;
 const PORTRAIT_NARROW = 96;
 const PORTRAIT_WIDE = 128;
 
 /**
- * Native dialogue layer for Story Mode (docs/ART_STYLE_GUIDE.md §3–§4):
- * cyan-trim GameDialogFrame over translucent ink, gold nameplate, cream
- * typewriter body, tap/A to continue. Angular only — no rounded rects.
+ * Round E hardening: the component's hook set is FIXED and lives entirely in
+ * useDialogueOverlayState below (insets, dimensions, one state counter, one
+ * sequencer ref, one interval effect). Sequencing logic is the pure
+ * dialogueSequencer module. The component body calls exactly ONE hook and has
+ * no return statement before it — guarded by dialogueSequencer.test.ts.
  */
+function useDialogueOverlayState(visible: boolean, lines: string[]) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [, setFrame] = useState(0);
+  const sequencerRef = useRef<DialogueSequencer | null>(null);
+
+  useEffect(() => {
+    if (!visible || lines.length === 0) {
+      sequencerRef.current = null;
+      return undefined;
+    }
+    const sequencer = createDialogueSequencer(lines);
+    sequencerRef.current = sequencer;
+    setFrame((frame) => frame + 1);
+    const interval = setInterval(() => {
+      if (sequencer.tick(Date.now())) {
+        setFrame((frame) => frame + 1);
+      }
+    }, TICK_MS);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [visible, lines]);
+
+  const rerender = () => setFrame((frame) => frame + 1);
+  const sequencer = visible && lines.length > 0 ? sequencerRef.current : null;
+  return { insets, rerender, sequencer, width };
+}
+
 export function StoryDialogueOverlay({
   visible,
   speakerName,
@@ -38,119 +69,72 @@ export function StoryDialogueOverlay({
   lines,
   onFinished,
 }: StoryDialogueOverlayProps) {
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const [index, setIndex] = useState(0);
-  const [revealedCount, setRevealedCount] = useState(0);
-  const [blinkOn, setBlinkOn] = useState(true);
+  const overlay = useDialogueOverlayState(visible, lines);
 
-  const line = lines[index] ?? "";
-  const isComplete = revealedCount >= line.length;
-  const isLast = lines.length > 0 && index >= lines.length - 1;
-  const portraitSize = width < NARROW_BREAKPOINT ? PORTRAIT_NARROW : PORTRAIT_WIDE;
-
-  useEffect(() => {
-    setIndex(0);
-    setRevealedCount(0);
-  }, [visible, lines]);
-
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-
-    const current = lines[index] ?? "";
-    setRevealedCount(0);
-
-    if (current.length === 0) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setRevealedCount((count) => {
-        if (count + 1 >= current.length) {
-          clearInterval(timer);
-          return current.length;
-        }
-        return count + 1;
-      });
-    }, TYPEWRITER_MS);
-
-    return () => clearInterval(timer);
-  }, [visible, lines, index]);
-
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setBlinkOn((on) => !on);
-    }, BLINK_MS);
-
-    return () => clearInterval(timer);
-  }, [visible]);
-
-  if (!visible || lines.length === 0) {
-    return null;
-  }
+  const sequencer = overlay.sequencer;
+  const state = sequencer?.getState();
+  const line = state ? lines[state.index] ?? "" : "";
+  const portraitSize = overlay.width < NARROW_BREAKPOINT ? PORTRAIT_NARROW : PORTRAIT_WIDE;
 
   const advance = () => {
-    if (!isComplete) {
-      setRevealedCount(line.length);
+    if (!sequencer) {
       return;
     }
-    if (isLast) {
+    const result = sequencer.tap();
+    if (result === "finished") {
       onFinished();
       return;
     }
-    setIndex((value) => Math.min(value + 1, lines.length - 1));
+    overlay.rerender();
   };
 
-  return (
-    <View
-      pointerEvents="box-none"
-      style={[
-        styles.layer,
-        {
-          bottom: insets.bottom + 16,
-          paddingLeft: 12 + insets.left,
-          paddingRight: 12 + insets.right,
-        },
-      ]}
-    >
-      <Pressable
-        accessibilityLabel="Advance dialogue"
-        accessibilityRole="button"
-        hitSlop={16}
-        onPress={advance}
-        style={styles.box}
+  const content =
+    sequencer && state ? (
+      <View
+        pointerEvents="box-none"
+        style={[
+          styles.layer,
+          {
+            bottom: overlay.insets.bottom + 16,
+            paddingLeft: 12 + overlay.insets.left,
+            paddingRight: 12 + overlay.insets.right,
+          },
+        ]}
       >
-        <GameDialogFrame accent="#17d9ff" fill="rgba(5,6,6,0.78)" />
-        <View style={styles.row}>
-          <View style={[styles.portraitSlot, { height: portraitSize, width: portraitSize }]}>
-            <Image resizeMode="cover" source={portrait} style={styles.portrait} />
-          </View>
-          <View style={styles.textColumn}>
-            <Text numberOfLines={1} style={styles.nameplate}>
-              {speakerName.toUpperCase()}
-            </Text>
-            <Text style={styles.body}>{line.slice(0, revealedCount)}</Text>
-            <View style={styles.footer}>
-              <Text style={styles.counter}>{`${index + 1}/${lines.length}`}</Text>
-              {isComplete ? (
-                <Text style={[styles.hint, { opacity: blinkOn ? 1 : 0.2 }]}>
-                  {isLast ? "▸ CLOSE" : "▾"}
-                </Text>
-              ) : (
-                <Text style={styles.hintHidden}> </Text>
-              )}
+        <Pressable
+          accessibilityLabel="Advance dialogue"
+          accessibilityRole="button"
+          hitSlop={16}
+          onPress={advance}
+          style={styles.box}
+        >
+          <GameDialogFrame accent="#17d9ff" fill="rgba(5,6,6,0.78)" />
+          <View style={styles.row}>
+            <View style={[styles.portraitSlot, { height: portraitSize, width: portraitSize }]}>
+              <Image resizeMode="cover" source={portrait} style={styles.portrait} />
+            </View>
+            <View style={styles.textColumn}>
+              <Text numberOfLines={1} style={styles.nameplate}>
+                {speakerName.toUpperCase()}
+              </Text>
+              <Text style={styles.body}>{line.slice(0, state.revealed)}</Text>
+              <View style={styles.footer}>
+                <Text style={styles.counter}>{`${state.index + 1}/${lines.length}`}</Text>
+                {state.isComplete ? (
+                  <Text style={[styles.hint, { opacity: state.blinkOn ? 1 : 0.2 }]}>
+                    {state.isLast ? "▸ CLOSE" : "▾"}
+                  </Text>
+                ) : (
+                  <Text style={styles.hintHidden}> </Text>
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      </Pressable>
-    </View>
-  );
+        </Pressable>
+      </View>
+    ) : null;
+
+  return content;
 }
 
 const styles = StyleSheet.create({
