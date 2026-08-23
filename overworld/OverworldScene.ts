@@ -56,6 +56,7 @@ export class OverworldScene {
   private bridgeCleanup?: () => void;
   private dpadCleanup?: () => void;
   private checkpointTimer?: number;
+  private checkpointApplied = false;
   private interactionStatus: string | null = null;
   private flags: Record<string, boolean> = {};
   private protocolMismatch = false;
@@ -592,10 +593,13 @@ export class OverworldScene {
     this.flags = state.flags && typeof state.flags === "object" ? state.flags : {};
     this.npc.setMet(this.flags["npc.guide.met"] === true);
     const point = state.checkpoint;
-    if (point?.mapId === "hangar-town" && this.tileMap.isWithinBounds(point.x, point.y)
-      && this.tileMap.isWalkable(point.x, point.y)) {
-      this.player.moveTo(point.x, point.y, point.facing);
-      this.lastPlayerTile = `${point.x},${point.y}`;
+    if (!this.checkpointApplied) {
+      this.checkpointApplied = true;
+      if (point?.mapId === "hangar-town" && this.tileMap.isWithinBounds(point.x, point.y)
+        && this.tileMap.isWalkable(point.x, point.y)) {
+        this.player.moveTo(point.x, point.y, point.facing);
+        this.lastPlayerTile = `${point.x},${point.y}`;
+      }
     }
   };
 
