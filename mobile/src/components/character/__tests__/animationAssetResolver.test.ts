@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAnimationAsset, selectPlatformVideo } from "../animationAssetResolver";
+import {
+  hasAnimationAsset,
+  resolveAnimationAsset,
+  resolveAnimationState,
+  selectPlatformVideo,
+} from "../animationAssetResolver";
 
 const fallback = { static: "canonical-profile" };
 const assets = {
@@ -23,5 +28,11 @@ describe("holobot animation asset resolution", () => {
 
   it("degrades an unavailable state to canonical static art", () => {
     expect(resolveAnimationAsset(assets, "ACE", "arena", "victory", fallback)).toBe(fallback);
+  });
+
+  it("reports registered idle assets and resolves missing states to idle", () => {
+    expect(resolveAnimationState(assets, "ACE", "arena", "attackBasic")).toBe("idle");
+    expect(hasAnimationAsset(assets, "KUMA", "arena")).toBe(false);
+    expect(hasAnimationAsset(assets, "ace", "arena")).toBe(true);
   });
 });

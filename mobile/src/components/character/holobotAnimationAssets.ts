@@ -1,7 +1,12 @@
 import type { ImageSourcePropType } from "react-native";
 
 import { getHolobotFullImageSource } from "@/config/holobots";
-import { resolveAnimationAsset, selectPlatformVideo } from "./animationAssetResolver";
+import {
+  hasAnimationAsset,
+  resolveAnimationAsset,
+  resolveAnimationState,
+  selectPlatformVideo,
+} from "./animationAssetResolver";
 
 export type HolobotAnimationContext = "companion" | "arena";
 export type HolobotAnimationState =
@@ -49,6 +54,18 @@ const ANIMATION_ASSETS: Record<string, HolobotAnimationAsset> = {
     static: getHolobotFullImageSource("ACE"),
   },
 };
+
+export function hasHolobotAnimation(holobotId: string, context: HolobotAnimationContext) {
+  return hasAnimationAsset(ANIMATION_ASSETS, holobotId, context);
+}
+
+export function resolveHolobotAnimationState(
+  holobotId: string,
+  context: HolobotAnimationContext,
+  desired: HolobotAnimationState,
+): HolobotAnimationState {
+  return resolveAnimationState(ANIMATION_ASSETS, holobotId, context, desired);
+}
 
 export function getHolobotAnimationAsset(
   holobotId: string,
