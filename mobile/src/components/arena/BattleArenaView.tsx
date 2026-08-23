@@ -165,7 +165,7 @@ function getHealthPercent(current: number, max: number) {
 type FighterSide = "player" | "opponent";
 type FighterVisualStates = Record<FighterSide, HolobotAnimationState>;
 
-function getActionSides(action: BattleAction, battle: BattleState) {
+export function getActionSides(action: BattleAction, battle: BattleState) {
   const attacker: FighterSide = action.actorRole
     ?? (action.actorId === battle.opponent.holobotId
       ? "opponent"
@@ -183,7 +183,7 @@ function getActionSides(action: BattleAction, battle: BattleState) {
   return { attacker, damaged };
 }
 
-function getCompletedVisualStates(battle: BattleState): FighterVisualStates | null {
+export function getCompletedVisualStates(battle: BattleState): FighterVisualStates | null {
   if (battle.status !== "completed" && battle.player.currentHP > 0 && battle.opponent.currentHP > 0) {
     return null;
   }
@@ -586,9 +586,13 @@ export function BattleArenaView({
                     style={StyleSheet.absoluteFill}
                   />
                 ) : null}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[StyleSheet.absoluteFill, styles.hitFlash, { opacity: playerFlash }]}
+                <Animated.Image
+                  resizeMode="contain"
+                  source={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { opacity: playerFlash, tintColor: "#ff4d39" },
+                  ]}
                 />
               </Animated.View>
               <Animated.View
@@ -608,9 +612,14 @@ export function BattleArenaView({
                     style={[StyleSheet.absoluteFill, styles.stageFighterImageMirrored]}
                   />
                 ) : null}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[StyleSheet.absoluteFill, styles.hitFlash, { opacity: opponentFlash }]}
+                <Animated.Image
+                  resizeMode="contain"
+                  source={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
+                  style={[
+                    StyleSheet.absoluteFill,
+                    styles.stageFighterImageMirrored,
+                    { opacity: opponentFlash, tintColor: "#ff4d39" },
+                  ]}
                 />
               </Animated.View>
             </View>
@@ -895,9 +904,6 @@ const styles = StyleSheet.create({
   },
   stageFighterImageMirrored: {
     transform: [{ scaleX: -1 }],
-  },
-  hitFlash: {
-    backgroundColor: "#ff4d39",
   },
   stageFighterLeft: {
     left: "9%",
