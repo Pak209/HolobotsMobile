@@ -7,7 +7,7 @@ export const TILE_SCALE = 32 / 128;
 export const PROP_SCALE = 32 / SOURCE_CELL_PX;
 
 type AssetKind = "tiles" | "props" | "buildings";
-type Manifest = typeof manifest;
+const KINDS = ["tiles", "props", "buildings"] as const satisfies readonly AssetKind[];
 
 const assetUrls = import.meta.glob("./runtime/**/*.png", {
   eager: true,
@@ -30,8 +30,8 @@ export async function loadTextureRegistry(): Promise<TextureRegistry> {
   TextureSource.defaultOptions.scaleMode = "nearest";
   const textures = new Map<string, Texture>();
 
-  await Promise.all((Object.keys(manifest) as AssetKind[]).flatMap((kind) =>
-    Object.keys(manifest[kind] as Manifest[AssetKind]).map(async (name) => {
+  await Promise.all(KINDS.flatMap((kind) =>
+    Object.keys(manifest[kind]).map(async (name) => {
       const path = `./runtime/${directoryFor(kind)}/${name}.png`;
       const src = assetUrls[path];
       if (!src) throw new Error(`[TextureRegistry] Missing bundled asset: ${path}`);
