@@ -2,6 +2,7 @@ import type { BuildingEventId, TileEvent } from "./TileTypes";
 
 export interface BuildingCallbacks {
   enterArena: () => void;
+  enterH3Core: () => void;
   openGacha: () => void;
   openPvPTerminal: () => void;
   openTraining: () => void;
@@ -10,6 +11,9 @@ export interface BuildingCallbacks {
 export const createDefaultBuildingCallbacks = (): BuildingCallbacks => ({
   enterArena: () => {
     console.info("[Overworld] enterArena()");
+  },
+  enterH3Core: () => {
+    console.info("[Overworld] enterH3Core()");
   },
   openGacha: () => {
     console.info("[Overworld] openGacha()");
@@ -24,6 +28,7 @@ export const createDefaultBuildingCallbacks = (): BuildingCallbacks => ({
 
 const EVENT_TO_CALLBACK: Record<BuildingEventId, keyof BuildingCallbacks> = {
   arena: "enterArena",
+  h3Core: "enterH3Core",
   gacha: "openGacha",
   pvpTerminal: "openPvPTerminal",
   trainingLab: "openTraining",

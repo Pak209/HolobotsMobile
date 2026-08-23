@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
+import { Application, Container, Graphics, Sprite, Text, TextStyle } from "pixi.js";
 
 import {
   createDefaultBuildingCallbacks,
@@ -6,9 +6,10 @@ import {
   type BuildingCallbacks,
 } from "./Interactions";
 import { Player } from "./Player";
-import { GUIDE, Npc } from "./Npc";
-import { TileMap, type BuildingPlacement } from "./TileMap";
+import { Npc } from "./Npc";
+import { TileMap } from "./TileMap";
 import { TILE_COLORS, TILE_SIZE, type Direction } from "./TileTypes";
+import { loadTextureRegistry, type TextureRegistry } from "./assets/textureRegistry";
 import {
   STORY_PROTOCOL_VERSION,
   hello,
@@ -19,6 +20,8 @@ import {
   send,
 } from "./bridge/storyBridge";
 import { createHandshakeController, type HandshakeState } from "./bridge/handshake";
+import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza";
+import { GUIDE } from "./maps/npcs";
 import { mountDPad } from "./ui/DPad";
 
 type ResizeTarget = Pick<HTMLElement, "clientWidth" | "clientHeight">;
@@ -50,7 +53,15 @@ export class OverworldScene {
 
   private readonly mountNode: HTMLElement;
   private readonly world: Container;
-  private readonly hud: Container;
+  private readonly ground = new Container();
+  private readonly groundDetail = new Container();
+  private readonly canals = new Container();
+  private readonly lowDecor = new Container();
+  private readonly actors = new Container();
+  private readonly foregroundOcclusion = new Container();
+  private readonly lightingParticles = new Container();
+  private readonly uiOverlay = new Container();
+  private readonly textures: TextureRegistry;
   private readonly interactionLabel: Text;
   private readonly handshakeBanner: HTMLDivElement;
   private readonly keyState = new Set<string>();
@@ -66,17 +77,21 @@ export class OverworldScene {
   private storyStateMismatch = false;
   private readonly handshake: ReturnType<typeof createHandshakeController>;
   private lastPlayerTile: string;
+  private worldTime = 0;
+  private readonly wisps: Array<{ sprite: Sprite; baseY: number; phase: number }> = [];
+  private coreGlow?: { sprite: Sprite; baseScale: number };
 
   private resizeTarget?: ResizeTarget;
   private lastInteractionPressed = false;
   private destroyed = false;
 
-  private constructor(app: Application, options: OverworldSceneOptions) {
+  private constructor(app: Application, options: OverworldSceneOptions, textures: TextureRegistry) {
     this.app = app;
     this.mountNode = options.mountNode;
     this.tileMap = new TileMap();
     this.player = new Player({ x: 10, y: 10 });
     this.npc = new Npc();
+    this.textures = textures;
     this.lastPlayerTile = `${this.player.gridX},${this.player.gridY}`;
     this.callbacks = {
       ...createDefaultBuildingCallbacks(),
@@ -93,7 +108,7 @@ export class OverworldScene {
     });
 
     this.world = new Container();
-    this.hud = new Container();
+    this.actors.sortableChildren = true;
     this.interactionLabel = new Text({
       style: new TextStyle({
         fill: 0xffffff,
@@ -103,16 +118,20 @@ export class OverworldScene {
       }),
     });
 
+    this.world.addChild(
+      this.ground, this.groundDetail, this.canals, this.lowDecor, this.actors,
+      this.foregroundOcclusion, this.lightingParticles,
+    );
     this.app.stage.addChild(this.world);
-    this.app.stage.addChild(this.hud);
+    this.app.stage.addChild(this.uiOverlay);
 
     this.buildMapGraphics();
 
-    this.world.addChild(this.player.sprite);
-    this.world.addChild(this.npc.sprite);
+    this.actors.addChild(this.player.sprite);
+    this.actors.addChild(this.npc.sprite);
 
     this.interactionLabel.position.set(12, 12);
-    this.hud.addChild(this.interactionLabel);
+    this.uiOverlay.addChild(this.interactionLabel);
 
     this.app.ticker.add(this.update);
     window.addEventListener("keydown", this.onKeyDown);
@@ -139,7 +158,8 @@ export class OverworldScene {
 
     options.mountNode.appendChild(app.canvas);
 
-    return new OverworldScene(app, options);
+    const textures = await loadTextureRegistry();
+    return new OverworldScene(app, options, textures);
   }
 
   resize(width?: number, height?: number): void {
@@ -189,38 +209,89 @@ export class OverworldScene {
   }
 
   private buildMapGraphics(): void {
-    const groundLayer = new Container();
-    const decorLayer = new Container();
-    const buildingLayer = new Container();
-
     for (let y = 0; y < this.tileMap.height; y += 1) {
       for (let x = 0; x < this.tileMap.width; x += 1) {
         const tile = this.tileMap.tiles[y][x];
         const tileGraphic = this.drawTile(tile.type, x, y);
 
         tileGraphic.position.set(x * TILE_SIZE, y * TILE_SIZE);
-        groundLayer.addChild(tileGraphic);
+        this.ground.addChild(tileGraphic);
 
         if (tile.event && tile.type === "path") {
           const entrance = this.drawEntranceMarker();
           entrance.position.set(x * TILE_SIZE, y * TILE_SIZE);
-          decorLayer.addChild(entrance);
+          this.lowDecor.addChild(entrance);
         }
       }
     }
 
-    this.addDecor(decorLayer);
-    this.addCentralBeacon(decorLayer);
+    for (const item of terrain) this.ground.addChild(this.makeTileSprite(item.tile, item.x, item.y));
+    for (const item of details) this.groundDetail.addChild(this.makeTileSprite(item.tile, item.x, item.y, item.rotation));
+    for (const item of canals) this.canals.addChild(this.makeTileSprite(item.tile, item.x, item.y, item.rotation));
 
-    for (const building of this.tileMap.getBuildingPlacements()) {
-      const buildingGraphic = this.drawBuilding(building);
-      buildingGraphic.position.set(building.x * TILE_SIZE, building.y * TILE_SIZE);
-      buildingLayer.addChild(buildingGraphic);
+    for (const item of props) {
+      const sprite = this.makePropSprite(item.name, item.x, item.y, item.offsetX, item.offsetY);
+      if (item.layer === "lowDecor") this.lowDecor.addChild(sprite);
+      else if (item.layer === "foregroundOcclusion") this.foregroundOcclusion.addChild(sprite);
+      else this.actors.addChild(sprite);
     }
 
-    this.world.addChild(groundLayer);
-    this.world.addChild(decorLayer);
-    this.world.addChild(buildingLayer);
+    const buildingAssets = {
+      arena: "arena-colosseum", gacha: "gacha-shrine", trainingLab: "holobot-workshop",
+      pvpTerminal: "transit-gate", h3Core: "h3-core-sanctuary",
+    } as const;
+    for (const building of this.tileMap.getBuildingPlacements()) {
+      const sprite = new Sprite(this.textures.building(buildingAssets[building.event.id]));
+      sprite.anchor.set(0.5, 1);
+      sprite.scale.set(this.textures.PROP_SCALE);
+      sprite.position.set((building.x + building.width / 2) * TILE_SIZE, (building.y + building.height) * TILE_SIZE);
+      sprite.zIndex = sprite.y;
+      this.actors.addChild(sprite);
+    }
+
+    for (const [id, name] of [["arena", "pad-target-round"], ["gacha", "lantern-gold"],
+      ["trainingLab", "lantern-cyan-tall"], ["pvpTerminal", "terminal-holo"], ["h3Core", "path-cyan-node-round"]] as const) {
+      const building = this.tileMap.getBuildingPlacements().find((item) => item.event.id === id)!;
+      const entrance = id === "h3Core" ? { x: h3.interaction[0], y: h3.interaction[1] }
+        : id === "arena" ? { x: 10, y: 5 } : id === "gacha" ? { x: 4, y: 10 }
+          : id === "trainingLab" ? { x: 15, y: 10 } : { x: 15, y: 13 };
+      const marker = name.startsWith("path-")
+        ? this.makeTileSprite(name, entrance.x, entrance.y)
+        : this.makePropSprite(name, entrance.x, entrance.y);
+      marker.zIndex = (building.y + building.height + 0.1) * TILE_SIZE;
+      this.lowDecor.addChild(marker);
+    }
+
+    wispSpawns.forEach(([x, y], index) => {
+      const sprite = this.makePropSprite("data-wisp", x, y);
+      sprite.scale.set(this.textures.PROP_SCALE * 0.65);
+      sprite.alpha = 0.6;
+      this.lightingParticles.addChild(sprite);
+      this.wisps.push({ sprite, baseY: sprite.y, phase: index * 0.9 });
+    });
+    const glow = this.makePropSprite("data-wisp", h3.originX + 1.5, h3.originY, 0, -30);
+    glow.scale.set(this.textures.PROP_SCALE * 0.9);
+    this.lightingParticles.addChild(glow);
+    this.coreGlow = { sprite: glow, baseScale: glow.scale.x };
+  }
+
+  private makeTileSprite(name: string, x: number, y: number, rotation = 0): Sprite {
+    const sprite = new Sprite(this.textures.tile(name));
+    sprite.anchor.set(0.5);
+    sprite.width = TILE_SIZE;
+    sprite.height = TILE_SIZE;
+    sprite.position.set((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE);
+    sprite.angle = rotation;
+    return sprite;
+  }
+
+  private makePropSprite(name: string, x: number, y: number, offsetX = 0, offsetY = 0): Sprite {
+    const sprite = new Sprite(this.textures.prop(name));
+    sprite.anchor.set(0.5, 1);
+    sprite.scale.set(this.textures.PROP_SCALE);
+    sprite.position.set((x + 0.5) * TILE_SIZE + offsetX, (y + 1) * TILE_SIZE + offsetY);
+    sprite.zIndex = sprite.y;
+    return sprite;
   }
 
   private drawTile(tileType: keyof typeof TILE_COLORS, x: number, y: number): Container {
@@ -302,192 +373,25 @@ export class OverworldScene {
     return marker;
   }
 
-  private addDecor(layer: Container): void {
-    const treePositions = [
-      [4, 3],
-      [5, 3],
-      [14, 3],
-      [15, 3],
-      [3, 13],
-      [6, 14],
-      [12, 14],
-      [13, 4],
-      [16, 5],
-      [17, 11],
-      [2, 12],
-    ];
-    const lampPositions = [
-      [7, 7],
-      [12, 7],
-      [7, 13],
-      [12, 13],
-      [9, 15],
-      [10, 15],
-      [5, 11],
-      [14, 11],
-    ];
-
-    for (const [x, y] of treePositions) {
-      const tree = this.drawTree();
-      tree.position.set(x * TILE_SIZE, y * TILE_SIZE);
-      layer.addChild(tree);
-    }
-
-    for (const [x, y] of lampPositions) {
-      const lamp = this.drawLamp();
-      lamp.position.set(x * TILE_SIZE, y * TILE_SIZE);
-      layer.addChild(lamp);
-    }
-  }
-
-  private addCentralBeacon(layer: Container): void {
-    const beacon = new Container();
-    const x = 8 * TILE_SIZE;
-    const y = 11 * TILE_SIZE;
-    const platform = new Graphics();
-    const core = new Graphics();
-    const label = new Text({
-      text: "H3",
-      style: new TextStyle({
-        fill: 0xc8fdff,
-        fontFamily: "monospace",
-        fontSize: 26,
-        fontWeight: "bold",
-        stroke: { color: 0x1e78d3, width: 4 },
-      }),
-    });
-
-    platform.roundRect(0, 0, 4 * TILE_SIZE, 3 * TILE_SIZE, 18).fill(0x53607f);
-    platform.roundRect(10, 10, 4 * TILE_SIZE - 20, 3 * TILE_SIZE - 20, 14).fill(0x6e7c9d);
-    platform.roundRect(26, 24, 4 * TILE_SIZE - 52, 3 * TILE_SIZE - 48, 12).fill(0x415071);
-    core.circle(2 * TILE_SIZE, 42, 30).fill(0x22a0ff);
-    core.circle(2 * TILE_SIZE, 42, 22).fill(0x5ee7ff);
-    core.circle(2 * TILE_SIZE, 42, 14).fill(0xb8f8ff);
-
-    label.anchor.set(0.5);
-    label.position.set(2 * TILE_SIZE, 42);
-
-    beacon.position.set(x, y);
-    beacon.addChild(platform);
-    beacon.addChild(core);
-    beacon.addChild(label);
-    layer.addChild(beacon);
-  }
-
-  private drawBuilding(building: BuildingPlacement): Container {
-    const width = building.width * TILE_SIZE;
-    const height = building.height * TILE_SIZE;
-    const buildingContainer = new Container();
-    const style = getBuildingStyle(building.event.id);
-    const base = new Graphics();
-    const body = new Graphics();
-    const label = new Text({
-      text: style.label,
-      style: new TextStyle({
-        fill: 0xf4fbff,
-        fontFamily: "monospace",
-        fontSize: style.fontSize,
-        fontWeight: "bold",
-        stroke: { color: style.accentDark, width: 5 },
-      }),
-    });
-
-    base.roundRect(0, height - 18, width, 18, 10).fill(0x404962);
-    base.roundRect(8, height - 28, width - 16, 14, 8).fill(0x616a87);
-
-    body.roundRect(10, height - 54, width - 20, 34, 10).fill(style.base);
-    body.roundRect(14, height - 50, width - 28, 18, 8).fill(style.baseLight);
-    body.rect(14, height - 30, width - 28, 4).fill(style.accent);
-    body.rect(20, height - 18, 14, 10).fill(0x22293b);
-    body.rect(width - 34, height - 18, 14, 10).fill(0x22293b);
-
-    if (style.shape === "dome") {
-      body.circle(width / 2, height - 64, 34).fill(style.baseLight);
-      body.circle(width / 2, height - 64, 28).fill(style.base);
-      body.circle(width / 2, height - 86, 8).fill(style.accent);
-      body.rect(width / 2 - 24, height - 40, 48, 10).fill(style.accent);
-    } else if (style.shape === "forge") {
-      body.roundRect(18, 8, width - 36, height - 36, 14).fill(style.baseLight);
-      body.circle(width / 2, height - 68, 16).fill(style.accent);
-      body.circle(width / 2, height - 68, 8).fill(0xf6d2ff);
-      body.rect(width / 2 - 6, height - 88, 12, 24).fill(style.accentDark);
-    } else if (style.shape === "lab") {
-      body.roundRect(16, 12, width - 32, height - 36, 14).fill(style.baseLight);
-      body.poly([
-        width / 2, 8,
-        width - 22, 28,
-        width / 2, 46,
-        22, 28,
-      ]).fill(style.accent);
-      body.poly([
-        width / 2, 16,
-        width - 34, 29,
-        width / 2, 38,
-        34, 29,
-      ]).fill(0xdfffc0);
-    } else {
-      body.roundRect(24, 0, width - 48, height - 18, 18).fill(style.baseLight);
-      body.roundRect(34, 12, width - 68, height - 42, 14).fill(style.base);
-      body.rect(width / 2 - 10, 16, 20, height - 50).fill(style.accent);
-      body.rect(width / 2 - 4, 24, 8, height - 66).fill(0xfff5d6);
-    }
-
-    const doorway = new Graphics();
-    doorway.roundRect(width / 2 - 14, height - 34, 28, 24, 6).fill(0x25314f);
-    doorway.roundRect(width / 2 - 10, height - 30, 20, 18, 4).fill(style.accent);
-    doorway.rect(width / 2 - 7, height - 27, 14, 12).fill(0xdfffff);
-
-    label.anchor.set(0.5);
-    label.position.set(width / 2, height - 56);
-
-    buildingContainer.addChild(base);
-    buildingContainer.addChild(body);
-    buildingContainer.addChild(doorway);
-    buildingContainer.addChild(label);
-
-    return buildingContainer;
-  }
-
-  private drawTree(): Container {
-    const tree = new Container();
-    const trunk = new Graphics();
-    const leaves = new Graphics();
-
-    trunk.rect(12, 20, 8, 10).fill(0x4c2f1f);
-    leaves.circle(10, 16, 10).fill(0x2f7d39);
-    leaves.circle(18, 12, 11).fill(0x3d9449);
-    leaves.circle(22, 18, 9).fill(0x2f7d39);
-    leaves.circle(14, 9, 8).fill(0x67c95d);
-
-    tree.addChild(trunk);
-    tree.addChild(leaves);
-
-    return tree;
-  }
-
-  private drawLamp(): Container {
-    const lamp = new Container();
-    const post = new Graphics();
-    const glow = new Graphics();
-
-    post.rect(14, 8, 4, 18).fill(0x2c3347);
-    post.roundRect(10, 3, 12, 8, 4).fill(0x1c2438);
-    post.roundRect(12, 5, 8, 4, 2).fill(0x52dfff);
-    glow.circle(16, 7, 10).fill(0x48dcff);
-    glow.alpha = 0.2;
-
-    lamp.addChild(glow);
-    lamp.addChild(post);
-
-    return lamp;
-  }
-
   private update = (ticker: { deltaMS: number }): void => {
     const deltaSeconds = ticker.deltaMS / 1000;
+
+    this.worldTime += deltaSeconds;
 
     this.handleMovementInput();
     this.handleInteractionInput();
     this.player.update(deltaSeconds);
+    this.player.sprite.zIndex = this.player.pixelY + TILE_SIZE;
+    this.npc.sprite.zIndex = (GUIDE.y + 1) * TILE_SIZE;
+    for (const wisp of this.wisps) {
+      wisp.sprite.y = wisp.baseY + Math.sin(this.worldTime * 1.8 + wisp.phase) * 4;
+      wisp.sprite.alpha = 0.48 + Math.sin(this.worldTime * 2.1 + wisp.phase) * 0.2;
+    }
+    if (this.coreGlow) {
+      const pulse = 1 + Math.sin(this.worldTime * 2.2) * 0.09;
+      this.coreGlow.sprite.scale.set(this.coreGlow.baseScale * pulse);
+      this.coreGlow.sprite.alpha = 0.58 + Math.sin(this.worldTime * 2.2) * 0.16;
+    }
     this.updateInteractionHint();
     this.updateCamera();
   };
@@ -651,68 +555,3 @@ export class OverworldScene {
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
-
-type BuildingVisualStyle = {
-  label: string;
-  fontSize: number;
-  shape: "dome" | "forge" | "lab" | "tower";
-  base: number;
-  baseLight: number;
-  accent: number;
-  accentDark: number;
-};
-
-const getBuildingStyle = (id: BuildingPlacement["event"]["id"]): BuildingVisualStyle => {
-  switch (id) {
-    case "arena":
-      return {
-        label: "ARENA",
-        fontSize: 18,
-        shape: "dome",
-        base: 0x2d78c8,
-        baseLight: 0x5faeff,
-        accent: 0x5af4ff,
-        accentDark: 0x11457a,
-      };
-    case "gacha":
-      return {
-        label: "GACHA",
-        fontSize: 18,
-        shape: "forge",
-        base: 0x6d34bf,
-        baseLight: 0xa46dff,
-        accent: 0xff8df4,
-        accentDark: 0x3b176a,
-      };
-    case "trainingLab":
-      return {
-        label: "LAB",
-        fontSize: 20,
-        shape: "lab",
-        base: 0x2a904c,
-        baseLight: 0x67d36f,
-        accent: 0xb9ff69,
-        accentDark: 0x1f5f33,
-      };
-    case "pvpTerminal":
-      return {
-        label: "PVP",
-        fontSize: 20,
-        shape: "tower",
-        base: 0xa42e46,
-        baseLight: 0xe55d79,
-        accent: 0xff614d,
-        accentDark: 0x5d1828,
-      };
-    default:
-      return {
-        label: "HUB",
-        fontSize: 16,
-        shape: "dome",
-        base: 0x5376a4,
-        baseLight: 0x7fa5d2,
-        accent: 0x63d8ff,
-        accentDark: 0x1f3657,
-      };
-  }
-};
