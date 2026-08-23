@@ -13,6 +13,7 @@ import { loadTextureRegistry, type TextureRegistry } from "./assets/textureRegis
 import {
   STORY_PROTOCOL_VERSION,
   hello,
+  isDialogueStatePayload,
   isNativeBridgeAvailable,
   isProtocolMismatchError,
   isStoryStatePayload,
@@ -20,6 +21,7 @@ import {
   send,
 } from "./bridge/storyBridge";
 import { createHandshakeController, type HandshakeState } from "./bridge/handshake";
+import { Companion } from "./characters/Companion";
 import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza";
 import { GUIDE } from "./maps/npcs";
 import { mountDPad } from "./ui/DPad";
@@ -50,6 +52,7 @@ export class OverworldScene {
   readonly tileMap: TileMap;
   readonly player: Player;
   readonly npc: Npc;
+  readonly companion: Companion;
 
   private readonly mountNode: HTMLElement;
   private readonly world: Container;
@@ -68,18 +71,21 @@ export class OverworldScene {
   private readonly heldDirections = new Set<Direction>();
   private callbacks: BuildingCallbacks;
   private bridgeCleanup?: () => void;
-  private dpadCleanup?: () => void;
+  private dpad?: ReturnType<typeof mountDPad>;
   private checkpointTimer?: number;
+  private dialogueTimer?: number;
   private checkpointApplied = false;
   private interactionStatus: string | null = null;
   private flags: Record<string, boolean> = {};
   private handshakeState: HandshakeState = "connecting";
   private storyStateMismatch = false;
+  private dialogueOpen = false;
   private readonly handshake: ReturnType<typeof createHandshakeController>;
   private lastPlayerTile: string;
   private worldTime = 0;
   private readonly wisps: Array<{ sprite: Sprite; baseY: number; phase: number }> = [];
   private coreGlow?: { sprite: Sprite; baseScale: number };
+  private interactionIndicator?: Sprite;
 
   private resizeTarget?: ResizeTarget;
   private lastInteractionPressed = false;
@@ -90,7 +96,8 @@ export class OverworldScene {
     this.mountNode = options.mountNode;
     this.tileMap = new TileMap();
     this.player = new Player({ x: 10, y: 10 });
-    this.npc = new Npc();
+    this.npc = new Npc(this.tileMap);
+    this.companion = new Companion(this.player, this.tileMap);
     this.textures = textures;
     this.lastPlayerTile = `${this.player.gridX},${this.player.gridY}`;
     this.callbacks = {
@@ -128,7 +135,13 @@ export class OverworldScene {
     this.buildMapGraphics();
 
     this.actors.addChild(this.player.sprite);
+    this.actors.addChild(this.companion.sprite);
     this.actors.addChild(this.npc.sprite);
+    this.interactionIndicator = new Sprite(this.textures.prop("data-wisp"));
+    this.interactionIndicator.anchor.set(0.5);
+    this.interactionIndicator.scale.set(this.textures.PROP_SCALE * 0.45);
+    this.interactionIndicator.visible = false;
+    this.actors.addChild(this.interactionIndicator);
 
     this.interactionLabel.position.set(12, 12);
     this.uiOverlay.addChild(this.interactionLabel);
@@ -138,7 +151,7 @@ export class OverworldScene {
     window.addEventListener("keyup", this.onKeyUp);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
     this.bridgeCleanup = onMessage(this.handleNativeMessage);
-    this.dpadCleanup = mountDPad(this.mountNode, this, this.markDpadSeen);
+    this.dpad = mountDPad(this.mountNode, this, this.markDpadSeen);
     this.handshake.start();
 
     this.setViewport(options.width, options.height);
@@ -192,8 +205,9 @@ export class OverworldScene {
     this.handshake.dispose();
     this.handshakeBanner.remove();
     this.bridgeCleanup?.();
-    this.dpadCleanup?.();
+    this.dpad?.destroy();
     if (this.checkpointTimer) window.clearTimeout(this.checkpointTimer);
+    if (this.dialogueTimer) window.clearTimeout(this.dialogueTimer);
     this.player.destroy();
     this.app.destroy(true, { children: true, texture: true });
   }
@@ -382,7 +396,17 @@ export class OverworldScene {
     this.handleInteractionInput();
     this.player.update(deltaSeconds);
     this.player.sprite.zIndex = this.player.pixelY + TILE_SIZE;
-    this.npc.sprite.zIndex = (GUIDE.y + 1) * TILE_SIZE;
+    this.companion.update(this.player, this.tileMap, deltaSeconds, performance.now());
+    this.npc.update(deltaSeconds, this.tileMap, this.player, this.dialogueOpen);
+    const adjacentNpc = Math.abs(this.player.gridX - this.npc.gridX) + Math.abs(this.player.gridY - this.npc.gridY) === 1;
+    if (adjacentNpc) this.npc.facePlayer(this.player);
+    if (this.interactionIndicator) {
+      const facing = this.player.getFacingTile();
+      this.interactionIndicator.visible = !this.dialogueOpen && !this.npc.isMoving
+        && facing.x === this.npc.gridX && facing.y === this.npc.gridY;
+      this.interactionIndicator.position.set(this.npc.sprite.x + TILE_SIZE / 2, this.npc.sprite.y - 12 + Math.sin(this.worldTime * 3) * 2);
+      this.interactionIndicator.zIndex = this.npc.sprite.zIndex + 1;
+    }
     for (const wisp of this.wisps) {
       wisp.sprite.y = wisp.baseY + Math.sin(this.worldTime * 1.8 + wisp.phase) * 4;
       wisp.sprite.alpha = 0.48 + Math.sin(this.worldTime * 2.1 + wisp.phase) * 0.2;
@@ -397,7 +421,7 @@ export class OverworldScene {
   };
 
   private handleMovementInput(): void {
-    if (this.player.isMoving || this.handshakeState === "mismatch") {
+    if (this.dialogueOpen || this.player.isMoving || this.handshakeState === "mismatch") {
       return;
     }
 
@@ -426,10 +450,11 @@ export class OverworldScene {
 
   private updateInteractionHint(): void {
     if (this.handshakeState === "mismatch") return;
+    if (this.dialogueOpen) { this.interactionLabel.text = ""; return; }
     if (this.interactionStatus) { this.interactionLabel.text = this.interactionStatus; return; }
     const facingTile = this.player.getFacingTile();
     const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
-    const facingGuide = facingTile.x === GUIDE.x && facingTile.y === GUIDE.y;
+    const facingGuide = !this.npc.isMoving && facingTile.x === this.npc.gridX && facingTile.y === this.npc.gridY;
     this.interactionLabel.text = facingGuide
       ? `Press A: ${this.flags["npc.guide.met"] ? "Guide ✓" : "Guide"}`
       : interactionTile?.event ? `Press A: ${interactionTile.event.label}` : "";
@@ -472,9 +497,9 @@ export class OverworldScene {
   };
 
   private interact(): void {
-    if (this.handshakeState === "mismatch") return;
+    if (this.dialogueOpen || this.handshakeState === "mismatch") return;
     const facing = this.player.getFacingTile();
-    if (facing.x === GUIDE.x && facing.y === GUIDE.y) {
+    if (!this.npc.isMoving && facing.x === this.npc.gridX && facing.y === this.npc.gridY) {
       this.interactionStatus = "Talking…";
       void send("TALK_NPC", { npcId: GUIDE.npcId }).finally(() => { this.interactionStatus = null; });
       return;
@@ -508,6 +533,12 @@ export class OverworldScene {
   };
 
   private handleNativeMessage = (message: { type: string; payload: Record<string, unknown> }): void => {
+    if (message.type === "DIALOGUE_STATE") {
+      if (isDialogueStatePayload(message.payload) && message.payload.npcId === GUIDE.npcId) {
+        this.setDialogueOpen(message.payload.open);
+      }
+      return;
+    }
     if (message.type !== "STORY_STATE") return;
     const state = message.payload;
     if (!isStoryStatePayload(state)) return;
@@ -524,10 +555,21 @@ export class OverworldScene {
       if (point?.mapId === "hangar-town" && this.tileMap.isWithinBounds(point.x, point.y)
         && this.tileMap.isWalkable(point.x, point.y)) {
         this.player.moveTo(point.x, point.y, point.facing);
+        this.companion.snapBehind(this.player, this.tileMap);
         this.lastPlayerTile = `${point.x},${point.y}`;
       }
     }
   };
+
+  private setDialogueOpen(open: boolean): void {
+    this.dialogueOpen = open;
+    this.dpad?.setHidden(open);
+    this.heldDirections.clear();
+    if (open) this.keyState.clear();
+    if (this.dialogueTimer) window.clearTimeout(this.dialogueTimer);
+    this.dialogueTimer = undefined;
+    if (open) this.dialogueTimer = window.setTimeout(() => this.setDialogueOpen(false), 90_000);
+  }
 
   private onVisibilityChange = (): void => {
     if (document.visibilityState === "visible") this.handshake.resume();

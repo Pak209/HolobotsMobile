@@ -13,10 +13,13 @@ export const mountDPad = (container: HTMLElement, scene: OverworldScene, onFirst
   const root = document.createElement("div");
   const held = new Map<number, Direction>();
   let pressed = false;
-  const base = "position:fixed;width:60px;height:60px;background:#050606;color:#f0bf14;border:2px solid #f0bf14;border-radius:0;font:bold 24px monospace;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;z-index:20";
+  root.style.cssText = "position:fixed;inset:0;z-index:20;pointer-events:none;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none";
+  const base = "position:fixed;width:50px;height:50px;background:rgba(5,6,6,.55);color:#fef1e0;border:1.5px solid rgba(23,217,255,.85);border-radius:0;font:bold 20px monospace;backdrop-filter:blur(2px);pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;z-index:20";
   const positions: Record<Direction, string> = {
-    up: "left:68px;bottom:132px", down: "left:68px;bottom:8px",
-    left: "left:6px;bottom:70px", right: "left:130px;bottom:70px",
+    up: "left:calc(env(safe-area-inset-left,0px) + 62px);bottom:calc(env(safe-area-inset-bottom,0px) + 112px)",
+    down: "left:calc(env(safe-area-inset-left,0px) + 62px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px)",
+    left: "left:calc(env(safe-area-inset-left,0px) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 60px)",
+    right: "left:calc(env(safe-area-inset-left,0px) + 114px);bottom:calc(env(safe-area-inset-bottom,0px) + 60px)",
   };
   const first = () => { if (!pressed) { pressed = true; onFirstPress(); } };
   for (const direction of ["up", "down", "left", "right"] as Direction[]) {
@@ -38,12 +41,20 @@ export const mountDPad = (container: HTMLElement, scene: OverworldScene, onFirst
   }
   const action = document.createElement("button");
   action.textContent = "A"; action.setAttribute("aria-label", "Interact");
-  action.style.cssText = `${base};right:18px;bottom:28px;width:64px;height:64px`;
+  action.style.cssText = `${base};right:calc(env(safe-area-inset-right,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 28px);border-color:#f0bf14`;
   action.onpointerdown = (event) => { event.preventDefault(); first(); scene.pressInteract(); };
   bindTouchStart(action);
   bindTouchStart(root);
   root.addEventListener("touchmove", prevent, { passive: false });
   root.addEventListener("contextmenu", prevent);
   root.appendChild(action); container.appendChild(root);
-  return () => { held.forEach((direction) => scene.setDirectionHeld(direction, false)); root.remove(); };
+  return {
+    destroy: () => { held.forEach((direction) => scene.setDirectionHeld(direction, false)); root.remove(); },
+    setHidden: (hidden: boolean) => {
+      if (hidden) held.forEach((direction) => scene.setDirectionHeld(direction, false));
+      root.style.opacity = hidden ? "0" : "1";
+      root.style.pointerEvents = "none";
+      root.style.display = hidden ? "none" : "block";
+    },
+  };
 };

@@ -27,11 +27,13 @@ const reachable = (map: TileMap, start: [number, number]): Set<string> => {
 describe("H3 plaza collision", () => {
   it("keeps every building entrance and the guide reachable", () => {
     const map = new TileMap();
+    map.setOccupant(GUIDE.npcId, GUIDE.x, GUIDE.y);
     const seen = reachable(map, [10, 10]);
     for (const id of ["arena", "gacha", "trainingLab", "pvpTerminal", "h3Core"] as BuildingEventId[]) {
       const { x, y } = getEntrancePosition(id);
       expect(seen.has(`${x},${y}`), id).toBe(true);
     }
+    expect(map.isWalkable(GUIDE.x, GUIDE.y)).toBe(false);
     expect(seen.has(`${GUIDE.x},${GUIDE.y + 1}`)).toBe(true);
   });
 
