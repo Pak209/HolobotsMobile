@@ -1,4 +1,8 @@
-export const STORY_PROTOCOL_VERSION = 1 as const;
+import type { MapDescriptor } from "./mapDescriptor";
+
+export const ENVELOPE_VERSION = 1 as const;
+export const STORY_PROTOCOL_VERSION = 2 as const;
+export const STORY_SUPPORTED_PROTOCOL_VERSIONS = [1, 2] as const;
 
 export type Ack = { v: 1; replyTo: string; ok: boolean; error?: string };
 export type StoryCheckpoint = {
@@ -27,14 +31,15 @@ const makeId = () => globalThis.crypto?.randomUUID?.()
 
 export const isAck = (value: unknown): value is Ack => {
   const candidate = value as Partial<Ack> | null;
-  return !!candidate && candidate.v === 1 && typeof candidate.replyTo === "string" && typeof candidate.ok === "boolean";
+  return !!candidate && candidate.v === ENVELOPE_VERSION
+    && typeof candidate.replyTo === "string" && typeof candidate.ok === "boolean";
 };
 
 export const parseNativeMessage = (data: unknown): NativeMessage | null => {
   try {
     const value = typeof data === "string" ? JSON.parse(data) : data;
     const candidate = value as Partial<NativeMessage> | null;
-    return candidate?.v === 1 && typeof candidate.id === "string" && typeof candidate.type === "string"
+    return candidate?.v === ENVELOPE_VERSION && typeof candidate.id === "string" && typeof candidate.type === "string"
       && !!candidate.payload && typeof candidate.payload === "object" ? candidate as NativeMessage : null;
   } catch {
     return null;
@@ -73,9 +78,16 @@ export const isNativeBridgeAvailable = () => typeof window.ReactNativeWebView?.p
 export const isProtocolMismatchError = (error: unknown): boolean =>
   error instanceof Error && error.message === "PROTOCOL_MISMATCH";
 
+export const createEnvelope = (type: string, payload: Record<string, unknown>) => ({
+  v: ENVELOPE_VERSION,
+  id: makeId(),
+  type,
+  payload,
+});
+
 export const send = (type: string, payload: Record<string, unknown>): Promise<Ack> => {
-  const id = makeId();
-  const envelope = { v: STORY_PROTOCOL_VERSION, id, type, payload };
+  const envelope = createEnvelope(type, payload);
+  const { id } = envelope;
   if (!isNativeBridgeAvailable()) {
     console.info("[StoryBridge] desktop", envelope);
     return Promise.resolve({ v: 1, replyTo: id, ok: true });
@@ -102,7 +114,10 @@ export const onMessage = (handler: (message: NativeMessage) => void) => listen((
   if (message) handler(message);
 });
 
-export const hello = (buildHash: string) => send("BRIDGE_HELLO", {
+export const buildHelloPayload = (buildHash: string, map?: MapDescriptor) => ({
   protocolVersion: STORY_PROTOCOL_VERSION,
   buildHash,
+  map,
 });
+
+export const hello = (buildHash: string, map?: MapDescriptor) => send("BRIDGE_HELLO", buildHelloPayload(buildHash, map));

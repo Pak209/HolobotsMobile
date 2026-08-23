@@ -11,7 +11,7 @@ import { TileMap } from "./TileMap";
 import { TILE_COLORS, TILE_SIZE, type Direction } from "./TileTypes";
 import { loadTextureRegistry, type TextureRegistry } from "./assets/textureRegistry";
 import {
-  STORY_PROTOCOL_VERSION,
+  STORY_SUPPORTED_PROTOCOL_VERSIONS,
   hello,
   isDialogueStatePayload,
   isNativeBridgeAvailable,
@@ -21,9 +21,12 @@ import {
   send,
 } from "./bridge/storyBridge";
 import { createHandshakeController, type HandshakeState } from "./bridge/handshake";
+import { buildMapDescriptor } from "./bridge/mapDescriptor";
+import { createTrailingThrottle } from "./bridge/throttle";
 import { Companion } from "./characters/Companion";
+import { AMBIENT_PALETTES, NPC_PALETTE } from "./characters/tempSheets";
 import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza";
-import { GUIDE } from "./maps/npcs";
+import { AMBIENT_NPCS, GUIDE } from "./maps/npcs";
 import { mountDPad } from "./ui/DPad";
 
 type ResizeTarget = Pick<HTMLElement, "clientWidth" | "clientHeight">;
@@ -38,6 +41,8 @@ const MOVE_KEYS: Record<string, Direction> = {
   s: "down",
   d: "right",
 };
+const PLAZA_CELLS = new Set(terrain.map(({ x, y }) => `${x},${y}`));
+type PlayerPosition = { x: number; y: number; facing: Direction; zone: string };
 
 export interface OverworldSceneOptions {
   mountNode: HTMLElement;
@@ -52,6 +57,7 @@ export class OverworldScene {
   readonly tileMap: TileMap;
   readonly player: Player;
   readonly npc: Npc;
+  readonly ambientNpcs: Npc[];
   readonly companion: Companion;
 
   private readonly mountNode: HTMLElement;
@@ -81,6 +87,8 @@ export class OverworldScene {
   private storyStateMismatch = false;
   private dialogueOpen = false;
   private readonly handshake: ReturnType<typeof createHandshakeController>;
+  private readonly playerPosThrottle: ReturnType<typeof createTrailingThrottle<PlayerPosition>>;
+  private lastPlayerPosKey = "";
   private lastPlayerTile: string;
   private worldTime = 0;
   private readonly wisps: Array<{ sprite: Sprite; baseY: number; phase: number }> = [];
@@ -95,8 +103,14 @@ export class OverworldScene {
     this.app = app;
     this.mountNode = options.mountNode;
     this.tileMap = new TileMap();
+    const mapDescriptor = buildMapDescriptor(this.tileMap);
     this.player = new Player({ x: 10, y: 10 });
-    this.npc = new Npc(this.tileMap);
+    this.npc = new Npc(this.tileMap, {
+      id: GUIDE.npcId, home: { x: GUIDE.x, y: GUIDE.y }, palette: NPC_PALETTE, interactive: true,
+    });
+    this.ambientNpcs = AMBIENT_NPCS.map((npc) => new Npc(this.tileMap, {
+      id: npc.id, home: npc.home, palette: AMBIENT_PALETTES[npc.palette], interactive: false,
+    }));
     this.companion = new Companion(this.player, this.tileMap);
     this.textures = textures;
     this.lastPlayerTile = `${this.player.gridX},${this.player.gridY}`;
@@ -109,10 +123,13 @@ export class OverworldScene {
     this.handshakeBanner.hidden = true;
     this.mountNode.appendChild(this.handshakeBanner);
     this.handshake = createHandshakeController({
-      sendHello: () => hello(options.buildHash ?? "dev"),
+      sendHello: () => hello(options.buildHash ?? "dev", mapDescriptor),
       isMismatchError: isProtocolMismatchError,
       onStateChange: this.renderHandshakeBanner,
     });
+    this.playerPosThrottle = createTrailingThrottle((position: PlayerPosition) => {
+      void send("PLAYER_POS", position).catch(console.warn);
+    }, 150);
 
     this.world = new Container();
     this.actors.sortableChildren = true;
@@ -137,6 +154,7 @@ export class OverworldScene {
     this.actors.addChild(this.player.sprite);
     this.actors.addChild(this.companion.sprite);
     this.actors.addChild(this.npc.sprite);
+    for (const npc of this.ambientNpcs) this.actors.addChild(npc.sprite);
     this.interactionIndicator = new Sprite(this.textures.prop("data-wisp"));
     this.interactionIndicator.anchor.set(0.5);
     this.interactionIndicator.scale.set(this.textures.PROP_SCALE * 0.45);
@@ -203,6 +221,7 @@ export class OverworldScene {
     window.removeEventListener("keyup", this.onKeyUp);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.handshake.dispose();
+    this.playerPosThrottle.dispose();
     this.handshakeBanner.remove();
     this.bridgeCleanup?.();
     this.dpad?.destroy();
@@ -398,6 +417,7 @@ export class OverworldScene {
     this.player.sprite.zIndex = this.player.pixelY + TILE_SIZE;
     this.companion.update(this.player, this.tileMap, deltaSeconds, performance.now());
     this.npc.update(deltaSeconds, this.tileMap, this.player, this.dialogueOpen);
+    for (const npc of this.ambientNpcs) npc.update(deltaSeconds, this.tileMap, this.player, this.dialogueOpen);
     const adjacentNpc = Math.abs(this.player.gridX - this.npc.gridX) + Math.abs(this.player.gridY - this.npc.gridY) === 1;
     if (adjacentNpc) this.npc.facePlayer(this.player);
     if (this.interactionIndicator) {
@@ -416,6 +436,7 @@ export class OverworldScene {
       this.coreGlow.sprite.scale.set(this.coreGlow.baseScale * pulse);
       this.coreGlow.sprite.alpha = 0.58 + Math.sin(this.worldTime * 2.2) * 0.16;
     }
+    this.reportPlayerPosition();
     this.updateInteractionHint();
     this.updateCamera();
   };
@@ -526,6 +547,19 @@ export class OverworldScene {
     }, 2000);
   }
 
+  private reportPlayerPosition(): void {
+    if (this.handshakeState === "mismatch") return;
+    const key = `${this.player.gridX},${this.player.gridY},${this.player.direction}`;
+    if (key === this.lastPlayerPosKey) return;
+    this.lastPlayerPosKey = key;
+    this.playerPosThrottle.push({
+      x: this.player.gridX,
+      y: this.player.gridY,
+      facing: this.player.direction,
+      zone: PLAZA_CELLS.has(`${this.player.gridX},${this.player.gridY}`) ? "H3 Plaza" : "Hangar District",
+    });
+  }
+
   private markDpadSeen = (): void => {
     if (this.flags["ui.dpad_seen"]) return;
     this.flags["ui.dpad_seen"] = true;
@@ -542,7 +576,7 @@ export class OverworldScene {
     if (message.type !== "STORY_STATE") return;
     const state = message.payload;
     if (!isStoryStatePayload(state)) return;
-    if (state.protocolVersion !== STORY_PROTOCOL_VERSION) {
+    if (!STORY_SUPPORTED_PROTOCOL_VERSIONS.includes(state.protocolVersion as 1 | 2)) {
       this.storyStateMismatch = true;
       this.renderHandshakeBanner("mismatch", { attempt: 0, error: "PROTOCOL_MISMATCH" });
       return;
@@ -581,6 +615,7 @@ export class OverworldScene {
   ): void => {
     if (this.storyStateMismatch && state !== "mismatch") return;
     this.handshakeState = state;
+    if (state === "mismatch") this.lastPlayerPosKey = "";
     this.handshakeBanner.style.borderColor = state === "mismatch" ? "#ff4d39" : "#f0bf14";
     if (state === "connected" || (state === "connecting" && (detail?.attempt ?? 1) <= 1)) {
       this.handshakeBanner.hidden = true;

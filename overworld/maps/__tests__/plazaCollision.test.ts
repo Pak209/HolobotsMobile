@@ -5,7 +5,7 @@ import { triggerBuildingEvent, type BuildingCallbacks } from "../../Interactions
 import { TileMap, getEntrancePosition } from "../../TileMap";
 import type { BuildingEventId } from "../../TileTypes";
 import { blocked, canals, details, h3, props, terrain, TILING_BASES } from "../h3Plaza";
-import { GUIDE } from "../npcs";
+import { AMBIENT_NPCS, GUIDE } from "../npcs";
 
 const reachable = (map: TileMap, start: [number, number]): Set<string> => {
   const seen = new Set([start.join(",")]);
@@ -28,6 +28,7 @@ describe("H3 plaza collision", () => {
   it("keeps every building entrance and the guide reachable", () => {
     const map = new TileMap();
     map.setOccupant(GUIDE.npcId, GUIDE.x, GUIDE.y);
+    for (const npc of AMBIENT_NPCS) map.setOccupant(npc.id, npc.home.x, npc.home.y);
     const seen = reachable(map, [10, 10]);
     for (const id of ["arena", "gacha", "trainingLab", "pvpTerminal", "h3Core"] as BuildingEventId[]) {
       const { x, y } = getEntrancePosition(id);
