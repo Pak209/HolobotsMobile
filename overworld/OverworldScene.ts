@@ -13,10 +13,12 @@ import {
   STORY_PROTOCOL_VERSION,
   hello,
   isNativeBridgeAvailable,
+  isProtocolMismatchError,
   isStoryStatePayload,
   onMessage,
   send,
 } from "./bridge/storyBridge";
+import { createHandshakeController, type HandshakeState } from "./bridge/handshake";
 import { mountDPad } from "./ui/DPad";
 
 type ResizeTarget = Pick<HTMLElement, "clientWidth" | "clientHeight">;
@@ -50,6 +52,7 @@ export class OverworldScene {
   private readonly world: Container;
   private readonly hud: Container;
   private readonly interactionLabel: Text;
+  private readonly handshakeBanner: HTMLDivElement;
   private readonly keyState = new Set<string>();
   private readonly heldDirections = new Set<Direction>();
   private callbacks: BuildingCallbacks;
@@ -59,7 +62,9 @@ export class OverworldScene {
   private checkpointApplied = false;
   private interactionStatus: string | null = null;
   private flags: Record<string, boolean> = {};
-  private protocolMismatch = false;
+  private handshakeState: HandshakeState = "connecting";
+  private storyStateMismatch = false;
+  private readonly handshake: ReturnType<typeof createHandshakeController>;
   private lastPlayerTile: string;
 
   private resizeTarget?: ResizeTarget;
@@ -77,6 +82,15 @@ export class OverworldScene {
       ...createDefaultBuildingCallbacks(),
       ...options.callbacks,
     };
+    this.handshakeBanner = document.createElement("div");
+    this.handshakeBanner.style.cssText = "position:fixed;left:50%;top:max(calc(env(safe-area-inset-top,0px) + 16px),56px);transform:translateX(-50%);max-width:88vw;padding:10px 14px;background:#050606;color:#f0bf14;border:2px solid #f0bf14;border-radius:0;font:bold 13px monospace;letter-spacing:1.5px;text-align:center;z-index:30;pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none";
+    this.handshakeBanner.hidden = true;
+    this.mountNode.appendChild(this.handshakeBanner);
+    this.handshake = createHandshakeController({
+      sendHello: () => hello(options.buildHash ?? "dev"),
+      isMismatchError: isProtocolMismatchError,
+      onStateChange: this.renderHandshakeBanner,
+    });
 
     this.world = new Container();
     this.hud = new Container();
@@ -103,9 +117,10 @@ export class OverworldScene {
     this.app.ticker.add(this.update);
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
     this.bridgeCleanup = onMessage(this.handleNativeMessage);
     this.dpadCleanup = mountDPad(this.mountNode, this, this.markDpadSeen);
-    void hello(options.buildHash ?? "dev").catch(() => this.showProtocolMismatch());
+    this.handshake.start();
 
     this.setViewport(options.width, options.height);
     this.update({ deltaMS: 0 });
@@ -153,6 +168,9 @@ export class OverworldScene {
     this.app.ticker.remove(this.update);
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.handshake.dispose();
+    this.handshakeBanner.remove();
     this.bridgeCleanup?.();
     this.dpadCleanup?.();
     if (this.checkpointTimer) window.clearTimeout(this.checkpointTimer);
@@ -475,7 +493,7 @@ export class OverworldScene {
   };
 
   private handleMovementInput(): void {
-    if (this.player.isMoving || this.protocolMismatch) {
+    if (this.player.isMoving || this.handshakeState === "mismatch") {
       return;
     }
 
@@ -503,7 +521,7 @@ export class OverworldScene {
   }
 
   private updateInteractionHint(): void {
-    if (this.protocolMismatch) return;
+    if (this.handshakeState === "mismatch") return;
     if (this.interactionStatus) { this.interactionLabel.text = this.interactionStatus; return; }
     const facingTile = this.player.getFacingTile();
     const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
@@ -550,7 +568,7 @@ export class OverworldScene {
   };
 
   private interact(): void {
-    if (this.protocolMismatch) return;
+    if (this.handshakeState === "mismatch") return;
     const facing = this.player.getFacingTile();
     if (facing.x === GUIDE.x && facing.y === GUIDE.y) {
       this.interactionStatus = "Talking…";
@@ -589,7 +607,11 @@ export class OverworldScene {
     if (message.type !== "STORY_STATE") return;
     const state = message.payload;
     if (!isStoryStatePayload(state)) return;
-    if (state.protocolVersion !== STORY_PROTOCOL_VERSION) { this.showProtocolMismatch(); return; }
+    if (state.protocolVersion !== STORY_PROTOCOL_VERSION) {
+      this.storyStateMismatch = true;
+      this.renderHandshakeBanner("mismatch", { attempt: 0, error: "PROTOCOL_MISMATCH" });
+      return;
+    }
     this.flags = state.flags && typeof state.flags === "object" ? state.flags : {};
     this.npc.setMet(this.flags["npc.guide.met"] === true);
     const point = state.checkpoint;
@@ -603,10 +625,28 @@ export class OverworldScene {
     }
   };
 
-  private showProtocolMismatch(): void {
-    this.protocolMismatch = true;
-    this.interactionLabel.text = "STORY MODE UPDATE REQUIRED";
-  }
+  private onVisibilityChange = (): void => {
+    if (document.visibilityState === "visible") this.handshake.resume();
+  };
+
+  private renderHandshakeBanner = (
+    state: HandshakeState,
+    detail?: { attempt: number; error?: string },
+  ): void => {
+    if (this.storyStateMismatch && state !== "mismatch") return;
+    this.handshakeState = state;
+    this.handshakeBanner.style.borderColor = state === "mismatch" ? "#ff4d39" : "#f0bf14";
+    if (state === "connected" || (state === "connecting" && (detail?.attempt ?? 1) <= 1)) {
+      this.handshakeBanner.hidden = true;
+      return;
+    }
+    this.handshakeBanner.hidden = false;
+    this.handshakeBanner.textContent = state === "mismatch"
+      ? "STORY MODE UPDATE REQUIRED — protocol mismatch"
+      : state === "reconnecting"
+        ? `RECONNECTING… (attempt ${detail?.attempt ?? 1})`
+        : "CONNECTING…";
+  };
 }
 
 const clamp = (value: number, min: number, max: number): number =>
