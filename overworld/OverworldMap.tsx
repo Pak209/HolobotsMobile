@@ -4,6 +4,7 @@ import type { BuildingCallbacks } from "./Interactions";
 import { OverworldScene } from "./OverworldScene";
 
 export interface OverworldMapProps {
+  buildHash?: string;
   width?: number;
   height?: number;
   className?: string;
@@ -15,6 +16,7 @@ export const OverworldMap = ({
   height,
   className,
   callbacks,
+  buildHash = "dev",
 }: OverworldMapProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<OverworldScene | null>(null);
@@ -34,6 +36,7 @@ export const OverworldMap = ({
         width,
         height,
         callbacks,
+        buildHash,
       });
 
       sceneRef.current = scene;
@@ -49,7 +52,7 @@ export const OverworldMap = ({
       sceneRef.current?.destroy();
       sceneRef.current = null;
     };
-  }, [height, width]);
+  }, [buildHash, height, width]);
 
   useEffect(() => {
     sceneRef.current?.setCallbacks(callbacks);
