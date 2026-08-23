@@ -17,6 +17,7 @@ import { LeaderboardScreen } from "./src/screens/LeaderboardScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { MarketplaceScreen } from "./src/screens/MarketplaceScreen";
 import { GachaScreen } from "./src/screens/GachaScreen";
+import { OverworldScreen } from "./src/screens/OverworldScreen";
 import { QuestsScreen } from "./src/screens/QuestsScreen";
 import { TrainingScreen } from "./src/screens/TrainingScreen";
 import { fitnessAssetList } from "./src/config/figmaAssets";
@@ -30,6 +31,7 @@ export type RootTabs = {
   Inventory: undefined;
   Leaderboard: undefined;
   Marketplace: undefined;
+  Overworld: undefined;
   Quests: undefined;
   Training: undefined;
 };
@@ -87,6 +89,7 @@ function AuthedApp({ fitnessAssetsReady }: { fitnessAssetsReady: boolean }) {
           <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
           <Tab.Screen name="Training" component={TrainingScreen} />
           <Tab.Screen name="Quests" component={QuestsScreen} />
+          <Tab.Screen name="Overworld" component={OverworldScreen} />
         </Tab.Navigator>
       </NavigationContainer>
       <WatchRewardsSyncModal

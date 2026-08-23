@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
@@ -86,6 +86,16 @@ export function HomeCogButton({
             </View>
           </Pressable>
         ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open story mode overworld"
+          onPress={() => navigation.navigate("Overworld")}
+          style={styles.button}
+        >
+          <View style={styles.inner}>
+            <Text style={styles.storyLabel}>STORY</Text>
+          </View>
+        </Pressable>
         {onOpenPvp ? (
           <Pressable
             accessibilityRole="button"
@@ -147,5 +157,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
+  },
+  storyLabel: {
+    color: "#f0bf14",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.5,
   },
 });
