@@ -21,28 +21,45 @@ export const MINIMAP_SIZE = 96;
 const RING_R = 44;
 const CENTER = MINIMAP_SIZE / 2;
 const INNER = RING_R * 2 - 4;
+/** Display grid cap (Round E): 56×40 world → 2×-downsampled 28×20 blocks (560 rects, not 2,240). */
+const MAX_DISPLAY = 28;
 const FACING_DEG: Record<MinimapPlayer["facing"], number> = { up: 0, right: 90, down: 180, left: 270 };
 
 /**
  * Round D circular minimap: static-orientation render of the overworld walkability grid
  * (sent once in BRIDGE_HELLO), cyan POI dots for building interaction zones and a gold
- * player arrow rotated by facing. Translucent ring frame, no filters.
+ * player arrow rotated by facing. Translucent ring frame, no filters. Large maps are
+ * block-downsampled for display (a block is walkable if ANY cell in it is walkable).
  */
 export function Minimap({ map, player }: MinimapProps) {
   const insets = useSafeAreaInsets();
 
-  const cells = useMemo(() => {
+  const view = useMemo(() => {
     if (!map) return null;
-    const cell = INNER / Math.max(map.width, map.height);
-    const originX = CENTER - (map.width * cell) / 2;
-    const originY = CENTER - (map.height * cell) / 2;
+    const block = Math.max(1, Math.ceil(Math.max(map.width, map.height) / MAX_DISPLAY));
+    const displayW = Math.ceil(map.width / block);
+    const displayH = Math.ceil(map.height / block);
+    const cell = INNER / Math.max(displayW, displayH);
+    const originX = CENTER - (displayW * cell) / 2;
+    const originY = CENTER - (displayH * cell) / 2;
     const rects: Array<{ key: string; x: number; y: number; walkable: boolean }> = [];
-    for (let y = 0; y < map.height; y += 1) {
-      for (let x = 0; x < map.width; x += 1) {
-        rects.push({ key: `${x},${y}`, walkable: map.walkable[y]?.[x] === true, x: originX + x * cell, y: originY + y * cell });
+    for (let by = 0; by < displayH; by += 1) {
+      for (let bx = 0; bx < displayW; bx += 1) {
+        let walkable = false;
+        for (let y = by * block; y < Math.min(map.height, (by + 1) * block) && !walkable; y += 1) {
+          for (let x = bx * block; x < Math.min(map.width, (bx + 1) * block); x += 1) {
+            if (map.walkable[y]?.[x] === true) {
+              walkable = true;
+              break;
+            }
+          }
+        }
+        rects.push({ key: `${bx},${by}`, walkable, x: originX + bx * cell, y: originY + by * cell });
       }
     }
-    return { cell, originX, originY, rects };
+    const toX = (x: number) => originX + ((x + 0.5) / block) * cell;
+    const toY = (y: number) => originY + ((y + 0.5) / block) * cell;
+    return { cell, rects, toX, toY };
   }, [map]);
 
   return (
@@ -54,32 +71,26 @@ export function Minimap({ map, player }: MinimapProps) {
           </ClipPath>
         </Defs>
         <Circle cx={CENTER} cy={CENTER} fill="rgba(5,6,6,0.55)" r={RING_R} stroke="#17d9ff" strokeWidth={1.5} />
-        {cells && map ? (
+        {view && map ? (
           <G clipPath="url(#minimap-clip)">
-            {cells.rects.map((rect) => (
+            {view.rects.map((rect) => (
               <Rect
                 fill={rect.walkable ? "rgba(23,217,255,0.18)" : "rgba(5,6,6,0.85)"}
-                height={cells.cell}
+                height={view.cell}
                 key={rect.key}
-                width={cells.cell}
+                width={view.cell}
                 x={rect.x}
                 y={rect.y}
               />
             ))}
             {map.pois.map((poi) => (
-              <Circle
-                cx={cells.originX + (poi.x + 0.5) * cells.cell}
-                cy={cells.originY + (poi.y + 0.5) * cells.cell}
-                fill="#17d9ff"
-                key={poi.id}
-                r={2.2}
-              />
+              <Circle cx={view.toX(poi.x)} cy={view.toY(poi.y)} fill="#17d9ff" key={poi.id} r={2.2} />
             ))}
             {player ? (
               <Polygon
                 fill="#f0bf14"
-                origin={`${cells.originX + (player.x + 0.5) * cells.cell}, ${cells.originY + (player.y + 0.5) * cells.cell}`}
-                points={arrowPoints(cells.originX + (player.x + 0.5) * cells.cell, cells.originY + (player.y + 0.5) * cells.cell)}
+                origin={`${view.toX(player.x)}, ${view.toY(player.y)}`}
+                points={arrowPoints(view.toX(player.x), view.toY(player.y))}
                 rotation={FACING_DEG[player.facing]}
                 stroke="#050606"
                 strokeWidth={0.6}

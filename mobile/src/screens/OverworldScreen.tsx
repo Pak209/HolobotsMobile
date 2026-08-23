@@ -52,6 +52,10 @@ const INJECTED_STORY_BRIDGE = `window.__HOLOBOTS_STORY_BRIDGE__={protocolVersion
 
 type DialogueState = { npcId: string; speakerName: string; lines: string[] } | null;
 
+// Stable identity while no dialogue is open — a fresh [] every render would
+// churn the overlay's effect deps (Round E hooks-crash hardening).
+const EMPTY_LINES: string[] = [];
+
 export function OverworldScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const { user } = useAuth();
@@ -297,7 +301,7 @@ export function OverworldScreen() {
         </>
       ) : null}
       <StoryDialogueOverlay
-        lines={dialogue?.lines ?? []}
+        lines={dialogue?.lines ?? EMPTY_LINES}
         onFinished={handleDialogueFinished}
         portrait={guidePortrait}
         speakerName={dialogue?.speakerName ?? ""}

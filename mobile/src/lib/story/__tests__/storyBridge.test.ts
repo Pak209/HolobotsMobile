@@ -91,7 +91,7 @@ describe("story bridge verb interpretation", () => {
   });
 
   it("validates checkpoints against the slice-0 map", () => {
-    expect(interpretInbound(parsed("SAVE_CHECKPOINT", { mapId: "hangar-town", x: 25, y: 3, facing: "up" }))).toEqual({
+    expect(interpretInbound(parsed("SAVE_CHECKPOINT", { mapId: "hangar-town", x: 99, y: 3, facing: "up" }))).toEqual({
       ok: false,
       error: "INVALID_CHECKPOINT",
     });
@@ -101,6 +101,8 @@ describe("story bridge verb interpretation", () => {
     });
     const good = interpretInbound(parsed("SAVE_CHECKPOINT", { mapId: "hangar-town", x: 10, y: 9, facing: "left" }));
     expect(good.ok).toBe(true);
+    const townEdge = interpretInbound(parsed("SAVE_CHECKPOINT", { mapId: "hangar-town", x: 55, y: 39, facing: "down" }));
+    expect(townEdge.ok).toBe(true);
   });
 
   it("builds contract-shaped outbound messages", () => {

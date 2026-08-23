@@ -13,7 +13,8 @@ export const STORY_PROTOCOL_VERSION = 2;
 export const STORY_SUPPORTED_PROTOCOL_VERSIONS = [1, 2] as const;
 export const STORY_ZONE_DEFAULT = "Hangar District";
 export const STORY_MAP_ID = "hangar-town";
-export const STORY_MAP_SIZE = { height: 20, width: 20 } as const;
+/** Round E: the web overworld grew to a 56×40 town; used only to validate SAVE_CHECKPOINT bounds. */
+export const STORY_MAP_SIZE = { height: 40, width: 56 } as const;
 
 /**
  * Where the Pixi overworld is loaded from. Slice 0 uses a local Vite dev server.
