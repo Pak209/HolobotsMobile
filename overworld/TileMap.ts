@@ -8,7 +8,8 @@ import {
   type TileEvent,
   type TileType,
 } from "./TileTypes";
-import { blocked, h3, terrain } from "./maps/h3Plaza";
+import { PLAZA_OFFSET, blocked, h3, terrain } from "./maps/h3Plaza";
+import { TOWN_BLOCKED, isBaseWalkable } from "./maps/townMap";
 
 export interface BuildingPlacement {
   x: number;
@@ -51,29 +52,29 @@ const fillRect = (
 
 export const BUILDINGS: BuildingPlacement[] = [
   {
-    x: 8,
-    y: 2,
+    x: 8 + PLAZA_OFFSET.x,
+    y: 2 + PLAZA_OFFSET.y,
     width: 4,
     height: 3,
     event: { id: "arena", label: "Arena" },
   },
   {
-    x: 2,
-    y: 7,
+    x: 2 + PLAZA_OFFSET.x,
+    y: 7 + PLAZA_OFFSET.y,
     width: 4,
     height: 3,
     event: { id: "gacha", label: "Gacha Hangar" },
   },
   {
-    x: 14,
-    y: 7,
+    x: 14 + PLAZA_OFFSET.x,
+    y: 7 + PLAZA_OFFSET.y,
     width: 4,
     height: 3,
     event: { id: "trainingLab", label: "Training Lab" },
   },
   {
-    x: 14,
-    y: 14,
+    x: 14 + PLAZA_OFFSET.x,
+    y: 14 + PLAZA_OFFSET.y,
     width: 4,
     height: 3,
     event: { id: "pvpTerminal", label: "PvP Terminal" },
@@ -89,33 +90,8 @@ export const BUILDINGS: BuildingPlacement[] = [
 
 const buildBaseMap = (): Tile[][] => {
   const tiles = Array.from({ length: MAP_HEIGHT }, (_, y) =>
-    Array.from({ length: MAP_WIDTH }, (_, x) => createTile(x, y, "grass")),
+    Array.from({ length: MAP_WIDTH }, (_, x) => createTile(x, y, isBaseWalkable(x, y) ? "path" : "wall")),
   );
-
-  for (let x = 0; x < MAP_WIDTH; x += 1) {
-    setTile(tiles, x, 0, "wall");
-    setTile(tiles, x, MAP_HEIGHT - 1, "wall");
-  }
-
-  for (let y = 0; y < MAP_HEIGHT; y += 1) {
-    setTile(tiles, 0, y, "wall");
-    setTile(tiles, MAP_WIDTH - 1, y, "wall");
-  }
-
-  fillRect(tiles, 9, 1, 2, 18, "path");
-  fillRect(tiles, 2, 10, 16, 2, "path");
-  fillRect(tiles, 6, 8, 8, 4, "path");
-  fillRect(tiles, 3, 10, 3, 2, "path");
-  fillRect(tiles, 14, 10, 3, 2, "path");
-  fillRect(tiles, 14, 12, 3, 2, "path");
-  fillRect(tiles, 7, 5, 6, 1, "path");
-  fillRect(tiles, 7, 6, 6, 1, "path");
-  fillRect(tiles, 3, 16, 8, 2, "path");
-
-  fillRect(tiles, 1, 16, 2, 3, "water");
-  fillRect(tiles, 17, 16, 2, 3, "water");
-  fillRect(tiles, 1, 1, 2, 2, "water");
-  fillRect(tiles, 17, 1, 2, 2, "water");
 
   for (const building of BUILDINGS) {
     fillRect(tiles, building.x, building.y, building.width, building.height, "building");
@@ -133,6 +109,7 @@ const buildBaseMap = (): Tile[][] => {
   for (const [x, y] of blocked) {
     setTile(tiles, x, y, "prop");
   }
+  for (const [x, y] of TOWN_BLOCKED) setTile(tiles, x, y, "prop");
 
   return tiles;
 };
@@ -140,13 +117,13 @@ const buildBaseMap = (): Tile[][] => {
 export const getEntrancePosition = (eventId: BuildingEventId): { x: number; y: number } => {
   switch (eventId) {
     case "arena":
-      return { x: 10, y: 5 };
+      return { x: 10 + PLAZA_OFFSET.x, y: 5 + PLAZA_OFFSET.y };
     case "gacha":
-      return { x: 4, y: 10 };
+      return { x: 4 + PLAZA_OFFSET.x, y: 10 + PLAZA_OFFSET.y };
     case "trainingLab":
-      return { x: 15, y: 10 };
+      return { x: 15 + PLAZA_OFFSET.x, y: 10 + PLAZA_OFFSET.y };
     case "pvpTerminal":
-      return { x: 15, y: 13 };
+      return { x: 15 + PLAZA_OFFSET.x, y: 13 + PLAZA_OFFSET.y };
     case "h3Core":
       return { x: h3.interaction[0], y: h3.interaction[1] };
     default:

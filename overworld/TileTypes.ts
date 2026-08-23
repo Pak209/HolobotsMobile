@@ -1,6 +1,6 @@
 export const TILE_SIZE = 32;
-export const MAP_WIDTH = 20;
-export const MAP_HEIGHT = 20;
+export const MAP_WIDTH = 56;
+export const MAP_HEIGHT = 40;
 
 export type TileType = "grass" | "path" | "building" | "water" | "wall" | "npc" | "prop";
 export type Direction = "up" | "down" | "left" | "right";

@@ -29,7 +29,7 @@ describe("H3 plaza collision", () => {
     const map = new TileMap();
     map.setOccupant(GUIDE.npcId, GUIDE.x, GUIDE.y);
     for (const npc of AMBIENT_NPCS) map.setOccupant(npc.id, npc.home.x, npc.home.y);
-    const seen = reachable(map, [10, 10]);
+    const seen = reachable(map, [28, 20]);
     for (const id of ["arena", "gacha", "trainingLab", "pvpTerminal", "h3Core"] as BuildingEventId[]) {
       const { x, y } = getEntrancePosition(id);
       expect(seen.has(`${x},${y}`), id).toBe(true);

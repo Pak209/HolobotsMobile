@@ -15,8 +15,13 @@ describe("map descriptor", () => {
 
   it("includes all five POIs and stays below one kilobyte", () => {
     const descriptor = buildMapDescriptor(new TileMap());
-    for (const id of ["arena", "gacha", "trainingLab", "pvpTerminal", "h3Core"] as const) {
-      expect(descriptor.pois).toContainEqual({ id, ...getEntrancePosition(id) });
+    const expected = {
+      arena: { x: 28, y: 15 }, gacha: { x: 22, y: 20 }, trainingLab: { x: 33, y: 20 },
+      pvpTerminal: { x: 33, y: 23 }, h3Core: { x: 28, y: 24 },
+    } as const;
+    for (const id of Object.keys(expected) as Array<keyof typeof expected>) {
+      expect(getEntrancePosition(id)).toEqual(expected[id]);
+      expect(descriptor.pois).toContainEqual({ id, ...expected[id] });
     }
     expect(JSON.stringify(descriptor).length).toBeLessThan(1024);
   });
