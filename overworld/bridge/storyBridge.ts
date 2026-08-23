@@ -64,6 +64,9 @@ const listen = (handler: (event: MessageEvent) => void) => {
 
 export const isNativeBridgeAvailable = () => typeof window.ReactNativeWebView?.postMessage === "function";
 
+export const isProtocolMismatchError = (error: unknown): boolean =>
+  error instanceof Error && error.message === "PROTOCOL_MISMATCH";
+
 export const send = (type: string, payload: Record<string, unknown>): Promise<Ack> => {
   const id = makeId();
   const envelope = { v: STORY_PROTOCOL_VERSION, id, type, payload };
