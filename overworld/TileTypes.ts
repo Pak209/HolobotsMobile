@@ -2,9 +2,9 @@ export const TILE_SIZE = 32;
 export const MAP_WIDTH = 20;
 export const MAP_HEIGHT = 20;
 
-export type TileType = "grass" | "path" | "building" | "water" | "wall";
+export type TileType = "grass" | "path" | "building" | "water" | "wall" | "npc";
 export type Direction = "up" | "down" | "left" | "right";
-export type BuildingEventId = "arena" | "deckBuilder" | "pvpTerminal" | "trainingLab";
+export type BuildingEventId = "arena" | "gacha" | "pvpTerminal" | "trainingLab";
 
 export interface TileEvent {
   id: BuildingEventId;
@@ -19,11 +19,12 @@ export interface Tile {
 }
 
 export const TILE_COLORS: Record<TileType, number> = {
-  grass: 0x4c9a3b,
+  grass: 0x1d1f24,
   path: 0x8b5a2b,
   building: 0x707070,
   water: 0x2a70c9,
   wall: 0x353535,
+  npc: 0x1d1f24,
 };
 
 export const WALKABLE_TILE_TYPES: readonly TileType[] = ["grass", "path"];

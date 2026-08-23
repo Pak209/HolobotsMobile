@@ -8,6 +8,7 @@ import {
   type TileEvent,
   type TileType,
 } from "./TileTypes";
+import { GUIDE } from "./Npc";
 
 export interface BuildingPlacement {
   x: number;
@@ -61,7 +62,7 @@ const BUILDINGS: BuildingPlacement[] = [
     y: 7,
     width: 4,
     height: 3,
-    event: { id: "deckBuilder", label: "Deck Builder" },
+    event: { id: "gacha", label: "Gacha Hangar" },
   },
   {
     x: 14,
@@ -113,6 +114,8 @@ const buildBaseMap = (): Tile[][] => {
     fillRect(tiles, building.x, building.y, building.width, building.height, "building");
   }
 
+  setTile(tiles, GUIDE.x, GUIDE.y, "npc");
+
   return tiles;
 };
 
@@ -120,7 +123,7 @@ const getEntrancePosition = (eventId: BuildingEventId): { x: number; y: number }
   switch (eventId) {
     case "arena":
       return { x: 10, y: 5 };
-    case "deckBuilder":
+    case "gacha":
       return { x: 4, y: 10 };
     case "trainingLab":
       return { x: 15, y: 10 };
@@ -162,6 +165,10 @@ export class TileMap {
     return this.getTile(x, y)?.walkable ?? false;
   }
 
+  isWithinBounds(x: number, y: number): boolean {
+    return x >= 0 && x < this.width && y >= 0 && y < this.height;
+  }
+
   getInteractionTile(x: number, y: number): Tile | undefined {
     const tile = this.getTile(x, y);
     return tile?.event ? tile : undefined;
@@ -169,10 +176,6 @@ export class TileMap {
 
   getBuildingPlacements(): readonly BuildingPlacement[] {
     return BUILDINGS;
-  }
-
-  private isWithinBounds(x: number, y: number): boolean {
-    return x >= 0 && x < this.width && y >= 0 && y < this.height;
   }
 
   private applyEntrances(): void {

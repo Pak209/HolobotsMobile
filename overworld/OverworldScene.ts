@@ -6,8 +6,18 @@ import {
   type BuildingCallbacks,
 } from "./Interactions";
 import { Player } from "./Player";
+import { GUIDE, Npc } from "./Npc";
 import { TileMap, type BuildingPlacement } from "./TileMap";
 import { TILE_COLORS, TILE_SIZE, type Direction } from "./TileTypes";
+import {
+  STORY_PROTOCOL_VERSION,
+  hello,
+  isNativeBridgeAvailable,
+  isStoryStatePayload,
+  onMessage,
+  send,
+} from "./bridge/storyBridge";
+import { mountDPad } from "./ui/DPad";
 
 type ResizeTarget = Pick<HTMLElement, "clientWidth" | "clientHeight">;
 
@@ -27,19 +37,30 @@ export interface OverworldSceneOptions {
   width?: number;
   height?: number;
   callbacks?: Partial<BuildingCallbacks>;
+  buildHash?: string;
 }
 
 export class OverworldScene {
   readonly app: Application;
   readonly tileMap: TileMap;
   readonly player: Player;
+  readonly npc: Npc;
 
   private readonly mountNode: HTMLElement;
   private readonly world: Container;
   private readonly hud: Container;
   private readonly interactionLabel: Text;
   private readonly keyState = new Set<string>();
+  private readonly heldDirections = new Set<Direction>();
   private callbacks: BuildingCallbacks;
+  private bridgeCleanup?: () => void;
+  private dpadCleanup?: () => void;
+  private checkpointTimer?: number;
+  private checkpointApplied = false;
+  private interactionStatus: string | null = null;
+  private flags: Record<string, boolean> = {};
+  private protocolMismatch = false;
+  private lastPlayerTile: string;
 
   private resizeTarget?: ResizeTarget;
   private lastInteractionPressed = false;
@@ -50,6 +71,8 @@ export class OverworldScene {
     this.mountNode = options.mountNode;
     this.tileMap = new TileMap();
     this.player = new Player({ x: 10, y: 10 });
+    this.npc = new Npc();
+    this.lastPlayerTile = `${this.player.gridX},${this.player.gridY}`;
     this.callbacks = {
       ...createDefaultBuildingCallbacks(),
       ...options.callbacks,
@@ -72,6 +95,7 @@ export class OverworldScene {
     this.buildMapGraphics();
 
     this.world.addChild(this.player.sprite);
+    this.world.addChild(this.npc.sprite);
 
     this.interactionLabel.position.set(12, 12);
     this.hud.addChild(this.interactionLabel);
@@ -79,6 +103,9 @@ export class OverworldScene {
     this.app.ticker.add(this.update);
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
+    this.bridgeCleanup = onMessage(this.handleNativeMessage);
+    this.dpadCleanup = mountDPad(this.mountNode, this, this.markDpadSeen);
+    void hello(options.buildHash ?? "dev").catch(() => this.showProtocolMismatch());
 
     this.setViewport(options.width, options.height);
     this.update({ deltaMS: 0 });
@@ -111,6 +138,12 @@ export class OverworldScene {
     };
   }
 
+  setDirectionHeld(direction: Direction, held: boolean): void {
+    held ? this.heldDirections.add(direction) : this.heldDirections.delete(direction);
+  }
+
+  pressInteract(): void { this.interact(); }
+
   destroy(): void {
     if (this.destroyed) {
       return;
@@ -120,6 +153,9 @@ export class OverworldScene {
     this.app.ticker.remove(this.update);
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
+    this.bridgeCleanup?.();
+    this.dpadCleanup?.();
+    if (this.checkpointTimer) window.clearTimeout(this.checkpointTimer);
     this.player.destroy();
     this.app.destroy(true, { children: true, texture: true });
   }
@@ -179,14 +215,16 @@ export class OverworldScene {
     switch (tileType) {
       case "grass": {
         const patch = new Graphics();
-        patch.rect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4).fill(0x5dbd5c);
-        patch.rect(4, 4, TILE_SIZE - 8, TILE_SIZE - 8).fill(0x82db74);
-        patch.rect(3 + ((x + y) % 3), 7, 6, 3).fill(0x4f9747);
-        patch.rect(18, 10 + ((x * y) % 4), 5, 3).fill(0x4f9747);
-        patch.rect(9, 20, 4, 2).fill(0xb2f08f);
+        patch.rect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4).fill(0x292c33);
+        patch.rect(4, 4, TILE_SIZE - 8, TILE_SIZE - 8).fill(0x24272d);
+        patch.rect(3 + ((x + y) % 3), 7, 6, 3).fill(0x353943);
+        patch.rect(18, 10 + ((x * y) % 4), 5, 3).fill(0x353943);
+        patch.rect(9, 20, 4, 2).fill(0x444955);
         tile.addChild(patch);
         break;
       }
+      case "npc":
+        break;
       case "path": {
         const road = new Graphics();
         road.rect(1, 1, TILE_SIZE - 2, TILE_SIZE - 2).fill(0x7d859b);
@@ -437,7 +475,7 @@ export class OverworldScene {
   };
 
   private handleMovementInput(): void {
-    if (this.player.isMoving) {
+    if (this.player.isMoving || this.protocolMismatch) {
       return;
     }
 
@@ -445,7 +483,7 @@ export class OverworldScene {
 
     for (const direction of movementPriority) {
       if (this.isDirectionPressed(direction)) {
-        this.player.tryMove(direction, this.tileMap);
+        if (this.player.tryMove(direction, this.tileMap)) this.queueCheckpoint();
         return;
       }
     }
@@ -459,23 +497,20 @@ export class OverworldScene {
       return;
     }
 
-    const facingTile = this.player.getFacingTile();
-    const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
-
-    if (interactionTile?.event) {
-      triggerBuildingEvent(interactionTile.event, this.callbacks);
-    }
+    this.interact();
 
     this.lastInteractionPressed = interactionPressed;
   }
 
   private updateInteractionHint(): void {
+    if (this.protocolMismatch) return;
+    if (this.interactionStatus) { this.interactionLabel.text = this.interactionStatus; return; }
     const facingTile = this.player.getFacingTile();
     const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
-
-    this.interactionLabel.text = interactionTile?.event
-      ? `Press E: ${interactionTile.event.label}`
-      : "";
+    const facingGuide = facingTile.x === GUIDE.x && facingTile.y === GUIDE.y;
+    this.interactionLabel.text = facingGuide
+      ? `Press A: ${this.flags["npc.guide.met"] ? "Guide ✓" : "Guide"}`
+      : interactionTile?.event ? `Press A: ${interactionTile.event.label}` : "";
   }
 
   private updateCamera(): void {
@@ -495,7 +530,7 @@ export class OverworldScene {
   }
 
   private isDirectionPressed(direction: Direction): boolean {
-    return Object.entries(MOVE_KEYS).some(
+    return this.heldDirections.has(direction) || Object.entries(MOVE_KEYS).some(
       ([key, mappedDirection]) => mappedDirection === direction && this.keyState.has(key),
     );
   }
@@ -513,6 +548,65 @@ export class OverworldScene {
   private onKeyUp = (event: KeyboardEvent): void => {
     this.keyState.delete(event.key.toLowerCase());
   };
+
+  private interact(): void {
+    if (this.protocolMismatch) return;
+    const facing = this.player.getFacingTile();
+    if (facing.x === GUIDE.x && facing.y === GUIDE.y) {
+      this.interactionStatus = "Talking…";
+      void send("TALK_NPC", { npcId: GUIDE.npcId }).finally(() => { this.interactionStatus = null; });
+      return;
+    }
+    const tile = this.tileMap.getInteractionTile(facing.x, facing.y);
+    if (!tile?.event) return;
+    if (isNativeBridgeAvailable()) {
+      void send("ENTER_BUILDING", { buildingId: tile.event.id }).catch(console.warn);
+    } else {
+      void send("ENTER_BUILDING", { buildingId: tile.event.id });
+      triggerBuildingEvent(tile.event, this.callbacks);
+    }
+  }
+
+  private queueCheckpoint(): void {
+    const tile = `${this.player.gridX},${this.player.gridY}`;
+    if (tile === this.lastPlayerTile) return;
+    this.lastPlayerTile = tile;
+    if (this.checkpointTimer) window.clearTimeout(this.checkpointTimer);
+    this.checkpointTimer = window.setTimeout(() => {
+      void send("SAVE_CHECKPOINT", {
+        mapId: "hangar-town", x: this.player.gridX, y: this.player.gridY, facing: this.player.direction,
+      }).catch(console.warn);
+    }, 2000);
+  }
+
+  private markDpadSeen = (): void => {
+    if (this.flags["ui.dpad_seen"]) return;
+    this.flags["ui.dpad_seen"] = true;
+    void send("SET_STORY_FLAG", { flag: "ui.dpad_seen", value: true }).catch(console.warn);
+  };
+
+  private handleNativeMessage = (message: { type: string; payload: Record<string, unknown> }): void => {
+    if (message.type !== "STORY_STATE") return;
+    const state = message.payload;
+    if (!isStoryStatePayload(state)) return;
+    if (state.protocolVersion !== STORY_PROTOCOL_VERSION) { this.showProtocolMismatch(); return; }
+    this.flags = state.flags && typeof state.flags === "object" ? state.flags : {};
+    this.npc.setMet(this.flags["npc.guide.met"] === true);
+    const point = state.checkpoint;
+    if (!this.checkpointApplied) {
+      this.checkpointApplied = true;
+      if (point?.mapId === "hangar-town" && this.tileMap.isWithinBounds(point.x, point.y)
+        && this.tileMap.isWalkable(point.x, point.y)) {
+        this.player.moveTo(point.x, point.y, point.facing);
+        this.lastPlayerTile = `${point.x},${point.y}`;
+      }
+    }
+  };
+
+  private showProtocolMismatch(): void {
+    this.protocolMismatch = true;
+    this.interactionLabel.text = "STORY MODE UPDATE REQUIRED";
+  }
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -540,9 +634,9 @@ const getBuildingStyle = (id: BuildingPlacement["event"]["id"]): BuildingVisualS
         accent: 0x5af4ff,
         accentDark: 0x11457a,
       };
-    case "deckBuilder":
+    case "gacha":
       return {
-        label: "CARDS",
+        label: "GACHA",
         fontSize: 18,
         shape: "forge",
         base: 0x6d34bf,

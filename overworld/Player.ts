@@ -76,6 +76,13 @@ export class Player {
     };
   }
 
+  moveTo(x: number, y: number, direction: Direction): void {
+    this.gridX = x; this.gridY = y; this.direction = direction;
+    this.pixelX = this.targetPixelX = x * TILE_SIZE;
+    this.pixelY = this.targetPixelY = y * TILE_SIZE;
+    this.syncSprite();
+  }
+
   destroy(): void {
     this.sprite.destroy();
   }
