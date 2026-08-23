@@ -50,6 +50,29 @@ const ANIMATION_ASSETS: Record<string, HolobotAnimationAsset> = {
   },
 };
 
+function animationKey(
+  holobotId: string,
+  context: HolobotAnimationContext,
+  animationState: HolobotAnimationState,
+) {
+  return `${holobotId.trim().toUpperCase()}:${context}:${animationState}`;
+}
+
+export function hasHolobotAnimation(holobotId: string, context: HolobotAnimationContext) {
+  return animationKey(holobotId, context, "idle") in ANIMATION_ASSETS;
+}
+
+export function resolveHolobotAnimationState(
+  holobotId: string,
+  context: HolobotAnimationContext,
+  desired: HolobotAnimationState,
+): HolobotAnimationState {
+  if (animationKey(holobotId, context, desired) in ANIMATION_ASSETS) {
+    return desired;
+  }
+  return "idle";
+}
+
 export function getHolobotAnimationAsset(
   holobotId: string,
   context: HolobotAnimationContext,

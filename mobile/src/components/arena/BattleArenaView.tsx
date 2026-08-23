@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { ImageStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -12,6 +12,11 @@ import {
 } from "../../features/arena/moveKits";
 import { GameSurfaceFrame } from "../ui/GameSurfaceFrame";
 import { HolobotAnimatedCharacter } from "../character/HolobotAnimatedCharacter";
+import {
+  hasHolobotAnimation,
+  resolveHolobotAnimationState,
+  type HolobotAnimationState,
+} from "../character/holobotAnimationAssets";
 
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
@@ -155,6 +160,40 @@ function getHealthPercent(current: number, max: number) {
   }
 
   return Math.max(0, Math.min(1, current / max));
+}
+
+type FighterSide = "player" | "opponent";
+type FighterVisualStates = Record<FighterSide, HolobotAnimationState>;
+
+function getActionSides(action: BattleAction, battle: BattleState) {
+  const attacker: FighterSide = action.actorRole
+    ?? (action.actorId === battle.opponent.holobotId
+      ? "opponent"
+      : action.actorId === battle.player.holobotId
+        ? "player"
+        : "player");
+  const defender: FighterSide = attacker === "player" ? "opponent" : "player";
+  const damage = action.actualDamage ?? action.damageDealt;
+  const damaged: FighterSide | null =
+    damage > 0 && (action.outcome === "countered" || action.outcome === "counter")
+      ? attacker
+      : damage > 0 && action.outcome === "hit"
+        ? defender
+        : null;
+  return { attacker, damaged };
+}
+
+function getCompletedVisualStates(battle: BattleState): FighterVisualStates | null {
+  if (battle.status !== "completed" && battle.player.currentHP > 0 && battle.opponent.currentHP > 0) {
+    return null;
+  }
+  if (battle.player.currentHP <= 0 && battle.opponent.currentHP > 0) {
+    return { player: "defeat", opponent: "victory" };
+  }
+  if (battle.opponent.currentHP <= 0 && battle.player.currentHP > 0) {
+    return { player: "victory", opponent: "defeat" };
+  }
+  return null;
 }
 
 function HudBar({
@@ -340,6 +379,72 @@ export function BattleArenaView({
   onSignaturePlay,
   team,
 }: BattleArenaViewProps) {
+  const [transientVisualStates, setTransientVisualStates] = useState<FighterVisualStates>({
+    player: "idle",
+    opponent: "idle",
+  });
+  const playerLunge = useRef(new Animated.Value(0)).current;
+  const opponentLunge = useRef(new Animated.Value(0)).current;
+  const playerFlash = useRef(new Animated.Value(0)).current;
+  const opponentFlash = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    playerLunge.stopAnimation();
+    opponentLunge.stopAnimation();
+    playerFlash.stopAnimation();
+    opponentFlash.stopAnimation();
+    playerLunge.setValue(0);
+    opponentLunge.setValue(0);
+    playerFlash.setValue(0);
+    opponentFlash.setValue(0);
+    setTransientVisualStates({ player: "idle", opponent: "idle" });
+  }, [battle.battleId, opponentFlash, opponentLunge, playerFlash, playerLunge]);
+
+  useEffect(() => {
+    if (!lastAction) return;
+
+    const { attacker, damaged } = getActionSides(lastAction, battle);
+    setTransientVisualStates({
+      player: damaged === "player" ? "hit" : attacker === "player" ? "attackBasic" : "idle",
+      opponent: damaged === "opponent" ? "hit" : attacker === "opponent" ? "attackBasic" : "idle",
+    });
+
+    const lunge = attacker === "player" ? playerLunge : opponentLunge;
+    const lungeDistance = attacker === "player" ? 12 : -12;
+    lunge.stopAnimation();
+    lunge.setValue(0);
+    Animated.sequence([
+      Animated.timing(lunge, { duration: 100, toValue: lungeDistance, useNativeDriver: true }),
+      Animated.timing(lunge, { duration: 150, toValue: 0, useNativeDriver: true }),
+    ]).start();
+
+    if (damaged) {
+      const flash = damaged === "player" ? playerFlash : opponentFlash;
+      flash.stopAnimation();
+      flash.setValue(0);
+      Animated.sequence([
+        Animated.timing(flash, { duration: 65, toValue: 0.55, useNativeDriver: true }),
+        Animated.timing(flash, { duration: 125, toValue: 0, useNativeDriver: true }),
+      ]).start();
+    }
+
+    const resetTimer = setTimeout(
+      () => setTransientVisualStates({ player: "idle", opponent: "idle" }),
+      350,
+    );
+    return () => {
+      clearTimeout(resetTimer);
+      lunge.stopAnimation();
+      lunge.setValue(0);
+      if (damaged) {
+        const flash = damaged === "player" ? playerFlash : opponentFlash;
+        flash.stopAnimation();
+        flash.setValue(0);
+      }
+    };
+  }, [lastAction?.id, battle.battleId, opponentFlash, opponentLunge, playerFlash, playerLunge]);
+
+  const visualStates = getCompletedVisualStates(battle) ?? transientVisualStates;
   const visibleCards = useMemo(() => {
     const slots = playerCards.slice(0, CARD_SLOTS);
     while (slots.length < CARD_SLOTS) {
@@ -464,38 +569,50 @@ export function BattleArenaView({
           <View style={styles.battleFloor}>
             <Image source={battlefieldImage} style={styles.battlefieldImage} resizeMode="contain" />
             <View pointerEvents="none" style={styles.fighterOverlay}>
-              <View style={[styles.stageFighter, styles.stageFighterLeft]}>
+              <Animated.View
+                style={[styles.stageFighter, styles.stageFighterLeft, { transform: [{ translateX: playerLunge }] }]}
+              >
                 <Image
                   source={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
                   style={styles.stageFighterImage}
                   resizeMode="contain"
                 />
-                {battle.player.name.trim().toUpperCase() === "ACE" ? (
+                {hasHolobotAnimation(battle.player.name, "arena") ? (
                   <HolobotAnimatedCharacter
-                    animationState="idle"
+                    animationState={resolveHolobotAnimationState(battle.player.name, "arena", visualStates.player)}
                     context="arena"
                     holobotId={battle.player.name}
                     staticFallback={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
                     style={StyleSheet.absoluteFill}
                   />
                 ) : null}
-              </View>
-              <View style={[styles.stageFighter, styles.stageFighterRight]}>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[StyleSheet.absoluteFill, styles.hitFlash, { opacity: playerFlash }]}
+                />
+              </Animated.View>
+              <Animated.View
+                style={[styles.stageFighter, styles.stageFighterRight, { transform: [{ translateX: opponentLunge }] }]}
+              >
                 <Image
                   source={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
                   style={[styles.stageFighterImage, styles.stageFighterImageMirrored]}
                   resizeMode="contain"
                 />
-                {battle.opponent.name.trim().toUpperCase() === "ACE" ? (
+                {hasHolobotAnimation(battle.opponent.name, "arena") ? (
                   <HolobotAnimatedCharacter
-                    animationState="idle"
+                    animationState={resolveHolobotAnimationState(battle.opponent.name, "arena", visualStates.opponent)}
                     context="arena"
                     holobotId={battle.opponent.name}
                     staticFallback={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
                     style={[StyleSheet.absoluteFill, styles.stageFighterImageMirrored]}
                   />
                 ) : null}
-              </View>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[StyleSheet.absoluteFill, styles.hitFlash, { opacity: opponentFlash }]}
+                />
+              </Animated.View>
             </View>
             <View style={styles.vsBadge}>
               <Text style={styles.vsText}>VS</Text>
@@ -778,6 +895,9 @@ const styles = StyleSheet.create({
   },
   stageFighterImageMirrored: {
     transform: [{ scaleX: -1 }],
+  },
+  hitFlash: {
+    backgroundColor: "#ff4d39",
   },
   stageFighterLeft: {
     left: "9%",
