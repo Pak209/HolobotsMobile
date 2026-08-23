@@ -9,7 +9,6 @@ import {
   type TileType,
 } from "./TileTypes";
 import { blocked, h3, terrain } from "./maps/h3Plaza";
-import { GUIDE } from "./maps/npcs";
 
 export interface BuildingPlacement {
   x: number;
@@ -135,8 +134,6 @@ const buildBaseMap = (): Tile[][] => {
     setTile(tiles, x, y, "prop");
   }
 
-  setTile(tiles, GUIDE.x, GUIDE.y, "npc");
-
   return tiles;
 };
 
@@ -162,6 +159,8 @@ export class TileMap {
   readonly height = MAP_HEIGHT;
   readonly tileSize = TILE_SIZE;
   readonly tiles: Tile[][];
+  readonly occupants = new Set<string>();
+  private readonly occupantPositions = new Map<string, string>();
 
   constructor() {
     this.tiles = buildBaseMap();
@@ -185,7 +184,20 @@ export class TileMap {
   }
 
   isWalkable(x: number, y: number): boolean {
-    return this.getTile(x, y)?.walkable ?? false;
+    return (this.getTile(x, y)?.walkable ?? false) && !this.occupants.has(`${x},${y}`);
+  }
+
+  setOccupant(id: string, x: number, y: number): void {
+    this.clearOccupant(id);
+    const key = `${x},${y}`;
+    this.occupantPositions.set(id, key);
+    this.occupants.add(key);
+  }
+
+  clearOccupant(id: string): void {
+    const key = this.occupantPositions.get(id);
+    if (key) this.occupants.delete(key);
+    this.occupantPositions.delete(id);
   }
 
   isWithinBounds(x: number, y: number): boolean {

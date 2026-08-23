@@ -13,6 +13,7 @@ export type StoryStatePayload = {
   checkpoint: StoryCheckpoint | null;
   protocolVersion: number;
 };
+export type DialogueStatePayload = { open: boolean; npcId: string };
 export type NativeMessage = { v: 1; id: string; type: string; payload: Record<string, unknown> };
 
 declare global {
@@ -51,6 +52,11 @@ export const isStoryStatePayload = (value: unknown): value is StoryStatePayload 
     && Array.isArray(state.regionsUnlocked) && state.regionsUnlocked.every((region) => typeof region === "string")
     && (point === null || (!!point && typeof point.mapId === "string"
       && Number.isInteger(point.x) && Number.isInteger(point.y) && isFacing(point.facing)));
+};
+
+export const isDialogueStatePayload = (value: unknown): value is DialogueStatePayload => {
+  const state = value as Partial<DialogueStatePayload> | null;
+  return !!state && typeof state.open === "boolean" && typeof state.npcId === "string";
 };
 
 const listen = (handler: (event: MessageEvent) => void) => {
