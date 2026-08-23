@@ -5,6 +5,8 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 import { HomeCogButton } from "@/components/HomeCogButton";
+import { Minimap, type MinimapMap, type MinimapPlayer } from "@/components/story/Minimap";
+import { QuestBanner } from "@/components/story/QuestBanner";
 import { StoryDialogueOverlay } from "@/components/story/StoryDialogueOverlay";
 import { StoryUpdateRequiredCard } from "@/components/story/StoryUpdateRequiredCard";
 import { getHolobotHeadshotImageSource } from "@/config/holobots";
@@ -14,6 +16,7 @@ import {
   STORY_FLAG_GUIDE_MET,
   STORY_OVERWORLD_URL,
   STORY_PROTOCOL_VERSION,
+  STORY_ZONE_DEFAULT,
 } from "@/config/storyMode";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -22,6 +25,7 @@ import {
   buildRegionAccessMessage,
   buildStoryStateMessage,
   createStoryBridgeContext,
+  decodeWalkableMask,
   interpretInbound,
   makeAck,
   parseInboundMessage,
@@ -61,6 +65,10 @@ export function OverworldScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dialogue, setDialogue] = useState<DialogueState>(null);
   const [mismatch, setMismatch] = useState<{ webProtocolVersion: number } | null>(null);
+  // Round D overlays: map descriptor from BRIDGE_HELLO, throttled PLAYER_POS, objective from the flag store.
+  const [mapInfo, setMapInfo] = useState<MinimapMap | null>(null);
+  const [playerPos, setPlayerPos] = useState<(MinimapPlayer & { zone: string }) | null>(null);
+  const [objectiveText, setObjectiveText] = useState<string | null>(null);
 
   const uriIsTrusted = useMemo(() => isAllowedOverworldOrigin(STORY_OVERWORLD_URL), []);
   const originWhitelist = useMemo(() => {
@@ -83,11 +91,19 @@ export function OverworldScreen() {
     }
     const store = createLocalStoryFlagStore(user.uid);
     storeRef.current = store;
+    const syncObjective = () => {
+      if (active) setObjectiveText(store.getObjective()?.text ?? null);
+    };
+    const unsubscribe = store.subscribe(syncObjective);
     void store.load().finally(() => {
-      if (active) setStoreReady(true);
+      if (active) {
+        syncObjective();
+        setStoreReady(true);
+      }
     });
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [user?.uid]);
 
@@ -101,6 +117,7 @@ export function OverworldScreen() {
     postToWeb(
       buildStoryStateMessage({
         checkpoint: store.getCheckpoint(),
+        currentObjective: store.getObjective(),
         flags: store.getFlags(),
         regionsUnlocked: [],
       }),
@@ -157,8 +174,24 @@ export function OverworldScreen() {
         case "BRIDGE_HELLO":
           helloReceived.current = true;
           setMismatch(null);
+          if (command.map) {
+            const { width, height, walkable, pois } = command.map;
+            setMapInfo({ height, pois, walkable: decodeWalkableMask(walkable, width, height), width });
+          }
           postToWeb(makeAck(envelope.id, true));
           pushStoryState();
+          return;
+        case "PLAYER_POS":
+          postToWeb(makeAck(envelope.id, true));
+          setPlayerPos((previous) =>
+            previous &&
+            previous.x === command.x &&
+            previous.y === command.y &&
+            previous.facing === command.facing &&
+            previous.zone === command.zone
+              ? previous
+              : { facing: command.facing, x: command.x, y: command.y, zone: command.zone },
+          );
           return;
         case "TALK_NPC":
           postToWeb(makeAck(envelope.id, true));
@@ -247,6 +280,7 @@ export function OverworldScreen() {
             helloReceived.current = false;
             setPageLoading(true);
             setLoadError(null);
+            setPlayerPos(null);
           }}
           onMessage={handleMessage}
           onShouldStartLoadWithRequest={(request) => isAllowedOverworldOrigin(request.url)}
@@ -255,6 +289,12 @@ export function OverworldScreen() {
           source={{ uri: STORY_OVERWORLD_URL }}
           style={styles.webview}
         />
+      ) : null}
+      {!showBlockedOverlay && storeReady && !mismatch ? (
+        <>
+          <QuestBanner objective={objectiveText} zone={playerPos?.zone ?? STORY_ZONE_DEFAULT} />
+          <Minimap map={mapInfo} player={playerPos} />
+        </>
       ) : null}
       <StoryDialogueOverlay
         lines={dialogue?.lines ?? []}

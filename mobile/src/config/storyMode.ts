@@ -7,7 +7,11 @@ import { isAllowedBridgeOrigin } from "@/lib/security/bridgeOrigin";
  * its vitest suite can import these constants in a plain Node environment.
  */
 
-export const STORY_PROTOCOL_VERSION = 1;
+/** Version we send (STORY_STATE) — Round D bumped to 2 (HELLO map descriptor + PLAYER_POS). */
+export const STORY_PROTOCOL_VERSION = 2;
+/** Versions we accept on BRIDGE_HELLO so a v1 overworld still connects (degraded: no minimap). */
+export const STORY_SUPPORTED_PROTOCOL_VERSIONS = [1, 2] as const;
+export const STORY_ZONE_DEFAULT = "Hangar District";
 export const STORY_MAP_ID = "hangar-town";
 export const STORY_MAP_SIZE = { height: 20, width: 20 } as const;
 

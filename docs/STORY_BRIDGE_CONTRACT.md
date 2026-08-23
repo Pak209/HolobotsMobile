@@ -122,3 +122,9 @@ If slice 0 needs **more than 2 inbound verbs beyond §C**, or **any** inbound re
   can lock movement / hide controls while the native dialogue overlay is open; it is outbound-only (no new inbound verb;
   §G unaffected). Web tolerates its absence (no lock) and auto-unlocks after 90 s if a close is never received.
   Native builder: `buildDialogueStateMessage()` in `mobile/src/lib/story/storyBridge.ts`; sent on overlay open/finish.
+- **2026-08-23 — Round D.** Protocol **v2** (both sides send 2, accept {1, 2} — a v1 peer still connects, degraded).
+  `BRIDGE_HELLO` gains optional `map { width, height, walkable:<base64 row-major bitmask, bit=1 walkable, MSB-first>,
+  pois[{id,x,y}] }` (static walkability, no occupants) for the native minimap. Adds INBOUND `PLAYER_POS { x, y, facing,
+  zone }` (throttled ≤~7/s by web; native ACKs only — no progression, no economy) — this consumes the **2nd and last**
+  extra inbound verb permitted by §G; any further inbound verb triggers the kill signal. `STORY_STATE` gains
+  `currentObjective { id, text } | null` (derived from flags locally in slice 0; server sync later).

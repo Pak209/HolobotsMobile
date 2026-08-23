@@ -1,6 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { isStoryCheckpoint, type StoryCheckpoint } from "@/lib/story/storyBridge";
+import {
+  deriveObjective,
+  isStoryCheckpoint,
+  type StoryCheckpoint,
+  type StoryObjective,
+} from "@/lib/story/storyBridge";
+
+export { deriveObjective };
 
 /**
  * Story-flag service (slice 0: local persistence only).
@@ -21,8 +28,13 @@ export interface StoryFlagStore {
   setFlag(flag: string, value: boolean): Promise<void>;
   getCheckpoint(): StoryCheckpoint | null;
   setCheckpoint(checkpoint: StoryCheckpoint): Promise<void>;
+  /** Current quest objective derived from flags (Round D quest banner). */
+  getObjective(): StoryObjective | null;
   subscribe(listener: () => void): () => void;
 }
+
+// Objective derivation lives in storyBridge.ts (pure, testable in Node) and is re-exported above.
+// TODO(slice-1): objectives come from the server chapter doc; deriveObjective stays the offline fallback.
 
 export type StoryStorageLike = {
   getItem(key: string): Promise<string | null>;
@@ -95,6 +107,9 @@ export function createLocalStoryFlagStore(uid: string, storage: StoryStorageLike
     },
     getCheckpoint() {
       return state.checkpoint ? { ...state.checkpoint } : null;
+    },
+    getObjective() {
+      return deriveObjective(state.flags);
     },
     async setCheckpoint(checkpoint) {
       state = { ...state, checkpoint: { ...checkpoint } };
