@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTrailingThrottle } from "../throttle";
+import { buildHelloPayload, createEnvelope } from "../storyBridge";
 
 type Position = { x: number; y: number; facing: string };
 
 describe("PLAYER_POS throttle", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
+
+  it("keeps envelope v1 while HELLO negotiates protocol v2", () => {
+    expect(createEnvelope("PLAYER_POS", { x: 1, y: 2 }).v).toBe(1);
+    expect(buildHelloPayload("test").protocolVersion).toBe(2);
+  });
 
   it("sends a leading and last trailing position for rapid changes", () => {
     const sends = vi.fn();
