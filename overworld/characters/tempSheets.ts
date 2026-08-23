@@ -18,6 +18,10 @@ export const PILOT_PALETTE: PilotPalette = {
 export const NPC_PALETTE: PilotPalette = {
   ink: "#050606", dark: "#34372d", mid: "#596044", visor: "#f0bf14", trim: "#17d9ff", skin: "#bd875f",
 };
+export const AMBIENT_PALETTES: Record<"teal" | "rust", PilotPalette> = {
+  teal: { ink: "#050606", dark: "#19383a", mid: "#276266", visor: "#f0bf14", trim: "#17d9ff", skin: "#b9825e" },
+  rust: { ink: "#050606", dark: "#4a2d29", mid: "#7a493a", visor: "#17d9ff", trim: "#f0bf14", skin: "#c18b64" },
+};
 
 const canvasTexture = (canvas: HTMLCanvasElement) => {
   const texture = Texture.from(canvas);

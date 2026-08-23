@@ -3,9 +3,8 @@ import { Container, Sprite } from "pixi.js";
 import type { Player } from "./Player";
 import type { TileMap } from "./TileMap";
 import { TILE_SIZE, type Direction } from "./TileTypes";
-import { createPilotSheet, createShadowTexture, NPC_PALETTE } from "./characters/tempSheets";
+import { createPilotSheet, createShadowTexture, type CharacterSheet, type PilotPalette } from "./characters/tempSheets";
 import { terrain } from "./maps/h3Plaza";
-import { GUIDE } from "./maps/npcs";
 
 const PLAZA = new Set(terrain.map(({ x, y }) => `${x},${y}`));
 const MOVES: Array<{ x: number; y: number; direction: Direction }> = [
@@ -15,20 +14,28 @@ const MOVES: Array<{ x: number; y: number; direction: Direction }> = [
 
 export class Npc {
   readonly sprite = new Container();
-  gridX = GUIDE.x; gridY = GUIDE.y;
-  private pixelX = GUIDE.x * TILE_SIZE; private pixelY = GUIDE.y * TILE_SIZE;
-  private targetX = this.pixelX; private targetY = this.pixelY;
+  readonly id: string;
+  readonly interactive: boolean;
+  readonly home: { x: number; y: number };
+  gridX: number; gridY: number;
+  private pixelX: number; private pixelY: number;
+  private targetX: number; private targetY: number;
   private direction: Direction = "down";
   private readonly body: Sprite;
-  private readonly sheet = createPilotSheet(NPC_PALETTE);
+  private readonly sheet: CharacterSheet;
   private elapsed = 0;
   private nextWanderAt = 2.5;
 
-  constructor(tileMap: TileMap) {
+  constructor(tileMap: TileMap, options: { id: string; home: { x: number; y: number }; palette: PilotPalette; interactive: boolean }) {
+    this.id = options.id; this.home = options.home; this.interactive = options.interactive;
+    this.gridX = options.home.x; this.gridY = options.home.y;
+    this.pixelX = this.targetX = this.gridX * TILE_SIZE;
+    this.pixelY = this.targetY = this.gridY * TILE_SIZE;
+    this.sheet = createPilotSheet(options.palette);
     const shadow = new Sprite(createShadowTexture()); shadow.anchor.set(0.5, 1); shadow.position.set(16, 31);
     this.body = new Sprite(this.sheet.frames.down.idle); this.body.anchor.set(0.5, 1); this.body.position.set(16, 32);
     this.sprite.addChild(shadow, this.body); this.sprite.position.set(this.pixelX, this.pixelY);
-    tileMap.setOccupant(GUIDE.npcId, this.gridX, this.gridY);
+    tileMap.setOccupant(this.id, this.gridX, this.gridY);
   }
 
   get isMoving() { return this.pixelX !== this.targetX || this.pixelY !== this.targetY; }
@@ -47,9 +54,9 @@ export class Npc {
       this.body.y = 32 + (Math.floor(this.elapsed * 2) % 2);
     }
     if (wasMoving && !this.isMoving) {
-      tileMap.clearOccupant(GUIDE.npcId);
-      tileMap.clearOccupant(`${GUIDE.npcId}:target`);
-      tileMap.setOccupant(GUIDE.npcId, this.gridX, this.gridY);
+      tileMap.clearOccupant(this.id);
+      tileMap.clearOccupant(`${this.id}:target`);
+      tileMap.setOccupant(this.id, this.gridX, this.gridY);
     }
     this.sprite.position.set(this.pixelX, this.pixelY);
     this.sprite.zIndex = this.pixelY + TILE_SIZE;
@@ -66,7 +73,7 @@ export class Npc {
   private chooseStep(tileMap: TileMap, player: Player): void {
     const options = MOVES.filter(({ x, y }) => {
       const nextX = this.gridX + x; const nextY = this.gridY + y;
-      return Math.max(Math.abs(nextX - GUIDE.x), Math.abs(nextY - GUIDE.y)) <= 2
+      return Math.max(Math.abs(nextX - this.home.x), Math.abs(nextY - this.home.y)) <= 2
         && PLAZA.has(`${nextX},${nextY}`) && tileMap.isWalkable(nextX, nextY)
         && !(nextX === player.gridX && nextY === player.gridY);
     });
@@ -75,7 +82,7 @@ export class Npc {
     if (!chosen) return;
     this.direction = chosen.direction; this.gridX += chosen.x; this.gridY += chosen.y;
     this.targetX = this.gridX * TILE_SIZE; this.targetY = this.gridY * TILE_SIZE;
-    tileMap.setOccupant(`${GUIDE.npcId}:target`, this.gridX, this.gridY);
+    tileMap.setOccupant(`${this.id}:target`, this.gridX, this.gridY);
   }
 }
 

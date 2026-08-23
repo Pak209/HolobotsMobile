@@ -1,6 +1,9 @@
-export const STORY_PROTOCOL_VERSION = 1 as const;
+import type { MapDescriptor } from "./mapDescriptor";
 
-export type Ack = { v: 1; replyTo: string; ok: boolean; error?: string };
+export const STORY_PROTOCOL_VERSION = 2 as const;
+export const STORY_SUPPORTED_PROTOCOL_VERSIONS = [1, 2] as const;
+
+export type Ack = { v: 1 | 2; replyTo: string; ok: boolean; error?: string };
 export type StoryCheckpoint = {
   mapId: string;
   x: number;
@@ -14,7 +17,7 @@ export type StoryStatePayload = {
   protocolVersion: number;
 };
 export type DialogueStatePayload = { open: boolean; npcId: string };
-export type NativeMessage = { v: 1; id: string; type: string; payload: Record<string, unknown> };
+export type NativeMessage = { v: 1 | 2; id: string; type: string; payload: Record<string, unknown> };
 
 declare global {
   interface Window {
@@ -27,14 +30,16 @@ const makeId = () => globalThis.crypto?.randomUUID?.()
 
 export const isAck = (value: unknown): value is Ack => {
   const candidate = value as Partial<Ack> | null;
-  return !!candidate && candidate.v === 1 && typeof candidate.replyTo === "string" && typeof candidate.ok === "boolean";
+  return !!candidate && STORY_SUPPORTED_PROTOCOL_VERSIONS.includes(candidate.v as 1 | 2)
+    && typeof candidate.replyTo === "string" && typeof candidate.ok === "boolean";
 };
 
 export const parseNativeMessage = (data: unknown): NativeMessage | null => {
   try {
     const value = typeof data === "string" ? JSON.parse(data) : data;
     const candidate = value as Partial<NativeMessage> | null;
-    return candidate?.v === 1 && typeof candidate.id === "string" && typeof candidate.type === "string"
+    return !!candidate && STORY_SUPPORTED_PROTOCOL_VERSIONS.includes(candidate.v as 1 | 2)
+      && typeof candidate.id === "string" && typeof candidate.type === "string"
       && !!candidate.payload && typeof candidate.payload === "object" ? candidate as NativeMessage : null;
   } catch {
     return null;
@@ -102,7 +107,8 @@ export const onMessage = (handler: (message: NativeMessage) => void) => listen((
   if (message) handler(message);
 });
 
-export const hello = (buildHash: string) => send("BRIDGE_HELLO", {
+export const hello = (buildHash: string, map?: MapDescriptor) => send("BRIDGE_HELLO", {
   protocolVersion: STORY_PROTOCOL_VERSION,
   buildHash,
+  map,
 });
