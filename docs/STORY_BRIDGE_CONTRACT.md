@@ -112,3 +112,9 @@ If slice 0 needs **more than 2 inbound verbs beyond §C**, or **any** inbound re
   Native implementation: `mobile/src/lib/story/storyBridge.ts` (pure core + vitest), `mobile/src/config/storyMode.ts`
   (protocol version, dev-origin gate), `mobile/src/screens/OverworldScreen.tsx` (host; injects only
   `window.__HOLOBOTS_STORY_BRIDGE__={protocolVersion}` — no auth token).
+- **2026-08-23 — Touch hygiene (slice 0 hardening).** The overworld WebView assumes no text interaction: native sets
+  `textInteractionEnabled={false}` + `allowsLinkPreview={false}` (iOS, react-native-webview 13.13.5); web sets
+  `touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none` on canvas + controls and
+  preventDefaults touchstart/contextmenu on control surfaces. Bridge/scroll semantics unchanged. Handshake: a HELLO
+  timeout is recoverable (retry/backoff, "RECONNECTING…" banner); only a `PROTOCOL_MISMATCH` reply or `STORY_STATE`
+  `protocolVersion≠1` latches the update-required state; HELLO is re-sent on WebView resume (visibilitychange).

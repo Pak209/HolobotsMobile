@@ -227,6 +227,12 @@ export function OverworldScreen() {
         <WebView
           ref={webViewRef}
           allowsInlineMediaPlayback
+          // Touch hygiene (iOS 14.5+): the game canvas has no text — disable WKWebView text
+          // interaction so long-presses on the D-pad never raise the loupe / Copy-Look Up menu,
+          // and drop link previews. Android selection is covered by the web-side CSS
+          // (user-select / -webkit-touch-callout: none); no Android-only prop this round.
+          allowsLinkPreview={false}
+          textInteractionEnabled={false}
           injectedJavaScriptBeforeContentLoaded={INJECTED_STORY_BRIDGE}
           javaScriptCanOpenWindowsAutomatically={false}
           onError={(event) => setLoadError(event.nativeEvent.description || "Unknown WebView error.")}
