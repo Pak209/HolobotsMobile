@@ -1,0 +1,1163 @@
+{
+  "generated": "extract-holocity-assets.mjs (measured grid)",
+  "tiles": {
+    "floor-plaza-a": {
+      "rect": {
+        "x": 19,
+        "y": 15,
+        "w": 109,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-plaza-b": {
+      "rect": {
+        "x": 140,
+        "y": 15,
+        "w": 109,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-plaza-cracked-a": {
+      "rect": {
+        "x": 258,
+        "y": 15,
+        "w": 113,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-plaza-seams": {
+      "rect": {
+        "x": 382,
+        "y": 15,
+        "w": 110,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-plaza-cross-seam": {
+      "rect": {
+        "x": 504,
+        "y": 15,
+        "w": 111,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-plaza-mossy": {
+      "rect": {
+        "x": 627,
+        "y": 15,
+        "w": 112,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-plaza-glass-inlay": {
+      "rect": {
+        "x": 750,
+        "y": 15,
+        "w": 111,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": true
+    },
+    "floor-plaza-sparkle": {
+      "rect": {
+        "x": 872,
+        "y": 15,
+        "w": 110,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-plaza-inlay-gold": {
+      "rect": {
+        "x": 994,
+        "y": 15,
+        "w": 111,
+        "h": 110
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-a": {
+      "rect": {
+        "x": 20,
+        "y": 136,
+        "w": 108,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-b": {
+      "rect": {
+        "x": 140,
+        "y": 136,
+        "w": 109,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-cracked": {
+      "rect": {
+        "x": 260,
+        "y": 136,
+        "w": 111,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-slot": {
+      "rect": {
+        "x": 383,
+        "y": 136,
+        "w": 109,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-panel": {
+      "rect": {
+        "x": 504,
+        "y": 136,
+        "w": 111,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-column": {
+      "rect": {
+        "x": 627,
+        "y": 136,
+        "w": 112,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-plain": {
+      "rect": {
+        "x": 751,
+        "y": 136,
+        "w": 109,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-bolted": {
+      "rect": {
+        "x": 872,
+        "y": 136,
+        "w": 110,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "floor-tech-vent": {
+      "rect": {
+        "x": 995,
+        "y": 136,
+        "w": 109,
+        "h": 108
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-cyan-h-a": {
+      "rect": {
+        "x": 19,
+        "y": 255,
+        "w": 109,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-h-b": {
+      "rect": {
+        "x": 139,
+        "y": 255,
+        "w": 110,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-corner": {
+      "rect": {
+        "x": 261,
+        "y": 255,
+        "w": 110,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-t": {
+      "rect": {
+        "x": 383,
+        "y": 255,
+        "w": 109,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-cross-a": {
+      "rect": {
+        "x": 504,
+        "y": 255,
+        "w": 111,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-cross-b": {
+      "rect": {
+        "x": 627,
+        "y": 255,
+        "w": 111,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-node-square": {
+      "rect": {
+        "x": 750,
+        "y": 255,
+        "w": 110,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-node-round": {
+      "rect": {
+        "x": 872,
+        "y": 255,
+        "w": 110,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-cyan-node-inset": {
+      "rect": {
+        "x": 995,
+        "y": 255,
+        "w": 110,
+        "h": 95
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "path-gold-h": {
+      "rect": {
+        "x": 19,
+        "y": 361,
+        "w": 109,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-end": {
+      "rect": {
+        "x": 140,
+        "y": 361,
+        "w": 109,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-corner": {
+      "rect": {
+        "x": 260,
+        "y": 361,
+        "w": 111,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-t": {
+      "rect": {
+        "x": 382,
+        "y": 361,
+        "w": 111,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-cross-a": {
+      "rect": {
+        "x": 504,
+        "y": 361,
+        "w": 111,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-cross-b": {
+      "rect": {
+        "x": 627,
+        "y": 361,
+        "w": 112,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-node-a": {
+      "rect": {
+        "x": 750,
+        "y": 361,
+        "w": 111,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-node-b": {
+      "rect": {
+        "x": 872,
+        "y": 361,
+        "w": 110,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "path-gold-inlay": {
+      "rect": {
+        "x": 994,
+        "y": 361,
+        "w": 111,
+        "h": 102
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": false
+    },
+    "canal-h-a": {
+      "rect": {
+        "x": 19,
+        "y": 681,
+        "w": 110,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-h-b": {
+      "rect": {
+        "x": 139,
+        "y": 681,
+        "w": 110,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-h-c": {
+      "rect": {
+        "x": 260,
+        "y": 681,
+        "w": 111,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-bend": {
+      "rect": {
+        "x": 382,
+        "y": 681,
+        "w": 111,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-t": {
+      "rect": {
+        "x": 504,
+        "y": 681,
+        "w": 112,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-cross-a": {
+      "rect": {
+        "x": 627,
+        "y": 681,
+        "w": 112,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-cross-b": {
+      "rect": {
+        "x": 749,
+        "y": 681,
+        "w": 112,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-node": {
+      "rect": {
+        "x": 872,
+        "y": 681,
+        "w": 110,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-joint": {
+      "rect": {
+        "x": 994,
+        "y": 681,
+        "w": 111,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": true
+    },
+    "canal-pool": {
+      "rect": {
+        "x": 1116,
+        "y": 681,
+        "w": 85,
+        "h": 82
+      },
+      "out": "128x128",
+      "aspectDistortion": false,
+      "redraw": true
+    },
+    "grass-full-a": {
+      "rect": {
+        "x": 18,
+        "y": 773,
+        "w": 111,
+        "h": 94
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "grass-full-b": {
+      "rect": {
+        "x": 138,
+        "y": 773,
+        "w": 111,
+        "h": 94
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "grass-path-worn": {
+      "rect": {
+        "x": 258,
+        "y": 773,
+        "w": 114,
+        "h": 94
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "grass-edge-stone": {
+      "rect": {
+        "x": 382,
+        "y": 773,
+        "w": 111,
+        "h": 94
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "grass-tuft-stone": {
+      "rect": {
+        "x": 504,
+        "y": 773,
+        "w": 111,
+        "h": 94
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    },
+    "grass-sparse-stone": {
+      "rect": {
+        "x": 627,
+        "y": 773,
+        "w": 112,
+        "h": 94
+      },
+      "out": "128x128",
+      "aspectDistortion": true,
+      "redraw": false
+    }
+  },
+  "props": {
+    "curb-straight-a": {
+      "rect": {
+        "x": 19,
+        "y": 476,
+        "w": 109,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-straight-b": {
+      "rect": {
+        "x": 139,
+        "y": 476,
+        "w": 110,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-corner-a": {
+      "rect": {
+        "x": 260,
+        "y": 476,
+        "w": 111,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-straight-c": {
+      "rect": {
+        "x": 382,
+        "y": 476,
+        "w": 111,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-u-notch": {
+      "rect": {
+        "x": 504,
+        "y": 476,
+        "w": 111,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-u-wide": {
+      "rect": {
+        "x": 627,
+        "y": 476,
+        "w": 112,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-return": {
+      "rect": {
+        "x": 750,
+        "y": 476,
+        "w": 111,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-s-bend": {
+      "rect": {
+        "x": 872,
+        "y": 476,
+        "w": 110,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": true
+    },
+    "curb-gold-bend": {
+      "rect": {
+        "x": 994,
+        "y": 476,
+        "w": 111,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "curb-arch-cap": {
+      "rect": {
+        "x": 1116,
+        "y": 476,
+        "w": 85,
+        "h": 85
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "stairs-wide-a": {
+      "rect": {
+        "x": 19,
+        "y": 574,
+        "w": 110,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "stairs-wide-b": {
+      "rect": {
+        "x": 140,
+        "y": 574,
+        "w": 109,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "stairs-post": {
+      "rect": {
+        "x": 261,
+        "y": 574,
+        "w": 87,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "stairs-railed-a": {
+      "rect": {
+        "x": 382,
+        "y": 574,
+        "w": 111,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "stairs-railed-b": {
+      "rect": {
+        "x": 504,
+        "y": 574,
+        "w": 111,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "stairs-railed-c": {
+      "rect": {
+        "x": 627,
+        "y": 574,
+        "w": 111,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "ramp-gold": {
+      "rect": {
+        "x": 749,
+        "y": 574,
+        "w": 111,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "stairs-narrow": {
+      "rect": {
+        "x": 884,
+        "y": 574,
+        "w": 87,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "wall-panel-framed": {
+      "rect": {
+        "x": 995,
+        "y": 574,
+        "w": 110,
+        "h": 93
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "planter-long": {
+      "rect": {
+        "x": 749,
+        "y": 773,
+        "w": 112,
+        "h": 94
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "planter-u-a": {
+      "rect": {
+        "x": 870,
+        "y": 773,
+        "w": 112,
+        "h": 94
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "planter-u-b": {
+      "rect": {
+        "x": 994,
+        "y": 773,
+        "w": 111,
+        "h": 94
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "planter-corner": {
+      "rect": {
+        "x": 1116,
+        "y": 773,
+        "w": 85,
+        "h": 94
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "bush-flower-a": {
+      "rect": {
+        "x": 20,
+        "y": 874,
+        "w": 75,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "bush-flower-b": {
+      "rect": {
+        "x": 120,
+        "y": 874,
+        "w": 77,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "shrub": {
+      "rect": {
+        "x": 221,
+        "y": 874,
+        "w": 78,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "fern": {
+      "rect": {
+        "x": 327,
+        "y": 874,
+        "w": 80,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "bush-flower-c": {
+      "rect": {
+        "x": 430,
+        "y": 874,
+        "w": 77,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "tree-a": {
+      "rect": {
+        "x": 526,
+        "y": 874,
+        "w": 101,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "tree-b": {
+      "rect": {
+        "x": 640,
+        "y": 874,
+        "w": 110,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "vine-hanging": {
+      "rect": {
+        "x": 774,
+        "y": 874,
+        "w": 73,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "planter-box-a": {
+      "rect": {
+        "x": 878,
+        "y": 874,
+        "w": 95,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "planter-box-b": {
+      "rect": {
+        "x": 1005,
+        "y": 874,
+        "w": 89,
+        "h": 107
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "lantern-cyan-tall": {
+      "rect": {
+        "x": 29,
+        "y": 985,
+        "w": 57,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "lantern-gold": {
+      "rect": {
+        "x": 126,
+        "y": 985,
+        "w": 44,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "terminal-holo": {
+      "rect": {
+        "x": 209,
+        "y": 985,
+        "w": 76,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "signpost": {
+      "rect": {
+        "x": 319,
+        "y": 985,
+        "w": 38,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "bench": {
+      "rect": {
+        "x": 378,
+        "y": 985,
+        "w": 114,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "pillar-cyan": {
+      "rect": {
+        "x": 536,
+        "y": 985,
+        "w": 43,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "bollard-gold": {
+      "rect": {
+        "x": 626,
+        "y": 985,
+        "w": 43,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "crate-stone": {
+      "rect": {
+        "x": 721,
+        "y": 985,
+        "w": 84,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "crate-metal": {
+      "rect": {
+        "x": 836,
+        "y": 985,
+        "w": 101,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "crate-gold": {
+      "rect": {
+        "x": 958,
+        "y": 985,
+        "w": 70,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "debris-holobot": {
+      "rect": {
+        "x": 1043,
+        "y": 985,
+        "w": 177,
+        "h": 120
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "data-wisp": {
+      "rect": {
+        "x": 29,
+        "y": 1120,
+        "w": 63,
+        "h": 114
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "grate": {
+      "rect": {
+        "x": 137,
+        "y": 1120,
+        "w": 126,
+        "h": 114
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "glass-panel": {
+      "rect": {
+        "x": 306,
+        "y": 1120,
+        "w": 176,
+        "h": 114
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "pad-target-round": {
+      "rect": {
+        "x": 543,
+        "y": 1120,
+        "w": 175,
+        "h": 114
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "wall-long-planted": {
+      "rect": {
+        "x": 759,
+        "y": 1120,
+        "w": 145,
+        "h": 114
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "wall-diagonal": {
+      "rect": {
+        "x": 943,
+        "y": 1120,
+        "w": 117,
+        "h": 114
+      },
+      "keyed": true,
+      "redraw": false
+    },
+    "wall-corner-curved": {
+      "rect": {
+        "x": 1096,
+        "y": 1120,
+        "w": 127,
+        "h": 114
+      },
+      "keyed": true,
+      "redraw": false
+    }
+  },
+  "buildings": {
+    "h3-core-sanctuary": {
+      "rect": {
+        "x": 162,
+        "y": 29,
+        "w": 380,
+        "h": 306
+      },
+      "keyed": true
+    },
+    "arena-colosseum": {
+      "rect": {
+        "x": 656,
+        "y": 29,
+        "w": 465,
+        "h": 306
+      },
+      "keyed": true
+    },
+    "gacha-shrine": {
+      "rect": {
+        "x": 174,
+        "y": 357,
+        "w": 353,
+        "h": 282
+      },
+      "keyed": true
+    },
+    "story-archive": {
+      "rect": {
+        "x": 665,
+        "y": 357,
+        "w": 405,
+        "h": 282
+      },
+      "keyed": true
+    },
+    "holobot-workshop": {
+      "rect": {
+        "x": 130,
+        "y": 665,
+        "w": 425,
+        "h": 238
+      },
+      "keyed": true
+    },
+    "pilot-supply-shop": {
+      "rect": {
+        "x": 668,
+        "y": 665,
+        "w": 411,
+        "h": 238
+      },
+      "keyed": true
+    },
+    "residential-hub": {
+      "rect": {
+        "x": 133,
+        "y": 922,
+        "w": 418,
+        "h": 287
+      },
+      "keyed": true
+    },
+    "transit-gate": {
+      "rect": {
+        "x": 647,
+        "y": 922,
+        "w": 436,
+        "h": 287
+      },
+      "keyed": true
+    }
+  }
+}
