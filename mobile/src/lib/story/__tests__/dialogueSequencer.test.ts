@@ -61,7 +61,7 @@ describe("StoryDialogueOverlay hook-order source guard", () => {
   // useDialogueOverlayState) and no `return` may precede it.
   it("component calls exactly one hook, before any return statement", () => {
     const source = readFileSync(
-      fileURLToPath(new URL("../../../components/story/StoryDialogueOverlay.tsx", import.meta.url)),
+      fileURLToPath(new URL("../../../components/story/StoryDialogueOverlay.tsx", import.meta.url) as unknown as string),
       "utf8",
     );
     const componentStart = source.indexOf("export function StoryDialogueOverlay");
