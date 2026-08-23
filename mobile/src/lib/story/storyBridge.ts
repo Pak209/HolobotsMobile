@@ -1,10 +1,12 @@
 import {
   CLIENT_WRITABLE_STORY_FLAGS,
   STORY_BUILDING_IDS,
+  STORY_FLAG_GUIDE_MET,
   STORY_MAP_ID,
   STORY_MAP_SIZE,
   STORY_NPC_IDS,
   STORY_PROTOCOL_VERSION,
+  STORY_SUPPORTED_PROTOCOL_VERSIONS,
 } from "@/config/storyMode";
 
 /**
@@ -43,8 +45,14 @@ export type StoryCommandError =
 
 export type StoryBridgeContext = { seenIds: Set<string>; rateWindow: number[]; now: number };
 
+export type MapPoi = { id: string; x: number; y: number };
+/** Static walkability for the native minimap (sent once inside BRIDGE_HELLO, protocol v2). */
+export type MapDescriptor = { width: number; height: number; walkable: string; pois: MapPoi[] };
+export type StoryObjective = { id: string; text: string };
+
 export type InboundCommand =
-  | { type: "BRIDGE_HELLO"; protocolVersion: number; buildHash: string }
+  | { type: "BRIDGE_HELLO"; protocolVersion: number; buildHash: string; map?: MapDescriptor }
+  | { type: "PLAYER_POS"; x: number; y: number; facing: StoryFacing; zone: string }
   | { type: "TALK_NPC"; npcId: string }
   | { type: "ENTER_BUILDING"; buildingId: string }
   | { type: "SET_STORY_FLAG"; flag: string; value: boolean }
@@ -94,6 +102,65 @@ export function isStoryCheckpoint(value: unknown): value is StoryCheckpoint {
     Number.isInteger(value.y) &&
     typeof value.facing === "string" &&
     (FACINGS as readonly string[]).includes(value.facing)
+  );
+}
+
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const MAX_MAP_SIDE = 64;
+const MAX_POIS = 32;
+
+/** Dependency-free base64 → bytes (ignores padding/whitespace; invalid chars are skipped). */
+export function decodeBase64(input: string): Uint8Array {
+  const bytes: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+  for (const char of input) {
+    const value = BASE64_ALPHABET.indexOf(char);
+    if (value < 0) continue;
+    buffer = ((buffer << 6) | value) & 0xffff;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((buffer >> bits) & 0xff);
+    }
+  }
+  return Uint8Array.from(bytes);
+}
+
+/** Row-major bitmask (bit=1 walkable, MSB-first per byte) → boolean grid [y][x]. */
+export function decodeWalkableMask(b64: string, width: number, height: number): boolean[][] {
+  const bytes = decodeBase64(b64);
+  const rows: boolean[][] = [];
+  for (let y = 0; y < height; y += 1) {
+    const row: boolean[] = [];
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      const byte = bytes[index >> 3] ?? 0;
+      row.push(((byte >> (7 - (index & 7))) & 1) === 1);
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+export function isMapDescriptor(value: unknown): value is MapDescriptor {
+  if (!isRecord(value)) return false;
+  const { width, height, walkable, pois } = value;
+  if (
+    typeof width !== "number" || !Number.isInteger(width) || width < 1 || width > MAX_MAP_SIDE ||
+    typeof height !== "number" || !Number.isInteger(height) || height < 1 || height > MAX_MAP_SIDE
+  ) {
+    return false;
+  }
+  if (typeof walkable !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(walkable)) return false;
+  if (decodeBase64(walkable).length < Math.ceil((width * height) / 8)) return false;
+  if (!Array.isArray(pois) || pois.length > MAX_POIS) return false;
+  return pois.every(
+    (poi) =>
+      isRecord(poi) &&
+      typeof poi.id === "string" && /^[A-Za-z0-9_-]{1,32}$/.test(poi.id) &&
+      typeof poi.x === "number" && Number.isInteger(poi.x) && poi.x >= 0 && poi.x < width &&
+      typeof poi.y === "number" && Number.isInteger(poi.y) && poi.y >= 0 && poi.y < height,
   );
 }
 
@@ -174,12 +241,40 @@ export function interpretInbound(envelope: StoryEnvelope): InterpretResult {
       if (typeof payload.protocolVersion !== "number" || typeof payload.buildHash !== "string") {
         return { ok: false, error: "INVALID_PAYLOAD" };
       }
-      if (payload.protocolVersion !== STORY_PROTOCOL_VERSION) {
+      if (!(STORY_SUPPORTED_PROTOCOL_VERSIONS as readonly number[]).includes(payload.protocolVersion)) {
         return { ok: false, error: "PROTOCOL_MISMATCH" };
+      }
+      if (payload.map !== undefined && !isMapDescriptor(payload.map)) {
+        return { ok: false, error: "INVALID_PAYLOAD" };
       }
       return {
         ok: true,
-        command: { type: "BRIDGE_HELLO", protocolVersion: payload.protocolVersion, buildHash: payload.buildHash },
+        command: {
+          type: "BRIDGE_HELLO",
+          protocolVersion: payload.protocolVersion,
+          buildHash: payload.buildHash,
+          ...(payload.map !== undefined ? { map: payload.map as MapDescriptor } : {}),
+        },
+      };
+    }
+    case "PLAYER_POS": {
+      if (
+        typeof payload.x !== "number" || !Number.isInteger(payload.x) || payload.x < 0 || payload.x > 255 ||
+        typeof payload.y !== "number" || !Number.isInteger(payload.y) || payload.y < 0 || payload.y > 255 ||
+        typeof payload.facing !== "string" || !(FACINGS as readonly string[]).includes(payload.facing) ||
+        typeof payload.zone !== "string" || payload.zone.length < 1 || payload.zone.length > 40
+      ) {
+        return { ok: false, error: "INVALID_PAYLOAD" };
+      }
+      return {
+        ok: true,
+        command: {
+          type: "PLAYER_POS",
+          x: payload.x,
+          y: payload.y,
+          facing: payload.facing as StoryFacing,
+          zone: payload.zone,
+        },
       };
     }
     case "TALK_NPC": {
@@ -252,11 +347,13 @@ export type StoryStateSnapshot = {
   flags: Record<string, boolean>;
   regionsUnlocked: string[];
   checkpoint: StoryCheckpoint | null;
+  currentObjective?: StoryObjective | null;
 };
 
 export function buildStoryStateMessage(snapshot: StoryStateSnapshot): StoryEnvelope {
   return makeOutbound("STORY_STATE", {
     checkpoint: snapshot.checkpoint,
+    currentObjective: snapshot.currentObjective ?? null,
     flags: snapshot.flags,
     protocolVersion: STORY_PROTOCOL_VERSION,
     regionsUnlocked: snapshot.regionsUnlocked,
@@ -269,6 +366,17 @@ export function buildRegionAccessMessage(regionId: string, unlocked: boolean, re
 
 export function buildAppEventMessage(kind: "background" | "foreground"): StoryEnvelope {
   return makeOutbound("APP_EVENT", { kind });
+}
+
+/**
+ * Round D: pure objective derivation (quest banner + STORY_STATE.currentObjective).
+ * TODO(slice-1): objectives come from the server chapter doc; this stays the offline fallback.
+ */
+export function deriveObjective(flags: Record<string, boolean>): StoryObjective | null {
+  if (flags[STORY_FLAG_GUIDE_MET] !== true) {
+    return { id: "meet-guide", text: "Meet the Guide" };
+  }
+  return { id: "visit-gacha", text: "Visit the Gacha Hangar" };
 }
 
 /** Round C: tells the overworld the native dialogue overlay opened/closed (lock movement, hide controls). */

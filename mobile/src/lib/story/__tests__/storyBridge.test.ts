@@ -4,6 +4,8 @@ import {
   buildDialogueStateMessage,
   buildStoryStateMessage,
   createStoryBridgeContext,
+  decodeWalkableMask,
+  deriveObjective,
   interpretInbound,
   makeAck,
   parseInboundMessage,
@@ -60,11 +62,12 @@ describe("story bridge envelope parsing", () => {
 
 describe("story bridge verb interpretation", () => {
   it("enforces the protocol handshake and allowlists", () => {
-    expect(interpretInbound(parsed("BRIDGE_HELLO", { protocolVersion: 2, buildHash: "x" }))).toEqual({
+    expect(interpretInbound(parsed("BRIDGE_HELLO", { protocolVersion: 3, buildHash: "x" }))).toEqual({
       ok: false,
       error: "PROTOCOL_MISMATCH",
     });
     expect(interpretInbound(parsed("BRIDGE_HELLO", { protocolVersion: 1, buildHash: "x" })).ok).toBe(true);
+    expect(interpretInbound(parsed("BRIDGE_HELLO", { protocolVersion: 2, buildHash: "x" })).ok).toBe(true);
     expect(interpretInbound(parsed("ENTER_BUILDING", { buildingId: "arena" }))).toEqual({
       ok: false,
       error: "UNKNOWN_BUILDING",
@@ -107,14 +110,87 @@ describe("story bridge verb interpretation", () => {
     expect(state.type).toBe("STORY_STATE");
     expect(state.payload).toEqual({
       checkpoint: null,
+      currentObjective: null,
       flags: { "npc.guide.met": true },
-      protocolVersion: 1,
+      protocolVersion: 2,
       regionsUnlocked: [],
+    });
+    const withObjective = buildStoryStateMessage({
+      checkpoint: null,
+      currentObjective: { id: "meet-guide", text: "Meet the Guide" },
+      flags: {},
+      regionsUnlocked: [],
+    });
+    expect((withObjective.payload as { currentObjective: unknown }).currentObjective).toEqual({
+      id: "meet-guide",
+      text: "Meet the Guide",
     });
     const dialogue = buildDialogueStateMessage(true, "guide");
     expect(dialogue.v).toBe(1);
     expect(dialogue.type).toBe("DIALOGUE_STATE");
     expect(dialogue.payload).toEqual({ npcId: "guide", open: true });
+  });
+});
+
+describe("round D: HELLO map descriptor, PLAYER_POS, objectives", () => {
+  it("parses a HELLO map descriptor and decodes the walkable bitmask", () => {
+    // 2×3 grid, bits 1,0,1,1,0,1 → byte 0b10110100 → base64 "tA=="
+    const hello = interpretInbound(
+      parsed("BRIDGE_HELLO", {
+        protocolVersion: 2,
+        buildHash: "dev",
+        map: { width: 2, height: 3, walkable: "tA==", pois: [{ id: "h3Core", x: 1, y: 2 }] },
+      }),
+    );
+    expect(hello.ok).toBe(true);
+    if (hello.ok && hello.command.type === "BRIDGE_HELLO") {
+      expect(hello.command.map?.pois).toEqual([{ id: "h3Core", x: 1, y: 2 }]);
+      expect(decodeWalkableMask(hello.command.map!.walkable, 2, 3)).toEqual([
+        [true, false],
+        [true, true],
+        [false, true],
+      ]);
+    }
+  });
+
+  it("rejects a malformed map (poi out of bounds / short mask) but keeps HELLO without a map", () => {
+    expect(
+      interpretInbound(
+        parsed("BRIDGE_HELLO", {
+          protocolVersion: 2,
+          buildHash: "dev",
+          map: { width: 2, height: 3, walkable: "tA==", pois: [{ id: "arena", x: 5, y: 0 }] },
+        }),
+      ),
+    ).toEqual({ ok: false, error: "INVALID_PAYLOAD" });
+    expect(
+      interpretInbound(
+        parsed("BRIDGE_HELLO", { protocolVersion: 2, buildHash: "dev", map: { width: 20, height: 20, walkable: "tA==", pois: [] } }),
+      ),
+    ).toEqual({ ok: false, error: "INVALID_PAYLOAD" });
+    expect(interpretInbound(parsed("BRIDGE_HELLO", { protocolVersion: 2, buildHash: "dev" })).ok).toBe(true);
+  });
+
+  it("accepts PLAYER_POS with ints + facing + zone and rejects bad shapes", () => {
+    const good = interpretInbound(parsed("PLAYER_POS", { x: 10, y: 9, facing: "up", zone: "H3 Plaza" }));
+    expect(good).toEqual({ ok: true, command: { type: "PLAYER_POS", x: 10, y: 9, facing: "up", zone: "H3 Plaza" } });
+    expect(interpretInbound(parsed("PLAYER_POS", { x: 1.5, y: 9, facing: "up", zone: "x" }))).toEqual({
+      ok: false,
+      error: "INVALID_PAYLOAD",
+    });
+    expect(interpretInbound(parsed("PLAYER_POS", { x: 1, y: 9, facing: "north", zone: "x" }))).toEqual({
+      ok: false,
+      error: "INVALID_PAYLOAD",
+    });
+    expect(interpretInbound(parsed("PLAYER_POS", { x: 1, y: 9, facing: "up", zone: "" }))).toEqual({
+      ok: false,
+      error: "INVALID_PAYLOAD",
+    });
+  });
+
+  it("derives the quest objective from flags", () => {
+    expect(deriveObjective({})).toEqual({ id: "meet-guide", text: "Meet the Guide" });
+    expect(deriveObjective({ "npc.guide.met": true })).toEqual({ id: "visit-gacha", text: "Visit the Gacha Hangar" });
   });
 });
 
