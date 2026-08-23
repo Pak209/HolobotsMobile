@@ -270,3 +270,8 @@ export function buildRegionAccessMessage(regionId: string, unlocked: boolean, re
 export function buildAppEventMessage(kind: "background" | "foreground"): StoryEnvelope {
   return makeOutbound("APP_EVENT", { kind });
 }
+
+/** Round C: tells the overworld the native dialogue overlay opened/closed (lock movement, hide controls). */
+export function buildDialogueStateMessage(open: boolean, npcId: string): StoryEnvelope {
+  return makeOutbound("DIALOGUE_STATE", { npcId, open });
+}

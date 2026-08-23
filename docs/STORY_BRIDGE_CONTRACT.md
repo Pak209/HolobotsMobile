@@ -118,3 +118,7 @@ If slice 0 needs **more than 2 inbound verbs beyond §C**, or **any** inbound re
   preventDefaults touchstart/contextmenu on control surfaces. Bridge/scroll semantics unchanged. Handshake: a HELLO
   timeout is recoverable (retry/backoff, "RECONNECTING…" banner); only a `PROTOCOL_MISMATCH` reply or `STORY_STATE`
   `protocolVersion≠1` latches the update-required state; HELLO is re-sent on WebView resume (visibilitychange).
+- **2026-08-23 — Round C.** Adds OUTBOUND `DIALOGUE_STATE { open: boolean, npcId: string }` (native→web) so the overworld
+  can lock movement / hide controls while the native dialogue overlay is open; it is outbound-only (no new inbound verb;
+  §G unaffected). Web tolerates its absence (no lock) and auto-unlocks after 90 s if a close is never received.
+  Native builder: `buildDialogueStateMessage()` in `mobile/src/lib/story/storyBridge.ts`; sent on overlay open/finish.

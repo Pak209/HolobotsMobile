@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildDialogueStateMessage,
   buildStoryStateMessage,
   createStoryBridgeContext,
   interpretInbound,
@@ -110,6 +111,10 @@ describe("story bridge verb interpretation", () => {
       protocolVersion: 1,
       regionsUnlocked: [],
     });
+    const dialogue = buildDialogueStateMessage(true, "guide");
+    expect(dialogue.v).toBe(1);
+    expect(dialogue.type).toBe("DIALOGUE_STATE");
+    expect(dialogue.payload).toEqual({ npcId: "guide", open: true });
   });
 });
 
