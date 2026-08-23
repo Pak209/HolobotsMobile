@@ -1,7 +1,6 @@
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import { TILE_SIZE } from "./TileTypes";
-
-export const GUIDE = { x: 11, y: 9, npcId: "guide" } as const;
+import { GUIDE } from "./maps/npcs";
 
 export class Npc {
   readonly sprite = new Container();

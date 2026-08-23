@@ -8,7 +8,8 @@ import {
   type TileEvent,
   type TileType,
 } from "./TileTypes";
-import { GUIDE } from "./Npc";
+import { blocked, h3, terrain } from "./maps/h3Plaza";
+import { GUIDE } from "./maps/npcs";
 
 export interface BuildingPlacement {
   x: number;
@@ -49,7 +50,7 @@ const fillRect = (
   }
 };
 
-const BUILDINGS: BuildingPlacement[] = [
+export const BUILDINGS: BuildingPlacement[] = [
   {
     x: 8,
     y: 2,
@@ -77,6 +78,13 @@ const BUILDINGS: BuildingPlacement[] = [
     width: 4,
     height: 3,
     event: { id: "pvpTerminal", label: "PvP Terminal" },
+  },
+  {
+    x: h3.originX,
+    y: h3.originY,
+    width: 4,
+    height: 3,
+    event: { id: "h3Core", label: "H3 Core" },
   },
 ];
 
@@ -114,12 +122,25 @@ const buildBaseMap = (): Tile[][] => {
     fillRect(tiles, building.x, building.y, building.width, building.height, "building");
   }
 
+  for (const cell of terrain) {
+    setTile(tiles, cell.x, cell.y, "path");
+  }
+
+  for (const [x, y] of h3.footprint) {
+    setTile(tiles, x, y, "building");
+  }
+  setTile(tiles, h3.doorway[0], h3.doorway[1], "path");
+
+  for (const [x, y] of blocked) {
+    setTile(tiles, x, y, "prop");
+  }
+
   setTile(tiles, GUIDE.x, GUIDE.y, "npc");
 
   return tiles;
 };
 
-const getEntrancePosition = (eventId: BuildingEventId): { x: number; y: number } => {
+export const getEntrancePosition = (eventId: BuildingEventId): { x: number; y: number } => {
   switch (eventId) {
     case "arena":
       return { x: 10, y: 5 };
@@ -129,6 +150,8 @@ const getEntrancePosition = (eventId: BuildingEventId): { x: number; y: number }
       return { x: 15, y: 10 };
     case "pvpTerminal":
       return { x: 15, y: 13 };
+    case "h3Core":
+      return { x: h3.interaction[0], y: h3.interaction[1] };
     default:
       return { x: 0, y: 0 };
   }
