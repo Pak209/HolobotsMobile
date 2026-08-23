@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import {
   buildAppEventMessage,
+  buildDialogueStateMessage,
   buildRegionAccessMessage,
   buildStoryStateMessage,
   createStoryBridgeContext,
@@ -162,6 +163,8 @@ export function OverworldScreen() {
         case "TALK_NPC":
           postToWeb(makeAck(envelope.id, true));
           setDialogue({ lines: GUIDE_DIALOGUE, npcId: command.npcId, speakerName: "Guide" });
+          // Round C: let the overworld lock movement / hide controls while the overlay is open.
+          postToWeb(buildDialogueStateMessage(true, command.npcId));
           return;
         case "ENTER_BUILDING":
           postToWeb(makeAck(envelope.id, true));
@@ -194,9 +197,11 @@ export function OverworldScreen() {
     const finished = dialogue;
     setDialogue(null);
     if (!finished) return;
-    // Native-authored progression flag (never from the WebView).
+    // Unlock the overworld first, then commit the native-authored progression flag
+    // (never from the WebView) and re-hydrate via STORY_STATE.
+    postToWeb(buildDialogueStateMessage(false, finished.npcId));
     void storeRef.current?.setFlag(STORY_FLAG_GUIDE_MET, true).then(pushStoryState);
-  }, [dialogue, pushStoryState]);
+  }, [dialogue, postToWeb, pushStoryState]);
 
   const showBlockedOverlay = !uriIsTrusted;
   const showLoading = !showBlockedOverlay && (!storeReady || pageLoading) && !loadError;
