@@ -4,6 +4,11 @@ export type PlazaProp = {
   layer: "lowDecor" | "actors" | "foregroundOcclusion";
   offsetX?: number; offsetY?: number; blocks?: boolean;
 };
+export const PLAZA_OFFSET = { x: 18, y: 10 } as const;
+const shift = <T extends { x: number; y: number }>(item: T): T => ({
+  ...item, x: item.x + PLAZA_OFFSET.x, y: item.y + PLAZA_OFFSET.y,
+});
+const shiftPoint = ([x, y]: [number, number]): [number, number] => [x + PLAZA_OFFSET.x, y + PLAZA_OFFSET.y];
 
 const cells = (rows: Array<[number, number, number]>) => rows.flatMap(([y, from, to]) =>
   Array.from({ length: to - from + 1 }, (_, index) => ({ x: from + index, y })));
@@ -15,11 +20,11 @@ const variants: Record<string, string> = {
 };
 
 export const TILING_BASES = ["floor-plaza-a", "floor-plaza-b", "path-cyan-h-a", "path-gold-h"] as const;
-export const terrain = plazaCells.map(({ x, y }, index) => ({
+export const terrain = plazaCells.map(({ x, y }, index) => shift({
   x, y, tile: variants[`${y},${x}`] ?? (index % 3 === 0 ? "floor-plaza-b" : "floor-plaza-a"),
 }));
 
-export const details: PlazaDetail[] = [
+const rawDetails: PlazaDetail[] = [
   { x: 10, y: 7, tile: "path-cyan-h-a", rotation: 90 }, { x: 10, y: 8, tile: "path-cyan-h-b", rotation: 90 },
   { x: 10, y: 9, tile: "path-cyan-node-round" }, { x: 10, y: 10, tile: "path-cyan-t", rotation: 90 },
   { x: 8, y: 10, tile: "path-cyan-h-a" }, { x: 9, y: 10, tile: "path-cyan-h-b" },
@@ -28,13 +33,15 @@ export const details: PlazaDetail[] = [
   { x: 7, y: 13, tile: "path-gold-end" }, { x: 8, y: 13, tile: "path-gold-h" },
   { x: 9, y: 13, tile: "path-gold-node-a" }, { x: 10, y: 13, tile: "path-gold-inlay" },
 ];
+export const details = rawDetails.map(shift);
 
-export const canals: PlazaDetail[] = [
+const rawCanals: PlazaDetail[] = [
   { x: 5, y: 12, tile: "canal-h-a" }, { x: 6, y: 12, tile: "canal-h-b" },
   { x: 7, y: 12, tile: "canal-node" },
 ];
+export const canals = rawCanals.map(shift);
 
-export const props: PlazaProp[] = [
+const rawProps: PlazaProp[] = [
   { name: "curb-corner-a", x: 6, y: 8, layer: "lowDecor" }, { name: "curb-straight-a", x: 8, y: 7, layer: "lowDecor" },
   { name: "curb-u-notch", x: 12, y: 7, layer: "lowDecor" }, { name: "curb-return", x: 13, y: 9, layer: "lowDecor" },
   { name: "curb-s-bend", x: 14, y: 11, layer: "lowDecor" }, { name: "curb-gold-bend", x: 13, y: 14, layer: "lowDecor" },
@@ -53,17 +60,21 @@ export const props: PlazaProp[] = [
   { name: "crate-gold", x: 14, y: 14, layer: "foregroundOcclusion", offsetX: -9 },
   { name: "debris-holobot", x: 5, y: 10, layer: "actors", blocks: true },
 ];
+export const props = rawProps.map(shift);
 
 export const blocked: Array<[number, number]> = [
-  [5, 12], [6, 12], [7, 12],
+  ...[[5, 12], [6, 12], [7, 12]].map((point) => shiftPoint(point as [number, number])),
   ...props.filter((prop) => prop.blocks).map((prop) => [prop.x, prop.y] as [number, number]),
 ];
 
 export const h3 = {
-  originX: 8, originY: 11,
-  footprint: cells([[11, 8, 11], [12, 8, 11], [13, 8, 11]]).map(({ x, y }) => [x, y] as [number, number]),
-  doorway: [10, 13] as [number, number],
-  interaction: [10, 14] as [number, number],
+  originX: 8 + PLAZA_OFFSET.x, originY: 11 + PLAZA_OFFSET.y,
+  footprint: cells([[11, 8, 11], [12, 8, 11], [13, 8, 11]])
+    .map(({ x, y }) => shiftPoint([x, y])),
+  doorway: shiftPoint([10, 13]),
+  interaction: shiftPoint([10, 14]),
 };
 
-export const wispSpawns: Array<[number, number]> = [[7, 9], [12, 9], [6, 13], [13, 13], [9, 15], [11, 8]];
+export const wispSpawns: Array<[number, number]> = (
+  [[7, 9], [12, 9], [6, 13], [13, 13], [9, 15], [11, 8]] as Array<[number, number]>
+).map(shiftPoint);

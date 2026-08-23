@@ -7,8 +7,8 @@ import {
 } from "./Interactions";
 import { Player } from "./Player";
 import { Npc } from "./Npc";
-import { TileMap } from "./TileMap";
-import { TILE_COLORS, TILE_SIZE, type Direction } from "./TileTypes";
+import { TileMap, getEntrancePosition } from "./TileMap";
+import { TILE_SIZE, type Direction } from "./TileTypes";
 import { loadTextureRegistry, type TextureRegistry } from "./assets/textureRegistry";
 import {
   STORY_SUPPORTED_PROTOCOL_VERSIONS,
@@ -27,6 +27,7 @@ import { Companion } from "./characters/Companion";
 import { AMBIENT_PALETTES, NPC_PALETTE } from "./characters/tempSheets";
 import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza";
 import { AMBIENT_NPCS, GUIDE } from "./maps/npcs";
+import { TOWN_CANALS, TOWN_DETAILS, TOWN_PROPS, getBaseTile } from "./maps/townMap";
 import { mountDPad } from "./ui/DPad";
 
 type ResizeTarget = Pick<HTMLElement, "clientWidth" | "clientHeight">;
@@ -104,7 +105,7 @@ export class OverworldScene {
     this.mountNode = options.mountNode;
     this.tileMap = new TileMap();
     const mapDescriptor = buildMapDescriptor(this.tileMap);
-    this.player = new Player({ x: 10, y: 10 });
+    this.player = new Player({ x: 28, y: 20 });
     this.npc = new Npc(this.tileMap, {
       id: GUIDE.npcId, home: { x: GUIDE.x, y: GUIDE.y }, palette: NPC_PALETTE, interactive: true,
     });
@@ -245,10 +246,7 @@ export class OverworldScene {
     for (let y = 0; y < this.tileMap.height; y += 1) {
       for (let x = 0; x < this.tileMap.width; x += 1) {
         const tile = this.tileMap.tiles[y][x];
-        const tileGraphic = this.drawTile(tile.type, x, y);
-
-        tileGraphic.position.set(x * TILE_SIZE, y * TILE_SIZE);
-        this.ground.addChild(tileGraphic);
+        this.ground.addChild(this.makeTileSprite(getBaseTile(x, y), x, y));
 
         if (tile.event && tile.type === "path") {
           const entrance = this.drawEntranceMarker();
@@ -259,8 +257,12 @@ export class OverworldScene {
     }
 
     for (const item of terrain) this.ground.addChild(this.makeTileSprite(item.tile, item.x, item.y));
+    for (const item of TOWN_DETAILS) this.groundDetail.addChild(this.makeTileSprite(item.tile, item.x, item.y, item.rotation));
     for (const item of details) this.groundDetail.addChild(this.makeTileSprite(item.tile, item.x, item.y, item.rotation));
+    for (const item of TOWN_CANALS) this.canals.addChild(this.makeTileSprite(item.tile, item.x, item.y, item.rotation));
     for (const item of canals) this.canals.addChild(this.makeTileSprite(item.tile, item.x, item.y, item.rotation));
+
+    for (const item of TOWN_PROPS) this.actors.addChild(this.makePropSprite(item.name, item.x, item.y));
 
     for (const item of props) {
       const sprite = this.makePropSprite(item.name, item.x, item.y, item.offsetX, item.offsetY);
@@ -285,9 +287,7 @@ export class OverworldScene {
     for (const [id, name] of [["arena", "pad-target-round"], ["gacha", "lantern-gold"],
       ["trainingLab", "lantern-cyan-tall"], ["pvpTerminal", "terminal-holo"], ["h3Core", "path-cyan-node-round"]] as const) {
       const building = this.tileMap.getBuildingPlacements().find((item) => item.event.id === id)!;
-      const entrance = id === "h3Core" ? { x: h3.interaction[0], y: h3.interaction[1] }
-        : id === "arena" ? { x: 10, y: 5 } : id === "gacha" ? { x: 4, y: 10 }
-          : id === "trainingLab" ? { x: 15, y: 10 } : { x: 15, y: 13 };
+      const entrance = getEntrancePosition(id);
       const marker = name.startsWith("path-")
         ? this.makeTileSprite(name, entrance.x, entrance.y)
         : this.makePropSprite(name, entrance.x, entrance.y);
@@ -325,68 +325,6 @@ export class OverworldScene {
     sprite.position.set((x + 0.5) * TILE_SIZE + offsetX, (y + 1) * TILE_SIZE + offsetY);
     sprite.zIndex = sprite.y;
     return sprite;
-  }
-
-  private drawTile(tileType: keyof typeof TILE_COLORS, x: number, y: number): Container {
-    const tile = new Container();
-    const base = new Graphics();
-
-    base.rect(0, 0, TILE_SIZE, TILE_SIZE).fill(TILE_COLORS[tileType]);
-    tile.addChild(base);
-
-    switch (tileType) {
-      case "grass": {
-        const patch = new Graphics();
-        patch.rect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4).fill(0x292c33);
-        patch.rect(4, 4, TILE_SIZE - 8, TILE_SIZE - 8).fill(0x24272d);
-        patch.rect(3 + ((x + y) % 3), 7, 6, 3).fill(0x353943);
-        patch.rect(18, 10 + ((x * y) % 4), 5, 3).fill(0x353943);
-        patch.rect(9, 20, 4, 2).fill(0x444955);
-        tile.addChild(patch);
-        break;
-      }
-      case "npc":
-        break;
-      case "path": {
-        const road = new Graphics();
-        road.rect(1, 1, TILE_SIZE - 2, TILE_SIZE - 2).fill(0x7d859b);
-        road.rect(3, 3, TILE_SIZE - 6, TILE_SIZE - 6).fill(0x969eb2);
-        road.rect(5, 5, TILE_SIZE - 10, TILE_SIZE - 10).fill(0x8b93a6);
-        road.rect(14, 4, 4, TILE_SIZE - 8).fill(0x38d9ff);
-        road.rect(15, 5, 2, TILE_SIZE - 10).fill(0xa2f0ff);
-        tile.addChild(road);
-        break;
-      }
-      case "water": {
-        const water = new Graphics();
-        water.rect(1, 1, TILE_SIZE - 2, TILE_SIZE - 2).fill(0x144b8b);
-        water.rect(3, 3, TILE_SIZE - 6, TILE_SIZE - 6).fill(0x1e78d3);
-        water.rect(4, 8, TILE_SIZE - 8, 3).fill(0x74f3ff);
-        water.rect(8, 16, TILE_SIZE - 14, 2).fill(0x9ef7ff);
-        tile.addChild(water);
-        break;
-      }
-      case "wall": {
-        const wall = new Graphics();
-        wall.rect(1, 1, TILE_SIZE - 2, TILE_SIZE - 2).fill(0x262d4b);
-        wall.rect(4, 4, TILE_SIZE - 8, TILE_SIZE - 8).fill(0x39416b);
-        wall.rect(6, 6, TILE_SIZE - 12, 6).fill(0x586289);
-        wall.rect(6, 16, TILE_SIZE - 12, 4).fill(0x20253c);
-        tile.addChild(wall);
-        break;
-      }
-      case "building": {
-        const pad = new Graphics();
-        pad.rect(0, 0, TILE_SIZE, TILE_SIZE).fill(0x4b5270);
-        pad.rect(3, 3, TILE_SIZE - 6, TILE_SIZE - 6).fill(0x636d8f);
-        tile.addChild(pad);
-        break;
-      }
-      default:
-        break;
-    }
-
-    return tile;
   }
 
   private drawEntranceMarker(): Container {
@@ -492,8 +430,8 @@ export class OverworldScene {
     const desiredY = viewportHeight / 2 - playerCenterY;
 
     this.world.position.set(
-      clamp(desiredX, minX, 0),
-      clamp(desiredY, minY, 0),
+      viewportWidth >= this.tileMap.pixelWidth ? (viewportWidth - this.tileMap.pixelWidth) / 2 : clamp(desiredX, minX, 0),
+      viewportHeight >= this.tileMap.pixelHeight ? (viewportHeight - this.tileMap.pixelHeight) / 2 : clamp(desiredY, minY, 0),
     );
   }
 
