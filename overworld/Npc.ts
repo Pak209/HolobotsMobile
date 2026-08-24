@@ -4,6 +4,7 @@ import type { Player } from "./Player";
 import type { TileMap } from "./TileMap";
 import { TILE_SIZE, type Direction } from "./TileTypes";
 import { createPilotSheet, createShadowTexture, type CharacterSheet, type PilotPalette } from "./characters/tempSheets";
+import { isWithinRadius, shouldWander } from "./characters/interaction";
 import { terrain } from "./maps/h3Plaza";
 
 const PLAZA = new Set(terrain.map(({ x, y }) => `${x},${y}`));
@@ -26,6 +27,8 @@ export class Npc {
   private readonly sheet: CharacterSheet;
   private elapsed = 0;
   private nextWanderAt = 2.5;
+  private resumeAt = 0;
+  private playerWasNear = false;
 
   constructor(tileMap: TileMap, options: { id: string; home: { x: number; y: number }; palette: PilotPalette; interactive: boolean }) {
     this.id = options.id; this.home = options.home; this.interactive = options.interactive;
@@ -44,7 +47,14 @@ export class Npc {
 
   update(deltaSeconds: number, tileMap: TileMap, player: Player, dialogueOpen: boolean): void {
     this.elapsed += deltaSeconds;
-    if (!dialogueOpen && !this.isMoving && this.elapsed >= this.nextWanderAt) this.chooseStep(tileMap, player);
+    const playerNear = this.interactive && isWithinRadius(this, player, 2);
+    if (this.interactive && this.playerWasNear && !playerNear) this.resumeAt = this.elapsed + 2;
+    this.playerWasNear = playerNear;
+    if (playerNear && !this.isMoving) this.facePlayer(player);
+    if (shouldWander({
+      playerNear, dialogueOpen, isMoving: this.isMoving, elapsed: this.elapsed,
+      nextWanderAt: this.nextWanderAt, resumeAt: this.resumeAt,
+    })) this.chooseStep(tileMap, player);
     const wasMoving = this.isMoving;
     if (this.isMoving) {
       this.pixelX = moveToward(this.pixelX, this.targetX, 90 * deltaSeconds);

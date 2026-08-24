@@ -51,6 +51,11 @@ export class Player {
     return { x: this.gridX + vector.x, y: this.gridY + vector.y };
   }
 
+  face(direction: Direction): void {
+    this.direction = direction;
+    if (!this.isMoving) this.body.texture = this.sheet.frames[direction].idle;
+  }
+
   moveTo(x: number, y: number, direction: Direction): void {
     this.gridX = x; this.gridY = y; this.direction = direction;
     this.pixelX = this.targetPixelX = x * TILE_SIZE; this.pixelY = this.targetPixelY = y * TILE_SIZE;

@@ -24,7 +24,7 @@ import { createHandshakeController, type HandshakeState } from "./bridge/handsha
 import { buildMapDescriptor } from "./bridge/mapDescriptor";
 import { createTrailingThrottle } from "./bridge/throttle";
 import { Companion } from "./characters/Companion";
-import { canInteractWithNpc } from "./characters/interaction";
+import { adjacentInteractDirection, canInteractWithNpc } from "./characters/interaction";
 import { AMBIENT_PALETTES, NPC_PALETTE } from "./characters/tempSheets";
 import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza";
 import { AMBIENT_NPCS, GUIDE } from "./maps/npcs";
@@ -361,14 +361,19 @@ export class OverworldScene {
     this.companion.update(this.player, this.tileMap, deltaSeconds, performance.now());
     this.npc.update(deltaSeconds, this.tileMap, this.player, this.dialogueOpen);
     for (const npc of this.ambientNpcs) npc.update(deltaSeconds, this.tileMap, this.player, this.dialogueOpen);
-    const adjacentNpc = Math.abs(this.player.gridX - this.npc.gridX) + Math.abs(this.player.gridY - this.npc.gridY) === 1;
-    if (adjacentNpc) this.npc.facePlayer(this.player);
     if (this.interactionIndicator) {
       const facing = this.player.getFacingTile();
-      const canInteract = canInteractWithNpc(this.npc, facing, this.dialogueOpen);
+      const canInteract = canInteractWithNpc(this.npc, facing, this.dialogueOpen)
+        || adjacentInteractDirection(this.npc, this.player, this.dialogueOpen) !== null;
+      const pulse = canInteract ? 1 + Math.sin(this.worldTime * 6) * 0.08 : 1;
+      const baseScale = this.textures.PROP_SCALE * 0.45;
       this.interactionIndicator.visible = !this.dialogueOpen;
       this.interactionIndicator.alpha = canInteract ? 1 : 0.35;
-      this.interactionIndicator.position.set(this.npc.sprite.x + TILE_SIZE / 2, this.npc.sprite.y - 12 + Math.sin(this.worldTime * 3) * 2);
+      this.interactionIndicator.scale.set(baseScale * pulse);
+      this.interactionIndicator.position.set(
+        this.npc.sprite.x + TILE_SIZE / 2,
+        this.npc.sprite.y - 12 + Math.sin(this.worldTime * (canInteract ? 6 : 3)) * (canInteract ? 5 : 2),
+      );
       this.interactionIndicator.zIndex = this.npc.sprite.zIndex + 1;
     }
     for (const wisp of this.wisps) {
@@ -419,8 +424,9 @@ export class OverworldScene {
     if (this.interactionStatus) { this.interactionLabel.text = this.interactionStatus; return; }
     const facingTile = this.player.getFacingTile();
     const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
-    const facingGuide = canInteractWithNpc(this.npc, facingTile, this.dialogueOpen);
-    this.interactionLabel.text = facingGuide
+    const guideInRange = canInteractWithNpc(this.npc, facingTile, this.dialogueOpen)
+      || adjacentInteractDirection(this.npc, this.player, this.dialogueOpen) !== null;
+    this.interactionLabel.text = guideInRange
       ? `Press A: ${this.flags["npc.guide.met"] ? "Guide ✓" : "Guide"}`
       : interactionTile?.event ? `Press A: ${interactionTile.event.label}` : "";
   }
@@ -465,8 +471,13 @@ export class OverworldScene {
     if (this.dialogueOpen || this.handshakeState === "mismatch") return;
     const facing = this.player.getFacingTile();
     if (canInteractWithNpc(this.npc, facing, this.dialogueOpen)) {
-      this.interactionStatus = "Talking…";
-      void send("TALK_NPC", { npcId: GUIDE.npcId }).finally(() => { this.interactionStatus = null; });
+      this.talkToGuide();
+      return;
+    }
+    const direction = adjacentInteractDirection(this.npc, this.player, this.dialogueOpen);
+    if (direction) {
+      this.player.face(direction);
+      this.talkToGuide();
       return;
     }
     const tile = this.tileMap.getInteractionTile(facing.x, facing.y);
@@ -477,6 +488,11 @@ export class OverworldScene {
       void send("ENTER_BUILDING", { buildingId: tile.event.id });
       triggerBuildingEvent(tile.event, this.callbacks);
     }
+  }
+
+  private talkToGuide(): void {
+    this.interactionStatus = "Talking…";
+    void send("TALK_NPC", { npcId: GUIDE.npcId }).finally(() => { this.interactionStatus = null; });
   }
 
   private queueCheckpoint(): void {
