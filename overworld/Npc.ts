@@ -4,7 +4,7 @@ import type { Player } from "./Player";
 import type { TileMap } from "./TileMap";
 import { TILE_SIZE, type Direction } from "./TileTypes";
 import { createPilotSheet, createShadowTexture, type CharacterSheet, type PilotPalette } from "./characters/tempSheets";
-import { isWithinRadius, shouldWander } from "./characters/interaction";
+import { nextPauseState, shouldWander } from "./characters/interaction";
 import { terrain } from "./maps/h3Plaza";
 
 const PLAZA = new Set(terrain.map(({ x, y }) => `${x},${y}`));
@@ -28,7 +28,7 @@ export class Npc {
   private elapsed = 0;
   private nextWanderAt = 2.5;
   private resumeAt = 0;
-  private playerWasNear = false;
+  private paused = false;
 
   constructor(tileMap: TileMap, options: { id: string; home: { x: number; y: number }; palette: PilotPalette; interactive: boolean }) {
     this.id = options.id; this.home = options.home; this.interactive = options.interactive;
@@ -44,15 +44,16 @@ export class Npc {
   }
 
   get isMoving() { return this.pixelX !== this.targetX || this.pixelY !== this.targetY; }
+  get isPaused() { return this.paused; }
 
   update(deltaSeconds: number, tileMap: TileMap, player: Player, dialogueOpen: boolean): void {
     this.elapsed += deltaSeconds;
-    const playerNear = this.interactive && isWithinRadius(this, player, 2);
-    if (this.interactive && this.playerWasNear && !playerNear) this.resumeAt = this.elapsed + 2;
-    this.playerWasNear = playerNear;
-    if (playerNear && !this.isMoving) this.facePlayer(player);
+    const wasPaused = this.paused;
+    this.paused = this.interactive && nextPauseState(this.paused, this, player);
+    if (wasPaused && !this.paused) this.resumeAt = this.elapsed + 2;
+    if (this.paused && !this.isMoving) this.facePlayer(player);
     if (shouldWander({
-      playerNear, dialogueOpen, isMoving: this.isMoving, elapsed: this.elapsed,
+      playerNear: this.paused, dialogueOpen, isMoving: this.isMoving, elapsed: this.elapsed,
       nextWanderAt: this.nextWanderAt, resumeAt: this.resumeAt,
     })) this.chooseStep(tileMap, player);
     const wasMoving = this.isMoving;

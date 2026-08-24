@@ -69,6 +69,21 @@ export const createShadowTexture = () => pixelTexture(16, 6, (ctx) => {
   ctx.fillStyle = "rgba(5,6,6,.35)"; ctx.fillRect(3, 0, 10, 6); ctx.fillRect(1, 2, 14, 2);
 });
 
+export const createGuideMarkerTexture = () => pixelTexture(16, 20, (ctx) => {
+  const diamond = (color: string, top: number, height: number) => {
+    ctx.fillStyle = color;
+    for (let row = 0; row < height; row += 1) {
+      const half = row < height / 2 ? row : height - row - 1;
+      ctx.fillRect(8 - half, top + row, half * 2 + 1, 1);
+    }
+  };
+  diamond("#050606", 0, 16);
+  diamond("#17d9ff", 2, 12);
+  diamond("#f0bf14", 4, 8);
+  ctx.fillStyle = "#050606"; ctx.fillRect(7, 16, 3, 2);
+  ctx.fillStyle = "#17d9ff"; ctx.fillRect(8, 16, 1, 4);
+});
+
 export const createAceTextures = () => ({
   body: pixelTexture(24, 24, (ctx) => {
     ctx.fillStyle = "#050606"; ctx.fillRect(4, 5, 16, 16);

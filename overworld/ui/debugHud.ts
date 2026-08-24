@@ -5,6 +5,7 @@ export type DebugHud = {
   setHandshake(state: HandshakeState): void;
   notePressInteract(): void;
   noteDirection(direction: string, held: boolean): void;
+  setGuide(info: string): void;
   destroy(): void;
 };
 
@@ -19,7 +20,8 @@ export const mountDebugHud = (container: HTMLElement): DebugHud | undefined => {
   let press = "never";
   let bridge = "none";
   let dir = "none";
-  const render = () => { element.textContent = `handshake: ${handshake}\ntouch: ${touch}\npressInteract: ${press}\ndir: ${dir}\nbridge: ${bridge}`; };
+  let guide = "unknown";
+  const render = () => { element.textContent = `handshake: ${handshake}\ntouch: ${touch}\npressInteract: ${press}\ndir: ${dir}\nbridge: ${bridge}\nguide: ${guide}`; };
   const onTouch = (event: TouchEvent) => {
     const point = event.changedTouches[0];
     const target = event.target instanceof Element
@@ -40,6 +42,7 @@ export const mountDebugHud = (container: HTMLElement): DebugHud | undefined => {
     setHandshake: (state) => { handshake = state; render(); },
     notePressInteract: () => { press = formatTime(Date.now()); render(); },
     noteDirection: (direction, held) => { dir = `${direction}:${held ? "DOWN" : "up"} @ ${formatTime(Date.now())}`; render(); },
+    setGuide: (info) => { if (guide !== info) { guide = info; render(); } },
     destroy: () => {
       document.removeEventListener("touchstart", onTouch, true);
       stopBridge(); element.remove();

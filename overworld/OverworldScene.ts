@@ -25,7 +25,7 @@ import { buildMapDescriptor } from "./bridge/mapDescriptor";
 import { createTrailingThrottle } from "./bridge/throttle";
 import { Companion } from "./characters/Companion";
 import { adjacentInteractDirection, canInteractWithNpc } from "./characters/interaction";
-import { AMBIENT_PALETTES, NPC_PALETTE } from "./characters/tempSheets";
+import { AMBIENT_PALETTES, createGuideMarkerTexture, NPC_PALETTE } from "./characters/tempSheets";
 import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza";
 import { AMBIENT_NPCS, GUIDE } from "./maps/npcs";
 import { TOWN_CANALS, TOWN_DETAILS, TOWN_PROPS, getBaseTile } from "./maps/townMap";
@@ -98,6 +98,7 @@ export class OverworldScene {
   private readonly wisps: Array<{ sprite: Sprite; baseY: number; phase: number }> = [];
   private coreGlow?: { sprite: Sprite; baseScale: number };
   private interactionIndicator?: Sprite;
+  private lastGuideDebug = "";
 
   private resizeTarget?: ResizeTarget;
   private lastInteractionPressed = false;
@@ -160,9 +161,9 @@ export class OverworldScene {
     this.actors.addChild(this.companion.sprite);
     this.actors.addChild(this.npc.sprite);
     for (const npc of this.ambientNpcs) this.actors.addChild(npc.sprite);
-    this.interactionIndicator = new Sprite(this.textures.prop("data-wisp"));
+    this.interactionIndicator = new Sprite(createGuideMarkerTexture());
     this.interactionIndicator.anchor.set(0.5);
-    this.interactionIndicator.scale.set(this.textures.PROP_SCALE * 0.45);
+    this.interactionIndicator.scale.set(1.5);
     this.interactionIndicator.visible = false;
     this.actors.addChild(this.interactionIndicator);
 
@@ -363,19 +364,22 @@ export class OverworldScene {
     this.npc.update(deltaSeconds, this.tileMap, this.player, this.dialogueOpen);
     for (const npc of this.ambientNpcs) npc.update(deltaSeconds, this.tileMap, this.player, this.dialogueOpen);
     if (this.interactionIndicator) {
-      const facing = this.player.getFacingTile();
-      const canInteract = canInteractWithNpc(this.npc, facing, this.dialogueOpen)
-        || adjacentInteractDirection(this.npc, this.player, this.dialogueOpen) !== null;
-      const pulse = canInteract ? 1 + Math.sin(this.worldTime * 6) * 0.08 : 1;
-      const baseScale = this.textures.PROP_SCALE * 0.45;
+      const guide = this.getGuideInteractionState();
+      const pulse = guide.canTalk ? 1 + Math.sin(this.worldTime * 6) * 0.08 : 1;
       this.interactionIndicator.visible = !this.dialogueOpen;
-      this.interactionIndicator.alpha = canInteract ? 1 : 0.35;
-      this.interactionIndicator.scale.set(baseScale * pulse);
+      this.interactionIndicator.alpha = guide.canTalk ? 1 : 0.55;
+      this.interactionIndicator.scale.set(1.5 * pulse);
       this.interactionIndicator.position.set(
         this.npc.sprite.x + TILE_SIZE / 2,
-        this.npc.sprite.y - 12 + Math.sin(this.worldTime * (canInteract ? 6 : 3)) * (canInteract ? 5 : 2),
+        this.npc.sprite.y - 22 + Math.sin(this.worldTime * (guide.canTalk ? 6 : 2.2)) * (guide.canTalk ? 5 : 2),
       );
-      this.interactionIndicator.zIndex = this.npc.sprite.zIndex + 1;
+      this.interactionIndicator.zIndex = this.npc.sprite.zIndex + 2;
+      const dx = this.npc.gridX - this.player.gridX; const dy = this.npc.gridY - this.player.gridY;
+      const debug = `${dx},${dy} adj:${guide.direction ? "yes" : "no"} canTalk:${guide.canTalk ? "yes" : "no"} paused:${this.npc.isPaused ? "yes" : "no"}`;
+      if (debug !== this.lastGuideDebug) {
+        this.lastGuideDebug = debug;
+        this.debugHud?.setGuide(debug);
+      }
     }
     for (const wisp of this.wisps) {
       wisp.sprite.y = wisp.baseY + Math.sin(this.worldTime * 1.8 + wisp.phase) * 4;
@@ -425,9 +429,7 @@ export class OverworldScene {
     if (this.interactionStatus) { this.interactionLabel.text = this.interactionStatus; return; }
     const facingTile = this.player.getFacingTile();
     const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
-    const guideInRange = canInteractWithNpc(this.npc, facingTile, this.dialogueOpen)
-      || adjacentInteractDirection(this.npc, this.player, this.dialogueOpen) !== null;
-    this.interactionLabel.text = guideInRange
+    this.interactionLabel.text = this.getGuideInteractionState().canTalk
       ? `Press A: ${this.flags["npc.guide.met"] ? "Guide ✓" : "Guide"}`
       : interactionTile?.event ? `Press A: ${interactionTile.event.label}` : "";
   }
@@ -471,13 +473,13 @@ export class OverworldScene {
   private interact(): void {
     if (this.dialogueOpen || this.handshakeState === "mismatch") return;
     const facing = this.player.getFacingTile();
+    const guide = this.getGuideInteractionState();
     if (canInteractWithNpc(this.npc, facing, this.dialogueOpen)) {
       this.talkToGuide();
       return;
     }
-    const direction = adjacentInteractDirection(this.npc, this.player, this.dialogueOpen);
-    if (direction) {
-      this.player.face(direction);
+    if (guide.direction) {
+      this.player.face(guide.direction);
       this.talkToGuide();
       return;
     }
@@ -494,6 +496,12 @@ export class OverworldScene {
   private talkToGuide(): void {
     this.interactionStatus = "Talking…";
     void send("TALK_NPC", { npcId: GUIDE.npcId }).finally(() => { this.interactionStatus = null; });
+  }
+
+  private getGuideInteractionState(): { direction: Direction | null; canTalk: boolean } {
+    const facing = canInteractWithNpc(this.npc, this.player.getFacingTile(), this.dialogueOpen);
+    const direction = adjacentInteractDirection(this.npc, this.player, this.dialogueOpen);
+    return { direction, canTalk: facing || direction !== null };
   }
 
   private queueCheckpoint(): void {

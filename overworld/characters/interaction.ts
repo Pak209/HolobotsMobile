@@ -13,6 +13,13 @@ type Direction = "up" | "down" | "left" | "right";
 export const isWithinRadius = (a: GridPoint, b: GridPoint, radius: number): boolean =>
   Math.max(Math.abs(a.gridX - b.gridX), Math.abs(a.gridY - b.gridY)) <= radius;
 
+export const nextPauseState = (
+  paused: boolean,
+  npc: GridPoint,
+  player: GridPoint,
+  radius = 2,
+): boolean => isWithinRadius(npc, player, paused ? radius + 1 : radius);
+
 export const shouldWander = (input: {
   playerNear: boolean;
   dialogueOpen: boolean;
