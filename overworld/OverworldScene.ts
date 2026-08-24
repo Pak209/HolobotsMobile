@@ -24,6 +24,7 @@ import { createHandshakeController, type HandshakeState } from "./bridge/handsha
 import { buildMapDescriptor } from "./bridge/mapDescriptor";
 import { createTrailingThrottle } from "./bridge/throttle";
 import { Companion } from "./characters/Companion";
+import { canInteractWithNpc } from "./characters/interaction";
 import { AMBIENT_PALETTES, NPC_PALETTE } from "./characters/tempSheets";
 import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza";
 import { AMBIENT_NPCS, GUIDE } from "./maps/npcs";
@@ -360,8 +361,9 @@ export class OverworldScene {
     if (adjacentNpc) this.npc.facePlayer(this.player);
     if (this.interactionIndicator) {
       const facing = this.player.getFacingTile();
-      this.interactionIndicator.visible = !this.dialogueOpen && !this.npc.isMoving
-        && facing.x === this.npc.gridX && facing.y === this.npc.gridY;
+      const canInteract = canInteractWithNpc(this.npc, facing, this.dialogueOpen);
+      this.interactionIndicator.visible = !this.dialogueOpen;
+      this.interactionIndicator.alpha = canInteract ? 1 : 0.35;
       this.interactionIndicator.position.set(this.npc.sprite.x + TILE_SIZE / 2, this.npc.sprite.y - 12 + Math.sin(this.worldTime * 3) * 2);
       this.interactionIndicator.zIndex = this.npc.sprite.zIndex + 1;
     }
@@ -413,7 +415,7 @@ export class OverworldScene {
     if (this.interactionStatus) { this.interactionLabel.text = this.interactionStatus; return; }
     const facingTile = this.player.getFacingTile();
     const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
-    const facingGuide = !this.npc.isMoving && facingTile.x === this.npc.gridX && facingTile.y === this.npc.gridY;
+    const facingGuide = canInteractWithNpc(this.npc, facingTile, this.dialogueOpen);
     this.interactionLabel.text = facingGuide
       ? `Press A: ${this.flags["npc.guide.met"] ? "Guide ✓" : "Guide"}`
       : interactionTile?.event ? `Press A: ${interactionTile.event.label}` : "";
@@ -458,7 +460,7 @@ export class OverworldScene {
   private interact(): void {
     if (this.dialogueOpen || this.handshakeState === "mismatch") return;
     const facing = this.player.getFacingTile();
-    if (!this.npc.isMoving && facing.x === this.npc.gridX && facing.y === this.npc.gridY) {
+    if (canInteractWithNpc(this.npc, facing, this.dialogueOpen)) {
       this.interactionStatus = "Talking…";
       void send("TALK_NPC", { npcId: GUIDE.npcId }).finally(() => { this.interactionStatus = null; });
       return;

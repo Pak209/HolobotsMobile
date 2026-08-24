@@ -16,7 +16,7 @@ export const PILOT_PALETTE: PilotPalette = {
   ink: "#050606", dark: "#2a2d33", mid: "#3a3e47", visor: "#17d9ff", trim: "#f0bf14", skin: "#d9a071",
 };
 export const NPC_PALETTE: PilotPalette = {
-  ink: "#050606", dark: "#34372d", mid: "#596044", visor: "#f0bf14", trim: "#17d9ff", skin: "#bd875f",
+  ink: "#050606", dark: "#34372d", mid: "#596044", visor: "#17d9ff", trim: "#f0bf14", skin: "#bd875f",
 };
 export const AMBIENT_PALETTES: Record<"teal" | "rust", PilotPalette> = {
   teal: { ink: "#050606", dark: "#19383a", mid: "#276266", visor: "#f0bf14", trim: "#17d9ff", skin: "#b9825e" },
