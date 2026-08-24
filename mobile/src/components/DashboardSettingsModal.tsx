@@ -55,6 +55,12 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
     [profile?.username, user?.email],
   );
 
+  // Round G: conditional mount AFTER all hooks — a dismissed-but-mounted
+  // transparent Modal host can intercept touches app-wide on iOS.
+  if (!visible) {
+    return null;
+  }
+
   return (
     <>
       <Modal
