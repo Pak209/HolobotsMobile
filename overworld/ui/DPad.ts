@@ -48,8 +48,13 @@ const wireButton = (
   el.onpointerdown = (event) => {
     event.preventDefault();
     sawPointerDown = true;
-    if (capturePointer) el.setPointerCapture(event.pointerId);
+    // onDown BEFORE capture: WKWebView can throw on setPointerCapture, and the
+    // touch fallback is already disarmed by sawPointerDown — a capture failure
+    // must never swallow the press itself.
     if (!touchFallbackFired) onDown("pointer", event.pointerId);
+    if (capturePointer) {
+      try { el.setPointerCapture(event.pointerId); } catch { /* releases still arrive via pointerup/touchend */ }
+    }
   };
   const releasePointer = (event: PointerEvent) => onUp?.("pointer", event.pointerId);
   el.onpointerup = el.onpointercancel = el.onpointerleave = releasePointer;
