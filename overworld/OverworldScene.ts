@@ -375,7 +375,10 @@ export class OverworldScene {
       );
       this.interactionIndicator.zIndex = this.npc.sprite.zIndex + 2;
       const dx = this.npc.gridX - this.player.gridX; const dy = this.npc.gridY - this.player.gridY;
-      const walk = (ox: number, oy: number) => this.tileMap.isWalkable(this.player.gridX + ox, this.player.gridY + oy) ? "" : "X";
+      const walk = (ox: number, oy: number) => {
+        const key = `${this.player.gridX + ox},${this.player.gridY + oy}`;
+        return this.tileMap.occupants.has(key) ? "occ" : this.tileMap.isWalkable(this.player.gridX + ox, this.player.gridY + oy) ? "" : "X";
+      };
       const debug = `${dx},${dy} adj:${guide.direction ? "yes" : "no"} canTalk:${guide.canTalk ? "yes" : "no"} paused:${this.npc.isPaused ? "yes" : "no"} p:${this.player.gridX},${this.player.gridY} m:${this.player.isMoving ? "1" : "0"} N${walk(0,-1)} S${walk(0,1)} W${walk(-1,0)} E${walk(1,0)}`;
       if (debug !== this.lastGuideDebug) {
         this.lastGuideDebug = debug;
@@ -485,9 +488,7 @@ export class OverworldScene {
       this.talkToGuide();
       return;
     }
-    // Door plates are walkable, and tryMove has no turn-before-move — so a
-    // player can never FACE one from an adjacent tile (pressing toward it steps
-    // onto it). Standing on the plate must count too.
+    // Door plates remain actionable from the standing tile after turn-before-move.
     const tile = this.tileMap.getInteractionTile(facing.x, facing.y)
       ?? this.tileMap.getInteractionTile(this.player.gridX, this.player.gridY);
     if (!tile?.event) return;
@@ -501,7 +502,12 @@ export class OverworldScene {
 
   private talkToGuide(): void {
     this.interactionStatus = "Talking…";
-    void send("TALK_NPC", { npcId: GUIDE.npcId }).finally(() => { this.interactionStatus = null; });
+    void send("TALK_NPC", { npcId: GUIDE.npcId })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "failed";
+        this.debugHud?.noteError(`TALK ${message}`);
+      })
+      .finally(() => { this.interactionStatus = null; });
   }
 
   private getGuideInteractionState(): { direction: Direction | null; canTalk: boolean } {
