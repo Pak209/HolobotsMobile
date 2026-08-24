@@ -375,7 +375,8 @@ export class OverworldScene {
       );
       this.interactionIndicator.zIndex = this.npc.sprite.zIndex + 2;
       const dx = this.npc.gridX - this.player.gridX; const dy = this.npc.gridY - this.player.gridY;
-      const debug = `${dx},${dy} adj:${guide.direction ? "yes" : "no"} canTalk:${guide.canTalk ? "yes" : "no"} paused:${this.npc.isPaused ? "yes" : "no"}`;
+      const walk = (ox: number, oy: number) => this.tileMap.isWalkable(this.player.gridX + ox, this.player.gridY + oy) ? "" : "X";
+      const debug = `${dx},${dy} adj:${guide.direction ? "yes" : "no"} canTalk:${guide.canTalk ? "yes" : "no"} paused:${this.npc.isPaused ? "yes" : "no"} p:${this.player.gridX},${this.player.gridY} m:${this.player.isMoving ? "1" : "0"} N${walk(0,-1)} S${walk(0,1)} W${walk(-1,0)} E${walk(1,0)}`;
       if (debug !== this.lastGuideDebug) {
         this.lastGuideDebug = debug;
         this.debugHud?.setGuide(debug);
@@ -428,7 +429,8 @@ export class OverworldScene {
     if (this.dialogueOpen) { this.interactionLabel.text = ""; return; }
     if (this.interactionStatus) { this.interactionLabel.text = this.interactionStatus; return; }
     const facingTile = this.player.getFacingTile();
-    const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y);
+    const interactionTile = this.tileMap.getInteractionTile(facingTile.x, facingTile.y)
+      ?? this.tileMap.getInteractionTile(this.player.gridX, this.player.gridY);
     this.interactionLabel.text = this.getGuideInteractionState().canTalk
       ? `Press A: ${this.flags["npc.guide.met"] ? "Guide ✓" : "Guide"}`
       : interactionTile?.event ? `Press A: ${interactionTile.event.label}` : "";
@@ -483,7 +485,11 @@ export class OverworldScene {
       this.talkToGuide();
       return;
     }
-    const tile = this.tileMap.getInteractionTile(facing.x, facing.y);
+    // Door plates are walkable, and tryMove has no turn-before-move — so a
+    // player can never FACE one from an adjacent tile (pressing toward it steps
+    // onto it). Standing on the plate must count too.
+    const tile = this.tileMap.getInteractionTile(facing.x, facing.y)
+      ?? this.tileMap.getInteractionTile(this.player.gridX, this.player.gridY);
     if (!tile?.event) return;
     if (isNativeBridgeAvailable()) {
       void send("ENTER_BUILDING", { buildingId: tile.event.id }).catch(console.warn);
