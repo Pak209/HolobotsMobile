@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -193,6 +195,43 @@ describe("round D: HELLO map descriptor, PLAYER_POS, objectives", () => {
   it("derives the quest objective from flags", () => {
     expect(deriveObjective({})).toEqual({ id: "meet-guide", text: "Meet the Guide" });
     expect(deriveObjective({ "npc.guide.met": true })).toEqual({ id: "visit-gacha", text: "Visit the Gacha Hangar" });
+  });
+});
+
+describe("round I: TALK → DIALOGUE_STATE → overlay chain", () => {
+  it("a real TALK_NPC envelope survives the full native decision layer", () => {
+    const ctx = createStoryBridgeContext(50_000);
+    const raw = JSON.stringify({ v: 1, id: "talk-1", type: "TALK_NPC", payload: { npcId: "guide" } });
+    const parsedResult = parseInboundMessage(raw, ctx);
+    expect(parsedResult.ok).toBe(true);
+    if (parsedResult.ok) {
+      expect(interpretInbound(parsedResult.envelope)).toEqual({
+        ok: true,
+        command: { type: "TALK_NPC", npcId: "guide" },
+      });
+    }
+  });
+
+  it("DIALOGUE_STATE open/close messages keep the contract shape", () => {
+    expect(buildDialogueStateMessage(true, "guide").payload).toEqual({ npcId: "guide", open: true });
+    expect(buildDialogueStateMessage(false, "guide").payload).toEqual({ npcId: "guide", open: false });
+    expect(buildDialogueStateMessage(true, "guide").type).toBe("DIALOGUE_STATE");
+  });
+
+  it("OverworldScreen wires TALK_NPC → setDialogue → DIALOGUE_STATE(open) in order", () => {
+    const source = readFileSync(
+      fileURLToPath(new URL("../../../screens/OverworldScreen.tsx", import.meta.url) as unknown as string),
+      "utf8",
+    );
+    const caseStart = source.indexOf('case "TALK_NPC"');
+    const caseEnd = source.indexOf('case "ENTER_BUILDING"');
+    expect(caseStart).toBeGreaterThan(-1);
+    expect(caseEnd).toBeGreaterThan(caseStart);
+    const talkCase = source.slice(caseStart, caseEnd);
+    const setDialogueIndex = talkCase.indexOf("setDialogue(");
+    const openIndex = talkCase.indexOf("buildDialogueStateMessage(true");
+    expect(setDialogueIndex, "TALK_NPC must open the overlay").toBeGreaterThan(-1);
+    expect(openIndex, "TALK_NPC must announce DIALOGUE_STATE open").toBeGreaterThan(setDialogueIndex);
   });
 });
 
