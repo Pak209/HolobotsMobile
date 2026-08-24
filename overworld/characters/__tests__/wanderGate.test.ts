@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { isWithinRadius, shouldWander } from "../interaction";
+import { isWithinRadius, nextPauseState, shouldWander } from "../interaction";
 
 describe("Guide wander rules", () => {
   it("uses a Chebyshev radius", () => {
     const guide = { gridX: 10, gridY: 10 };
     expect(isWithinRadius(guide, { gridX: 12, gridY: 12 }, 2)).toBe(true);
     expect(isWithinRadius(guide, { gridX: 13, gridY: 10 }, 2)).toBe(false);
+  });
+
+  it("enters at radius two and stays paused through radius three", () => {
+    const guide = { gridX: 10, gridY: 10 };
+    expect(nextPauseState(false, guide, { gridX: 12, gridY: 10 })).toBe(true);
+    expect(nextPauseState(true, guide, { gridX: 13, gridY: 10 })).toBe(true);
+    expect(nextPauseState(true, guide, { gridX: 14, gridY: 10 })).toBe(false);
+    expect(nextPauseState(false, guide, { gridX: 13, gridY: 10 })).toBe(false);
   });
 
   it("pauses nearby and waits for the resume delay after the player leaves", () => {
