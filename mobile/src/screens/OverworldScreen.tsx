@@ -32,6 +32,7 @@ import {
   type StoryAck,
   type StoryEnvelope,
 } from "@/lib/story/storyBridge";
+import { shouldShowLoadingOverlay } from "@/lib/story/overlayVisibility";
 import { createLocalStoryFlagStore, type StoryFlagStore } from "@/lib/story/storyFlags";
 import type { RootTabs } from "../../App";
 
@@ -177,6 +178,9 @@ export function OverworldScreen() {
       switch (command.type) {
         case "BRIDGE_HELLO":
           helloReceived.current = true;
+          // A HELLO proves the page JS is alive — drop the opaque loading
+          // overlay even if react-native-webview never delivered onLoadEnd.
+          setPageLoading(false);
           setMismatch(null);
           if (command.map) {
             const { width, height, walkable, pois } = command.map;
@@ -241,7 +245,13 @@ export function OverworldScreen() {
   }, [dialogue, postToWeb, pushStoryState]);
 
   const showBlockedOverlay = !uriIsTrusted;
-  const showLoading = !showBlockedOverlay && (!storeReady || pageLoading) && !loadError;
+  const showLoading = shouldShowLoadingOverlay({
+    blocked: showBlockedOverlay,
+    helloReceived: helloReceived.current,
+    loadError: loadError !== null,
+    pageLoading,
+    storeReady,
+  });
 
   return (
     <View style={styles.page}>

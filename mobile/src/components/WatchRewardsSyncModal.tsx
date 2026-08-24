@@ -23,6 +23,12 @@ export function WatchRewardsSyncModal({
   rewards,
   visible,
 }: WatchRewardsSyncModalProps) {
+  // Round G: never keep a dismissed transparent Modal host mounted — on iOS it
+  // can linger over the app and silently eat every touch (Bug 1 root cause).
+  if (!visible) {
+    return null;
+  }
+
   return (
     <Modal
       animationType="fade"
