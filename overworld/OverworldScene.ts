@@ -30,6 +30,7 @@ import { canals, details, h3, props, terrain, wispSpawns } from "./maps/h3Plaza"
 import { AMBIENT_NPCS, GUIDE } from "./maps/npcs";
 import { TOWN_CANALS, TOWN_DETAILS, TOWN_PROPS, getBaseTile } from "./maps/townMap";
 import { mountDPad } from "./ui/DPad";
+import { mountDebugHud, type DebugHud } from "./ui/debugHud";
 
 type ResizeTarget = Pick<HTMLElement, "clientWidth" | "clientHeight">;
 
@@ -80,6 +81,7 @@ export class OverworldScene {
   private callbacks: BuildingCallbacks;
   private bridgeCleanup?: () => void;
   private dpad?: ReturnType<typeof mountDPad>;
+  private readonly debugHud?: DebugHud;
   private checkpointTimer?: number;
   private dialogueTimer?: number;
   private checkpointApplied = false;
@@ -124,6 +126,7 @@ export class OverworldScene {
     this.handshakeBanner.style.cssText = "position:fixed;left:50%;top:max(calc(env(safe-area-inset-top,0px) + 16px),56px);transform:translateX(-50%);max-width:88vw;padding:10px 14px;background:#050606;color:#f0bf14;border:2px solid #f0bf14;border-radius:0;font:bold 13px monospace;letter-spacing:1.5px;text-align:center;z-index:30;pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none";
     this.handshakeBanner.hidden = true;
     this.mountNode.appendChild(this.handshakeBanner);
+    this.debugHud = mountDebugHud(this.mountNode);
     this.handshake = createHandshakeController({
       sendHello: () => hello(options.buildHash ?? "dev", mapDescriptor),
       isMismatchError: isProtocolMismatchError,
@@ -163,7 +166,7 @@ export class OverworldScene {
     this.interactionIndicator.visible = false;
     this.actors.addChild(this.interactionIndicator);
 
-    this.interactionLabel.position.set(12, 12);
+    this.interactionLabel.position.set(12, 64);
     this.uiOverlay.addChild(this.interactionLabel);
 
     this.app.ticker.add(this.update);
@@ -210,7 +213,7 @@ export class OverworldScene {
     held ? this.heldDirections.add(direction) : this.heldDirections.delete(direction);
   }
 
-  pressInteract(): void { this.interact(); }
+  pressInteract(): void { this.debugHud?.notePressInteract(); this.interact(); }
 
   destroy(): void {
     if (this.destroyed) {
@@ -227,6 +230,7 @@ export class OverworldScene {
     this.handshakeBanner.remove();
     this.bridgeCleanup?.();
     this.dpad?.destroy();
+    this.debugHud?.destroy();
     if (this.checkpointTimer) window.clearTimeout(this.checkpointTimer);
     if (this.dialogueTimer) window.clearTimeout(this.dialogueTimer);
     this.player.destroy();
@@ -555,6 +559,7 @@ export class OverworldScene {
   ): void => {
     if (this.storyStateMismatch && state !== "mismatch") return;
     this.handshakeState = state;
+    this.debugHud?.setHandshake(state);
     if (state === "mismatch") this.lastPlayerPosKey = "";
     this.handshakeBanner.style.borderColor = state === "mismatch" ? "#ff4d39" : "#f0bf14";
     if (state === "connected" || (state === "connecting" && (detail?.attempt ?? 1) <= 1)) {

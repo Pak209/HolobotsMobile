@@ -19,6 +19,13 @@ export type StoryStatePayload = {
 };
 export type DialogueStatePayload = { open: boolean; npcId: string };
 export type NativeMessage = { v: 1; id: string; type: string; payload: Record<string, unknown> };
+export type BridgeActivity = {
+  phase: "send" | "ack";
+  type: string;
+  timestamp: number;
+  ok?: boolean;
+  error?: string;
+};
 
 declare global {
   interface Window {
@@ -28,6 +35,13 @@ declare global {
 
 const makeId = () => globalThis.crypto?.randomUUID?.()
   ?? `story-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const activityListeners = new Set<(activity: BridgeActivity) => void>();
+const reportActivity = (activity: BridgeActivity) => activityListeners.forEach((listener) => listener(activity));
+
+export const onBridgeActivity = (listener: (activity: BridgeActivity) => void) => {
+  activityListeners.add(listener);
+  return () => activityListeners.delete(listener);
+};
 
 export const isAck = (value: unknown): value is Ack => {
   const candidate = value as Partial<Ack> | null;
@@ -88,9 +102,12 @@ export const createEnvelope = (type: string, payload: Record<string, unknown>) =
 export const send = (type: string, payload: Record<string, unknown>): Promise<Ack> => {
   const envelope = createEnvelope(type, payload);
   const { id } = envelope;
+  reportActivity({ phase: "send", type, timestamp: Date.now() });
   if (!isNativeBridgeAvailable()) {
     console.info("[StoryBridge] desktop", envelope);
-    return Promise.resolve({ v: 1, replyTo: id, ok: true });
+    const ack = { v: 1 as const, replyTo: id, ok: true };
+    reportActivity({ phase: "ack", type, timestamp: Date.now(), ok: true });
+    return Promise.resolve(ack);
   }
   return new Promise((resolve, reject) => {
     const stop = listen((event) => {
@@ -99,10 +116,12 @@ export const send = (type: string, payload: Record<string, unknown>): Promise<Ac
       if (!isAck(value) || value.replyTo !== id) return;
       clearTimeout(timeout);
       stop();
+      reportActivity({ phase: "ack", type, timestamp: Date.now(), ok: value.ok, error: value.error });
       value.ok ? resolve(value) : reject(new Error(value.error ?? "BRIDGE_REJECTED"));
     });
     const timeout = window.setTimeout(() => {
       stop();
+      reportActivity({ phase: "ack", type, timestamp: Date.now(), ok: false, error: "BRIDGE_TIMEOUT" });
       reject(new Error("BRIDGE_TIMEOUT"));
     }, 5000);
     window.ReactNativeWebView?.postMessage(JSON.stringify(envelope));
