@@ -18,6 +18,7 @@ export class Npc {
   readonly interactive: boolean;
   readonly home: { x: number; y: number };
   gridX: number; gridY: number;
+  prevGridX: number; prevGridY: number;
   private pixelX: number; private pixelY: number;
   private targetX: number; private targetY: number;
   private direction: Direction = "down";
@@ -29,6 +30,7 @@ export class Npc {
   constructor(tileMap: TileMap, options: { id: string; home: { x: number; y: number }; palette: PilotPalette; interactive: boolean }) {
     this.id = options.id; this.home = options.home; this.interactive = options.interactive;
     this.gridX = options.home.x; this.gridY = options.home.y;
+    this.prevGridX = this.gridX; this.prevGridY = this.gridY;
     this.pixelX = this.targetX = this.gridX * TILE_SIZE;
     this.pixelY = this.targetY = this.gridY * TILE_SIZE;
     this.sheet = createPilotSheet(options.palette);
@@ -80,7 +82,9 @@ export class Npc {
     this.nextWanderAt = this.elapsed + 2.5 + Math.random() * 2.5;
     const chosen = options[Math.floor(Math.random() * options.length)];
     if (!chosen) return;
-    this.direction = chosen.direction; this.gridX += chosen.x; this.gridY += chosen.y;
+    this.direction = chosen.direction;
+    this.prevGridX = this.gridX; this.prevGridY = this.gridY;
+    this.gridX += chosen.x; this.gridY += chosen.y;
     this.targetX = this.gridX * TILE_SIZE; this.targetY = this.gridY * TILE_SIZE;
     tileMap.setOccupant(`${this.id}:target`, this.gridX, this.gridY);
   }

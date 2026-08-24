@@ -2,8 +2,8 @@ import { Container, Sprite } from "pixi.js";
 
 import type { Player } from "../Player";
 import type { TileMap } from "../TileMap";
-import { DIRECTION_VECTORS, TILE_SIZE } from "../TileTypes";
-import { sampleDelayed, type FollowPoint } from "./followPath";
+import { TILE_SIZE } from "../TileTypes";
+import { computeCompanionSpawn, sampleDelayed, type FollowPoint } from "./followPath";
 import { createAceTextures, createShadowTexture } from "./tempSheets";
 
 export class Companion {
@@ -23,6 +23,7 @@ export class Companion {
     this.shadow.anchor.set(0.5, 1); this.glow.anchor.set(0.5); this.body.anchor.set(0.5, 1);
     this.shadow.position.set(16, 30); this.glow.position.set(16, 12); this.body.position.set(16, 26);
     this.sprite.addChild(this.shadow, this.glow, this.body);
+    this.body.scale.set(1.25);
     this.snapBehind(player, tileMap);
   }
 
@@ -47,12 +48,11 @@ export class Companion {
   }
 
   snapBehind(player: Player, tileMap: TileMap, nowMs = performance.now()): void {
-    const vector = DIRECTION_VECTORS[player.direction];
-    const behindX = player.gridX - vector.x; const behindY = player.gridY - vector.y;
-    const x = (tileMap.isWalkable(behindX, behindY) ? behindX : player.gridX) * TILE_SIZE;
-    const y = (tileMap.isWalkable(behindX, behindY) ? behindY : player.gridY) * TILE_SIZE;
+    const spawn = computeCompanionSpawn(player, (x, y) => tileMap.isWalkable(x, y));
+    const x = spawn.x * TILE_SIZE; const y = spawn.y * TILE_SIZE;
     this.sprite.position.set(x, y); this.history.length = 0;
     this.history.push({ x, y, time: nowMs - 400 }, { x: player.pixelX, y: player.pixelY, time: nowMs });
     this.lastPlayerX = player.pixelX; this.lastPlayerY = player.pixelY;
+    this.sprite.zIndex = y + TILE_SIZE;
   }
 }
