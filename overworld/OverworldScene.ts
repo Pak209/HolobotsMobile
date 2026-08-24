@@ -210,6 +210,7 @@ export class OverworldScene {
   }
 
   setDirectionHeld(direction: Direction, held: boolean): void {
+    this.debugHud?.noteDirection(direction, held);
     held ? this.heldDirections.add(direction) : this.heldDirections.delete(direction);
   }
 
@@ -546,8 +547,13 @@ export class OverworldScene {
     const point = state.checkpoint;
     if (!this.checkpointApplied) {
       this.checkpointApplied = true;
+      // A stale checkpoint (saved against an older map layout) can land on a
+      // walkable tile with no walkable neighbors — a pocket that bricks all
+      // movement. Only restore positions the player can actually leave.
+      const hasExit = point ? ([[0, -1], [0, 1], [-1, 0], [1, 0]] as const)
+        .some(([dx, dy]) => this.tileMap.isWalkable(point.x + dx, point.y + dy)) : false;
       if (point?.mapId === "hangar-town" && this.tileMap.isWithinBounds(point.x, point.y)
-        && this.tileMap.isWalkable(point.x, point.y)) {
+        && this.tileMap.isWalkable(point.x, point.y) && hasExit) {
         this.player.moveTo(point.x, point.y, point.facing);
         this.companion.snapBehind(this.player, this.tileMap);
         this.lastPlayerTile = `${point.x},${point.y}`;

@@ -57,7 +57,10 @@ const wireButton = (
     }
   };
   const releasePointer = (event: PointerEvent) => onUp?.("pointer", event.pointerId);
-  el.onpointerup = el.onpointercancel = el.onpointerleave = releasePointer;
+  // NOT pointerleave: iOS WebKit fires a spurious pointerleave immediately after
+  // setPointerCapture, releasing the direction on the same frame it was pressed.
+  // pointerup/pointercancel (+ touchend/touchcancel below) fully cover release.
+  el.onpointerup = el.onpointercancel = releasePointer;
   el.addEventListener("touchstart", (event) => {
     event.preventDefault();
     if (!sawPointerDown) {
