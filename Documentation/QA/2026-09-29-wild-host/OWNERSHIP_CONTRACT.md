@@ -4,7 +4,7 @@ Pak approved the exact account mutation on 2026-09-29 at 11:49 PDT, superseding 
 
 ## Fields and outcomes
 
-Every wildEncounterHost reply includes `travelSquad: {schemaVersion:"travel-squad-1", revision:number, holobotIds:string[]}`. Storage is `users/{uid}.travelSquad` with the same shape. IDs are normalized using the existing toHolobotKey convention and must match `^[a-z0-9_]{1,128}$` on the wire. Order is slot order; maximum three distinct owned IDs. Missing storage reads as revision zero and empty slots, without writing on refresh. Invalid schema, duplicate/unknown owned references, too many slots or invalid revision fail closed. Revision increments only when an auto-fill changes the squad. Full squads and duplicate captures preserve it exactly.
+Every wildEncounterHost reply includes `travelSquad: {schemaVersion:"travel-squad-1", revision:number, holobotIds:string[]}`. Storage is `users/{uid}.travelSquad` with the same shape. IDs are normalized using the existing toHolobotKey convention and must match `^[a-z][a-z0-9_]{0,127}$` on the wire. Order is slot order; maximum three distinct owned IDs. Missing storage reads as revision zero and empty slots, without writing on refresh. Invalid schema, duplicate/unknown owned references, too many slots or invalid revision fail closed. Revision is an int32-compatible integer from zero through 2147483647; an auto-fill that would overflow fails closed. Revision increments only when an auto-fill changes the squad. Full squads and duplicate captures preserve it exactly.
 
 CaptureResult adds:
 
@@ -26,7 +26,7 @@ Firestore rules deny client creation, modification and deletion of travelSquad, 
 | Check | Result |
 |---|---|
 | TypeScript build and shared parity | PASS |
-| Domain tests | 9/9 |
+| Domain tests | 10/10 |
 | Firestore transaction emulator | 14/14 |
 | Squad rules + economy/mobile/auth regressions | 35/35 |
 
