@@ -25,4 +25,14 @@ Server withdrawals set the provisioned encounter's ended flag; refresh emits tom
 `npm --prefix functions run build`: TypeScript and shared parity pass.
 `node --test functions/scripts/test-wild-encounter.mjs`: seven tests pass (disabled policy, stable identity, toy/exhaustion, refusal/retry/capture/withdraw, health non-authority/duplicate fail-closed, invalid request/server data, receipt replay/conflict).
 
-Not run: authenticated callable deployment, Firestore emulator transaction/concurrency tests, physical bridge, native Unity Play. Receipt unit tests cover replay decisions; they do not constitute Firestore concurrency proof.
+Not run at initial checkpoint: authenticated callable deployment, physical bridge, native Unity Play. Firestore concurrency was subsequently verified below.
+
+## Follow-up: concurrency and legacy seam
+
+Reply now also carries `revision` from session.revision. It changes on both Toy and capture commands; consumers ignore entire replies older than their latest revision, including replays of old receipts. Roster revision alone cannot detect an old affinity snapshot.
+
+Cached Firestore emulator proof passed 4/4: twelve simultaneous replays spend one Toy; two distinct requests cannot spend the last Toy twice; eight simultaneous successful capture replays grant one session entitlement; changed-body replay conflicts; an unprovisioned UID cannot select another user's session with a payload field. Command: `rules-tests/node_modules/.bin/firebase emulators:exec --project demo-holobots-wild-tests --only firestore 'node --test functions/scripts/test-wild-encounter-emulator.mjs'`. No downloads, production connection or deploy. Callable authentication itself is not exercised by these direct store tests.
+
+Legacy integration finding: existing server mint path (`functions/src/progression/mintHolobot.ts`) updates the root user document's holobots array in a transaction. Genesis grant record has seven fields: name, level, experience, nextLevelExp, rank, attributePoints, boostedAttributes (`functions/src/lib/referrals.ts:49`). Those default values belong to Genesis, not a ratified capture policy. No SquadSwap, SetSquadActive or team-slot storage contract exists in mobile/src. Therefore the safe next contract must specify captured bot progression records, root-user ownership projection and the destination squad storage/authority before enabling this endpoint in production. Reading the client-writable legacy holobots array can reject duplicates but is not a new trusted entitlement source. Duplicate conversion and team mutation stay unavailable.
+
+An attempted implementation of the legacy ownership projection was rejected by automatic approval review before execution: persistent users/{uid}.holobots mutations with an unverified legacy schema were outside the verified authorization. No account-write code was installed or retried. Producer/Pak must approve that exact integration after the schema/policy is reviewed. The isolated-session concurrency proof above completes unaffected work; it does not prove the rejected account projection.

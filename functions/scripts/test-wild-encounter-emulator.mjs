@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const require=createRequire(import.meta.url);
+if(!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulator required; never run against production');
+const {initializeApp}=require('firebase-admin/app');
+const {getFirestore}=require('firebase-admin/firestore');
+const {transactWildEncounter}=require('../lib/acquisition/wildEncounterStore.js');
+const app=initializeApp({projectId:'demo-holobots-wild-tests'});const db=getFirestore(app);
+const seed=()=>({enabled:true,returnRefusedUnit:true,revision:1,rosterRevision:1,entries:[],encounters:[{encounterId:'hare_001',holobotId:'hare',affinityTier:0,affinityMax:1,captureOpen:true,chanceByAffinity:[.3,.65],ended:false,items:[{itemId:'carrot',kind:'affinity_toy',displayName:'Toy',modelKey:'toy',remaining:1,useAllowed:true,affinityGain:1},{itemId:'unit',kind:'buddy_unit',displayName:'Unit',modelKey:'unit',remaining:1,useAllowed:true,affinityGain:0}]}]});
+const toy=id=>({operation:'offerToy',intent:{schemaVersion:'capture-world-1',requestId:id,encounterId:'hare_001',itemId:'carrot'}});
+const cap=id=>({operation:'capture',intent:{schemaVersion:'acquisition-0',requestId:id,encounterId:'hare_001',toyId:'unit',observedHealth01:0}});
+const setup=async tag=>{const uid=`${tag}_${Date.now()}`;await db.doc(`wildEncounterSessions/${uid}`).set(seed());return uid;};
+test('parallel same request spends one Toy and replays one revision',async()=>{const uid=await setup('same');const replies=await Promise.all(Array.from({length:12},()=>transactWildEncounter(db,uid,toy('one'),.5)));for(const r of replies)assert.deepEqual(r,replies[0]);assert.equal(replies[0].revision,2);const s=(await db.doc(`wildEncounterSessions/${uid}`).get()).data();assert.equal(s.encounters[0].items[0].remaining,0);assert.equal(s.revision,2);});
+test('parallel distinct requests cannot overspend last Toy',async()=>{const uid=await setup('distinct');const results=await Promise.allSettled([transactWildEncounter(db,uid,toy('one'),.5),transactWildEncounter(db,uid,toy('two'),.5)]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(results.filter(r=>r.status==='rejected')[0].reason.code,'not_allowed');});
+test('parallel capture creates one entitlement and one receipt; conflicting replay rejects',async()=>{const uid=await setup('capture');const replies=await Promise.all(Array.from({length:8},()=>transactWildEncounter(db,uid,cap('capture'),0)));for(const r of replies)assert.deepEqual(r,replies[0]);const s=(await db.doc(`wildEncounterSessions/${uid}`).get()).data();assert.equal(s.entries.length,1);assert.equal(s.rosterRevision,2);assert.equal(s.encounters[0].items[1].remaining,0);await assert.rejects(()=>transactWildEncounter(db,uid,{...cap('capture'),intent:{...cap('capture').intent,observedHealth01:1}},0),/sequence_conflict/);});
+test('another authenticated user cannot address provisioned session by payload UID',async()=>{const uid=await setup('owner');await assert.rejects(()=>transactWildEncounter(db,'unprovisioned',{...toy('one'),uid},0),/unavailable/);});
