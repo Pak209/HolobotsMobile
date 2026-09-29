@@ -14,11 +14,11 @@ export function readTravelSquad(profile: Profile): TravelSquad {
   if (raw === undefined) return { schemaVersion: 'travel-squad-1', revision: 0, holobotIds: [] };
   const s = raw as TravelSquad;
   const owned = new Set(bots(profile).map(b => toHolobotKey(b.name as string)));
-  if (!s || s.schemaVersion !== 'travel-squad-1' || !Number.isSafeInteger(s.revision) || s.revision < 0 || !Array.isArray(s.holobotIds) || s.holobotIds.length > 3 || new Set(s.holobotIds).size !== s.holobotIds.length || s.holobotIds.some(id => typeof id !== 'string' || toHolobotKey(id) !== id || !owned.has(id))) throw new HostError('unavailable');
+  if (!s || s.schemaVersion !== 'travel-squad-1' || !Number.isSafeInteger(s.revision) || s.revision < 0 || !Array.isArray(s.holobotIds) || s.holobotIds.length > 3 || new Set(s.holobotIds).size !== s.holobotIds.length || s.holobotIds.some(id => typeof id !== 'string' || !/^[a-z0-9_]{1,128}$/.test(id) || toHolobotKey(id) !== id || !owned.has(id))) throw new HostError('unavailable');
   return structuredClone(s);
 }
 export function projectCapture(profile: Profile, holobotId: string): { updates: Profile; travelSquad: TravelSquad; ownershipOutcome: 'new_bot' | 'added_to_squad' | 'blueprints'; blueprintDelta: number } {
-  if (!/^[a-z][a-z0-9_-]*$/.test(holobotId) || toHolobotKey(holobotId) !== holobotId) throw new HostError('unavailable');
+  if (typeof holobotId !== 'string' || !/^[a-z0-9_]{1,128}$/.test(holobotId) || toHolobotKey(holobotId) !== holobotId) throw new HostError('unavailable');
   const owned = bots(profile);
   const travelSquad = readTravelSquad(profile);
   if (owned.some(b => toHolobotKey(b.name as string) === holobotId)) {
