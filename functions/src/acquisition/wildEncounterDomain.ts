@@ -34,8 +34,9 @@ export function execute(session: Session | undefined, raw: unknown, draw: number
   const c = validateCommand(raw);
   if (!session?.enabled || session.returnRefusedUnit !== true) throw new HostError('unavailable');
   const s: Session = structuredClone(session);
+  if (!Number.isInteger(s.revision) || s.revision < 0 || !Number.isInteger(s.rosterRevision) || s.rosterRevision < 0) throw new HostError('unavailable');
   for (const e of s.encounters) {
-    if (!id(e.encounterId) || !id(e.holobotId) || !Number.isInteger(e.affinityTier) || !Number.isInteger(e.affinityMax) || e.affinityTier < 0 || e.affinityTier > e.affinityMax || e.chanceByAffinity.length !== e.affinityMax + 1 || e.chanceByAffinity.some(n => !Number.isFinite(n) || n < 0 || n > 1) || e.items.some(i => !Number.isInteger(i.remaining) || i.remaining < 0 || !Number.isInteger(i.affinityGain) || i.affinityGain < 0)) throw new HostError('unavailable');
+    if (!id(e.encounterId) || !id(e.holobotId) || !Number.isInteger(e.affinityTier) || !Number.isInteger(e.affinityMax) || e.affinityMax <= 0 || e.affinityTier < 0 || e.affinityTier > e.affinityMax || e.chanceByAffinity.length !== e.affinityMax + 1 || e.chanceByAffinity.some(n => !Number.isFinite(n) || n < 0 || n > 1) || new Set(e.items.map(i => i.kind)).size !== e.items.length || e.items.some(i => !id(i.itemId) || !['affinity_toy', 'buddy_unit'].includes(i.kind) || !Number.isInteger(i.remaining) || i.remaining < 0 || !Number.isInteger(i.affinityGain) || i.affinityGain < 0)) throw new HostError('unavailable');
   }
   if (new Set(s.encounters.map(e => e.encounterId)).size !== s.encounters.length) throw new HostError('unavailable');
   if (c.operation === 'refresh') return { session: s, reply: snapshot(s) };
@@ -59,7 +60,7 @@ export function execute(session: Session | undefined, raw: unknown, draw: number
   if (captured) { item.remaining--; e.ended = true; s.entries = s.entries.filter(x => x.holobotId !== e.holobotId); s.entries.push({ holobotId: e.holobotId, availability: 'owned', source: 'capture', copies: 1 }); s.rosterRevision++; }
   const r = snapshot(s);
   r.captureResult = { schemaVersion: 'acquisition-0', requestId: i.requestId, encounterId: e.encounterId, holobotId: e.holobotId, captured, outcome: captured ? 'captured' : 'refused', affinityTierAfter: e.affinityTier, retryGuaranteed: !captured, toyConsumedId: captured ? item.itemId : '' };
-  if (!captured) r.worldStates = [world(s, e, i.requestId, 'refused')];
+  if (!captured) r.worldStates = [world(s, e, '', 'refused')];
   return { session: s, reply: r };
 }
 
