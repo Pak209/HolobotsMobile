@@ -1,0 +1,40 @@
+{
+  "travelSquad": {
+    "schemaVersion": "travel-squad-1",
+    "revision": 1,
+    "holobotIds": [
+      "hare"
+    ]
+  },
+  "revision": 2,
+  "encounters": [],
+  "worldStates": [],
+  "withdrawnEncounterIds": [
+    "hare_001"
+  ],
+  "roster": {
+    "schemaVersion": "acquisition-0",
+    "revision": 2,
+    "entries": [
+      {
+        "holobotId": "hare",
+        "availability": "owned",
+        "source": "capture",
+        "copies": 1
+      }
+    ]
+  },
+  "captureResult": {
+    "schemaVersion": "acquisition-0",
+    "requestId": "win",
+    "encounterId": "hare_001",
+    "holobotId": "hare",
+    "captured": true,
+    "outcome": "captured",
+    "affinityTierAfter": 0,
+    "retryGuaranteed": false,
+    "toyConsumedId": "unit",
+    "ownershipOutcome": "added_to_squad",
+    "blueprintDelta": 0
+  }
+}
