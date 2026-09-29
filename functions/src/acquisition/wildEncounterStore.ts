@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
-import { execute, HostError, Reply, Session, validateCommand, replayReceipt } from './wildEncounterDomain';
+import { execute, HostError, Reply, Session, validateCommand, replayReceipt, currentReceiptReply } from './wildEncounterDomain';
 export async function transactWildEncounter(db: Firestore, uid: string, raw: unknown, draw: number): Promise<Reply> {
     const command = validateCommand(raw);
     const digest = createHash('sha256').update(JSON.stringify(command)).digest('hex');
@@ -14,7 +14,7 @@ export async function transactWildEncounter(db: Firestore, uid: string, raw: unk
       if (receiptRef) {
         const receipt = await tx.get(receiptRef);
         if (receipt.exists) {
-          return replayReceipt(receipt.data() as { digest: string; reply: Reply }, digest)!;
+          return currentReceiptReply(snapshot.data() as Session, command, replayReceipt(receipt.data() as { digest: string; reply: Reply }, digest)!);
         }
       }
       const result = execute(snapshot.data() as Session, command, draw);

@@ -68,3 +68,17 @@ export function replayReceipt(receipt: { digest: string; reply: Reply } | undefi
   if (receipt.digest !== digest) throw new HostError('sequence_conflict');
   return receipt.reply;
 }
+
+/** Replay immutable intent outcome inside current presentation state; never replay stale odds/inventory. */
+export function currentReceiptReply(session: Session, command: Command, receiptReply: Reply): Reply {
+  const current = execute(session, { operation: 'refresh' }, 0).reply;
+  if (receiptReply.captureResult) current.captureResult = structuredClone(receiptReply.captureResult);
+  if (command.operation === 'offerToy') {
+    const state = current.worldStates.find(s => s.encounterId === command.intent!.encounterId);
+    if (state) {
+      state.requestId = command.intent!.requestId;
+      state.reaction = 'toy_accepted';
+    }
+  }
+  return current;
+}
