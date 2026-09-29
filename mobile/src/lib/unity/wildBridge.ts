@@ -72,5 +72,5 @@ export function connectWildBridge(options: WildBridgeOptions): () => void {
       finally { if (timer) clearTimeout(timer); }
     }).catch(() => { /* a torn-down native port must not poison later promises */ }).finally(() => { queued--; });
   });
-  return () => { disposed = true; unsubscribe(); };
+  return () => { if (disposed) return; disposed = true; unsubscribe(); };
 }
