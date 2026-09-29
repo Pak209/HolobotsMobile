@@ -35,3 +35,5 @@ export { upgradeSyncStat } from "./progression/upgradeSyncStat";
 export { useEnergyRefill } from "./economy/useEnergyRefill";
 export { useExpBooster } from "./economy/useExpBooster";
 export { useRankSkip } from "./progression/useRankSkip";
+
+export { wildEncounterHost } from "./acquisition/wildEncounterHost";
