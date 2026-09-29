@@ -1,5 +1,7 @@
 # Wild encounter server seam
 
+**Current:** Pak ratified ownership in DECISIONS #40. The new account projection, squad auto-fill and duplicate blueprint behavior are implemented and tested locally; see [OWNERSHIP_CONTRACT.md](OWNERSHIP_CONTRACT.md). Earlier ownership blockers below are historical and superseded. Nothing deployed or provisioned.
+
 Authenticated callable `wildEncounterHost` implements the existing acquisition-0 and capture-world-1 presentation records. Nothing was deployed, provisioned or pushed. Default remains unavailable.
 
 ## Transport

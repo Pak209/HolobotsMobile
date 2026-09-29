@@ -5,7 +5,8 @@ export type RosterEntry = { holobotId: string; availability: string; source: str
 export type Session = { enabled: boolean; returnRefusedUnit: true; revision: number; rosterRevision: number; encounters: Encounter[]; entries: RosterEntry[] };
 export type Command = { operation: 'refresh' | 'worldState' | 'offerToy' | 'capture'; encounterId?: string; intent?: { schemaVersion: string; requestId: string; encounterId: string; itemId?: string; toyId?: string; observedHealth01?: number } };
 export type WorldState = { schemaVersion: 'capture-world-1'; encounterId: string; holobotId: string; revision: number; requestId: string; affinityTier: number; affinityMax: number; chanceKnown: boolean; captureChance01: number; items: Omit<Item, 'affinityGain'>[]; reaction: string };
-export type Reply = { revision: number; encounters: unknown[]; worldStates: WorldState[]; withdrawnEncounterIds: string[]; roster: { schemaVersion: 'acquisition-0'; revision: number; entries: RosterEntry[] }; captureResult?: { schemaVersion: 'acquisition-0'; requestId: string; encounterId: string; holobotId: string; captured: boolean; outcome: string; affinityTierAfter: number; retryGuaranteed: boolean; toyConsumedId: string } };
+export type TravelSquad = { schemaVersion: 'travel-squad-1'; revision: number; holobotIds: string[] };
+export type Reply = { travelSquad: TravelSquad; revision: number; encounters: unknown[]; worldStates: WorldState[]; withdrawnEncounterIds: string[]; roster: { schemaVersion: 'acquisition-0'; revision: number; entries: RosterEntry[] }; captureResult?: { schemaVersion: 'acquisition-0'; requestId: string; encounterId: string; holobotId: string; captured: boolean; outcome: string; affinityTierAfter: number; retryGuaranteed: boolean; toyConsumedId: string; ownershipOutcome: '' | 'new_bot' | 'added_to_squad' | 'blueprints'; blueprintDelta: number } };
 export class HostError extends Error { constructor(public code: 'invalid_request' | 'not_allowed' | 'unavailable' | 'sequence_conflict') { super(code); } }
 const id = (x: unknown): x is string => typeof x === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(x);
 export function validateCommand(raw: unknown): Command {
@@ -27,7 +28,7 @@ function world(s: Session, e: Encounter, requestId = '', reaction = ''): WorldSt
   return { schemaVersion: 'capture-world-1', encounterId: e.encounterId, holobotId: e.holobotId, revision: s.revision, requestId, affinityTier: e.affinityTier, affinityMax: e.affinityMax, chanceKnown: true, captureChance01: e.chanceByAffinity[e.affinityTier], items: e.items.map(({ affinityGain: _, ...item }) => ({ ...item, useAllowed: item.useAllowed && item.remaining > 0 && !e.ended && e.captureOpen })), reaction };
 }
 function snapshot(s: Session): Reply {
-  return { revision: s.revision, encounters: s.encounters.filter(e => !e.ended).map(e => ({ schemaVersion: 'acquisition-0', encounterId: e.encounterId, holobotId: e.holobotId, affinityTier: e.affinityTier, affinityMax: e.affinityMax, captureOpen: e.captureOpen, allowedToyIds: e.items.filter(i => i.kind === 'buddy_unit' && i.useAllowed && i.remaining > 0).map(i => i.itemId) })), worldStates: s.encounters.filter(e => !e.ended).map(e => world(s, e)), withdrawnEncounterIds: s.encounters.filter(e => e.ended).map(e => e.encounterId), roster: { schemaVersion: 'acquisition-0', revision: s.rosterRevision, entries: s.entries } };
+  return { travelSquad: { schemaVersion: 'travel-squad-1', revision: 0, holobotIds: [] }, revision: s.revision, encounters: s.encounters.filter(e => !e.ended).map(e => ({ schemaVersion: 'acquisition-0', encounterId: e.encounterId, holobotId: e.holobotId, affinityTier: e.affinityTier, affinityMax: e.affinityMax, captureOpen: e.captureOpen, allowedToyIds: e.items.filter(i => i.kind === 'buddy_unit' && i.useAllowed && i.remaining > 0).map(i => i.itemId) })), worldStates: s.encounters.filter(e => !e.ended).map(e => world(s, e)), withdrawnEncounterIds: s.encounters.filter(e => e.ended).map(e => e.encounterId), roster: { schemaVersion: 'acquisition-0', revision: s.rosterRevision, entries: s.entries } };
 }
 /** Caller supplies an authoritative provisioned session and server random draw. Never trusts observed health. */
 export function execute(session: Session | undefined, raw: unknown, draw: number): { session: Session; reply: Reply } {
@@ -47,8 +48,6 @@ export function execute(session: Session | undefined, raw: unknown, draw: number
   const i = c.intent!;
   const item = e.items.find(x => x.itemId === (i.itemId ?? i.toyId) && x.kind === (c.operation === 'capture' ? 'buddy_unit' : 'affinity_toy'));
   if (!item?.useAllowed || item.remaining < 1) throw new HostError('not_allowed');
-  // Duplicate conversion policy is not yet ratified. Refuse before spending anything.
-  if (c.operation === 'capture' && s.entries.some(x => x.holobotId === e.holobotId && x.availability === 'owned')) throw new HostError('not_allowed');
   s.revision++;
   if (c.operation === 'offerToy') {
     item.remaining--; e.affinityTier = Math.min(e.affinityMax, e.affinityTier + item.affinityGain);
@@ -57,9 +56,9 @@ export function execute(session: Session | undefined, raw: unknown, draw: number
   if (!Number.isFinite(draw) || draw < 0 || draw >= 1) throw new HostError('unavailable');
   const captured = draw < e.chanceByAffinity[e.affinityTier];
   // Refusals return the same Unit: guarantees another attempt without minting inventory.
-  if (captured) { item.remaining--; e.ended = true; s.entries = s.entries.filter(x => x.holobotId !== e.holobotId); s.entries.push({ holobotId: e.holobotId, availability: 'owned', source: 'capture', copies: 1 }); s.rosterRevision++; }
+  if (captured) { item.remaining--; e.ended = true; if (!s.entries.some(x => x.holobotId === e.holobotId && x.availability === 'owned')) { s.entries = s.entries.filter(x => x.holobotId !== e.holobotId); s.entries.push({ holobotId: e.holobotId, availability: 'owned', source: 'capture', copies: 1 }); } s.rosterRevision++; }
   const r = snapshot(s);
-  r.captureResult = { schemaVersion: 'acquisition-0', requestId: i.requestId, encounterId: e.encounterId, holobotId: e.holobotId, captured, outcome: captured ? 'captured' : 'refused', affinityTierAfter: e.affinityTier, retryGuaranteed: !captured, toyConsumedId: captured ? item.itemId : '' };
+  r.captureResult = { schemaVersion: 'acquisition-0', requestId: i.requestId, encounterId: e.encounterId, holobotId: e.holobotId, captured, outcome: captured ? 'captured' : 'refused', affinityTierAfter: e.affinityTier, retryGuaranteed: !captured, toyConsumedId: captured ? item.itemId : '', ownershipOutcome: captured ? 'new_bot' : '', blueprintDelta: 0 };
   if (!captured) r.worldStates = [world(s, e, '', 'refused')];
   return { session: s, reply: r };
 }

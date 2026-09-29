@@ -106,7 +106,7 @@ service cloud.firestore {
         'wildcardBlueprints', 'legendaryBlueprints', 'expBoosterActiveUntil',
         'lastWildcardPackAt', 'parts', 'packHistory', 'todaySteps',
         'referredBy', 'referrals', 'referralQualified', 'genesisSquadClaimed',
-        'genesisBadge', 'isDevAccount'
+        'genesisBadge', 'isDevAccount', 'travelSquad'
       ]);
     }
 
@@ -133,6 +133,7 @@ service cloud.firestore {
         && frozenEmptyOnCreate(data, 'blueprints')
         && frozenZeroOnCreate(data, 'wildcardBlueprints')
         && frozenZeroOnCreate(data, 'legendaryBlueprints')
+        && !('travelSquad' in data)
         && !('expBoosterActiveUntil' in data)
         && !('lastWildcardPackAt' in data)
         && frozenEmptyOnCreate(data, 'parts')
