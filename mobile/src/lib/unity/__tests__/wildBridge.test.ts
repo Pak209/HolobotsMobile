@@ -10,6 +10,14 @@ function setup(invoke = vi.fn(async () => ({ encounters: [], worldStates: [], wi
   return { receive, send, invoke, dispose, unsubscribe };
 }
 describe('wild bridge authority and lifecycle', () => {
+  it.each(['new_bot', 'added_to_squad', 'blueprints'])('preserves host ownership outcome %s and current squad without deriving grants', async outcome => {
+    const result = { captureResult: { captured: true, ownershipOutcome: outcome, blueprintDelta: outcome === 'blueprints' ? 5 : 0 },
+      travelSquad: { schemaVersion: 'travel-squad-1', revision: 4, holobotIds: ['ace', 'hare'] },
+      encounters: [], worldStates: [], withdrawnEncounterIds: [] };
+    const s = setup(vi.fn(async () => result)); s.receive(request()); await flush();
+    expect(JSON.parse(s.send.mock.calls[0][0]).result).toEqual(result); s.dispose();
+  });
+
   it('forwards host reply without calculating outcome', async () => {
     const s = setup(); s.receive(request()); await flush();
     expect(s.invoke).toHaveBeenCalledWith({ operation: 'refresh' });
@@ -19,9 +27,12 @@ describe('wild bridge authority and lifecycle', () => {
     const s = setup(); s.receive(request({ sessionId: 'other' })); s.receive('x'.repeat(8193)); await flush(); expect(s.invoke).not.toHaveBeenCalled();
   });
   it('rejects forged item/capture data and strips claimed outcome', () => {
-    const intent = { schemaVersion: 'acquisition-0', requestId: 'request-1', encounterId: 'hare-1', toyId: 'light', observedHealth01: .3, captured: true };
+    const intent = { schemaVersion: 'acquisition-0', requestId: 'request-1', encounterId: 'hare-1', toyId: 'light', observedHealth01: .3, captured: true, ownershipOutcome: 'blueprints', blueprintDelta: 500, travelSquad: ['hare'] };
     const parsed = parseRequest(request({ operation: 'capture', intent }), 'session-1');
     expect((parsed.command as any).intent.captured).toBeUndefined();
+    expect((parsed.command as any).intent.ownershipOutcome).toBeUndefined();
+    expect((parsed.command as any).intent.blueprintDelta).toBeUndefined();
+    expect((parsed.command as any).intent.travelSquad).toBeUndefined();
     expect(() => parseRequest(request({ operation: 'capture', intent: { ...intent, requestId: 'mismatch' } }), 'session-1')).toThrow();
     expect(() => parseRequest(request({ operation: 'capture', intent: { ...intent, observedHealth01: 2 } }), 'session-1')).toThrow();
   });
