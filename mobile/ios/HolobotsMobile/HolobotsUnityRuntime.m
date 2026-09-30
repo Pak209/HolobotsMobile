@@ -1,7 +1,6 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventEmitter.h>
 #import <UIKit/UIKit.h>
-#import <mach-o/ldsyms.h>
 
 #if __has_include(<UnityFramework/UnityFramework.h>)
 #import <UnityFramework/UnityFramework.h>
@@ -107,7 +106,6 @@ RCT_REMAP_METHOD(open, openWithResolver:(RCTPromiseResolveBlock)resolve rejecter
     if (!runtime || ![runtime respondsToSelector:@selector(getInstance)]) { reject(@"unavailable", @"UnityFramework is invalid.", nil); return; }
     HBFramework = [runtime getInstance];
     if (!HBFramework) { reject(@"unavailable", @"UnityFramework could not initialize.", nil); return; }
-    [HBFramework setExecuteHeader:&_mh_execute_header];
     [HBFramework setDataBundleId:"com.unity3d.framework"];
   }
   self.visible = YES; self.manuallyPaused = NO;
