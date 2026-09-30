@@ -24,6 +24,7 @@ static int HBArgc;
 @property(nonatomic) BOOL visible;
 @property(nonatomic) BOOL manuallyPaused;
 @property(nonatomic) BOOL invalidated;
+@property(nonatomic, strong) UIButton *exitButton;
 @end
 
 @implementation HolobotsUnityRuntime
@@ -74,6 +75,7 @@ RCT_EXPORT_MODULE(HolobotsUnityRuntime)
 }
 - (void)closeNative {
   self.visible = NO; self.manuallyPaused = YES;
+  [self.exitButton removeFromSuperview];self.exitButton=nil;
 #if HB_HAS_UNITY
   if (HBFramework.appController) {
     [HBFramework pause:YES];
@@ -81,6 +83,10 @@ RCT_EXPORT_MODULE(HolobotsUnityRuntime)
   }
   [HBHostWindow makeKeyAndVisible];
 #endif
+}
+- (void)requestExit {
+  if (self.visible && self.observing && !self.invalidated)
+    [self sendEventWithName:@"UnityMessage" body:@{@"json":@"{\"schemaVersion\":\"runtime-exit-1\"}"}];
 }
 RCT_REMAP_METHOD(open, openWithResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   if (self.invalidated || !self.observing) { reject(@"unavailable", @"Subscribe to UnityMessage before opening Unity.", nil); return; }
@@ -111,7 +117,26 @@ RCT_REMAP_METHOD(open, openWithResolver:(RCTPromiseResolveBlock)resolve rejecter
     for (int i = 0; i < HBArgc; i++) HBArgv[i] = strdup(args[i].UTF8String);
     [HBFramework runEmbeddedWithArgc:HBArgc argv:HBArgv appLaunchOpts:nil];
   }
-  [HBFramework showUnityWindow]; [HBFramework pause:NO]; resolve(@YES);
+  [HBFramework showUnityWindow]; [HBFramework pause:NO];
+  if (!self.exitButton) {
+    UIWindow *window = HBFramework.appController.window;
+    self.exitButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.exitButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.exitButton setTitle:@"Back to dashboard" forState:UIControlStateNormal];
+    [self.exitButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    self.exitButton.backgroundColor = [UIColor colorWithWhite:0.03 alpha:0.88];
+    self.exitButton.titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    self.exitButton.accessibilityLabel = @"Back to dashboard";
+    [self.exitButton addTarget:self action:@selector(requestExit) forControlEvents:UIControlEventTouchUpInside];
+    [window addSubview:self.exitButton];
+    [NSLayoutConstraint activateConstraints:@[
+      [self.exitButton.trailingAnchor constraintEqualToAnchor:window.safeAreaLayoutGuide.trailingAnchor constant:-12],
+      [self.exitButton.topAnchor constraintEqualToAnchor:window.safeAreaLayoutGuide.topAnchor constant:12],
+      [self.exitButton.widthAnchor constraintEqualToConstant:180],
+      [self.exitButton.heightAnchor constraintEqualToConstant:44]
+    ]];
+  }
+  resolve(@YES);
   // Replay only an actual ready signal from this retained runtime, never fabricate readiness.
   if (HBReadyMessage) {
     NSString *ready = HBReadyMessage;

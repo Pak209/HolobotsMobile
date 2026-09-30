@@ -31,3 +31,11 @@ No UnityFramework export/header exists yet, so framework-present compilation, fu
 Once the real Unity export is available, embed/sign UnityFramework in the app and expose its public headers to this target. Its Data must belong to the `com.unity3d.framework` bundle (or adjust the explicit data bundle id). Compile and run the real framework branch; never satisfy it with placeholder headers. Preserve existing RN and Watch targets. Framework binaries stay out of this source checkpoint.
 
 API basis: https://docs.unity.com/en-us/engine/6000.0/manual/platform-specific/iphone/ios-developing/unityasa-library-ios
+
+## Session and manual entry follow-up
+
+HomeScreen now has a manual ENTER HOLOCITY control and a visible unavailable dialog. No automatic launch occurs. The native Unity window has a safe-area top-trailing “Back to dashboard” button emitting `runtime-exit-1`; JavaScript follows the same acknowledged session-end path before removing its listener and pausing/closing.
+
+`nativeUnitySession.ts` awaits real ready, then a matching attached acknowledgement, then authenticated travel-squad refresh. Readiness is bounded at fifteen seconds, including a stuck native open call. Close waits for ended acknowledgement with a two-second fallback. Concurrent close callers share completion; failed native close still clears the session guard. Foreign, malformed, closed-session, and wrong-account messages are discarded.
+
+Executed mocked-native/auth suite: fourteen tests pass. Combined squad/session tests: thirty-three pass. Mobile TypeScript passes. Updated native unavailable branch recompiles to an arm64 simulator object without diagnostics. These are transport/lifecycle unit checks, not an embedded Unity or device-layout witness. The framework-present branch and actual navigation rendering remain pending the real export.

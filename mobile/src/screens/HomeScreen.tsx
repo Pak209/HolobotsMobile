@@ -8,6 +8,7 @@ import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
 import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
+import { UnityLaunchButton } from "@/components/dashboard/UnityLaunchButton";
 import { TravelSquadPanel } from "@/components/dashboard/TravelSquadPanel";
 import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
 import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
@@ -506,6 +507,7 @@ export function HomeScreen() {
             ]}
           />
         ))}
+        <UnityLaunchButton />
         <TravelSquadPanel uid={user?.uid} roster={roster} />
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
