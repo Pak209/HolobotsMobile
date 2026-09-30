@@ -7,7 +7,7 @@ export type Command = { operation: 'refresh' | 'worldState' | 'offerToy' | 'capt
 export type WorldState = { schemaVersion: 'capture-world-1'; encounterId: string; holobotId: string; revision: number; requestId: string; affinityTier: number; affinityMax: number; chanceKnown: boolean; captureChance01: number; items: Omit<Item, 'affinityGain'>[]; reaction: string };
 export type TravelSquad = { schemaVersion: 'travel-squad-1'; revision: number; holobotIds: string[] };
 export type Reply = { travelSquad: TravelSquad; revision: number; encounters: unknown[]; worldStates: WorldState[]; withdrawnEncounterIds: string[]; roster: { schemaVersion: 'acquisition-0'; revision: number; entries: RosterEntry[] }; captureResult?: { schemaVersion: 'acquisition-0'; requestId: string; encounterId: string; holobotId: string; captured: boolean; outcome: string; affinityTierAfter: number; retryGuaranteed: boolean; toyConsumedId: string; ownershipOutcome: '' | 'new_bot' | 'added_to_squad' | 'blueprints'; blueprintDelta: number } };
-export class HostError extends Error { constructor(public code: 'invalid_request' | 'not_allowed' | 'unavailable' | 'sequence_conflict') { super(code); } }
+export class HostError extends Error { constructor(public code: 'invalid_request' | 'not_allowed' | 'unavailable' | 'sequence_conflict' | 'stale_revision') { super(code); } }
 const id = (x: unknown): x is string => typeof x === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(x);
 export function validateCommand(raw: unknown): Command {
   if (!raw || typeof raw !== 'object') throw new HostError('invalid_request');

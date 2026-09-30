@@ -9,6 +9,9 @@ function bots(profile: Profile): Record<string, unknown>[] {
   if (!Array.isArray(profile.holobots) || profile.holobots.some(b => !b || typeof b !== 'object' || typeof b.name !== 'string' || !b.name.trim())) throw new HostError('unavailable');
   return profile.holobots;
 }
+export function ownsCaptureBot(profile: Profile, holobotId: string): boolean {
+  return bots(profile).some(b => toHolobotKey(b.name as string) === holobotId);
+}
 export function readTravelSquad(profile: Profile): TravelSquad {
   const raw = profile.travelSquad;
   if (raw === undefined) return { schemaVersion: 'travel-squad-1', revision: 0, holobotIds: [] };

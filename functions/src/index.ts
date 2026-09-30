@@ -37,3 +37,5 @@ export { useExpBooster } from "./economy/useExpBooster";
 export { useRankSkip } from "./progression/useRankSkip";
 
 export { wildEncounterHost } from "./acquisition/wildEncounterHost";
+
+export { travelSquadHost } from "./acquisition/travelSquadHost";

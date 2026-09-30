@@ -21,6 +21,6 @@ describe('server-owned travel squad',()=>{
   await assertSucceeds(getDoc(ref));
  });
  it('denies client direct session or receipt writes',async()=>{
-  const db=authedDb(env,'alice');await assertFails(setDoc(doc(db,'wildEncounterSessions/alice'),{enabled:true}));await assertFails(setDoc(doc(db,'wildEncounterSessions/alice/receipts/r'),{reply:{}}));
+  const db=authedDb(env,'alice');await assertFails(setDoc(doc(db,'wildEncounterSessions/alice'),{enabled:true}));await assertFails(setDoc(doc(db,'wildEncounterSessions/alice/receipts/r'),{reply:{}}));await assertFails(setDoc(doc(db,'travelSquadCommands/alice/receipts/r'),{digest:'forged'}));
  });
 });
