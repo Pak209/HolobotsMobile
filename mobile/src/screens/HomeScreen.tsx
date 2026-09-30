@@ -8,6 +8,7 @@ import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { UserStatsModal } from "@/components/UserStatsModal";
 import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
+import { TravelSquadPanel } from "@/components/dashboard/TravelSquadPanel";
 import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
 import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
 import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/partStats";
@@ -186,7 +187,7 @@ function ArtImage({
 
 export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
-  const { profile, updateProfile } = useAuth();
+  const { profile, updateProfile, user } = useAuth();
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -505,6 +506,7 @@ export function HomeScreen() {
             ]}
           />
         ))}
+        <TravelSquadPanel uid={user?.uid} roster={roster} />
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
           onSelect={(index) => {
