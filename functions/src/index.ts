@@ -10,6 +10,7 @@
 export { applyReferralCode } from "./growth/applyReferralCode";
 export { assignWildcardBlueprints } from "./growth/assignWildcardBlueprints";
 export { chargeArenaEntry } from "./arena/chargeArenaEntry";
+export { createGenesisProfile } from "./account/createGenesisProfile";
 export { createWebviewBridgeToken } from "./account/createWebviewBridgeToken";
 export { claimDailyMission } from "./economy/claimDailyMission";
 export { claimGenesisSquad } from "./growth/claimGenesisSquad";
