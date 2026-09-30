@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
-import { execute, HostError, Reply, Session, validateCommand, replayReceipt, currentReceiptReply } from './wildEncounterDomain';
+import { emptySnapshot, execute, HostError, Reply, Session, validateCommand, replayReceipt, currentReceiptReply } from './wildEncounterDomain';
 import { projectCapture, readTravelSquad } from './captureOwnership';
 export async function transactWildEncounter(db: Firestore, uid: string, raw: unknown, draw: number): Promise<Reply> {
     const command = validateCommand(raw);
@@ -11,8 +11,16 @@ export async function transactWildEncounter(db: Firestore, uid: string, raw: unk
 
     return await db.runTransaction(async tx => {
       const snapshot = await tx.get(sessionRef);
-      if (!snapshot.exists || snapshot.data()?.enabled !== true) throw new HostError('unavailable');
       const userRef = db.doc(`users/${uid}`);
+      if (!snapshot.exists && command.operation === 'refresh') {
+        // No encounter data yet is the normal state for a new pilot: empty presentation, no session created.
+        const userSnapshot = await tx.get(userRef);
+        if (!userSnapshot.exists) throw new HostError('unavailable');
+        const empty = emptySnapshot();
+        empty.travelSquad = readTravelSquad(userSnapshot.data()!);
+        return empty;
+      }
+      if (!snapshot.exists || snapshot.data()?.enabled !== true) throw new HostError('unavailable');
       const userSnapshot = await tx.get(userRef);
       if (!userSnapshot.exists) throw new HostError('unavailable');
       const profile = userSnapshot.data()!;

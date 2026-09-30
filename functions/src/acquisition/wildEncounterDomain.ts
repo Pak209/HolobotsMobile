@@ -30,6 +30,10 @@ function world(s: Session, e: Encounter, requestId = '', reaction = ''): WorldSt
 function snapshot(s: Session): Reply {
   return { travelSquad: { schemaVersion: 'travel-squad-1', revision: 0, holobotIds: [] }, revision: s.revision, encounters: s.encounters.filter(e => !e.ended).map(e => ({ schemaVersion: 'acquisition-0', encounterId: e.encounterId, holobotId: e.holobotId, affinityTier: e.affinityTier, affinityMax: e.affinityMax, captureOpen: e.captureOpen, allowedToyIds: e.items.filter(i => i.kind === 'buddy_unit' && i.useAllowed && i.remaining > 0).map(i => i.itemId) })), worldStates: s.encounters.filter(e => !e.ended).map(e => world(s, e)), withdrawnEncounterIds: s.encounters.filter(e => e.ended).map(e => e.encounterId), roster: { schemaVersion: 'acquisition-0', revision: s.rosterRevision, entries: s.entries } };
 }
+/** A signed-in pilot with no provisioned session yet (every new account): a normal empty state, not an error. Refresh only; no write. */
+export function emptySnapshot(): Reply {
+  return { travelSquad: { schemaVersion: 'travel-squad-1', revision: 0, holobotIds: [] }, revision: 0, encounters: [], worldStates: [], withdrawnEncounterIds: [], roster: { schemaVersion: 'acquisition-0', revision: 0, entries: [] } };
+}
 /** Caller supplies an authoritative provisioned session and server random draw. Never trusts observed health. */
 export function execute(session: Session | undefined, raw: unknown, draw: number): { session: Session; reply: Reply } {
   const c = validateCommand(raw);
