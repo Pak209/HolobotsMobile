@@ -8,6 +8,6 @@ Additive read-only callable `desktopAccountSnapshot`: authenticated caller only,
 
 Credentials and refresh tokens live only in process memory. Sign-out advances session generation; late login/call/refresh responses cannot repopulate the account. Refresh is serialized and must preserve UID. Reopening the game requires sign-in. Public project configuration is outside git in `Application.persistentDataPath/firebase-desktop.json` (apiKey, projectId, region). Passwords/tokens must never be placed there.
 
-Local emulator factory is compiled only for editor/development/test builds and uses fixed loopback addresses plus demo-holobots-desktop. Release builds ignore the localEmulator flag and require production configuration; there is no silent emulator/mock fallback. In-game test account is visibly labelled LOCAL TEST.
+Local emulator factory is compiled only for editor/development/test builds and uses fixed loopback addresses plus demo-holobots-desktop. Release builds ignore the localEmulator flag and require production configuration; there is no silent emulator/mock fallback. In-game test account is visibly labelled MOCK ACCOUNT.
 
 Firebase reference: https://firebase.google.com/docs/reference/rest/auth and https://firebase.google.com/docs/functions/callable-reference . No Firebase Unity desktop development SDK is installed.
