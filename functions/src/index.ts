@@ -39,3 +39,5 @@ export { useRankSkip } from "./progression/useRankSkip";
 export { wildEncounterHost } from "./acquisition/wildEncounterHost";
 
 export { travelSquadHost } from "./acquisition/travelSquadHost";
+
+export { desktopAccountSnapshot } from "./desktop/desktopAccountSnapshot";
