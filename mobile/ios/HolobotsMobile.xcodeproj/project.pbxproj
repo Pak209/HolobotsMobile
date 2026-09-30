@@ -18,6 +18,7 @@
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		F12A10012E2F10010044C1D9 /* WatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12A10002E2F10010044C1D9 /* WatchBridge.swift */; };
 		F12A10032E2F10030044C1D9 /* WatchBridgeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = F12A10022E2F10030044C1D9 /* WatchBridgeModule.m */; };
+		EABFEA0900294EAEB2F3B952 /* HolobotsUnityRuntime.m in Sources */ = {isa = PBXBuildFile; fileRef = 4AF84B5AEE9A458DA0A8B002 /* HolobotsUnityRuntime.m */; };
 		F1A200012E4010010044C1D9 /* HolobotsWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ACB0CBA12F9C1B4E006D18EB /* HolobotsWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -96,6 +97,7 @@
 		F11748442D0722820044C1D9 /* HolobotsMobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "HolobotsMobile-Bridging-Header.h"; path = "HolobotsMobile/HolobotsMobile-Bridging-Header.h"; sourceTree = "<group>"; };
 		F12A10002E2F10010044C1D9 /* WatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WatchBridge.swift; path = HolobotsMobile/WatchBridge.swift; sourceTree = "<group>"; };
 		F12A10022E2F10030044C1D9 /* WatchBridgeModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = WatchBridgeModule.m; path = HolobotsMobile/WatchBridgeModule.m; sourceTree = "<group>"; };
+		4AF84B5AEE9A458DA0A8B002 /* HolobotsUnityRuntime.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = HolobotsUnityRuntime.m; path = HolobotsMobile/HolobotsUnityRuntime.m; sourceTree = "<group>"; };
 		FA52BFDF22FC224B27353973 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = HolobotsMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -186,6 +188,7 @@
 				F11748442D0722820044C1D9 /* HolobotsMobile-Bridging-Header.h */,
 				F12A10002E2F10010044C1D9 /* WatchBridge.swift */,
 				F12A10022E2F10030044C1D9 /* WatchBridgeModule.m */,
+				4AF84B5AEE9A458DA0A8B002 /* HolobotsUnityRuntime.m */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -608,6 +611,7 @@
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				F12A10012E2F10010044C1D9 /* WatchBridge.swift in Sources */,
 				F12A10032E2F10030044C1D9 /* WatchBridgeModule.m in Sources */,
+				EABFEA0900294EAEB2F3B952 /* HolobotsUnityRuntime.m in Sources */,
 				524D8036E474F228802FF3C3 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
