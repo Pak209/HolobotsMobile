@@ -11,9 +11,9 @@ let n = 0;
 const rnd = () => (n = (n * 9301 + 49297) % 233280) / 233280;
 const issue = (profile, now = T0, id = 'rb_test') => L.issueRivalBattle(profile, now, id, rnd);
 const apply = (profile, updates) => Object.assign(profile, updates);
-// Issue, then settle, applying writes the way the store does.
+// Issue RIVAL_MIN_WIN_MS before `now`, then settle at `now`, applying writes the way the store does.
 function play(profile, didWin, now = T0, id = `rb_${n++}`) {
-  const i = issue(profile, now, id); apply(profile, i.userUpdates);
+  const i = issue(profile, now - L.RIVAL_MIN_WIN_MS, id); apply(profile, i.userUpdates);
   const s = L.settleRivalBattle(profile, i.battle, id, didWin, now); apply(profile, s.userUpdates);
   return { ...s, battle: { ...i.battle, ...s.battleUpdates } };
 }
@@ -126,4 +126,35 @@ test('TTL cleanup: expireAt = expiry + 7-day grace; expiresAtMs and the 2 h sett
   assert.equal(replay.battleUpdates, null); assert.deepEqual(replay.userUpdates, {});
   // After TTL deletion the record is gone: a late duplicate is unknown_battle, never a second grant.
   assert.throws(() => L.settleRivalBattle(p, undefined, 'rb_ttl2', true, lastReplay + DAY), /unknown_battle/);
+});
+
+test('too_fast: a win settled under 20 s after issue is rejected and writes nothing; a loss is never too fast', () => {
+  assert.equal(L.RIVAL_MIN_WIN_MS, 20000);
+  const p = { buddyUnits: 0, rivalWins: 3 };
+  const i = issue(p, T0, 'rb_fast');
+  for (const dt of [0, 1, L.RIVAL_MIN_WIN_MS - 1]) assert.throws(() => L.settleRivalBattle(p, i.battle, 'rb_fast', true, T0 + dt), /too_fast/);
+  assert.deepEqual(p, { buddyUnits: 0, rivalWins: 3 });
+  const ok = L.settleRivalBattle(p, i.battle, 'rb_fast', true, T0 + L.RIVAL_MIN_WIN_MS);
+  assert.equal(ok.reply.alreadyProcessed, false); assert.equal(ok.reply.buddyUnitsGranted, 1);
+  const j = issue(p, T0, 'rb_quick_loss');
+  assert.equal(L.settleRivalBattle(p, j.battle, 'rb_quick_loss', false, T0).reply.didWin, false);
+  // A settled battle replays even if the duplicate arrives "too fast"; an unknown battle is still unknown_battle.
+  const settled = { ...i.battle, ...ok.battleUpdates };
+  assert.equal(L.settleRivalBattle(p, settled, 'rb_fast', true, T0 + 1).reply.alreadyProcessed, true);
+  assert.throws(() => L.settleRivalBattle(p, undefined, 'rb_none', true, T0), /unknown_battle/);
+});
+
+test('open-battle ledger: at most 3 open; expired and settled entries free a slot; malformed ledger fails closed', () => {
+  assert.equal(L.RIVAL_MAX_OPEN_BATTLES, 3);
+  const b = (id, at = T0) => ({ battleId: id, expiresAtMs: at + L.RIVAL_BATTLE_TTL_MS });
+  let open = L.readOpenBattles(undefined, T0); assert.deepEqual(open, {});
+  for (const id of ['rb_a', 'rb_b', 'rb_c']) open = L.openBattlesAfterIssue(open, b(id));
+  assert.throws(() => L.openBattlesAfterIssue(open, b('rb_d')), /too_many_open/);
+  const stored = { openBattles: open };
+  // Exactly at expiresAtMs the battle is still settleable, so still open; one ms later it is pruned.
+  assert.equal(Object.keys(L.readOpenBattles(stored, T0 + L.RIVAL_BATTLE_TTL_MS)).length, 3);
+  assert.deepEqual(L.readOpenBattles(stored, T0 + L.RIVAL_BATTLE_TTL_MS + 1), {});
+  assert.deepEqual(Object.keys(L.openBattlesAfterIssue(L.openBattlesAfterSettle(open, 'rb_b'), b('rb_d'))).sort(), ['rb_a', 'rb_c', 'rb_d']);
+  assert.deepEqual(L.openBattlesAfterSettle(open, 'rb_unknown'), open);
+  for (const bad of [[], 'x', null, { 'bad id!': 1 }, { rb_a: '1' }, { rb_a: NaN }]) assert.throws(() => L.readOpenBattles({ openBattles: bad }, T0), /unavailable/);
 });

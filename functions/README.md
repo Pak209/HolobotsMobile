@@ -86,6 +86,9 @@ Notes:
   (settle/issue are point reads). The new field adds no write operations.
   Without the index exemptions above each battle write also maintains index
   entries for every field, which costs index storage, not extra billed ops.
+- The parent doc `rivalBattles/{uid}` (the open-battle ledger, at most 3
+  entries) is not in the `battles` group and is never TTL-deleted. It is a
+  single small doc per pilot, removed by `deleteUserAccountV2`.
 - `firestore.indexes.json` is not changed. If you later deploy it with
   `firebase deploy --only firestore:indexes --force`, the CLI may remove
   field overrides that the file does not list, so re-check the TTL policy

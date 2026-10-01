@@ -38,6 +38,12 @@ export const RIVAL_BATTLE_TTL_MS = 2 * 60 * 60 * 1000;
 export const RIVAL_BATTLE_TTL_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 /** TTL policy field on rivalBattles/{uid}/battles/{battleId}, added by the store (this module has no Firestore types). */
 export const RIVAL_BATTLE_CLEANUP_FIELD = "expireAt";
+/** Open = issued, unsettled and not past expiresAtMs. `issue` beyond this is too_many_open. */
+export const RIVAL_MAX_OPEN_BATTLES = 3;
+/** A settle claiming a win sooner than this after issue is too_fast (nothing written; may retry later). Losses are never too fast. */
+export const RIVAL_MIN_WIN_MS = 20 * 1000;
+/** Server-only open-battle ledger doc (parent of the battles): { openBattles: { [battleId]: expiresAtMs } }. */
+export const RIVAL_OPEN_BATTLES_FIELD = "openBattles";
 /** PilotBattleDirector spawns at most three opponents. */
 export const MAX_RIVALS = 3;
 export const RIVAL_MAX_LEVEL = 99;
@@ -194,7 +200,7 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "unavailable";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "unavailable";
 export class RivalError extends Error {
   constructor(public code: RivalErrorCode) {
     super(code);
@@ -228,6 +234,36 @@ export type RivalBattleRecord = {
 /** When the TTL policy may delete an issued battle (epoch ms). */
 export function rivalBattleCleanupAtMs(battle: Pick<RivalBattleRecord, "expiresAtMs">): number {
   return battle.expiresAtMs + RIVAL_BATTLE_TTL_GRACE_MS;
+}
+
+/**
+ * Open-battle ledger at rivalBattles/{uid}: battleId → expiresAtMs. Missing doc/field = none open.
+ * Returns only entries still open at nowMs (settle is legal while nowMs <= expiresAtMs);
+ * malformed stored data → unavailable (fail closed). At most RIVAL_MAX_OPEN_BATTLES entries are ever stored.
+ */
+export function readOpenBattles(ledger: Record<string, unknown> | undefined, nowMs: number): Record<string, number> {
+  const raw = ledger?.[RIVAL_OPEN_BATTLES_FIELD];
+  if (raw === undefined) return {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new RivalError("unavailable");
+  const open: Record<string, number> = {};
+  for (const [id, expiresAtMs] of Object.entries(raw as Record<string, unknown>)) {
+    if (!RIVAL_BATTLE_ID.test(id) || typeof expiresAtMs !== "number" || !Number.isFinite(expiresAtMs)) throw new RivalError("unavailable");
+    if (nowMs <= expiresAtMs) open[id] = expiresAtMs;
+  }
+  return open;
+}
+
+/** Ledger after issuing `battle`, or too_many_open when RIVAL_MAX_OPEN_BATTLES are already open. */
+export function openBattlesAfterIssue(open: Record<string, number>, battle: Pick<RivalBattleRecord, "battleId" | "expiresAtMs">): Record<string, number> {
+  if (Object.keys(open).length >= RIVAL_MAX_OPEN_BATTLES) throw new RivalError("too_many_open");
+  return { ...open, [battle.battleId]: battle.expiresAtMs };
+}
+
+/** Ledger after settling battleId (settled battles are no longer open). */
+export function openBattlesAfterSettle(open: Record<string, number>, battleId: string): Record<string, number> {
+  const next = { ...open };
+  delete next[battleId];
+  return next;
 }
 
 export type RivalCommand = { operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean };
@@ -328,6 +364,8 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     };
   }
   if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
+  // A claimed win needs a real fight; a loss may end at any time.
+  if (didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_WIN_MS)) throw new RivalError("too_fast");
   const tierBefore = tierForWins(l.wins);
   const userUpdates: Profile = starterUpdates(l);
   let granted = 0;

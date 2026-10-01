@@ -11,7 +11,7 @@ export const rivalBattleHost = onCall(async request => {
     return await transactRivalBattle(db, uid, request.data);
   } catch (error) {
     if (error instanceof RivalError) {
-      const code = error.code === 'invalid_request' ? 'invalid-argument' : error.code === 'unknown_battle' ? 'not-found' : error.code === 'battle_expired' ? 'failed-precondition' : 'unavailable';
+      const code = error.code === 'invalid_request' ? 'invalid-argument' : error.code === 'unknown_battle' ? 'not-found' : error.code === 'battle_expired' || error.code === 'too_many_open' || error.code === 'too_fast' ? 'failed-precondition' : 'unavailable';
       throw new HttpsError(code, error.code, { rejectionCode: error.code });
     }
     throw error;

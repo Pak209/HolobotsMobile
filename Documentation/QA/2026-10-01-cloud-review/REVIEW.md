@@ -1,6 +1,13 @@
 # Cloud review: Buddy Units, rival battles, starter grant (DECISIONS #43)
 
-2026-10-01. Read-only review of the server code shipped in `11c9dd5` and `a9db419` (branch base `main` @ `a9db419`), plus the TTL change on this branch. Nothing here is fixed. Pak decides.
+2026-10-01. Read-only review of the server code shipped in `11c9dd5` and `a9db419` (branch base `main` @ `a9db419`), plus the TTL change on this branch.
+
+**Status (Pak, 2026-10-01): findings 1, 2 and 3 are fixed on this branch (PR #54); 4–8 are open.**
+- #1: `allow delete: if false` on `users/{uid}`, plus rules tests.
+- #2: `deleteUserData()` in `deleteUserAccount.ts`, plus an emulator test.
+- #3: at most 3 open battles (`too_many_open`) and a 20 s minimum before a win can settle (`too_fast`), plus unit and emulator tests. Rate limiting and App Check from #3 are not done.
+
+The finding text below is the original review.
 
 Line numbers refer to this branch (`claude/rival-ttl-review-wskokm`). `rivalLadder.ts` is 15 lines longer than on `main` because of the TTL constants.
 
