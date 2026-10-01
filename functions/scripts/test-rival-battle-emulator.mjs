@@ -121,3 +121,11 @@ test('TTL field: every issued battle carries expireAt (Timestamp) = expiry + gra
   await assert.rejects(() => rival(uid, { operation: 'settle', battleId: i.battleId, didWin: true }, T0 + 8 * 86400000), /unknown_battle/);
   assert.deepEqual(await user(uid), userAfterSettle);
 });
+
+test('parallel wins on different battles in one UTC day grant the daily Unit once and count every win', async () => {
+  const uid = await setup({ buddyUnits: 0 });
+  const issued = []; for (let k = 0; k < 6; k++) issued.push(await rival(uid, { operation: 'issue' }));
+  const rs = await Promise.all(issued.map(i => rival(uid, { operation: 'settle', battleId: i.battleId, didWin: true }, T0 + 1000)));
+  assert.equal(rs.reduce((n, r) => n + r.buddyUnitsGranted, 0), 1);
+  const p = await user(uid); assert.equal(p.buddyUnits, 1); assert.equal(p.rivalWins, 6); assert.equal(p.rivalRewardDay, '2026-09-30');
+});
