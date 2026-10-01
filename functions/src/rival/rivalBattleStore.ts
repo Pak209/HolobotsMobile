@@ -1,12 +1,13 @@
 import { randomBytes, randomInt } from 'node:crypto';
-import { Firestore } from 'firebase-admin/firestore';
-import { issueRivalBattle, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
+import { Firestore, Timestamp } from 'firebase-admin/firestore';
+import { issueRivalBattle, RIVAL_BATTLE_CLEANUP_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
  * (rules: server-only). Issued battles live at rivalBattles/{uid}/battles/{battleId},
  * outside client-writable user subcollections (default-denied by the catch-all rule).
  * The uid always comes from authentication, so a foreign battleId never resolves.
+ * Each battle also carries `expireAt` (Timestamp) for TTL cleanup; see RIVAL_BATTLE_TTL_GRACE_MS.
  */
 export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000) {
   const command = validateRivalCommand(raw);
@@ -28,7 +29,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       let i = 0;
       const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length]);
       if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
-      tx.create(battleRef, r.battle);
+      // expireAt drives the Firestore TTL policy (functions/README.md); settle never changes it.
+      tx.create(battleRef, { ...r.battle, [RIVAL_BATTLE_CLEANUP_FIELD]: Timestamp.fromMillis(rivalBattleCleanupAtMs(r.battle)) });
       return r.reply;
     }
     const battle = await tx.get(battleRef);

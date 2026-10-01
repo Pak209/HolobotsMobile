@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulator required; never run against production');
 process.env.GCLOUD_PROJECT ||= 'demo-holobots-rival-tests';
 const { db } = require('../lib/admin.js');
+const { Timestamp } = require('firebase-admin/firestore');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
 const { rivalBattleHost } = require('../lib/rival/rivalBattleHost.js');
 const { createGenesisProfile } = require('../lib/account/createGenesisProfile.js');
@@ -91,4 +92,32 @@ test('starter Unit exactly once for a mobile-created profile reached first by pa
   const spent = newUid('spent'); await db.doc(`users/${spent}`).set({ holobots: [], buddyUnits: 0 });
   assert.equal((await desktopAccountSnapshot.run({ auth: { uid: spent } })).buddyUnits, 0);
   assert.equal((await user(spent)).buddyUnits, 0);
+});
+
+test('TTL field: every issued battle carries expireAt (Timestamp) = expiry + grace; settle keeps it; replay works inside the grace window', async () => {
+  const uid = await setup({ buddyUnits: 0 });
+  const i = await rival(uid, { operation: 'issue' });
+  const ref = db.doc(`rivalBattles/${uid}/battles/${i.battleId}`);
+  let stored = (await ref.get()).data();
+  assert.ok(stored.expireAt instanceof Timestamp, 'expireAt must be a Firestore Timestamp for the TTL policy');
+  assert.equal(stored.expireAt.toMillis(), T0 + L.RIVAL_BATTLE_TTL_MS + L.RIVAL_BATTLE_TTL_GRACE_MS);
+  assert.equal(stored.expiresAtMs, T0 + L.RIVAL_BATTLE_TTL_MS); assert.equal(i.expiresAtMs, stored.expiresAtMs);
+  assert.equal('expireAt' in i, false, 'expireAt is storage-only, not part of the rival-battle-1 reply');
+  const first = await rival(uid, { operation: 'settle', battleId: i.battleId, didWin: true }, T0 + 60000);
+  assert.equal(first.alreadyProcessed, false); assert.equal(first.buddyUnitsGranted, 1);
+  stored = (await ref.get()).data();
+  assert.equal(stored.expireAt.toMillis(), T0 + L.RIVAL_BATTLE_TTL_MS + L.RIVAL_BATTLE_TTL_GRACE_MS, 'settle must not move expireAt');
+  const userAfterSettle = await user(uid);
+  // Six days later (past expiresAtMs, inside the grace window): the duplicate replays the original ruling and writes nothing.
+  const late = T0 + 6 * 86400000;
+  const dup = await rival(uid, { operation: 'settle', battleId: i.battleId, didWin: false }, late);
+  assert.equal(dup.alreadyProcessed, true); assert.equal(dup.didWin, true); assert.equal(dup.buddyUnitsGranted, 1);
+  assert.deepEqual(await user(uid), userAfterSettle); assert.deepEqual((await ref.get()).data(), stored);
+  // An unsettled battle past expiresAtMs is still battle_expired, even though its record has not been cleaned up yet.
+  const j = await rival(uid, { operation: 'issue' });
+  await assert.rejects(() => rival(uid, { operation: 'settle', battleId: j.battleId, didWin: true }, T0 + L.RIVAL_BATTLE_TTL_MS + 1), /battle_expired/);
+  // Simulate the TTL delete: a later duplicate settle is unknown_battle and still grants nothing.
+  await ref.delete();
+  await assert.rejects(() => rival(uid, { operation: 'settle', battleId: i.battleId, didWin: true }, T0 + 8 * 86400000), /unknown_battle/);
+  assert.deepEqual(await user(uid), userAfterSettle);
 });

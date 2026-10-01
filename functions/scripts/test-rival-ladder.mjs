@@ -108,3 +108,22 @@ test('starting Unit is granted once: missing field grants, present field (even 0
   assert.throws(() => L.rivalStatus({ buddyUnits: 0, rivalWins: -1 }, T0), /unavailable/);
   assert.throws(() => L.rivalStatus({ buddyUnits: 0, rivalRewardDay: 'yesterday' }, T0), /unavailable/);
 });
+
+test('TTL cleanup: expireAt = expiry + 7-day grace; expiresAtMs and the 2 h settle window are unchanged', () => {
+  assert.equal(L.RIVAL_BATTLE_TTL_MS, 2 * 3600000); assert.equal(L.RIVAL_BATTLE_TTL_GRACE_MS, 7 * DAY); assert.equal(L.RIVAL_BATTLE_CLEANUP_FIELD, 'expireAt');
+  const i = issue({ buddyUnits: 0 }, T0, 'rb_ttl');
+  assert.equal(i.battle.expiresAtMs, T0 + L.RIVAL_BATTLE_TTL_MS); assert.equal(i.reply.expiresAtMs, i.battle.expiresAtMs);
+  assert.equal(L.rivalBattleCleanupAtMs(i.battle), T0 + L.RIVAL_BATTLE_TTL_MS + 7 * DAY);
+  assert.equal('expireAt' in i.battle, false, 'the pure record stays Firestore-free; the store adds the Timestamp');
+  // An unsettled battle still expires at 2 h even though the record lives for the grace window.
+  assert.throws(() => L.settleRivalBattle({ buddyUnits: 0 }, i.battle, 'rb_ttl', true, i.battle.expiresAtMs + 1), /battle_expired/);
+  // A settled battle replays its ruling (writing nothing) right up to the cleanup instant.
+  const p = { buddyUnits: 0 };
+  const s = play(p, true, T0, 'rb_ttl2');
+  const lastReplay = L.rivalBattleCleanupAtMs(s.battle);
+  const replay = L.settleRivalBattle(p, s.battle, 'rb_ttl2', false, lastReplay);
+  assert.equal(replay.reply.alreadyProcessed, true); assert.equal(replay.reply.didWin, true); assert.equal(replay.reply.buddyUnitsGranted, 1);
+  assert.equal(replay.battleUpdates, null); assert.deepEqual(replay.userUpdates, {});
+  // After TTL deletion the record is gone: a late duplicate is unknown_battle, never a second grant.
+  assert.throws(() => L.settleRivalBattle(p, undefined, 'rb_ttl2', true, lastReplay + DAY), /unknown_battle/);
+});

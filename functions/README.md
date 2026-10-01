@@ -38,6 +38,59 @@ only skip wait timers). The arena battle simulation also remains client-side
 performance bonuses, so a dishonest client can claim a win but cannot
 invent reward amounts.
 
+## Rival battle cleanup (Firestore TTL) — one-time, Pak runs it
+
+`rivalBattleHost` writes one document per issued battle at
+`rivalBattles/{uid}/battles/{battleId}` (collection group **`battles`**). Each
+carries `expireAt`, a Firestore Timestamp = `expiresAtMs` (issue + 2 h) +
+`RIVAL_BATTLE_TTL_GRACE_MS` (7 days), both in `src/lib/rivalLadder.ts`. The
+field does nothing until the TTL policy is enabled once per project:
+
+```bash
+gcloud firestore fields ttls update expireAt \
+  --collection-group=battles \
+  --database='(default)' \
+  --enable-ttl \
+  --project=holobots-24046
+```
+
+Check it with `gcloud firestore fields ttls list --project=holobots-24046`
+(state goes `CREATING` → `ACTIVE`; it can take a while on first enable).
+
+Recommended alongside it (same one-time step, optional): exempt the two
+fields nothing queries from single-field indexing. `expireAt` is a
+near-sequential timestamp (Google's TTL guidance: exempt it to avoid index
+hot-spotting), and `lineup` is a nested map/array that otherwise produces a
+dozen-plus index entries per battle:
+
+```bash
+gcloud firestore indexes fields update expireAt --collection-group=battles --database='(default)' --disable-indexes --project=holobots-24046
+gcloud firestore indexes fields update lineup   --collection-group=battles --database='(default)' --disable-indexes --project=holobots-24046
+```
+
+Notes:
+
+- The policy applies to **every** collection group named `battles`. Today
+  only `rivalBattles/{uid}/battles` uses that name; don't reuse it for data
+  that must not expire.
+- Settlement is still gated by `expiresAtMs` (2 h), not by `expireAt`. A
+  settled battle replays its ruling (`alreadyProcessed: true`) for the whole
+  grace window. Deletion is not instant (typically within 24 h after
+  `expireAt`); once the record is gone a late duplicate settle returns
+  `unknown_battle` and writes nothing, so no ruling is ever re-granted.
+- Battles issued before this change have no `expireAt` and are never
+  deleted by TTL. `rivalBattleHost` was not deployed before the field
+  existed, so none should exist in production.
+- Cost: TTL deletes are billed as ordinary document deletes (one per issued
+  battle) and need no reads; no query, index or client read is added
+  (settle/issue are point reads). The new field adds no write operations.
+  Without the index exemptions above each battle write also maintains index
+  entries for every field, which costs index storage, not extra billed ops.
+- `firestore.indexes.json` is not changed. If you later deploy it with
+  `firebase deploy --only firestore:indexes --force`, the CLI may remove
+  field overrides that the file does not list, so re-check the TTL policy
+  (or add the overrides to the file first).
+
 ## Layout
 
 Functions are TypeScript, compiled to `lib/` (`npm run build`, which also

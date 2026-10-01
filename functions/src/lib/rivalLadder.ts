@@ -28,6 +28,16 @@ export const RIVAL_SCHEMA_VERSION = "rival-battle-1";
 export const RIVAL_WINS_PER_TIER = 10;
 /** An issued battleId settles only within this window. */
 export const RIVAL_BATTLE_TTL_MS = 2 * 60 * 60 * 1000;
+/**
+ * Storage cleanup. Every issued battle carries RIVAL_BATTLE_CLEANUP_FIELD (a Firestore
+ * Timestamp) = expiresAtMs + this grace; the Firestore TTL policy on collection group
+ * `battles` deletes the record some time after that (typically within 24 h). Settled
+ * battles stay replayable (alreadyProcessed) for the whole grace window; once deleted,
+ * a late duplicate settle reads as unknown_battle and still writes nothing.
+ */
+export const RIVAL_BATTLE_TTL_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+/** TTL policy field on rivalBattles/{uid}/battles/{battleId}, added by the store (this module has no Firestore types). */
+export const RIVAL_BATTLE_CLEANUP_FIELD = "expireAt";
 /** PilotBattleDirector spawns at most three opponents. */
 export const MAX_RIVALS = 3;
 export const RIVAL_MAX_LEVEL = 99;
@@ -214,6 +224,11 @@ export type RivalBattleRecord = {
   seed: number;
   settlement: RivalSettlement | null;
 };
+
+/** When the TTL policy may delete an issued battle (epoch ms). */
+export function rivalBattleCleanupAtMs(battle: Pick<RivalBattleRecord, "expiresAtMs">): number {
+  return battle.expiresAtMs + RIVAL_BATTLE_TTL_GRACE_MS;
+}
 
 export type RivalCommand = { operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean };
 
