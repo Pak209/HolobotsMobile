@@ -1,5 +1,6 @@
 // DECISIONS #43 Firestore-emulator tests: rival host transactions + the starter-Unit grant across every new-pilot path.
 import test from 'node:test';
+import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -19,12 +20,14 @@ let serial = 0;
 const newUid = tag => `${tag}_${Date.now()}_${serial++}`;
 const setup = async (fields = { buddyUnits: light(0) }) => { const uid = newUid('rival'); await db.doc(`users/${uid}`).set({ holobots: [], holosTokens: 7, ...fields }); return uid; };
 const user = async uid => (await db.doc(`users/${uid}`).get()).data();
-const rival = (uid, data, now = T0) => transactRivalBattle(db, uid, data, now);
+// Default to rival-battle-2 (#44 tier object); the v1-compat tests below omit schemaVersion like the shipped Unity build.
+const rival = (uid, data, now = T0) => transactRivalBattle(db, uid, { schemaVersion: 'rival-battle-2', ...data }, now);
+const V2 = { schemaVersion: 'desktop-account-2' };
 
 test('issue returns a server lineup and persists the battle outside user-writable paths', async () => {
   const uid = await setup({ buddyUnits: light(0), rivalWins: 25 });
   const r = await rival(uid, { operation: 'issue' });
-  assert.equal(r.schemaVersion, 'rival-battle-1'); assert.match(r.battleId, /^rb_[0-9a-f]{24}$/); assert.equal(r.tier, 2);
+  assert.equal(r.schemaVersion, 'rival-battle-2'); assert.match(r.battleId, /^rb_[0-9a-f]{24}$/); assert.equal(r.tier, 2);
   assert.equal(r.encounter.encounterId, r.battleId); assert.equal(r.encounter.opponentSquad.length, 2); assert.equal(r.encounter.opponentPilot.tier, 'challenger');
   const stored = (await db.doc(`rivalBattles/${uid}/battles/${r.battleId}`).get()).data();
   assert.equal(stored.settlement, null); assert.deepEqual(stored.lineup.opponentSquad, r.encounter.opponentSquad); assert.equal(stored.expiresAtMs, T0 + L.RIVAL_BATTLE_TTL_MS);
@@ -67,7 +70,8 @@ test('callable maps rejections to typed codes and requires auth', async () => {
   await assert.rejects(() => rivalBattleHost.run({ data: { operation: 'status' } }), e => e.code === 'unauthenticated');
   await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { operation: 'settle', battleId: 'rb_nope', didWin: true } }), e => e.code === 'not-found' && e.details.rejectionCode === 'unknown_battle');
   await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { operation: 'grant' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
-  const s = await rivalBattleHost.run({ auth: { uid }, data: { operation: 'status' } }); assert.deepEqual(s.status.buddyUnits, light(0));
+  const s = await rivalBattleHost.run({ auth: { uid }, data: { operation: 'status', schemaVersion: 'rival-battle-2' } }); assert.deepEqual(s.status.buddyUnits, light(0));
+  await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { operation: 'status', schemaVersion: 'rival-battle-3' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
 });
 
 test('starter Unit exactly once: createGenesisProfile, then desktop snapshot, wild refresh and rival status never re-grant', async () => {
@@ -75,7 +79,7 @@ test('starter Unit exactly once: createGenesisProfile, then desktop snapshot, wi
   const created = await createGenesisProfile.run({ auth: { uid }, data: { starterHolobot: 'ACE', username: 'Pilot One' } });
   assert.equal(created.created, true); assert.deepEqual((await user(uid)).buddyUnits, light(1));
   assert.equal((await createGenesisProfile.run({ auth: { uid }, data: { starterHolobot: 'KUMA', username: 'Pilot One' } })).created, false);
-  const snap = await desktopAccountSnapshot.run({ auth: { uid } }); assert.deepEqual(snap.buddyUnits, light(1)); assert.equal(snap.schemaVersion, 'desktop-account-1');
+  const snap = await desktopAccountSnapshot.run({ auth: { uid }, data: V2 }); assert.deepEqual(snap.buddyUnits, light(1)); assert.equal(snap.schemaVersion, 'desktop-account-2');
   assert.deepEqual((await transactWildEncounter(db, uid, { operation: 'refresh' })).buddyUnits, light(1));
   assert.deepEqual((await rival(uid, { operation: 'status' })).status.buddyUnits, light(1));
   assert.deepEqual((await user(uid)).buddyUnits, light(1));
@@ -84,14 +88,14 @@ test('starter Unit exactly once: createGenesisProfile, then desktop snapshot, wi
 test('starter Unit exactly once for a mobile-created profile reached first by parallel desktop/rival reads', async () => {
   const uid = newUid('mobile'); await db.doc(`users/${uid}`).set({ holobots: [{ name: 'ACE' }] });
   const rs = await Promise.all([
-    desktopAccountSnapshot.run({ auth: { uid } }), desktopAccountSnapshot.run({ auth: { uid } }),
+    desktopAccountSnapshot.run({ auth: { uid }, data: V2 }), desktopAccountSnapshot.run({ auth: { uid }, data: V2 }),
     rival(uid, { operation: 'status' }), rival(uid, { operation: 'status' }),
     transactWildEncounter(db, uid, { operation: 'refresh' }),
   ]);
   assert.deepEqual(rs.map(r => r.buddyUnits ?? r.status.buddyUnits), Array(5).fill(light(1)));
   assert.deepEqual((await user(uid)).buddyUnits, light(1));
   const spent = newUid('spent'); await db.doc(`users/${spent}`).set({ holobots: [], buddyUnits: 0 });
-  assert.deepEqual((await desktopAccountSnapshot.run({ auth: { uid: spent } })).buddyUnits, light(0));
+  assert.deepEqual((await desktopAccountSnapshot.run({ auth: { uid: spent }, data: V2 })).buddyUnits, light(0));
   assert.deepEqual((await user(spent)).buddyUnits, light(0));
 });
 
@@ -186,8 +190,56 @@ test('#44 per-tier inventory: status reports every tier, the daily win grants Li
   assert.equal((await db.doc(`rivalBattles/${uid}/battles/${i.battleId}`).get()).data().settlement.buddyUnitTierGranted, 'buddy_light');
   const legacy = await setup({ buddyUnits: 4 });
   assert.deepEqual((await rival(legacy, { operation: 'status' })).status.buddyUnits, light(4)); assert.deepEqual((await user(legacy)).buddyUnits, light(4));
-  const snap = await desktopAccountSnapshot.run({ auth: { uid: legacy } }); assert.deepEqual(snap.buddyUnits, light(4));
+  const snap = await desktopAccountSnapshot.run({ auth: { uid: legacy }, data: V2 }); assert.deepEqual(snap.buddyUnits, light(4));
   const legacyZero = await setup({ buddyUnits: 0 });
-  assert.deepEqual((await desktopAccountSnapshot.run({ auth: { uid: legacyZero } })).buddyUnits, light(0), 'migrated, no starter');
+  assert.deepEqual((await desktopAccountSnapshot.run({ auth: { uid: legacyZero }, data: V2 })).buddyUnits, light(0), 'migrated, no starter');
   assert.deepEqual((await user(legacyZero)).buddyUnits, light(0));
+});
+
+// ---- #44 wire versions: v2 on request; the deployed v1 shape for everything else (shipped Unity build) ----
+const fixtureDir = new URL('../../Documentation/QA/2026-10-01-buddy-unit-tiers/fixtures/', import.meta.url);
+async function exportFixture(name, reply) {
+  const text = JSON.stringify(reply, null, 2).replace(/"uid": "[^"]+"/g, '"uid": "<uid>"') + '\n';
+  if (/"(?:token|secret|rollSeed|openBattles|expireAt)"\s*:/.test(text)) throw new Error('Unexpected internal field in public reply');
+  await mkdir(fixtureDir, { recursive: true }); await writeFile(new URL(name + '.json', fixtureDir), text);
+}
+const V1_STATUS_KEYS = ['buddyUnits', 'dailyRewardAvailable', 'rivalWins', 'rivalsThisTier', 'tier', 'tierLabel', 'winsToNextTier'];
+
+test('rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact deployed shape, buddyUnits = total int, same rulings', async () => {
+  const uid = await setup({ buddyUnits: light(1, 2, 3), holobots: [{ name: 'ACE', level: 3 }] });
+  const host = data => rivalBattleHost.run({ auth: { uid }, data });
+  const st = await host({ operation: 'status' });
+  assert.equal(st.schemaVersion, 'rival-battle-1'); assert.equal(st.status.buddyUnits, 6); assert.deepEqual(Object.keys(st.status).sort(), V1_STATUS_KEYS);
+  const i = await host({ operation: 'issue' }); assert.equal(i.schemaVersion, 'rival-battle-1'); assert.equal(i.status.buddyUnits, 6);
+  // The ledger is shared: settle through v1, replay through v2 (and back) returns one ruling.
+  await db.doc(`rivalBattles/${uid}/battles/${i.battleId}`).update({ issuedAtMs: Date.now() - L.RIVAL_MIN_WIN_MS - 1000, expiresAtMs: Date.now() + L.RIVAL_BATTLE_TTL_MS });
+  const s1 = await host({ operation: 'settle', battleId: i.battleId, didWin: true });
+  assert.equal(s1.schemaVersion, 'rival-battle-1'); assert.equal(s1.buddyUnitsGranted, 1); assert.equal('buddyUnitTierGranted' in s1, false); assert.equal(s1.status.buddyUnits, 7);
+  assert.deepEqual(Object.keys(s1).sort(), ['alreadyProcessed', 'battleId', 'buddyUnitsGranted', 'didWin', 'schemaVersion', 'status', 'tierAfter', 'tierBefore']);
+  const s2 = await host({ operation: 'settle', battleId: i.battleId, didWin: true, schemaVersion: 'rival-battle-2' });
+  assert.equal(s2.schemaVersion, 'rival-battle-2'); assert.equal(s2.alreadyProcessed, true); assert.equal(s2.buddyUnitTierGranted, 'buddy_light'); assert.deepEqual(s2.status.buddyUnits, light(2, 2, 3));
+  assert.deepEqual((await user(uid)).buddyUnits, light(2, 2, 3));
+  await exportFixture('rival-battle-1_settle_compat', s1); await exportFixture('rival-battle-2_settle', s2);
+  await exportFixture('rival-battle-2_status', await host({ operation: 'status', schemaVersion: 'rival-battle-2' }));
+  // A pilot still on the #43 integer reads the same int through v1 (migrated to the tier map underneath).
+  const legacy = await setup({ buddyUnits: 3 });
+  const lv1 = await rivalBattleHost.run({ auth: { uid: legacy }, data: { operation: 'status', schemaVersion: 'rival-battle-1' } });
+  assert.equal(lv1.status.buddyUnits, 3); assert.deepEqual((await user(legacy)).buddyUnits, light(3));
+});
+
+test('desktop-account-1 (no data, as the shipped Unity build sends): exact deployed shape with buddyUnits = total int; desktop-account-2 on request', async () => {
+  const uid = await setup({ buddyUnits: light(1, 2, 3), holobots: [{ name: 'ACE', level: 3 }] });
+  for (const data of [undefined, {}, { schemaVersion: 'desktop-account-1' }]) {
+    const v1 = await desktopAccountSnapshot.run({ auth: { uid }, data });
+    assert.equal(v1.schemaVersion, 'desktop-account-1'); assert.equal(v1.buddyUnits, 6);
+    assert.deepEqual(Object.keys(v1).sort(), ['blueprintTiers', 'blueprints', 'buddyUnits', 'holobots', 'schemaVersion', 'travelSquad', 'uid']);
+  }
+  const v2 = await desktopAccountSnapshot.run({ auth: { uid }, data: V2 });
+  assert.equal(v2.schemaVersion, 'desktop-account-2'); assert.deepEqual(v2.buddyUnits, light(1, 2, 3));
+  await assert.rejects(() => desktopAccountSnapshot.run({ auth: { uid }, data: { schemaVersion: 'desktop-account-9' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
+  await exportFixture('desktop-account-1_compat', await desktopAccountSnapshot.run({ auth: { uid } })); await exportFixture('desktop-account-2', v2);
+  // v1 on a never-seen pilot still grants the starter once (reported as 1).
+  const fresh = newUid('desk_v1'); await db.doc(`users/${fresh}`).set({ holobots: [] });
+  assert.equal((await desktopAccountSnapshot.run({ auth: { uid: fresh } })).buddyUnits, 1); assert.deepEqual((await user(fresh)).buddyUnits, light(1));
+  assert.equal((await desktopAccountSnapshot.run({ auth: { uid: fresh } })).buddyUnits, 1);
 });

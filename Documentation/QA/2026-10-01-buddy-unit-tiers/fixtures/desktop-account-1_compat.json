@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "desktop-account-1",
+  "uid": "<uid>",
+  "holobots": [
+    {
+      "name": "ACE",
+      "level": 3
+    }
+  ],
+  "blueprints": {},
+  "travelSquad": {
+    "schemaVersion": "travel-squad-1",
+    "revision": 0,
+    "holobotIds": []
+  },
+  "blueprintTiers": [
+    {
+      "attributePoints": 10,
+      "key": "common",
+      "label": "Common",
+      "required": 5,
+      "startLevel": 1
+    },
+    {
+      "attributePoints": 10,
+      "key": "champion",
+      "label": "Champion",
+      "required": 10,
+      "startLevel": 11
+    },
+    {
+      "attributePoints": 20,
+      "key": "rare",
+      "label": "Rare",
+      "required": 20,
+      "startLevel": 21
+    },
+    {
+      "attributePoints": 30,
+      "key": "elite",
+      "label": "Elite",
+      "required": 40,
+      "startLevel": 31
+    },
+    {
+      "attributePoints": 40,
+      "key": "legendary",
+      "label": "Legendary",
+      "required": 80,
+      "startLevel": 41
+    }
+  ],
+  "buddyUnits": 6
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "rival-battle-2",
+  "status": {
+    "tier": 0,
+    "tierLabel": "rookie",
+    "rivalWins": 1,
+    "winsToNextTier": 9,
+    "rivalsThisTier": 1,
+    "dailyRewardAvailable": false,
+    "buddyUnits": {
+      "light": 2,
+      "medium": 2,
+      "heavy": 3
+    }
+  }
+}

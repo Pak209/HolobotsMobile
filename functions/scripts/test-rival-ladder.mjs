@@ -174,3 +174,19 @@ test('open-battle ledger: at most 3 open; expired and settled entries free a slo
   assert.deepEqual(L.openBattlesAfterSettle(open, 'rb_unknown'), open);
   for (const bad of [[], 'x', null, { 'bad id!': 1 }, { rb_a: '1' }, { rb_a: NaN }]) assert.throws(() => L.readOpenBattles({ openBattles: bad }, T0), /unavailable/);
 });
+
+test('wire versions: requests default to rival-battle-1; v1 replies carry the total int and no buddyUnitTierGranted; v2 is the tier object', () => {
+  assert.equal(L.validateRivalCommand({ operation: 'status' }).schemaVersion, 'rival-battle-1');
+  assert.equal(L.validateRivalCommand({ operation: 'issue', schemaVersion: 'rival-battle-2' }).schemaVersion, 'rival-battle-2');
+  assert.equal(L.validateRivalCommand({ operation: 'settle', battleId: 'rb_x', didWin: true, schemaVersion: 'rival-battle-1' }).schemaVersion, 'rival-battle-1');
+  for (const bad of ['rival-battle-3', 2, null, '']) assert.throws(() => L.validateRivalCommand({ operation: 'status', schemaVersion: bad }), /invalid_request/);
+  const p = { buddyUnits: light(1, 2, 3) };
+  const w = play(p, true, T0);
+  assert.equal(w.reply.schemaVersion, 'rival-battle-2');
+  const v1 = L.rivalReplyForVersion(w.reply, 'rival-battle-1');
+  assert.equal(v1.schemaVersion, 'rival-battle-1'); assert.equal(v1.status.buddyUnits, 7); assert.equal('buddyUnitTierGranted' in v1, false);
+  assert.equal(v1.buddyUnitsGranted, 1); assert.equal(v1.didWin, true); assert.equal(v1.tierAfter, w.reply.tierAfter);
+  assert.deepEqual(L.rivalReplyForVersion(w.reply, 'rival-battle-2'), w.reply);
+  assert.equal(w.battle.schemaVersion, 'rival-battle-1', 'stored records keep the deployed record format');
+  assert.equal(L.RIVAL_RECORD_SCHEMA, 'rival-battle-1');
+});

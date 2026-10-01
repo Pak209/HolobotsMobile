@@ -35,17 +35,17 @@ Reply changes:
 
 ## desktop-account-1 (additive, version unchanged)
 
-`desktopAccountSnapshot` adds `buddyUnits` (#44: the `{light, medium, heavy}` object; #43 drafted it as an int that was never deployed). It is now a transaction because it may write the starter Unit once. No other field changes. Unity's strict `schemaVersion == "desktop-account-1"` check keeps passing.
+`desktopAccountSnapshot` adds `buddyUnits: int`. This shape was **deployed 2026-09-30** and a shipped Unity build parses it. #44 keeps serving it unchanged as `desktop-account-1` (`buddyUnits` = the total across tiers), and adds `desktop-account-2` for the tier object (see #44 below). It is now a transaction because it may write the starter Unit once. No other field changes. Unity's strict `schemaVersion == "desktop-account-1"` check keeps passing.
 
 ## rival-battle-1 (new callable `rivalBattleHost`)
 
 Requests: `{operation:"status"}` · `{operation:"issue"}` · `{operation:"settle", battleId:string, didWin:boolean}`.
 
-`status` object (in every reply): `{tier:int, tierLabel:string, rivalWins:int, winsToNextTier:int, rivalsThisTier:int, dailyRewardAvailable:bool, buddyUnits:{light:int, medium:int, heavy:int}}` (#44; was int).
+`status` object (in every reply): `{tier:int, tierLabel:string, rivalWins:int, winsToNextTier:int, rivalsThisTier:int, dailyRewardAvailable:bool, buddyUnits:int}` (unchanged in rival-battle-1: the total across tiers since #44; the tier object is rival-battle-2).
 
 - **status** → `{schemaVersion:"rival-battle-1", status}`
 - **issue** → `{schemaVersion, battleId, expiresAtMs, tier, encounter:{encounterId (= battleId), seed:int, opponentPilot:{pilotId, displayName, tier}, opponentSquad:CombatantSnapshot[]}, status}`. `opponentPilot` and `opponentSquad` match Unity's `NpcPilotSnapshot` and `CombatantSnapshot` (holobotId, level, maxHealth, attack, defense, maxStamina, staminaRegen, deployment{deployCost, drainPerSecond, rechargePerSecond}, moves[{moveId, staminaCost, damageScale, breakPower, chargeable}]). The squad holds 1–3 entries with distinct roster ids.
-- **settle** → `{schemaVersion, battleId, alreadyProcessed:bool, didWin:bool, buddyUnitsGranted:int, buddyUnitTierGranted:"buddy_light"|"" (#44), tierBefore:int, tierAfter:int, status}`. A duplicate settle returns the original ruling (`alreadyProcessed:true`) with the current status and writes nothing. A settled battle's `didWin` cannot be changed.
+- **settle** → `{schemaVersion, battleId, alreadyProcessed:bool, didWin:bool, buddyUnitsGranted:int, tierBefore:int, tierAfter:int, status}`. A duplicate settle returns the original ruling (`alreadyProcessed:true`) with the current status and writes nothing. A settled battle's `didWin` cannot be changed.
 
 Rejections (`details.rejectionCode`): `invalid_request` (invalid-argument), `unknown_battle` (not-found: never issued to this uid, or cleaned up by TTL ≥ 7 days after expiry), `battle_expired` (failed-precondition: unsettled past `expiresAtMs`, TTL 2 h), `too_many_open` (failed-precondition, `issue` only), `too_fast` (failed-precondition, `settle` only), `unavailable` (malformed stored ledger or missing profile), `unauthenticated`.
 
@@ -81,7 +81,7 @@ Rival ids are drawn from the 12-bot roster (`HOLOBOT_NAMES` → ace, kuma, shado
 1. `AcquisitionSchema.Version` changes from `"acquisition-0"` to `"acquisition-1"`. Update `Schemas/` and the preview JSON in `Assets/HoloCity/Resources/AcquisitionPreview/` to match.
 2. `CaptureResultSnapshot`: add `public int buddyUnitsSpent;`. `CaptureOutcome`: add `public const string NoBuddyUnits = "no_buddy_units";`. The overlay shows a "no Buddy Units" state for it and must not treat it as a refusal or retry.
 3. Wild reply DTO: add `public int buddyUnits;` and show it as the player's Unit count. Read the buddy_unit item `remaining` / `useAllowed` as host-declared (they are now the player's inventory). Gate the throw on `useAllowed` / `allowedToyIds` only and never compare the count locally.
-4. Desktop account view: read `buddyUnits` (int) from `desktopAccountSnapshot`.
+4. Desktop account view: read `buddyUnits` (int) from `desktopAccountSnapshot`. (This is what the shipped build does; it keeps working as `desktop-account-1` after #44.)
 5. Rival battles: call `rivalBattleHost`. For `issue`, overlay `encounter.encounterId`, `encounter.seed`, `encounter.opponentPilot` and `encounter.opponentSquad` onto the existing EncounterPayload; the player-side `ace` / `squad` stay as Unity builds them today. Pass `opponentSquad[].holobotId` to `BeginChallenge`'s squad ids in place of the table row's `holobotId`. When the director's terminal detection fires, send `settle{battleId, didWin: outcome=="player"}` and show `buddyUnitsGranted`, `tierBefore` → `tierAfter` and `status`. On `aborted`, either send `settle{didWin:false}` (frees the open-battle slot) or let the battle expire. On `too_fast`, retry the same settle after a short delay. On `too_many_open`, settle or wait out an open battle first. Use `status` for the "daily reward available / wins to next tier" HUD.
 6. No Unit counts, tiers, stats or grant logic in Unity: render replies only.
 
@@ -148,13 +148,29 @@ Each encounter's existing `chanceByAffinity` curve now says how much toys *raise
 - Receipt replays (same requestId and body) return the original `captureResult` with the current `buddyUnits` and presentation, and spend nothing. The same requestId with a different body, for example another tier, is `sequence_conflict`.
 - `retryGuaranteed` is kept only for wire stability and is always false. Unity should stop reading it.
 
-### Other callables (versions unchanged; none of these fields were ever deployed)
+### desktop-account-2 and rival-battle-2 (version bumps, negotiated; v1 stays served)
 
-- `desktopAccountSnapshot` (`desktop-account-1`): `buddyUnits` is the `{light, medium, heavy}` object.
-- `rivalBattleHost` (`rival-battle-1`):
-  - `status.buddyUnits` is the `{light, medium, heavy}` object.
-  - `settle` adds `buddyUnitTierGranted: "buddy_light" | ""`: the tier of `buddyUnitsGranted`, or "" when nothing was granted. Duplicate settles replay it.
-  - The daily reward is one **Light** Unit.
+`desktopAccountSnapshot` and `rivalBattleHost` were **deployed to production on 2026-09-30** with `buddyUnits` as an int (`desktop-account-1` / `rival-battle-1`), and a shipped Unity build parses that int under a strict `schemaVersion` check. Every reply where `buddyUnits` becomes the tier object therefore carries a new version. The client opts in through a request field, so the shipped build keeps working unchanged after this deploy.
+
+| Callable | Request | Reply `schemaVersion` | `buddyUnits` |
+|---|---|---|---|
+| `desktopAccountSnapshot` | no data, `{}` or `{schemaVersion:"desktop-account-1"}` | `"desktop-account-1"` (unchanged deployed shape) | **int**: total across all tiers |
+| `desktopAccountSnapshot` | `{schemaVersion:"desktop-account-2"}` | `"desktop-account-2"` | `{light, medium, heavy}` |
+| `rivalBattleHost` | any operation without `schemaVersion`, or `"rival-battle-1"` | `"rival-battle-1"` (unchanged deployed shape) | `status.buddyUnits` **int**: total across all tiers |
+| `rivalBattleHost` | any operation with `schemaVersion:"rival-battle-2"` | `"rival-battle-2"` | `status.buddyUnits` = `{light, medium, heavy}` |
+
+Any other requested `schemaVersion` is `invalid-argument` / `invalid_request`.
+
+**rival-battle-2 vs rival-battle-1:**
+- `status.buddyUnits` is the object, not an int.
+- `settle` adds `buddyUnitTierGranted: "buddy_light" | ""`: the tier of `buddyUnitsGranted`, or "" when nothing was granted. Duplicate settles replay it.
+- Nothing else differs. Issue, settle, the open-battle cap, `too_fast` and every ruling are identical in both versions, and both share one ledger: a battle issued through v1 can be settled or replayed through v2, and the reverse.
+- The daily reward is one **Light** Unit in both. In v1 it shows up as the total rising by 1.
+- Stored battle records keep `schemaVersion: "rival-battle-1"`, the record format production battles already carry. It is independent of the wire version.
+
+**v1 compatibility caveat:** v1 reports a single int, but #44 capture requests (acquisition-2) need a tier. A v1-only client can display the total but cannot throw. That's fine because the shipped build's acquisition-1 captures stop working when `wildEncounterHost` deploys anyway (the hard cut Pak chose).
+
+Fixtures: `desktop-account-1_compat.json`, `desktop-account-2.json`, `rival-battle-1_settle_compat.json`, `rival-battle-2_status.json` and `rival-battle-2_settle.json` (uid redacted).
 
 ### Storage, migration and security
 
@@ -181,8 +197,8 @@ Fixtures (generated by the emulator suite): `Documentation/QA/2026-10-01-buddy-u
 4. World items: render one Buddy Unit item per tier from `worldStates[].items[]` (`kind == "buddy_unit"`), using its `displayName`, `modelKey`, `remaining`, `useAllowed` and the new `public float captureChance01;`. Gate each throw on that item's `useAllowed` / `allowedToyIds` only. Never compute odds or counts locally.
 5. `CaptureResultSnapshot`: add `public string buddyUnitTier; public bool rolled; public float roll; public float captureChance01;`. Remove or ignore `retryGuaranteed`, which is always false.
 6. Outcomes: `captured | refused | no_buddy_units`. **`refused` now consumes the Unit**: the overlay must not promise a free retry ("the Unit was used"); the encounter stays open for another throw if the player has Units. `no_buddy_units` shows a "no <tier> Units" state using `buddyUnitTier`.
-7. Desktop account view: read `buddyUnits` as `BuddyUnitCounts`, not int.
-8. Rival battles: `status.buddyUnits` is `BuddyUnitCounts`. Show `buddyUnitsGranted` together with `buddyUnitTierGranted` ("buddy_light").
+7. Desktop account view: send `{schemaVersion:"desktop-account-2"}` as the `desktopAccountSnapshot` request data, and accept reply `schemaVersion == "desktop-account-2"` (update the strict check). Read `buddyUnits` as `BuddyUnitCounts`, not int. Without the request field the server keeps answering `desktop-account-1` with the total as an int.
+8. Rival battles: add `schemaVersion:"rival-battle-2"` to every `rivalBattleHost` request (status, issue and settle), and expect reply `schemaVersion == "rival-battle-2"`. `status.buddyUnits` is `BuddyUnitCounts`. Show `buddyUnitsGranted` together with `buddyUnitTierGranted` ("buddy_light"). Battles issued by an older build can be settled by the new one.
 9. No tiers, odds, rolls or grant logic in Unity: render replies only.
 
 ## Verification (Node 22.23.1, #43 run; see PR for the #44 counts)
