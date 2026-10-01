@@ -79,8 +79,13 @@ Notes:
   `expireAt`); once the record is gone a late duplicate settle returns
   `unknown_battle` and writes nothing, so no ruling is ever re-granted.
 - Battles issued before this change have no `expireAt` and are never
-  deleted by TTL. `rivalBattleHost` was not deployed before the field
-  existed, so none should exist in production.
+  deleted by TTL. `rivalBattleHost` **was** deployed to production on
+  2026-09-30 (before this field existed), so production already holds
+  some. They are small (about 1–2 KB each) and harmless. They expired for
+  settlement 2 h after issue, and they are not in the open-battle ledger,
+  so they never count toward the 3-open cap. To reclaim them, a one-time
+  admin backfill would set `expireAt = expiresAtMs + 7 days` on each
+  `battles` doc that lacks it; nothing in this repo runs one.
 - Cost: TTL deletes are billed as ordinary document deletes (one per issued
   battle) and need no reads; no query, index or client read is added
   (settle/issue are point reads). The new field adds no write operations.
