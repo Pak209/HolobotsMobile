@@ -42,3 +42,5 @@ export { wildEncounterHost } from "./acquisition/wildEncounterHost";
 export { travelSquadHost } from "./acquisition/travelSquadHost";
 
 export { desktopAccountSnapshot } from "./desktop/desktopAccountSnapshot";
+
+export { rivalBattleHost } from "./rival/rivalBattleHost";
