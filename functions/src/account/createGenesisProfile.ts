@@ -3,7 +3,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
 import { buildGenesisSignupUserDoc, validateGenesisSignup } from "../lib/genesisSignup";
-import { BUDDY_UNITS_FIELD, STARTING_BUDDY_UNITS } from "../lib/rivalLadder";
+import { BUDDY_UNITS_FIELD, starterInventory } from "../lib/buddyUnits";
 
 type CreateGenesisProfileResponse = { schemaVersion: "genesis-profile-1"; created: boolean };
 
@@ -36,11 +36,11 @@ export const createGenesisProfile = onCall(async (request): Promise<CreateGenesi
     if (snapshot.exists) {
       return { schemaVersion: "genesis-profile-1", created: false };
     }
-    // DECISIONS #43 starter Buddy Unit, granted here so the lazy grant in the
+    // DECISIONS #43/#44 starter Buddy Unit (one Light), granted here so the lazy grant in the
     // wild / desktop / rival hosts (missing field only) never adds a second one.
     transaction.create(userRef, {
       ...buildGenesisSignupUserDoc(valid.starter, valid.username, FieldValue.serverTimestamp()),
-      [BUDDY_UNITS_FIELD]: STARTING_BUDDY_UNITS,
+      [BUDDY_UNITS_FIELD]: starterInventory(),
     });
     return { schemaVersion: "genesis-profile-1", created: true };
   });
