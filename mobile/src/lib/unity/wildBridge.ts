@@ -27,7 +27,7 @@ export function parseRequest(raw: string, sessionId: string) {
     case 'offerToy': case 'capture': {
       const i = r.intent;
       const toy = r.operation === 'offerToy';
-      if (!i || i.schemaVersion !== (toy ? 'capture-world-1' : 'acquisition-0') ||
+      if (!i || i.schemaVersion !== (toy ? 'capture-world-1' : 'acquisition-1') ||
           !id(i.requestId) || i.requestId !== r.requestId || !id(i.encounterId) || !id(toy ? i.itemId : i.toyId)) throw new Error('invalid_request');
       if (!toy && (typeof i.observedHealth01 !== 'number' || !Number.isFinite(i.observedHealth01) || i.observedHealth01 < 0 || i.observedHealth01 > 1)) throw new Error('invalid_request');
       // Copy only contracted observations; never forward authority-like extra fields.

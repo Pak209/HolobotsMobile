@@ -1,0 +1,72 @@
+{
+  "travelSquad": {
+    "schemaVersion": "travel-squad-1",
+    "revision": 0,
+    "holobotIds": []
+  },
+  "buddyUnits": 0,
+  "revision": 1,
+  "encounters": [
+    {
+      "schemaVersion": "acquisition-1",
+      "encounterId": "hare_001",
+      "holobotId": "hare",
+      "affinityTier": 0,
+      "affinityMax": 1,
+      "captureOpen": true,
+      "allowedToyIds": []
+    }
+  ],
+  "worldStates": [
+    {
+      "schemaVersion": "capture-world-1",
+      "encounterId": "hare_001",
+      "holobotId": "hare",
+      "revision": 1,
+      "requestId": "",
+      "affinityTier": 0,
+      "affinityMax": 1,
+      "chanceKnown": true,
+      "captureChance01": 0.3,
+      "items": [
+        {
+          "itemId": "carrot",
+          "kind": "affinity_toy",
+          "displayName": "Toy",
+          "modelKey": "toy",
+          "remaining": 1,
+          "useAllowed": true
+        },
+        {
+          "itemId": "unit",
+          "kind": "buddy_unit",
+          "displayName": "Unit",
+          "modelKey": "unit",
+          "remaining": 0,
+          "useAllowed": false
+        }
+      ],
+      "reaction": ""
+    }
+  ],
+  "withdrawnEncounterIds": [],
+  "roster": {
+    "schemaVersion": "acquisition-1",
+    "revision": 1,
+    "entries": []
+  },
+  "captureResult": {
+    "schemaVersion": "acquisition-1",
+    "requestId": "try",
+    "encounterId": "hare_001",
+    "holobotId": "hare",
+    "captured": false,
+    "outcome": "no_buddy_units",
+    "affinityTierAfter": 0,
+    "retryGuaranteed": false,
+    "toyConsumedId": "",
+    "ownershipOutcome": "",
+    "blueprintDelta": 0,
+    "buddyUnitsSpent": 0
+  }
+}

@@ -106,7 +106,9 @@ service cloud.firestore {
         'wildcardBlueprints', 'legendaryBlueprints', 'expBoosterActiveUntil',
         'lastWildcardPackAt', 'parts', 'packHistory', 'todaySteps',
         'referredBy', 'referrals', 'referralQualified', 'genesisSquadClaimed',
-        'genesisBadge', 'isDevAccount', 'travelSquad'
+        'genesisBadge', 'isDevAccount', 'travelSquad',
+        // DECISIONS #43: Buddy Unit inventory + rival ladder are server-only.
+        'buddyUnits', 'rivalWins', 'rivalRewardDay'
       ]);
     }
 
@@ -134,6 +136,9 @@ service cloud.firestore {
         && frozenZeroOnCreate(data, 'wildcardBlueprints')
         && frozenZeroOnCreate(data, 'legendaryBlueprints')
         && !('travelSquad' in data)
+        && !('buddyUnits' in data)
+        && !('rivalWins' in data)
+        && !('rivalRewardDay' in data)
         && !('expBoosterActiveUntil' in data)
         && !('lastWildcardPackAt' in data)
         && frozenEmptyOnCreate(data, 'parts')
