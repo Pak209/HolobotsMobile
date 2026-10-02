@@ -10,9 +10,9 @@ Server lane, HolobotsMobile functions. Local only: nothing deployed or pushed.
 | `rivalWins` | int ≥ 0 | Rival wins (losses never count). Missing = 0. |
 | `rivalRewardDay` | `YYYY-MM-DD` | UTC day of the last daily rival reward. Missing = never. |
 
-Firestore rules deny a client create carrying any of the three and any client add / change / delete (unchanged full-profile merges stay legal). Issued battles live at `rivalBattles/{uid}/battles/{battleId}` (catch-all deny; no client read or write).
+Firestore rules deny a client create carrying any of the three and any client add / change / delete (unchanged full-profile merges stay legal). Issued battles live at `rivalBattles/{uid}/battles/{battleId}`; the parent doc `rivalBattles/{uid}` is the server's open-battle ledger `{openBattles: {battleId: expiresAtMs}}` (both catch-all deny; no client read or write). Battle docs also carry `expireAt` (Timestamp, expiry + 7 days) for Firestore TTL cleanup. Since 2026-10-01 the client also cannot delete `users/{uid}` at all (account deletion goes through `deleteUserAccountV2`, which also removes `rivalBattles/{uid}` and `wildEncounterSessions/{uid}`).
 
-**Starter Unit (exactly once).** `STARTING_BUDDY_UNITS = 1`. A missing `buddyUnits` field means the server has never seen the pilot: `createGenesisProfile` writes it at creation; otherwise the first transaction in `wildEncounterHost`, `desktopAccountSnapshot` or `rivalBattleHost` writes it. A present field (including 0) never re-grants. Clients cannot create or delete the field, so the grant cannot be replayed.
+**Starter Unit (exactly once).** `STARTING_BUDDY_UNITS = 1`. A missing `buddyUnits` field means the server has never seen the pilot: `createGenesisProfile` writes it at creation; otherwise the first transaction in `wildEncounterHost`, `desktopAccountSnapshot` or `rivalBattleHost` writes it. A present field (including 0) never re-grants. Clients cannot create or delete the field, nor delete and recreate the profile, so the grant cannot be replayed.
 
 ## acquisition-0 → acquisition-1 (wildEncounterHost)
 
@@ -45,7 +45,12 @@ Requests: `{operation:"status"}` · `{operation:"issue"}` · `{operation:"settle
 - **issue** → `{schemaVersion, battleId, expiresAtMs, tier, encounter:{encounterId (= battleId), seed:int, opponentPilot:{pilotId, displayName, tier}, opponentSquad:CombatantSnapshot[]}, status}`. `opponentPilot` and `opponentSquad` match Unity's `NpcPilotSnapshot` and `CombatantSnapshot` (holobotId, level, maxHealth, attack, defense, maxStamina, staminaRegen, deployment{deployCost, drainPerSecond, rechargePerSecond}, moves[{moveId, staminaCost, damageScale, breakPower, chargeable}]). The squad holds 1–3 entries with distinct roster ids.
 - **settle** → `{schemaVersion, battleId, alreadyProcessed:bool, didWin:bool, buddyUnitsGranted:int, tierBefore:int, tierAfter:int, status}`. A duplicate settle returns the original ruling (`alreadyProcessed:true`) with the current status and writes nothing. A settled battle's `didWin` cannot be changed.
 
-Rejections (`details.rejectionCode`): `invalid_request` (invalid-argument), `unknown_battle` (not-found: never issued to this uid), `battle_expired` (failed-precondition: unsettled past `expiresAtMs`, TTL 2 h), `unavailable` (malformed stored ledger or missing profile), `unauthenticated`.
+Rejections (`details.rejectionCode`): `invalid_request` (invalid-argument), `unknown_battle` (not-found: never issued to this uid, or cleaned up by TTL ≥ 7 days after expiry), `battle_expired` (failed-precondition: unsettled past `expiresAtMs`, TTL 2 h), `too_many_open` (failed-precondition, `issue` only), `too_fast` (failed-precondition, `settle` only), `unavailable` (malformed stored ledger or missing profile), `unauthenticated`.
+
+Limits (2026-10-01, `RIVAL_MAX_OPEN_BATTLES` / `RIVAL_MIN_WIN_MS` in `rivalLadder.ts`). Neither rejection writes anything.
+
+- **`too_many_open`**: `issue` while the pilot already holds 3 open battles. Open means issued, unsettled and `now <= expiresAtMs`. Settling a battle (win or loss) or letting it expire frees its slot. Unity should settle or abandon a battle before asking for another. On `aborted`, either send `settle{didWin:false}` to free the slot, or wait for the 2 h expiry.
+- **`too_fast`**: `settle{didWin:true}` less than 20 s after issue (server clock). The battle stays open and the same settle succeeds once 20 s have passed, so Unity may retry after a short delay. `didWin:false` is never too fast. A duplicate settle of an already-settled battle still replays `alreadyProcessed:true`.
 
 Trust model is settleArenaBattle's: the client claims the win, and the server owns tier, lineup, amounts, the UTC day and once-per-battleId settlement.
 
@@ -75,7 +80,7 @@ Rival ids are drawn from the 12-bot roster (`HOLOBOT_NAMES` → ace, kuma, shado
 2. `CaptureResultSnapshot`: add `public int buddyUnitsSpent;`. `CaptureOutcome`: add `public const string NoBuddyUnits = "no_buddy_units";`. The overlay shows a "no Buddy Units" state for it and must not treat it as a refusal or retry.
 3. Wild reply DTO: add `public int buddyUnits;` and show it as the player's Unit count. Read the buddy_unit item `remaining` / `useAllowed` as host-declared (they are now the player's inventory). Gate the throw on `useAllowed` / `allowedToyIds` only and never compare the count locally.
 4. Desktop account view: read `buddyUnits` (int) from `desktopAccountSnapshot`.
-5. Rival battles: call `rivalBattleHost`. For `issue`, overlay `encounter.encounterId`, `encounter.seed`, `encounter.opponentPilot` and `encounter.opponentSquad` onto the existing EncounterPayload; the player-side `ace` / `squad` stay as Unity builds them today. Pass `opponentSquad[].holobotId` to `BeginChallenge`'s squad ids in place of the table row's `holobotId`. When the director's terminal detection fires, send `settle{battleId, didWin: outcome=="player"}` and show `buddyUnitsGranted`, `tierBefore` → `tierAfter` and `status`. On `aborted`, don't settle; the battle expires. Use `status` for the "daily reward available / wins to next tier" HUD.
+5. Rival battles: call `rivalBattleHost`. For `issue`, overlay `encounter.encounterId`, `encounter.seed`, `encounter.opponentPilot` and `encounter.opponentSquad` onto the existing EncounterPayload; the player-side `ace` / `squad` stay as Unity builds them today. Pass `opponentSquad[].holobotId` to `BeginChallenge`'s squad ids in place of the table row's `holobotId`. When the director's terminal detection fires, send `settle{battleId, didWin: outcome=="player"}` and show `buddyUnitsGranted`, `tierBefore` → `tierAfter` and `status`. On `aborted`, either send `settle{didWin:false}` (frees the open-battle slot) or let the battle expire. On `too_fast`, retry the same settle after a short delay. On `too_many_open`, settle or wait out an open battle first. Use `status` for the "daily reward available / wins to next tier" HUD.
 6. No Unit counts, tiers, stats or grant logic in Unity: render replies only.
 
 ## Verification (Node 22.23.1)
@@ -94,7 +99,7 @@ Rules first, then functions. Deploying `wildEncounterHost` makes every acquisiti
 
 ```bash
 firebase deploy --project holobots-24046 --only firestore:rules
-firebase deploy --project holobots-24046 --only functions:rivalBattleHost,functions:wildEncounterHost,functions:desktopAccountSnapshot,functions:createGenesisProfile
+firebase deploy --project holobots-24046 --only functions:rivalBattleHost,functions:wildEncounterHost,functions:desktopAccountSnapshot,functions:createGenesisProfile,functions:deleteUserAccountV2
 ```
 
 Full list (now 33; use for any whole-codebase redeploy):

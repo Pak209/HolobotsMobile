@@ -1,4 +1,4 @@
-import { doc, setDoc, updateDoc, deleteField, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteField, deleteDoc, getDoc } from 'firebase/firestore';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { authedDb, initTestEnv, seedUser } from '../src/helpers';
@@ -32,9 +32,28 @@ describe('server-owned Buddy Units and rival ladder', () => {
     await assertFails(getDoc(doc(authedDb(env, 'bob'), 'users/alice')));
   });
 
+  it('starter Unit cannot be re-claimed: the owner cannot delete the profile or overwrite it without the server fields', async () => {
+    // Cloud review 2026-10-01 #1: delete + recreate used to reset buddyUnits to "missing",
+    // and the next wild / desktop / rival call re-granted STARTING_BUDDY_UNITS.
+    const spent = { ...buildUserDoc(), holobots: [{ name: 'ACE' }], buddyUnits: 0, rivalWins: 5, rivalRewardDay: '2026-10-01' };
+    await seedUser(env, 'alice', spent);
+    const ref = doc(authedDb(env, 'alice'), 'users/alice');
+    await assertFails(deleteDoc(ref));
+    // A non-merge set over the existing doc is an update that drops the fields: denied too.
+    await assertFails(setDoc(ref, { ...buildUserDoc(), holobots: [{ name: 'ACE' }] }));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const d = (await getDoc(doc(ctx.firestore(), 'users/alice'))).data()!;
+      if (d.buddyUnits !== 0 || d.rivalWins !== 5 || d.rivalRewardDay !== '2026-10-01') throw new Error('server-owned fields changed');
+    });
+    await assertFails(deleteDoc(doc(authedDb(env, 'bob'), 'users/alice')));
+  });
+
   it('denies client reads and writes of issued rival battles', async () => {
     const db = authedDb(env, 'alice');
     await assertFails(setDoc(doc(db, 'rivalBattles/alice/battles/rb_x'), { settlement: null }));
     await assertFails(getDoc(doc(db, 'rivalBattles/alice/battles/rb_x')));
+    // The open-battle ledger (parent doc) is server-only as well.
+    await assertFails(setDoc(doc(db, 'rivalBattles/alice'), { openBattles: {} }));
+    await assertFails(getDoc(doc(db, 'rivalBattles/alice')));
   });
 });

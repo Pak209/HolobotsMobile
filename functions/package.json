@@ -10,7 +10,7 @@
     "check:shared": "node scripts/check-shared-parity.mjs",
     "lint": "tsc --noEmit",
     "test": "node --test scripts/test-wild-encounter.mjs scripts/test-rival-ladder.mjs",
-    "test:emulator": "../rules-tests/node_modules/.bin/firebase emulators:exec --config ../firebase.json --project demo-holobots-wild-tests --only firestore 'node --test scripts/test-wild-encounter-emulator.mjs scripts/test-travel-squad-emulator.mjs scripts/test-rival-battle-emulator.mjs'"
+    "test:emulator": "../rules-tests/node_modules/.bin/firebase emulators:exec --config ../firebase.json --project demo-holobots-wild-tests --only firestore 'node --test scripts/test-wild-encounter-emulator.mjs scripts/test-travel-squad-emulator.mjs scripts/test-rival-battle-emulator.mjs scripts/test-delete-user-data-emulator.mjs'"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",

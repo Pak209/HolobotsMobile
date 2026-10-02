@@ -194,7 +194,11 @@ service cloud.firestore {
         && protectedFieldsUntouched(request.resource.data, resource.data)
         && referralCodeSane(request.resource.data);
 
-      allow delete: if isOwner(uid);
+      // Server-only (2026-10-01 cloud review #1): a client delete + recreate
+      // would wipe buddyUnits / rivalWins / rivalRewardDay and let the server
+      // re-grant the starter Buddy Unit ("missing field = never seen").
+      // Account deletion goes through deleteUserAccountV2 (Admin SDK).
+      allow delete: if false;
 
       // fitness_daily is SERVER-ONLY since the 2026-07-13 hardening: the
       // sync callables both write it and trust its workoutSessionsCompleted

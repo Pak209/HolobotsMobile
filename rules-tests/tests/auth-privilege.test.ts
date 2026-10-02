@@ -48,13 +48,14 @@ describe("auth boundaries", () => {
     await assertFails(deleteDoc(doc(authedDb(env, "bob"), "users/alice")));
   });
 
-  it("allows the owner to create, update, and delete their own document", async () => {
+  it("allows the owner to create and update their own document, but not delete it", async () => {
     const aliceDb = authedDb(env, "alice");
 
     await assertSucceeds(setDoc(doc(aliceDb, "users/alice"), buildUserDoc()));
     // Economy fields are frozen; a non-frozen field stands in for "update".
     await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 42 }));
-    await assertSucceeds(deleteDoc(doc(aliceDb, "users/alice")));
+    // Profile deletion is server-only (deleteUserAccountV2); see buddy-units-rival.test.ts.
+    await assertFails(deleteDoc(doc(aliceDb, "users/alice")));
   });
 });
 
