@@ -27,7 +27,7 @@ describe('wild bridge authority and lifecycle', () => {
     const s = setup(); s.receive(request({ sessionId: 'other' })); s.receive('x'.repeat(8193)); await flush(); expect(s.invoke).not.toHaveBeenCalled();
   });
   it('rejects forged item/capture data and strips claimed outcome', () => {
-    const intent = { schemaVersion: 'acquisition-1', requestId: 'request-1', encounterId: 'hare-1', toyId: 'light', observedHealth01: .3, captured: true, ownershipOutcome: 'blueprints', blueprintDelta: 500, travelSquad: ['hare'] };
+    const intent = { schemaVersion: 'acquisition-2', requestId: 'request-1', encounterId: 'hare-1', toyId: 'buddy_light', observedHealth01: .3, captured: true, ownershipOutcome: 'blueprints', blueprintDelta: 500, travelSquad: ['hare'] };
     const parsed = parseRequest(request({ operation: 'capture', intent }), 'session-1');
     expect((parsed.command as any).intent.captured).toBeUndefined();
     expect((parsed.command as any).intent.ownershipOutcome).toBeUndefined();
@@ -35,6 +35,9 @@ describe('wild bridge authority and lifecycle', () => {
     expect((parsed.command as any).intent.travelSquad).toBeUndefined();
     expect(() => parseRequest(request({ operation: 'capture', intent: { ...intent, requestId: 'mismatch' } }), 'session-1')).toThrow();
     expect(() => parseRequest(request({ operation: 'capture', intent: { ...intent, observedHealth01: 2 } }), 'session-1')).toThrow();
+    // DECISIONS #44: acquisition-1 capture intents are no longer forwarded.
+    expect(() => parseRequest(request({ operation: 'capture', intent: { ...intent, schemaVersion: 'acquisition-1' } }), 'session-1')).toThrow();
+    expect((parsed.command as any).intent.toyId).toBe('buddy_light');
   });
   it('fails closed while signed out', async () => {
     const s = setup(undefined, () => false); s.receive(request()); await flush(); expect(s.invoke).not.toHaveBeenCalled();

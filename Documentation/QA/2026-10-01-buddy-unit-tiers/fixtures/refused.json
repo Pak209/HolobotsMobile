@@ -1,0 +1,104 @@
+{
+  "travelSquad": {
+    "schemaVersion": "travel-squad-1",
+    "revision": 0,
+    "holobotIds": []
+  },
+  "buddyUnits": {
+    "light": 5,
+    "medium": 4,
+    "heavy": 5
+  },
+  "revision": 2,
+  "encounters": [
+    {
+      "schemaVersion": "acquisition-2",
+      "encounterId": "hare_001",
+      "holobotId": "hare",
+      "affinityTier": 0,
+      "affinityMax": 1,
+      "captureOpen": true,
+      "allowedToyIds": [
+        "buddy_light",
+        "buddy_medium",
+        "buddy_heavy"
+      ]
+    }
+  ],
+  "worldStates": [
+    {
+      "schemaVersion": "capture-world-1",
+      "encounterId": "hare_001",
+      "holobotId": "hare",
+      "revision": 2,
+      "requestId": "",
+      "affinityTier": 0,
+      "affinityMax": 1,
+      "chanceKnown": true,
+      "captureChance01": 0.35,
+      "items": [
+        {
+          "itemId": "carrot",
+          "kind": "affinity_toy",
+          "displayName": "Toy",
+          "modelKey": "toy",
+          "remaining": 1,
+          "useAllowed": true,
+          "captureChance01": 0
+        },
+        {
+          "itemId": "buddy_light",
+          "kind": "buddy_unit",
+          "displayName": "Light Buddy Unit",
+          "modelKey": "buddy_unit_light",
+          "remaining": 5,
+          "useAllowed": true,
+          "captureChance01": 0.35
+        },
+        {
+          "itemId": "buddy_medium",
+          "kind": "buddy_unit",
+          "displayName": "Medium Buddy Unit",
+          "modelKey": "buddy_unit_medium",
+          "remaining": 4,
+          "useAllowed": true,
+          "captureChance01": 0.65
+        },
+        {
+          "itemId": "buddy_heavy",
+          "kind": "buddy_unit",
+          "displayName": "Heavy Buddy Unit",
+          "modelKey": "buddy_unit_heavy",
+          "remaining": 5,
+          "useAllowed": true,
+          "captureChance01": 1
+        }
+      ],
+      "reaction": "refused"
+    }
+  ],
+  "withdrawnEncounterIds": [],
+  "roster": {
+    "schemaVersion": "acquisition-2",
+    "revision": 1,
+    "entries": []
+  },
+  "captureResult": {
+    "schemaVersion": "acquisition-2",
+    "requestId": "no_0",
+    "encounterId": "hare_001",
+    "holobotId": "hare",
+    "retryGuaranteed": false,
+    "ownershipOutcome": "",
+    "blueprintDelta": 0,
+    "buddyUnitTier": "buddy_medium",
+    "captureChance01": 0.65,
+    "captured": false,
+    "outcome": "refused",
+    "affinityTierAfter": 0,
+    "toyConsumedId": "buddy_medium",
+    "buddyUnitsSpent": 1,
+    "rolled": true,
+    "roll": 0.9807349749131049
+  }
+}

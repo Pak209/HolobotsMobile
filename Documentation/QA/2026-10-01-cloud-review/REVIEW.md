@@ -106,6 +106,8 @@ The cost to the attacker is losing frozen currencies (`holosTokens`, `blueprints
 
 ## 7. Info: a refused capture keeps the Unit, so captures are eventually certain
 
+> **Superseded by DECISIONS #44 (2026-10-01, PR `claude/buddy-unit-tiers`):** a refusal now consumes the Unit, and odds come from the Unit tier plus affinity. The scenario below no longer applies.
+
 **Where:** `functions/src/acquisition/wildEncounterDomain.ts:85-88`. `unitsAfter = captured ? units - 1 : units`, `retryGuaranteed: !captured`.
 
 **Scenario:** a pilot with one Unit retries a 5% encounter with a new `requestId` each time until it succeeds. With no cost per attempt, `chanceByAffinity` only changes *how many taps* a capture takes. It never decides *whether* the capture happens. This matches the contract and #40's `returnRefusedUnit: true`, so it is not a bug. Pak should confirm it is the intended economy, because it makes the Unit a "per capture" cost and not a "per throw" cost.

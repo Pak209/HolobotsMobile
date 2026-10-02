@@ -1,12 +1,13 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { Firestore, Timestamp } from 'firebase-admin/firestore';
-import { issueRivalBattle, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
+import { issueRivalBattle, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
  * (rules: server-only). Issued battles live at rivalBattles/{uid}/battles/{battleId},
  * outside client-writable user subcollections (default-denied by the catch-all rule).
  * The uid always comes from authentication, so a foreign battleId never resolves.
+ * Replies: rival-battle-2 when the request asks for it, else the deployed rival-battle-1 shape (#44).
  * Each battle also carries `expireAt` (Timestamp) for TTL cleanup; see RIVAL_BATTLE_TTL_GRACE_MS.
  * The parent doc rivalBattles/{uid} is the open-battle ledger (≤ RIVAL_MAX_OPEN_BATTLES entries), so the
  * cap is a point read, not a query.
@@ -26,7 +27,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     if (command.operation === 'status') {
       const r = rivalStatus(profile, nowMs);
       if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
-      return r.reply;
+      return rivalReplyForVersion(r.reply, command.schemaVersion);
     }
     if (command.operation === 'issue') {
       const open = readOpenBattles((await tx.get(ledgerRef)).data(), nowMs);
@@ -37,7 +38,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen });
       // expireAt drives the Firestore TTL policy (functions/README.md); settle never changes it.
       tx.create(battleRef, { ...r.battle, [RIVAL_BATTLE_CLEANUP_FIELD]: Timestamp.fromMillis(rivalBattleCleanupAtMs(r.battle)) });
-      return r.reply;
+      return rivalReplyForVersion(r.reply, command.schemaVersion);
     }
     const battle = await tx.get(battleRef);
     const ledger = await tx.get(ledgerRef);
@@ -47,6 +48,6 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       tx.update(battleRef, r.battleUpdates);
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId) });
     }
-    return r.reply;
+    return rivalReplyForVersion(r.reply, command.schemaVersion);
   });
 }

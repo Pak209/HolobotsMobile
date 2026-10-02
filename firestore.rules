@@ -107,7 +107,9 @@ service cloud.firestore {
         'lastWildcardPackAt', 'parts', 'packHistory', 'todaySteps',
         'referredBy', 'referrals', 'referralQualified', 'genesisSquadClaimed',
         'genesisBadge', 'isDevAccount', 'travelSquad',
-        // DECISIONS #43: Buddy Unit inventory + rival ladder are server-only.
+        // DECISIONS #43/#44: Buddy Unit inventory (#44: the {light, medium, heavy}
+        // tier map; a nested change is an affected top-level key) + rival ladder
+        // are server-only.
         'buddyUnits', 'rivalWins', 'rivalRewardDay'
       ]);
     }

@@ -1,29 +1,36 @@
 /**
- * Pak DECISIONS #43 (2026-09-30): daily rival reward, Buddy Unit inventory,
- * rival difficulty ladder. ONE data module: every tunable number for the
- * mechanic lives here (producer defaults, Pak tunes), plus the pure rules that
- * read them. Unity never sees or computes any of this; it renders the replies.
+ * Pak DECISIONS #43 (2026-09-30): daily rival reward and rival difficulty
+ * ladder. ONE data module: every tunable rival number lives here (producer
+ * defaults, Pak tunes), plus the pure rules that read them. The Buddy Unit
+ * tiers / inventory / capture odds (#44) live in lib/buddyUnits.ts. Unity never
+ * sees or computes any of this; it renders the replies.
  *
  * Pure module: no firebase imports, safe to import from tests
  * (functions/scripts/test-rival-ladder.mjs).
  */
 import { HOLOBOT_NAMES } from "./economy";
 import { toHolobotKey } from "./mintingEconomy";
+import { BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, BuddyTierKey, readBuddyInventory, tierByKey, totalBuddyUnits, withTierDelta } from "./buddyUnits";
 
-// ---- Buddy Unit inventory --------------------------------------------------
+// ---- Daily rival reward (Buddy Unit inventory: lib/buddyUnits.ts, #44) ---------
 
-/** Units a pilot holds the first time the server sees them (#43 producer default). */
-export const STARTING_BUDDY_UNITS = 1;
 /** Units granted by the first rival WIN of each UTC day. */
 export const DAILY_RIVAL_REWARD_BUDDY_UNITS = 1;
-/** Units one accepted capture spends. A refusal spends none (#40 guaranteed retry). */
-export const BUDDY_UNITS_PER_CAPTURE = 1;
-/** Firestore field on users/{uid}. Server-only (rules deny client create/update/delete). */
-export const BUDDY_UNITS_FIELD = "buddyUnits";
+/** Tier of the daily rival reward (#44: Light). */
+export const DAILY_RIVAL_REWARD_TIER: BuddyTierKey = "light";
 
 // ---- Rival ladder ----------------------------------------------------------
 
-export const RIVAL_SCHEMA_VERSION = "rival-battle-1";
+/**
+ * Stored battle-record format (rivalBattles/{uid}/battles/*). Production battles carry it, so it
+ * never changes with the wire version.
+ */
+export const RIVAL_RECORD_SCHEMA = "rival-battle-1";
+/** Wire v1: deployed 2026-09-30; status.buddyUnits is an int. Still served to clients that don't ask for v2. */
+export const RIVAL_SCHEMA_V1 = "rival-battle-1";
+/** Wire v2 (DECISIONS #44): status.buddyUnits is {light, medium, heavy}; settle adds buddyUnitTierGranted. */
+export const RIVAL_SCHEMA_V2 = "rival-battle-2";
+export type RivalWireVersion = typeof RIVAL_SCHEMA_V1 | typeof RIVAL_SCHEMA_V2;
 /** tier = floor(rivalWins / RIVAL_WINS_PER_TIER). Losses never count. */
 export const RIVAL_WINS_PER_TIER = 10;
 /** An issued battleId settles only within this window. */
@@ -171,14 +178,6 @@ export function buildRivalLineup(tier: number, random: () => number): RivalLineu
 
 type Profile = Record<string, unknown>;
 
-/** Missing field = the server has never seen this pilot: they hold STARTING_BUDDY_UNITS and the caller must persist it (once). */
-export function readBuddyUnits(profile: Profile): { units: number; grantStarter: boolean } | null {
-  const raw = profile[BUDDY_UNITS_FIELD];
-  if (raw === undefined) return { units: STARTING_BUDDY_UNITS, grantStarter: true };
-  if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < 0) return null;
-  return { units: raw, grantStarter: false };
-}
-
 export function readRivalWins(profile: Profile): number | null {
   const raw = profile[RIVAL_WINS_FIELD];
   if (raw === undefined) return 0;
@@ -214,14 +213,16 @@ export type RivalStatus = {
   winsToNextTier: number;
   rivalsThisTier: number;
   dailyRewardAvailable: boolean;
-  buddyUnits: number;
+  /** Per-tier inventory (#44). */
+  buddyUnits: BuddyInventory;
 };
 
-export type RivalSettlement = { didWin: boolean; buddyUnitsGranted: number; tierBefore: number; tierAfter: number; settledAtMs: number };
+/** buddyUnitTierGranted: the tier id of buddyUnitsGranted ("" when nothing was granted). Older records lack it. */
+export type RivalSettlement = { didWin: boolean; buddyUnitsGranted: number; buddyUnitTierGranted?: BuddyTierId | ""; tierBefore: number; tierAfter: number; settledAtMs: number };
 
 /** Stored at rivalBattles/{uid}/battles/{battleId}; server-only path. */
 export type RivalBattleRecord = {
-  schemaVersion: typeof RIVAL_SCHEMA_VERSION;
+  schemaVersion: typeof RIVAL_RECORD_SCHEMA;
   battleId: string;
   tier: number;
   issuedAtMs: number;
@@ -266,26 +267,29 @@ export function openBattlesAfterSettle(open: Record<string, number>, battleId: s
   return next;
 }
 
-export type RivalCommand = { operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean };
+/** `schemaVersion` is the reply version the client asked for (request field; missing = v1, the deployed shape). */
+export type RivalCommand = ({ operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean }) & { schemaVersion: RivalWireVersion };
 
 export const RIVAL_BATTLE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 
 export function validateRivalCommand(raw: unknown): RivalCommand {
   if (!raw || typeof raw !== "object") throw new RivalError("invalid_request");
   const c = raw as Record<string, unknown>;
-  if (c.operation === "status" || c.operation === "issue") return { operation: c.operation };
+  if (c.schemaVersion !== undefined && c.schemaVersion !== RIVAL_SCHEMA_V1 && c.schemaVersion !== RIVAL_SCHEMA_V2) throw new RivalError("invalid_request");
+  const schemaVersion: RivalWireVersion = c.schemaVersion === RIVAL_SCHEMA_V2 ? RIVAL_SCHEMA_V2 : RIVAL_SCHEMA_V1;
+  if (c.operation === "status" || c.operation === "issue") return { operation: c.operation, schemaVersion };
   if (c.operation !== "settle") throw new RivalError("invalid_request");
   if (typeof c.battleId !== "string" || !RIVAL_BATTLE_ID.test(c.battleId) || typeof c.didWin !== "boolean") throw new RivalError("invalid_request");
-  return { operation: "settle", battleId: c.battleId, didWin: c.didWin };
+  return { operation: "settle", battleId: c.battleId, didWin: c.didWin, schemaVersion };
 }
 
-type Ledger = { units: number; grantStarter: boolean; wins: number; rewardDay: string };
+type Ledger = { units: BuddyInventory; inventoryUpdates: Profile; wins: number; rewardDay: string };
 function readLedger(profile: Profile): Ledger {
-  const units = readBuddyUnits(profile);
+  const inv = readBuddyInventory(profile);
   const wins = readRivalWins(profile);
   const rewardDay = readRivalRewardDay(profile);
-  if (!units || wins === null || rewardDay === null) throw new RivalError("unavailable");
-  return { units: units.units, grantStarter: units.grantStarter, wins, rewardDay };
+  if (!inv || wins === null || rewardDay === null) throw new RivalError("unavailable");
+  return { units: inv.units, inventoryUpdates: inv.updates, wins, rewardDay };
 }
 
 function statusOf(l: Ledger, nowMs: number): RivalStatus {
@@ -298,17 +302,18 @@ function statusOf(l: Ledger, nowMs: number): RivalStatus {
     winsToNextTier: (tier + 1) * RIVAL_WINS_PER_TIER - l.wins,
     rivalsThisTier: row.rivals,
     dailyRewardAvailable: l.rewardDay !== utcDay(nowMs),
-    buddyUnits: l.units,
+    buddyUnits: { ...l.units },
   };
 }
 
+/** Starter grant or #43 integer → tier-map migration, persisted with whatever else the call writes. */
 function starterUpdates(l: Ledger): Profile {
-  return l.grantStarter ? { [BUDDY_UNITS_FIELD]: l.units } : {};
+  return { ...l.inventoryUpdates };
 }
 
 export function rivalStatus(profile: Profile, nowMs: number): { userUpdates: Profile; reply: { schemaVersion: string; status: RivalStatus } } {
   const l = readLedger(profile);
-  return { userUpdates: starterUpdates(l), reply: { schemaVersion: RIVAL_SCHEMA_VERSION, status: statusOf(l, nowMs) } };
+  return { userUpdates: starterUpdates(l), reply: { schemaVersion: RIVAL_SCHEMA_V2, status: statusOf(l, nowMs) } };
 }
 
 export type IssueReply = {
@@ -326,11 +331,11 @@ export function issueRivalBattle(profile: Profile, nowMs: number, battleId: stri
   const status = statusOf(l, nowMs);
   const lineup = buildRivalLineup(status.tier, random);
   const seed = Math.floor(random() * 0x7fffffff);
-  const battle: RivalBattleRecord = { schemaVersion: RIVAL_SCHEMA_VERSION, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null };
+  const battle: RivalBattleRecord = { schemaVersion: RIVAL_RECORD_SCHEMA, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null };
   return {
     userUpdates: starterUpdates(l),
     battle,
-    reply: { schemaVersion: RIVAL_SCHEMA_VERSION, battleId, expiresAtMs: battle.expiresAtMs, tier: status.tier, encounter: { encounterId: battleId, seed, ...lineup }, status },
+    reply: { schemaVersion: RIVAL_SCHEMA_V2, battleId, expiresAtMs: battle.expiresAtMs, tier: status.tier, encounter: { encounterId: battleId, seed, ...lineup }, status },
   };
 }
 
@@ -340,6 +345,8 @@ export type SettleReply = {
   alreadyProcessed: boolean;
   didWin: boolean;
   buddyUnitsGranted: number;
+  /** Tier id of buddyUnitsGranted ("buddy_light" since #44), "" when nothing was granted. */
+  buddyUnitTierGranted: BuddyTierId | "";
   tierBefore: number;
   tierAfter: number;
   status: RivalStatus;
@@ -354,13 +361,13 @@ export type SettleReply = {
  */
 export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, didWin: boolean, nowMs: number): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord> | null; reply: SettleReply } {
   const l = readLedger(profile);
-  if (!battle || battle.battleId !== battleId || battle.schemaVersion !== RIVAL_SCHEMA_VERSION) throw new RivalError("unknown_battle");
+  if (!battle || battle.battleId !== battleId || battle.schemaVersion !== RIVAL_RECORD_SCHEMA) throw new RivalError("unknown_battle");
   if (battle.settlement) {
     const s = battle.settlement;
     return {
       userUpdates: starterUpdates(l),
       battleUpdates: null,
-      reply: { schemaVersion: RIVAL_SCHEMA_VERSION, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs) },
+      reply: { schemaVersion: RIVAL_SCHEMA_V2, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs) },
     };
   }
   if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
@@ -376,16 +383,34 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     const today = utcDay(nowMs);
     if (l.rewardDay !== today) {
       granted = DAILY_RIVAL_REWARD_BUDDY_UNITS;
-      l.units += granted;
+      l.units = withTierDelta(l.units, DAILY_RIVAL_REWARD_TIER, granted);
       l.rewardDay = today;
-      userUpdates[BUDDY_UNITS_FIELD] = l.units;
+      userUpdates[BUDDY_UNITS_FIELD] = { ...l.units };
       userUpdates[RIVAL_REWARD_DAY_FIELD] = today;
     }
   }
-  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs };
+  const tierGranted: BuddyTierId | "" = granted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : "";
+  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs };
   return {
     userUpdates,
     battleUpdates: { settlement },
-    reply: { schemaVersion: RIVAL_SCHEMA_VERSION, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs) },
+    reply: { schemaVersion: RIVAL_SCHEMA_V2, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs) },
   };
+}
+
+// ---- Wire versions ---------------------------------------------------------
+
+/** rival-battle-1 status: identical to the 2026-09-30 deployment; buddyUnits is the TOTAL of all tiers. */
+export type RivalStatusV1 = Omit<RivalStatus, "buddyUnits"> & { buddyUnits: number };
+
+/**
+ * Every rule above produces the rival-battle-2 reply. A client that did not ask for v2 (the shipped
+ * Unity build) gets the exact v1 shape: schemaVersion "rival-battle-1", status.buddyUnits as the
+ * total Unit count across tiers, and no buddyUnitTierGranted. Rulings are identical in both.
+ */
+export function rivalReplyForVersion(reply: { schemaVersion: string; status: RivalStatus }, version: RivalWireVersion): Record<string, unknown> {
+  if (version === RIVAL_SCHEMA_V2) return { ...reply };
+  const { buddyUnitTierGranted: _, ...rest } = reply as typeof reply & { buddyUnitTierGranted?: unknown };
+  const status: RivalStatusV1 = { ...reply.status, buddyUnits: totalBuddyUnits(reply.status.buddyUnits) };
+  return { ...rest, schemaVersion: RIVAL_SCHEMA_V1, status };
 }

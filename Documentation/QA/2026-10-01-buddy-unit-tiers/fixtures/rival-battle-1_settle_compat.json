@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "rival-battle-1",
+  "battleId": "rb_e606f939648a00b1c5b57bf8",
+  "alreadyProcessed": false,
+  "didWin": true,
+  "buddyUnitsGranted": 1,
+  "tierBefore": 0,
+  "tierAfter": 0,
+  "status": {
+    "tier": 0,
+    "tierLabel": "rookie",
+    "rivalWins": 1,
+    "winsToNextTier": 9,
+    "rivalsThisTier": 1,
+    "dailyRewardAvailable": false,
+    "buddyUnits": 7
+  }
+}

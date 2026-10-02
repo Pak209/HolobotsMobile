@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { authedDb, initTestEnv, seedUser } from '../src/helpers';
 import { buildUserDoc } from '../src/fixtures';
 
-// DECISIONS #43: buddyUnits, rivalWins and rivalRewardDay are written only by the functions (Admin SDK).
+// DECISIONS #43/#44: buddyUnits (#44: {light, medium, heavy}), rivalWins and rivalRewardDay are written only by the functions (Admin SDK).
 describe('server-owned Buddy Units and rival ladder', () => {
   let env: RulesTestEnvironment;
   beforeAll(async () => { env = await initTestEnv(); });
@@ -46,6 +46,33 @@ describe('server-owned Buddy Units and rival ladder', () => {
       if (d.buddyUnits !== 0 || d.rivalWins !== 5 || d.rivalRewardDay !== '2026-10-01') throw new Error('server-owned fields changed');
     });
     await assertFails(deleteDoc(doc(authedDb(env, 'bob'), 'users/alice')));
+  });
+
+  it('#44 tier map: denies client create, add, per-tier change, replace and delete for every tier; unchanged merges stay legal', async () => {
+    const tiers = { light: 1, medium: 0, heavy: 0 };
+    const alice = doc(authedDb(env, 'alice'), 'users/alice');
+    for (const t of ['light', 'medium', 'heavy']) {
+      await assertFails(setDoc(alice, { ...buildUserDoc(), buddyUnits: { light: 0, medium: 0, heavy: 0, [t]: 1 } }));
+    }
+    await assertFails(setDoc(alice, { ...buildUserDoc(), buddyUnits: { light: 0, medium: 0, heavy: 0 } }));
+    await seedUser(env, 'alice', { ...buildUserDoc(), buddyUnits: tiers });
+    for (const t of ['light', 'medium', 'heavy']) {
+      await assertFails(updateDoc(alice, { [`buddyUnits.${t}`]: 99 }));
+      await assertFails(updateDoc(alice, { [`buddyUnits.${t}`]: deleteField() }));
+      await assertFails(updateDoc(alice, { buddyUnits: { ...tiers, [t]: tiers[t as keyof typeof tiers] + 1 } }));
+    }
+    await assertFails(updateDoc(alice, { 'buddyUnits.bonus': 5 }));
+    await assertFails(updateDoc(alice, { buddyUnits: 1 }));
+    await assertFails(updateDoc(alice, { buddyUnits: deleteField() }));
+    await assertFails(setDoc(alice, { ...buildUserDoc() }));
+    await assertFails(deleteDoc(alice));
+    await assertSucceeds(updateDoc(alice, { buddyUnits: tiers, dailyEnergy: 41 }));
+    await assertSucceeds(setDoc(alice, { buddyUnits: tiers, dailyEnergy: 40 }, { merge: true }));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const d = (await getDoc(doc(ctx.firestore(), 'users/alice'))).data()!;
+      if (JSON.stringify(d.buddyUnits) !== JSON.stringify(tiers)) throw new Error(`tiers changed: ${JSON.stringify(d.buddyUnits)}`);
+    });
+    await assertFails(updateDoc(doc(authedDb(env, 'bob'), 'users/alice'), { 'buddyUnits.heavy': 1 }));
   });
 
   it('denies client reads and writes of issued rival battles', async () => {
