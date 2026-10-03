@@ -1,3 +1,4 @@
+import { CLOTHING, WARDROBE_SCHEMA } from './wardrobe';
 /**
  * Pak DECISIONS #47 (2026-10-03): vendor catalogs. Every listing and price is built from the
  * EXISTING economy module (lib/economy.ts) plus the Buddy Unit price table (lib/buddyUnits.ts),
@@ -17,11 +18,11 @@ import {
 } from "./economy";
 import { BUDDY_UNIT_PRICES_HOLOS, BUDDY_UNIT_TIERS, BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, readBuddyInventory, tierById, withTierDelta } from "./buddyUnits";
 
-export const VENDOR_SCHEMA = "vendor-1";
+export const VENDOR_SCHEMA = "vendor-2";
 export const VENDOR_IDS = ["marketplace", "workshop"] as const;
 export type VendorId = (typeof VENDOR_IDS)[number];
 
-export type ListingKind = "item" | "booster" | "buddy_unit" | "part";
+export type ListingKind = "item" | "booster" | "buddy_unit" | "part" | "clothing";
 export type PurchaseCall = { callable: string; request: Record<string, unknown> };
 export type Listing = {
   listingId: string;
@@ -106,6 +107,10 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
   });
   const listings: Listing[] = [];
   if (vendorId === "marketplace") {
+    for (const item of CLOTHING) {
+      const owned = Array.isArray(profile.wardrobeEntitlements) && profile.wardrobeEntitlements.includes(item.id);
+      listings.push(listing({listingId:`clothing.${item.id}`,kind:'clothing',displayName:item.name,price:item.price,owned:owned?1:0,available:!owned,details:{slot:item.slot,rarity:item.rarity},purchase:{callable:'wardrobeHost',request:{schemaVersion:WARDROBE_SCHEMA,operation:'purchase',itemId:item.id,requestId:'<client-generated>'}}}));
+    }
     for (const itemName of MARKETPLACE_ITEM_NAMES) {
       const wildcard = itemName === "Wildcard Blueprints";
       const reopensAt = wildcard ? num(profile.lastWildcardPackAt) + WILDCARD_PACK_COOLDOWN_MS : 0;

@@ -6,7 +6,8 @@ export async function readVendorCatalog(db: Firestore, uid: string, raw: unknown
   const command = validateCatalogCommand(raw);
   const user = await db.doc(`users/${uid}`).get();
   if (!user.exists) throw new VendorError('unavailable');
-  return buildCatalog(user.data()!, command.vendorId, nowMs);
+  const wardrobe = await db.doc(`wardrobes/${uid}`).get();
+  return buildCatalog({...user.data()!, wardrobeEntitlements:wardrobe.get('entitlements') ?? []}, command.vendorId, nowMs);
 }
 
 /**

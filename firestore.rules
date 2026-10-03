@@ -307,6 +307,10 @@ service cloud.firestore {
     match /introQuests/{uid} {
       allow read, write: if false;
     }
+    match /wardrobes/{uid}/{document=**} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
     match /vendorPurchases/{uid}/{document=**} {
       allow read, write: if false;
     }
