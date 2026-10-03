@@ -1,13 +1,22 @@
 import { Firestore } from 'firebase-admin/firestore';
+import { readWardrobeState } from '../lib/wardrobe';
 import { buildBuddyUnitPurchase, buildCatalog, BuddyPurchaseReply, validateBuddyPurchase, validateCatalogCommand, VendorError } from '../lib/vendors';
 
-/** DECISIONS #47 read: one point read of users/{uid}; never writes. */
+/** DECISIONS #47/#48 read: users/{uid} (+ wardrobes/{uid} for the boutique); never writes. */
 export async function readVendorCatalog(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now()) {
   const command = validateCatalogCommand(raw);
   const user = await db.doc(`users/${uid}`).get();
   if (!user.exists) throw new VendorError('unavailable');
+  if (command.vendorId !== 'boutique') return buildCatalog(user.data()!, command.vendorId, nowMs);
+  // Boutique owned flags come from the server-only wardrobe; a malformed wardrobe fails closed.
   const wardrobe = await db.doc(`wardrobes/${uid}`).get();
-  return buildCatalog({...user.data()!, wardrobeEntitlements:wardrobe.get('entitlements') ?? []}, command.vendorId, nowMs);
+  let entitlements: string[];
+  try {
+    entitlements = readWardrobeState(wardrobe.exists ? wardrobe.data() : undefined).entitlements;
+  } catch {
+    throw new VendorError('unavailable');
+  }
+  return buildCatalog(user.data()!, command.vendorId, nowMs, entitlements);
 }
 
 /**

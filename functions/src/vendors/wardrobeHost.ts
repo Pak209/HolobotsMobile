@@ -1,13 +1,28 @@
-import { onCall,HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { db } from '../admin';
-import { WARDROBE_SCHEMA, WardrobeError } from '../lib/wardrobe';
+import { WardrobeError } from '../lib/wardrobe';
 import { transactWardrobe } from './wardrobeStore';
-export const wardrobeHost=onCall(async request=>{
- if(!request.auth) throw new HttpsError('unauthenticated','Sign in to use your wardrobe.');
- try{
-  if(request.data?.operation==='read' && request.data.schemaVersion===WARDROBE_SCHEMA) {const user=await db.doc(`users/${request.auth.uid}`).get();if(!user.exists)throw new WardrobeError('unavailable');const state=await db.doc(`wardrobes/${request.auth.uid}`).get();return {schemaVersion:WARDROBE_SCHEMA,entitlements:state.get('entitlements')??[],recipe:state.get('recipe')??null};}
-  return await transactWardrobe(db,request.auth.uid,request.data);}catch(e){
-  if(e instanceof WardrobeError) throw new HttpsError(e.message==='invalid_request'?'invalid-argument':e.message==='sequence_conflict'?'already-exists':'failed-precondition',e.message);
-  throw e;
- }
+
+const HTTPS_CODE = {
+  invalid_request: 'invalid-argument',
+  not_owned: 'failed-precondition',
+  already_owned: 'already-exists',
+  not_enough_holos: 'failed-precondition',
+  sequence_conflict: 'already-exists',
+  unavailable: 'unavailable',
+} as const;
+
+/** DECISIONS #48, wardrobe-2. Operations: status | purchase{itemId, requestId} | equip{recipe, requestId}. */
+export const wardrobeHost = onCall(async request => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in to use your wardrobe.');
+  try {
+    return await transactWardrobe(db, uid, request.data);
+  } catch (error) {
+    if (error instanceof WardrobeError) {
+      // Keep the existing economy refusal copy for Holos.
+      throw new HttpsError(HTTPS_CODE[error.code], error.code === 'not_enough_holos' ? 'Not enough Holos.' : error.code, { rejectionCode: error.code });
+    }
+    throw error;
+  }
 });

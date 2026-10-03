@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "wardrobe-2",
+  "operation": "equip",
+  "requestId": "s1",
+  "alreadyProcessed": false,
+  "purchased": null,
+  "entitlements": [],
+  "recipe": {
+    "schemaVersion": "wardrobe-2",
+    "baseBody": "ph.body.a",
+    "face": "ph.face.01",
+    "parts": {
+      "hair": "ph.hair.short_01",
+      "top": "ph.top.jacket_01",
+      "bottom": "ph.bottom.pants_01",
+      "footwear": "ph.footwear.sneakers_01",
+      "gloves": null,
+      "hat": "ph.hat.cap_01",
+      "faceAccessory": null,
+      "backAccessory": null
+    },
+    "sliders": {
+      "height": 0.4,
+      "jaw": -1
+    },
+    "colors": {
+      "skin": "#C08060",
+      "primary": "#1F8FFF"
+    }
+  },
+  "recipeSaved": true,
+  "holosTokens": 0
+}

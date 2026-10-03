@@ -1,0 +1,374 @@
+{
+  "schemaVersion": "vendor-3",
+  "vendorId": "boutique",
+  "holosTokens": 1250,
+  "inventory": {
+    "arenaPasses": 0,
+    "gachaTickets": 0,
+    "energyRefills": 0,
+    "expBoosters": 0,
+    "rankSkips": 0,
+    "wildcardBlueprints": 0,
+    "parts": 0,
+    "buddyUnits": {
+      "light": 1,
+      "medium": 0,
+      "heavy": 0
+    }
+  },
+  "listings": [
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.hair.mohawk_01",
+      "kind": "clothing",
+      "displayName": "Neon Mohawk",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.hair.mohawk_01",
+        "slot": "hair",
+        "rarity": "rare",
+        "tintable": [
+          "hair"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.hair.mohawk_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.hair.twintails_01",
+      "kind": "clothing",
+      "displayName": "Twin Tails",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.hair.twintails_01",
+        "slot": "hair",
+        "rarity": "common",
+        "tintable": [
+          "hair"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.hair.twintails_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.top.hoodie_01",
+      "kind": "clothing",
+      "displayName": "Circuit Hoodie",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.top.hoodie_01",
+        "slot": "top",
+        "rarity": "common",
+        "tintable": [
+          "primary",
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.top.hoodie_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.top.armor_01",
+      "kind": "clothing",
+      "displayName": "Harbor Armor Vest",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.top.armor_01",
+        "slot": "top",
+        "rarity": "epic",
+        "tintable": [
+          "primary",
+          "secondary",
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.top.armor_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.bottom.joggers_01",
+      "kind": "clothing",
+      "displayName": "Glow Joggers",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.bottom.joggers_01",
+        "slot": "bottom",
+        "rarity": "common",
+        "tintable": [
+          "secondary",
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.bottom.joggers_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": false,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.bottom.armor_01",
+      "kind": "clothing",
+      "displayName": "Plated Greaves",
+      "price": 750,
+      "owned": 1,
+      "details": {
+        "itemId": "ph.bottom.armor_01",
+        "slot": "bottom",
+        "rarity": "rare",
+        "tintable": [
+          "secondary"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.bottom.armor_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.footwear.hightops_01",
+      "kind": "clothing",
+      "displayName": "Hover High-Tops",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.footwear.hightops_01",
+        "slot": "footwear",
+        "rarity": "rare",
+        "tintable": [
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.footwear.hightops_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.gloves.gauntlets_01",
+      "kind": "clothing",
+      "displayName": "Arc Gauntlets",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.gloves.gauntlets_01",
+        "slot": "gloves",
+        "rarity": "rare",
+        "tintable": [
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.gloves.gauntlets_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.hat.helmet_01",
+      "kind": "clothing",
+      "displayName": "Rival Helmet",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.hat.helmet_01",
+        "slot": "hat",
+        "rarity": "epic",
+        "tintable": [
+          "primary",
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.hat.helmet_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.faceAccessory.mask_01",
+      "kind": "clothing",
+      "displayName": "Neon Forest Mask",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.faceAccessory.mask_01",
+        "slot": "faceAccessory",
+        "rarity": "common",
+        "tintable": [
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.faceAccessory.mask_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.backAccessory.wings_01",
+      "kind": "clothing",
+      "displayName": "Holo Wings",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.backAccessory.wings_01",
+        "slot": "backAccessory",
+        "rarity": "epic",
+        "tintable": [
+          "accent"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.backAccessory.wings_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.ph.backAccessory.cape_01",
+      "kind": "clothing",
+      "displayName": "Courier Cape",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "ph.backAccessory.cape_01",
+        "slot": "backAccessory",
+        "rarity": "common",
+        "tintable": [
+          "primary"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-2",
+          "operation": "purchase",
+          "itemId": "ph.backAccessory.cape_01",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    }
+  ]
+}

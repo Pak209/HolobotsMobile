@@ -1,0 +1,453 @@
+{
+  "schemaVersion": "wardrobe-2",
+  "entitlements": [],
+  "recipe": {
+    "schemaVersion": "wardrobe-2",
+    "baseBody": "ph.body.a",
+    "face": "ph.face.01",
+    "parts": {
+      "hair": "ph.hair.short_01",
+      "top": "ph.top.tee_01",
+      "bottom": "ph.bottom.pants_01",
+      "footwear": "ph.footwear.sneakers_01",
+      "gloves": null,
+      "hat": null,
+      "faceAccessory": null,
+      "backAccessory": null
+    },
+    "sliders": {},
+    "colors": {}
+  },
+  "recipeSaved": false,
+  "holosTokens": 42,
+  "catalog": {
+    "placeholder": true,
+    "source": "placeholder-2026-10-03 (awaiting BoZo Anime Pack audit)",
+    "slots": [
+      {
+        "slot": "hair",
+        "required": true
+      },
+      {
+        "slot": "top",
+        "required": true
+      },
+      {
+        "slot": "bottom",
+        "required": true
+      },
+      {
+        "slot": "footwear",
+        "required": true
+      },
+      {
+        "slot": "gloves",
+        "required": false
+      },
+      {
+        "slot": "hat",
+        "required": false
+      },
+      {
+        "slot": "faceAccessory",
+        "required": false
+      },
+      {
+        "slot": "backAccessory",
+        "required": false
+      }
+    ],
+    "baseBodies": [
+      "ph.body.a",
+      "ph.body.b",
+      "ph.body.c"
+    ],
+    "faces": [
+      "ph.face.01",
+      "ph.face.02",
+      "ph.face.03",
+      "ph.face.04"
+    ],
+    "sliders": {
+      "keys": [
+        "height",
+        "build",
+        "headSize",
+        "shoulderWidth",
+        "legLength",
+        "eyeSize",
+        "eyeSpacing",
+        "noseSize",
+        "mouthWidth",
+        "jaw",
+        "cheek",
+        "ear"
+      ],
+      "min": -1,
+      "max": 1,
+      "default": 0
+    },
+    "colors": {
+      "channels": [
+        "skin",
+        "hair",
+        "eyes",
+        "primary",
+        "secondary",
+        "accent"
+      ],
+      "defaults": {
+        "skin": "#E8B996",
+        "hair": "#2B2B2B",
+        "eyes": "#3A6EA5",
+        "primary": "#1F8FFF",
+        "secondary": "#20232A",
+        "accent": "#FFC83D"
+      },
+      "format": "#RRGGBB"
+    },
+    "maxRecipeBytes": 4096,
+    "items": [
+      {
+        "itemId": "ph.hair.short_01",
+        "slot": "hair",
+        "displayName": "Short Crop",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "hair"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.hair.long_01",
+        "slot": "hair",
+        "displayName": "Long Sweep",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "hair"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.top.tee_01",
+        "slot": "top",
+        "displayName": "Pilot Tee",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "primary"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.top.jacket_01",
+        "slot": "top",
+        "displayName": "Flight Jacket",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "primary",
+          "secondary"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.bottom.pants_01",
+        "slot": "bottom",
+        "displayName": "Cargo Pants",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "secondary"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.bottom.shorts_01",
+        "slot": "bottom",
+        "displayName": "Track Shorts",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "secondary"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.footwear.sneakers_01",
+        "slot": "footwear",
+        "displayName": "Runner Sneakers",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "accent"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.footwear.boots_01",
+        "slot": "footwear",
+        "displayName": "Field Boots",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.gloves.fingerless_01",
+        "slot": "gloves",
+        "displayName": "Fingerless Gloves",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "secondary"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.hat.cap_01",
+        "slot": "hat",
+        "displayName": "Pilot Cap",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "primary"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.faceAccessory.visor_01",
+        "slot": "faceAccessory",
+        "displayName": "Clear Visor",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "accent"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.backAccessory.pack_01",
+        "slot": "backAccessory",
+        "displayName": "Mini Pack",
+        "rarity": "starter",
+        "price": 0,
+        "starter": true,
+        "vendorId": "",
+        "tintable": [
+          "secondary"
+        ],
+        "owned": false,
+        "usable": true
+      },
+      {
+        "itemId": "ph.hair.mohawk_01",
+        "slot": "hair",
+        "displayName": "Neon Mohawk",
+        "rarity": "rare",
+        "price": 750,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "hair"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.hair.twintails_01",
+        "slot": "hair",
+        "displayName": "Twin Tails",
+        "rarity": "common",
+        "price": 300,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "hair"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.top.hoodie_01",
+        "slot": "top",
+        "displayName": "Circuit Hoodie",
+        "rarity": "common",
+        "price": 300,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "primary",
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.top.armor_01",
+        "slot": "top",
+        "displayName": "Harbor Armor Vest",
+        "rarity": "epic",
+        "price": 1500,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "primary",
+          "secondary",
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.bottom.joggers_01",
+        "slot": "bottom",
+        "displayName": "Glow Joggers",
+        "rarity": "common",
+        "price": 300,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "secondary",
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.bottom.armor_01",
+        "slot": "bottom",
+        "displayName": "Plated Greaves",
+        "rarity": "rare",
+        "price": 750,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "secondary"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.footwear.hightops_01",
+        "slot": "footwear",
+        "displayName": "Hover High-Tops",
+        "rarity": "rare",
+        "price": 750,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.gloves.gauntlets_01",
+        "slot": "gloves",
+        "displayName": "Arc Gauntlets",
+        "rarity": "rare",
+        "price": 750,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.hat.helmet_01",
+        "slot": "hat",
+        "displayName": "Rival Helmet",
+        "rarity": "epic",
+        "price": 1500,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "primary",
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.faceAccessory.mask_01",
+        "slot": "faceAccessory",
+        "displayName": "Neon Forest Mask",
+        "rarity": "common",
+        "price": 300,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.backAccessory.wings_01",
+        "slot": "backAccessory",
+        "displayName": "Holo Wings",
+        "rarity": "epic",
+        "price": 1500,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "accent"
+        ],
+        "owned": false,
+        "usable": false
+      },
+      {
+        "itemId": "ph.backAccessory.cape_01",
+        "slot": "backAccessory",
+        "displayName": "Courier Cape",
+        "rarity": "common",
+        "price": 300,
+        "starter": false,
+        "vendorId": "boutique",
+        "tintable": [
+          "primary"
+        ],
+        "owned": false,
+        "usable": false
+      }
+    ]
+  }
+}

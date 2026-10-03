@@ -46,5 +46,4 @@ export { desktopAccountSnapshot } from "./desktop/desktopAccountSnapshot";
 export { rivalBattleHost } from "./rival/rivalBattleHost";
 export { introQuestHost } from "./quests/introQuestHost";
 export { vendorCatalogHost, purchaseBuddyUnit } from "./vendors/vendorCatalogHost";
-
-export { wardrobeHost } from './vendors/wardrobeHost';
+export { wardrobeHost } from "./vendors/wardrobeHost";
