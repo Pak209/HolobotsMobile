@@ -50,6 +50,12 @@ export const BUDDY_UNITS_FIELD = "buddyUnits";
 export const STARTING_BUDDY_UNITS: { tier: BuddyTierKey; count: number } = { tier: "light", count: 1 };
 /** Units one capture attempt spends. #44: a refusal consumes the Unit too. */
 export const BUDDY_UNITS_PER_CAPTURE = 1;
+/**
+ * DECISIONS #47 marketplace prices in Holos (producer defaults, Pak tunes). Light is not sold
+ * (starter + daily rival reward + intro quest); a tier missing here is not for sale.
+ */
+export const BUDDY_UNIT_PRICES_HOLOS: Partial<Record<BuddyTierKey, number>> = { medium: 300, heavy: 1500 };
+
 /** Upper bound for the admin grant seam (one call). */
 export const MAX_ADMIN_GRANT = 1000;
 

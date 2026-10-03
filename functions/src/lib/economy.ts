@@ -380,6 +380,16 @@ export type MarketplaceItemName =
   | "EXP Booster"
   | "Rank Skip";
 
+/** Purchasable single items, in display order (mirror of mobile MARKETPLACE_ITEM_NAMES; parity-tested). */
+export const MARKETPLACE_ITEM_NAMES: string[] = [
+  "Arena Pass",
+  "Gacha Ticket",
+  "Energy Refill",
+  "EXP Booster",
+  "Rank Skip",
+  "Wildcard Blueprints",
+];
+
 export function getMarketplacePrice(itemName: string): number {
   const normalized = itemName.trim().toLowerCase();
 

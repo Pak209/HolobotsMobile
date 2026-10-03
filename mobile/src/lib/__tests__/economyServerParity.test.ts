@@ -144,6 +144,8 @@ describe("marketplace client/server parity", () => {
       expect(serverEconomy.getMarketplacePrice(itemName)).toBe(getMarketplacePrice(itemName));
     }
     expect(serverEconomy.MARKETPLACE_BOOSTER_PRICES).toEqual(MARKETPLACE_BOOSTER_PRICES);
+    // DECISIONS #47: the server vendor catalog lists exactly the client's purchasable items, in order.
+    expect(serverEconomy.MARKETPLACE_ITEM_NAMES).toEqual(MARKETPLACE_ITEM_NAMES);
   });
 
   it("item purchases produce raw-translated identical updates", () => {

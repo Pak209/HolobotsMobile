@@ -299,6 +299,18 @@ service cloud.firestore {
       allow delete: if isParticipant(resource.data);
     }
 
+    // ---- server-only state (DECISIONS #46 / #47) -----------------------------
+    // Intro quest chain state and Buddy Unit purchase receipts are written
+    // only by the callables (Admin SDK). Explicit here so a future wildcard
+    // can't open them; the default deny below covers them too. No client
+    // read: the callables return everything Unity renders.
+    match /introQuests/{uid} {
+      allow read, write: if false;
+    }
+    match /vendorPurchases/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
     // ---- default deny ------------------------------------------------------
     match /{document=**} {
       allow read, write: if false;

@@ -44,3 +44,5 @@ export { travelSquadHost } from "./acquisition/travelSquadHost";
 export { desktopAccountSnapshot } from "./desktop/desktopAccountSnapshot";
 
 export { rivalBattleHost } from "./rival/rivalBattleHost";
+export { introQuestHost } from "./quests/introQuestHost";
+export { vendorCatalogHost, purchaseBuddyUnit } from "./vendors/vendorCatalogHost";

@@ -1,0 +1,269 @@
+{
+  "schemaVersion": "vendor-1",
+  "vendorId": "marketplace",
+  "holosTokens": 420,
+  "inventory": {
+    "arenaPasses": 3,
+    "gachaTickets": 0,
+    "energyRefills": 0,
+    "expBoosters": 0,
+    "rankSkips": 0,
+    "wildcardBlueprints": 0,
+    "parts": 1,
+    "buddyUnits": {
+      "light": 2,
+      "medium": 0,
+      "heavy": 0
+    }
+  },
+  "listings": [
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.arena_pass",
+      "kind": "item",
+      "displayName": "Arena Pass",
+      "price": 50,
+      "owned": 3,
+      "details": {},
+      "purchase": {
+        "callable": "purchaseMarketplaceItem",
+        "request": {
+          "itemName": "Arena Pass"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.gacha_ticket",
+      "kind": "item",
+      "displayName": "Gacha Ticket",
+      "price": 100,
+      "owned": 0,
+      "details": {},
+      "purchase": {
+        "callable": "purchaseMarketplaceItem",
+        "request": {
+          "itemName": "Gacha Ticket"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.energy_refill",
+      "kind": "item",
+      "displayName": "Energy Refill",
+      "price": 200,
+      "owned": 0,
+      "details": {},
+      "purchase": {
+        "callable": "purchaseMarketplaceItem",
+        "request": {
+          "itemName": "Energy Refill"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.exp_booster",
+      "kind": "item",
+      "displayName": "EXP Booster",
+      "price": 750,
+      "owned": 0,
+      "details": {},
+      "purchase": {
+        "callable": "purchaseMarketplaceItem",
+        "request": {
+          "itemName": "EXP Booster"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.rank_skip",
+      "kind": "item",
+      "displayName": "Rank Skip",
+      "price": 5000,
+      "owned": 0,
+      "details": {},
+      "purchase": {
+        "callable": "purchaseMarketplaceItem",
+        "request": {
+          "itemName": "Rank Skip"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 5,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.wildcard_blueprints",
+      "kind": "item",
+      "displayName": "Wildcard Blueprints",
+      "price": 300,
+      "owned": 0,
+      "details": {},
+      "purchase": {
+        "callable": "purchaseMarketplaceItem",
+        "request": {
+          "itemName": "Wildcard Blueprints"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "booster.champion",
+      "kind": "booster",
+      "displayName": "Champion Booster",
+      "price": 100,
+      "owned": 0,
+      "details": {
+        "packId": "champion",
+        "bonusItem": "Gacha Ticket"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplaceBooster",
+        "request": {
+          "packId": "champion"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "booster.common",
+      "kind": "booster",
+      "displayName": "Common Booster",
+      "price": 50,
+      "owned": 0,
+      "details": {
+        "packId": "common",
+        "bonusItem": "Arena Pass"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplaceBooster",
+        "request": {
+          "packId": "common"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "booster.elite",
+      "kind": "booster",
+      "displayName": "Elite Booster",
+      "price": 400,
+      "owned": 0,
+      "details": {
+        "packId": "elite",
+        "bonusItem": "EXP Booster"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplaceBooster",
+        "request": {
+          "packId": "elite"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "booster.rare",
+      "kind": "booster",
+      "displayName": "Rare Booster",
+      "price": 200,
+      "owned": 0,
+      "details": {
+        "packId": "rare",
+        "bonusItem": "Energy Refill"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplaceBooster",
+        "request": {
+          "packId": "rare"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "buddy.medium",
+      "kind": "buddy_unit",
+      "displayName": "Medium Buddy Unit",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "tierId": "buddy_medium",
+        "modelKey": "buddy_unit_medium"
+      },
+      "purchase": {
+        "callable": "purchaseBuddyUnit",
+        "request": {
+          "tierId": "buddy_medium",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "buddy.heavy",
+      "kind": "buddy_unit",
+      "displayName": "Heavy Buddy Unit",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "tierId": "buddy_heavy",
+        "modelKey": "buddy_unit_heavy"
+      },
+      "purchase": {
+        "callable": "purchaseBuddyUnit",
+        "request": {
+          "tierId": "buddy_heavy",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    }
+  ]
+}

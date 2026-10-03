@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "vendor-1",
+  "requestId": "b2",
+  "tierId": "buddy_heavy",
+  "price": 1500,
+  "holosTokens": 200,
+  "buddyUnits": {
+    "light": 1,
+    "medium": 1,
+    "heavy": 1
+  },
+  "alreadyProcessed": false
+}
