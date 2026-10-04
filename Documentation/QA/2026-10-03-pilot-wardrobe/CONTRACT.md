@@ -312,6 +312,15 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 ### Storage and data safety
 
 - **Layout:** `wardrobes/{uid}` holds `{schemaVersion:"wardrobe-3", entitlements: string[], identity: {faceLayers, shapes, colors}|null, loadouts: {city: {parts, colors}|null, field: {parts, colors}|null}}`. Receipts live at `wardrobes/{uid}/receipts/{requestId}`.
+- **Type checks vs sanitising.** A stored doc is type-checked on every read, nested values included:
+  - `faceLayers` values are a string or `null`;
+  - `shapes` values are finite numbers in 0..100;
+  - identity colours are `#RRGGBB`;
+  - `preset` is a string, `null` or absent;
+  - `parts` keys are known slots, with values a string or `null`;
+  - outfit colour keys are known slots, with values arrays of `#RRGGBB`.
+
+  Any type defect fails closed as `unavailable`, so a malformed doc is never returned to Unity or written back by a purchase. A *well-typed* value that is merely no longer valid (a delisted item, a retired face option, an unknown face or shape key, a now-unowned item) is not a defect; it is **sanitised on read** instead (see above).
 - `identity` is null until the first equip of either loadout. A saved outfit with a null identity is malformed and fails closed. The single-`recipe` shape from earlier wardrobe-3 drafts also fails closed (never deployed).
 - **`firestore.rules` denies every client read and write of the whole tree.** Rules tests cover it.
 - **No reset trap:**
@@ -373,7 +382,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 
 ## Regenerating the catalog after a new pack audit
 
-1. Replace `functions/src/lib/data/bozoWardrobeManifest.json`, generated from the producer manifest and never hand-edited. Use one entry per runtime prefab: `{bozoPart, type, hides, incompatible, colorChannels}`, with `hides`/`incompatible` listing BoZo **types**.
+1. Replace `functions/src/lib/data/bozoWardrobeManifest.json`, generated from the producer manifest and never hand-edited. Keep it sorted by `(type, bozoPart)`, ordinal; a test enforces this, because manifest order sets the default outfit and the boutique listing order. Unity's own manifest file wasn't readable from this lane: it isn't on any pushed Holocity branch. If Unity's order should win, regenerate in that order and update the order test. Use one entry per runtime prefab: `{bozoPart, type, hides, incompatible, colorChannels}`, with `hides`/`incompatible` listing BoZo **types**.
 2. If the producer changes decisions, edit only the decision tables in `wardrobeCatalog.ts`:
    - `WARDROBE_SLOTS` (new types and expected counts)
    - `STARTER_TYPES` and `STARTER_PARTS`

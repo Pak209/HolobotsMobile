@@ -365,7 +365,7 @@ test('read-time sanitising: delisted / unowned / non-equippable items repaired a
   r = backUnchanged(stored(outfit({ hat: 'hat_fedora' }, { hat: ['#111111', '#222222', '#333333'], socks: ['#111111'] }), null, ['hat_fedora']));
   assert.equal(r.loadouts.city.parts.hat, 'hat_fedora'); assert.deepEqual(r.loadouts.city.colors, {}); assert.equal(r.sanitized.city, true);
   // Identity repair: off-whitelist face option / shape / preset → reset, flags both loadouts.
-  const badIdent = { ...ident, preset: 'Zell', faceLayers: { ...ident.faceLayers, head: 'Head_Retired', faceDetails: 'FaceDetail_Gone' }, shapes: { Weight: 150, Belly: 20, Tail: 3 } };
+  const badIdent = { ...ident, preset: 'Zell', faceLayers: { ...ident.faceLayers, head: 'Head_Retired', faceDetails: 'FaceDetail_Gone' }, shapes: { Belly: 20, Tail: 3 } }; // Tail: well-typed but unknown → sanitised (out-of-range weights fail closed instead, see the type test)
   const st = W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements: [], identity: badIdent, loadouts: { city: outfit({}), field: outfit({}) } });
   r = backUnchanged(st);
   assert.deepEqual(r.sanitized, { city: true, field: true });
@@ -380,4 +380,60 @@ test('read-time sanitising: delisted / unowned / non-equippable items repaired a
   assert.deepEqual(status.sanitized, { city: false, field: true }); assert.equal(status.loadouts.field.parts.hat, null);
   const saved = W.applyEquip({}, dirty, equipCmd(status.loadouts.field, 'fix', 'field'));
   assert.equal(saved.state.loadouts.field.parts.hat, null); assert.deepEqual(saved.reply.sanitized, { city: false, field: false });
+});
+
+test('stored-doc nested TYPE checks fail closed (unavailable); well-typed-but-stale values are sanitised instead', () => {
+  const b = base();
+  const ident = { preset: null, faceLayers: b.faceLayers, shapes: { Weight: 10 }, colors: { skin: '#C08060' } };
+  const outfit = { parts: { ...b.parts }, colors: { top: ['#112233'] } };
+  const doc = (identity = ident, city = outfit, field = null) => ({ schemaVersion: 'wardrobe-3', entitlements: [], identity, loadouts: { city, field } });
+  assert.doesNotThrow(() => W.readWardrobeState(doc()));
+  const typeDefects = {
+    'shapes.Weight string': doc({ ...ident, shapes: { Weight: '10' } }),
+    'shapes NaN': doc({ ...ident, shapes: { Weight: NaN } }),
+    'shapes out of 0..100': doc({ ...ident, shapes: { Weight: 150 } }),
+    'shapes negative': doc({ ...ident, shapes: { Belly: -1 } }),
+    'colors.skin number': doc({ ...ident, colors: { skin: 0xC08060 } }),
+    'colors.skin short hex': doc({ ...ident, colors: { skin: '#FFF' } }),
+    'faceLayers value number': doc({ ...ident, faceLayers: { ...b.faceLayers, head: 3 } }),
+    'faceLayers value object': doc({ ...ident, faceLayers: { ...b.faceLayers, head: { id: 'x' } } }),
+    'preset number': doc({ ...ident, preset: 7 }),
+    'parts unknown slot key': doc(ident, { ...outfit, parts: { ...b.parts, cape: 'cape_red' } }),
+    'parts numeric item id': doc(ident, { ...outfit, parts: { ...b.parts, hat: 42 } }),
+    'parts value array': doc(ident, { ...outfit, parts: { ...b.parts, hat: ['hat_fedora'] } }),
+    'colors.top string': doc(ident, { ...outfit, colors: { top: '#112233' } }),
+    'colors.top bad hex inside': doc(ident, { ...outfit, colors: { top: ['#112233', 'red'] } }),
+    'colors unknown slot key': doc(ident, { ...outfit, colors: { cape: ['#112233'] } }),
+    'field defect too': doc(ident, outfit, { ...outfit, parts: { ...b.parts, top: 1 } }),
+  };
+  for (const [name, d] of Object.entries(typeDefects)) assert.throws(() => W.readWardrobeState(d), e => e.code === 'unavailable', name);
+  // Well-typed but stale → readable, and repaired by readLoadouts (not a type defect).
+  const stale = W.readWardrobeState(doc({ ...ident, preset: 'Zell', faceLayers: { ...b.faceLayers, head: 'Head_Retired', retiredLayer: 'X' }, shapes: { Weight: 10, Tail: 50 } },
+    { parts: { ...b.parts, hat: 'hat_retired', top: 'top_fullsuit' }, colors: { top: ['#112233'] } }));
+  const r = W.readLoadouts(stale);
+  assert.deepEqual(r.sanitized, { city: true, field: true });
+  assert.equal(r.loadouts.city.preset, null); assert.equal(r.loadouts.city.faceLayers.head, 'Head_AnimeYoung'); assert.deepEqual(r.loadouts.city.shapes, { Weight: 10 });
+  assert.equal(r.loadouts.city.parts.hat, null); assert.equal(r.loadouts.city.parts.top, 'top_simplehoodie');
+  // A purchase never writes a malformed doc back: it fails closed before any write.
+  assert.throws(() => W.readWardrobeState(typeDefects['shapes.Weight string']), e => e.code === 'unavailable');
+});
+
+test('manifest order is (type, bozoPart) and the default recipe ids are pinned (order cannot silently shift)', () => {
+  const keys = MANIFEST.map(e => [e.type, e.bozoPart]);
+  const sorted = [...keys].sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0));
+  assert.deepEqual(keys, sorted, 'bozoWardrobeManifest.json must stay sorted by (type, bozoPart), ordinal');
+  assert.deepEqual(W.defaultRecipe().parts, {
+    hairFront: 'hairfront_asymmetricalfringe', hairBack: 'hairback_casualflow', top: 'top_simplehoodie', bottom: 'bottom_baggypants', feet: 'feet_athleticmidtop',
+    gloves: null, hat: null, headAcc: null, upperFace: null, lowerFace: null, neck: null, leggings: null, socks: null,
+  });
+  assert.deepEqual(W.defaultRecipe().faceLayers, {
+    head: 'Head_AnimeYoung', body: 'Body_AnimeBasic', bodyType: null, eyes: 'Eyes_AnimeBasic', pupil: 'Pupil_BasicPupil', eyeShine: null,
+    eyeBrows: 'Brows_BasicBrows', eyeLashes: 'EyeLashes_LongLashes', teeth: 'Teeth_AnimeBasicTeeth', makeUpCheeks: null, makeUpEyes: null, makeUpLips: null,
+    faceDetails: null, faceTexture: null, underUpper: 'UnderUpper_SimpleUnderShirt', underLower: 'UnderLower_SimpleBoxers',
+  });
+  assert.equal(W.defaultRecipe().preset, null);
+  // Boutique listing order follows the manifest.
+  const V = require('../lib/lib/vendors.js');
+  const listed = V.buildCatalog({ holosTokens: 0 }, 'boutique', 0, []).listings.map(l => l.details.bozoPart);
+  assert.deepEqual(listed, MANIFEST.map(e => e.bozoPart).filter(p => ITEMS.find(i => i.bozoPart === p).sellable));
 });

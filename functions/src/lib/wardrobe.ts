@@ -318,10 +318,20 @@ export function readWardrobeState(raw: unknown): WardrobeState {
   const e = raw.entitlements;
   if (!Array.isArray(e) || e.some((id) => typeof id !== "string" || !id) || new Set(e).size !== e.length) throw new WardrobeError("unavailable");
   const identity = raw.identity;
-  const okIdentity = identity === null || (isPlainObject(identity) && isPlainObject(identity.faceLayers) && isPlainObject(identity.shapes) && isPlainObject(identity.colors)
+  // Nested TYPE checks (review 2026-10-04): a malformed value fails closed. A well-typed value that is merely no
+  // longer valid (delisted item, retired face option, unknown face/shape key) is NOT a defect here; readLoadouts sanitises it.
+  const isHex = (v: unknown) => typeof v === "string" && HEX.test(v);
+  const isWeight = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= SHAPE_MIN && v <= SHAPE_MAX;
+  const values = (o: Record<string, unknown>) => Object.values(o);
+  const okIdentity = identity === null || (isPlainObject(identity)
+    && isPlainObject(identity.faceLayers) && values(identity.faceLayers).every((v) => v === null || typeof v === "string")
+    && isPlainObject(identity.shapes) && values(identity.shapes).every(isWeight)
+    && isPlainObject(identity.colors) && values(identity.colors).every(isHex)
     && (identity.preset === undefined || identity.preset === null || typeof identity.preset === "string"));
   const lo = raw.loadouts;
-  const okOutfit = (o: unknown) => o === null || (isPlainObject(o) && isPlainObject(o.parts) && isPlainObject(o.colors));
+  const okOutfit = (o: unknown) => o === null || (isPlainObject(o)
+    && isPlainObject(o.parts) && Object.entries(o.parts).every(([k, v]) => SLOT_NAMES.includes(k) && (v === null || typeof v === "string"))
+    && isPlainObject(o.colors) && Object.entries(o.colors).every(([k, v]) => SLOT_NAMES.includes(k) && Array.isArray(v) && v.every(isHex)));
   const okLoadouts = isPlainObject(lo) && Object.keys(lo).length === LOADOUTS.length && LOADOUTS.every((k) => k in lo && okOutfit(lo[k]));
   if (!okIdentity || !okLoadouts) throw new WardrobeError("unavailable");
   const loadouts = lo as Record<LoadoutId, Outfit | null>;

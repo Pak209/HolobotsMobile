@@ -130,7 +130,13 @@ test('equip: starter-only with zero Holos is OK; unowned / wrong slot / hide rul
 
 test('no reset trap: a malformed or wrong-schema wardrobe fails closed and is never overwritten by a purchase', async () => {
   for (const bad of [{ entitlements: 'top_fullsuit' }, { schemaVersion: 'wardrobe-2', entitlements: ['ph.hat.helmet_01'], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: [3], identity: null, loadouts: { city: null, field: null } }, { schemaVersion: 'wardrobe-3', entitlements: 'top_fullsuit', identity: null, loadouts: { city: null, field: null } },
-    { schemaVersion: 'wardrobe-3', entitlements: ['top_fullsuit'], recipe: null } /* pre-loadouts draft shape */, { schemaVersion: 'wardrobe-3', entitlements: [], identity: null, loadouts: { city: null } }]) {
+    { schemaVersion: 'wardrobe-3', entitlements: ['top_fullsuit'], recipe: null } /* pre-loadouts draft shape */, { schemaVersion: 'wardrobe-3', entitlements: [], identity: null, loadouts: { city: null } },
+    // nested type defects (review 2026-10-04): fail closed, never written back by a purchase
+    { schemaVersion: 'wardrobe-3', entitlements: [], identity: { preset: null, faceLayers: {}, shapes: { Weight: '10' }, colors: {} }, loadouts: { city: null, field: null } },
+    { schemaVersion: 'wardrobe-3', entitlements: [], identity: { preset: null, faceLayers: {}, shapes: {}, colors: { skin: 12 } }, loadouts: { city: null, field: null } },
+    { schemaVersion: 'wardrobe-3', entitlements: [], identity: { preset: null, faceLayers: {}, shapes: {}, colors: {} }, loadouts: { city: { parts: { cape: 'x' }, colors: {} }, field: null } },
+    { schemaVersion: 'wardrobe-3', entitlements: [], identity: { preset: null, faceLayers: {}, shapes: {}, colors: {} }, loadouts: { city: { parts: { hat: 42 }, colors: {} }, field: null } },
+    { schemaVersion: 'wardrobe-3', entitlements: [], identity: { preset: null, faceLayers: {}, shapes: {}, colors: {} }, loadouts: { city: { parts: {}, colors: { top: '#112233' } }, field: null } }]) {
     const uid = await setup({ holosTokens: 5000 });
     await db.doc(`wardrobes/${uid}`).set(bad);
     for (const data of [{ operation: 'status' }, { operation: 'purchase', itemId: 'top_openhoodie', requestId: 'r' }, { operation: 'equip', loadout: 'city', recipe: base(), requestId: 'e' }])
