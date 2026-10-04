@@ -50,24 +50,26 @@ test('generated catalog: itemId = lower-cased bozoPart, bozoPart verbatim, slot 
   assert.deepEqual(C.WARDROBE_SLOTS.map(s => [s.slot, s.required]), [['hairFront', true], ['hairBack', true], ['top', true], ['bottom', true], ['feet', true], ['gloves', false], ['hat', false], ['headAcc', false], ['upperFace', false], ['lowerFace', false], ['neck', false], ['leggings', false], ['socks', false]]);
 });
 
-test('producer split: exact starter set; sold priced by MARKETPLACE_PART_PRICES[rarity]; epic / rare buckets; lens not sold or equipped', () => {
+test('producer split: exact starter set; sold priced by MARKETPLACE_PART_PRICES[rarity]; epic / rare buckets; the lens is standalone rare glasses (Unity, 2026-10-04)', () => {
   const starters = ITEMS.filter(i => i.starter).map(i => i.bozoPart).sort();
   const expected = [...MANIFEST.filter(e => e.type === 'HairFront' || e.type === 'HairBack').map(e => e.bozoPart),
     'Top_Tshirt', 'Top_SimpleHoodie', 'Top_TankTop', 'Bottom_SimpleShorts', 'Bottom_SkinnyJeans', 'Bottom_BaggyPants', 'Feet_SimpleSneakers', 'Feet_AthleticMidTop', 'Socks_BasicSocks'].sort();
   assert.deepEqual(starters, expected); assert.equal(starters.length, 39);
   for (const i of ITEMS.filter(i => i.starter)) { assert.equal(i.price, 0); assert.equal(i.sellable, false); assert.equal(i.rarity, 'starter'); assert.equal(i.vendorId, ''); }
   const sold = ITEMS.filter(i => i.sellable);
-  assert.equal(sold.length, 80);
+  assert.equal(sold.length, 81);
   for (const i of sold) { assert.equal(i.price, E.MARKETPLACE_PART_PRICES[i.rarity], i.bozoPart); assert.equal(i.vendorId, 'boutique'); }
   const ofRarity = r => sold.filter(i => i.rarity === r).map(i => i.bozoPart).sort();
   assert.deepEqual(ofRarity('epic'), ['Bottom_BasicHakma', 'HeadAcc_AlienAttena', 'HeadAcc_DevilHorns', 'HeadAcc_FlufflessKittyEars', 'HeadAcc_KittyEars', 'Top_FullSuit', 'Top_Nagagi', 'Top_SimpleKimono', 'Top_SmartDress']);
   const rare = ofRarity('rare');
   for (const p of ['Top_HardJacket', 'Top_SchoolBoyJacket', 'Feet_WorkBoots', 'UpperFace_RoundGlasses', 'UpperFace_SimpleGlasses', 'UpperFace_SimpleHalfMoon']) assert.ok(rare.includes(p), p);
   for (const i of ITEMS.filter(i => i.type === 'Hat' || i.type === 'Gloves')) assert.equal(i.rarity, 'rare', i.bozoPart);
-  assert.equal(rare.length, 23); // 2 jackets + 1 boots + 8 gloves + 9 hats + 3 glasses
+  assert.equal(rare.length, 24); // 2 jackets + 1 boots + 8 gloves + 9 hats + 4 glasses (incl. RoundGlassesLens)
   assert.equal(ofRarity('common').length, 48);
   const lens = byPart('UpperFace_RoundGlassesLens');
-  assert.deepEqual([lens.sellable, lens.equippable, lens.price, lens.vendorId], [false, false, 0, '']);
+  assert.deepEqual([lens.sellable, lens.equippable, lens.rarity, lens.price, lens.vendorId], [true, true, 'rare', 750, 'boutique'], 'standalone glasses variant');
+  assert.deepEqual(C.PART_OVERRIDES, {}, 'no overrides left');
+  assert.ok(ITEMS.every(i => i.equippable), 'every catalog item is equippable');
 });
 
 test('generator rejects a bad manifest or decisions that no longer match it (fails the build, never ships an unknown id)', () => {
@@ -129,8 +131,10 @@ test('hide rule, both directions, for every manifest hider: bottom MUST be null 
 
 test('faceLayers: required layers present, optional may be null, values from each layer\'s whitelist (exact vendor spelling)', () => {
   const d = W.defaultRecipe();
-  for (const l of C.FACE_LAYERS) assert.equal(d.faceLayers[l.layer], l.required ? l.options[0] : null);
-  assert.deepEqual(C.FACE_LAYERS.filter(l => l.required).map(l => l.layer), ['head', 'body', 'eyes', 'pupil', 'eyeBrows', 'eyeLashes', 'teeth', 'underUpper', 'underLower']);
+  for (const l of C.FACE_LAYERS) assert.equal(d.faceLayers[l.layer], C.DEFAULT_FACE_LAYERS[l.layer]);
+  assert.deepEqual(C.FACE_LAYERS.filter(l => l.required).map(l => l.layer), ['head', 'body', 'eyes', 'pupil', 'eyeBrows', 'eyeLashes', 'teeth', 'underLower'], 'underUpper optional: Default_Boy has none');
+  assert.equal(W.validateRecipe({ ...base(), faceLayers: { ...base().faceLayers, underUpper: null } }).faceLayers.underUpper, null);
+  assert.equal(W.validateRecipe({ ...base(), faceLayers: { ...base().faceLayers, underUpper: 'UnderUpper_SimpleBra' } }).faceLayers.underUpper, 'UnderUpper_SimpleBra');
   const r = base(); Object.assign(r.faceLayers, { faceDetails: 'FaceDetail_Freakles', underLower: 'Underlower_ShortSpats', bodyType: 'BodyType_StylizedStrongBody', makeUpLips: 'MakeUpLips_SimpleLipstick' });
   assert.equal(W.validateRecipe(r).faceLayers.faceDetails, 'FaceDetail_Freakles');
   for (const [layer, v] of [['head', null], ['underLower', null], ['faceDetails', 'FaceDetail_Freckles'], ['underLower', 'UnderLower_ShortSpats'], ['pupil', 'pupil_round'], ['eyes', 'Pupil_Round'], ['head', 7]])
@@ -156,7 +160,7 @@ test('colours: per-slot arrays capped at the equipped item\'s colorChannels; glo
   for (const i of ITEMS.filter(i => i.equippable)) assert.ok(i.colorChannels >= 0);
 });
 
-test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot / unknown / lens / unknown keys / bad shapes / oversize → invalid_request', () => {
+test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot / unknown / non-equippable / unknown keys / bad shapes / oversize → invalid_request', () => {
   const r = base(); Object.assign(r.parts, { hairFront: id('HairFront_HimeCut'), hairBack: id('Hairback_ShinryuCut'), top: id('Top_TankTop'), socks: id('Socks_BasicSocks') });
   r.shapes = { Roundness: 100, Belly: 0, Muscle: 37.5, EarsElf: 12 }; // EarsElf: not on Head_AnimeYoung, still accepted (union)
   const out = W.applyEquip({ holosTokens: 0 }, fresh(), equipCmd(r));
@@ -166,7 +170,10 @@ test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot 
   assert.throws(() => W.applyEquip({ holosTokens: 9999 }, fresh(), equipCmd(withPart('hat', id('Hat_Fedora')))), e => e.code === 'not_owned');
   assert.throws(() => W.applyEquip({}, fresh(), equipCmd(Object.assign(base(), { parts: { ...base().parts, top: id('Top_Overall'), bottom: null } }))), e => e.code === 'not_owned');
   assert.equal(W.applyEquip({}, { ...fresh(), entitlements: [id('Hat_Fedora')] }, equipCmd(withPart('hat', id('Hat_Fedora')))).state.loadouts.city.parts.hat, 'hat_fedora');
-  invalid(() => equipCmd(withPart('upperFace', id('UpperFace_RoundGlassesLens'))), 'lens is not equippable');
+  // No item is non-equippable today (PART_OVERRIDES is empty); exercise the guard on a live item, restored after.
+  const lensItem = byPart('UpperFace_RoundGlassesLens'); lensItem.equippable = false;
+  try { invalid(() => equipCmd(withPart('upperFace', id('UpperFace_RoundGlassesLens'))), 'a non-equippable item is rejected'); } finally { lensItem.equippable = true; }
+  assert.equal(W.applyEquip({}, { ...fresh(), entitlements: [id('UpperFace_RoundGlassesLens')] }, equipCmd(withPart('upperFace', id('UpperFace_RoundGlassesLens')))).state.loadouts.city.parts.upperFace, 'upperface_roundglasseslens', 'the lens is wearable when owned');
   invalid(() => equipCmd(withPart('hat', id('Top_Tshirt'))), 'wrong slot');
   invalid(() => equipCmd(withPart('hat', 'Hat_Fedora')), 'ids are lower-case; the bozoPart is not an id');
   invalid(() => equipCmd(withPart('hat', 'hat_sombrero')), 'unknown id');
@@ -194,13 +201,14 @@ test('largest possible valid recipe stays under the 4 KB cap (the cap is defense
   assert.ok(bytes < C.MAX_RECIPE_BYTES, `${bytes} bytes`); assert.doesNotThrow(() => W.validateRecipe(big));
 });
 
-test('purchase: price from the economy table; already_owned and not_enough_holos write nothing; starters and the lens are not for sale', () => {
+test('purchase: price from the economy table; already_owned and not_enough_holos write nothing; starters are not for sale; the lens is', () => {
   const suit = byPart('Top_FullSuit');
   const out = W.applyPurchase({ holosTokens: 2000.5 }, fresh(), buyCmd(suit.itemId));
   assert.equal(out.holosAfter, 500.5); assert.deepEqual(out.state.entitlements, ['top_fullsuit']); assert.deepEqual(out.reply.purchased, { itemId: 'top_fullsuit', price: 1500 });
   assert.throws(() => W.applyPurchase({ holosTokens: 1499 }, fresh(), buyCmd(suit.itemId)), e => e.code === 'not_enough_holos');
   assert.throws(() => W.applyPurchase({ holosTokens: 0 }, out.state, buyCmd(suit.itemId, 'b2')), e => e.code === 'already_owned');
-  for (const v of [id('Top_Tshirt'), id('HairFront_Messy'), id('UpperFace_RoundGlassesLens'), 'Top_FullSuit', 'nope']) invalid(() => buyCmd(v), `not for sale: ${v}`);
+  assert.equal(W.applyPurchase({ holosTokens: 750 }, fresh(), buyCmd(id('UpperFace_RoundGlassesLens'))).reply.purchased.price, 750);
+  for (const v of [id('Top_Tshirt'), id('HairFront_Messy'), 'Top_FullSuit', 'nope']) invalid(() => buyCmd(v), `not for sale: ${v}`);
   for (const h of [NaN, -1, '300', null]) assert.throws(() => W.applyPurchase({ holosTokens: h }, fresh(), buyCmd(suit.itemId)), e => e.code === 'unavailable');
 });
 
@@ -215,6 +223,7 @@ test('no reset trap: absent = nothing owned; malformed / wardrobe-2 / bad entitl
     doc({ loadouts: { city: outfit, field: null } }) /* outfit saved without identity */])
     assert.throws(() => W.readWardrobeState(bad), e => e.code === 'unavailable', JSON.stringify(bad));
   assert.deepEqual(W.readWardrobeState(doc({ identity: ident, loadouts: { city: null, field: outfit } })).loadouts.field, outfit, 'field saved alone is fine');
+  assert.throws(() => W.readWardrobeState(doc({ schemaVersion: 'wardrobe-2' })), e => e.code === 'unavailable', 'a wardrobe-3-shaped doc with another schemaVersion fails closed');
   const kept = W.readWardrobeState(doc({ entitlements: ['top_retired'] }));
   assert.deepEqual(W.applyPurchase({ holosTokens: 300 }, kept, buyCmd(id('Neck_RibbonBow'))).state.entitlements, ['neck_ribbonbow', 'top_retired']);
 });
@@ -237,7 +246,7 @@ test('status view: slots, face-layer whitelists, shapes, colour rules and all 12
   assert.deepEqual(s.catalog.slots.map(x => x.slot), C.WARDROBE_SLOTS.map(x => x.slot)); assert.equal(s.catalog.faceLayers.length, 16);
   assert.deepEqual(s.catalog.colors.globalChannels, ['skin', 'hair', 'eyes']); assert.equal(s.catalog.items.length, 120); assert.equal(s.catalog.placeholder, false);
   const fedora = s.catalog.items.find(i => i.itemId === 'hat_fedora'); assert.equal(fedora.owned, true); assert.equal(fedora.usable, true); assert.equal(fedora.bozoPart, 'Hat_Fedora');
-  const lens = s.catalog.items.find(i => i.itemId === 'upperface_roundglasseslens'); assert.equal(lens.usable, false);
+  const lens = s.catalog.items.find(i => i.itemId === 'upperface_roundglasseslens'); assert.equal(lens.usable, false, 'not owned'); assert.equal(lens.sellable, true);
   assert.ok(s.catalog.items.filter(i => i.starter).every(i => i.usable && !i.owned));
   assert.deepEqual(s.catalog.items.find(i => i.bozoPart === 'Top_Overall').hidesSlots, ['bottom']);
   assert.deepEqual(s.catalog.shapes, {
@@ -341,20 +350,24 @@ test('read-time sanitising: delisted / unowned / non-equippable items repaired a
   assert.deepEqual(delisted.entitlements, ['hat_retired']); assert.equal(delisted.loadouts.city.parts.hat, 'hat_retired', 'state object not mutated');
   // Delisted item in a REQUIRED slot → that slot's first starter (the default outfit's choice).
   r = backUnchanged(stored(outfit({ top: 'top_retired' }, { top: ['#112233'] })));
-  assert.equal(r.loadouts.city.parts.top, W.defaultRecipe().parts.top); assert.equal(r.loadouts.city.parts.top, 'top_simplehoodie'); assert.equal('top' in r.loadouts.city.colors, false);
+  assert.equal(r.loadouts.city.parts.top, W.defaultRecipe().parts.top); assert.equal(r.loadouts.city.parts.top, 'top_tshirt'); assert.equal('top' in r.loadouts.city.colors, false);
   // Unowned (e.g. after a support action) → repaired in that loadout only; the other loadout stays clean.
   r = backUnchanged(stored(outfit({ top: 'top_tshirt' }), outfit({ top: 'top_fullsuit', hat: 'hat_fedora' }, { top: ['#FF0000'] }), ['hat_fedora']));
   assert.deepEqual(r.sanitized, { city: false, field: true });
-  assert.equal(r.loadouts.field.parts.top, 'top_simplehoodie'); assert.equal(r.loadouts.field.parts.hat, 'hat_fedora'); assert.equal('top' in r.loadouts.field.colors, false);
+  assert.equal(r.loadouts.field.parts.top, 'top_tshirt'); assert.equal(r.loadouts.field.parts.hat, 'hat_fedora'); assert.equal('top' in r.loadouts.field.colors, false);
   assert.equal(r.loadouts.city.parts.top, 'top_tshirt');
   // Non-equippable (the lens) and wrong-slot ids → removed.
-  r = backUnchanged(stored(outfit({ upperFace: 'upperface_roundglasseslens', gloves: 'hat_fedora', hat: 'hat_fedora', top: 'top_tshirt' }), null, ['hat_fedora', 'upperface_roundglasseslens'])); // lens owned (support grant) but still not equippable
-  assert.equal(r.loadouts.city.parts.upperFace, null); assert.equal(r.loadouts.city.parts.gloves, null); assert.equal(r.sanitized.city, true);
-  assert.equal(r.loadouts.city.parts.hat, 'hat_fedora', 'valid items survive (repair is per slot, not a reset)'); assert.equal(r.loadouts.city.parts.top, 'top_tshirt');
+  // (No item is non-equippable today; flip the owned lens to non-equippable for this case, restored after.)
+  const lensItem = byPart('UpperFace_RoundGlassesLens'); lensItem.equippable = false;
+  try {
+    r = backUnchanged(stored(outfit({ upperFace: 'upperface_roundglasseslens', gloves: 'hat_fedora', hat: 'hat_fedora', top: 'top_tanktop' }), null, ['hat_fedora', 'upperface_roundglasseslens']));
+    assert.equal(r.loadouts.city.parts.upperFace, null); assert.equal(r.loadouts.city.parts.gloves, null); assert.equal(r.sanitized.city, true);
+    assert.equal(r.loadouts.city.parts.hat, 'hat_fedora', 'valid items survive (repair is per slot, not a reset)'); assert.equal(r.loadouts.city.parts.top, 'top_tanktop');
+  } finally { lensItem.equippable = true; }
   // Hide-rule interaction 1: an unowned Bottom-hiding top is replaced by the (non-hiding) starter top, so the
   // now-required bottom is refilled with its first starter.
   r = backUnchanged(stored(outfit({ top: 'top_sundress', bottom: null })));
-  assert.equal(r.loadouts.city.parts.top, 'top_simplehoodie'); assert.equal(r.loadouts.city.parts.bottom, 'bottom_baggypants');
+  assert.equal(r.loadouts.city.parts.top, 'top_tshirt'); assert.equal(r.loadouts.city.parts.bottom, 'bottom_skinnyjeans');
   // Hide-rule interaction 2: the same outfit while still owned is clean (bottom stays null under the hider).
   r = backUnchanged(stored(outfit({ top: 'top_sundress', bottom: null }), null, ['top_sundress']));
   assert.equal(r.loadouts.city.parts.bottom, null); assert.equal(r.sanitized.city, false);
@@ -371,6 +384,9 @@ test('read-time sanitising: delisted / unowned / non-equippable items repaired a
   assert.deepEqual(r.sanitized, { city: true, field: true });
   assert.equal(r.loadouts.city.preset, null); assert.equal(r.loadouts.city.faceLayers.head, 'Head_AnimeYoung'); assert.equal(r.loadouts.city.faceLayers.faceDetails, null);
   assert.deepEqual(r.loadouts.city.shapes, { Belly: 20 });
+  // A required layer is repaired to the Default_Boy value (not merely the first option): pupil → Pupil_Round.
+  const badPupil = W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements: [], identity: { ...ident, faceLayers: { ...ident.faceLayers, pupil: 'Pupil_Retired' } }, loadouts: { city: outfit({}), field: null } });
+  assert.equal(W.readLoadouts(badPupil).loadouts.city.faceLayers.pupil, 'Pupil_Round');
   // A pre-preset stored identity (no preset key) is NOT a repair.
   const { preset, ...noPreset } = ident;
   assert.deepEqual(W.readLoadouts(W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements: [], identity: noPreset, loadouts: { city: outfit({}), field: null } })).sanitized, { city: false, field: false });
@@ -413,7 +429,7 @@ test('stored-doc nested TYPE checks fail closed (unavailable); well-typed-but-st
   const r = W.readLoadouts(stale);
   assert.deepEqual(r.sanitized, { city: true, field: true });
   assert.equal(r.loadouts.city.preset, null); assert.equal(r.loadouts.city.faceLayers.head, 'Head_AnimeYoung'); assert.deepEqual(r.loadouts.city.shapes, { Weight: 10 });
-  assert.equal(r.loadouts.city.parts.hat, null); assert.equal(r.loadouts.city.parts.top, 'top_simplehoodie');
+  assert.equal(r.loadouts.city.parts.hat, null); assert.equal(r.loadouts.city.parts.top, 'top_tshirt');
   // A purchase never writes a malformed doc back: it fails closed before any write.
   assert.throws(() => W.readWardrobeState(typeDefects['shapes.Weight string']), e => e.code === 'unavailable');
 });
@@ -423,13 +439,13 @@ test('manifest order is (type, bozoPart) and the default recipe ids are pinned (
   const sorted = [...keys].sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0));
   assert.deepEqual(keys, sorted, 'bozoWardrobeManifest.json must stay sorted by (type, bozoPart), ordinal');
   assert.deepEqual(W.defaultRecipe().parts, {
-    hairFront: 'hairfront_asymmetricalfringe', hairBack: 'hairback_casualflow', top: 'top_simplehoodie', bottom: 'bottom_baggypants', feet: 'feet_athleticmidtop',
+    hairFront: 'hairfront_lynxfringe', hairBack: 'hairback_messyhair', top: 'top_tshirt', bottom: 'bottom_skinnyjeans', feet: 'feet_simplesneakers',
     gloves: null, hat: null, headAcc: null, upperFace: null, lowerFace: null, neck: null, leggings: null, socks: null,
   });
   assert.deepEqual(W.defaultRecipe().faceLayers, {
-    head: 'Head_AnimeYoung', body: 'Body_AnimeBasic', bodyType: null, eyes: 'Eyes_AnimeBasic', pupil: 'Pupil_BasicPupil', eyeShine: null,
-    eyeBrows: 'Brows_BasicBrows', eyeLashes: 'EyeLashes_LongLashes', teeth: 'Teeth_AnimeBasicTeeth', makeUpCheeks: null, makeUpEyes: null, makeUpLips: null,
-    faceDetails: null, faceTexture: null, underUpper: 'UnderUpper_SimpleUnderShirt', underLower: 'UnderLower_SimpleBoxers',
+    head: 'Head_AnimeYoung', body: 'Body_AnimeBasic', bodyType: null, eyes: 'Eyes_AnimeBasic', pupil: 'Pupil_Round', eyeShine: 'EyeShine_DoubleRound',
+    eyeBrows: 'Brows_ThickBrows', eyeLashes: 'EyeLashes_ShortLashes', teeth: 'Teeth_AnimeBasicTeeth', makeUpCheeks: null, makeUpEyes: null, makeUpLips: null,
+    faceDetails: null, faceTexture: null, underUpper: null, underLower: 'UnderLower_SimpleBoxers',
   });
   assert.equal(W.defaultRecipe().preset, 'Default_Boy'); assert.equal(W.defaultRecipe().heightScale, 1);
   assert.equal(C.GLOBAL_COLOR_DEFAULTS.skin, '#F5CAB0', 'BoZo starter skin'); assert.deepEqual(C.GLOBAL_COLOR_DEFAULTS, { skin: '#F5CAB0', hair: '#2B2B2B', eyes: '#3A6EA5' });
@@ -460,4 +476,31 @@ test('identity.heightScale (Pak 2026-10-03): shorter only, [0.90, 1.00], default
   assert.equal(r.loadouts.city.heightScale, 1); assert.deepEqual(r.sanitized, { city: false, field: false });
   for (const v of [1.2, 0.5, '1', null, NaN]) assert.throws(() => W.readWardrobeState(doc({ ...ident, heightScale: v })), e => e.code === 'unavailable', `stored heightScale ${v}`);
   assert.equal(W.readLoadouts(W.readWardrobeState(doc({ ...ident, heightScale: 0.9 }))).loadouts.city.heightScale, 0.9);
+});
+
+test('Default_Boy defaults (Unity preset data, 2026-10-04): identity, shapes, starter outfit; validated at load', () => {
+  const d = W.defaultRecipe();
+  assert.equal(d.preset, 'Default_Boy'); assert.equal(d.heightScale, 1); assert.deepEqual(d.colors, {});
+  assert.deepEqual(d.shapes, { BodyType: 45, NeckThickness: 27, Weight: 15, EyeRoundness: 46, Roundness: 2, Sharpness: 85 });
+  assert.deepEqual(Object.keys(d.shapes), C.SHAPE_KEYS.filter(k => k in d.shapes), 'canonical: SHAPE_KEYS order (body keys, then the face union)');
+  assert.deepEqual(Object.keys(d.shapes), ['BodyType', 'NeckThickness', 'Weight', 'Sharpness', 'EyeRoundness', 'Roundness']);
+  assert.deepEqual(W.validateRecipe(d), d, 'the default is itself canonical and valid');
+  assert.equal(C.GLOBAL_COLOR_DEFAULTS.skin, '#F5CAB0');
+  // Load-time validation rejects a broken default.
+  const items = C.WARDROBE_ITEMS;
+  assert.doesNotThrow(() => C.validateDefaults(items));
+  assert.throws(() => C.validateDefaults(items, { ...C.DEFAULT_FACE_LAYERS, head: null }), /face layer head/);
+  assert.throws(() => C.validateDefaults(items, { ...C.DEFAULT_FACE_LAYERS, pupil: 'Pupil_Ghost' }), /face layer pupil/);
+  assert.throws(() => { const { teeth, ...missing } = C.DEFAULT_FACE_LAYERS; C.validateDefaults(items, missing); }, /teeth missing/);
+  assert.throws(() => C.validateDefaults(items, C.DEFAULT_FACE_LAYERS, { Weight: 150 }), /shape Weight/);
+  assert.throws(() => C.validateDefaults(items, C.DEFAULT_FACE_LAYERS, { Tail: 1 }), /shape Tail/);
+  assert.throws(() => C.validateDefaults(items, C.DEFAULT_FACE_LAYERS, C.DEFAULT_SHAPES, { ...C.DEFAULT_PARTS, top: 'Top_Overall' }), /part top/, 'not a starter (and a hider)');
+  assert.throws(() => C.validateDefaults(items, C.DEFAULT_FACE_LAYERS, C.DEFAULT_SHAPES, { ...C.DEFAULT_PARTS, top: 'Top_FullSuit' }), /part top/, 'not a starter (no hides)');
+  const hidingTshirt = items.map(i => i.bozoPart === 'Top_Tshirt' ? { ...i, hidesSlots: ['bottom'] } : i);
+  assert.throws(() => C.validateDefaults(hidingTshirt), /part top/, 'a starter that hides a slot cannot be a default');
+  const conflictingTshirt = items.map(i => i.bozoPart === 'Top_Tshirt' ? { ...i, incompatibleSlots: ['hat'] } : i);
+  assert.throws(() => C.validateDefaults(conflictingTshirt), /part top/, 'nor one with incompatibilities');
+  assert.throws(() => C.validateDefaults(items, C.DEFAULT_FACE_LAYERS, C.DEFAULT_SHAPES, { ...C.DEFAULT_PARTS, top: 'Bottom_SkinnyJeans' }), /part top/, 'wrong slot');
+  assert.throws(() => { const { feet, ...noFeet } = C.DEFAULT_PARTS; C.validateDefaults(items, C.DEFAULT_FACE_LAYERS, C.DEFAULT_SHAPES, noFeet); }, /slot feet empty/);
+  assert.throws(() => C.validateDefaults(items, C.DEFAULT_FACE_LAYERS, C.DEFAULT_SHAPES, { ...C.DEFAULT_PARTS, cape: 'Top_Tshirt' }), /slot unknown/);
 });

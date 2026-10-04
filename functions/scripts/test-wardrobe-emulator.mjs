@@ -58,7 +58,7 @@ test('purchase success: Holos spend + entitlement + receipt in one transaction; 
   assert.deepEqual({ u: await user(uid), w: await wardrobe(uid) }, before); assert.equal(await receipt(uid, 'p2'), false);
   await db.doc(`users/${uid}`).update({ holosTokens: 1500 });
   assert.equal((await buy(uid, 'top_fullsuit', 'p2')).holosTokens, 0, 'the refused requestId succeeds once affordable');
-  for (const itemId of ['top_tshirt', 'hairfront_asymmetricalfringe', 'upperface_roundglasseslens', 'Top_FullSuit', 'nope', '']) await rejects(buy(uid, itemId, 'p3'), 'invalid_request', 'invalid-argument');
+  for (const itemId of ['top_tshirt', 'hairfront_asymmetricalfringe', 'Top_FullSuit', 'nope', '']) await rejects(buy(uid, itemId, 'p3'), 'invalid_request', 'invalid-argument');
 });
 
 test('idempotent retry: parallel and later retries charge once; same requestId with a different command is sequence_conflict', async () => {
@@ -109,7 +109,8 @@ test('equip: starter-only with zero Holos is OK; unowned / wrong slot / hide rul
   const withLayer = (layer, v) => { const x = base(); x.faceLayers[layer] = v; return x; };
   await rejects(equip(uid, withPart('top', 'top_fullsuit'), 'x1'), 'not_owned', 'failed-precondition');
   await rejects(equip(uid, withPart('hat', 'hat_fedora'), 'x1b'), 'not_owned', 'failed-precondition');
-  for (const [i, bad] of [withPart('hat', 'top_tshirt'), withPart('hairFront', 'hairfront_ghost'), withPart('hairFront', null), withPart('bottom', null), withPart('upperFace', 'upperface_roundglasseslens'),
+  await rejects(equip(uid, withPart('upperFace', 'upperface_roundglasseslens'), 'x1c'), 'not_owned', 'failed-precondition'); // standalone glasses: needs buying
+  for (const [i, bad] of [withPart('hat', 'top_tshirt'), withPart('hairFront', 'hairfront_ghost'), withPart('hairFront', null), withPart('bottom', null),
     { ...base(), extra: true }, withPart('wings', 'top_tshirt'), withLayer('head', 'Head_Ghost'), withLayer('eyes', null), withLayer('tail', 'Tail_Long'),
     { ...base(), shapes: { Weight: 100.5 } }, { ...base(), shapes: { Weight: -1 } }, { ...base(), shapes: { height: 10 } }, { ...base(), sliders: { height: 0.4 } }, { ...base(), colors: { hair: '#12345' } }, { ...base(), colors: { glow: '#123456' } },
     { ...base(), colors: { top: ['#111111', '#222222', '#333333'] } }, { ...base(), colors: { hat: ['#111111'] } },
@@ -223,7 +224,7 @@ test('read-time sanitising on the emulator: a stored outfit with a delisted, an 
   assert.deepEqual(s.sanitized, { city: true, field: true });
   assert.equal(s.loadouts.city.parts.hat, null); assert.equal(s.loadouts.city.parts.top, 'top_overall'); assert.equal(s.loadouts.city.parts.bottom, null);
   assert.deepEqual(s.loadouts.city.colors, { skin: '#C08060' });
-  assert.equal(s.loadouts.field.parts.top, 'top_simplehoodie'); assert.equal(s.loadouts.field.parts.bottom, b.parts.bottom); assert.deepEqual(s.loadouts.field.colors, { skin: '#C08060' });
+  assert.equal(s.loadouts.field.parts.top, 'top_tshirt'); assert.equal(s.loadouts.field.parts.bottom, b.parts.bottom); assert.deepEqual(s.loadouts.field.colors, { skin: '#C08060' });
   for (const l of ['city', 'field']) assert.equal(s.loadouts[l].preset, 'Kenji');
   assert.deepEqual(await wardrobe(uid), before, 'status never writes, even when it sanitised');
   await exportFixture('wardrobe-3_status_sanitized', s);
@@ -232,7 +233,7 @@ test('read-time sanitising on the emulator: a stored outfit with a delisted, an 
   const f = await equip(uid, s.loadouts.field, 'fix-field', 'field');
   assert.deepEqual(f.sanitized, { city: false, field: false }); assert.deepEqual(f.loadouts, s.loadouts);
   const stored = await wardrobe(uid);
-  assert.equal(stored.loadouts.city.parts.hat, null); assert.equal(stored.loadouts.field.parts.top, 'top_simplehoodie'); assert.equal(stored.identity.preset, 'Kenji');
+  assert.equal(stored.loadouts.city.parts.hat, null); assert.equal(stored.loadouts.field.parts.top, 'top_tshirt'); assert.equal(stored.identity.preset, 'Kenji');
   assert.deepEqual(stored.entitlements, ['top_overall', 'hat_retired'], 'entitlements are never touched by sanitising');
   assert.equal(c.alreadyProcessed, false);
   // Preset validation on the wire.

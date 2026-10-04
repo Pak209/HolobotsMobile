@@ -75,13 +75,11 @@ export const RARITY_RULES: readonly RarityRule[] = [
 ];
 
 /**
- * Per-part overrides. UpperFace_RoundGlassesLens is very likely the optional lens piece of
- * UpperFace_RoundGlasses, not a standalone wearable: kept in the manifest and the catalog but never
- * sold or equipped. UNCONFIRMED: Unity to confirm (flagged in the PR / CONTRACT).
+ * Per-part overrides (non-sellable / non-equippable). Empty: UpperFace_RoundGlassesLens was confirmed a STANDALONE
+ * item by Unity (own FBX + icon, showCharacterCreator: 1, RoundGlasses has optionalPieces: []), producer 2026-10-04,
+ * so it is ordinary rare glasses. The mechanism stays for future pack audits.
  */
-export const PART_OVERRIDES: Readonly<Record<string, { sellable: boolean; equippable: boolean; note: string }>> = {
-  UpperFace_RoundGlassesLens: { sellable: false, equippable: false, note: "likely the optional lens of UpperFace_RoundGlasses (unconfirmed)" },
-};
+export const PART_OVERRIDES: Readonly<Record<string, { sellable: boolean; equippable: boolean; note: string }>> = {};
 
 // ---- Free creator choices (not wardrobe items, never purchasable) --------------------
 
@@ -102,9 +100,25 @@ export const FACE_LAYERS: readonly FaceLayerRow[] = [
   { layer: "makeUpLips", required: false, options: ["MakeUpLips_BasicLipstick", "MakeUpLips_SimpleLipstick"] },
   { layer: "faceDetails", required: false, options: ["FaceDetail_Freakles", "FaceDetail_FullFreakles", "FaceDetails_FrecklesHeavy", "FaceDetails_FrecklesLight", "FaceDetails_FrecklesMedium"] },
   { layer: "faceTexture", required: false, options: ["FaceTexture_Wrinkles"] },
-  { layer: "underUpper", required: true, options: ["UnderUpper_SimpleUnderShirt", "UnderUpper_SimpleUnderShirt2", "UnderUpper_SimpleBra"] },
+  { layer: "underUpper", required: false, options: ["UnderUpper_SimpleUnderShirt", "UnderUpper_SimpleUnderShirt2", "UnderUpper_SimpleBra"] },
   { layer: "underLower", required: true, options: ["UnderLower_SimpleBoxers", "Underlower_ShortSpats", "UnderLower_SimplePanties"] },
 ];
+
+// ---- Default identity / outfit: the Default_Boy preset (CustomCharacters/Resources/Anime/Default_Boy.asset) ------
+// Relayed by the producer from the Unity pack files, 2026-10-04. Validated at module load (validateDefaults).
+
+/** Every face layer; null = none. Required layers must be non-null. */
+export const DEFAULT_FACE_LAYERS: Readonly<Record<string, string | null>> = {
+  head: "Head_AnimeYoung", body: "Body_AnimeBasic", bodyType: null, eyes: "Eyes_AnimeBasic", pupil: "Pupil_Round",
+  eyeShine: "EyeShine_DoubleRound", eyeBrows: "Brows_ThickBrows", eyeLashes: "EyeLashes_ShortLashes", teeth: "Teeth_AnimeBasicTeeth",
+  makeUpCheeks: null, makeUpEyes: null, makeUpLips: null, faceDetails: null, faceTexture: null, underUpper: null, underLower: "UnderLower_SimpleBoxers",
+};
+/** Default_Boy blendshape weights (others 0). BodyType/Weight/NeckThickness are body keys; the rest Head_AnimeYoung face keys. */
+export const DEFAULT_SHAPES: Readonly<Record<string, number>> = { BodyType: 45, NeckThickness: 27, Weight: 15, EyeRoundness: 46, Roundness: 2, Sharpness: 85 };
+/** Default City outfit (the Unity starter look), by bozoPart; slots not listed are null. */
+export const DEFAULT_PARTS: Readonly<Record<string, string>> = {
+  hairFront: "HairFront_LynxFringe", hairBack: "HairBack_MessyHair", top: "Top_Tshirt", bottom: "Bottom_SkinnyJeans", feet: "Feet_SimpleSneakers",
+};
 
 // ---- Starting preset ------------------------------------------------------------------
 
@@ -252,3 +266,27 @@ export function buildWardrobeItems(manifest: readonly ManifestEntry[]): Wardrobe
 
 export const WARDROBE_ITEMS: readonly WardrobeItem[] = buildWardrobeItems(BOZO_MANIFEST);
 export const WARDROBE_ITEM_BY_ID: ReadonlyMap<string, WardrobeItem> = new Map(WARDROBE_ITEMS.map((i) => [i.itemId, i]));
+
+/**
+ * The defaults must be a valid, renderable starter look: every face layer listed and whitelisted, required layers set;
+ * shapes known and in range; every required slot filled with an equippable STARTER of that slot that hides nothing
+ * and conflicts with nothing (so the default can never trip the hide rule). Throws otherwise (fails the build).
+ */
+export function validateDefaults(items: readonly WardrobeItem[], faceLayers = DEFAULT_FACE_LAYERS, shapes = DEFAULT_SHAPES, parts = DEFAULT_PARTS): void {
+  const fail = (msg: string): never => { throw new Error(`wardrobe catalog: default ${msg}`); };
+  for (const l of FACE_LAYERS) {
+    const v = faceLayers[l.layer];
+    if (v === undefined) fail(`face layer ${l.layer} missing`);
+    if (v === null ? l.required : !l.options.includes(v)) fail(`face layer ${l.layer} = ${v}`);
+  }
+  if (Object.keys(faceLayers).some((k) => !FACE_LAYERS.some((l) => l.layer === k))) fail("face layer unknown");
+  for (const [k, n] of Object.entries(shapes)) if (!SHAPE_KEYS.includes(k) || !(n >= SHAPE_MIN && n <= SHAPE_MAX)) fail(`shape ${k}`);
+  for (const s of WARDROBE_SLOTS) {
+    const part = parts[s.slot];
+    if (part === undefined) { if (s.required) fail(`slot ${s.slot} empty`); continue; }
+    const item = items.find((i) => i.bozoPart === part);
+    if (!item || item.slot !== s.slot || !item.starter || !item.equippable || item.hidesSlots.length || item.incompatibleSlots.length) fail(`part ${s.slot} = ${part}`);
+  }
+  if (Object.keys(parts).some((k) => !WARDROBE_SLOTS.some((s) => s.slot === k))) fail("slot unknown");
+}
+validateDefaults(WARDROBE_ITEMS);
