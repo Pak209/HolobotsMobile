@@ -158,7 +158,7 @@ These are not items: nothing is owned or sold. **Required** layers must be one o
 Pilots wear casual BoZo clothes in HoloCity. When they enter an Error Beast zone, Unity auto-swaps them into their Field outfit (neon armour). **The server just stores both outfits; Unity performs the swap.**
 
 **Chosen layout: shared identity, with each loadout holding only parts and per-slot colours.**
-- **Identity, shared by both loadouts:** `faceLayers` (head, body, eyes, …), `shapes`, and the global colours `skin`/`hair`/`eyes`. The body, face and shapes are who the pilot *is*.
+- **Identity, shared by both loadouts:** `preset` (the BoZo starting preset), `faceLayers` (head, body, eyes, …), `shapes`, and the global colours `skin`/`hair`/`eyes`. The body, face and shapes are who the pilot *is*.
 - **Outfit, per loadout:** `parts` (all 13 slots, including hair) and the per-slot colour arrays.
 
 **How equip works with loadouts:**
@@ -170,6 +170,33 @@ Pilots wear casual BoZo clothes in HoloCity. When they enter an Error Beast zone
 - `status`, and every reply, return **both loadouts as full renderable recipes** (identity + outfit), plus `saved: {city, field}`.
 - An unsaved **field reads back as a copy of city**, and that read writes nothing.
 - An unsaved city reads back as the default outfit, with the saved identity if there is one.
+
+### Starting preset (`preset`, part of identity)
+
+The recipe has an optional top-level `preset`: the BoZo starting preset the pilot was created from. Unity uses it to restore preset-only data that wardrobe-3 does not carry, namely the bone-based proportions, so a pilot looks the same on a second device.
+- **Allowed values:** `Default_Boy`, `Kenji`, `DefaultChan`, `Default_Girl`, `Glover`, `Hana`, `Jackal`, `Jayda`.
+- **Reserved:** `Zell`, which is rejected (`invalid_request`). A load-time check guarantees a reserved preset never appears in the allowed list.
+- **Absent or `null`:** none. Both canonicalise to `null`, so they fingerprint alike. Any other value is `invalid_request`.
+- **Storage:** in the shared identity, so it's returned in both loadouts of every reply. It is part of the canonical recipe, so it is included in the receipt fingerprint.
+- **Catalog:** `catalog.presets` = `{options, reserved, optional:true}`.
+
+### Read-time sanitising (the server is the authority)
+
+An equipped item can stop being valid after it was saved: it gets delisted by a regenerated manifest, made non-equippable, or is no longer owned after a support action. So every returned loadout (in `status` and in every reply) is **re-validated against the current catalog and the pilot's entitlements** as it is built:
+1. An item that is unknown (delisted), in the wrong slot, not equippable, or not owned (and not a starter) is removed.
+2. The hide/incompatibility rule is re-applied to what remains: hidden slots become `null`.
+3. A **required** slot left empty and not hidden gets that slot's **first starter** (the default outfit's choice, which never hides anything). An **optional** slot is left `null`.
+4. Slot colours are dropped for any slot whose item changed or is empty, or whose colours no longer fit the item's `colorChannels`.
+5. The shared identity is re-checked too: an off-whitelist face option becomes the layer's first option (required) or `null`, an unknown or out-of-range shape or a bad global colour is dropped, and a disallowed preset becomes `null`.
+
+How the result is reported and stored:
+- **`sanitized: {city, field}`** reports which loadouts were repaired. A field that mirrors an unsaved city copies city's flag. An identity repair flags both.
+- **Nothing is written back:** `status` never writes. The next `equip` of that loadout persists the clean version, and there is no compensation logic. Entitlements are never touched.
+- **Every returned loadout is a valid `equip` recipe for this pilot**, so it can be sent back unchanged. As a last-resort safety net, a loadout that still fails validation after repair is returned as the default outfit with `sanitized: true`.
+
+Examples:
+- An unowned Bottom-hiding top (e.g. `top_sundress`) is replaced by the starter top `top_simplehoodie`, and the now-required bottom is refilled with `bottom_baggypants`.
+- A stored bottom under a still-valid hider becomes `null`.
 
 **No armour items exist yet.** They'll be added later as ordinary catalog items in the Top/Bottom/Feet/Gloves/Hat slots, with no special-casing. Any owned or starter item can be worn in either loadout.
 
@@ -184,6 +211,7 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 { "schemaVersion": "wardrobe-3", "operation": "purchase", "itemId": "top_fullsuit", "requestId": "<[A-Za-z0-9_-]{1,128}>" }
 { "schemaVersion": "wardrobe-3", "operation": "equip", "loadout": "city", "requestId": "<id>", "recipe": {   // loadout: "city" | "field", required
     "schemaVersion": "wardrobe-3",
+    "preset": "Kenji",                                                   // optional; PRESET_OPTIONS or null; "Zell" is reserved (rejected)
     "faceLayers": { "head": "Head_SharpHead", "body": "Body_AnimeBasic", "eyes": "Eyes_AnimeBasic", "pupil": "Pupil_BasicPupil",
                     "eyeBrows": "Brows_BasicBrows", "eyeLashes": "EyeLashes_LongLashes", "teeth": "Teeth_AnimeBasicTeeth",
                     "underUpper": "UnderUpper_SimpleUnderShirt", "underLower": "Underlower_ShortSpats",
@@ -211,11 +239,13 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
     "field": { /* full canonical recipe: shared identity + field outfit; a copy of city while field is unsaved */ }
   },
   "saved": { "city": true, "field": false },
+  "sanitized": { "city": false, "field": false },  // true: that loadout was repaired on read (not written back)
   "holosTokens": 1500,
   "catalog": {
     "placeholder": false, "source": "BoZo Anime Pack runtime prefabs (Outfit.Type), manifest 2026-10-03 (120 entries)",
     "slots": [{ "slot": "hairFront", "type": "HairFront", "required": true }, /* … 13 */],
     "faceLayers": [{ "layer": "head", "required": true, "options": ["Head_AnimeYoung", /* … */] }, /* … 16 */],
+    "presets": { "options": ["Default_Boy", "Kenji", "DefaultChan", "Default_Girl", "Glover", "Hana", "Jackal", "Jayda"], "reserved": ["Zell"], "optional": true },
     "shapes": { "blendshapePrefix": "Shape_", "min": 0, "max": 100, "default": 0,
                 "body": ["Belly", /* … 9 */], "face": ["EarAngle", /* … 23, union over heads */],
                 "faceByHead": { "Head_AnimeYoung": ["EarLength", /* … */], "Head_BasicHead": [/* … */], /* every head option */ } },
@@ -244,23 +274,25 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
   "entitlements": ["top_fullsuit"],
   "loadouts": { "city": { /* … */ }, "field": { /* … */ } },   // as in status
   "saved": { "city": true, "field": false },
+  "sanitized": { "city": false, "field": false },
   "holosTokens": 0
 }
 ```
 
 Each loadout recipe in a reply is **canonical**:
+- `preset` is always present (`null` = none);
 - every face layer and every slot is present (`null` = none), in catalog order;
 - shapes contain only the keys that were set, body keys then face keys;
 - colours list the global channels first, then slots, in catalog order;
 - hex is upper-case.
 
-Render the returned loadouts, not what you sent. Each one is itself a valid `equip` recipe, so you can send it back unchanged. Fixtures are in `fixtures/`: `wardrobe-3_status_fresh`, `wardrobe-3_purchase`, `wardrobe-3_equip` (city only; field mirrors it), `wardrobe-3_equip_field`, `wardrobe-3_equip_hidden_bottom`, `wardrobe-3_status_loadouts`, `vendor-3_catalog_boutique`.
+Render the returned loadouts, not what you sent. Each one is itself a valid `equip` recipe, so you can send it back unchanged. Fixtures are in `fixtures/`: `wardrobe-3_status_fresh`, `wardrobe-3_purchase`, `wardrobe-3_equip` (city only; field mirrors it), `wardrobe-3_equip_field`, `wardrobe-3_equip_hidden_bottom`, `wardrobe-3_status_loadouts`, `wardrobe-3_status_sanitized`, `vendor-3_catalog_boutique`.
 
 ### Rejection codes (`HttpsError`, `details.rejectionCode`)
 
 | rejectionCode | HTTPS code | When |
 |---|---|---|
-| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; equip `loadout` missing or not exactly `"city"`/`"field"`; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
+| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; equip `loadout` missing or not exactly `"city"`/`"field"`; `preset` not one of the allowed presets (incl. reserved `Zell`); `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
 | `not_owned` | `failed-precondition` | equip with a sold item the pilot doesn't own |
 | `already_owned` | `already-exists` | purchase of an owned item with a new `requestId`. No charge, nothing written. |
 | `not_enough_holos` | `failed-precondition` | message **"Not enough Holos."**. Nothing written, so the same `requestId` can succeed later. |
@@ -324,6 +356,8 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 3. **On creator open:** call `wardrobeHost {schemaVersion:"wardrobe-3", operation:"status"}`.
    - Build every picker from `catalog`: slots, faceLayers, shapes (body keys plus `faceByHead[recipe.faceLayers.head]`), colours, and items with `usable`/`owned`/`hidesSlots`.
    - Load `loadouts.city` and `loadouts.field`. While `saved.field` is false, field mirrors city.
+   - Apply `preset` (restore its bone-based proportions) before the shapes.
+   - If `sanitized.<loadout>` is true, the server repaired that outfit (an item was delisted, became unusable, or is no longer owned). Render the returned loadout. Optionally tell the player, and re-save it with `equip` whenever convenient.
    - Swap to `loadouts.field` on entering an Error Beast zone, and back to `loadouts.city` on leaving. The swap is Unity's job; nothing is sent to the server for it.
    - **Don't hard-code any id, price, slot, layer or whitelist.**
 4. **Hide rule in the UI:** when the user picks a top whose `hidesSlots` contains `bottom`, clear `parts.bottom` to `null` and grey out the bottom picker. When they switch to a non-hiding top, require a bottom again: restore the previous bottom or the default. The server enforces this both ways.

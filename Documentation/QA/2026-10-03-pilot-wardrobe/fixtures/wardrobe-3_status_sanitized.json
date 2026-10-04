@@ -1,10 +1,13 @@
 {
   "schemaVersion": "wardrobe-3",
-  "entitlements": [],
+  "entitlements": [
+    "top_overall",
+    "hat_retired"
+  ],
   "loadouts": {
     "city": {
       "schemaVersion": "wardrobe-3",
-      "preset": null,
+      "preset": "Kenji",
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
@@ -26,8 +29,8 @@
       "parts": {
         "hairFront": "hairfront_asymmetricalfringe",
         "hairBack": "hairback_casualflow",
-        "top": "top_simplehoodie",
-        "bottom": "bottom_baggypants",
+        "top": "top_overall",
+        "bottom": null,
         "feet": "feet_athleticmidtop",
         "gloves": null,
         "hat": null,
@@ -38,12 +41,16 @@
         "leggings": null,
         "socks": null
       },
-      "shapes": {},
-      "colors": {}
+      "shapes": {
+        "Weight": 10
+      },
+      "colors": {
+        "skin": "#C08060"
+      }
     },
     "field": {
       "schemaVersion": "wardrobe-3",
-      "preset": null,
+      "preset": "Kenji",
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
@@ -77,19 +84,23 @@
         "leggings": null,
         "socks": null
       },
-      "shapes": {},
-      "colors": {}
+      "shapes": {
+        "Weight": 10
+      },
+      "colors": {
+        "skin": "#C08060"
+      }
     }
   },
   "saved": {
-    "city": false,
-    "field": false
+    "city": true,
+    "field": true
   },
   "sanitized": {
-    "city": false,
-    "field": false
+    "city": true,
+    "field": true
   },
-  "holosTokens": 42,
+  "holosTokens": 0,
   "catalog": {
     "placeholder": false,
     "source": "BoZo Anime Pack runtime prefabs (Outfit.Type), manifest 2026-10-03 (120 entries)",
@@ -2236,8 +2247,8 @@
           "bottom"
         ],
         "incompatibleSlots": [],
-        "owned": false,
-        "usable": false
+        "owned": true,
+        "usable": true
       },
       {
         "itemId": "top_schoolboyjacket",

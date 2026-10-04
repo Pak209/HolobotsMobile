@@ -300,3 +300,84 @@ test('loadouts (Pak 2026-10-04): City and Field saved independently; identity sh
   const bought = W.applyPurchase({ holosTokens: 750 }, s4.state, buyCmd(id('Hat_Beanie'))).state;
   assert.deepEqual(bought.loadouts, s4.state.loadouts); assert.deepEqual(bought.identity, s4.state.identity);
 });
+
+test('identity.preset: optional, whitelisted, Zell reserved; shared by both loadouts; part of the fingerprint', () => {
+  assert.deepEqual(C.PRESET_OPTIONS, ['Default_Boy', 'Kenji', 'DefaultChan', 'Default_Girl', 'Glover', 'Hana', 'Jackal', 'Jayda']);
+  assert.deepEqual(C.RESERVED_PRESETS, ['Zell']);
+  assert.throws(() => C.validatePresetTables([...C.PRESET_OPTIONS, 'Zell'], C.RESERVED_PRESETS), /Zell is reserved/);
+  assert.throws(() => C.validatePresetTables(['Kenji', 'Kenji'], []), /unique/);
+  assert.throws(() => C.validatePresetTables(['Default Boy'], []), /bare names/);
+  assert.doesNotThrow(() => C.validatePresetTables(C.PRESET_OPTIONS, C.RESERVED_PRESETS));
+  for (const p of C.PRESET_OPTIONS) assert.equal(W.validateRecipe({ ...base(), preset: p }).preset, p);
+  assert.equal(W.validateRecipe({ ...base(), preset: null }).preset, null);
+  const absent = base(); delete absent.preset; assert.equal(W.validateRecipe(absent).preset, null, 'absent → null');
+  for (const p of ['Zell', 'zell', 'kenji', 'Default Boy', '', 'Nobody', 1, true, ['Kenji'], { name: 'Kenji' }]) invalid(() => W.validateRecipe({ ...base(), preset: p }), `preset ${JSON.stringify(p)}`);
+  // Fingerprint: absent ≡ null; any preset change alters it.
+  assert.equal(W.commandFingerprint(equipCmd(absent)), W.commandFingerprint(equipCmd({ ...base(), preset: null })));
+  assert.notEqual(W.commandFingerprint(equipCmd({ ...base(), preset: 'Kenji' })), W.commandFingerprint(equipCmd({ ...base(), preset: 'Hana' })));
+  assert.notEqual(W.commandFingerprint(equipCmd({ ...base(), preset: 'Kenji' })), W.commandFingerprint(equipCmd(base())));
+  // Stored in identity, returned in every loadout, shared: a field save changes city's preset too.
+  const s1 = W.applyEquip({}, fresh(), equipCmd({ ...base(), preset: 'Kenji' }, 'c', 'city'));
+  assert.equal(s1.state.identity.preset, 'Kenji'); assert.equal(s1.reply.loadouts.city.preset, 'Kenji'); assert.equal(s1.reply.loadouts.field.preset, 'Kenji');
+  const s2 = W.applyEquip({}, s1.state, equipCmd({ ...base(), preset: 'Jayda' }, 'f', 'field'));
+  assert.equal(s2.reply.loadouts.city.preset, 'Jayda'); assert.equal(s2.reply.loadouts.field.preset, 'Jayda');
+  assert.equal(W.wardrobeStatus({}, fresh()).loadouts.city.preset, null, 'fresh pilot: preset null');
+  assert.deepEqual(W.wardrobeStatus({}, fresh()).catalog.presets, { options: C.PRESET_OPTIONS, reserved: ['Zell'], optional: true });
+});
+
+test('read-time sanitising: delisted / unowned / non-equippable items repaired against the current catalog; hide rule re-applied; nothing written', () => {
+  const ident = W.splitRecipe(base()).identity;
+  const stored = (city, field = null, entitlements = []) => W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements, identity: ident, loadouts: { city, field } });
+  const outfit = (parts, colors = {}) => ({ parts: { ...base().parts, ...parts }, colors });
+  const backUnchanged = st => { const r = W.readLoadouts(st); for (const l of ['city', 'field']) { const cmd = equipCmd(r.loadouts[l], 'rt', l); assert.doesNotThrow(() => W.applyEquip({}, st, cmd), `${l} sends back unchanged`); } return r; };
+  // Clean outfits are untouched.
+  const clean = stored(outfit({ hat: 'hat_fedora' }, { hat: ['#112233'] }), null, ['hat_fedora']);
+  assert.deepEqual(W.readLoadouts(clean).sanitized, { city: false, field: false });
+  assert.equal(W.readLoadouts(clean).loadouts.city.parts.hat, 'hat_fedora');
+  // Delisted item in an OPTIONAL slot → null, its colours dropped; the entitlement itself is kept.
+  const delisted = stored(outfit({ hat: 'hat_retired' }, { hat: ['#112233'] }), null, ['hat_retired']);
+  let r = backUnchanged(delisted);
+  assert.equal(r.loadouts.city.parts.hat, null); assert.equal('hat' in r.loadouts.city.colors, false); assert.deepEqual(r.sanitized, { city: true, field: true }, 'mirrored field copies city');
+  assert.deepEqual(delisted.entitlements, ['hat_retired']); assert.equal(delisted.loadouts.city.parts.hat, 'hat_retired', 'state object not mutated');
+  // Delisted item in a REQUIRED slot → that slot's first starter (the default outfit's choice).
+  r = backUnchanged(stored(outfit({ top: 'top_retired' }, { top: ['#112233'] })));
+  assert.equal(r.loadouts.city.parts.top, W.defaultRecipe().parts.top); assert.equal(r.loadouts.city.parts.top, 'top_simplehoodie'); assert.equal('top' in r.loadouts.city.colors, false);
+  // Unowned (e.g. after a support action) → repaired in that loadout only; the other loadout stays clean.
+  r = backUnchanged(stored(outfit({ top: 'top_tshirt' }), outfit({ top: 'top_fullsuit', hat: 'hat_fedora' }, { top: ['#FF0000'] }), ['hat_fedora']));
+  assert.deepEqual(r.sanitized, { city: false, field: true });
+  assert.equal(r.loadouts.field.parts.top, 'top_simplehoodie'); assert.equal(r.loadouts.field.parts.hat, 'hat_fedora'); assert.equal('top' in r.loadouts.field.colors, false);
+  assert.equal(r.loadouts.city.parts.top, 'top_tshirt');
+  // Non-equippable (the lens) and wrong-slot ids → removed.
+  r = backUnchanged(stored(outfit({ upperFace: 'upperface_roundglasseslens', gloves: 'hat_fedora', hat: 'hat_fedora', top: 'top_tshirt' }), null, ['hat_fedora', 'upperface_roundglasseslens'])); // lens owned (support grant) but still not equippable
+  assert.equal(r.loadouts.city.parts.upperFace, null); assert.equal(r.loadouts.city.parts.gloves, null); assert.equal(r.sanitized.city, true);
+  assert.equal(r.loadouts.city.parts.hat, 'hat_fedora', 'valid items survive (repair is per slot, not a reset)'); assert.equal(r.loadouts.city.parts.top, 'top_tshirt');
+  // Hide-rule interaction 1: an unowned Bottom-hiding top is replaced by the (non-hiding) starter top, so the
+  // now-required bottom is refilled with its first starter.
+  r = backUnchanged(stored(outfit({ top: 'top_sundress', bottom: null })));
+  assert.equal(r.loadouts.city.parts.top, 'top_simplehoodie'); assert.equal(r.loadouts.city.parts.bottom, 'bottom_baggypants');
+  // Hide-rule interaction 2: the same outfit while still owned is clean (bottom stays null under the hider).
+  r = backUnchanged(stored(outfit({ top: 'top_sundress', bottom: null }), null, ['top_sundress']));
+  assert.equal(r.loadouts.city.parts.bottom, null); assert.equal(r.sanitized.city, false);
+  // Hide-rule interaction 3: a stored bottom under a valid hider (possible after a pack audit adds `hides`) → bottom null, colours dropped.
+  r = backUnchanged(stored(outfit({ top: 'top_overall', bottom: 'bottom_skinnyjeans' }, { bottom: ['#123456'] }), null, ['top_overall']));
+  assert.equal(r.loadouts.city.parts.bottom, null); assert.equal('bottom' in r.loadouts.city.colors, false); assert.equal(r.sanitized.city, true);
+  // Colours that no longer fit the item (colorChannels shrank, bad hex) are dropped; the item stays.
+  r = backUnchanged(stored(outfit({ hat: 'hat_fedora' }, { hat: ['#111111', '#222222', '#333333'], socks: ['#111111'] }), null, ['hat_fedora']));
+  assert.equal(r.loadouts.city.parts.hat, 'hat_fedora'); assert.deepEqual(r.loadouts.city.colors, {}); assert.equal(r.sanitized.city, true);
+  // Identity repair: off-whitelist face option / shape / preset → reset, flags both loadouts.
+  const badIdent = { ...ident, preset: 'Zell', faceLayers: { ...ident.faceLayers, head: 'Head_Retired', faceDetails: 'FaceDetail_Gone' }, shapes: { Weight: 150, Belly: 20, Tail: 3 } };
+  const st = W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements: [], identity: badIdent, loadouts: { city: outfit({}), field: outfit({}) } });
+  r = backUnchanged(st);
+  assert.deepEqual(r.sanitized, { city: true, field: true });
+  assert.equal(r.loadouts.city.preset, null); assert.equal(r.loadouts.city.faceLayers.head, 'Head_AnimeYoung'); assert.equal(r.loadouts.city.faceLayers.faceDetails, null);
+  assert.deepEqual(r.loadouts.city.shapes, { Belly: 20 });
+  // A pre-preset stored identity (no preset key) is NOT a repair.
+  const { preset, ...noPreset } = ident;
+  assert.deepEqual(W.readLoadouts(W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements: [], identity: noPreset, loadouts: { city: outfit({}), field: null } })).sanitized, { city: false, field: false });
+  // status surfaces `sanitized`; equip persists the clean version for the loadout it saves.
+  const dirty = stored(outfit({ top: 'top_tshirt' }), outfit({ hat: 'hat_retired' }), ['hat_retired']);
+  const status = W.wardrobeStatus({}, dirty);
+  assert.deepEqual(status.sanitized, { city: false, field: true }); assert.equal(status.loadouts.field.parts.hat, null);
+  const saved = W.applyEquip({}, dirty, equipCmd(status.loadouts.field, 'fix', 'field'));
+  assert.equal(saved.state.loadouts.field.parts.hat, null); assert.deepEqual(saved.reply.sanitized, { city: false, field: false });
+});

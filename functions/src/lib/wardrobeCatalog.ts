@@ -106,6 +106,25 @@ export const FACE_LAYERS: readonly FaceLayerRow[] = [
   { layer: "underLower", required: true, options: ["UnderLower_SimpleBoxers", "Underlower_ShortSpats", "UnderLower_SimplePanties"] },
 ];
 
+// ---- Starting preset ------------------------------------------------------------------
+
+/**
+ * BoZo starting presets a pilot can be created from (producer relay, 2026-10-04). Unity uses identity.preset
+ * to restore preset-only data wardrobe-3 doesn't carry (bone-based proportions) on another device.
+ * Optional: null / absent = none.
+ */
+export const PRESET_OPTIONS: readonly string[] = ["Default_Boy", "Kenji", "DefaultChan", "Default_Girl", "Glover", "Hana", "Jackal", "Jayda"];
+/** Reserved presets are never accepted (rejected exactly like an unknown preset). */
+export const RESERVED_PRESETS: readonly string[] = ["Zell"];
+
+/** Presets must be unique, bare names, and never reserved. Throws otherwise (fails the build / module load). */
+export function validatePresetTables(options: readonly string[], reserved: readonly string[]): void {
+  if (new Set(options).size !== options.length || options.some((p) => !/^[A-Za-z0-9_]+$/.test(p))) throw new Error("wardrobe catalog: preset options must be unique bare names");
+  const clash = options.find((p) => reserved.includes(p));
+  if (clash) throw new Error(`wardrobe catalog: preset ${clash} is reserved`);
+}
+validatePresetTables(PRESET_OPTIONS, RESERVED_PRESETS);
+
 // ---- Body / face shapes (BoZo blendshapes) and colours ----------------------------------
 
 /**

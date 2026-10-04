@@ -7,7 +7,7 @@
  */
 import { createHash } from "node:crypto";
 import {
-  FACE_LAYERS, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, BODY_SHAPE_KEYS, FACE_SHAPE_KEYS, FACE_SHAPES_BY_HEAD, SHAPE_BLENDSHAPE_PREFIX, SHAPE_DEFAULT, SHAPE_KEYS, SHAPE_MAX, SHAPE_MIN,
+  FACE_LAYERS, PRESET_OPTIONS, RESERVED_PRESETS, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, BODY_SHAPE_KEYS, FACE_SHAPE_KEYS, FACE_SHAPES_BY_HEAD, SHAPE_BLENDSHAPE_PREFIX, SHAPE_DEFAULT, SHAPE_KEYS, SHAPE_MAX, SHAPE_MIN,
   WARDROBE_CATALOG_IS_PLACEHOLDER, WARDROBE_CATALOG_SOURCE, WARDROBE_ITEM_BY_ID, WARDROBE_ITEMS, WARDROBE_SLOTS, type WardrobeItem,
 } from "./wardrobeCatalog";
 
@@ -29,6 +29,8 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeo
 
 export type Recipe = {
   schemaVersion: typeof WARDROBE_SCHEMA;
+  /** BoZo starting preset the pilot was created from (PRESET_OPTIONS), or null. Identity: shared by both loadouts. */
+  preset: string | null;
   /** Free creator choices: every FACE_LAYERS layer, in order; null only for optional layers. */
   faceLayers: Record<string, string | null>;
   /** Every slot, in WARDROBE_SLOTS order; null for optional slots, and for any slot an equipped item hides. */
@@ -41,7 +43,7 @@ export type Recipe = {
    */
   colors: Record<string, string | string[]>;
 };
-const RECIPE_KEYS = new Set(["schemaVersion", "faceLayers", "parts", "shapes", "colors"]);
+const RECIPE_KEYS = new Set(["schemaVersion", "preset", "faceLayers", "parts", "shapes", "colors"]);
 
 /**
  * Structural validation (no ownership): returns the canonical recipe or throws invalid_request for an
@@ -58,6 +60,11 @@ export function validateRecipe(raw: unknown): Recipe {
   if (!isPlainObject(raw) || Object.keys(raw).some((k) => !RECIPE_KEYS.has(k))) bad();
   const r = raw as Record<string, unknown>;
   if (r.schemaVersion !== WARDROBE_SCHEMA) bad();
+
+  // Optional; absent and null both canonicalise to null (so they fingerprint alike). Reserved presets (Zell) are never in
+  // PRESET_OPTIONS (validatePresetTables enforces it at load), so they are rejected like any unknown preset.
+  if (r.preset !== undefined && r.preset !== null && (typeof r.preset !== "string" || !PRESET_OPTIONS.includes(r.preset))) bad();
+  const preset = (r.preset ?? null) as string | null;
 
   if (!isPlainObject(r.faceLayers)) bad();
   const rawLayers = r.faceLayers as Record<string, unknown>;
@@ -130,7 +137,7 @@ export function validateRecipe(raw: unknown): Recipe {
       if ((list as string[]).length) colors[slot] = (list as string[]).map((h) => h.toUpperCase());
     }
   }
-  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, shapes, colors };
+  return { schemaVersion: WARDROBE_SCHEMA, preset, faceLayers, parts, shapes, colors };
 }
 
 /**
@@ -144,7 +151,7 @@ export function defaultRecipe(): Recipe {
   for (const { slot, required } of WARDROBE_SLOTS) {
     parts[slot] = required ? WARDROBE_ITEMS.find((i) => i.starter && i.equippable && i.slot === slot && i.hidesSlots.length === 0)!.itemId : null;
   }
-  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, shapes: {}, colors: {} };
+  return { schemaVersion: WARDROBE_SCHEMA, preset: null, faceLayers, parts, shapes: {}, colors: {} };
 }
 
 // ---- Stored state: wardrobes/{uid} (server-only) ------------------------------
@@ -156,8 +163,8 @@ export function defaultRecipe(): Recipe {
  */
 export const LOADOUTS = ["city", "field"] as const;
 export type LoadoutId = (typeof LOADOUTS)[number];
-/** Shared across loadouts: every face layer, the set shapes, the global colour channels. */
-export type Identity = { faceLayers: Record<string, string | null>; shapes: Record<string, number>; colors: Record<string, string> };
+/** Shared across loadouts: the starting preset, every face layer, the set shapes, the global colour channels. */
+export type Identity = { preset: string | null; faceLayers: Record<string, string | null>; shapes: Record<string, number>; colors: Record<string, string> };
 /** Per loadout: every slot and the per-slot colour arrays. */
 export type Outfit = { parts: Record<string, string | null>; colors: Record<string, string[]> };
 export type WardrobeState = {
@@ -180,22 +187,123 @@ export function splitRecipe(r: Recipe): { identity: Identity; outfit: Outfit } {
     if (typeof v === "string") globals[k] = v;
     else slotColors[k] = [...v];
   }
-  return { identity: { faceLayers: { ...r.faceLayers }, shapes: { ...r.shapes }, colors: globals }, outfit: { parts: { ...r.parts }, colors: slotColors } };
+  return { identity: { preset: r.preset, faceLayers: { ...r.faceLayers }, shapes: { ...r.shapes }, colors: globals }, outfit: { parts: { ...r.parts }, colors: slotColors } };
 }
 
 /** Identity + outfit → a full canonical recipe (colours: global channels first, then slots, as validateRecipe orders them). */
 export function composeRecipe(identity: Identity, outfit: Outfit): Recipe {
-  return { schemaVersion: WARDROBE_SCHEMA, faceLayers: { ...identity.faceLayers }, parts: { ...outfit.parts }, shapes: { ...identity.shapes }, colors: { ...identity.colors, ...outfit.colors } };
+  return { schemaVersion: WARDROBE_SCHEMA, preset: identity.preset ?? null, faceLayers: { ...identity.faceLayers }, parts: { ...outfit.parts }, shapes: { ...identity.shapes }, colors: { ...identity.colors, ...outfit.colors } };
 }
 
-/** What each loadout reads as: city = saved or default outfit; field = saved, else a copy of city (a read; nothing is written). */
-export function loadoutRecipes(state: WardrobeState): Record<LoadoutId, Recipe> {
-  const d = splitRecipe(defaultRecipe());
-  const identity = state.identity ?? d.identity;
-  const city = composeRecipe(identity, state.loadouts.city ?? d.outfit);
-  const field = state.loadouts.field ? composeRecipe(identity, state.loadouts.field) : structuredClone(city);
-  return { city, field };
+const extraKeys = (o: Record<string, unknown> | undefined, allowed: readonly string[]) => Object.keys(o ?? {}).some((k) => !allowed.includes(k));
+const FACE_LAYER_NAMES = FACE_LAYERS.map((l) => l.layer);
+const SLOT_NAMES = WARDROBE_SLOTS.map((s) => s.slot);
+
+/**
+ * Read-time re-validation of the stored shared identity against the CURRENT whitelists. An off-whitelist
+ * face option → the layer's first option (required) or null; an unknown / out-of-range shape, a bad global
+ * colour or unknown key is dropped; a preset no longer allowed → null. `changed` reports any repair.
+ */
+export function sanitizeIdentity(raw: Identity): { identity: Identity; changed: boolean } {
+  let changed = extraKeys(raw.faceLayers, FACE_LAYER_NAMES) || extraKeys(raw.shapes, SHAPE_KEYS) || extraKeys(raw.colors, GLOBAL_COLOR_CHANNELS);
+  const faceLayers: Record<string, string | null> = {};
+  for (const { layer, required, options } of FACE_LAYERS) {
+    const v = raw.faceLayers?.[layer];
+    if (typeof v === "string" && options.includes(v)) { faceLayers[layer] = v; continue; }
+    if (v !== null && v !== undefined) changed = true;
+    else if (required) changed = true;
+    faceLayers[layer] = required ? options[0] : null;
+  }
+  const shapes: Record<string, number> = {};
+  for (const key of SHAPE_KEYS) {
+    const n = raw.shapes?.[key];
+    if (n === undefined) continue;
+    if (typeof n === "number" && Number.isFinite(n) && n >= SHAPE_MIN && n <= SHAPE_MAX) shapes[key] = n;
+    else changed = true;
+  }
+  const colors: Record<string, string> = {};
+  for (const channel of GLOBAL_COLOR_CHANNELS) {
+    const hex = raw.colors?.[channel];
+    if (hex === undefined) continue;
+    if (typeof hex === "string" && HEX.test(hex)) colors[channel] = hex.toUpperCase();
+    else changed = true;
+  }
+  const p = raw.preset ?? null; // a pre-preset stored identity has no key: same as null, not a repair
+  const preset = p !== null && typeof p === "string" && PRESET_OPTIONS.includes(p) ? p : null;
+  if (preset !== p) changed = true;
+  return { identity: { preset, faceLayers, shapes, colors }, changed };
 }
+
+/**
+ * Read-time re-validation of a stored outfit against the CURRENT catalog and the pilot's entitlements (the
+ * server is the authority; nothing is written back — the next equip persists the clean version):
+ * 1. an item that is unknown (delisted), in the wrong slot, no longer equippable, or no longer owned is removed;
+ * 2. the hide / incompatibility rule is re-applied to what remains (hidden slots → null);
+ * 3. a required slot left empty (and not hidden) gets its first starter item (the default outfit's choice);
+ * 4. slot colours are dropped for any slot whose item changed or is empty, or that no longer fit the item's colorChannels.
+ */
+export function sanitizeOutfit(raw: Outfit, owned: readonly string[]): { outfit: Outfit; changed: boolean } {
+  let changed = extraKeys(raw.parts, SLOT_NAMES) || extraKeys(raw.colors, SLOT_NAMES);
+  const fallback = defaultRecipe().parts;
+  const parts: Record<string, string | null> = {};
+  for (const { slot } of WARDROBE_SLOTS) {
+    const v = raw.parts?.[slot] ?? null;
+    const item = typeof v === "string" ? WARDROBE_ITEM_BY_ID.get(v) : undefined;
+    const ok = v === null || (!!item && item.slot === slot && item.equippable && (item.starter || owned.includes(item.itemId)));
+    if (!ok) changed = true;
+    parts[slot] = ok ? v : null;
+  }
+  const equipped = Object.values(parts).filter((id): id is string => id !== null).map((id) => WARDROBE_ITEM_BY_ID.get(id)!);
+  const mustBeEmpty = new Set(equipped.flatMap((i) => [...i.hidesSlots, ...i.incompatibleSlots]));
+  for (const { slot, required } of WARDROBE_SLOTS) {
+    if (mustBeEmpty.has(slot)) {
+      if (parts[slot] !== null) { parts[slot] = null; changed = true; }
+    } else if (required && parts[slot] === null) {
+      parts[slot] = fallback[slot]; changed = true; // the default starter never hides or conflicts
+    }
+  }
+  const colors: Record<string, string[]> = {};
+  for (const { slot } of WARDROBE_SLOTS) {
+    const list = raw.colors?.[slot];
+    if (list === undefined) continue;
+    const id = parts[slot];
+    const fits = id !== null && id === (raw.parts?.[slot] ?? null) && Array.isArray(list) && list.length > 0
+      && list.length <= WARDROBE_ITEM_BY_ID.get(id)!.colorChannels && list.every((h) => typeof h === "string" && HEX.test(h));
+    if (fits) colors[slot] = list.map((h) => h.toUpperCase());
+    else changed = true;
+  }
+  return { outfit: { parts, colors }, changed };
+}
+
+export type LoadoutsRead = { loadouts: Record<LoadoutId, Recipe>; sanitized: Record<LoadoutId, boolean> };
+
+/**
+ * What each loadout reads as (a read: nothing is written): city = saved or default outfit; field = saved, else a
+ * copy of city. Both are re-validated against the current catalog + entitlements, so every returned loadout is a
+ * valid equip recipe for this pilot; `sanitized` says which ones were repaired (a mirrored field copies city's flag).
+ */
+export function readLoadouts(state: WardrobeState): LoadoutsRead {
+  const d = splitRecipe(defaultRecipe());
+  const id = sanitizeIdentity(state.identity ?? d.identity);
+  const one = (outfit: Outfit): { recipe: Recipe; changed: boolean } => {
+    const o = sanitizeOutfit(outfit, state.entitlements);
+    const recipe = composeRecipe(id.identity, o.outfit);
+    try { validateRecipe(recipe); } catch {
+      return { recipe: composeRecipe(id.identity, d.outfit), changed: true }; // last-resort safety net: the default outfit
+    }
+    return { recipe, changed: o.changed || id.changed };
+  };
+  const city = one(state.loadouts.city ?? d.outfit);
+  const field = state.loadouts.field ? one(state.loadouts.field) : { recipe: structuredClone(city.recipe), changed: city.changed };
+  return { loadouts: { city: city.recipe, field: field.recipe }, sanitized: { city: city.changed, field: field.changed } };
+}
+
+/** The two loadout recipes alone (see readLoadouts). */
+export function loadoutRecipes(state: WardrobeState): Record<LoadoutId, Recipe> {
+  return readLoadouts(state).loadouts;
+}
+
+
 
 /**
  * undefined (no doc) → nothing owned, nothing saved: the only "fresh" case. A present doc must be
@@ -210,7 +318,8 @@ export function readWardrobeState(raw: unknown): WardrobeState {
   const e = raw.entitlements;
   if (!Array.isArray(e) || e.some((id) => typeof id !== "string" || !id) || new Set(e).size !== e.length) throw new WardrobeError("unavailable");
   const identity = raw.identity;
-  const okIdentity = identity === null || (isPlainObject(identity) && isPlainObject(identity.faceLayers) && isPlainObject(identity.shapes) && isPlainObject(identity.colors));
+  const okIdentity = identity === null || (isPlainObject(identity) && isPlainObject(identity.faceLayers) && isPlainObject(identity.shapes) && isPlainObject(identity.colors)
+    && (identity.preset === undefined || identity.preset === null || typeof identity.preset === "string"));
   const lo = raw.loadouts;
   const okOutfit = (o: unknown) => o === null || (isPlainObject(o) && isPlainObject(o.parts) && isPlainObject(o.colors));
   const okLoadouts = isPlainObject(lo) && Object.keys(lo).length === LOADOUTS.length && LOADOUTS.every((k) => k in lo && okOutfit(lo[k]));
@@ -266,10 +375,13 @@ export type WardrobeView = {
   loadouts: Record<LoadoutId, Recipe>;
   /** false: never saved (city reads as the default outfit; field reads as a copy of city). */
   saved: Record<LoadoutId, boolean>;
+  /** true: the stored loadout was repaired on read (delisted / non-equippable / unowned item, hide rule, colour fit). Not written back. */
+  sanitized: Record<LoadoutId, boolean>;
   holosTokens: number;
 };
 function view(state: WardrobeState, holos: number): WardrobeView {
-  return { entitlements: [...state.entitlements], loadouts: loadoutRecipes(state), saved: { city: state.loadouts.city !== null, field: state.loadouts.field !== null }, holosTokens: holos };
+  const read = readLoadouts(state);
+  return { entitlements: [...state.entitlements], loadouts: read.loadouts, saved: { city: state.loadouts.city !== null, field: state.loadouts.field !== null }, sanitized: read.sanitized, holosTokens: holos };
 }
 
 export type ItemView = WardrobeItem & { owned: boolean; usable: boolean };
@@ -279,6 +391,7 @@ export function wardrobeCatalogView(owned: readonly string[]) {
     source: WARDROBE_CATALOG_SOURCE,
     slots: WARDROBE_SLOTS.map(({ slot, type, required }) => ({ slot, type, required })),
     faceLayers: FACE_LAYERS.map((l) => ({ layer: l.layer, required: l.required, options: [...l.options] })),
+    presets: { options: [...PRESET_OPTIONS], reserved: [...RESERVED_PRESETS], optional: true },
     shapes: {
       blendshapePrefix: SHAPE_BLENDSHAPE_PREFIX, min: SHAPE_MIN, max: SHAPE_MAX, default: SHAPE_DEFAULT,
       body: [...BODY_SHAPE_KEYS], face: [...FACE_SHAPE_KEYS],

@@ -199,3 +199,37 @@ test('loadouts: City and Field equip independently; unset Field reads as City an
   await rejects(equip(uid, smart, 'f9', 'field'), 'not_owned', 'failed-precondition');
   assert.deepEqual(await wardrobe(uid), stored);
 });
+
+test('read-time sanitising on the emulator: a stored outfit with a delisted, an unowned and a hidden item is repaired in status, status writes nothing, the next equip persists it; preset round-trips', async () => {
+  const uid = await setup({ holosTokens: 0 });
+  const b = base();
+  const ident = { preset: 'Kenji', faceLayers: b.faceLayers, shapes: { Weight: 10 }, colors: { skin: '#C08060' } };
+  const doc = {
+    schemaVersion: 'wardrobe-3', entitlements: ['top_overall', 'hat_retired'], identity: ident,
+    loadouts: {
+      city: { parts: { ...b.parts, hat: 'hat_retired', top: 'top_overall', bottom: 'bottom_skinnyjeans' }, colors: { hat: ['#111111'], bottom: ['#222222'] } }, // delisted hat; bottom under a hider
+      field: { parts: { ...b.parts, top: 'top_fullsuit' }, colors: { top: ['#FF0000'] } },                                                                    // unowned top
+    },
+  };
+  await db.doc(`wardrobes/${uid}`).set(doc);
+  const before = await wardrobe(uid);
+  const s = await host(uid, { operation: 'status' });
+  assert.deepEqual(s.sanitized, { city: true, field: true });
+  assert.equal(s.loadouts.city.parts.hat, null); assert.equal(s.loadouts.city.parts.top, 'top_overall'); assert.equal(s.loadouts.city.parts.bottom, null);
+  assert.deepEqual(s.loadouts.city.colors, { skin: '#C08060' });
+  assert.equal(s.loadouts.field.parts.top, 'top_simplehoodie'); assert.equal(s.loadouts.field.parts.bottom, b.parts.bottom); assert.deepEqual(s.loadouts.field.colors, { skin: '#C08060' });
+  for (const l of ['city', 'field']) assert.equal(s.loadouts[l].preset, 'Kenji');
+  assert.deepEqual(await wardrobe(uid), before, 'status never writes, even when it sanitised');
+  await exportFixture('wardrobe-3_status_sanitized', s);
+  // Sending each returned loadout back unchanged succeeds and persists the clean version.
+  const c = await equip(uid, s.loadouts.city, 'fix-city', 'city');
+  const f = await equip(uid, s.loadouts.field, 'fix-field', 'field');
+  assert.deepEqual(f.sanitized, { city: false, field: false }); assert.deepEqual(f.loadouts, s.loadouts);
+  const stored = await wardrobe(uid);
+  assert.equal(stored.loadouts.city.parts.hat, null); assert.equal(stored.loadouts.field.parts.top, 'top_simplehoodie'); assert.equal(stored.identity.preset, 'Kenji');
+  assert.deepEqual(stored.entitlements, ['top_overall', 'hat_retired'], 'entitlements are never touched by sanitising');
+  assert.equal(c.alreadyProcessed, false);
+  // Preset validation on the wire.
+  await rejects(equip(uid, { ...base(), preset: 'Zell' }, 'zell', 'city'), 'invalid_request', 'invalid-argument');
+  assert.equal((await equip(uid, { ...base(), preset: 'Hana' }, 'hana', 'field')).loadouts.city.preset, 'Hana');
+});

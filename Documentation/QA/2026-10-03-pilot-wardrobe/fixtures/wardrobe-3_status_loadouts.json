@@ -7,6 +7,7 @@
   "loadouts": {
     "city": {
       "schemaVersion": "wardrobe-3",
+      "preset": null,
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
@@ -52,6 +53,7 @@
     },
     "field": {
       "schemaVersion": "wardrobe-3",
+      "preset": null,
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
@@ -100,6 +102,10 @@
   "saved": {
     "city": true,
     "field": true
+  },
+  "sanitized": {
+    "city": false,
+    "field": false
   },
   "holosTokens": 0,
   "catalog": {
@@ -321,6 +327,22 @@
         ]
       }
     ],
+    "presets": {
+      "options": [
+        "Default_Boy",
+        "Kenji",
+        "DefaultChan",
+        "Default_Girl",
+        "Glover",
+        "Hana",
+        "Jackal",
+        "Jayda"
+      ],
+      "reserved": [
+        "Zell"
+      ],
+      "optional": true
+    },
     "shapes": {
       "blendshapePrefix": "Shape_",
       "min": 0,
