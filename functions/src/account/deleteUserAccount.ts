@@ -5,11 +5,12 @@ import { auth, db } from "../admin";
 
 /**
  * Every Firestore tree keyed by the pilot's uid. users/{uid} covers its own
- * subcollections; the two server-only trees live outside it (DECISIONS #43
- * rival battles + open-battle ledger, #40 wild sessions + receipts).
+ * subcollections; the server-only trees live outside it (DECISIONS #43
+ * rival battles + open-battle ledger, #40 wild sessions + receipts, #46 intro
+ * quest state, #47 Buddy Unit purchase receipts).
  */
 export async function deleteUserData(firestore: Firestore, uid: string): Promise<void> {
-  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`]) {
+  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`]) {
     await firestore.recursiveDelete(firestore.doc(path));
   }
 }

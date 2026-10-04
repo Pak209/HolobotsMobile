@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "intro-quest-1",
+  "status": {
+    "currentStepId": "visit_mission_board",
+    "complete": false,
+    "steps": [
+      {
+        "stepId": "visit_mission_board",
+        "index": 0,
+        "kind": "visit",
+        "destinationId": "mission_board",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": true,
+        "reward": {
+          "holos": 50,
+          "gachaTickets": 0,
+          "buddyUnitsLight": 0
+        }
+      },
+      {
+        "stepId": "visit_marketplace",
+        "index": 1,
+        "kind": "visit",
+        "destinationId": "marketplace",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": false,
+        "reward": {
+          "holos": 50,
+          "gachaTickets": 1,
+          "buddyUnitsLight": 0
+        }
+      },
+      {
+        "stepId": "visit_workshop",
+        "index": 2,
+        "kind": "visit",
+        "destinationId": "workshop",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": false,
+        "reward": {
+          "holos": 75,
+          "gachaTickets": 0,
+          "buddyUnitsLight": 0
+        }
+      },
+      {
+        "stepId": "capture_buddy",
+        "index": 3,
+        "kind": "capture",
+        "destinationId": "",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": false,
+        "reward": {
+          "holos": 100,
+          "gachaTickets": 0,
+          "buddyUnitsLight": 1
+        }
+      },
+      {
+        "stepId": "win_rival_battle",
+        "index": 4,
+        "kind": "rival",
+        "destinationId": "",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": false,
+        "reward": {
+          "holos": 100,
+          "gachaTickets": 1,
+          "buddyUnitsLight": 0
+        }
+      },
+      {
+        "stepId": "visit_portal",
+        "index": 5,
+        "kind": "visit",
+        "destinationId": "portal_terminal",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": false,
+        "reward": {
+          "holos": 75,
+          "gachaTickets": 0,
+          "buddyUnitsLight": 0
+        }
+      },
+      {
+        "stepId": "chain_complete",
+        "index": 6,
+        "kind": "bonus",
+        "destinationId": "",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": false,
+        "reward": {
+          "holos": 150,
+          "gachaTickets": 1,
+          "buddyUnitsLight": 0
+        }
+      }
+    ],
+    "totalReward": {
+      "holos": 600,
+      "gachaTickets": 3,
+      "buddyUnitsLight": 1
+    }
+  },
+  "balances": {
+    "holosTokens": 25,
+    "gachaTickets": 1,
+    "buddyUnits": {
+      "light": 0,
+      "medium": 0,
+      "heavy": 1
+    }
+  }
+}

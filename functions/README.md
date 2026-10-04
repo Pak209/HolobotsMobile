@@ -18,10 +18,12 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --project holobots-24046 --only functions:applyReferralCode,functions:assignWildcardBlueprints,functions:chargeArenaEntry,functions:createGenesisProfile,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:claimGenesisSquad,functions:claimQuestRun,functions:claimTrainingSession,functions:clearWorkoutCooldown,functions:deleteUserAccountV2,functions:mintHolobot,functions:mirrorLeaderboardEntry,functions:openGachaPack,functions:purchaseMarketplaceBooster,functions:purchaseMarketplaceItem,functions:redeemLegendaryBlueprint,functions:revenuecatWebhook,functions:purchaseMarketplacePart,functions:saveHolobotCombatKit,functions:settleArenaBattle,functions:syncFitnessActivity,functions:syncWatchWorkoutRewards,functions:upgradeHolobotRank,functions:upgradeHolobotMove,functions:upgradeSyncStat,functions:useEnergyRefill,functions:useExpBooster,functions:useRankSkip,functions:wildEncounterHost,functions:travelSquadHost,functions:desktopAccountSnapshot,functions:rivalBattleHost
+firebase deploy --project holobots-24046 --only functions:applyReferralCode,functions:assignWildcardBlueprints,functions:chargeArenaEntry,functions:createGenesisProfile,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:claimGenesisSquad,functions:claimQuestRun,functions:claimTrainingSession,functions:clearWorkoutCooldown,functions:deleteUserAccountV2,functions:mintHolobot,functions:mirrorLeaderboardEntry,functions:openGachaPack,functions:purchaseMarketplaceBooster,functions:purchaseMarketplaceItem,functions:redeemLegendaryBlueprint,functions:revenuecatWebhook,functions:purchaseMarketplacePart,functions:saveHolobotCombatKit,functions:settleArenaBattle,functions:syncFitnessActivity,functions:syncWatchWorkoutRewards,functions:upgradeHolobotRank,functions:upgradeHolobotMove,functions:upgradeSyncStat,functions:useEnergyRefill,functions:useExpBooster,functions:useRankSkip,functions:wildEncounterHost,functions:travelSquadHost,functions:desktopAccountSnapshot,functions:rivalBattleHost,functions:introQuestHost,functions:vendorCatalogHost,functions:purchaseBuddyUnit
 ```
 
-That is all 33 functions exported from `src/index.ts` (2026-09-30: `rivalBattleHost`
+That is all 36 functions exported from `src/index.ts` (2026-10-03: `introQuestHost`,
+`vendorCatalogHost` and `purchaseBuddyUnit` added for DECISIONS #46/#47; see
+`Documentation/QA/2026-10-03-intro-quests-vendors/CONTRACT.md`. 2026-09-30: `rivalBattleHost`
 added for DECISIONS #43; see `Documentation/QA/2026-09-30-buddy-units/CONTRACT.md`).
 
 `revenuecatWebhook` requires the `REVENUECAT_WEBHOOK_AUTH` secret to exist

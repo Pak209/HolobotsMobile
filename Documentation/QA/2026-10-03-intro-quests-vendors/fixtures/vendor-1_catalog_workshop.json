@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "vendor-1",
+  "vendorId": "workshop",
+  "holosTokens": 420,
+  "inventory": {
+    "arenaPasses": 3,
+    "gachaTickets": 0,
+    "energyRefills": 0,
+    "expBoosters": 0,
+    "rankSkips": 0,
+    "wildcardBlueprints": 0,
+    "parts": 1,
+    "buddyUnits": {
+      "light": 2,
+      "medium": 0,
+      "heavy": 0
+    }
+  },
+  "listings": [
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.combatMask",
+      "kind": "part",
+      "displayName": "Combat Mask",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "rarity": "common",
+        "slot": "head"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.combatMask"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.voidMask",
+      "kind": "part",
+      "displayName": "Void Mask",
+      "price": 1500,
+      "owned": 1,
+      "details": {
+        "rarity": "epic",
+        "slot": "head"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.voidMask"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.reinforcedChassis",
+      "kind": "part",
+      "displayName": "Reinforced Chassis",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "rarity": "common",
+        "slot": "torso"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.reinforcedChassis"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.alloyChassis",
+      "kind": "part",
+      "displayName": "Alloy Chassis",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "rarity": "rare",
+        "slot": "torso"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.alloyChassis"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.boxerGloves",
+      "kind": "part",
+      "displayName": "Boxer Gloves",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "rarity": "common",
+        "slot": "arms"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.boxerGloves"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.plasmaCannon",
+      "kind": "part",
+      "displayName": "Plasma Cannon",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "rarity": "rare",
+        "slot": "arms"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.plasmaCannon"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.infernoClaws",
+      "kind": "part",
+      "displayName": "Inferno Claws",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "rarity": "epic",
+        "slot": "arms"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.infernoClaws"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.energyCore",
+      "kind": "part",
+      "displayName": "Energy Core",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "rarity": "common",
+        "slot": "core"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.energyCore"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "part.quantumCore",
+      "kind": "part",
+      "displayName": "Quantum Core",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "rarity": "epic",
+        "slot": "core"
+      },
+      "purchase": {
+        "callable": "purchaseMarketplacePart",
+        "request": {
+          "partId": "part.quantumCore"
+        }
+      },
+      "affordable": false
+    }
+  ]
+}
