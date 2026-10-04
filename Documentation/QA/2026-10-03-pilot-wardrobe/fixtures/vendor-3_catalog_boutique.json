@@ -2292,6 +2292,35 @@
       "quantity": 1,
       "available": true,
       "availableAtMs": 0,
+      "listingId": "clothing.upperface_roundglasseslens",
+      "kind": "clothing",
+      "displayName": "Round Glasses Lens",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "upperface_roundglasseslens",
+        "bozoPart": "UpperFace_RoundGlassesLens",
+        "slot": "upperFace",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "upperface_roundglasseslens",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
       "listingId": "clothing.upperface_simpleglasses",
       "kind": "clothing",
       "displayName": "Simple Glasses",

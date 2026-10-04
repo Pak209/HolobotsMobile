@@ -88,20 +88,21 @@ Thirteen slots, one per BoZo `Outfit.Type`. Optional slots take an item or `null
 - `Feet_SimpleSneakers`, `Feet_AthleticMidTop`;
 - `Socks_BasicSocks`.
 
-**Sold: 80 items** at the `boutique` vendor. The price is `MARKETPLACE_PART_PRICES[rarity]` from the existing economy module: common 300, rare 750, epic 1500.
+**Sold: 81 items** at the `boutique` vendor. The price is `MARKETPLACE_PART_PRICES[rarity]` from the existing economy module: common 300, rare 750, epic 1500.
 
 Rarity rules, first match wins:
 
 | rarity | rule | count |
 |---|---|---|
 | epic | `Top_FullSuit`, `Top_SmartDress`, `Top_Nagagi`, `Top_SimpleKimono`, `Bottom_BasicHakma`, and every HeadAcc | 9 |
-| rare | Top whose name contains `Jacket`; Feet whose name contains `Boot`; every Hat; every Gloves; UpperFace whose name contains `Glasses`/`HalfMoon` | 23 |
+| rare | Top whose name contains `Jacket`; Feet whose name contains `Boot`; every Hat; every Gloves; UpperFace whose name contains `Glasses`/`HalfMoon` | 24 |
 | common | everything else sold ("basics") | 48 |
 
-> **⚑ Unity to confirm: `UpperFace_RoundGlassesLens`** is **not sellable and not equippable**. The producer believes it's the optional lens sub-part of `UpperFace_RoundGlasses`, which is unconfirmed.
-> - It stays in the catalog: `sellable:false`, `equippable:false`, price 0, never listed.
-> - Equipping it gets `invalid_request`; buying it gets `invalid_request`.
-> - If it turns out to be a standalone item, flip one line in `PART_OVERRIDES` and regenerate.
+**`UpperFace_RoundGlassesLens` is a standalone item, confirmed by Unity on 2026-10-04.** It's round glasses *with* lenses, a variant of `UpperFace_RoundGlasses`, not a piece of it.
+- **Evidence:** it has its own FBX and outfit icon and `showCharacterCreator: 1`, and `UpperFace_RoundGlasses` has `optionalPieces: []`.
+- **Sold** like the other glasses: rare, 750 Holos.
+- **Exclusive with the plain round glasses**, since both use the UpperFace slot.
+- `PART_OVERRIDES` is now empty. The mechanism stays for future pack audits.
 
 ### Face layers (free choices, whitelisted per layer)
 
@@ -123,7 +124,7 @@ These are not items: nothing is owned or sold. **Required** layers must be one o
 | `makeUpLips` | no (null = none) | `MakeUpLips_BasicLipstick`, `MakeUpLips_SimpleLipstick` |
 | `faceDetails` | no (null = none) | `FaceDetail_Freakles`, `FaceDetail_FullFreakles`, `FaceDetails_FrecklesHeavy`, `FaceDetails_FrecklesLight`, `FaceDetails_FrecklesMedium` |
 | `faceTexture` | no (null = none) | `FaceTexture_Wrinkles` |
-| `underUpper` | yes | `UnderUpper_SimpleUnderShirt`, `UnderUpper_SimpleUnderShirt2`, `UnderUpper_SimpleBra` |
+| `underUpper` | no (null = none; Default_Boy has none, Unity fills the top slot) | `UnderUpper_SimpleUnderShirt`, `UnderUpper_SimpleUnderShirt2`, `UnderUpper_SimpleBra` |
 | `underLower` | yes | `UnderLower_SimpleBoxers`, `Underlower_ShortSpats`, `UnderLower_SimplePanties` |
 
 ### Shapes (BoZo blendshapes), colours, size cap
@@ -203,7 +204,7 @@ How the result is reported and stored:
 - **Every returned loadout is a valid `equip` recipe for this pilot**, so it can be sent back unchanged. As a last-resort safety net, a loadout that still fails validation after repair is returned as the default outfit with `sanitized: true`.
 
 Examples:
-- An unowned Bottom-hiding top (e.g. `top_sundress`) is replaced by the starter top `top_simplehoodie`, and the now-required bottom is refilled with `bottom_baggypants`.
+- An unowned Bottom-hiding top (e.g. `top_sundress`) is replaced by the default starter top `top_tshirt`, and the now-required bottom is refilled with `bottom_skinnyjeans`. A required slot is always refilled with the **default outfit's** item, the Unity starter look.
 - A stored bottom under a still-valid hider becomes `null`.
 
 **No armour items exist yet.** They'll be added later as ordinary catalog items in the Top/Bottom/Feet/Gloves/Hat slots, with no special-casing. Any owned or starter item can be worn in either loadout.
@@ -237,8 +238,12 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 
 **`status`.** It never writes and never grants. With nothing saved, both loadouts read as the default recipe and `saved` is `{city:false, field:false}`. The default recipe is:
 - `preset: "Default_Boy"` (the town/creator default, Pak 2026-10-03) and `heightScale: 1.0`;
-- the first option for each required face layer. These are **not** taken from Default_Boy's preset data, which lives in Unity and wasn't relayed. If Default_Boy's face layers should be the server default, send the list and the defaults become a data-only change;
-- the first non-hiding starter in manifest order for each required slot, which gives `top_simplehoodie`, `bottom_baggypants`, `feet_athleticmidtop`, `hairfront_asymmetricalfringe`, `hairback_casualflow`.
+- **the Default_Boy preset identity**, from `CustomCharacters/Resources/Anime/Default_Boy.asset` and relayed from the Unity pack files on 2026-10-04:
+  - face layers: head `Head_AnimeYoung`, body `Body_AnimeBasic`, eyes `Eyes_AnimeBasic`, pupil `Pupil_Round`, eyeShine `EyeShine_DoubleRound`, eyeBrows `Brows_ThickBrows`, eyeLashes `EyeLashes_ShortLashes`, teeth `Teeth_AnimeBasicTeeth`, underLower `UnderLower_SimpleBoxers`. Everything else (`underUpper`, `bodyType`, makeUp*, `faceDetails`, `faceTexture`) is `null`;
+  - shapes: `BodyType 45, NeckThickness 27, Weight 15, Sharpness 85, EyeRoundness 46, Roundness 2`, in canonical order;
+- **the Unity starter outfit:** `hairfront_lynxfringe`, `hairback_messyhair`, `top_tshirt`, `bottom_skinnyjeans`, `feet_simplesneakers`. Optional slots are none.
+
+These live in the catalog's `DEFAULT_FACE_LAYERS`, `DEFAULT_SHAPES` and `DEFAULT_PARTS`. `validateDefaults` fails the build unless every layer is whitelisted (required layers set), every shape is known and in range, and every required slot is an equippable **starter** that hides nothing and conflicts with nothing.
 
 ```jsonc
 {
@@ -303,7 +308,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 
 | rejectionCode | HTTPS code | When |
 |---|---|---|
-| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; equip `loadout` missing or not exactly `"city"`/`"field"`; `preset` not one of the allowed presets (incl. reserved `Zell`); `heightScale` not a finite number in [0.90, 1.00]; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
+| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; equip `loadout` missing or not exactly `"city"`/`"field"`; `preset` not one of the allowed presets (incl. reserved `Zell`); `heightScale` not a finite number in [0.90, 1.00]; `itemId` unknown, a starter, or non-sellable (none today). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (none today); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
 | `not_owned` | `failed-precondition` | equip with a sold item the pilot doesn't own |
 | `already_owned` | `already-exists` | purchase of an owned item with a new `requestId`. No charge, nothing written. |
 | `not_enough_holos` | `failed-precondition` | message **"Not enough Holos."**. Nothing written, so the same `requestId` can succeed later. |
@@ -344,7 +349,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 
 ## Vendor catalog: `vendor-3`
 
-`vendorCatalogHost {operation:"catalog", vendorId:"boutique"}` lists the **80 sellable** wardrobe items, in manifest order:
+`vendorCatalogHost {operation:"catalog", vendorId:"boutique"}` lists the **81 sellable** wardrobe items, in manifest order:
 
 ```jsonc
 { "listingId": "clothing.top_overall", "kind": "clothing", "displayName": "Overall", "price": 300, "currency": "holos",
@@ -356,7 +361,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 
 - **Value types:** `details` values are strings or string arrays. `colorChannels` is the decimal string of the integer.
 - **Owned items:** `owned` is `1` and `available` is `false`.
-- **Never listed:** starter items and non-sellable overrides (the lens).
+- **Never listed:** starter items, and any non-sellable override (there are none today).
 - **Other vendors:** the marketplace and workshop listings are unchanged and contain no clothing.
 - **Why vendor-3:**
   - there's a new `vendorId` (`boutique`) and listing `kind` (`clothing`);
@@ -390,7 +395,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 7. **Buy:** open the boutique with `vendorCatalogHost {operation:"catalog", vendorId:"boutique"}`. Send `listing.purchase.request` (with a fresh `requestId` replacing `"<client-generated>"`) to `wardrobeHost`. Then refresh `status` and the catalog.
    - `already_owned`: refresh only; nothing was charged.
    - `not_enough_holos`: show "Not enough Holos."
-8. **⚑ Confirm `UpperFace_RoundGlassesLens`:** is it the lens sub-part of `UpperFace_RoundGlasses` (render it with the glasses), or a standalone item? See the flag above.
+8. `UpperFace_RoundGlassesLens` is a standalone, sellable glasses variant, which Unity confirmed. The default identity and outfit are Default_Boy plus the starter look, as above.
 
 ## Regenerating the catalog after a new pack audit
 
@@ -548,6 +553,6 @@ PR #56 (`introQuestHost`, `vendorCatalogHost`, `purchaseBuddyUnit`) must be merg
 | 115 | `top_tshirt` | Top_Tshirt | top | starter | 0 | yes |  | 2 |  |
 | 116 | `upperface_medicaleyepatch` | UpperFace_MedicalEyePatch | upperFace | common | 300 |  | yes | 2 |  |
 | 117 | `upperface_roundglasses` | UpperFace_RoundGlasses | upperFace | rare | 750 |  | yes | 3 |  |
-| 118 | `upperface_roundglasseslens` | UpperFace_RoundGlassesLens | upperFace | rare | 0 |  | **no** (not equippable) | 3 |  |
+| 118 | `upperface_roundglasseslens` | UpperFace_RoundGlassesLens | upperFace | rare | 750 |  | yes | 3 |  |
 | 119 | `upperface_simpleglasses` | UpperFace_SimpleGlasses | upperFace | rare | 750 |  | yes | 3 |  |
 | 120 | `upperface_simplehalfmoon` | UpperFace_SimpleHalfMoon | upperFace | rare | 750 |  | yes | 3 |  |

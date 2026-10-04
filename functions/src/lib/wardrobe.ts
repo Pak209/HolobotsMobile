@@ -7,7 +7,7 @@
  */
 import { createHash } from "node:crypto";
 import {
-  FACE_LAYERS, PRESET_OPTIONS, RESERVED_PRESETS, DEFAULT_PRESET, HEIGHT_SCALE_DEFAULT, HEIGHT_SCALE_MAX, HEIGHT_SCALE_MIN, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, BODY_SHAPE_KEYS, FACE_SHAPE_KEYS, FACE_SHAPES_BY_HEAD, SHAPE_BLENDSHAPE_PREFIX, SHAPE_DEFAULT, SHAPE_KEYS, SHAPE_MAX, SHAPE_MIN,
+  FACE_LAYERS, DEFAULT_FACE_LAYERS, DEFAULT_PARTS, DEFAULT_SHAPES, PRESET_OPTIONS, RESERVED_PRESETS, DEFAULT_PRESET, HEIGHT_SCALE_DEFAULT, HEIGHT_SCALE_MAX, HEIGHT_SCALE_MIN, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, BODY_SHAPE_KEYS, FACE_SHAPE_KEYS, FACE_SHAPES_BY_HEAD, SHAPE_BLENDSHAPE_PREFIX, SHAPE_DEFAULT, SHAPE_KEYS, SHAPE_MAX, SHAPE_MIN,
   WARDROBE_CATALOG_IS_PLACEHOLDER, WARDROBE_CATALOG_SOURCE, WARDROBE_ITEM_BY_ID, WARDROBE_ITEMS, WARDROBE_SLOTS, type WardrobeItem,
 } from "./wardrobeCatalog";
 
@@ -147,17 +147,17 @@ export function validateRecipe(raw: unknown): Recipe {
 }
 
 /**
- * A pilot with no saved recipe: first option per required face layer (optional layers none), first
- * starter item (manifest order) per required slot not hidden by another, optional slots none. Never written by status.
+ * A pilot with no saved recipe: the Default_Boy preset identity (DEFAULT_FACE_LAYERS, DEFAULT_SHAPES) and the Unity
+ * starter outfit (DEFAULT_PARTS; other slots none), in canonical order. Validated at load. Never written by status.
  */
 export function defaultRecipe(): Recipe {
   const faceLayers: Record<string, string | null> = {};
-  for (const { layer, required, options } of FACE_LAYERS) faceLayers[layer] = required ? options[0] : null;
+  for (const { layer } of FACE_LAYERS) faceLayers[layer] = DEFAULT_FACE_LAYERS[layer] ?? null;
   const parts: Record<string, string | null> = {};
-  for (const { slot, required } of WARDROBE_SLOTS) {
-    parts[slot] = required ? WARDROBE_ITEMS.find((i) => i.starter && i.equippable && i.slot === slot && i.hidesSlots.length === 0)!.itemId : null;
-  }
-  return { schemaVersion: WARDROBE_SCHEMA, preset: DEFAULT_PRESET, heightScale: HEIGHT_SCALE_DEFAULT, faceLayers, parts, shapes: {}, colors: {} };
+  for (const { slot } of WARDROBE_SLOTS) parts[slot] = DEFAULT_PARTS[slot] ? DEFAULT_PARTS[slot].toLowerCase() : null;
+  const shapes: Record<string, number> = {};
+  for (const key of SHAPE_KEYS) if (DEFAULT_SHAPES[key] !== undefined) shapes[key] = DEFAULT_SHAPES[key];
+  return { schemaVersion: WARDROBE_SCHEMA, preset: DEFAULT_PRESET, heightScale: HEIGHT_SCALE_DEFAULT, faceLayers, parts, shapes, colors: {} };
 }
 
 // ---- Stored state: wardrobes/{uid} (server-only) ------------------------------
@@ -218,7 +218,7 @@ export function sanitizeIdentity(raw: Identity): { identity: Identity; changed: 
     if (typeof v === "string" && options.includes(v)) { faceLayers[layer] = v; continue; }
     if (v !== null && v !== undefined) changed = true;
     else if (required) changed = true;
-    faceLayers[layer] = required ? options[0] : null;
+    faceLayers[layer] = required ? (DEFAULT_FACE_LAYERS[layer] ?? options[0]) : null; // required → the Default_Boy value
   }
   const shapes: Record<string, number> = {};
   for (const key of SHAPE_KEYS) {
