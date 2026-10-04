@@ -69,7 +69,7 @@ test('ordering and once-only through the callable: typed rejection codes, nothin
   const code = (data, want, http) => assert.rejects(() => host(data), e => e.details?.rejectionCode === want && e.code === http);
   await code({ operation: 'claim', stepId: 'visit_workshop', requestId: 'r1', destinationId: 'workshop' }, 'out_of_order', 'failed-precondition');
   await code({ operation: 'claim', stepId: 'chain_complete', requestId: 'r1' }, 'out_of_order', 'failed-precondition');
-  await code({ operation: 'claim', stepId: 'visit_mission_board', requestId: 'r1', destinationId: 'portal_neon_forest' }, 'invalid_request', 'invalid-argument');
+  await code({ operation: 'claim', stepId: 'visit_mission_board', requestId: 'r1', destinationId: 'portal_terminal' }, 'invalid_request', 'invalid-argument');
   await code({ operation: 'claim', stepId: 'visit_mission_board' }, 'invalid_request', 'invalid-argument');
   assert.equal((await db.doc(`introQuests/${uid}`).get()).exists, false); assert.equal((await user(uid)).holosTokens, 0);
   await host({ operation: 'claim', stepId: 'visit_mission_board', requestId: 'r1', destinationId: 'mission_board' });
@@ -187,4 +187,36 @@ test('account deletion covers the new trees: introQuests/{uid} and vendorPurchas
   for (const path of [`users/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}/receipts/d1`]) assert.equal((await db.doc(path).get()).exists, false, path);
   assert.equal((await db.collection(`vendorPurchases/${uid}/receipts`).get()).size, 0);
   for (const path of [`users/${other}`, `introQuests/${other}`, `vendorPurchases/${other}/receipts/d1`]) assert.equal((await db.doc(path).get()).exists, true, path);
+});
+
+test('legacy purchase callables: every refusal carries details.rejectionCode; HTTPS code + message unchanged; refusals write nothing', async () => {
+  const { purchaseMarketplaceItem } = require('../lib/economy/purchaseMarketplaceItem.js');
+  const { purchaseMarketplaceBooster } = require('../lib/economy/purchaseMarketplaceBooster.js');
+  const { purchaseMarketplacePart } = require('../lib/economy/purchaseMarketplacePart.js');
+  const refused = (p, rejectionCode, code, message) => assert.rejects(p, e => e.code === code && e.message === message && e.details?.rejectionCode === rejectionCode, `${rejectionCode}`);
+  const call = (fn, uid, data) => fn.run({ auth: { uid }, data });
+  const poor = await setup({ holosTokens: 10 }), rich = await setup({ holosTokens: 10000, lastWildcardPackAt: Date.now() - 1000 });
+  const ghost = newUid('ghost');
+  const before = { p: (await db.doc(`users/${poor}`).get()).data(), r: (await db.doc(`users/${rich}`).get()).data() };
+  // purchaseMarketplaceItem
+  await refused(call(purchaseMarketplaceItem, poor, { itemName: 'Rank Skip' }), 'not_enough_holos', 'failed-precondition', 'Not enough Holos.');
+  await refused(call(purchaseMarketplaceItem, rich, { itemName: 'Mystery Box' }), 'unknown_item', 'invalid-argument', 'Unknown marketplace item.');
+  await refused(call(purchaseMarketplaceItem, rich, { itemName: 'Wildcard Blueprints' }), 'on_cooldown', 'invalid-argument', 'Unknown marketplace item.');
+  await refused(call(purchaseMarketplaceItem, rich, { itemName: '  ' }), 'invalid_request', 'invalid-argument', 'An item name is required.');
+  await refused(call(purchaseMarketplaceItem, ghost, { itemName: 'Arena Pass' }), 'unavailable', 'not-found', 'User profile not found.');
+  // purchaseMarketplaceBooster
+  await refused(call(purchaseMarketplaceBooster, poor, { packId: 'elite' }), 'not_enough_holos', 'failed-precondition', 'Not enough Holos.');
+  await refused(call(purchaseMarketplaceBooster, rich, { packId: 'legendary' }), 'unknown_item', 'invalid-argument', 'Unknown booster pack.');
+  await refused(call(purchaseMarketplaceBooster, ghost, { packId: 'common' }), 'unavailable', 'not-found', 'User profile not found.');
+  // purchaseMarketplacePart
+  await refused(call(purchaseMarketplacePart, poor, { partId: 'part.voidMask' }), 'not_enough_holos', 'failed-precondition', 'Not enough Holos.');
+  await refused(call(purchaseMarketplacePart, rich, { partId: 'part.nope' }), 'unknown_item', 'invalid-argument', 'Unknown marketplace part.');
+  await refused(call(purchaseMarketplacePart, rich, {}), 'invalid_request', 'invalid-argument', 'A part id is required.');
+  await refused(call(purchaseMarketplacePart, ghost, { partId: 'part.combatMask' }), 'unavailable', 'not-found', 'User profile not found.');
+  assert.deepEqual({ p: (await db.doc(`users/${poor}`).get()).data(), r: (await db.doc(`users/${rich}`).get()).data() }, before, 'refusals write nothing');
+  assert.equal((await db.doc(`users/${ghost}`).get()).exists, false);
+  // Success replies unchanged.
+  const ok = await call(purchaseMarketplaceItem, rich, { itemName: 'Arena Pass' });
+  assert.deepEqual(ok, { holosTokens: 10000 - 50, itemName: 'Arena Pass', price: 50 });
+  await assert.rejects(purchaseMarketplaceItem.run({ data: { itemName: 'Arena Pass' } }), e => e.code === 'unauthenticated');
 });

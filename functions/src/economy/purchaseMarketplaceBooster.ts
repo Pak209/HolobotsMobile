@@ -6,6 +6,7 @@ import {
   MARKETPLACE_BOOSTER_PRICES,
   type MarketplaceBoosterId,
 } from "../lib/economy";
+import { refusalError, REFUSALS } from "../lib/marketplaceRefusals";
 
 type PurchaseBoosterResponse = {
   granted: {
@@ -27,7 +28,7 @@ export const purchaseMarketplaceBooster = onCall(
 
     const packId = (request.data as { packId?: unknown } | undefined)?.packId;
     if (typeof packId !== "string" || !(packId in MARKETPLACE_BOOSTER_PRICES)) {
-      throw new HttpsError("invalid-argument", "Unknown booster pack.");
+      throw refusalError(REFUSALS.unknownBooster);
     }
 
     const userRef = db.doc(`users/${uid}`);
@@ -35,14 +36,14 @@ export const purchaseMarketplaceBooster = onCall(
     return db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(userRef);
       if (!snapshot.exists) {
-        throw new HttpsError("not-found", "User profile not found.");
+        throw refusalError(REFUSALS.profileMissing);
       }
 
       const userData = snapshot.data() ?? {};
       const result = buildBoosterPurchaseUpdatesRaw(userData, packId as MarketplaceBoosterId);
 
       if (!result) {
-        throw new HttpsError("failed-precondition", "Not enough Holos.");
+        throw refusalError(REFUSALS.notEnoughHolos);
       }
 
       transaction.set(userRef, result.updates, { merge: true });

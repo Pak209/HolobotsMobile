@@ -5,6 +5,7 @@ import {
   buildPartPurchaseUpdatesRaw,
   getMarketplacePartOffer,
 } from "../lib/economy";
+import { refusalError, REFUSALS } from "../lib/marketplaceRefusals";
 
 type PurchasePartResponse = {
   holosTokens: number;
@@ -21,11 +22,11 @@ export const purchaseMarketplacePart = onCall(async (request): Promise<PurchaseP
 
   const partId = (request.data as { partId?: unknown } | undefined)?.partId;
   if (typeof partId !== "string" || !partId.trim()) {
-    throw new HttpsError("invalid-argument", "A part id is required.");
+    throw refusalError(REFUSALS.partIdRequired);
   }
 
   if (!getMarketplacePartOffer(partId)) {
-    throw new HttpsError("invalid-argument", "Unknown marketplace part.");
+    throw refusalError(REFUSALS.unknownPart);
   }
 
   const userRef = db.doc(`users/${uid}`);
@@ -33,12 +34,12 @@ export const purchaseMarketplacePart = onCall(async (request): Promise<PurchaseP
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(userRef);
     if (!snapshot.exists) {
-      throw new HttpsError("not-found", "User profile not found.");
+      throw refusalError(REFUSALS.profileMissing);
     }
 
     const result = buildPartPurchaseUpdatesRaw(snapshot.data() ?? {}, partId);
     if (!result) {
-      throw new HttpsError("failed-precondition", "Not enough Holos.");
+      throw refusalError(REFUSALS.notEnoughHolos);
     }
 
     transaction.set(userRef, result.updates, { merge: true });

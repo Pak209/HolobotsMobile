@@ -175,13 +175,21 @@ export function validateBuddyPurchase(raw: unknown): BuddyPurchaseCommand {
   return { tierId: tier.id, requestId: c.requestId };
 }
 
+/** Strict Holos read (same rule as introQuests readBalance): absent → 0; a finite non-negative number → itself; anything else (numeric string, array, NaN, negative) → unavailable. */
+function readHolos(profile: Record<string, unknown>): number {
+  const v = profile.holosTokens;
+  if (v === undefined) return 0;
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0) throw new VendorError("unavailable");
+  return v;
+}
+
 /** Spend the tier's price and add one Unit of that tier in the same update. Not enough Holos → not_enough_holos (nothing written). */
 export function buildBuddyUnitPurchase(profile: Record<string, unknown>, cmd: BuddyPurchaseCommand): { updates: Record<string, unknown>; reply: BuddyPurchaseReply } {
   const tier = tierById(cmd.tierId)!;
   const price = BUDDY_UNIT_PRICES_HOLOS[tier.key]!;
   const inv = readBuddyInventory(profile);
-  const holos = Number(profile.holosTokens || 0);
-  if (!inv || !Number.isFinite(holos)) throw new VendorError("unavailable");
+  const holos = readHolos(profile);
+  if (!inv) throw new VendorError("unavailable");
   if (holos < price) throw new VendorError("not_enough_holos");
   const units = withTierDelta(inv.units, tier.key, 1);
   const holosAfter = holos - price;

@@ -23,7 +23,7 @@ test('reward table: 7 steps in order, 50–150 Holos each, totals 600 Holos / 3 
   assert.deepEqual(Q.INTRO_QUEST_STEPS.map(s => [s.reward.holos, s.reward.gachaTickets, s.reward.buddyUnitsLight]), [[50, 0, 0], [50, 1, 0], [75, 0, 0], [100, 0, 1], [100, 1, 0], [75, 0, 0], [150, 1, 0]]);
   for (const s of Q.INTRO_QUEST_STEPS) assert.ok(s.reward.holos >= 50 && s.reward.holos <= 150, s.stepId);
   assert.deepEqual(Q.introQuestTotals(), { holos: 600, gachaTickets: 3, buddyUnitsLight: 1 });
-  assert.deepEqual(Q.INTRO_QUEST_STEPS.filter(s => s.kind === 'visit').map(s => s.destinationId), ['mission_board', 'marketplace', 'workshop', 'portal_neon_forest']);
+  assert.deepEqual(Q.INTRO_QUEST_STEPS.filter(s => s.kind === 'visit').map(s => s.destinationId), ['mission_board', 'marketplace', 'workshop', 'portal_terminal']);
   assert.equal(Q.INTRO_QUEST_STEPS.find(s => s.kind === 'capture').holobotId, 'hare');
 });
 
