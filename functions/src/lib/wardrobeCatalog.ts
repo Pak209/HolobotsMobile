@@ -106,16 +106,36 @@ export const FACE_LAYERS: readonly FaceLayerRow[] = [
   { layer: "underLower", required: true, options: ["UnderLower_SimpleBoxers", "Underlower_ShortSpats", "UnderLower_SimplePanties"] },
 ];
 
-// ---- Sliders and colours --------------------------------------------------------------
+// ---- Body / face shapes (BoZo blendshapes) and colours ----------------------------------
 
-export const SLIDER_KEYS: readonly string[] = [
-  "height", "build", "headSize", "shoulderWidth", "legLength",
-  "eyeSize", "eyeSpacing", "noseSize", "mouthWidth", "jaw", "cheek", "ear",
+/**
+ * Real BoZo blendshape keys (meshes name them `Shape_<Key>`), producer relay 2026-10-04. Values are Unity
+ * blendshape weights. Height and limb proportions are bone modifiers in BoZo, not blendshapes, and are
+ * out of scope for wardrobe-3.
+ */
+export const SHAPE_BLENDSHAPE_PREFIX = "Shape_";
+/** Body mesh (BodyRig / Body_BasicBodyV2). */
+export const BODY_SHAPE_KEYS: readonly string[] = ["Belly", "BodyType", "ButtSize", "Chest", "Curvy", "Muscle", "NeckThickness", "WaistSize", "Weight"];
+const HEAD_V2_SHAPES = [
+  "EarAngle", "EarsElf", "EyeLidHeight", "EyesOuterCornersHigh", "EyesOuterCornersLow", "EyesSquare", "IrisSize", "LowerBrows", "MouthThin",
+  "MouthWide", "NoseBridgeCurve", "NoseTiltDown", "NoseTiltUp", "NoseWidth", "RaiseBrows", "Sharpness", "Squareness", "Stern",
 ];
-/** Inclusive; outside → REJECTED (invalid_request), never clamped. Missing key = SLIDER_DEFAULT. */
-export const SLIDER_MIN = -1;
-export const SLIDER_MAX = 1;
-export const SLIDER_DEFAULT = 0;
+/** Face blendshapes depend on the head (faceLayers.head). Every head option must be listed. */
+export const FACE_SHAPES_BY_HEAD: Readonly<Record<string, readonly string[]>> = {
+  Head_BasicHead: HEAD_V2_SHAPES, Head_SharpHead: HEAD_V2_SHAPES, Head_Stern: HEAD_V2_SHAPES, Head_YoungSharpHead: HEAD_V2_SHAPES, // BSMC_Head + Head_V2 meshes
+  Head_AnimeYoung: ["EarLength", "EyeRoundness", "Maturity", "MouthWidth", "Roundness", "Sharpness"],
+};
+/**
+ * Accepted face keys: the UNION over all heads. A key the chosen head lacks is harmless (Unity ignores
+ * it), so a head mismatch is NOT rejected.
+ */
+export const FACE_SHAPE_KEYS: readonly string[] = [...new Set(Object.values(FACE_SHAPES_BY_HEAD).flat())];
+/** Recipe `shapes` key order: body keys, then face keys. */
+export const SHAPE_KEYS: readonly string[] = [...BODY_SHAPE_KEYS, ...FACE_SHAPE_KEYS];
+/** Unity blendshape weight range, inclusive; outside → REJECTED (invalid_request), never clamped. Missing key = SHAPE_DEFAULT. */
+export const SHAPE_MIN = 0;
+export const SHAPE_MAX = 100;
+export const SHAPE_DEFAULT = 0;
 
 /**
  * Global channels (one #RRGGBB each; missing = default). Per-slot colours live in the same
@@ -155,6 +175,16 @@ export type WardrobeItem = {
 
 const displayNameOf = (bozoPart: string) => bozoPart.slice(bozoPart.indexOf("_") + 1).replace(/([a-z0-9])([A-Z])/g, "$1 $2");
 
+/** Shape tables must cover exactly the head options, and body / face keys must not collide. Throws otherwise. */
+export function validateShapeTables(faceLayers: readonly FaceLayerRow[], body: readonly string[], byHead: Readonly<Record<string, readonly string[]>>): void {
+  const fail = (msg: string): never => { throw new Error(`wardrobe catalog: ${msg}`); };
+  const heads = faceLayers.find((l) => l.layer === "head")?.options ?? fail("no head face layer");
+  if (heads.some((h) => !byHead[h]) || Object.keys(byHead).some((h) => !heads.includes(h))) fail("FACE_SHAPES_BY_HEAD must list exactly the head options");
+  const face = new Set(Object.values(byHead).flat());
+  if (new Set(body).size !== body.length || body.some((k) => face.has(k))) fail("body and face shape keys overlap");
+  if ([...body, ...face].some((k) => !/^[A-Za-z]+$/.test(k))) fail("shape keys are bare BoZo names (no Shape_ prefix)");
+}
+
 /** Derives the catalog from a manifest and validates every producer decision against it. Throws on any inconsistency. */
 export function buildWardrobeItems(manifest: readonly ManifestEntry[]): WardrobeItem[] {
   const fail = (msg: string): never => { throw new Error(`wardrobe catalog: ${msg}`); };
@@ -185,6 +215,7 @@ export function buildWardrobeItems(manifest: readonly ManifestEntry[]): Wardrobe
     if (s.required && !items.some((i) => i.slot === s.slot && i.starter && i.equippable)) fail(`required slot ${s.slot} has no starter item`);
   }
   for (const l of FACE_LAYERS) if (l.options.length === 0 || new Set(l.options).size !== l.options.length) fail(`face layer ${l.layer} options`);
+  validateShapeTables(FACE_LAYERS, BODY_SHAPE_KEYS, FACE_SHAPES_BY_HEAD);
   return items;
 }
 

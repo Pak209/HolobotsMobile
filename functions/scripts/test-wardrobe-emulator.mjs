@@ -37,7 +37,7 @@ test('status writes nothing and grants nothing: no wardrobe doc, untouched user,
   const s = await host(uid, { operation: 'status' });
   assert.equal(s.schemaVersion, 'wardrobe-3'); assert.deepEqual(s.entitlements, []); assert.equal(s.recipeSaved, false); assert.deepEqual(s.recipe, W.defaultRecipe());
   assert.equal(s.holosTokens, 42); assert.deepEqual(s.catalog, W.wardrobeCatalogView([])); assert.equal(s.catalog.items.length, 120); assert.equal(s.catalog.placeholder, false);
-  assert.deepEqual(s.catalog.slots.map(x => x.slot), C.WARDROBE_SLOTS.map(x => x.slot)); assert.deepEqual(s.catalog.sliders.keys, C.SLIDER_KEYS); assert.deepEqual(s.catalog.colors.globalChannels, C.GLOBAL_COLOR_CHANNELS);
+  assert.deepEqual(s.catalog.slots.map(x => x.slot), C.WARDROBE_SLOTS.map(x => x.slot)); assert.deepEqual([...s.catalog.shapes.body, ...s.catalog.shapes.face], C.SHAPE_KEYS); assert.deepEqual(s.catalog.colors.globalChannels, C.GLOBAL_COLOR_CHANNELS);
   assert.equal((await db.doc(`wardrobes/${uid}`).get()).exists, false); assert.deepEqual(await user(uid), before);
   assert.equal((await db.collection(`wardrobes/${uid}/receipts`).get()).size, 0);
   await exportFixture('wardrobe-3_status_fresh', s);
@@ -93,11 +93,11 @@ test('already_owned: a new requestId for an owned item is refused with no charge
   assert.equal((await user(uid)).holosTokens, 3000 - 750 - 750);
 });
 
-test('equip: starter-only with zero Holos is OK; unowned / wrong slot / hide rule / faceLayer / colour cap / unknown keys / bad sliders / bad hex / oversize are rejected with nothing stored', async () => {
+test('equip: starter-only with zero Holos is OK; unowned / wrong slot / hide rule / faceLayer / colour cap / unknown keys / bad shapes / bad hex / oversize are rejected with nothing stored', async () => {
   const uid = await setup({ holosTokens: 0 });
   const r = base(); Object.assign(r.parts, { top: 'top_tshirt', socks: 'socks_basicsocks', hairBack: 'hairback_casualflow' });
   Object.assign(r.faceLayers, { head: 'Head_SharpHead', faceDetails: 'FaceDetail_Freakles', underLower: 'Underlower_ShortSpats' });
-  r.sliders = { height: 0.4, jaw: -1 }; r.colors = { skin: '#c08060', top: ['#1f8fff', '#000000'], socks: [] };
+  r.shapes = { Weight: 40, Muscle: 100, Stern: 0 }; r.colors = { skin: '#c08060', top: ['#1f8fff', '#000000'], socks: [] };
   const ok = await equip(uid, r, 's1');
   assert.equal(ok.recipeSaved, true); assert.equal(ok.holosTokens, 0); assert.equal(ok.recipe.colors.skin, '#C08060');
   assert.deepEqual(ok.recipe.colors.top, ['#1F8FFF', '#000000']); assert.equal('socks' in ok.recipe.colors, false, 'empty slot arrays are dropped');
@@ -111,7 +111,7 @@ test('equip: starter-only with zero Holos is OK; unowned / wrong slot / hide rul
   await rejects(equip(uid, withPart('hat', 'hat_fedora'), 'x1b'), 'not_owned', 'failed-precondition');
   for (const [i, bad] of [withPart('hat', 'top_tshirt'), withPart('hairFront', 'hairfront_ghost'), withPart('hairFront', null), withPart('bottom', null), withPart('upperFace', 'upperface_roundglasseslens'),
     { ...base(), extra: true }, withPart('wings', 'top_tshirt'), withLayer('head', 'Head_Ghost'), withLayer('eyes', null), withLayer('tail', 'Tail_Long'),
-    { ...base(), sliders: { height: 1.5 } }, { ...base(), sliders: { tail: 0 } }, { ...base(), colors: { hair: '#12345' } }, { ...base(), colors: { glow: '#123456' } },
+    { ...base(), shapes: { Weight: 100.5 } }, { ...base(), shapes: { Weight: -1 } }, { ...base(), shapes: { height: 10 } }, { ...base(), sliders: { height: 0.4 } }, { ...base(), colors: { hair: '#12345' } }, { ...base(), colors: { glow: '#123456' } },
     { ...base(), colors: { top: ['#111111', '#222222', '#333333'] } }, { ...base(), colors: { hat: ['#111111'] } },
     { ...base(), colors: { hair: '#123456' }, pad: 'x'.repeat(5000) }].entries())
     await rejects(equip(uid, bad, `x${i + 2}`), 'invalid_request', 'invalid-argument');

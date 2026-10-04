@@ -126,12 +126,22 @@ These are not items: nothing is owned or sold. **Required** layers must be one o
 | `underUpper` | yes | `UnderUpper_SimpleUnderShirt`, `UnderUpper_SimpleUnderShirt2`, `UnderUpper_SimpleBra` |
 | `underLower` | yes | `UnderLower_SimpleBoxers`, `Underlower_ShortSpats`, `UnderLower_SimplePanties` |
 
-### Sliders, colours, size cap
+### Shapes (BoZo blendshapes), colours, size cap
 
-- **Sliders:** `height, build, headSize, shoulderWidth, legLength, eyeSize, eyeSpacing, noseSize, mouthWidth, jaw, cheek, ear`.
-  - Values must be finite numbers in **[-1, 1] inclusive**.
-  - Out-of-range, NaN and Infinity values are **rejected** (`invalid_request`), never clamped, so that a retry fingerprints identically.
-  - A missing key means `0`.
+- **Shapes:** `recipe.shapes: { <Key>: number }`. These are the real BoZo blendshapes, named `Shape_<Key>` on the pack's meshes (producer relay, 2026-10-04). They replace the guessed slider list from earlier drafts; the `sliders` key no longer exists and is rejected as unknown.
+  - **Body** (Body mesh, BodyRig / Body_BasicBodyV2): `Belly, BodyType, ButtSize, Chest, Curvy, Muscle, NeckThickness, WaistSize, Weight`.
+  - **Face:** the keys depend on the head (`faceLayers.head`):
+
+    | head | face shape keys |
+    |---|---|
+    | `Head_BasicHead`, `Head_SharpHead`, `Head_Stern`, `Head_YoungSharpHead` (BSMC_Head + Head_V2 meshes) | `EarAngle, EarsElf, EyeLidHeight, EyesOuterCornersHigh, EyesOuterCornersLow, EyesSquare, IrisSize, LowerBrows, MouthThin, MouthWide, NoseBridgeCurve, NoseTiltDown, NoseTiltUp, NoseWidth, RaiseBrows, Sharpness, Squareness, Stern` |
+    | `Head_AnimeYoung` | `EarLength, EyeRoundness, Maturity, MouthWidth, Roundness, Sharpness` |
+
+  - **Accepted face keys are the union over all heads** (23 keys). A key the chosen head doesn't have is harmless, since Unity ignores it, so a head mismatch is **not** rejected.
+  - Values are Unity blendshape weights: finite numbers in **[0, 100] inclusive**. Out-of-range, NaN, Infinity and non-numbers are **rejected** (`invalid_request`), never clamped, so that a retry fingerprints identically.
+  - Keys are exact and case-sensitive, with no `Shape_` prefix in the recipe. A missing key means `0`.
+  - Canonical order: body keys, then face keys.
+  - **Out of scope for wardrobe-3:** height and limb proportions. In BoZo these are bone modifiers, not blendshapes.
 - **Global colours:** `skin`, `hair`, `eyes`.
   - Values must be strict `#RRGGBB`. Either case is accepted and stored upper-case.
   - Defaults: skin `#E8B996`, hair `#2B2B2B`, eyes `#3A6EA5`.
@@ -161,7 +171,7 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
     "parts": { "hairFront": "hairfront_asymmetricalfringe", "hairBack": "hairback_casualflow", "top": "top_sundress",
                "bottom": null,                                              // MUST be null: Top_Sundress hides Bottom
                "feet": "feet_athleticmidtop", "socks": "socks_basicsocks" }, // optional slots: omit or null = none
-    "sliders": { "height": 0.4, "jaw": -1 },                               // optional; missing keys = 0
+    "shapes":  { "Weight": 40, "Muscle": 100, "Sharpness": 25 },          // optional; BoZo Shape_<Key> weights in [0, 100]; missing = 0
     "colors":  { "skin": "#C08060", "top": ["#1F8FFF", "#000000"] }        // optional; per-slot length <= colorChannels
 } }
 ```
@@ -183,7 +193,9 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
     "placeholder": false, "source": "BoZo Anime Pack runtime prefabs (Outfit.Type), manifest 2026-10-03 (120 entries)",
     "slots": [{ "slot": "hairFront", "type": "HairFront", "required": true }, /* … 13 */],
     "faceLayers": [{ "layer": "head", "required": true, "options": ["Head_AnimeYoung", /* … */] }, /* … 16 */],
-    "sliders": { "keys": ["height", /* … */ "ear"], "min": -1, "max": 1, "default": 0 },
+    "shapes": { "blendshapePrefix": "Shape_", "min": 0, "max": 100, "default": 0,
+                "body": ["Belly", /* … 9 */], "face": ["EarAngle", /* … 23, union over heads */],
+                "faceByHead": { "Head_AnimeYoung": ["EarLength", /* … */], "Head_BasicHead": [/* … */], /* every head option */ } },
     "colors": { "globalChannels": ["skin", "hair", "eyes"], "defaults": { "skin": "#E8B996", "hair": "#2B2B2B", "eyes": "#3A6EA5" },
                 "format": "#RRGGBB", "perSlot": "array of #RRGGBB, length <= the equipped item's colorChannels" },
     "maxRecipeBytes": 4096,
@@ -215,7 +227,7 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 
 The reply recipe is **canonical**:
 - every face layer and every slot is present (`null` = none), in catalog order;
-- sliders contain only the keys that were set;
+- shapes contain only the keys that were set, body keys then face keys;
 - colours list the global channels first, then slots, in catalog order;
 - hex is upper-case.
 
@@ -225,7 +237,7 @@ Render the returned recipe, not the one you sent. Fixtures are in `fixtures/`: `
 
 | rejectionCode | HTTPS code | When |
 |---|---|---|
-| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key; wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; slider unknown, out of [-1, 1] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
+| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
 | `not_owned` | `failed-precondition` | equip with a sold item the pilot doesn't own |
 | `already_owned` | `already-exists` | purchase of an owned item with a new `requestId`. No charge, nothing written. |
 | `not_enough_holos` | `failed-precondition` | message **"Not enough Holos."**. Nothing written, so the same `requestId` can succeed later. |
@@ -286,7 +298,7 @@ Render the returned recipe, not the one you sent. Fixtures are in `fixtures/`: `
    - `itemId` is the server key. Send it in `parts` and `purchase`.
    - Face-layer values are exact BoZo names too.
 3. **On creator open:** call `wardrobeHost {schemaVersion:"wardrobe-3", operation:"status"}`.
-   - Build every picker from `catalog`: slots, faceLayers, sliders, colours, and items with `usable`/`owned`/`hidesSlots`.
+   - Build every picker from `catalog`: slots, faceLayers, shapes (body keys plus `faceByHead[recipe.faceLayers.head]`), colours, and items with `usable`/`owned`/`hidesSlots`.
    - Load `recipe` (the default if `recipeSaved: false`).
    - **Don't hard-code any id, price, slot, layer or whitelist.**
 4. **Hide rule in the UI:** when the user picks a top whose `hidesSlots` contains `bottom`, clear `parts.bottom` to `null` and grey out the bottom picker. When they switch to a non-hiding top, require a bottom again: restore the previous bottom or the default. The server enforces this both ways.
@@ -308,6 +320,7 @@ Render the returned recipe, not the one you sent. Fixtures are in `fixtures/`: `
    - `RARITY_RULES`
    - `PART_OVERRIDES`
    - `FACE_LAYERS`
+   - `BODY_SHAPE_KEYS` and `FACE_SHAPES_BY_HEAD` (the generator requires exactly one shape list per head option)
    - `WARDROBE_CATALOG_SOURCE`
 
    No code in `lib/wardrobe.ts`, the store or the host changes.

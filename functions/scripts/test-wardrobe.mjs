@@ -85,6 +85,18 @@ test('generator rejects a bad manifest or decisions that no longer match it (fai
   assert.deepEqual(gen.find(i => i.bozoPart === 'Hat_SunHat').incompatibleSlots, ['headAcc']);
 });
 
+test('shape tables: exactly one face list per head option; body/face keys disjoint and bare (fails the build otherwise)', () => {
+  const body = C.BODY_SHAPE_KEYS, byHead = C.FACE_SHAPES_BY_HEAD;
+  assert.doesNotThrow(() => C.validateShapeTables(C.FACE_LAYERS, body, byHead));
+  const { Head_Stern, ...missingHead } = byHead;
+  assert.throws(() => C.validateShapeTables(C.FACE_LAYERS, body, missingHead), /exactly the head options/);
+  assert.throws(() => C.validateShapeTables(C.FACE_LAYERS, body, { ...byHead, Head_Robot: ['Visor'] }), /exactly the head options/);
+  assert.throws(() => C.validateShapeTables(C.FACE_LAYERS, [...body, 'Sharpness'], byHead), /overlap/);
+  assert.throws(() => C.validateShapeTables(C.FACE_LAYERS, [...body, 'Belly'], byHead), /overlap/);
+  assert.throws(() => C.validateShapeTables(C.FACE_LAYERS, ['Shape_Belly'], byHead), /no Shape_ prefix/);
+  assert.throws(() => C.validateShapeTables(C.FACE_LAYERS.filter(l => l.layer !== 'head'), body, byHead), /no head face layer/);
+});
+
 test('hide rule, both directions, for every manifest hider: bottom MUST be null under it; otherwise bottom is required', () => {
   assert.ok(HIDERS.length >= 1);
   for (const p of HIDERS) {
@@ -143,12 +155,12 @@ test('colours: per-slot arrays capped at the equipped item\'s colorChannels; glo
   for (const i of ITEMS.filter(i => i.equippable)) assert.ok(i.colorChannels >= 0);
 });
 
-test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot / unknown / lens / unknown keys / bad sliders / oversize → invalid_request', () => {
+test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot / unknown / lens / unknown keys / bad shapes / oversize → invalid_request', () => {
   const r = base(); Object.assign(r.parts, { hairFront: id('HairFront_HimeCut'), hairBack: id('Hairback_ShinryuCut'), top: id('Top_TankTop'), socks: id('Socks_BasicSocks') });
-  r.sliders = { ear: -1, height: 0.25 };
+  r.shapes = { Roundness: 100, Belly: 0, Muscle: 37.5, EarsElf: 12 }; // EarsElf: not on Head_AnimeYoung, still accepted (union)
   const out = W.applyEquip({ holosTokens: 0 }, fresh(), equipCmd(r));
   assert.equal(out.reply.holosTokens, 0); assert.equal(out.reply.purchased, null); assert.equal(out.state.recipe.parts.hairBack, 'hairback_shinryucut');
-  assert.deepEqual(Object.keys(out.state.recipe.sliders), ['height', 'ear']);
+  assert.deepEqual(out.state.recipe.shapes, { Belly: 0, Muscle: 37.5, EarsElf: 12, Roundness: 100 }, 'canonical order: body keys, then face keys');
   const withPart = (slot, v) => { const x = base(); x.parts[slot] = v; return x; };
   assert.throws(() => W.applyEquip({ holosTokens: 9999 }, fresh(), equipCmd(withPart('hat', id('Hat_Fedora')))), e => e.code === 'not_owned');
   assert.throws(() => W.applyEquip({}, fresh(), equipCmd(Object.assign(base(), { parts: { ...base().parts, top: id('Top_Overall'), bottom: null } }))), e => e.code === 'not_owned');
@@ -160,8 +172,11 @@ test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot 
   invalid(() => equipCmd(withPart('cape', 'hat_fedora')), 'unknown slot');
   invalid(() => equipCmd({ ...base(), baseBody: 'Body_BasicBody' }), 'wardrobe-2 keys are unknown in wardrobe-3');
   invalid(() => equipCmd({ ...base(), schemaVersion: 'wardrobe-2' }));
-  for (const v of [1.0001, -1.5, NaN, Infinity, '0.5']) invalid(() => equipCmd({ ...base(), sliders: { height: v } }), `slider ${v}`);
-  invalid(() => equipCmd({ ...base(), sliders: { tail: 0 } }));
+  for (const v of [100.0001, -0.0001, -1, 101, NaN, Infinity, -Infinity, '50', null, [50]]) invalid(() => equipCmd({ ...base(), shapes: { Weight: v } }), `shape ${v}`);
+  for (const k of ['height', 'legLength', 'Shape_Weight', 'weight', 'Tail']) invalid(() => equipCmd({ ...base(), shapes: { [k]: 10 } }), `unknown shape key ${k}`);
+  for (const v of [[10], 5, null, true, '', 'Weight']) invalid(() => equipCmd({ ...base(), shapes: v }), `shapes must be an object: ${JSON.stringify(v)}`);
+  invalid(() => equipCmd({ ...base(), sliders: { height: 0.5 } }), 'wardrobe-3 drafts\' sliders key is gone');
+  for (const v of [0, 100, 0.5, 99.999]) assert.equal(W.validateRecipe({ ...base(), shapes: { Chest: v } }).shapes.Chest, v, `edge ${v}`);
   invalid(() => equipCmd({ ...base(), colors: { hair: '#111111' }, pad: 'x'.repeat(5000) }), 'oversize');
 });
 
@@ -172,7 +187,7 @@ test('largest possible valid recipe stays under the 4 KB cap (the cap is defense
     const pool = ITEMS.filter(i => i.slot === s.slot && i.equippable && i.hidesSlots.length === 0);
     big.parts[s.slot] = pool.sort((a, b) => b.itemId.length - a.itemId.length)[0].itemId;
   }
-  big.sliders = Object.fromEntries(C.SLIDER_KEYS.map(k => [k, -0.12345678901234567]));
+  big.shapes = Object.fromEntries(C.SHAPE_KEYS.map(k => [k, 99.12345678901234]));
   big.colors = { ...Object.fromEntries(C.GLOBAL_COLOR_CHANNELS.map(c => [c, '#ABCDEF'])), ...Object.fromEntries(C.WARDROBE_SLOTS.map(s => [s.slot, Array(ITEMS.find(i => i.itemId === big.parts[s.slot]).colorChannels).fill('#ABCDEF')])) };
   const bytes = Buffer.byteLength(JSON.stringify(big));
   assert.ok(bytes < C.MAX_RECIPE_BYTES, `${bytes} bytes`); assert.doesNotThrow(() => W.validateRecipe(big));
@@ -198,8 +213,8 @@ test('no reset trap: absent = nothing owned; malformed / wardrobe-2 / bad entitl
 });
 
 test('fingerprints: equivalent recipes share one (key order, hex case, omitted optional slots/layers); any change alters it', () => {
-  const a = base(); a.sliders = { height: 0.5, ear: -0.5 }; a.colors = { hair: '#abcdef', top: ['#010203'] };
-  const b = base(); b.sliders = { ear: -0.5, height: 0.5 }; b.colors = { top: ['#010203'], hair: '#ABCDEF' }; delete b.parts.gloves; delete b.faceLayers.makeUpEyes;
+  const a = base(); a.shapes = { Weight: 50, Sharpness: 25 }; a.colors = { hair: '#abcdef', top: ['#010203'] };
+  const b = base(); b.shapes = { Sharpness: 25, Weight: 50 }; b.colors = { top: ['#010203'], hair: '#ABCDEF' }; delete b.parts.gloves; delete b.faceLayers.makeUpEyes;
   assert.equal(W.commandFingerprint(equipCmd(a)), W.commandFingerprint(equipCmd(b, 'x')));
   const c = structuredClone(a); c.faceLayers.pupil = 'Pupil_StarPupil';
   assert.notEqual(W.commandFingerprint(equipCmd(a)), W.commandFingerprint(equipCmd(c)));
@@ -208,7 +223,7 @@ test('fingerprints: equivalent recipes share one (key order, hex case, omitted o
     invalid(() => W.validateWardrobeCommand(raw));
 });
 
-test('status view: slots, face-layer whitelists, sliders, colour rules and all 120 items (so Unity hard-codes none)', () => {
+test('status view: slots, face-layer whitelists, shapes, colour rules and all 120 items (so Unity hard-codes none)', () => {
   const s = W.wardrobeStatus({ holosTokens: 10 }, { schemaVersion: 'wardrobe-3', entitlements: ['hat_fedora'], recipe: null });
   assert.equal(s.schemaVersion, 'wardrobe-3'); assert.equal(s.recipeSaved, false); assert.deepEqual(s.recipe, W.defaultRecipe());
   assert.deepEqual(s.catalog.slots.map(x => x.slot), C.WARDROBE_SLOTS.map(x => x.slot)); assert.equal(s.catalog.faceLayers.length, 16);
@@ -217,4 +232,17 @@ test('status view: slots, face-layer whitelists, sliders, colour rules and all 1
   const lens = s.catalog.items.find(i => i.itemId === 'upperface_roundglasseslens'); assert.equal(lens.usable, false);
   assert.ok(s.catalog.items.filter(i => i.starter).every(i => i.usable && !i.owned));
   assert.deepEqual(s.catalog.items.find(i => i.bozoPart === 'Top_Overall').hidesSlots, ['bottom']);
+  assert.deepEqual(s.catalog.shapes, {
+    blendshapePrefix: 'Shape_', min: 0, max: 100, default: 0,
+    body: ['Belly', 'BodyType', 'ButtSize', 'Chest', 'Curvy', 'Muscle', 'NeckThickness', 'WaistSize', 'Weight'],
+    face: [...HEAD_V2, 'EarLength', 'EyeRoundness', 'Maturity', 'MouthWidth', 'Roundness'],
+    faceByHead: { Head_BasicHead: HEAD_V2, Head_SharpHead: HEAD_V2, Head_Stern: HEAD_V2, Head_YoungSharpHead: HEAD_V2,
+      Head_AnimeYoung: ['EarLength', 'EyeRoundness', 'Maturity', 'MouthWidth', 'Roundness', 'Sharpness'] },
+  });
+  assert.equal(s.catalog.shapes.face.length, 23, '18 Head_V2 + 6 AnimeYoung, Sharpness shared');
+  assert.deepEqual(Object.keys(s.catalog.shapes.faceByHead).sort(), [...C.FACE_LAYERS.find(l => l.layer === 'head').options].sort(), 'every head option has its face shapes');
+  assert.equal('sliders' in s.catalog, false);
 });
+
+const HEAD_V2 = ['EarAngle', 'EarsElf', 'EyeLidHeight', 'EyesOuterCornersHigh', 'EyesOuterCornersLow', 'EyesSquare', 'IrisSize', 'LowerBrows', 'MouthThin',
+  'MouthWide', 'NoseBridgeCurve', 'NoseTiltDown', 'NoseTiltUp', 'NoseWidth', 'RaiseBrows', 'Sharpness', 'Squareness', 'Stern'];

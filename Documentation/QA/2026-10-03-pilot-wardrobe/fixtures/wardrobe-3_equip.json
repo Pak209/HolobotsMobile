@@ -40,9 +40,10 @@
       "leggings": null,
       "socks": "socks_basicsocks"
     },
-    "sliders": {
-      "height": 0.4,
-      "jaw": -1
+    "shapes": {
+      "Muscle": 100,
+      "Weight": 40,
+      "Stern": 0
     },
     "colors": {
       "skin": "#C08060",

@@ -7,7 +7,7 @@
  */
 import { createHash } from "node:crypto";
 import {
-  FACE_LAYERS, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, SLIDER_DEFAULT, SLIDER_KEYS, SLIDER_MAX, SLIDER_MIN,
+  FACE_LAYERS, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, BODY_SHAPE_KEYS, FACE_SHAPE_KEYS, FACE_SHAPES_BY_HEAD, SHAPE_BLENDSHAPE_PREFIX, SHAPE_DEFAULT, SHAPE_KEYS, SHAPE_MAX, SHAPE_MIN,
   WARDROBE_CATALOG_IS_PLACEHOLDER, WARDROBE_CATALOG_SOURCE, WARDROBE_ITEM_BY_ID, WARDROBE_ITEMS, WARDROBE_SLOTS, type WardrobeItem,
 } from "./wardrobeCatalog";
 
@@ -33,22 +33,22 @@ export type Recipe = {
   faceLayers: Record<string, string | null>;
   /** Every slot, in WARDROBE_SLOTS order; null for optional slots, and for any slot an equipped item hides. */
   parts: Record<string, string | null>;
-  /** Only the keys the pilot set (missing = SLIDER_DEFAULT), in SLIDER_KEYS order. */
-  sliders: Record<string, number>;
+  /** BoZo blendshape weights `Shape_<Key>` in [0, 100]: only the keys the pilot set (missing = 0), body keys then face keys. */
+  shapes: Record<string, number>;
   /**
    * Global channels (skin, hair, eyes) → "#RRGGBB"; slot name → ["#RRGGBB", …] with at most the
    * equipped item's colorChannels entries. Only what the pilot set, upper-case, channels then slots in order.
    */
   colors: Record<string, string | string[]>;
 };
-const RECIPE_KEYS = new Set(["schemaVersion", "faceLayers", "parts", "sliders", "colors"]);
+const RECIPE_KEYS = new Set(["schemaVersion", "faceLayers", "parts", "shapes", "colors"]);
 
 /**
  * Structural validation (no ownership): returns the canonical recipe or throws invalid_request for an
  * oversize payload, unknown keys, a wrong schema, a face layer outside its whitelist (or a missing
  * required layer), an unknown / non-equippable item, an item in the wrong slot, a missing required
  * slot, a filled slot that an equipped item hides (e.g. bottom under Top_Overall), a filled slot an
- * equipped item is incompatible with, a non-finite or out-of-range slider (REJECTED, never clamped),
+ * equipped item is incompatible with, an unknown shape key or a non-finite / out-of-[0, 100] shape weight (REJECTED, never clamped),
  * a colour that isn't strict #RRGGBB, or a slot colour array longer than that item's colorChannels.
  */
 export function validateRecipe(raw: unknown): Recipe {
@@ -95,16 +95,17 @@ export function validateRecipe(raw: unknown): Recipe {
     else if (required && parts[slot] === null) bad();
   }
 
-  const sliders: Record<string, number> = {};
-  if (r.sliders !== undefined) {
-    if (!isPlainObject(r.sliders)) bad();
-    const s = r.sliders as Record<string, unknown>;
-    if (Object.keys(s).some((k) => !SLIDER_KEYS.includes(k))) bad();
-    for (const key of SLIDER_KEYS) {
+  // Face keys are checked against the union over all heads: a key the chosen head lacks is harmless (Unity ignores it).
+  const shapes: Record<string, number> = {};
+  if (r.shapes !== undefined) {
+    if (!isPlainObject(r.shapes)) bad();
+    const s = r.shapes as Record<string, unknown>;
+    if (Object.keys(s).some((k) => !SHAPE_KEYS.includes(k))) bad();
+    for (const key of SHAPE_KEYS) {
       if (s[key] === undefined) continue;
       const n = s[key];
-      if (typeof n !== "number" || !Number.isFinite(n) || n < SLIDER_MIN || n > SLIDER_MAX) bad();
-      sliders[key] = n as number;
+      if (typeof n !== "number" || !Number.isFinite(n) || n < SHAPE_MIN || n > SHAPE_MAX) bad();
+      shapes[key] = n as number;
     }
   }
 
@@ -129,7 +130,7 @@ export function validateRecipe(raw: unknown): Recipe {
       if ((list as string[]).length) colors[slot] = (list as string[]).map((h) => h.toUpperCase());
     }
   }
-  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, sliders, colors };
+  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, shapes, colors };
 }
 
 /**
@@ -143,7 +144,7 @@ export function defaultRecipe(): Recipe {
   for (const { slot, required } of WARDROBE_SLOTS) {
     parts[slot] = required ? WARDROBE_ITEMS.find((i) => i.starter && i.equippable && i.slot === slot && i.hidesSlots.length === 0)!.itemId : null;
   }
-  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, sliders: {}, colors: {} };
+  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, shapes: {}, colors: {} };
 }
 
 // ---- Stored state: wardrobes/{uid} (server-only) ------------------------------
@@ -217,7 +218,11 @@ export function wardrobeCatalogView(owned: readonly string[]) {
     source: WARDROBE_CATALOG_SOURCE,
     slots: WARDROBE_SLOTS.map(({ slot, type, required }) => ({ slot, type, required })),
     faceLayers: FACE_LAYERS.map((l) => ({ layer: l.layer, required: l.required, options: [...l.options] })),
-    sliders: { keys: [...SLIDER_KEYS], min: SLIDER_MIN, max: SLIDER_MAX, default: SLIDER_DEFAULT },
+    shapes: {
+      blendshapePrefix: SHAPE_BLENDSHAPE_PREFIX, min: SHAPE_MIN, max: SHAPE_MAX, default: SHAPE_DEFAULT,
+      body: [...BODY_SHAPE_KEYS], face: [...FACE_SHAPE_KEYS],
+      faceByHead: Object.fromEntries(Object.entries(FACE_SHAPES_BY_HEAD).map(([h, keys]) => [h, [...keys]])),
+    },
     colors: { globalChannels: [...GLOBAL_COLOR_CHANNELS], defaults: { ...GLOBAL_COLOR_DEFAULTS }, format: "#RRGGBB", perSlot: "array of #RRGGBB, length <= the equipped item's colorChannels" },
     maxRecipeBytes: MAX_RECIPE_BYTES,
     items: WARDROBE_ITEMS.map((i): ItemView => ({ ...i, hidesSlots: [...i.hidesSlots], incompatibleSlots: [...i.incompatibleSlots], owned: owned.includes(i.itemId), usable: i.equippable && (i.starter || owned.includes(i.itemId)) })),
