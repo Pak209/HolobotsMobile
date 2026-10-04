@@ -37,7 +37,7 @@ export const INTRO_QUEST_STEPS: readonly IntroStep[] = [
   { stepId: "visit_workshop", kind: "visit", destinationId: "workshop", holobotId: "", reward: r(75) },
   { stepId: "capture_buddy", kind: "capture", destinationId: "", holobotId: "hare", reward: r(100, 0, 1) },
   { stepId: "win_rival_battle", kind: "rival", destinationId: "", holobotId: "", reward: r(100, 1) },
-  { stepId: "visit_portal", kind: "visit", destinationId: "portal_neon_forest", holobotId: "", reward: r(75) },
+  { stepId: "visit_portal", kind: "visit", destinationId: "portal_terminal", holobotId: "", reward: r(75) },
   { stepId: "chain_complete", kind: "bonus", destinationId: "", holobotId: "", reward: r(150, 1) },
 ];
 

@@ -72,5 +72,33 @@ test('Buddy Unit purchase refusals: not enough Holos, Light not for sale, bad id
   for (const bad of [{ tierId: 'buddy_light', requestId: 'r' }, { tierId: 'medium', requestId: 'r' }, { tierId: 'buddy_heavy' }, { tierId: 'buddy_heavy', requestId: 'a b' }, null])
     assert.throws(() => V.validateBuddyPurchase(bad), /invalid_request/);
   assert.throws(() => V.buildBuddyUnitPurchase(profile({ holosTokens: 'lots' }), { tierId: 'buddy_medium', requestId: 'r' }), /unavailable/);
+  // Malformed Holos fail closed (CONTRACT: unavailable), never coerced: numeric string, array, null, NaN, negative.
+  for (const holosTokens of ['1500', [1500], null, NaN, -1, true, { v: 1500 }])
+    assert.throws(() => V.buildBuddyUnitPurchase(profile({ holosTokens }), { tierId: 'buddy_medium', requestId: 'r' }), /unavailable/, JSON.stringify(holosTokens));
   assert.throws(() => V.buildBuddyUnitPurchase(profile({ buddyUnits: null }), { tierId: 'buddy_medium', requestId: 'r' }), /unavailable/);
+});
+
+test('legacy marketplace refusals: additive details.rejectionCode; HTTPS status and English message byte-identical to before', () => {
+  const R = require('../lib/lib/marketplaceRefusals.js');
+  const shape = r => [r.rejectionCode, r.httpsCode, r.message];
+  assert.deepEqual(Object.fromEntries(Object.entries(R.REFUSALS).map(([k, r]) => [k, shape(r)])), {
+    notEnoughHolos: ['not_enough_holos', 'failed-precondition', 'Not enough Holos.'],
+    profileMissing: ['unavailable', 'not-found', 'User profile not found.'],
+    itemNameRequired: ['invalid_request', 'invalid-argument', 'An item name is required.'],
+    unknownItem: ['unknown_item', 'invalid-argument', 'Unknown marketplace item.'],
+    wildcardCooldown: ['on_cooldown', 'invalid-argument', 'Unknown marketplace item.'],
+    unknownBooster: ['unknown_item', 'invalid-argument', 'Unknown booster pack.'],
+    partIdRequired: ['invalid_request', 'invalid-argument', 'A part id is required.'],
+    unknownPart: ['unknown_item', 'invalid-argument', 'Unknown marketplace part.'],
+  });
+  // Classification follows the callable's existing order: short of Holos wins over everything.
+  assert.equal(R.classifyItemRefusal(10, 300, 'Wildcard Blueprints').rejectionCode, 'not_enough_holos');
+  assert.equal(R.classifyItemRefusal(1000, 300, 'Wildcard Blueprints').rejectionCode, 'on_cooldown');
+  assert.equal(R.classifyItemRefusal(1000, 300, 'Mystery Box').rejectionCode, 'unknown_item');
+  assert.equal(R.WILDCARD_PACK_ITEM_NAME, E.MARKETPLACE_ITEM_NAMES.find(n => /wildcard/i.test(n)));
+  // The real builder's only null for a known affordable item is the Wildcard cooldown.
+  const now = new Date(NOW);
+  assert.equal(E.buildItemPurchaseUpdatesRaw({ holosTokens: 1000, lastWildcardPackAt: NOW - 1000 }, 'Wildcard Blueprints', now), null);
+  const err = R.refusalError(R.REFUSALS.wildcardCooldown);
+  assert.deepEqual([err.code, err.message, err.details], ['invalid-argument', 'Unknown marketplace item.', { rejectionCode: 'on_cooldown' }]);
 });

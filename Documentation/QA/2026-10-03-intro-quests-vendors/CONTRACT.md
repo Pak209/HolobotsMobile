@@ -7,7 +7,7 @@ Three new callables:
 - `vendorCatalogHost` (`vendor-1`)
 - `purchaseBuddyUnit` (`vendor-1`)
 
-No existing callable or wire shape changes. Every rejection carries `details.rejectionCode`.
+No existing request or reply shape changes. Every refusal from these callables carries `details.rejectionCode`, and so do the refusals from the three existing marketplace purchase callables. That last part is additive: their HTTPS codes and English messages are byte-identical to before (see B). The only refusal with no `rejectionCode` anywhere is `unauthenticated`.
 
 ## A. Intro Quests: `introQuestHost`, schema `intro-quest-1`
 
@@ -20,9 +20,17 @@ No existing callable or wire shape changes. Every rejection carries `details.rej
 | 2 | `visit_workshop` | visit | `workshop` | client reports arrival | 75 | 0 | 0 |
 | 3 | `capture_buddy` | capture | — | **server-verified**: HARE captured | 100 | 0 | 1 |
 | 4 | `win_rival_battle` | rival | — | **server-verified**: `rivalWins` rose since the step became current | 100 | 1 | 0 |
-| 5 | `visit_portal` | visit | `portal_neon_forest` | client reports arrival | 75 | 0 | 0 |
+| 5 | `visit_portal` | visit | `portal_terminal` | client reports arrival | 75 | 0 | 0 |
 | 6 | `chain_complete` | bonus | — | all previous steps claimed | 150 | 1 | 0 |
 | | **Total** | | | | **600** | **3** | **1** |
+
+**Visit steps: what "arrival" means.** The producer decision covers all four visit steps (`mission_board`, `marketplace`, `workshop`, `portal_terminal`).
+- **What counts:** the pilot came within the **HoloCity-side landmark's arrival radius**, 6 m. This is the minimap's existing `ArriveRadius`.
+- **What doesn't:** for `visit_portal`, passing *through* the portal is not required. Reaching the terminal landmark in HoloCity is the arrival.
+- **Naming:** the `destinationId`s match Unity's landmark names.
+- **Trust:** the server cannot verify position, so arrival is client-reported. The rewards are small, and the order is still enforced server-side.
+
+**Unity only claims the CURRENT step**, i.e. the one with `current: true` in `status`. `out_of_order` is therefore a guard against a buggy or tampered client, not an expected path. If it ever appears, re-fetch `status` and re-render.
 
 - Holos go to `users/{uid}.holosTokens`, tickets to `gachaTickets`, and the Unit to `buddyUnits.light` (the #44 tier map). A #43 integer inventory is migrated, and a missing field gets the starter Unit, in the same write.
 - **capture_buddy (the harbor HARE)** is checked against server-only records:
@@ -42,6 +50,8 @@ No existing callable or wire shape changes. Every rejection carries `details.rej
 - `destinationId` is required for visit steps and must equal that step's `destinationId`. Other steps ignore it.
 - `requestId`:
   - Generate a new one per claim attempt, and reuse it when you retry that same claim.
+  - **Idempotency window: none. Claims never expire while the account exists.** A successful claim's `requestId` is stored in `introQuests/{uid}.claims` and is only removed by `deleteUserData` (account deletion). So a client may safely resend a pending `requestId` after **any** delay, including an app restart days later. A claim that already succeeded replays with `alreadyProcessed: true` and pays nothing.
+  - A *refused* claim (`not_met`, `out_of_order`, …) stores nothing. Resending its `requestId` later simply re-evaluates against the current state, so a `not_met` can pass once the capture or win has happened.
   - Retrying with the same `requestId` and `stepId` replays the original ruling: `alreadyProcessed: true`, and nothing is paid.
   - Reusing a `requestId` that was already used for a different step gets `invalid_request`.
 
@@ -164,16 +174,34 @@ Light Buddy Units are not sold. They come from the starter grant, the daily riva
 
 | Callable | Request | Response | Errors |
 |---|---|---|---|
-| `purchaseMarketplaceItem` (existing) | `{itemName}` | `{holosTokens, itemName, price}` | `failed-precondition` "Not enough Holos."; `invalid-argument` "Unknown marketplace item." (also returned for the Wildcard pack inside its cooldown, an existing quirk, so gate it on the listing's `available`) |
-| `purchaseMarketplaceBooster` (existing) | `{packId}` | `{granted:{battleCardId, battleCardIds[], godPack, itemName, itemQuantity, part:{name,slot}, parts[]}, holosTokens, price}` | `failed-precondition` "Not enough Holos."; `invalid-argument` "Unknown booster pack." |
-| `purchaseMarketplacePart` (existing) | `{partId}` | `{holosTokens, part:{name, rarity, slot}, price}` | `failed-precondition` "Not enough Holos."; `invalid-argument` "Unknown marketplace part." |
+| `purchaseMarketplaceItem` (existing) | `{itemName}` | `{holosTokens, itemName, price}` | see the legacy refusal table below |
+| `purchaseMarketplaceBooster` (existing) | `{packId}` | `{granted:{battleCardId, battleCardIds[], godPack, itemName, itemQuantity, part:{name,slot}, parts[]}, holosTokens, price}` | see the legacy refusal table below |
+| `purchaseMarketplacePart` (existing) | `{partId}` | `{holosTokens, part:{name, rarity, slot}, price}` | see the legacy refusal table below |
 | **`purchaseBuddyUnit`** (new) | `{tierId:"buddy_medium"\|"buddy_heavy", requestId}` | `{schemaVersion:"vendor-1", requestId, tierId, price, holosTokens, buddyUnits:{light,medium,heavy}, alreadyProcessed}` | see below |
 
-The three existing callables return no `rejectionCode` and are not idempotent. A retried request can buy twice, as it always could. Only `purchaseBuddyUnit` is guarded by a `requestId`.
+**Legacy purchase refusals.** This is an additive change from the PR #56 review, a producer decision of 2026-10-04.
+- **What changed:** the three existing callables now set `details.rejectionCode` on every refusal.
+- **What didn't:** the HTTPS code and English message are **byte-identical** to before, so the mobile app, which matches on message text, is unaffected.
+- **Wildcard cooldown:** the refusal still reads "Unknown marketplace item.", an existing quirk. Use `on_cooldown` to tell it apart, or gate the purchase on the listing's `available`.
+- `unauthenticated` refusals carry no code.
+
+| callable | rejectionCode | HTTPS code | message (unchanged) |
+|---|---|---|---|
+| all three | `not_enough_holos` | `failed-precondition` | "Not enough Holos." |
+| all three | `unavailable` | `not-found` | "User profile not found." |
+| `purchaseMarketplaceItem` | `unknown_item` | `invalid-argument` | "Unknown marketplace item." |
+| `purchaseMarketplaceItem` | `on_cooldown` | `invalid-argument` | "Unknown marketplace item." (Wildcard pack within its 7-day cooldown) |
+| `purchaseMarketplaceItem` | `invalid_request` | `invalid-argument` | "An item name is required." |
+| `purchaseMarketplaceBooster` | `unknown_item` | `invalid-argument` | "Unknown booster pack." |
+| `purchaseMarketplacePart` | `unknown_item` | `invalid-argument` | "Unknown marketplace part." |
+| `purchaseMarketplacePart` | `invalid_request` | `invalid-argument` | "A part id is required." |
+
+These three callables are still **not idempotent**: a retried request can buy twice, as it always could. Only `purchaseBuddyUnit` is guarded by a `requestId`.
 
 **`purchaseBuddyUnit` details:**
 - One transaction does three things together: subtracts `price` from `holosTokens`, increments `buddyUnits.<tier>` by 1 (migrating a #43 integer or applying the starter grant first), and creates the receipt `vendorPurchases/{uid}/receipts/{requestId}`.
 - Retrying the same `requestId` returns the stored reply with `alreadyProcessed: true`. Nothing is bought twice, even under parallel retries.
+- **Idempotency window: none.** Receipts never expire while the account exists and are deleted only by `deleteUserData`. A client may safely resend a pending `requestId` after any delay. A refused purchase stores no receipt, so its resend re-evaluates.
 - The bought Unit is immediately throwable through `wildEncounterHost` (acquisition-2, `toyId:"buddy_medium"` or `"buddy_heavy"`).
 
 | rejectionCode | HTTPS code | message / when |
@@ -181,7 +209,7 @@ The three existing callables return no `rejectionCode` and are not idempotent. A
 | `not_enough_holos` | `failed-precondition` | **"Not enough Holos."** (the existing refusal text). Nothing is written and no receipt is created, so the same `requestId` can succeed later. |
 | `invalid_request` | `invalid-argument` | bad body; `tierId` not for sale (including `buddy_light`); bad or missing `requestId` |
 | `sequence_conflict` | `already-exists` | the `requestId` was already used to buy a different tier |
-| `unavailable` | `unavailable` | missing profile, or malformed Holos or inventory |
+| `unavailable` | `unavailable` | missing profile, or malformed Holos or inventory. Holos are read strictly: absent means 0, a finite non-negative number is used as is, and anything else (numeric string `"1500"`, array `[1500]`, `null`, NaN, negative) fails closed, never coerced. |
 | — | `unauthenticated` | not signed in |
 
 ### Storage and security
@@ -203,18 +231,30 @@ The three existing callables return no `rejectionCode` and are not idempotent. A
    - Render `listings` (`displayName`, `price`, `owned`, `affordable`, `available`/`availableAtMs`) and the `holosTokens`/`inventory` header.
    - To buy, send `listing.purchase.request` to `listing.purchase.callable`. For `purchaseBuddyUnit`, replace the `"<client-generated>"` `requestId` with a fresh id per purchase attempt, reused on retry.
 3. **Medium/Heavy Buddy Units:** after `purchaseBuddyUnit`, the reply's `buddyUnits` is authoritative. The new tiers appear in the next `wildEncounterHost` refresh as throwable `buddy_medium` / `buddy_heavy` items.
-4. **Schema versions:** `intro-quest-1` (intro quests) and `vendor-1` (catalog and Buddy Unit purchase). The existing purchase callables are unversioned and unchanged.
-5. Unity holds no prices, rewards, order or verification logic. It renders replies only.
+4. **Schema versions:** `intro-quest-1` (intro quests) and `vendor-1` (catalog and Buddy Unit purchase). The existing purchase callables are unversioned. Their only change is the additive `details.rejectionCode`.
+5. **Callable allowlist.** Unity's desktop client needs every callable these flows reach. The three legacy marketplace purchases are **not** in the desktop allowlist yet, and Unity will add them.
+
+   | callable | used for |
+   |---|---|
+   | `introQuestHost` | quest status and claims |
+   | `vendorCatalogHost` | every vendor UI |
+   | `purchaseBuddyUnit` | Medium/Heavy Units |
+   | `purchaseMarketplaceItem` | marketplace items (**add to allowlist**) |
+   | `purchaseMarketplaceBooster` | booster packs (**add to allowlist**) |
+   | `purchaseMarketplacePart` | equipment parts (**add to allowlist**) |
+   | `wildEncounterHost` | the HARE capture for `capture_buddy`, and throwing bought Units |
+   | `rivalBattleHost` | the win for `win_rival_battle` |
+6. Unity holds no prices, rewards, order or verification logic. It renders replies only.
 
 Fixtures (generated by `functions/scripts/test-intro-quests-vendors-emulator.mjs` after its assertions pass): `fixtures/`.
 
 ## Deploy (Pak approves; not run)
 
-Rules first, then the three new functions plus `deleteUserAccountV2`, whose deletion list grew:
+Rules first. Then the functions: the three new ones; `deleteUserAccountV2`, whose deletion list grew; and the three legacy purchase callables, which gained `details.rejectionCode`:
 
 ```bash
 firebase deploy --project holobots-24046 --only firestore:rules
-firebase deploy --project holobots-24046 --only functions:introQuestHost,functions:vendorCatalogHost,functions:purchaseBuddyUnit,functions:deleteUserAccountV2
+firebase deploy --project holobots-24046 --only functions:introQuestHost,functions:vendorCatalogHost,functions:purchaseBuddyUnit,functions:deleteUserAccountV2,functions:purchaseMarketplaceItem,functions:purchaseMarketplaceBooster,functions:purchaseMarketplacePart
 ```
 
 The full list is now 36 functions and is in `functions/README.md`. Use it for any whole-codebase redeploy.

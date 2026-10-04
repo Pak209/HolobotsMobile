@@ -95,7 +95,7 @@
         "stepId": "visit_portal",
         "index": 5,
         "kind": "visit",
-        "destinationId": "portal_neon_forest",
+        "destinationId": "portal_terminal",
         "claimed": false,
         "claimedAtMs": 0,
         "current": false,
