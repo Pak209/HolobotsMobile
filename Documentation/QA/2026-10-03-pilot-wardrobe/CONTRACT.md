@@ -1,147 +1,212 @@
-# Contract-Change: wardrobe-2 appearance recipe; vendor-3 clothing listings (DECISIONS #48)
+# Contract-Change: wardrobe-3 BoZo manifest catalog; vendor-3 clothing listings (DECISIONS #48)
 
-Server lane, HolobotsMobile functions. Spec: Pak, 2026-10-03 (Unity DECISIONS #48, Phase 3). Stacked on PR #56, which is not merged. Local only; nothing deployed.
+Server lane, HolobotsMobile functions. Spec: Pak, 2026-10-03 (Unity DECISIONS #48, Phase 3), plus the producer follow-up on 2026-10-04 that brought the real BoZo Anime Pack manifest. Stacked on PR #56, which is not merged. Local only; nothing deployed.
 
-The pilot creator is built on the BoZo Anime Pack (a Mixamo humanoid with about 105 modular parts, blendshapes and tinting).
+The pilot creator is built on the BoZo Anime Pack (a Mixamo humanoid with modular parts, blendshapes and tinting).
 - **Unity:** presentation only.
 - **The server owns:** prices, ownership and the saved appearance. Unity sends a recipe, the server validates and stores it, and Unity renders what the server returns.
 
-wardrobe-1 (Astra's local draft) was never deployed and is **replaced**, not migrated. A stored `wardrobe-1` doc fails closed; none exist outside an emulator.
+**History.**
+- wardrobe-1 was Astra's local draft. wardrobe-2 was this PR's first cut, built on provisional `ph.*` placeholder slots.
+- Neither was ever deployed. wardrobe-3 **replaces** both rather than migrating them.
+- A stored `wardrobe-1` or `wardrobe-2` doc fails closed as `unavailable`. None exist outside an emulator.
 
-## Data module: `functions/src/lib/wardrobeCatalog.ts` (placeholder ids)
+## Source of truth: `functions/src/lib/data/bozoWardrobeManifest.json`
 
-Everything below lives in that one file:
-- slots
-- free bodies and faces
-- slider and colour whitelists
-- the size cap
-- items
+The manifest has **120 entries**, one per BoZo runtime prefab (`Outfit.Type`). It is generated from the producer's pack manifest and never hand-typed.
 
-**All ids that start with `ph.` are placeholders** until the BoZo pack audit. `status` reports `catalog.placeholder: true`.
+```jsonc
+{ "bozoPart": "Top_Overall", "type": "Top", "hides": ["Bottom"], "incompatible": [], "colorChannels": 5 }
+```
 
-### Slots (PROVISIONAL until the pack audit)
+`functions/src/lib/wardrobeCatalog.ts` derives the whole catalog from that file when the module loads.
 
-| slot | required | rule |
+**What it derives:**
+- **itemId:** `bozoPart` lower-cased, e.g. `top_overall`. `bozoPart` itself is kept exactly as Unity names the prefab.
+- **slot:** taken from `type`.
+- **display name:** the `bozoPart` minus its type prefix, with camelCase split into words, e.g. `Top_SmartDress` → "Smart Dress". Display copy only; Unity may localise it.
+- **starter flag, rarity and price:** applied from the producer decisions (see below).
+
+**Producer decisions,** all validated against the manifest:
+- `STARTER_TYPES` and `STARTER_PARTS`
+- `RARITY_RULES`
+- `PART_OVERRIDES`
+- `FACE_LAYERS`
+
+**It throws, and so fails the build and unit tests, when:**
+- a `bozoPart` is duplicated, or two parts collide once lower-cased;
+- a decision names a part or type the manifest doesn't have;
+- a `type` is unknown;
+- `colorChannels` is bad;
+- `hides`/`incompatible` is not an array, or names an unknown type;
+- an item hides its own slot;
+- a required slot has no equippable starter;
+- a face layer has empty or duplicate options.
+
+`status` reports `catalog.placeholder: false` and `catalog.source`.
+
+### Slots
+
+Thirteen slots, one per BoZo `Outfit.Type`. Optional slots take an item or `null` (none).
+
+| slot | BoZo type | required | items | starters |
+|---|---|---|---|---|
+| `hairFront` | HairFront | yes | 11 | 11 |
+| `hairBack` | HairBack | yes | 19 | 19 |
+| `top` | Top | yes | 24 | 3 |
+| `bottom` | Bottom | yes, unless the equipped top hides it (then it **must** be null) | 16 | 3 |
+| `feet` | Feet | yes | 13 | 2 |
+| `gloves` | Gloves | no | 8 | 0 |
+| `hat` | Hat | no | 9 | 0 |
+| `headAcc` | HeadAcc | no | 4 | 0 |
+| `upperFace` | UpperFace | no | 5 | 0 |
+| `lowerFace` | LowerFace | no | 3 | 0 |
+| `neck` | Neck | no | 1 | 0 |
+| `leggings` | Leggings | no | 1 | 0 |
+| `socks` | Socks | no | 6 | 1 |
+
+### Hide and incompatibility rule (generalised from the manifest)
+
+`hides` and `incompatible` are read from the manifest; no slot names are hard-coded.
+- For every equipped item, each slot in its `hidesSlots` and `incompatibleSlots` **must be `null`**.
+- Every other required slot must be filled.
+
+**Today's data:**
+- Exactly four tops hide `Bottom`: **Top_Overall, Top_SimpleKimono, Top_SmartDress, Top_Sundress**.
+  - While one is equipped, `parts.bottom` must be `null` (or omitted).
+  - With any other top, `bottom` is required.
+  - Both directions are tested for every hider.
+- No entry uses `incompatible` yet. The rule is still exercised by a test that injects one temporarily.
+- A future pack audit that adds hiders or incompatibilities needs **no code change**.
+
+### Starter, sold, rarity
+
+**Starter: 39 items.** Free, always usable, never sold, never stored as entitlements.
+- every HairFront (11) and every HairBack (19);
+- `Top_Tshirt`, `Top_SimpleHoodie`, `Top_TankTop`;
+- `Bottom_SimpleShorts`, `Bottom_SkinnyJeans`, `Bottom_BaggyPants`;
+- `Feet_SimpleSneakers`, `Feet_AthleticMidTop`;
+- `Socks_BasicSocks`.
+
+**Sold: 80 items** at the `boutique` vendor. The price is `MARKETPLACE_PART_PRICES[rarity]` from the existing economy module: common 300, rare 750, epic 1500.
+
+Rarity rules, first match wins:
+
+| rarity | rule | count |
 |---|---|---|
-| `hair` | yes | always an item |
-| `top` | yes | always an item |
-| `bottom` | yes | always an item |
-| `footwear` | yes | always an item |
-| `gloves` | no | item or `null` (none) |
-| `hat` | no | item or `null` (none) |
-| `faceAccessory` | no | item or `null` (none) |
-| `backAccessory` | no | item or `null` (none) |
+| epic | `Top_FullSuit`, `Top_SmartDress`, `Top_Nagagi`, `Top_SimpleKimono`, `Bottom_BasicHakma`, and every HeadAcc | 9 |
+| rare | Top whose name contains `Jacket`; Feet whose name contains `Boot`; every Hat; every Gloves; UpperFace whose name contains `Glasses`/`HalfMoon` | 23 |
+| common | everything else sold ("basics") | 48 |
 
-The body base and face preset are **not** slots. They are free choices inside the recipe:
-- `baseBody` ∈ `ph.body.a`, `ph.body.b`, `ph.body.c`
-- `face` ∈ `ph.face.01`, `ph.face.02`, `ph.face.03`, `ph.face.04`
+> **⚑ Unity to confirm: `UpperFace_RoundGlassesLens`** is **not sellable and not equippable**. The producer believes it's the optional lens sub-part of `UpperFace_RoundGlasses`, which is unconfirmed.
+> - It stays in the catalog: `sellable:false`, `equippable:false`, price 0, never listed.
+> - Equipping it gets `invalid_request`; buying it gets `invalid_request`.
+> - If it turns out to be a standalone item, flip one line in `PART_OVERRIDES` and regenerate.
 
-### Whitelists
+### Face layers (free choices, whitelisted per layer)
+
+These are not items: nothing is owned or sold. **Required** layers must be one of their options. Optional layers may be `null` or omitted, both meaning none. Option strings are the exact BoZo names, including vendor spellings such as `FaceDetail_Freakles` and `Underlower_ShortSpats`.
+
+| layer | required | options |
+|---|---|---|
+| `head` | yes | `Head_AnimeYoung`, `Head_BasicHead`, `Head_SharpHead`, `Head_Stern`, `Head_YoungSharpHead` |
+| `body` | yes | `Body_AnimeBasic`, `Body_BasicBody`, `Body_StrongBody` |
+| `bodyType` | no (null = none) | `BodyType_StylizedLeanBody`, `BodyType_StylizedStrongBody` |
+| `eyes` | yes | `Eyes_AnimeBasic`, `Eyes_BasicEyes`, `Eyes_BasicIris` |
+| `pupil` | yes | `Pupil_BasicPupil`, `Pupil_Round`, `Pupil_SharpPupil`, `Pupil_StylizedRoundRinged`, `Pupil_HeartPupil`, `Pupil_Square`, `Pupil_StarPupil` |
+| `eyeShine` | no (null = none) | `EyeShine_DoubleRound`, `EyeShine_StylizedDoubleShine` |
+| `eyeBrows` | yes | `Brows_BasicBrows`, `Brows_PillBrows`, `Brows_ThickBrows`, `Brows_ThinBrows`, `EyeBrows_StylizedBasicBrows`, `EyeBrows_StylizedThickBrows` |
+| `eyeLashes` | yes | `EyeLashes_LongLashes`, `EyeLashes_ShortLashes`, `EyeLashes_StylizedLongLashes`, `EyeLashes_StylizedShortLashes` |
+| `teeth` | yes | `Teeth_AnimeBasicTeeth`, `Teeth_StylizedBasicTeeth` |
+| `makeUpCheeks` | no (null = none) | `MakeUpCheeks_BasicBlush`, `MakeUpCheeks_SimpleBlush` |
+| `makeUpEyes` | no (null = none) | `MakeUpEyes_BasicEyeLiner` |
+| `makeUpLips` | no (null = none) | `MakeUpLips_BasicLipstick`, `MakeUpLips_SimpleLipstick` |
+| `faceDetails` | no (null = none) | `FaceDetail_Freakles`, `FaceDetail_FullFreakles`, `FaceDetails_FrecklesHeavy`, `FaceDetails_FrecklesLight`, `FaceDetails_FrecklesMedium` |
+| `faceTexture` | no (null = none) | `FaceTexture_Wrinkles` |
+| `underUpper` | yes | `UnderUpper_SimpleUnderShirt`, `UnderUpper_SimpleUnderShirt2`, `UnderUpper_SimpleBra` |
+| `underLower` | yes | `UnderLower_SimpleBoxers`, `Underlower_ShortSpats`, `UnderLower_SimplePanties` |
+
+### Sliders, colours, size cap
 
 - **Sliders:** `height, build, headSize, shoulderWidth, legLength, eyeSize, eyeSpacing, noseSize, mouthWidth, jaw, cheek, ear`.
   - Values must be finite numbers in **[-1, 1] inclusive**.
-  - Out-of-range, NaN and Infinity values are **rejected** (`invalid_request`), never clamped. Clamping would silently store something other than what the client sent, and a retry with the same `requestId` would then fingerprint differently.
-  - A missing key means the default `0`.
-- **Colours:** `skin, hair, eyes, primary, secondary, accent`.
+  - Out-of-range, NaN and Infinity values are **rejected** (`invalid_request`), never clamped, so that a retry fingerprints identically.
+  - A missing key means `0`.
+- **Global colours:** `skin`, `hair`, `eyes`.
   - Values must be strict `#RRGGBB`. Either case is accepted and stored upper-case.
-  - A missing channel means its default: skin `#E8B996`, hair `#2B2B2B`, eyes `#3A6EA5`, primary `#1F8FFF`, secondary `#20232A`, accent `#FFC83D`.
-- **Size cap:** the encoded recipe (JSON, UTF-8) must be ≤ **4096 bytes**, else `invalid_request`. This is checked before any other validation.
+  - Defaults: skin `#E8B996`, hair `#2B2B2B`, eyes `#3A6EA5`.
+- **Per-slot colours:** `colors.<slot>` is an array of strict `#RRGGBB`.
+  - The slot **must have an item equipped**.
+  - The array length must be **≤ that item's `colorChannels`**. Anything beyond is rejected, not truncated.
+  - Hex is stored upper-case. An empty array is dropped, meaning the item's own default materials.
+  - Channel *i* maps to the item's *i*-th tintable material slot in the BoZo prefab.
+  - An item with `colorChannels: 0` (none today) would take no colours.
+- **Size cap:** the encoded recipe (JSON, UTF-8) must be ≤ **4096 bytes**, else `invalid_request`. This is checked first.
 
-### Items
+## `wardrobeHost`, schema `wardrobe-3`
 
-**Starter items** are free and always usable. They are never sold and never stored as entitlements.
-
-| itemId | slot | displayName | tintable |
-|---|---|---|---|
-| `ph.hair.short_01` | hair | Short Crop | hair |
-| `ph.hair.long_01` | hair | Long Sweep | hair |
-| `ph.top.tee_01` | top | Pilot Tee | primary |
-| `ph.top.jacket_01` | top | Flight Jacket | primary, secondary |
-| `ph.bottom.pants_01` | bottom | Cargo Pants | secondary |
-| `ph.bottom.shorts_01` | bottom | Track Shorts | secondary |
-| `ph.footwear.sneakers_01` | footwear | Runner Sneakers | accent |
-| `ph.footwear.boots_01` | footwear | Field Boots | — |
-| `ph.gloves.fingerless_01` | gloves | Fingerless Gloves | secondary |
-| `ph.hat.cap_01` | hat | Pilot Cap | primary |
-| `ph.faceAccessory.visor_01` | faceAccessory | Clear Visor | accent |
-| `ph.backAccessory.pack_01` | backAccessory | Mini Pack | secondary |
-
-**Sold at the new `boutique` vendor.** The price is `MARKETPLACE_PART_PRICES[rarity]` from the existing economy module (common 300, rare 750, epic 1500).
-
-| itemId | slot | displayName | rarity | price (Holos) | tintable |
-|---|---|---|---|---|---|
-| `ph.hair.mohawk_01` | hair | Neon Mohawk | rare | 750 | hair |
-| `ph.hair.twintails_01` | hair | Twin Tails | common | 300 | hair |
-| `ph.top.hoodie_01` | top | Circuit Hoodie | common | 300 | primary, accent |
-| `ph.top.armor_01` | top | Harbor Armor Vest | epic | 1500 | primary, secondary, accent |
-| `ph.bottom.joggers_01` | bottom | Glow Joggers | common | 300 | secondary, accent |
-| `ph.bottom.armor_01` | bottom | Plated Greaves | rare | 750 | secondary |
-| `ph.footwear.hightops_01` | footwear | Hover High-Tops | rare | 750 | accent |
-| `ph.gloves.gauntlets_01` | gloves | Arc Gauntlets | rare | 750 | accent |
-| `ph.hat.helmet_01` | hat | Rival Helmet | epic | 1500 | primary, accent |
-| `ph.faceAccessory.mask_01` | faceAccessory | Neon Forest Mask | common | 300 | accent |
-| `ph.backAccessory.wings_01` | backAccessory | Holo Wings | epic | 1500 | accent |
-| `ph.backAccessory.cape_01` | backAccessory | Courier Cape | common | 300 | primary |
-
-I chose `boutique` over `marketplace` so clothing gets its own city vendor and the marketplace's existing listing set stays untouched.
-
-## `wardrobeHost`, schema `wardrobe-2`
-
-Every request carries `schemaVersion: "wardrobe-2"`. A missing or other version gets `invalid_request`.
+Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version gets `invalid_request`.
 
 ### Requests
 
 ```jsonc
-{ "schemaVersion": "wardrobe-2", "operation": "status" }
-{ "schemaVersion": "wardrobe-2", "operation": "purchase", "itemId": "ph.hat.helmet_01", "requestId": "<[A-Za-z0-9_-]{1,128}>" }
-{ "schemaVersion": "wardrobe-2", "operation": "equip", "requestId": "<id>", "recipe": {
-    "schemaVersion": "wardrobe-2",
-    "baseBody": "ph.body.b",
-    "face": "ph.face.03",
-    "parts": { "hair": "ph.hair.long_01", "top": "ph.top.jacket_01", "bottom": "ph.bottom.pants_01", "footwear": "ph.footwear.sneakers_01",
-               "gloves": null, "hat": "ph.hat.helmet_01", "faceAccessory": null, "backAccessory": null },
-    "sliders": { "height": 0.4, "jaw": -1 },        // optional; missing keys = 0
-    "colors":  { "skin": "#C08060", "primary": "#1F8FFF" }   // optional; missing channels = defaults
+{ "schemaVersion": "wardrobe-3", "operation": "status" }
+{ "schemaVersion": "wardrobe-3", "operation": "purchase", "itemId": "top_fullsuit", "requestId": "<[A-Za-z0-9_-]{1,128}>" }
+{ "schemaVersion": "wardrobe-3", "operation": "equip", "requestId": "<id>", "recipe": {
+    "schemaVersion": "wardrobe-3",
+    "faceLayers": { "head": "Head_SharpHead", "body": "Body_AnimeBasic", "eyes": "Eyes_AnimeBasic", "pupil": "Pupil_BasicPupil",
+                    "eyeBrows": "Brows_BasicBrows", "eyeLashes": "EyeLashes_LongLashes", "teeth": "Teeth_AnimeBasicTeeth",
+                    "underUpper": "UnderUpper_SimpleUnderShirt", "underLower": "Underlower_ShortSpats",
+                    "faceDetails": "FaceDetail_Freakles" },              // optional layers: omit or null = none
+    "parts": { "hairFront": "hairfront_asymmetricalfringe", "hairBack": "hairback_casualflow", "top": "top_sundress",
+               "bottom": null,                                              // MUST be null: Top_Sundress hides Bottom
+               "feet": "feet_athleticmidtop", "socks": "socks_basicsocks" }, // optional slots: omit or null = none
+    "sliders": { "height": 0.4, "jaw": -1 },                               // optional; missing keys = 0
+    "colors":  { "skin": "#C08060", "top": ["#1F8FFF", "#000000"] }        // optional; per-slot length <= colorChannels
 } }
 ```
 
-A missing optional slot in `parts` means `null`. Required slots must be present and non-null.
-
 ### Replies
 
-**`status`.** It never writes and never grants. With no saved recipe it returns the default starter recipe with `recipeSaved: false`.
+**`status`.** It never writes and never grants. With no saved recipe it returns the default recipe with `recipeSaved: false`:
+- the first option for each required face layer;
+- the first non-hiding starter in manifest order for each required slot, which gives `top_simplehoodie`, `bottom_baggypants`, `feet_athleticmidtop`, `hairfront_asymmetricalfringe`, `hairback_casualflow`.
 
 ```jsonc
 {
-  "schemaVersion": "wardrobe-2",
-  "entitlements": ["ph.hat.helmet_01"],          // owned sold items (sorted)
-  "recipe": { /* canonical wardrobe-2 recipe: the saved one, or the default */ },
+  "schemaVersion": "wardrobe-3",
+  "entitlements": ["top_fullsuit"],               // owned sold items (sorted)
+  "recipe": { /* canonical wardrobe-3 recipe: the saved one, or the default */ },
   "recipeSaved": false,
   "holosTokens": 1500,
   "catalog": {
-    "placeholder": true, "source": "placeholder-2026-10-03 (awaiting BoZo Anime Pack audit)",
-    "slots": [{ "slot": "hair", "required": true }, /* … */],
-    "baseBodies": ["ph.body.a", "ph.body.b", "ph.body.c"],
-    "faces": ["ph.face.01", "ph.face.02", "ph.face.03", "ph.face.04"],
+    "placeholder": false, "source": "BoZo Anime Pack runtime prefabs (Outfit.Type), manifest 2026-10-03 (120 entries)",
+    "slots": [{ "slot": "hairFront", "type": "HairFront", "required": true }, /* … 13 */],
+    "faceLayers": [{ "layer": "head", "required": true, "options": ["Head_AnimeYoung", /* … */] }, /* … 16 */],
     "sliders": { "keys": ["height", /* … */ "ear"], "min": -1, "max": 1, "default": 0 },
-    "colors": { "channels": ["skin", /* … */ "accent"], "defaults": { "skin": "#E8B996", /* … */ }, "format": "#RRGGBB" },
+    "colors": { "globalChannels": ["skin", "hair", "eyes"], "defaults": { "skin": "#E8B996", "hair": "#2B2B2B", "eyes": "#3A6EA5" },
+                "format": "#RRGGBB", "perSlot": "array of #RRGGBB, length <= the equipped item's colorChannels" },
     "maxRecipeBytes": 4096,
-    "items": [{ "itemId": "ph.hair.short_01", "slot": "hair", "displayName": "Short Crop", "rarity": "starter", "price": 0,
-                "starter": true, "vendorId": "", "tintable": ["hair"], "owned": false, "usable": true }, /* … */]
+    "items": [{ "itemId": "top_overall", "bozoPart": "Top_Overall", "slot": "top", "type": "Top", "displayName": "Overall",
+                "rarity": "common", "price": 300, "starter": false, "sellable": true, "equippable": true, "vendorId": "boutique",
+                "colorChannels": 5, "hidesSlots": ["bottom"], "incompatibleSlots": [],
+                "owned": false, "usable": false }, /* … 120 */]
   }
 }
 ```
+
+`usable` = `equippable && (starter || owned)`.
 
 **`purchase` / `equip`:**
 
 ```jsonc
 {
-  "schemaVersion": "wardrobe-2",
+  "schemaVersion": "wardrobe-3",
   "operation": "purchase",                        // or "equip"
   "requestId": "p1",
   "alreadyProcessed": false,                      // true on a replay of the same requestId + command
-  "purchased": { "itemId": "ph.hat.helmet_01", "price": 1500 },   // null for equip
-  "entitlements": ["ph.hat.helmet_01"],
+  "purchased": { "itemId": "top_fullsuit", "price": 1500 },   // null for equip
+  "entitlements": ["top_fullsuit"],
   "recipe": { /* saved recipe (equip) or saved / default (purchase) */ },
   "recipeSaved": true,
   "holosTokens": 0
@@ -149,103 +214,113 @@ A missing optional slot in `parts` means `null`. Required slots must be present 
 ```
 
 The reply recipe is **canonical**:
-- every slot is present, in slot order;
-- sliders and colours contain only the keys that were set, in whitelist order;
+- every face layer and every slot is present (`null` = none), in catalog order;
+- sliders contain only the keys that were set;
+- colours list the global channels first, then slots, in catalog order;
 - hex is upper-case.
 
-Render the returned recipe, not the one you sent.
+Render the returned recipe, not the one you sent. Fixtures are in `fixtures/`: `wardrobe-3_status_fresh`, `wardrobe-3_purchase`, `wardrobe-3_equip`, `wardrobe-3_equip_hidden_bottom`, `vendor-3_catalog_boutique`.
 
 ### Rejection codes (`HttpsError`, `details.rejectionCode`)
 
 | rejectionCode | HTTPS code | When |
 |---|---|---|
-| `invalid_request` | `invalid-argument` | bad or missing `schemaVersion`, operation, `requestId`; `itemId` unknown or a starter item (not for sale); any recipe defect: oversize, unknown key, wrong schema, body or face outside the free set, unknown item, **item in the wrong slot**, required slot missing or null, slider out of [-1, 1] or non-finite, colour not strict `#RRGGBB` |
+| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key; wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; slider unknown, out of [-1, 1] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
 | `not_owned` | `failed-precondition` | equip with a sold item the pilot doesn't own |
 | `already_owned` | `already-exists` | purchase of an owned item with a new `requestId`. No charge, nothing written. |
-| `not_enough_holos` | `failed-precondition` | message **"Not enough Holos."** (the existing economy copy). Nothing written, so the same `requestId` can succeed later. |
-| `sequence_conflict` | `already-exists` | `requestId` already used for a *different* command (another item, a different recipe, or purchase vs equip) |
-| `unavailable` | `unavailable` | missing profile; malformed or wrong-schema wardrobe; malformed Holos (fails closed) |
+| `not_enough_holos` | `failed-precondition` | message **"Not enough Holos."**. Nothing written, so the same `requestId` can succeed later. |
+| `sequence_conflict` | `already-exists` | `requestId` already used for a *different* command |
+| `unavailable` | `unavailable` | missing profile; malformed or wrong-schema wardrobe (incl. any `wardrobe-1`/`wardrobe-2` doc); malformed Holos (fails closed) |
 | — | `unauthenticated` | not signed in |
 
 ### Idempotency (receipt fingerprint pattern)
 
-- A purchase or equip runs in one transaction. A purchase writes three things together: `users/{uid}.holosTokens -= price`, `wardrobes/{uid}.entitlements += itemId`, and the receipt `wardrobes/{uid}/receipts/{requestId}` `{fingerprint, reply}`.
-- Equip writes the recipe and receipt only. It never touches Holos.
-- `fingerprint` = sha256 of the canonical command, so equivalent recipes share one (key order, hex case and an omitted optional slot don't matter).
+- A purchase or equip runs in one transaction.
+  - **Purchase** writes three things together: `users/{uid}.holosTokens -= price`, `wardrobes/{uid}.entitlements += itemId`, and the receipt `wardrobes/{uid}/receipts/{requestId}` `{fingerprint, reply}`.
+  - **Equip** writes the recipe and receipt only. It never touches Holos.
+- `fingerprint` = sha256 of the canonical command, so equivalent recipes share one. Key order, hex case and omitted optional slots or layers don't matter.
 - A replay with the same fingerprint returns the stored reply with `alreadyProcessed: true` and writes nothing. A different fingerprint gets `sequence_conflict`.
 - Rejections write nothing, not even a receipt.
 
 ### Storage and data safety
 
-- `wardrobes/{uid}` holds `{schemaVersion:"wardrobe-2", entitlements: string[], recipe: Recipe|null}`. Receipts live at `wardrobes/{uid}/receipts/{requestId}`.
-- **`firestore.rules` denies every client read and write of the whole tree.** Astra's draft allowed owner reads; I tightened that so no stored shape becomes a client contract, since `status` returns everything. Rules tests cover it.
+- **Layout:** `wardrobes/{uid}` holds `{schemaVersion:"wardrobe-3", entitlements: string[], recipe: Recipe|null}`. Receipts live at `wardrobes/{uid}/receipts/{requestId}`.
+- **`firestore.rules` denies every client read and write of the whole tree.** Rules tests cover it.
 - **No reset trap:**
   - Only an *absent* doc means "nothing owned".
-  - A present doc that is malformed, has the wrong schema or holds bad entitlements (non-array, non-string, duplicates) fails closed as `unavailable`. It is never treated as empty, so it can't be overwritten by the next purchase.
-  - Well-formed entitlement ids that a regenerated catalog no longer lists are **kept**. They can't be equipped until the catalog lists them again.
+  - A present doc that is malformed, has the wrong schema or holds bad entitlements fails closed as `unavailable`. It is never overwritten.
+  - Well-formed entitlement ids that a regenerated manifest no longer lists are **kept** but can't be equipped.
   - `status` never creates the doc.
-- `deleteUserData` (account deletion) recursively deletes `wardrobes/{uid}`, including receipts. A test covers it.
+- **Deletion:** `deleteUserData` (account deletion) recursively deletes `wardrobes/{uid}`, including receipts.
 
 ## Vendor catalog: `vendor-3`
 
-`vendorCatalogHost {operation:"catalog", vendorId:"boutique"}` lists every **sold** wardrobe item:
+`vendorCatalogHost {operation:"catalog", vendorId:"boutique"}` lists the **80 sellable** wardrobe items, in manifest order:
 
 ```jsonc
-{ "listingId": "clothing.ph.hat.helmet_01", "kind": "clothing", "displayName": "Rival Helmet", "price": 1500, "currency": "holos",
+{ "listingId": "clothing.top_overall", "kind": "clothing", "displayName": "Overall", "price": 300, "currency": "holos",
   "quantity": 1, "owned": 0, "affordable": true, "available": true, "availableAtMs": 0,
-  "details": { "itemId": "ph.hat.helmet_01", "slot": "hat", "rarity": "epic", "tintable": ["primary", "accent"] },
-  "purchase": { "callable": "wardrobeHost", "request": { "schemaVersion": "wardrobe-2", "operation": "purchase", "itemId": "ph.hat.helmet_01", "requestId": "<client-generated>" } } }
+  "details": { "itemId": "top_overall", "bozoPart": "Top_Overall", "slot": "top", "rarity": "common",
+               "colorChannels": "5", "hidesSlots": ["bottom"] },
+  "purchase": { "callable": "wardrobeHost", "request": { "schemaVersion": "wardrobe-3", "operation": "purchase", "itemId": "top_overall", "requestId": "<client-generated>" } } }
 ```
 
-- When the item is owned: `owned` is `1` and `available` is `false`.
-- Starter items are never listed.
-- The marketplace and workshop listings are unchanged and contain no clothing.
+- **Value types:** `details` values are strings or string arrays. `colorChannels` is the decimal string of the integer.
+- **Owned items:** `owned` is `1` and `available` is `false`.
+- **Never listed:** starter items and non-sellable overrides (the lens).
+- **Other vendors:** the marketplace and workshop listings are unchanged and contain no clothing.
 - **Why vendor-3:**
   - there's a new `vendorId` (`boutique`) and listing `kind` (`clothing`);
-  - `details` values may now be `string[]`;
-  - `purchaseBuddyUnit` replies share the version string.
+  - `details` values may be `string[]`.
 
-  vendor-1 (#56) and vendor-2 (Astra's draft) were never deployed.
+  vendor-3 was redefined in place, since it has never been deployed.
 
 ## Unity hand-off
 
-1. **Schema versions:** `wardrobe-2` on every `wardrobeHost` request and reply, and `vendor-3` on `vendorCatalogHost` / `purchaseBuddyUnit` replies.
-2. **On creator open:** call `wardrobeHost {schemaVersion:"wardrobe-2", operation:"status"}`.
-   - Build every picker from `catalog`: slots, bodies, faces, slider keys and range, colour channels and defaults, and items with `usable`/`owned`.
+1. **Schema versions:**
+   - `wardrobe-3` on every `wardrobeHost` request and reply;
+   - `vendor-3` on `vendorCatalogHost` / `purchaseBuddyUnit` replies;
+   - unchanged and still negotiated: `intro-quest-1`, `rival-battle-1/2`, `desktop-account-1/2`.
+2. **Id mapping:**
+   - `bozoPart` is the exact BoZo prefab name, so spawn by it.
+   - `itemId` is the server key. Send it in `parts` and `purchase`.
+   - Face-layer values are exact BoZo names too.
+3. **On creator open:** call `wardrobeHost {schemaVersion:"wardrobe-3", operation:"status"}`.
+   - Build every picker from `catalog`: slots, faceLayers, sliders, colours, and items with `usable`/`owned`/`hidesSlots`.
    - Load `recipe` (the default if `recipeSaved: false`).
-   - **Don't hard-code any id, price, slot or whitelist.**
-3. **Save:** send `equip {recipe, requestId}`, using a fresh `requestId` per save and reusing it on network retry. Render the reply's canonical `recipe`.
+   - **Don't hard-code any id, price, slot, layer or whitelist.**
+4. **Hide rule in the UI:** when the user picks a top whose `hidesSlots` contains `bottom`, clear `parts.bottom` to `null` and grey out the bottom picker. When they switch to a non-hiding top, require a bottom again: restore the previous bottom or the default. The server enforces this both ways.
+5. **Colours:** offer `item.colorChannels` swatches per equipped item. Send `colors.<slot>` with at most that many entries. Clear a slot's colours when its item changes, since channel counts differ.
+6. **Save:** send `equip {recipe, requestId}`, using a fresh `requestId` per save and reusing it on network retry. Render the reply's canonical `recipe`.
    - On `not_owned`, show the item as locked.
    - On `invalid_request`, the client sent something off-whitelist. Treat it as a bug and keep the last server recipe.
-4. **Buy:** open the boutique with `vendorCatalogHost {operation:"catalog", vendorId:"boutique"}`. Send `listing.purchase.request` (with a fresh `requestId` replacing `"<client-generated>"`) to `wardrobeHost`. Then refresh `status` and the catalog.
+7. **Buy:** open the boutique with `vendorCatalogHost {operation:"catalog", vendorId:"boutique"}`. Send `listing.purchase.request` (with a fresh `requestId` replacing `"<client-generated>"`) to `wardrobeHost`. Then refresh `status` and the catalog.
    - `already_owned`: refresh only; nothing was charged.
    - `not_enough_holos`: show "Not enough Holos."
-5. Tint each rendered item only through the channels in its `tintable` list.
-6. **Placeholder ids:** every `ph.*` id maps to a BoZo part only once the audit lands. Until then Unity can map them to stand-in parts. The ids change in one data-only server update; see below.
+8. **⚑ Confirm `UpperFace_RoundGlassesLens`:** is it the lens sub-part of `UpperFace_RoundGlasses` (render it with the glasses), or a standalone item? See the flag above.
 
-## Regenerating the placeholder catalog from the BoZo pack audit
+## Regenerating the catalog after a new pack audit
 
-1. Audit the pack. For each modular part, record:
-   - its BoZo part id (prefab or mesh name);
-   - which slot it fills (confirm or adjust the provisional slot list);
-   - its tintable material channels;
-   - whether it's a starter or a sold item, with a rarity.
+1. Replace `functions/src/lib/data/bozoWardrobeManifest.json`, generated from the producer manifest and never hand-edited. Use one entry per runtime prefab: `{bozoPart, type, hides, incompatible, colorChannels}`, with `hides`/`incompatible` listing BoZo **types**.
+2. If the producer changes decisions, edit only the decision tables in `wardrobeCatalog.ts`:
+   - `WARDROBE_SLOTS` (new types and expected counts)
+   - `STARTER_TYPES` and `STARTER_PARTS`
+   - `RARITY_RULES`
+   - `PART_OVERRIDES`
+   - `FACE_LAYERS`
+   - `WARDROBE_CATALOG_SOURCE`
 
-   Also list the body bases, face presets, blendshape names (to map onto the slider keys) and colour channels.
-2. Replace the arrays in `functions/src/lib/wardrobeCatalog.ts`:
-   - `WARDROBE_SLOTS`, `BASE_BODIES`, `FACES`, `SLIDER_KEYS`, `COLOR_DEFAULTS` and `WARDROBE_ITEMS`;
-   - use the BoZo ids instead of `ph.*`;
-   - set `WARDROBE_CATALOG_IS_PLACEHOLDER = false` and update `WARDROBE_CATALOG_SOURCE`.
+   No code in `lib/wardrobe.ts`, the store or the host changes.
+3. Run `npm run build && npm test` in `functions/`. The generator throws on any inconsistency, and `test-wardrobe.mjs` pins:
+   - the counts per type;
+   - the starter set;
+   - the epic list;
+   - the rare and common counts;
+   - the hider set.
 
-   This can be generated by a script from an audit CSV/JSON. **No code in `lib/wardrobe.ts`, the store or the host changes.**
-3. Keep the invariants. The unit test checks them:
-   - ≥ 2 starter items per required slot and ≥ 1 per optional slot;
-   - sold prices come from `MARKETPLACE_PART_PRICES[rarity]`;
-   - unique ids;
-   - `tintable` ⊆ colour channels.
-
-   Update the `ph.`-prefix assertion in `test-wardrobe.mjs`.
-4. **Migration:** entitlements to ids the new catalog drops are kept but can't be equipped. If a placeholder id was sold before the audit (only possible if this ships first), add an old → new id map, or re-grant those entitlements in a one-off admin script.
+   Update those pins deliberately.
+4. Bump `WARDROBE_SCHEMA` only if the recipe or reply **shape** changes. Pure data changes (new items, prices, hiders) are not a schema change.
+5. **Ids are stable:** `itemId` is `bozoPart.toLowerCase()`. A renamed prefab is a new id, and the old entitlement is kept but can't be equipped. Add a one-off admin re-grant if that happens after launch.
 
 ## Deploy (Pak approves; not run)
 
@@ -256,4 +331,129 @@ firebase deploy --project holobots-24046 --only firestore:rules
 firebase deploy --project holobots-24046 --only functions:wardrobeHost,functions:vendorCatalogHost,functions:purchaseBuddyUnit,functions:deleteUserAccountV2
 ```
 
-PR #56 (`introQuestHost`, `vendorCatalogHost`, `purchaseBuddyUnit`) must be merged first, or deployed in the same run. The full list is now 37 functions and is in `functions/README.md`.
+PR #56 (`introQuestHost`, `vendorCatalogHost`, `purchaseBuddyUnit`) must be merged first, or deployed in the same run. The full list is 37 functions and is in `functions/README.md`.
+
+## All 120 items (generated from the manifest)
+
+| # | itemId | bozoPart | slot | rarity | price | starter | sold | colorChannels | hides |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | `bottom_baggypants` | Bottom_BaggyPants | bottom | starter | 0 | yes |  | 3 |  |
+| 2 | `bottom_basichakma` | Bottom_BasicHakma | bottom | epic | 1500 |  | yes | 3 |  |
+| 3 | `bottom_beltedpants` | Bottom_BeltedPants | bottom | common | 300 |  | yes | 4 |  |
+| 4 | `bottom_beltedshorts` | Bottom_BeltedShorts | bottom | common | 300 |  | yes | 3 |  |
+| 5 | `bottom_beltedskort` | Bottom_BeltedSkort | bottom | common | 300 |  | yes | 6 |  |
+| 6 | `bottom_cuffedshorts` | Bottom_CuffedShorts | bottom | common | 300 |  | yes | 9 |  |
+| 7 | `bottom_dolphinshorts` | Bottom_DolphinShorts | bottom | common | 300 |  | yes | 2 |  |
+| 8 | `bottom_longsimpleskirt` | Bottom_LongSimpleSkirt | bottom | common | 300 |  | yes | 2 |  |
+| 9 | `bottom_pleatedskirt` | Bottom_PleatedSkirt | bottom | common | 300 |  | yes | 1 |  |
+| 10 | `bottom_rippedcapris` | Bottom_RippedCapris | bottom | common | 300 |  | yes | 4 |  |
+| 11 | `bottom_shortsimpleskirt` | Bottom_ShortSimpleSkirt | bottom | common | 300 |  | yes | 2 |  |
+| 12 | `bottom_simplekhakies` | Bottom_SimpleKhakies | bottom | common | 300 |  | yes | 3 |  |
+| 13 | `bottom_simpleshorts` | Bottom_SimpleShorts | bottom | starter | 0 | yes |  | 4 |  |
+| 14 | `bottom_simpleskirt` | Bottom_SimpleSkirt | bottom | common | 300 |  | yes | 2 |  |
+| 15 | `bottom_skinnyjeans` | Bottom_SkinnyJeans | bottom | starter | 0 | yes |  | 3 |  |
+| 16 | `bottom_tightdresspants` | Bottom_TightDressPants | bottom | common | 300 |  | yes | 6 |  |
+| 17 | `feet_athleticmidtop` | Feet_AthleticMidTop | feet | starter | 0 | yes |  | 4 |  |
+| 18 | `feet_balletflats` | Feet_BalletFlats | feet | common | 300 |  | yes | 3 |  |
+| 19 | `feet_classyloafers` | Feet_ClassyLoafers | feet | common | 300 |  | yes | 3 |  |
+| 20 | `feet_flowerflipflops` | Feet_FlowerFlipFlops | feet | common | 300 |  | yes | 5 |  |
+| 21 | `feet_highlaceshoe` | Feet_HighLaceShoe | feet | common | 300 |  | yes | 5 |  |
+| 22 | `feet_officeheels` | Feet_OfficeHeels | feet | common | 300 |  | yes | 2 |  |
+| 23 | `feet_officeloafer` | Feet_OfficeLoafer | feet | common | 300 |  | yes | 3 |  |
+| 24 | `feet_simpleflipflops` | Feet_SimpleFlipFlops | feet | common | 300 |  | yes | 3 |  |
+| 25 | `feet_simplesneakers` | Feet_SimpleSneakers | feet | starter | 0 | yes |  | 3 |  |
+| 26 | `feet_sockedballetflats` | Feet_SockedBalletFlats | feet | common | 300 |  | yes | 5 |  |
+| 27 | `feet_strappedsandals` | Feet_StrappedSandals | feet | common | 300 |  | yes | 3 |  |
+| 28 | `feet_tobisandles` | Feet_TobiSandles | feet | common | 300 |  | yes | 3 |  |
+| 29 | `feet_workboots` | Feet_WorkBoots | feet | rare | 750 |  | yes | 4 |  |
+| 30 | `gloves_armbands` | Gloves_ArmBands | gloves | rare | 750 |  | yes | 1 |  |
+| 31 | `gloves_armwarmers` | Gloves_ArmWarmers | gloves | rare | 750 |  | yes | 9 |  |
+| 32 | `gloves_fingerlessgloves` | Gloves_FingerlessGloves | gloves | rare | 750 |  | yes | 2 |  |
+| 33 | `gloves_loosebracelets` | Gloves_LooseBracelets | gloves | rare | 750 |  | yes | 3 |  |
+| 34 | `gloves_ringedgloves` | Gloves_RingedGloves | gloves | rare | 750 |  | yes | 9 |  |
+| 35 | `gloves_simplegloves` | Gloves_SimpleGloves | gloves | rare | 750 |  | yes | 3 |  |
+| 36 | `gloves_simplering` | Gloves_SimpleRing | gloves | rare | 750 |  | yes | 3 |  |
+| 37 | `gloves_sweatbands` | Gloves_SweatBands | gloves | rare | 750 |  | yes | 2 |  |
+| 38 | `hairback_casualflow` | HairBack_CasualFlow | hairBack | starter | 0 | yes |  | 3 |  |
+| 39 | `hairback_flare` | HairBack_Flare | hairBack | starter | 0 | yes |  | 3 |  |
+| 40 | `hairback_herotie` | HairBack_HeroTie | hairBack | starter | 0 | yes |  | 3 |  |
+| 41 | `hairback_longponytail` | HairBack_LongPonyTail | hairBack | starter | 0 | yes |  | 3 |  |
+| 42 | `hairback_longstreight` | HairBack_LongStreight | hairBack | starter | 0 | yes |  | 3 |  |
+| 43 | `hairback_messyhair` | HairBack_MessyHair | hairBack | starter | 0 | yes |  | 3 |  |
+| 44 | `hairback_pineapplecut` | HairBack_PineappleCut | hairBack | starter | 0 | yes |  | 3 |  |
+| 45 | `hairback_roundbob` | HairBack_RoundBob | hairBack | starter | 0 | yes |  | 3 |  |
+| 46 | `hairback_shortponytail` | HairBack_ShortPonyTail | hairBack | starter | 0 | yes |  | 3 |  |
+| 47 | `hairback_shotacut` | HairBack_ShotaCut | hairBack | starter | 0 | yes |  | 3 |  |
+| 48 | `hairback_sweaptdreads` | HairBack_SweaptDreads | hairBack | starter | 0 | yes |  | 3 |  |
+| 49 | `hairback_tiedbun` | HairBack_TiedBun | hairBack | starter | 0 | yes |  | 3 |  |
+| 50 | `hairback_twinbuns` | HairBack_TwinBuns | hairBack | starter | 0 | yes |  | 3 |  |
+| 51 | `hairback_twinlongtails` | HairBack_TwinLongTails | hairBack | starter | 0 | yes |  | 3 |  |
+| 52 | `hairback_twinshorttails` | HairBack_TwinShortTails | hairBack | starter | 0 | yes |  | 3 |  |
+| 53 | `hairback_wildlocks` | HairBack_WildLocks | hairBack | starter | 0 | yes |  | 3 |  |
+| 54 | `hairback_wildtail` | HairBack_WildTail | hairBack | starter | 0 | yes |  | 3 |  |
+| 55 | `hairback_yokaimane` | HairBack_YokaiMane | hairBack | starter | 0 | yes |  | 3 |  |
+| 56 | `hairback_shinryucut` | Hairback_ShinryuCut | hairBack | starter | 0 | yes |  | 3 |  |
+| 57 | `hairfront_asymmetricalfringe` | HairFront_AsymmetricalFringe | hairFront | starter | 0 | yes |  | 1 |  |
+| 58 | `hairfront_curtainbangs` | HairFront_CurtainBangs | hairFront | starter | 0 | yes |  | 1 |  |
+| 59 | `hairfront_emobangs` | HairFront_EmoBangs | hairFront | starter | 0 | yes |  | 1 |  |
+| 60 | `hairfront_himecut` | HairFront_HimeCut | hairFront | starter | 0 | yes |  | 1 |  |
+| 61 | `hairfront_lynxfringe` | HairFront_LynxFringe | hairFront | starter | 0 | yes |  | 1 |  |
+| 62 | `hairfront_messy` | HairFront_Messy | hairFront | starter | 0 | yes |  | 1 |  |
+| 63 | `hairfront_minorfringe` | HairFront_MinorFringe | hairFront | starter | 0 | yes |  | 1 |  |
+| 64 | `hairfront_shotafringe` | HairFront_ShotaFringe | hairFront | starter | 0 | yes |  | 1 |  |
+| 65 | `hairfront_shoujo` | HairFront_Shoujo | hairFront | starter | 0 | yes |  | 1 |  |
+| 66 | `hairfront_sideswept` | HairFront_SideSwept | hairFront | starter | 0 | yes |  | 1 |  |
+| 67 | `hairfront_sweaptback` | HairFront_SweaptBack | hairFront | starter | 0 | yes |  | 1 |  |
+| 68 | `hat_ballcap` | Hat_BallCap | hat | rare | 750 |  | yes | 3 |  |
+| 69 | `hat_beanie` | Hat_Beanie | hat | rare | 750 |  | yes | 2 |  |
+| 70 | `hat_buckethat` | Hat_BucketHat | hat | rare | 750 |  | yes | 2 |  |
+| 71 | `hat_fedora` | Hat_Fedora | hat | rare | 750 |  | yes | 2 |  |
+| 72 | `hat_kittywoolie` | Hat_KittyWoolie | hat | rare | 750 |  | yes | 2 |  |
+| 73 | `hat_militaryhat` | Hat_MilitaryHat | hat | rare | 750 |  | yes | 3 |  |
+| 74 | `hat_newsboycap` | Hat_NewsBoyCap | hat | rare | 750 |  | yes | 3 |  |
+| 75 | `hat_summercap` | Hat_SummerCap | hat | rare | 750 |  | yes | 3 |  |
+| 76 | `hat_sunhat` | Hat_SunHat | hat | rare | 750 |  | yes | 3 |  |
+| 77 | `headacc_alienattena` | HeadAcc_AlienAttena | headAcc | epic | 1500 |  | yes | 2 |  |
+| 78 | `headacc_devilhorns` | HeadAcc_DevilHorns | headAcc | epic | 1500 |  | yes | 2 |  |
+| 79 | `headacc_flufflesskittyears` | HeadAcc_FlufflessKittyEars | headAcc | epic | 1500 |  | yes | 2 |  |
+| 80 | `headacc_kittyears` | HeadAcc_KittyEars | headAcc | epic | 1500 |  | yes | 3 |  |
+| 81 | `leggings_stocking` | Leggings_Stocking | leggings | common | 300 |  | yes | 1 |  |
+| 82 | `lowerface_sharpbeard` | LowerFace_SharpBeard | lowerFace | common | 300 |  | yes | 1 |  |
+| 83 | `lowerface_sharpchin` | LowerFace_SharpChin | lowerFace | common | 300 |  | yes | 1 |  |
+| 84 | `lowerface_sharpgoatee` | LowerFace_SharpGoatee | lowerFace | common | 300 |  | yes | 1 |  |
+| 85 | `neck_ribbonbow` | Neck_RibbonBow | neck | common | 300 |  | yes | 1 |  |
+| 86 | `socks_anklesocks` | Socks_AnkleSocks | socks | common | 300 |  | yes | 1 |  |
+| 87 | `socks_basicsocks` | Socks_BasicSocks | socks | starter | 0 | yes |  | 1 |  |
+| 88 | `socks_kneehighs` | Socks_KneeHighs | socks | common | 300 |  | yes | 1 |  |
+| 89 | `socks_stripedkneehighs` | Socks_StripedKneeHighs | socks | common | 300 |  | yes | 1 |  |
+| 90 | `socks_thighhigh` | Socks_ThighHigh | socks | common | 300 |  | yes | 1 |  |
+| 91 | `socks_thighhighsturrips` | Socks_ThighHighSturrips | socks | common | 300 |  | yes | 1 |  |
+| 92 | `top_comfycartagan` | Top_ComfyCartagan | top | common | 300 |  | yes | 3 |  |
+| 93 | `top_dressshirt` | Top_DressShirt | top | common | 300 |  | yes | 3 |  |
+| 94 | `top_fullsuit` | Top_FullSuit | top | epic | 1500 |  | yes | 6 |  |
+| 95 | `top_hardjacket` | Top_HardJacket | top | rare | 750 |  | yes | 5 |  |
+| 96 | `top_nagagi` | Top_Nagagi | top | epic | 1500 |  | yes | 2 |  |
+| 97 | `top_openhoodie` | Top_OpenHoodie | top | common | 300 |  | yes | 5 |  |
+| 98 | `top_overall` | Top_Overall | top | common | 300 |  | yes | 5 | bottom |
+| 99 | `top_schoolboyjacket` | Top_SchoolBoyJacket | top | rare | 750 |  | yes | 3 |  |
+| 100 | `top_sefuku` | Top_Sefuku | top | common | 300 |  | yes | 5 |  |
+| 101 | `top_shortsleevedressshirt` | Top_ShortSleeveDressShirt | top | common | 300 |  | yes | 3 |  |
+| 102 | `top_shortsleevesefuku` | Top_ShortSleeveSefuku | top | common | 300 |  | yes | 5 |  |
+| 103 | `top_shortsleevesweatervest` | Top_ShortSleeveSweaterVest | top | common | 300 |  | yes | 5 |  |
+| 104 | `top_simplebandeau` | Top_SimpleBandeau | top | common | 300 |  | yes | 2 |  |
+| 105 | `top_simplehoodie` | Top_SimpleHoodie | top | starter | 0 | yes |  | 2 |  |
+| 106 | `top_simplekimono` | Top_SimpleKimono | top | epic | 1500 |  | yes | 6 | bottom |
+| 107 | `top_simplesweater` | Top_SimpleSweater | top | common | 300 |  | yes | 2 |  |
+| 108 | `top_simplesweatervest` | Top_SimpleSweaterVest | top | common | 300 |  | yes | 5 |  |
+| 109 | `top_sleevelessdressshirt` | Top_SleevelessDressShirt | top | common | 300 |  | yes | 3 |  |
+| 110 | `top_smartdress` | Top_SmartDress | top | epic | 1500 |  | yes | 5 | bottom |
+| 111 | `top_straplesstubetop` | Top_StraplessTubeTop | top | common | 300 |  | yes | 2 |  |
+| 112 | `top_sundress` | Top_Sundress | top | common | 300 |  | yes | 5 | bottom |
+| 113 | `top_tanktop` | Top_TankTop | top | starter | 0 | yes |  | 2 |  |
+| 114 | `top_thickhenslay` | Top_ThickHenslay | top | common | 300 |  | yes | 3 |  |
+| 115 | `top_tshirt` | Top_Tshirt | top | starter | 0 | yes |  | 2 |  |
+| 116 | `upperface_medicaleyepatch` | UpperFace_MedicalEyePatch | upperFace | common | 300 |  | yes | 2 |  |
+| 117 | `upperface_roundglasses` | UpperFace_RoundGlasses | upperFace | rare | 750 |  | yes | 3 |  |
+| 118 | `upperface_roundglasseslens` | UpperFace_RoundGlassesLens | upperFace | rare | 0 |  | **no** (not equippable) | 3 |  |
+| 119 | `upperface_simpleglasses` | UpperFace_SimpleGlasses | upperFace | rare | 750 |  | yes | 3 |  |
+| 120 | `upperface_simplehalfmoon` | UpperFace_SimpleHalfMoon | upperFace | rare | 750 |  | yes | 3 |  |

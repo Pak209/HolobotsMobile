@@ -1,0 +1,850 @@
+[
+  {
+    "bozoPart": "Bottom_BaggyPants",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Bottom_BasicHakma",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Bottom_BeltedPants",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 4
+  },
+  {
+    "bozoPart": "Bottom_BeltedShorts",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Bottom_BeltedSkort",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 6
+  },
+  {
+    "bozoPart": "Bottom_CuffedShorts",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 9
+  },
+  {
+    "bozoPart": "Bottom_DolphinShorts",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Bottom_LongSimpleSkirt",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Bottom_PleatedSkirt",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Bottom_RippedCapris",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 4
+  },
+  {
+    "bozoPart": "Bottom_ShortSimpleSkirt",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Bottom_SimpleKhakies",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Bottom_SimpleShorts",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 4
+  },
+  {
+    "bozoPart": "Bottom_SimpleSkirt",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Bottom_SkinnyJeans",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Bottom_TightDressPants",
+    "type": "Bottom",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 6
+  },
+  {
+    "bozoPart": "Feet_AthleticMidTop",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 4
+  },
+  {
+    "bozoPart": "Feet_BalletFlats",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Feet_ClassyLoafers",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Feet_FlowerFlipFlops",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Feet_HighLaceShoe",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Feet_OfficeHeels",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Feet_OfficeLoafer",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Feet_SimpleFlipFlops",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Feet_SimpleSneakers",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Feet_SockedBalletFlats",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Feet_StrappedSandals",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Feet_TobiSandles",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Feet_WorkBoots",
+    "type": "Feet",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 4
+  },
+  {
+    "bozoPart": "Gloves_ArmBands",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Gloves_ArmWarmers",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 9
+  },
+  {
+    "bozoPart": "Gloves_FingerlessGloves",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Gloves_LooseBracelets",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Gloves_RingedGloves",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 9
+  },
+  {
+    "bozoPart": "Gloves_SimpleGloves",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Gloves_SimpleRing",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Gloves_SweatBands",
+    "type": "Gloves",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "HairBack_CasualFlow",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_Flare",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_HeroTie",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_LongPonyTail",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_LongStreight",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_MessyHair",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_PineappleCut",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_RoundBob",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_ShortPonyTail",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_ShotaCut",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_SweaptDreads",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_TiedBun",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_TwinBuns",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_TwinLongTails",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_TwinShortTails",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_WildLocks",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_WildTail",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairBack_YokaiMane",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Hairback_ShinryuCut",
+    "type": "HairBack",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HairFront_AsymmetricalFringe",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_CurtainBangs",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_EmoBangs",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_HimeCut",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_LynxFringe",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_Messy",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_MinorFringe",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_ShotaFringe",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_Shoujo",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_SideSwept",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "HairFront_SweaptBack",
+    "type": "HairFront",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Hat_BallCap",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Hat_Beanie",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Hat_BucketHat",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Hat_Fedora",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Hat_KittyWoolie",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Hat_MilitaryHat",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Hat_NewsBoyCap",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Hat_SummerCap",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Hat_SunHat",
+    "type": "Hat",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "HeadAcc_AlienAttena",
+    "type": "HeadAcc",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "HeadAcc_DevilHorns",
+    "type": "HeadAcc",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "HeadAcc_FlufflessKittyEars",
+    "type": "HeadAcc",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "HeadAcc_KittyEars",
+    "type": "HeadAcc",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Leggings_Stocking",
+    "type": "Leggings",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "LowerFace_SharpBeard",
+    "type": "LowerFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "LowerFace_SharpChin",
+    "type": "LowerFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "LowerFace_SharpGoatee",
+    "type": "LowerFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Neck_RibbonBow",
+    "type": "Neck",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Socks_AnkleSocks",
+    "type": "Socks",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Socks_BasicSocks",
+    "type": "Socks",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Socks_KneeHighs",
+    "type": "Socks",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Socks_StripedKneeHighs",
+    "type": "Socks",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Socks_ThighHigh",
+    "type": "Socks",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Socks_ThighHighSturrips",
+    "type": "Socks",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 1
+  },
+  {
+    "bozoPart": "Top_ComfyCartagan",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Top_DressShirt",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Top_FullSuit",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 6
+  },
+  {
+    "bozoPart": "Top_HardJacket",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_Nagagi",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Top_OpenHoodie",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_Overall",
+    "type": "Top",
+    "hides": [
+      "Bottom"
+    ],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_SchoolBoyJacket",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Top_Sefuku",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_ShortSleeveDressShirt",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Top_ShortSleeveSefuku",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_ShortSleeveSweaterVest",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_SimpleBandeau",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Top_SimpleHoodie",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Top_SimpleKimono",
+    "type": "Top",
+    "hides": [
+      "Bottom"
+    ],
+    "incompatible": [],
+    "colorChannels": 6
+  },
+  {
+    "bozoPart": "Top_SimpleSweater",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Top_SimpleSweaterVest",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_SleevelessDressShirt",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Top_SmartDress",
+    "type": "Top",
+    "hides": [
+      "Bottom"
+    ],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_StraplessTubeTop",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Top_Sundress",
+    "type": "Top",
+    "hides": [
+      "Bottom"
+    ],
+    "incompatible": [],
+    "colorChannels": 5
+  },
+  {
+    "bozoPart": "Top_TankTop",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "Top_ThickHenslay",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "Top_Tshirt",
+    "type": "Top",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "UpperFace_MedicalEyePatch",
+    "type": "UpperFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 2
+  },
+  {
+    "bozoPart": "UpperFace_RoundGlasses",
+    "type": "UpperFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "UpperFace_RoundGlassesLens",
+    "type": "UpperFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "UpperFace_SimpleGlasses",
+    "type": "UpperFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  },
+  {
+    "bozoPart": "UpperFace_SimpleHalfMoon",
+    "type": "UpperFace",
+    "hides": [],
+    "incompatible": [],
+    "colorChannels": 3
+  }
+]

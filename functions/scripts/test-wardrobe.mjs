@@ -1,130 +1,220 @@
-// DECISIONS #48 wardrobe-2 domain tests (pure modules: lib/wardrobe.ts + lib/wardrobeCatalog.ts).
+// DECISIONS #48 wardrobe-3 domain tests: BoZo manifest → generated catalog, recipe rules, purchase / equip.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const W = require('../lib/lib/wardrobe.js');
 const C = require('../lib/lib/wardrobeCatalog.js');
 const E = require('../lib/lib/economy.js');
-const SOLD = C.WARDROBE_ITEMS.filter(i => !i.starter);
-const STARTERS = C.WARDROBE_ITEMS.filter(i => i.starter);
+const MANIFEST = JSON.parse(readFileSync(new URL('../src/lib/data/bozoWardrobeManifest.json', import.meta.url), 'utf8'));
+const ITEMS = C.WARDROBE_ITEMS;
+const byPart = p => ITEMS.find(i => i.bozoPart === p);
+const id = p => byPart(p).itemId;
 const base = () => structuredClone(W.defaultRecipe());
-const equipCmd = (recipe, requestId = 'e1') => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-2', operation: 'equip', requestId, recipe });
-const buyCmd = (itemId, requestId = 'b1') => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-2', operation: 'purchase', requestId, itemId });
+const equipCmd = (recipe, requestId = 'e1') => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-3', operation: 'equip', requestId, recipe });
+const buyCmd = (itemId, requestId = 'b1') => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-3', operation: 'purchase', requestId, itemId });
 const fresh = () => W.readWardrobeState(undefined);
 const invalid = (fn, msg) => assert.throws(fn, e => e.code === 'invalid_request', msg);
+const valid = (r, msg) => assert.doesNotThrow(() => W.validateRecipe(r), msg);
+/** Hiders are DERIVED from the manifest's hides field, never hard-coded. */
+const HIDERS = MANIFEST.filter(e => e.hides.length > 0).map(e => e.bozoPart);
 
-test('catalog data: provisional slots, starter coverage, ~12 sold items, every price = MARKETPLACE_PART_PRICES[rarity], placeholder ids', () => {
-  assert.deepEqual(C.WARDROBE_SLOTS.map(s => [s.slot, s.required]), [['hair', true], ['top', true], ['bottom', true], ['footwear', true], ['gloves', false], ['hat', false], ['faceAccessory', false], ['backAccessory', false]]);
-  for (const { slot, required } of C.WARDROBE_SLOTS) assert.ok(STARTERS.filter(i => i.slot === slot).length >= (required ? 2 : 1), slot);
-  assert.equal(SOLD.length, 12);
-  for (const i of SOLD) { assert.equal(i.price, E.MARKETPLACE_PART_PRICES[i.rarity], i.itemId); assert.equal(i.vendorId, 'boutique'); assert.ok(['common', 'rare', 'epic'].includes(i.rarity)); }
-  for (const i of STARTERS) { assert.equal(i.price, 0); assert.equal(i.vendorId, ''); assert.equal(i.rarity, 'starter'); }
-  for (const i of C.WARDROBE_ITEMS) { assert.ok(i.itemId.startsWith('ph.'), i.itemId); assert.ok(C.WARDROBE_SLOTS.some(s => s.slot === i.slot)); for (const t of i.tintable) assert.ok(C.COLOR_CHANNELS.includes(t), t); }
-  assert.equal(new Set(C.WARDROBE_ITEMS.map(i => i.itemId)).size, C.WARDROBE_ITEMS.length);
-  assert.equal(C.WARDROBE_CATALOG_IS_PLACEHOLDER, true);
-  assert.deepEqual(C.SLIDER_KEYS, ['height', 'build', 'headSize', 'shoulderWidth', 'legLength', 'eyeSize', 'eyeSpacing', 'noseSize', 'mouthWidth', 'jaw', 'cheek', 'ear']);
-  assert.deepEqual(C.COLOR_CHANNELS, ['skin', 'hair', 'eyes', 'primary', 'secondary', 'accent']);
-  assert.deepEqual([C.SLIDER_MIN, C.SLIDER_MAX, C.SLIDER_DEFAULT, C.MAX_RECIPE_BYTES], [-1, 1, 0, 4096]);
+test('manifest: 120 entries, per-type counts, shape, verbatim vendor spellings, unique lower-case ids', () => {
+  assert.equal(MANIFEST.length, 120);
+  const counts = {}; for (const e of MANIFEST) counts[e.type] = (counts[e.type] || 0) + 1;
+  assert.deepEqual(counts, { Bottom: 16, Feet: 13, Gloves: 8, HairBack: 19, HairFront: 11, Hat: 9, HeadAcc: 4, Leggings: 1, LowerFace: 3, Neck: 1, Socks: 6, Top: 24, UpperFace: 5 });
+  for (const s of C.WARDROBE_SLOTS) assert.equal(counts[s.type], s.expectedCount, s.type);
+  for (const e of MANIFEST) {
+    assert.deepEqual(Object.keys(e).sort(), ['bozoPart', 'colorChannels', 'hides', 'incompatible', 'type']);
+    assert.ok(Number.isSafeInteger(e.colorChannels) && e.colorChannels >= 0); assert.deepEqual(e.incompatible, []);
+  }
+  for (const quirk of ['Hairback_ShinryuCut', 'HairBack_LongStreight', 'HairBack_SweaptDreads', 'HeadAcc_AlienAttena', 'Feet_TobiSandles', 'Top_ComfyCartagan'])
+    assert.ok(MANIFEST.some(e => e.bozoPart === quirk), quirk);
+  assert.equal(new Set(MANIFEST.map(e => e.bozoPart.toLowerCase())).size, 120);
+  assert.deepEqual(HIDERS.sort(), ['Top_Overall', 'Top_SimpleKimono', 'Top_SmartDress', 'Top_Sundress']);
+  for (const p of HIDERS) assert.deepEqual(MANIFEST.find(e => e.bozoPart === p).hides, ['Bottom']);
 });
 
-test('default recipe: first free body/face, first starter per required slot, optional slots none; validates and equips with nothing owned', () => {
+test('generated catalog: itemId = lower-cased bozoPart, bozoPart verbatim, slot from type, colorChannels and hides carried over', () => {
+  assert.equal(ITEMS.length, 120); assert.equal(C.WARDROBE_CATALOG_IS_PLACEHOLDER, false);
+  MANIFEST.forEach((e, k) => {
+    const i = ITEMS[k];
+    assert.equal(i.itemId, e.bozoPart.toLowerCase()); assert.equal(i.bozoPart, e.bozoPart); assert.equal(i.type, e.type);
+    assert.equal(i.slot, C.WARDROBE_SLOTS.find(s => s.type === e.type).slot); assert.equal(i.colorChannels, e.colorChannels);
+    assert.deepEqual(i.hidesSlots, e.hides.map(t => C.WARDROBE_SLOTS.find(s => s.type === t).slot));
+  });
+  assert.equal(id('Hairback_ShinryuCut'), 'hairback_shinryucut'); assert.equal(id('Top_HardJacket'), 'top_hardjacket');
+  assert.equal(byPart('Top_HardJacket').displayName, 'Hard Jacket');
+  assert.deepEqual(C.WARDROBE_SLOTS.map(s => [s.slot, s.required]), [['hairFront', true], ['hairBack', true], ['top', true], ['bottom', true], ['feet', true], ['gloves', false], ['hat', false], ['headAcc', false], ['upperFace', false], ['lowerFace', false], ['neck', false], ['leggings', false], ['socks', false]]);
+});
+
+test('producer split: exact starter set; sold priced by MARKETPLACE_PART_PRICES[rarity]; epic / rare buckets; lens not sold or equipped', () => {
+  const starters = ITEMS.filter(i => i.starter).map(i => i.bozoPart).sort();
+  const expected = [...MANIFEST.filter(e => e.type === 'HairFront' || e.type === 'HairBack').map(e => e.bozoPart),
+    'Top_Tshirt', 'Top_SimpleHoodie', 'Top_TankTop', 'Bottom_SimpleShorts', 'Bottom_SkinnyJeans', 'Bottom_BaggyPants', 'Feet_SimpleSneakers', 'Feet_AthleticMidTop', 'Socks_BasicSocks'].sort();
+  assert.deepEqual(starters, expected); assert.equal(starters.length, 39);
+  for (const i of ITEMS.filter(i => i.starter)) { assert.equal(i.price, 0); assert.equal(i.sellable, false); assert.equal(i.rarity, 'starter'); assert.equal(i.vendorId, ''); }
+  const sold = ITEMS.filter(i => i.sellable);
+  assert.equal(sold.length, 80);
+  for (const i of sold) { assert.equal(i.price, E.MARKETPLACE_PART_PRICES[i.rarity], i.bozoPart); assert.equal(i.vendorId, 'boutique'); }
+  const ofRarity = r => sold.filter(i => i.rarity === r).map(i => i.bozoPart).sort();
+  assert.deepEqual(ofRarity('epic'), ['Bottom_BasicHakma', 'HeadAcc_AlienAttena', 'HeadAcc_DevilHorns', 'HeadAcc_FlufflessKittyEars', 'HeadAcc_KittyEars', 'Top_FullSuit', 'Top_Nagagi', 'Top_SimpleKimono', 'Top_SmartDress']);
+  const rare = ofRarity('rare');
+  for (const p of ['Top_HardJacket', 'Top_SchoolBoyJacket', 'Feet_WorkBoots', 'UpperFace_RoundGlasses', 'UpperFace_SimpleGlasses', 'UpperFace_SimpleHalfMoon']) assert.ok(rare.includes(p), p);
+  for (const i of ITEMS.filter(i => i.type === 'Hat' || i.type === 'Gloves')) assert.equal(i.rarity, 'rare', i.bozoPart);
+  assert.equal(rare.length, 23); // 2 jackets + 1 boots + 8 gloves + 9 hats + 3 glasses
+  assert.equal(ofRarity('common').length, 48);
+  const lens = byPart('UpperFace_RoundGlassesLens');
+  assert.deepEqual([lens.sellable, lens.equippable, lens.price, lens.vendorId], [false, false, 0, '']);
+});
+
+test('generator rejects a bad manifest or decisions that no longer match it (fails the build, never ships an unknown id)', () => {
+  const m = () => structuredClone(MANIFEST);
+  const throws = (mm, re) => assert.throws(() => C.buildWardrobeItems(mm), re);
+  throws([...m(), { bozoPart: 'Cape_Hero', type: 'Cape', hides: [], incompatible: [], colorChannels: 1 }], /unknown type Cape/);
+  throws([...m(), { ...MANIFEST[0], bozoPart: MANIFEST[0].bozoPart.toUpperCase() }], /collide/);
+  throws(m().map(e => e.bozoPart === 'Top_Tshirt' ? { ...e, bozoPart: 'Top_TShirtRenamed' } : e), /unknown part Top_Tshirt/);
+  throws(m().map(e => e.bozoPart === 'Top_Overall' ? { ...e, hides: ['Skirt'] } : e), /unknown type Skirt/);
+  throws(m().map(e => e.bozoPart === 'Top_Overall' ? { ...e, hides: ['Top'] } : e), /hides its own slot/);
+  throws(m().map(e => e.bozoPart === 'Neck_RibbonBow' ? { ...e, colorChannels: -1 } : e), /colorChannels/);
+  throws(m().filter(e => e.type !== 'Feet' || e.bozoPart === 'Feet_WorkBoots'), /unknown part Feet_SimpleSneakers/);
+  // hides / incompatible are generalised: a new hider in a new pack audit works without code changes.
+  const gen = C.buildWardrobeItems(m().map(e => e.bozoPart === 'Hat_SunHat' ? { ...e, hides: ['HairFront'], incompatible: ['HeadAcc'] } : e));
+  assert.deepEqual(gen.find(i => i.bozoPart === 'Hat_SunHat').hidesSlots, ['hairFront']);
+  assert.deepEqual(gen.find(i => i.bozoPart === 'Hat_SunHat').incompatibleSlots, ['headAcc']);
+});
+
+test('hide rule, both directions, for every manifest hider: bottom MUST be null under it; otherwise bottom is required', () => {
+  assert.ok(HIDERS.length >= 1);
+  for (const p of HIDERS) {
+    const hidden = base(); hidden.parts.top = id(p); hidden.parts.bottom = null;
+    valid(hidden, `${p} with no bottom`);
+    const clash = base(); clash.parts.top = id(p);
+    invalid(() => W.validateRecipe(clash), `${p} with a bottom`);
+    const omitted = base(); omitted.parts.top = id(p); delete omitted.parts.bottom;
+    assert.equal(W.validateRecipe(omitted).parts.bottom, null, `${p}, bottom omitted → null`);
+    const tinted = structuredClone(hidden); tinted.colors = { bottom: ['#FFFFFF'] };
+    invalid(() => W.validateRecipe(tinted), `${p}: no colours for a hidden slot`);
+  }
+  for (const i of ITEMS.filter(i => i.slot === 'top' && i.hidesSlots.length === 0)) {
+    const r = base(); r.parts.top = i.itemId; r.parts.bottom = null;
+    invalid(() => W.validateRecipe(r), `${i.bozoPart} needs a bottom`);
+    r.parts.bottom = id('Bottom_SkinnyJeans'); valid(r, `${i.bozoPart} with a bottom`);
+  }
+  // `incompatible` is [] for every entry in this pack, so exercise the rule on a live item (restored after).
+  assert.ok(MANIFEST.every(e => e.incompatible.length === 0), 'pack audit: no incompatibilities yet');
+  const fedora = W.validateRecipe({ ...base(), parts: { ...base().parts, hat: id('Hat_Fedora') } });
+  const suit = byPart('Top_FullSuit');
+  suit.incompatibleSlots.push('hat');
+  try {
+    invalid(() => W.validateRecipe({ ...fedora, parts: { ...fedora.parts, top: suit.itemId } }), 'incompatible slot must be empty');
+    valid({ ...fedora, parts: { ...fedora.parts, top: suit.itemId, hat: null } }, 'incompatible slot empty');
+  } finally { suit.incompatibleSlots.pop(); }
+  for (const slot of ['hairFront', 'hairBack', 'top', 'feet']) { const r = base(); r.parts[slot] = null; invalid(() => W.validateRecipe(r), `${slot} required`); }
+});
+
+test('faceLayers: required layers present, optional may be null, values from each layer\'s whitelist (exact vendor spelling)', () => {
   const d = W.defaultRecipe();
-  assert.deepEqual(d, { schemaVersion: 'wardrobe-2', baseBody: 'ph.body.a', face: 'ph.face.01', parts: { hair: 'ph.hair.short_01', top: 'ph.top.tee_01', bottom: 'ph.bottom.pants_01', footwear: 'ph.footwear.sneakers_01', gloves: null, hat: null, faceAccessory: null, backAccessory: null }, sliders: {}, colors: {} });
-  assert.deepEqual(W.validateRecipe(d), d);
+  for (const l of C.FACE_LAYERS) assert.equal(d.faceLayers[l.layer], l.required ? l.options[0] : null);
+  assert.deepEqual(C.FACE_LAYERS.filter(l => l.required).map(l => l.layer), ['head', 'body', 'eyes', 'pupil', 'eyeBrows', 'eyeLashes', 'teeth', 'underUpper', 'underLower']);
+  const r = base(); Object.assign(r.faceLayers, { faceDetails: 'FaceDetail_Freakles', underLower: 'Underlower_ShortSpats', bodyType: 'BodyType_StylizedStrongBody', makeUpLips: 'MakeUpLips_SimpleLipstick' });
+  assert.equal(W.validateRecipe(r).faceLayers.faceDetails, 'FaceDetail_Freakles');
+  for (const [layer, v] of [['head', null], ['underLower', null], ['faceDetails', 'FaceDetail_Freckles'], ['underLower', 'UnderLower_ShortSpats'], ['pupil', 'pupil_round'], ['eyes', 'Pupil_Round'], ['head', 7]])
+    invalid(() => W.validateRecipe({ ...base(), faceLayers: { ...base().faceLayers, [layer]: v } }), `${layer}=${v}`);
+  invalid(() => W.validateRecipe({ ...base(), faceLayers: { ...base().faceLayers, horns: 'HeadAcc_DevilHorns' } }), 'unknown layer');
+  invalid(() => { const x = base(); delete x.faceLayers.teeth; return W.validateRecipe(x); }, 'missing required layer');
+  invalid(() => W.validateRecipe({ ...base(), faceLayers: [] }));
 });
 
-test('starter-only equip with zero Holos is OK, never charges, stores the canonical recipe', () => {
-  const r = base();
-  Object.assign(r.parts, { hair: 'ph.hair.long_01', top: 'ph.top.jacket_01', gloves: 'ph.gloves.fingerless_01', hat: 'ph.hat.cap_01', faceAccessory: 'ph.faceAccessory.visor_01', backAccessory: 'ph.backAccessory.pack_01' });
-  r.sliders = { ear: -1, height: 0.25 }; r.colors = { accent: '#ff00aa', skin: '#C08060' };
+test('colours: per-slot arrays capped at the equipped item\'s colorChannels; global skin/hair/eyes strict; canonical output', () => {
+  const r = base(); r.parts.top = id('Top_FullSuit'); r.parts.gloves = id('Gloves_ArmWarmers');
+  const six = Array.from({ length: 6 }, (_, k) => `#00000${k}`), nine = Array.from({ length: 9 }, () => '#abcdef');
+  r.colors = { gloves: nine, top: six, eyes: '#00ff00', skin: '#c08060', bottom: [] };
+  const out = W.validateRecipe(r);
+  assert.deepEqual(Object.keys(out.colors), ['skin', 'eyes', 'top', 'gloves'], 'channels then slots; empty arrays dropped');
+  assert.equal(out.colors.gloves[0], '#ABCDEF'); assert.equal(out.colors.skin, '#C08060');
+  invalid(() => W.validateRecipe({ ...r, colors: { top: [...six, '#000006'] } }), 'one beyond Top_FullSuit\'s 6');
+  invalid(() => W.validateRecipe({ ...base(), colors: { hairFront: ['#111111', '#222222'] } }), 'HairFront has 1 channel');
+  valid({ ...base(), colors: { hairFront: ['#111111'] } });
+  invalid(() => W.validateRecipe({ ...base(), colors: { hat: ['#111111'] } }), 'no hat equipped → nothing to tint');
+  for (const bad of [{ top: '#111111' }, { top: ['#11111'] }, { top: [null] }, { skin: ['#111111'] }, { skin: '#GGGGGG' }, { primary: '#111111' }, { glow: ['#111111'] }])
+    invalid(() => W.validateRecipe({ ...base(), colors: bad }), JSON.stringify(bad));
+  for (const i of ITEMS.filter(i => i.equippable)) assert.ok(i.colorChannels >= 0);
+});
+
+test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot / unknown / lens / unknown keys / bad sliders / oversize → invalid_request', () => {
+  const r = base(); Object.assign(r.parts, { hairFront: id('HairFront_HimeCut'), hairBack: id('Hairback_ShinryuCut'), top: id('Top_TankTop'), socks: id('Socks_BasicSocks') });
+  r.sliders = { ear: -1, height: 0.25 };
   const out = W.applyEquip({ holosTokens: 0 }, fresh(), equipCmd(r));
-  assert.equal(out.reply.holosTokens, 0); assert.equal(out.reply.purchased, null); assert.equal(out.reply.recipeSaved, true);
-  assert.deepEqual(Object.keys(out.state.recipe.sliders), ['height', 'ear'], 'canonical whitelist order');
-  assert.deepEqual(out.state.recipe.colors, { skin: '#C08060', accent: '#FF00AA' }, 'canonical order, upper-case hex');
-  assert.equal(W.applyEquip({}, fresh(), equipCmd(r)).reply.holosTokens, 0, 'missing Holos = 0, still fine');
+  assert.equal(out.reply.holosTokens, 0); assert.equal(out.reply.purchased, null); assert.equal(out.state.recipe.parts.hairBack, 'hairback_shinryucut');
+  assert.deepEqual(Object.keys(out.state.recipe.sliders), ['height', 'ear']);
+  const withPart = (slot, v) => { const x = base(); x.parts[slot] = v; return x; };
+  assert.throws(() => W.applyEquip({ holosTokens: 9999 }, fresh(), equipCmd(withPart('hat', id('Hat_Fedora')))), e => e.code === 'not_owned');
+  assert.throws(() => W.applyEquip({}, fresh(), equipCmd(Object.assign(base(), { parts: { ...base().parts, top: id('Top_Overall'), bottom: null } }))), e => e.code === 'not_owned');
+  assert.equal(W.applyEquip({}, { ...fresh(), entitlements: [id('Hat_Fedora')] }, equipCmd(withPart('hat', id('Hat_Fedora')))).state.recipe.parts.hat, 'hat_fedora');
+  invalid(() => equipCmd(withPart('upperFace', id('UpperFace_RoundGlassesLens'))), 'lens is not equippable');
+  invalid(() => equipCmd(withPart('hat', id('Top_Tshirt'))), 'wrong slot');
+  invalid(() => equipCmd(withPart('hat', 'Hat_Fedora')), 'ids are lower-case; the bozoPart is not an id');
+  invalid(() => equipCmd(withPart('hat', 'hat_sombrero')), 'unknown id');
+  invalid(() => equipCmd(withPart('cape', 'hat_fedora')), 'unknown slot');
+  invalid(() => equipCmd({ ...base(), baseBody: 'Body_BasicBody' }), 'wardrobe-2 keys are unknown in wardrobe-3');
+  invalid(() => equipCmd({ ...base(), schemaVersion: 'wardrobe-2' }));
+  for (const v of [1.0001, -1.5, NaN, Infinity, '0.5']) invalid(() => equipCmd({ ...base(), sliders: { height: v } }), `slider ${v}`);
+  invalid(() => equipCmd({ ...base(), sliders: { tail: 0 } }));
+  invalid(() => equipCmd({ ...base(), colors: { hair: '#111111' }, pad: 'x'.repeat(5000) }), 'oversize');
 });
 
-test('equip rejects unowned (not_owned), and wrong slot / unknown ids / unknown keys / out-of-range sliders / bad hex / oversize (invalid_request)', () => {
-  const withPart = (slot, id) => { const r = base(); r.parts[slot] = id; return r; };
-  assert.throws(() => W.applyEquip({ holosTokens: 0 }, fresh(), equipCmd(withPart('hat', 'ph.hat.helmet_01'))), e => e.code === 'not_owned');
-  assert.throws(() => W.applyEquip({ holosTokens: 9999 }, { ...fresh(), entitlements: ['ph.backAccessory.wings_01'] }, equipCmd(withPart('hat', 'ph.hat.helmet_01'))), e => e.code === 'not_owned', 'owning another item does not help');
-  assert.equal(W.applyEquip({}, { ...fresh(), entitlements: ['ph.hat.helmet_01'] }, equipCmd(withPart('hat', 'ph.hat.helmet_01'))).state.recipe.parts.hat, 'ph.hat.helmet_01');
-  invalid(() => equipCmd(withPart('hat', 'ph.top.tee_01')), 'starter item in the wrong slot');
-  invalid(() => equipCmd(withPart('gloves', 'ph.hat.helmet_01')), 'sold item in the wrong slot');
-  invalid(() => equipCmd(withPart('hair', 'ph.hair.nope')), 'unknown item');
-  invalid(() => equipCmd(withPart('hair', null)), 'required slot set to none');
-  invalid(() => { const r = base(); delete r.parts.top; return equipCmd(r); }, 'required slot missing');
-  invalid(() => equipCmd(withPart('cape', 'ph.backAccessory.cape_01')), 'unknown slot key');
-  invalid(() => equipCmd({ ...base(), extra: 1 }), 'unknown recipe key');
-  invalid(() => equipCmd({ ...base(), sliders: { tail: 0.1 } }), 'unknown slider key');
-  invalid(() => equipCmd({ ...base(), colors: { glow: '#FFFFFF' } }), 'unknown colour channel');
-  for (const v of [1.0001, -1.5, 2, NaN, Infinity, -Infinity, '0.5', null]) invalid(() => equipCmd({ ...base(), sliders: { height: v } }), `slider ${v}`);
-  for (const v of ['#FFF', 'FFFFFF', '#GGGGGG', '#FFFFFF0', ' #FFFFFF', '#ffffff ', 0xffffff, null]) invalid(() => equipCmd({ ...base(), colors: { hair: v } }), `hex ${v}`);
-  for (const [k, v] of [['baseBody', 'ph.body.z'], ['face', 'ph.face.99'], ['schemaVersion', 'wardrobe-1'], ['parts', []], ['sliders', []], ['colors', 'red']]) invalid(() => equipCmd({ ...base(), [k]: v }), k);
-  invalid(() => equipCmd({ ...base(), colors: { hair: '#FFFFFF', pad: 'x'.repeat(5000) } }), 'oversize');
-  invalid(() => equipCmd(null)); invalid(() => equipCmd([]));
-  // Exactly at the boundary values: allowed.
-  assert.deepEqual(equipCmd({ ...base(), sliders: { height: -1, build: 1 } }).recipe.sliders, { height: -1, build: 1 });
-});
-
-test('oversize payloads are rejected; the largest possible valid recipe stays far under the 4 KB cap', () => {
-  // The byte cap runs before any other check (bounds work on hostile payloads). Because every key is
-  // whitelisted and every value is a short catalog id, a number or a 7-char hex, no VALID recipe can
-  // reach 4 KB, so an oversize payload is always also invalid on its own; this is defense-in-depth.
-  invalid(() => W.validateRecipe({ ...base(), colors: { hair: '#FFFFFF' }, pad: 'x'.repeat(5000) }));
-  invalid(() => W.validateRecipe({ ...base(), baseBody: 'x'.repeat(5000) }));
+test('largest possible valid recipe stays under the 4 KB cap (the cap is defense-in-depth)', () => {
   const big = base();
-  for (const { slot } of C.WARDROBE_SLOTS) big.parts[slot] = C.WARDROBE_ITEMS.filter(i => i.slot === slot).sort((a, b) => b.itemId.length - a.itemId.length)[0].itemId;
+  for (const l of C.FACE_LAYERS) big.faceLayers[l.layer] = [...l.options].sort((a, b) => b.length - a.length)[0];
+  for (const s of C.WARDROBE_SLOTS) {
+    const pool = ITEMS.filter(i => i.slot === s.slot && i.equippable && i.hidesSlots.length === 0);
+    big.parts[s.slot] = pool.sort((a, b) => b.itemId.length - a.itemId.length)[0].itemId;
+  }
   big.sliders = Object.fromEntries(C.SLIDER_KEYS.map(k => [k, -0.12345678901234567]));
-  big.colors = Object.fromEntries(C.COLOR_CHANNELS.map(c => [c, '#ABCDEF']));
-  assert.ok(Buffer.byteLength(JSON.stringify(big)) < 2048); assert.doesNotThrow(() => W.validateRecipe(big));
+  big.colors = { ...Object.fromEntries(C.GLOBAL_COLOR_CHANNELS.map(c => [c, '#ABCDEF'])), ...Object.fromEntries(C.WARDROBE_SLOTS.map(s => [s.slot, Array(ITEMS.find(i => i.itemId === big.parts[s.slot]).colorChannels).fill('#ABCDEF')])) };
+  const bytes = Buffer.byteLength(JSON.stringify(big));
+  assert.ok(bytes < C.MAX_RECIPE_BYTES, `${bytes} bytes`); assert.doesNotThrow(() => W.validateRecipe(big));
 });
 
-test('purchase: spends MARKETPLACE_PART_PRICES[rarity] and adds the entitlement; refusals write nothing', () => {
-  const helmet = C.WARDROBE_ITEM_BY_ID.get('ph.hat.helmet_01');
-  const out = W.applyPurchase({ holosTokens: 2000.5 }, fresh(), buyCmd(helmet.itemId));
-  assert.equal(out.holosAfter, 500.5); assert.deepEqual(out.state.entitlements, ['ph.hat.helmet_01']);
-  assert.deepEqual(out.reply.purchased, { itemId: 'ph.hat.helmet_01', price: 1500 }); assert.equal(out.reply.recipeSaved, false);
-  assert.throws(() => W.applyPurchase({ holosTokens: 1499 }, fresh(), buyCmd(helmet.itemId)), e => e.code === 'not_enough_holos');
-  assert.throws(() => W.applyPurchase({ holosTokens: 99999 }, out.state, buyCmd(helmet.itemId, 'b2')), e => e.code === 'already_owned', 'already_owned beats balance');
-  assert.throws(() => W.applyPurchase({ holosTokens: 0 }, out.state, buyCmd(helmet.itemId, 'b3')), e => e.code === 'already_owned', 'already_owned beats not_enough_holos too');
-  for (const id of ['ph.hat.cap_01', 'ph.hair.short_01', 'nope', '', 7]) invalid(() => buyCmd(id), `not for sale: ${id}`);
-  for (const h of [NaN, Infinity, -1, '300', null]) assert.throws(() => W.applyPurchase({ holosTokens: h }, fresh(), buyCmd(helmet.itemId)), e => e.code === 'unavailable', String(h));
+test('purchase: price from the economy table; already_owned and not_enough_holos write nothing; starters and the lens are not for sale', () => {
+  const suit = byPart('Top_FullSuit');
+  const out = W.applyPurchase({ holosTokens: 2000.5 }, fresh(), buyCmd(suit.itemId));
+  assert.equal(out.holosAfter, 500.5); assert.deepEqual(out.state.entitlements, ['top_fullsuit']); assert.deepEqual(out.reply.purchased, { itemId: 'top_fullsuit', price: 1500 });
+  assert.throws(() => W.applyPurchase({ holosTokens: 1499 }, fresh(), buyCmd(suit.itemId)), e => e.code === 'not_enough_holos');
+  assert.throws(() => W.applyPurchase({ holosTokens: 0 }, out.state, buyCmd(suit.itemId, 'b2')), e => e.code === 'already_owned');
+  for (const v of [id('Top_Tshirt'), id('HairFront_Messy'), id('UpperFace_RoundGlassesLens'), 'Top_FullSuit', 'nope']) invalid(() => buyCmd(v), `not for sale: ${v}`);
+  for (const h of [NaN, -1, '300', null]) assert.throws(() => W.applyPurchase({ holosTokens: h }, fresh(), buyCmd(suit.itemId)), e => e.code === 'unavailable');
 });
 
-test('no reset trap: absent state = nothing owned; malformed or wrong-schema state fails closed; unknown-but-well-formed ids are kept', () => {
-  assert.deepEqual(W.readWardrobeState(undefined), { schemaVersion: 'wardrobe-2', entitlements: [], recipe: null });
-  for (const bad of [null, {}, [], 'x', { schemaVersion: 'wardrobe-1', entitlements: [], recipe: null }, { schemaVersion: 'wardrobe-2', recipe: null },
-    { schemaVersion: 'wardrobe-2', entitlements: 'ph.hat.helmet_01', recipe: null }, { schemaVersion: 'wardrobe-2', entitlements: [1], recipe: null },
-    { schemaVersion: 'wardrobe-2', entitlements: ['a', 'a'], recipe: null }, { schemaVersion: 'wardrobe-2', entitlements: [''], recipe: null },
-    { schemaVersion: 'wardrobe-2', entitlements: [], recipe: 'x' }, { schemaVersion: 'wardrobe-2', entitlements: [] }])
+test('no reset trap: absent = nothing owned; malformed / wardrobe-2 / bad entitlements fail closed; retired ids kept', () => {
+  assert.deepEqual(W.readWardrobeState(undefined), { schemaVersion: 'wardrobe-3', entitlements: [], recipe: null });
+  for (const bad of [null, {}, [], { schemaVersion: 'wardrobe-2', entitlements: [], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: 'x', recipe: null },
+    { schemaVersion: 'wardrobe-3', entitlements: [1], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: ['a', 'a'], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: [], recipe: 'x' }])
     assert.throws(() => W.readWardrobeState(bad), e => e.code === 'unavailable', JSON.stringify(bad));
-  const kept = W.readWardrobeState({ schemaVersion: 'wardrobe-2', entitlements: ['ph.retired.item'], recipe: null });
-  const after = W.applyPurchase({ holosTokens: 300 }, kept, buyCmd('ph.top.hoodie_01'));
-  assert.deepEqual(after.state.entitlements, ['ph.retired.item', 'ph.top.hoodie_01'], 'a retired id survives the next purchase');
+  const kept = W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements: ['top_retired'], recipe: null });
+  assert.deepEqual(W.applyPurchase({ holosTokens: 300 }, kept, buyCmd(id('Neck_RibbonBow'))).state.entitlements, ['neck_ribbonbow', 'top_retired']);
 });
 
-test('commands and fingerprints: schemaVersion required; equivalent recipes share a fingerprint; any change alters it', () => {
-  for (const raw of [null, {}, { operation: 'status' }, { schemaVersion: 'wardrobe-1', operation: 'status' }, { schemaVersion: 'wardrobe-2', operation: 'read' },
-    { schemaVersion: 'wardrobe-2', operation: 'purchase', itemId: 'ph.hat.helmet_01' }, { schemaVersion: 'wardrobe-2', operation: 'purchase', itemId: 'ph.hat.helmet_01', requestId: 'a/b' },
-    { schemaVersion: 'wardrobe-2', operation: 'equip', requestId: 'r' }]) invalid(() => W.validateWardrobeCommand(raw), JSON.stringify(raw));
-  assert.deepEqual(W.validateWardrobeCommand({ schemaVersion: 'wardrobe-2', operation: 'status', uid: 'someone_else' }), { operation: 'status' });
-  const a = base(); a.sliders = { height: 0.5, ear: -0.5 }; a.colors = { hair: '#abcdef' };
-  const b = base(); b.sliders = { ear: -0.5, height: 0.5 }; b.colors = { hair: '#ABCDEF' }; delete b.parts.gloves;
-  assert.equal(W.commandFingerprint(equipCmd(a)), W.commandFingerprint(equipCmd(b, 'other')), 'canonical: key order, hex case, omitted optional slot');
-  const c = structuredClone(a); c.sliders.height = 0.51;
+test('fingerprints: equivalent recipes share one (key order, hex case, omitted optional slots/layers); any change alters it', () => {
+  const a = base(); a.sliders = { height: 0.5, ear: -0.5 }; a.colors = { hair: '#abcdef', top: ['#010203'] };
+  const b = base(); b.sliders = { ear: -0.5, height: 0.5 }; b.colors = { top: ['#010203'], hair: '#ABCDEF' }; delete b.parts.gloves; delete b.faceLayers.makeUpEyes;
+  assert.equal(W.commandFingerprint(equipCmd(a)), W.commandFingerprint(equipCmd(b, 'x')));
+  const c = structuredClone(a); c.faceLayers.pupil = 'Pupil_StarPupil';
   assert.notEqual(W.commandFingerprint(equipCmd(a)), W.commandFingerprint(equipCmd(c)));
-  assert.notEqual(W.commandFingerprint(buyCmd('ph.hat.helmet_01')), W.commandFingerprint(buyCmd('ph.top.armor_01')));
+  assert.notEqual(W.commandFingerprint(buyCmd(id('Hat_Fedora'))), W.commandFingerprint(buyCmd(id('Hat_Beanie'))));
+  for (const raw of [{ operation: 'status' }, { schemaVersion: 'wardrobe-2', operation: 'status' }, { schemaVersion: 'wardrobe-3', operation: 'purchase', itemId: 'hat_fedora' }])
+    invalid(() => W.validateWardrobeCommand(raw));
 });
 
-test('status view: entitlements, saved-or-default recipe, slots and every whitelist (so Unity hard-codes none)', () => {
-  const s = W.wardrobeStatus({ holosTokens: 10 }, { schemaVersion: 'wardrobe-2', entitlements: ['ph.hat.helmet_01'], recipe: null });
-  assert.equal(s.schemaVersion, 'wardrobe-2'); assert.equal(s.recipeSaved, false); assert.deepEqual(s.recipe, W.defaultRecipe()); assert.equal(s.holosTokens, 10);
-  assert.deepEqual(s.catalog.slots, C.WARDROBE_SLOTS); assert.deepEqual(s.catalog.baseBodies, C.BASE_BODIES); assert.deepEqual(s.catalog.faces, C.FACES);
-  assert.deepEqual(s.catalog.sliders, { keys: C.SLIDER_KEYS, min: -1, max: 1, default: 0 }); assert.deepEqual(s.catalog.colors.channels, C.COLOR_CHANNELS);
-  assert.equal(s.catalog.maxRecipeBytes, 4096); assert.equal(s.catalog.placeholder, true);
-  const helmet = s.catalog.items.find(i => i.itemId === 'ph.hat.helmet_01'); assert.equal(helmet.owned, true); assert.equal(helmet.usable, true);
-  const wings = s.catalog.items.find(i => i.itemId === 'ph.backAccessory.wings_01'); assert.equal(wings.owned, false); assert.equal(wings.usable, false);
+test('status view: slots, face-layer whitelists, sliders, colour rules and all 120 items (so Unity hard-codes none)', () => {
+  const s = W.wardrobeStatus({ holosTokens: 10 }, { schemaVersion: 'wardrobe-3', entitlements: ['hat_fedora'], recipe: null });
+  assert.equal(s.schemaVersion, 'wardrobe-3'); assert.equal(s.recipeSaved, false); assert.deepEqual(s.recipe, W.defaultRecipe());
+  assert.deepEqual(s.catalog.slots.map(x => x.slot), C.WARDROBE_SLOTS.map(x => x.slot)); assert.equal(s.catalog.faceLayers.length, 16);
+  assert.deepEqual(s.catalog.colors.globalChannels, ['skin', 'hair', 'eyes']); assert.equal(s.catalog.items.length, 120); assert.equal(s.catalog.placeholder, false);
+  const fedora = s.catalog.items.find(i => i.itemId === 'hat_fedora'); assert.equal(fedora.owned, true); assert.equal(fedora.usable, true); assert.equal(fedora.bozoPart, 'Hat_Fedora');
+  const lens = s.catalog.items.find(i => i.itemId === 'upperface_roundglasseslens'); assert.equal(lens.usable, false);
   assert.ok(s.catalog.items.filter(i => i.starter).every(i => i.usable && !i.owned));
+  assert.deepEqual(s.catalog.items.find(i => i.bozoPart === 'Top_Overall').hidesSlots, ['bottom']);
 });

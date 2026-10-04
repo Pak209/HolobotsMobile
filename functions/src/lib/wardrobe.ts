@@ -1,5 +1,5 @@
 /**
- * Pak DECISIONS #48 (2026-10-03): pilot wardrobe rules, wardrobe-2. The server owns prices,
+ * Pak DECISIONS #48 (2026-10-03): pilot wardrobe rules, wardrobe-3. The server owns prices,
  * entitlements and the saved appearance recipe; Unity sends a recipe, the server validates and
  * stores it, Unity renders what the server returns. All data lives in lib/wardrobeCatalog.ts.
  *
@@ -7,11 +7,12 @@
  */
 import { createHash } from "node:crypto";
 import {
-  BASE_BODIES, COLOR_CHANNELS, COLOR_DEFAULTS, FACES, MAX_RECIPE_BYTES, SLIDER_DEFAULT, SLIDER_KEYS, SLIDER_MAX, SLIDER_MIN,
+  FACE_LAYERS, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, SLIDER_DEFAULT, SLIDER_KEYS, SLIDER_MAX, SLIDER_MIN,
   WARDROBE_CATALOG_IS_PLACEHOLDER, WARDROBE_CATALOG_SOURCE, WARDROBE_ITEM_BY_ID, WARDROBE_ITEMS, WARDROBE_SLOTS, type WardrobeItem,
 } from "./wardrobeCatalog";
 
-export const WARDROBE_SCHEMA = "wardrobe-2";
+/** wardrobe-3: BoZo manifest slots, faceLayers, per-slot colour arrays (wardrobe-2 was never deployed). */
+export const WARDROBE_SCHEMA = "wardrobe-3";
 export const REQUEST_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
@@ -28,22 +29,27 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeo
 
 export type Recipe = {
   schemaVersion: typeof WARDROBE_SCHEMA;
-  baseBody: string;
-  face: string;
-  /** Every slot, in WARDROBE_SLOTS order; null only for optional slots. */
+  /** Free creator choices: every FACE_LAYERS layer, in order; null only for optional layers. */
+  faceLayers: Record<string, string | null>;
+  /** Every slot, in WARDROBE_SLOTS order; null for optional slots, and for any slot an equipped item hides. */
   parts: Record<string, string | null>;
   /** Only the keys the pilot set (missing = SLIDER_DEFAULT), in SLIDER_KEYS order. */
   sliders: Record<string, number>;
-  /** Only the channels the pilot set (missing = COLOR_DEFAULTS), upper-case #RRGGBB, in COLOR_CHANNELS order. */
-  colors: Record<string, string>;
+  /**
+   * Global channels (skin, hair, eyes) → "#RRGGBB"; slot name → ["#RRGGBB", …] with at most the
+   * equipped item's colorChannels entries. Only what the pilot set, upper-case, channels then slots in order.
+   */
+  colors: Record<string, string | string[]>;
 };
-const RECIPE_KEYS = new Set(["schemaVersion", "baseBody", "face", "parts", "sliders", "colors"]);
+const RECIPE_KEYS = new Set(["schemaVersion", "faceLayers", "parts", "sliders", "colors"]);
 
 /**
  * Structural validation (no ownership): returns the canonical recipe or throws invalid_request for an
- * oversize payload, unknown keys, a wrong schema, a body / face outside the free sets, an unknown item,
- * an item in the wrong slot, a missing required slot, a non-finite or out-of-range slider (REJECTED,
- * never clamped) or a colour that isn't strict #RRGGBB.
+ * oversize payload, unknown keys, a wrong schema, a face layer outside its whitelist (or a missing
+ * required layer), an unknown / non-equippable item, an item in the wrong slot, a missing required
+ * slot, a filled slot that an equipped item hides (e.g. bottom under Top_Overall), a filled slot an
+ * equipped item is incompatible with, a non-finite or out-of-range slider (REJECTED, never clamped),
+ * a colour that isn't strict #RRGGBB, or a slot colour array longer than that item's colorChannels.
  */
 export function validateRecipe(raw: unknown): Recipe {
   let encoded: string;
@@ -52,25 +58,41 @@ export function validateRecipe(raw: unknown): Recipe {
   if (!isPlainObject(raw) || Object.keys(raw).some((k) => !RECIPE_KEYS.has(k))) bad();
   const r = raw as Record<string, unknown>;
   if (r.schemaVersion !== WARDROBE_SCHEMA) bad();
-  if (typeof r.baseBody !== "string" || !BASE_BODIES.includes(r.baseBody)) bad();
-  if (typeof r.face !== "string" || !FACES.includes(r.face)) bad();
+
+  if (!isPlainObject(r.faceLayers)) bad();
+  const rawLayers = r.faceLayers as Record<string, unknown>;
+  if (Object.keys(rawLayers).some((k) => !FACE_LAYERS.some((l) => l.layer === k))) bad();
+  const faceLayers: Record<string, string | null> = {};
+  for (const { layer, required, options } of FACE_LAYERS) {
+    const v = rawLayers[layer];
+    if (v === undefined || v === null) {
+      if (required) bad();
+      faceLayers[layer] = null;
+      continue;
+    }
+    if (typeof v !== "string" || !options.includes(v)) bad();
+    faceLayers[layer] = v as string;
+  }
 
   if (!isPlainObject(r.parts)) bad();
   const rawParts = r.parts as Record<string, unknown>;
-  const slotNames = new Set(WARDROBE_SLOTS.map((s) => s.slot));
-  if (Object.keys(rawParts).some((k) => !slotNames.has(k))) bad();
+  if (Object.keys(rawParts).some((k) => !WARDROBE_SLOTS.some((s) => s.slot === k))) bad();
   const parts: Record<string, string | null> = {};
-  for (const { slot, required } of WARDROBE_SLOTS) {
+  for (const { slot } of WARDROBE_SLOTS) {
     const v = rawParts[slot];
-    if (v === undefined || v === null) {
-      if (required) bad();
-      parts[slot] = null;
-      continue;
-    }
+    if (v === undefined || v === null) { parts[slot] = null; continue; }
     if (typeof v !== "string") bad();
     const item = WARDROBE_ITEM_BY_ID.get(v as string);
-    if (!item || item.slot !== slot) bad();
+    if (!item || item.slot !== slot || !item.equippable) bad();
     parts[slot] = v as string;
+  }
+  // Hide / incompatibility rules, generalised from the manifest: a slot hidden by (or incompatible
+  // with) any equipped item must be empty; every other required slot must be filled.
+  const equipped = Object.values(parts).filter((id): id is string => id !== null).map((id) => WARDROBE_ITEM_BY_ID.get(id)!);
+  const mustBeEmpty = new Set(equipped.flatMap((i) => [...i.hidesSlots, ...i.incompatibleSlots]));
+  for (const { slot, required } of WARDROBE_SLOTS) {
+    if (mustBeEmpty.has(slot)) { if (parts[slot] !== null) bad(); }
+    else if (required && parts[slot] === null) bad();
   }
 
   const sliders: Record<string, number> = {};
@@ -86,26 +108,42 @@ export function validateRecipe(raw: unknown): Recipe {
     }
   }
 
-  const colors: Record<string, string> = {};
+  const colors: Record<string, string | string[]> = {};
   if (r.colors !== undefined) {
     if (!isPlainObject(r.colors)) bad();
     const c = r.colors as Record<string, unknown>;
-    if (Object.keys(c).some((k) => !COLOR_CHANNELS.includes(k))) bad();
-    for (const channel of COLOR_CHANNELS) {
+    if (Object.keys(c).some((k) => !GLOBAL_COLOR_CHANNELS.includes(k) && !WARDROBE_SLOTS.some((s) => s.slot === k))) bad();
+    for (const channel of GLOBAL_COLOR_CHANNELS) {
       if (c[channel] === undefined) continue;
       const hex = c[channel];
       if (typeof hex !== "string" || !HEX.test(hex)) bad();
       colors[channel] = (hex as string).toUpperCase();
     }
+    for (const { slot } of WARDROBE_SLOTS) {
+      if (c[slot] === undefined) continue;
+      const list = c[slot];
+      const id = parts[slot];
+      if (!Array.isArray(list) || id === null) bad(); // no item in the slot → nothing to tint
+      const cap = WARDROBE_ITEM_BY_ID.get(id as string)!.colorChannels;
+      if ((list as unknown[]).length > cap || (list as unknown[]).some((h) => typeof h !== "string" || !HEX.test(h))) bad();
+      if ((list as string[]).length) colors[slot] = (list as string[]).map((h) => h.toUpperCase());
+    }
   }
-  return { schemaVersion: WARDROBE_SCHEMA, baseBody: r.baseBody as string, face: r.face as string, parts, sliders, colors };
+  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, sliders, colors };
 }
 
-/** What a pilot with no saved recipe looks like: first free body / face, first starter per required slot. Never written by status. */
+/**
+ * A pilot with no saved recipe: first option per required face layer (optional layers none), first
+ * starter item (manifest order) per required slot not hidden by another, optional slots none. Never written by status.
+ */
 export function defaultRecipe(): Recipe {
+  const faceLayers: Record<string, string | null> = {};
+  for (const { layer, required, options } of FACE_LAYERS) faceLayers[layer] = required ? options[0] : null;
   const parts: Record<string, string | null> = {};
-  for (const { slot, required } of WARDROBE_SLOTS) parts[slot] = required ? WARDROBE_ITEMS.find((i) => i.starter && i.slot === slot)!.itemId : null;
-  return { schemaVersion: WARDROBE_SCHEMA, baseBody: BASE_BODIES[0], face: FACES[0], parts, sliders: {}, colors: {} };
+  for (const { slot, required } of WARDROBE_SLOTS) {
+    parts[slot] = required ? WARDROBE_ITEMS.find((i) => i.starter && i.equippable && i.slot === slot && i.hidesSlots.length === 0)!.itemId : null;
+  }
+  return { schemaVersion: WARDROBE_SCHEMA, faceLayers, parts, sliders: {}, colors: {} };
 }
 
 // ---- Stored state: wardrobes/{uid} (server-only) ------------------------------
@@ -144,7 +182,7 @@ export type WardrobeCommand =
   | { operation: "purchase"; requestId: string; itemId: string }
   | { operation: "equip"; requestId: string; recipe: Recipe };
 
-/** Every request carries schemaVersion "wardrobe-2". */
+/** Every request carries schemaVersion "wardrobe-3". */
 export function validateWardrobeCommand(raw: unknown): WardrobeCommand {
   if (!isPlainObject(raw) || raw.schemaVersion !== WARDROBE_SCHEMA) bad();
   const c = raw as Record<string, unknown>;
@@ -153,7 +191,7 @@ export function validateWardrobeCommand(raw: unknown): WardrobeCommand {
   if (typeof c.requestId !== "string" || !REQUEST_ID.test(c.requestId)) bad();
   if (c.operation === "purchase") {
     const item = typeof c.itemId === "string" ? WARDROBE_ITEM_BY_ID.get(c.itemId) : undefined;
-    if (!item || item.starter) bad(); // starter items are free and never sold
+    if (!item || !item.sellable) bad(); // starter items are free; non-sellable overrides are never sold
     return { operation: "purchase", requestId: c.requestId as string, itemId: item!.itemId };
   }
   return { operation: "equip", requestId: c.requestId as string, recipe: validateRecipe(c.recipe) };
@@ -177,13 +215,12 @@ export function wardrobeCatalogView(owned: readonly string[]) {
   return {
     placeholder: WARDROBE_CATALOG_IS_PLACEHOLDER,
     source: WARDROBE_CATALOG_SOURCE,
-    slots: WARDROBE_SLOTS.map((s) => ({ ...s })),
-    baseBodies: [...BASE_BODIES],
-    faces: [...FACES],
+    slots: WARDROBE_SLOTS.map(({ slot, type, required }) => ({ slot, type, required })),
+    faceLayers: FACE_LAYERS.map((l) => ({ layer: l.layer, required: l.required, options: [...l.options] })),
     sliders: { keys: [...SLIDER_KEYS], min: SLIDER_MIN, max: SLIDER_MAX, default: SLIDER_DEFAULT },
-    colors: { channels: [...COLOR_CHANNELS], defaults: { ...COLOR_DEFAULTS }, format: "#RRGGBB" },
+    colors: { globalChannels: [...GLOBAL_COLOR_CHANNELS], defaults: { ...GLOBAL_COLOR_DEFAULTS }, format: "#RRGGBB", perSlot: "array of #RRGGBB, length <= the equipped item's colorChannels" },
     maxRecipeBytes: MAX_RECIPE_BYTES,
-    items: WARDROBE_ITEMS.map((i): ItemView => ({ ...i, tintable: [...i.tintable], owned: owned.includes(i.itemId), usable: i.starter || owned.includes(i.itemId) })),
+    items: WARDROBE_ITEMS.map((i): ItemView => ({ ...i, hidesSlots: [...i.hidesSlots], incompatibleSlots: [...i.incompatibleSlots], owned: owned.includes(i.itemId), usable: i.equippable && (i.starter || owned.includes(i.itemId)) })),
   };
 }
 

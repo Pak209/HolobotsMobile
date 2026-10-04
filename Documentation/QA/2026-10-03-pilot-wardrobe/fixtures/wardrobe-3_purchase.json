@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "wardrobe-3",
+  "operation": "purchase",
+  "requestId": "p1",
+  "alreadyProcessed": false,
+  "purchased": {
+    "itemId": "top_openhoodie",
+    "price": 300
+  },
+  "entitlements": [
+    "top_openhoodie"
+  ],
+  "recipe": {
+    "schemaVersion": "wardrobe-3",
+    "faceLayers": {
+      "head": "Head_AnimeYoung",
+      "body": "Body_AnimeBasic",
+      "bodyType": null,
+      "eyes": "Eyes_AnimeBasic",
+      "pupil": "Pupil_BasicPupil",
+      "eyeShine": null,
+      "eyeBrows": "Brows_BasicBrows",
+      "eyeLashes": "EyeLashes_LongLashes",
+      "teeth": "Teeth_AnimeBasicTeeth",
+      "makeUpCheeks": null,
+      "makeUpEyes": null,
+      "makeUpLips": null,
+      "faceDetails": null,
+      "faceTexture": null,
+      "underUpper": "UnderUpper_SimpleUnderShirt",
+      "underLower": "UnderLower_SimpleBoxers"
+    },
+    "parts": {
+      "hairFront": "hairfront_asymmetricalfringe",
+      "hairBack": "hairback_casualflow",
+      "top": "top_simplehoodie",
+      "bottom": "bottom_baggypants",
+      "feet": "feet_athleticmidtop",
+      "gloves": null,
+      "hat": null,
+      "headAcc": null,
+      "upperFace": null,
+      "lowerFace": null,
+      "neck": null,
+      "leggings": null,
+      "socks": null
+    },
+    "sliders": {},
+    "colors": {}
+  },
+  "recipeSaved": false,
+  "holosTokens": 700
+}

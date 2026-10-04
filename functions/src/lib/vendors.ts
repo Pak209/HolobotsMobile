@@ -19,7 +19,7 @@ import { BUDDY_UNIT_PRICES_HOLOS, BUDDY_UNIT_TIERS, BUDDY_UNITS_FIELD, BuddyInve
 import { WARDROBE_ITEMS } from "./wardrobeCatalog";
 import { WARDROBE_SCHEMA } from "./wardrobe";
 
-/** vendor-3 (DECISIONS #48): adds the `boutique` vendor and `clothing` listings (details.tintable is a string[]). */
+/** vendor-3 (DECISIONS #48): adds the `boutique` vendor and `clothing` listings (details.hidesSlots is a string[]). */
 export const VENDOR_SCHEMA = "vendor-3";
 export const VENDOR_IDS = ["marketplace", "workshop", "boutique"] as const;
 export type VendorId = (typeof VENDOR_IDS)[number];
@@ -41,7 +41,7 @@ export type Listing = {
   available: boolean;
   /** Epoch ms when an unavailable listing reopens; 0 when available. */
   availableAtMs: number;
-  /** Extra per-kind facts (part rarity/slot, booster bonus item, buddy tier id, clothing slot/rarity/itemId/tintable). */
+  /** Extra per-kind facts (part rarity/slot, booster bonus item, buddy tier id, clothing itemId/bozoPart/slot/rarity/colorChannels/hidesSlots). */
   details: Record<string, string | string[]>;
   /** Exactly what Unity sends to buy it. `requestId` placeholders are client-generated per purchase attempt. */
   purchase: PurchaseCall;
@@ -138,14 +138,14 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
       }));
     }
   } else if (vendorId === "boutique") {
-    // DECISIONS #48 clothing: sold wardrobe items only (starter items are free and never listed).
+    // DECISIONS #48 clothing: sellable wardrobe items only (starter items are free; non-sellable overrides never listed).
     for (const item of WARDROBE_ITEMS) {
-      if (item.starter || item.vendorId !== "boutique") continue;
+      if (!item.sellable || item.vendorId !== "boutique") continue;
       const owned = wardrobeEntitlements.includes(item.itemId);
       listings.push(listing({
         listingId: `clothing.${item.itemId}`, kind: "clothing", displayName: item.displayName, price: item.price,
         owned: owned ? 1 : 0, available: !owned,
-        details: { itemId: item.itemId, slot: item.slot, rarity: item.rarity, tintable: [...item.tintable] },
+        details: { itemId: item.itemId, bozoPart: item.bozoPart, slot: item.slot, rarity: item.rarity, colorChannels: String(item.colorChannels), hidesSlots: [...item.hidesSlots] },
         purchase: { callable: "wardrobeHost", request: { schemaVersion: WARDROBE_SCHEMA, operation: "purchase", itemId: item.itemId, requestId: "<client-generated>" } },
       }));
     }

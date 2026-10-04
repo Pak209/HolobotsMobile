@@ -77,18 +77,22 @@ test('Buddy Unit purchase refusals: not enough Holos, Light not for sale, bad id
 
 test('boutique catalog (vendor-3): every sold wardrobe item at MARKETPLACE_PART_PRICES[rarity], owned flags, wardrobeHost purchase descriptor', () => {
   const C = require('../lib/lib/wardrobeCatalog.js');
-  const sold = C.WARDROBE_ITEMS.filter(i => !i.starter);
-  const c = V.buildCatalog(profile(), 'boutique', NOW, ['ph.hat.helmet_01', 'ph.retired.item']);
+  const sold = C.WARDROBE_ITEMS.filter(i => i.sellable);
+  assert.equal(sold.length, 80);
+  const c = V.buildCatalog(profile(), 'boutique', NOW, ['hat_fedora', 'retired_item']);
   assert.equal(c.schemaVersion, 'vendor-3'); assert.equal(c.vendorId, 'boutique');
   assert.deepEqual(c.listings.map(l => [l.listingId, l.kind, l.price]), sold.map(i => [`clothing.${i.itemId}`, 'clothing', E.MARKETPLACE_PART_PRICES[i.rarity]]));
   for (const l of c.listings) {
     const item = C.WARDROBE_ITEM_BY_ID.get(l.details.itemId);
-    assert.deepEqual(l.details, { itemId: item.itemId, slot: item.slot, rarity: item.rarity, tintable: item.tintable });
-    assert.deepEqual(l.purchase, { callable: 'wardrobeHost', request: { schemaVersion: 'wardrobe-2', operation: 'purchase', itemId: item.itemId, requestId: '<client-generated>' } });
+    assert.deepEqual(l.details, { itemId: item.itemId, bozoPart: item.bozoPart, slot: item.slot, rarity: item.rarity, colorChannels: String(item.colorChannels), hidesSlots: item.hidesSlots });
+    assert.deepEqual(l.purchase, { callable: 'wardrobeHost', request: { schemaVersion: 'wardrobe-3', operation: 'purchase', itemId: item.itemId, requestId: '<client-generated>' } });
   }
-  const helmet = c.listings.find(l => l.listingId === 'clothing.ph.hat.helmet_01');
+  const helmet = c.listings.find(l => l.listingId === 'clothing.hat_fedora');
   assert.equal(helmet.owned, 1); assert.equal(helmet.available, false);
   assert.ok(c.listings.filter(l => l !== helmet).every(l => l.owned === 0 && l.available));
   assert.equal(c.listings.some(l => C.WARDROBE_ITEM_BY_ID.get(l.details.itemId).starter), false, 'starter items are never listed');
+  assert.equal(c.listings.some(l => l.details.itemId === 'upperface_roundglasseslens'), false, 'non-sellable lens is never listed');
+  const overall = c.listings.find(l => l.details.bozoPart === 'Top_Overall');
+  assert.deepEqual(overall.details.hidesSlots, ['bottom']);
   assert.deepEqual(V.validateCatalogCommand({ operation: 'catalog', vendorId: 'boutique' }), { operation: 'catalog', vendorId: 'boutique' });
 });

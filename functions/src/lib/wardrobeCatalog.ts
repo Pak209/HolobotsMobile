@@ -1,116 +1,192 @@
 /**
- * Pak DECISIONS #48 (2026-10-03): pilot wardrobe catalog. THE ONE DATA MODULE for slots, free
- * creator choices (bodies, faces), slider / colour whitelists and clothing items.
+ * Pak DECISIONS #48 (2026-10-03): pilot wardrobe catalog, GENERATED from the BoZo Anime Pack
+ * manifest (lib/data/bozoWardrobeManifest.json: one entry per runtime prefab, read from each
+ * prefab's Outfit.Type in Unity; canonical copy in the Unity repo at
+ * Documentation/QA/2026-10-03-bozo-import/bozo-wardrobe-manifest.json).
  *
- * ⚠ PLACEHOLDER IDS. Every id starting with "ph." is a placeholder until Pak downloads the
- * "BoZo Anime Pack" and runs the part audit. Regenerating this file from the audit is a data-only
- * change: replace the arrays below (keep the field names), keep `vendorId` / `rarity` / `starter`
- * decisions, and leave lib/wardrobe.ts untouched. Ids are opaque strings to the server; Unity maps
- * them to prefabs / blendshapes. See Documentation/QA/2026-10-03-pilot-wardrobe/CONTRACT.md.
+ * No item id is hand-typed: itemId = bozoPart lower-cased, bozoPart kept verbatim (Unity loads the
+ * prefab by that exact name, vendor spellings included: Hairback_ShinryuCut, Underlower_*, Freakles).
+ * This file holds only the producer's DECISIONS on top of the manifest (slot table, starter / rarity
+ * split, face-layer whitelists, overrides) and checks them against the manifest at load: a typo or
+ * a renamed prefab fails the build's tests instead of shipping an unknown id.
+ *
+ * Regenerate after a new pack audit: replace the JSON, re-run tests; adjust the decision tables
+ * below only if the producer changes them. No code in lib/wardrobe.ts / the store / the host changes.
  *
  * Pure module: no firebase imports, safe to import from tests.
  */
 import { MARKETPLACE_PART_PRICES, type MarketplacePartRarity } from "./economy";
+import MANIFEST_JSON from "./data/bozoWardrobeManifest.json";
 
-/** True until the BoZo pack audit replaces the "ph." ids. Reported to Unity in `status`. */
-export const WARDROBE_CATALOG_IS_PLACEHOLDER = true;
-export const WARDROBE_CATALOG_SOURCE = "placeholder-2026-10-03 (awaiting BoZo Anime Pack audit)";
+export type ManifestEntry = { bozoPart: string; type: string; hides: string[]; incompatible: string[]; colorChannels: number };
+export const BOZO_MANIFEST: readonly ManifestEntry[] = MANIFEST_JSON as ManifestEntry[];
 
-// ---- Slots (PROVISIONAL until the pack audit) -------------------------------
+export const WARDROBE_CATALOG_IS_PLACEHOLDER = false;
+export const WARDROBE_CATALOG_SOURCE = "BoZo Anime Pack runtime prefabs (Outfit.Type), manifest 2026-10-03 (120 entries)";
 
-export type SlotRow = { slot: string; required: boolean };
-/** Required slots must always hold an item; optional slots may be null ("none"). Order = display order. */
+// ---- Slots: pack Outfit.Type → recipe slot ---------------------------------------
+
+/**
+ * `required`: the slot must hold an item, UNLESS an equipped item's `hides` covers it (then it must
+ * be null). Optional slots may be null. `expectedCount` = manifest entries of that type (asserted).
+ */
+export type SlotRow = { slot: string; type: string; required: boolean; expectedCount: number };
 export const WARDROBE_SLOTS: readonly SlotRow[] = [
-  { slot: "hair", required: true },
-  { slot: "top", required: true },
-  { slot: "bottom", required: true },
-  { slot: "footwear", required: true },
-  { slot: "gloves", required: false },
-  { slot: "hat", required: false },
-  { slot: "faceAccessory", required: false },
-  { slot: "backAccessory", required: false },
+  { slot: "hairFront", type: "HairFront", required: true, expectedCount: 11 },
+  { slot: "hairBack", type: "HairBack", required: true, expectedCount: 19 },
+  { slot: "top", type: "Top", required: true, expectedCount: 24 },
+  { slot: "bottom", type: "Bottom", required: true, expectedCount: 16 },
+  { slot: "feet", type: "Feet", required: true, expectedCount: 13 },
+  { slot: "gloves", type: "Gloves", required: false, expectedCount: 8 },
+  { slot: "hat", type: "Hat", required: false, expectedCount: 9 },
+  { slot: "headAcc", type: "HeadAcc", required: false, expectedCount: 4 },
+  { slot: "upperFace", type: "UpperFace", required: false, expectedCount: 5 },
+  { slot: "lowerFace", type: "LowerFace", required: false, expectedCount: 3 },
+  { slot: "neck", type: "Neck", required: false, expectedCount: 1 },
+  { slot: "leggings", type: "Leggings", required: false, expectedCount: 1 },
+  { slot: "socks", type: "Socks", required: false, expectedCount: 6 },
+];
+const SLOT_BY_TYPE: ReadonlyMap<string, SlotRow> = new Map(WARDROBE_SLOTS.map((s) => [s.type, s]));
+
+// ---- Producer split (data; Pak tunes) -----------------------------------------------
+
+/** Free and always usable: every item of these types, plus these exact parts. */
+export const STARTER_TYPES: readonly string[] = ["HairFront", "HairBack"];
+export const STARTER_PARTS: readonly string[] = [
+  "Top_Tshirt", "Top_SimpleHoodie", "Top_TankTop",
+  "Bottom_SimpleShorts", "Bottom_SkinnyJeans", "Bottom_BaggyPants",
+  "Feet_SimpleSneakers", "Feet_AthleticMidTop",
+  "Socks_BasicSocks",
 ];
 
-// ---- Free creator choices (not slots, never sold) ----------------------------
+/**
+ * Sold items: first matching rule wins; no match = "common" (basics).
+ * epic: named premium pieces + all HeadAcc. rare: jackets, boots, hats, gloves, glasses.
+ */
+export type RarityRule = { rarity: MarketplacePartRarity; parts?: readonly string[]; types?: readonly string[]; pattern?: RegExp; patternTypes?: readonly string[]; note: string };
+export const RARITY_RULES: readonly RarityRule[] = [
+  { rarity: "epic", parts: ["Top_FullSuit", "Top_SmartDress", "Top_Nagagi", "Top_SimpleKimono", "Bottom_BasicHakma"], note: "premium pieces" },
+  { rarity: "epic", types: ["HeadAcc"], note: "all HeadAcc" },
+  { rarity: "rare", pattern: /Jacket/, patternTypes: ["Top"], note: "jackets" },
+  { rarity: "rare", pattern: /Boot/, patternTypes: ["Feet"], note: "boots" },
+  { rarity: "rare", types: ["Hat"], note: "hats" },
+  { rarity: "rare", types: ["Gloves"], note: "gloves (whole Gloves type: gloves, rings, bands)" },
+  { rarity: "rare", pattern: /Glasses|HalfMoon/, patternTypes: ["UpperFace"], note: "glasses" },
+];
 
-export const BASE_BODIES: readonly string[] = ["ph.body.a", "ph.body.b", "ph.body.c"];
-export const FACES: readonly string[] = ["ph.face.01", "ph.face.02", "ph.face.03", "ph.face.04"];
+/**
+ * Per-part overrides. UpperFace_RoundGlassesLens is very likely the optional lens piece of
+ * UpperFace_RoundGlasses, not a standalone wearable: kept in the manifest and the catalog but never
+ * sold or equipped. UNCONFIRMED: Unity to confirm (flagged in the PR / CONTRACT).
+ */
+export const PART_OVERRIDES: Readonly<Record<string, { sellable: boolean; equippable: boolean; note: string }>> = {
+  UpperFace_RoundGlassesLens: { sellable: false, equippable: false, note: "likely the optional lens of UpperFace_RoundGlasses (unconfirmed)" },
+};
 
-// ---- Body / face sliders and colour channels --------------------------------
+// ---- Free creator choices (not wardrobe items, never purchasable) --------------------
+
+/** Recipe `faceLayers: { <layer>: <BoZo part name> | null }`. Vendor spellings kept exactly. */
+export type FaceLayerRow = { layer: string; required: boolean; options: readonly string[] };
+export const FACE_LAYERS: readonly FaceLayerRow[] = [
+  { layer: "head", required: true, options: ["Head_AnimeYoung", "Head_BasicHead", "Head_SharpHead", "Head_Stern", "Head_YoungSharpHead"] },
+  { layer: "body", required: true, options: ["Body_AnimeBasic", "Body_BasicBody", "Body_StrongBody"] },
+  { layer: "bodyType", required: false, options: ["BodyType_StylizedLeanBody", "BodyType_StylizedStrongBody"] },
+  { layer: "eyes", required: true, options: ["Eyes_AnimeBasic", "Eyes_BasicEyes", "Eyes_BasicIris"] },
+  { layer: "pupil", required: true, options: ["Pupil_BasicPupil", "Pupil_Round", "Pupil_SharpPupil", "Pupil_StylizedRoundRinged", "Pupil_HeartPupil", "Pupil_Square", "Pupil_StarPupil"] },
+  { layer: "eyeShine", required: false, options: ["EyeShine_DoubleRound", "EyeShine_StylizedDoubleShine"] },
+  { layer: "eyeBrows", required: true, options: ["Brows_BasicBrows", "Brows_PillBrows", "Brows_ThickBrows", "Brows_ThinBrows", "EyeBrows_StylizedBasicBrows", "EyeBrows_StylizedThickBrows"] },
+  { layer: "eyeLashes", required: true, options: ["EyeLashes_LongLashes", "EyeLashes_ShortLashes", "EyeLashes_StylizedLongLashes", "EyeLashes_StylizedShortLashes"] },
+  { layer: "teeth", required: true, options: ["Teeth_AnimeBasicTeeth", "Teeth_StylizedBasicTeeth"] },
+  { layer: "makeUpCheeks", required: false, options: ["MakeUpCheeks_BasicBlush", "MakeUpCheeks_SimpleBlush"] },
+  { layer: "makeUpEyes", required: false, options: ["MakeUpEyes_BasicEyeLiner"] },
+  { layer: "makeUpLips", required: false, options: ["MakeUpLips_BasicLipstick", "MakeUpLips_SimpleLipstick"] },
+  { layer: "faceDetails", required: false, options: ["FaceDetail_Freakles", "FaceDetail_FullFreakles", "FaceDetails_FrecklesHeavy", "FaceDetails_FrecklesLight", "FaceDetails_FrecklesMedium"] },
+  { layer: "faceTexture", required: false, options: ["FaceTexture_Wrinkles"] },
+  { layer: "underUpper", required: true, options: ["UnderUpper_SimpleUnderShirt", "UnderUpper_SimpleUnderShirt2", "UnderUpper_SimpleBra"] },
+  { layer: "underLower", required: true, options: ["UnderLower_SimpleBoxers", "Underlower_ShortSpats", "UnderLower_SimplePanties"] },
+];
+
+// ---- Sliders and colours --------------------------------------------------------------
 
 export const SLIDER_KEYS: readonly string[] = [
   "height", "build", "headSize", "shoulderWidth", "legLength",
   "eyeSize", "eyeSpacing", "noseSize", "mouthWidth", "jaw", "cheek", "ear",
 ];
-/** Inclusive range; values outside it are REJECTED (invalid_request), never clamped. Missing key = SLIDER_DEFAULT. */
+/** Inclusive; outside → REJECTED (invalid_request), never clamped. Missing key = SLIDER_DEFAULT. */
 export const SLIDER_MIN = -1;
 export const SLIDER_MAX = 1;
 export const SLIDER_DEFAULT = 0;
 
-/** Missing channel = its default here. Values are strict #RRGGBB (stored upper-case). */
-export const COLOR_DEFAULTS: Readonly<Record<string, string>> = {
-  skin: "#E8B996",
-  hair: "#2B2B2B",
-  eyes: "#3A6EA5",
-  primary: "#1F8FFF",
-  secondary: "#20232A",
-  accent: "#FFC83D",
-};
-export const COLOR_CHANNELS: readonly string[] = Object.keys(COLOR_DEFAULTS);
+/**
+ * Global channels (one #RRGGBB each; missing = default). Per-slot colours live in the same
+ * `colors` map under the slot name as an array of #RRGGBB, at most the equipped item's colorChannels.
+ */
+export const GLOBAL_COLOR_DEFAULTS: Readonly<Record<string, string>> = { skin: "#E8B996", hair: "#2B2B2B", eyes: "#3A6EA5" };
+export const GLOBAL_COLOR_CHANNELS: readonly string[] = Object.keys(GLOBAL_COLOR_DEFAULTS);
 
 /** Encoded (JSON, UTF-8) size cap for one recipe. Larger → invalid_request. */
 export const MAX_RECIPE_BYTES = 4096;
 
-// ---- Items ------------------------------------------------------------------
+// ---- Generated items ----------------------------------------------------------------
 
-export type WardrobeVendorId = "boutique";
 export type WardrobeItem = {
   itemId: string;
+  /** Exact Unity prefab name (vendor spelling). */
+  bozoPart: string;
   slot: string;
+  type: string;
   displayName: string;
   rarity: "starter" | MarketplacePartRarity;
-  /** Holos; 0 for starter items. Sold items are priced by MARKETPLACE_PART_PRICES[rarity] (economy module). */
+  /** Holos; 0 when not sellable (starter / override). Sold: MARKETPLACE_PART_PRICES[rarity] (economy module). */
   price: number;
-  /** Starter items are free and always usable; they are never sold or stored as entitlements. */
   starter: boolean;
-  /** Where sold items are listed ("" for starter items). DECISIONS #48: the new `boutique` vendor. */
-  vendorId: WardrobeVendorId | "";
-  /** Colour channels this item reads when rendered (from COLOR_CHANNELS). */
-  tintable: string[];
+  /** Listed at the boutique and purchasable (false for starter items and overrides). */
+  sellable: boolean;
+  /** May appear in a recipe. */
+  equippable: boolean;
+  vendorId: "boutique" | "";
+  /** Number of tintable colour channels (0..N): the per-slot colour array cap. */
+  colorChannels: number;
+  /** Slots that must be empty while this item is equipped (manifest `hides`, mapped type → slot). */
+  hidesSlots: string[];
+  /** Slots that must be empty while this item is equipped (manifest `incompatible`). */
+  incompatibleSlots: string[];
 };
 
-const starter = (itemId: string, slot: string, displayName: string, tintable: string[] = []): WardrobeItem =>
-  ({ itemId, slot, displayName, rarity: "starter", price: 0, starter: true, vendorId: "", tintable });
-const sold = (itemId: string, slot: string, displayName: string, rarity: MarketplacePartRarity, tintable: string[] = []): WardrobeItem =>
-  ({ itemId, slot, displayName, rarity, price: MARKETPLACE_PART_PRICES[rarity], starter: false, vendorId: "boutique", tintable });
+const displayNameOf = (bozoPart: string) => bozoPart.slice(bozoPart.indexOf("_") + 1).replace(/([a-z0-9])([A-Z])/g, "$1 $2");
 
-export const WARDROBE_ITEMS: readonly WardrobeItem[] = [
-  // Starter: 2 per required slot, 1 per optional slot. Free, always usable, never stored.
-  starter("ph.hair.short_01", "hair", "Short Crop", ["hair"]),
-  starter("ph.hair.long_01", "hair", "Long Sweep", ["hair"]),
-  starter("ph.top.tee_01", "top", "Pilot Tee", ["primary"]),
-  starter("ph.top.jacket_01", "top", "Flight Jacket", ["primary", "secondary"]),
-  starter("ph.bottom.pants_01", "bottom", "Cargo Pants", ["secondary"]),
-  starter("ph.bottom.shorts_01", "bottom", "Track Shorts", ["secondary"]),
-  starter("ph.footwear.sneakers_01", "footwear", "Runner Sneakers", ["accent"]),
-  starter("ph.footwear.boots_01", "footwear", "Field Boots"),
-  starter("ph.gloves.fingerless_01", "gloves", "Fingerless Gloves", ["secondary"]),
-  starter("ph.hat.cap_01", "hat", "Pilot Cap", ["primary"]),
-  starter("ph.faceAccessory.visor_01", "faceAccessory", "Clear Visor", ["accent"]),
-  starter("ph.backAccessory.pack_01", "backAccessory", "Mini Pack", ["secondary"]),
-  // Sold at the boutique (12): price = MARKETPLACE_PART_PRICES[rarity].
-  sold("ph.hair.mohawk_01", "hair", "Neon Mohawk", "rare", ["hair"]),
-  sold("ph.hair.twintails_01", "hair", "Twin Tails", "common", ["hair"]),
-  sold("ph.top.hoodie_01", "top", "Circuit Hoodie", "common", ["primary", "accent"]),
-  sold("ph.top.armor_01", "top", "Harbor Armor Vest", "epic", ["primary", "secondary", "accent"]),
-  sold("ph.bottom.joggers_01", "bottom", "Glow Joggers", "common", ["secondary", "accent"]),
-  sold("ph.bottom.armor_01", "bottom", "Plated Greaves", "rare", ["secondary"]),
-  sold("ph.footwear.hightops_01", "footwear", "Hover High-Tops", "rare", ["accent"]),
-  sold("ph.gloves.gauntlets_01", "gloves", "Arc Gauntlets", "rare", ["accent"]),
-  sold("ph.hat.helmet_01", "hat", "Rival Helmet", "epic", ["primary", "accent"]),
-  sold("ph.faceAccessory.mask_01", "faceAccessory", "Neon Forest Mask", "common", ["accent"]),
-  sold("ph.backAccessory.wings_01", "backAccessory", "Holo Wings", "epic", ["accent"]),
-  sold("ph.backAccessory.cape_01", "backAccessory", "Courier Cape", "common", ["primary"]),
-];
+/** Derives the catalog from a manifest and validates every producer decision against it. Throws on any inconsistency. */
+export function buildWardrobeItems(manifest: readonly ManifestEntry[]): WardrobeItem[] {
+  const fail = (msg: string): never => { throw new Error(`wardrobe catalog: ${msg}`); };
+  const byPart = new Map(manifest.map((e) => [e.bozoPart, e]));
+  if (byPart.size !== manifest.length) fail("duplicate bozoPart");
+  if (new Set(manifest.map((e) => e.bozoPart.toLowerCase())).size !== manifest.length) fail("lower-cased ids collide");
+  for (const name of [...STARTER_PARTS, ...Object.keys(PART_OVERRIDES), ...RARITY_RULES.flatMap((r) => r.parts ?? [])]) if (!byPart.has(name)) fail(`unknown part ${name}`);
+  for (const t of [...STARTER_TYPES, ...RARITY_RULES.flatMap((r) => [...(r.types ?? []), ...(r.patternTypes ?? [])])]) if (!SLOT_BY_TYPE.has(t)) fail(`unknown type ${t}`);
+  const items = manifest.map((e): WardrobeItem => {
+    if (typeof e.bozoPart !== "string" || !/^[A-Za-z0-9_]+$/.test(e.bozoPart)) fail(`bad bozoPart ${e.bozoPart}`);
+    const slot = SLOT_BY_TYPE.get(e.type) ?? fail(`${e.bozoPart}: unknown type ${e.type}`);
+    if (!Number.isSafeInteger(e.colorChannels) || e.colorChannels < 0) fail(`${e.bozoPart}: bad colorChannels`);
+    const toSlots = (types: unknown) => (Array.isArray(types) ? types : fail(`${e.bozoPart}: hides/incompatible not an array`)).map((t: string) => SLOT_BY_TYPE.get(t)?.slot ?? fail(`${e.bozoPart}: unknown type ${t}`));
+    const hidesSlots = toSlots(e.hides), incompatibleSlots = toSlots(e.incompatible);
+    if (hidesSlots.includes(slot.slot) || incompatibleSlots.includes(slot.slot)) fail(`${e.bozoPart}: hides its own slot`);
+    const starter = STARTER_TYPES.includes(e.type) || STARTER_PARTS.includes(e.bozoPart);
+    const override = PART_OVERRIDES[e.bozoPart];
+    const rule = RARITY_RULES.find((r) => r.parts?.includes(e.bozoPart) || r.types?.includes(e.type) || (r.pattern && r.patternTypes?.includes(e.type) && r.pattern.test(e.bozoPart)));
+    const rarity = starter ? "starter" : rule?.rarity ?? "common";
+    const sellable = !starter && (override?.sellable ?? true);
+    return {
+      itemId: e.bozoPart.toLowerCase(), bozoPart: e.bozoPart, slot: slot.slot, type: e.type, displayName: displayNameOf(e.bozoPart),
+      rarity, price: sellable && rarity !== "starter" ? MARKETPLACE_PART_PRICES[rarity] : 0, starter, sellable, equippable: override?.equippable ?? true,
+      vendorId: sellable ? "boutique" : "", colorChannels: e.colorChannels, hidesSlots, incompatibleSlots,
+    };
+  });
+  for (const s of WARDROBE_SLOTS) {
+    if (s.required && !items.some((i) => i.slot === s.slot && i.starter && i.equippable)) fail(`required slot ${s.slot} has no starter item`);
+  }
+  for (const l of FACE_LAYERS) if (l.options.length === 0 || new Set(l.options).size !== l.options.length) fail(`face layer ${l.layer} options`);
+  return items;
+}
 
+export const WARDROBE_ITEMS: readonly WardrobeItem[] = buildWardrobeItems(BOZO_MANIFEST);
 export const WARDROBE_ITEM_BY_ID: ReadonlyMap<string, WardrobeItem> = new Map(WARDROBE_ITEMS.map((i) => [i.itemId, i]));

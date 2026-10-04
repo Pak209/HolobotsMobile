@@ -10,14 +10,14 @@ describe('server-only pilot wardrobe', () => {
   beforeAll(async () => { env = await initTestEnv(); });
   afterAll(async () => { await env.cleanup(); });
   beforeEach(async () => { await env.clearFirestore(); });
-  const state = { schemaVersion: 'wardrobe-2', entitlements: ['ph.hat.helmet_01'], recipe: null };
+  const state = { schemaVersion: 'wardrobe-3', entitlements: ['top_fullsuit'], recipe: null };
 
   it('denies every client write to wardrobes/{uid}: create, self-grant, recipe edit, delete — own or foreign', async () => {
     const alice = authedDb(env, 'alice');
     await assertFails(setDoc(doc(alice, 'wardrobes/alice'), state));
     await seedDoc(env, 'wardrobes/alice', state);
-    await assertFails(updateDoc(doc(alice, 'wardrobes/alice'), { entitlements: ['ph.hat.helmet_01', 'ph.backAccessory.wings_01'] }));
-    await assertFails(updateDoc(doc(alice, 'wardrobes/alice'), { recipe: { schemaVersion: 'wardrobe-2' } }));
+    await assertFails(updateDoc(doc(alice, 'wardrobes/alice'), { entitlements: ['top_fullsuit', 'headacc_kittyears'] }));
+    await assertFails(updateDoc(doc(alice, 'wardrobes/alice'), { recipe: { schemaVersion: 'wardrobe-3' } }));
     await assertFails(setDoc(doc(alice, 'wardrobes/alice'), { ...state, entitlements: [] }));
     await assertFails(deleteDoc(doc(alice, 'wardrobes/alice')));
     await assertFails(setDoc(doc(authedDb(env, 'bob'), 'wardrobes/alice'), state));
@@ -26,7 +26,7 @@ describe('server-only pilot wardrobe', () => {
 
   it('denies every client write to receipts (no forged or pre-seeded receipt) and every client read of the tree', async () => {
     const alice = authedDb(env, 'alice');
-    await assertFails(setDoc(doc(alice, 'wardrobes/alice/receipts/fake'), { fingerprint: 'x', reply: { entitlements: ['ph.backAccessory.wings_01'] } }));
+    await assertFails(setDoc(doc(alice, 'wardrobes/alice/receipts/fake'), { fingerprint: 'x', reply: { entitlements: ['headacc_kittyears'] } }));
     await seedDoc(env, 'wardrobes/alice', state);
     await seedDoc(env, 'wardrobes/alice/receipts/r1', { fingerprint: 'x', reply: {} });
     await assertFails(updateDoc(doc(alice, 'wardrobes/alice/receipts/r1'), { fingerprint: 'y' }));
