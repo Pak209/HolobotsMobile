@@ -7,7 +7,8 @@
   "loadouts": {
     "city": {
       "schemaVersion": "wardrobe-3",
-      "preset": null,
+      "preset": "Default_Boy",
+      "heightScale": 1,
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
@@ -53,7 +54,8 @@
     },
     "field": {
       "schemaVersion": "wardrobe-3",
-      "preset": null,
+      "preset": "Default_Boy",
+      "heightScale": 1,
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
@@ -341,7 +343,13 @@
       "reserved": [
         "Zell"
       ],
-      "optional": true
+      "optional": true,
+      "default": "Default_Boy"
+    },
+    "heightScale": {
+      "min": 0.9,
+      "max": 1,
+      "default": 1
     },
     "shapes": {
       "blendshapePrefix": "Shape_",
@@ -482,7 +490,7 @@
         "eyes"
       ],
       "defaults": {
-        "skin": "#E8B996",
+        "skin": "#F5CAB0",
         "hair": "#2B2B2B",
         "eyes": "#3A6EA5"
       },

@@ -321,8 +321,8 @@ test('identity.preset: optional, whitelisted, Zell reserved; shared by both load
   assert.equal(s1.state.identity.preset, 'Kenji'); assert.equal(s1.reply.loadouts.city.preset, 'Kenji'); assert.equal(s1.reply.loadouts.field.preset, 'Kenji');
   const s2 = W.applyEquip({}, s1.state, equipCmd({ ...base(), preset: 'Jayda' }, 'f', 'field'));
   assert.equal(s2.reply.loadouts.city.preset, 'Jayda'); assert.equal(s2.reply.loadouts.field.preset, 'Jayda');
-  assert.equal(W.wardrobeStatus({}, fresh()).loadouts.city.preset, null, 'fresh pilot: preset null');
-  assert.deepEqual(W.wardrobeStatus({}, fresh()).catalog.presets, { options: C.PRESET_OPTIONS, reserved: ['Zell'], optional: true });
+  assert.equal(W.wardrobeStatus({}, fresh()).loadouts.city.preset, 'Default_Boy', 'fresh pilot: the town/creator default preset (Pak 2026-10-03)');
+  assert.deepEqual(W.wardrobeStatus({}, fresh()).catalog.presets, { options: C.PRESET_OPTIONS, reserved: ['Zell'], optional: true, default: 'Default_Boy' });
 });
 
 test('read-time sanitising: delisted / unowned / non-equippable items repaired against the current catalog; hide rule re-applied; nothing written', () => {
@@ -431,9 +431,33 @@ test('manifest order is (type, bozoPart) and the default recipe ids are pinned (
     eyeBrows: 'Brows_BasicBrows', eyeLashes: 'EyeLashes_LongLashes', teeth: 'Teeth_AnimeBasicTeeth', makeUpCheeks: null, makeUpEyes: null, makeUpLips: null,
     faceDetails: null, faceTexture: null, underUpper: 'UnderUpper_SimpleUnderShirt', underLower: 'UnderLower_SimpleBoxers',
   });
-  assert.equal(W.defaultRecipe().preset, null);
+  assert.equal(W.defaultRecipe().preset, 'Default_Boy'); assert.equal(W.defaultRecipe().heightScale, 1);
+  assert.equal(C.GLOBAL_COLOR_DEFAULTS.skin, '#F5CAB0', 'BoZo starter skin'); assert.deepEqual(C.GLOBAL_COLOR_DEFAULTS, { skin: '#F5CAB0', hair: '#2B2B2B', eyes: '#3A6EA5' });
   // Boutique listing order follows the manifest.
   const V = require('../lib/lib/vendors.js');
   const listed = V.buildCatalog({ holosTokens: 0 }, 'boutique', 0, []).listings.map(l => l.details.bozoPart);
   assert.deepEqual(listed, MANIFEST.map(e => e.bozoPart).filter(p => ITEMS.find(i => i.bozoPart === p).sellable));
+});
+
+test('identity.heightScale (Pak 2026-10-03): shorter only, [0.90, 1.00], default 1.00; canonical, fingerprinted, shared, returned everywhere', () => {
+  assert.deepEqual([C.HEIGHT_SCALE_MIN, C.HEIGHT_SCALE_MAX, C.HEIGHT_SCALE_DEFAULT], [0.9, 1, 1]);
+  for (const v of [0.9, 0.95, 0.9999, 1]) assert.equal(W.validateRecipe({ ...base(), heightScale: v }).heightScale, v, `edge ${v}`);
+  const absent = base(); delete absent.heightScale; assert.equal(W.validateRecipe(absent).heightScale, 1, 'absent → 1.00');
+  for (const v of [0.8999, 1.0001, 1.1, 0, -1, NaN, Infinity, '0.95', null, [0.95], true]) invalid(() => W.validateRecipe({ ...base(), heightScale: v }), `heightScale ${JSON.stringify(v)}`);
+  assert.equal(W.commandFingerprint(equipCmd(absent)), W.commandFingerprint(equipCmd({ ...base(), heightScale: 1 })), 'absent ≡ 1.00');
+  assert.notEqual(W.commandFingerprint(equipCmd({ ...base(), heightScale: 0.95 })), W.commandFingerprint(equipCmd({ ...base(), heightScale: 0.96 })));
+  // Shared identity: a city save sets it for field too; returned in every reply; status catalog whitelist.
+  const s1 = W.applyEquip({}, fresh(), equipCmd({ ...base(), heightScale: 0.92 }, 'c', 'city'));
+  assert.equal(s1.state.identity.heightScale, 0.92);
+  for (const l of ['city', 'field']) assert.equal(s1.reply.loadouts[l].heightScale, 0.92, l);
+  assert.equal(W.wardrobeStatus({}, fresh()).loadouts.city.heightScale, 1);
+  assert.deepEqual(W.wardrobeStatus({}, fresh()).catalog.heightScale, { min: 0.9, max: 1, default: 1 });
+  // Stored docs: absent (pre-height identity) reads as 1.00 without a repair; a bad stored value fails closed.
+  const b = base();
+  const ident = { preset: null, faceLayers: b.faceLayers, shapes: {}, colors: {} };
+  const doc = id => ({ schemaVersion: 'wardrobe-3', entitlements: [], identity: id, loadouts: { city: { parts: { ...b.parts }, colors: {} }, field: null } });
+  const r = W.readLoadouts(W.readWardrobeState(doc(ident)));
+  assert.equal(r.loadouts.city.heightScale, 1); assert.deepEqual(r.sanitized, { city: false, field: false });
+  for (const v of [1.2, 0.5, '1', null, NaN]) assert.throws(() => W.readWardrobeState(doc({ ...ident, heightScale: v })), e => e.code === 'unavailable', `stored heightScale ${v}`);
+  assert.equal(W.readLoadouts(W.readWardrobeState(doc({ ...ident, heightScale: 0.9 }))).loadouts.city.heightScale, 0.9);
 });

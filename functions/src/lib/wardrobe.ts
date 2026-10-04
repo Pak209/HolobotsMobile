@@ -7,7 +7,7 @@
  */
 import { createHash } from "node:crypto";
 import {
-  FACE_LAYERS, PRESET_OPTIONS, RESERVED_PRESETS, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, BODY_SHAPE_KEYS, FACE_SHAPE_KEYS, FACE_SHAPES_BY_HEAD, SHAPE_BLENDSHAPE_PREFIX, SHAPE_DEFAULT, SHAPE_KEYS, SHAPE_MAX, SHAPE_MIN,
+  FACE_LAYERS, PRESET_OPTIONS, RESERVED_PRESETS, DEFAULT_PRESET, HEIGHT_SCALE_DEFAULT, HEIGHT_SCALE_MAX, HEIGHT_SCALE_MIN, GLOBAL_COLOR_CHANNELS, GLOBAL_COLOR_DEFAULTS, MAX_RECIPE_BYTES, BODY_SHAPE_KEYS, FACE_SHAPE_KEYS, FACE_SHAPES_BY_HEAD, SHAPE_BLENDSHAPE_PREFIX, SHAPE_DEFAULT, SHAPE_KEYS, SHAPE_MAX, SHAPE_MIN,
   WARDROBE_CATALOG_IS_PLACEHOLDER, WARDROBE_CATALOG_SOURCE, WARDROBE_ITEM_BY_ID, WARDROBE_ITEMS, WARDROBE_SLOTS, type WardrobeItem,
 } from "./wardrobeCatalog";
 
@@ -23,6 +23,7 @@ export class WardrobeError extends Error {
   }
 }
 const bad = (): never => { throw new WardrobeError("invalid_request"); };
+const isHeightScale = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= HEIGHT_SCALE_MIN && v <= HEIGHT_SCALE_MAX;
 const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 
 // ---- Recipe -----------------------------------------------------------------
@@ -31,6 +32,8 @@ export type Recipe = {
   schemaVersion: typeof WARDROBE_SCHEMA;
   /** BoZo starting preset the pilot was created from (PRESET_OPTIONS), or null. Identity: shared by both loadouts. */
   preset: string | null;
+  /** Uniform height scale in [0.90, 1.00] (shorter only); absent = 1.00. Identity: shared by both loadouts. */
+  heightScale: number;
   /** Free creator choices: every FACE_LAYERS layer, in order; null only for optional layers. */
   faceLayers: Record<string, string | null>;
   /** Every slot, in WARDROBE_SLOTS order; null for optional slots, and for any slot an equipped item hides. */
@@ -43,7 +46,7 @@ export type Recipe = {
    */
   colors: Record<string, string | string[]>;
 };
-const RECIPE_KEYS = new Set(["schemaVersion", "preset", "faceLayers", "parts", "shapes", "colors"]);
+const RECIPE_KEYS = new Set(["schemaVersion", "preset", "heightScale", "faceLayers", "parts", "shapes", "colors"]);
 
 /**
  * Structural validation (no ownership): returns the canonical recipe or throws invalid_request for an
@@ -65,6 +68,9 @@ export function validateRecipe(raw: unknown): Recipe {
   // PRESET_OPTIONS (validatePresetTables enforces it at load), so they are rejected like any unknown preset.
   if (r.preset !== undefined && r.preset !== null && (typeof r.preset !== "string" || !PRESET_OPTIONS.includes(r.preset))) bad();
   const preset = (r.preset ?? null) as string | null;
+  // Optional; absent canonicalises to the default (so absent and 1.0 fingerprint alike). Never clamped.
+  if (r.heightScale !== undefined && !isHeightScale(r.heightScale)) bad();
+  const heightScale = (r.heightScale ?? HEIGHT_SCALE_DEFAULT) as number;
 
   if (!isPlainObject(r.faceLayers)) bad();
   const rawLayers = r.faceLayers as Record<string, unknown>;
@@ -137,7 +143,7 @@ export function validateRecipe(raw: unknown): Recipe {
       if ((list as string[]).length) colors[slot] = (list as string[]).map((h) => h.toUpperCase());
     }
   }
-  return { schemaVersion: WARDROBE_SCHEMA, preset, faceLayers, parts, shapes, colors };
+  return { schemaVersion: WARDROBE_SCHEMA, preset, heightScale, faceLayers, parts, shapes, colors };
 }
 
 /**
@@ -151,7 +157,7 @@ export function defaultRecipe(): Recipe {
   for (const { slot, required } of WARDROBE_SLOTS) {
     parts[slot] = required ? WARDROBE_ITEMS.find((i) => i.starter && i.equippable && i.slot === slot && i.hidesSlots.length === 0)!.itemId : null;
   }
-  return { schemaVersion: WARDROBE_SCHEMA, preset: null, faceLayers, parts, shapes: {}, colors: {} };
+  return { schemaVersion: WARDROBE_SCHEMA, preset: DEFAULT_PRESET, heightScale: HEIGHT_SCALE_DEFAULT, faceLayers, parts, shapes: {}, colors: {} };
 }
 
 // ---- Stored state: wardrobes/{uid} (server-only) ------------------------------
@@ -164,7 +170,7 @@ export function defaultRecipe(): Recipe {
 export const LOADOUTS = ["city", "field"] as const;
 export type LoadoutId = (typeof LOADOUTS)[number];
 /** Shared across loadouts: the starting preset, every face layer, the set shapes, the global colour channels. */
-export type Identity = { preset: string | null; faceLayers: Record<string, string | null>; shapes: Record<string, number>; colors: Record<string, string> };
+export type Identity = { preset: string | null; heightScale?: number; faceLayers: Record<string, string | null>; shapes: Record<string, number>; colors: Record<string, string> };
 /** Per loadout: every slot and the per-slot colour arrays. */
 export type Outfit = { parts: Record<string, string | null>; colors: Record<string, string[]> };
 export type WardrobeState = {
@@ -187,12 +193,12 @@ export function splitRecipe(r: Recipe): { identity: Identity; outfit: Outfit } {
     if (typeof v === "string") globals[k] = v;
     else slotColors[k] = [...v];
   }
-  return { identity: { preset: r.preset, faceLayers: { ...r.faceLayers }, shapes: { ...r.shapes }, colors: globals }, outfit: { parts: { ...r.parts }, colors: slotColors } };
+  return { identity: { preset: r.preset, heightScale: r.heightScale, faceLayers: { ...r.faceLayers }, shapes: { ...r.shapes }, colors: globals }, outfit: { parts: { ...r.parts }, colors: slotColors } };
 }
 
 /** Identity + outfit → a full canonical recipe (colours: global channels first, then slots, as validateRecipe orders them). */
 export function composeRecipe(identity: Identity, outfit: Outfit): Recipe {
-  return { schemaVersion: WARDROBE_SCHEMA, preset: identity.preset ?? null, faceLayers: { ...identity.faceLayers }, parts: { ...outfit.parts }, shapes: { ...identity.shapes }, colors: { ...identity.colors, ...outfit.colors } };
+  return { schemaVersion: WARDROBE_SCHEMA, preset: identity.preset ?? null, heightScale: identity.heightScale ?? HEIGHT_SCALE_DEFAULT, faceLayers: { ...identity.faceLayers }, parts: { ...outfit.parts }, shapes: { ...identity.shapes }, colors: { ...identity.colors, ...outfit.colors } };
 }
 
 const extraKeys = (o: Record<string, unknown> | undefined, allowed: readonly string[]) => Object.keys(o ?? {}).some((k) => !allowed.includes(k));
@@ -231,7 +237,7 @@ export function sanitizeIdentity(raw: Identity): { identity: Identity; changed: 
   const p = raw.preset ?? null; // a pre-preset stored identity has no key: same as null, not a repair
   const preset = p !== null && typeof p === "string" && PRESET_OPTIONS.includes(p) ? p : null;
   if (preset !== p) changed = true;
-  return { identity: { preset, faceLayers, shapes, colors }, changed };
+  return { identity: { preset, heightScale: raw.heightScale ?? HEIGHT_SCALE_DEFAULT, faceLayers, shapes, colors }, changed }; // heightScale is type-checked on read (fail closed)
 }
 
 /**
@@ -327,7 +333,8 @@ export function readWardrobeState(raw: unknown): WardrobeState {
     && isPlainObject(identity.faceLayers) && values(identity.faceLayers).every((v) => v === null || typeof v === "string")
     && isPlainObject(identity.shapes) && values(identity.shapes).every(isWeight)
     && isPlainObject(identity.colors) && values(identity.colors).every(isHex)
-    && (identity.preset === undefined || identity.preset === null || typeof identity.preset === "string"));
+    && (identity.preset === undefined || identity.preset === null || typeof identity.preset === "string")
+    && (identity.heightScale === undefined || isHeightScale(identity.heightScale)));
   const lo = raw.loadouts;
   const okOutfit = (o: unknown) => o === null || (isPlainObject(o)
     && isPlainObject(o.parts) && Object.entries(o.parts).every(([k, v]) => SLOT_NAMES.includes(k) && (v === null || typeof v === "string"))
@@ -401,7 +408,8 @@ export function wardrobeCatalogView(owned: readonly string[]) {
     source: WARDROBE_CATALOG_SOURCE,
     slots: WARDROBE_SLOTS.map(({ slot, type, required }) => ({ slot, type, required })),
     faceLayers: FACE_LAYERS.map((l) => ({ layer: l.layer, required: l.required, options: [...l.options] })),
-    presets: { options: [...PRESET_OPTIONS], reserved: [...RESERVED_PRESETS], optional: true },
+    presets: { options: [...PRESET_OPTIONS], reserved: [...RESERVED_PRESETS], optional: true, default: DEFAULT_PRESET },
+    heightScale: { min: HEIGHT_SCALE_MIN, max: HEIGHT_SCALE_MAX, default: HEIGHT_SCALE_DEFAULT },
     shapes: {
       blendshapePrefix: SHAPE_BLENDSHAPE_PREFIX, min: SHAPE_MIN, max: SHAPE_MAX, default: SHAPE_DEFAULT,
       body: [...BODY_SHAPE_KEYS], face: [...FACE_SHAPE_KEYS],

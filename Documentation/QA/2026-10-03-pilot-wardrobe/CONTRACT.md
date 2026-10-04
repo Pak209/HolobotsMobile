@@ -144,7 +144,7 @@ These are not items: nothing is owned or sold. **Required** layers must be one o
   - **Out of scope for wardrobe-3:** height and limb proportions. In BoZo these are bone modifiers, not blendshapes.
 - **Global colours:** `skin`, `hair`, `eyes`.
   - Values must be strict `#RRGGBB`. Either case is accepted and stored upper-case.
-  - Defaults: skin `#E8B996`, hair `#2B2B2B`, eyes `#3A6EA5`.
+  - Defaults: skin **`#F5CAB0`** (the BoZo starter's skin, Pak 2026-10-03, so a canonical reply never retints the starter), hair `#2B2B2B`, eyes `#3A6EA5`. No pack values were relayed for hair or eyes, so those two are unchanged.
 - **Per-slot colours:** `colors.<slot>` is an array of strict `#RRGGBB`.
   - The slot **must have an item equipped**.
   - The array length must be **≤ that item's `colorChannels`**. Anything beyond is rejected, not truncated.
@@ -180,6 +180,14 @@ The recipe has an optional top-level `preset`: the BoZo starting preset the pilo
 - **Storage:** in the shared identity, so it's returned in both loadouts of every reply. It is part of the canonical recipe, so it is included in the receipt fingerprint.
 - **Catalog:** `catalog.presets` = `{options, reserved, optional:true}`.
 
+### Height (`heightScale`, part of identity)
+
+Every pilot starts at the starter height and may only choose to be **shorter** (Pak ruling, 2026-10-03).
+- **Value:** `heightScale` is a finite number in **[0.90, 1.00]** inclusive. Absent means `1.00`.
+- **Rejection:** a value outside the range, or a non-number (string, `null`, NaN, Infinity), is `invalid_request`, never clamped.
+- **Storage:** in the shared identity, returned in both loadouts of every reply, and included in the fingerprint.
+- **Catalog:** `catalog.heightScale` = `{min:0.9, max:1.0, default:1.0}`.
+
 ### Read-time sanitising (the server is the authority)
 
 An equipped item can stop being valid after it was saved: it gets delisted by a regenerated manifest, made non-equippable, or is no longer owned after a support action. So every returned loadout (in `status` and in every reply) is **re-validated against the current catalog and the pilot's entitlements** as it is built:
@@ -212,6 +220,7 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 { "schemaVersion": "wardrobe-3", "operation": "equip", "loadout": "city", "requestId": "<id>", "recipe": {   // loadout: "city" | "field", required
     "schemaVersion": "wardrobe-3",
     "preset": "Kenji",                                                   // optional; PRESET_OPTIONS or null; "Zell" is reserved (rejected)
+    "heightScale": 0.95,                                                 // optional; finite, [0.90, 1.00], shorter only; absent = 1.00
     "faceLayers": { "head": "Head_SharpHead", "body": "Body_AnimeBasic", "eyes": "Eyes_AnimeBasic", "pupil": "Pupil_BasicPupil",
                     "eyeBrows": "Brows_BasicBrows", "eyeLashes": "EyeLashes_LongLashes", "teeth": "Teeth_AnimeBasicTeeth",
                     "underUpper": "UnderUpper_SimpleUnderShirt", "underLower": "Underlower_ShortSpats",
@@ -227,7 +236,8 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 ### Replies
 
 **`status`.** It never writes and never grants. With nothing saved, both loadouts read as the default recipe and `saved` is `{city:false, field:false}`. The default recipe is:
-- the first option for each required face layer;
+- `preset: "Default_Boy"` (the town/creator default, Pak 2026-10-03) and `heightScale: 1.0`;
+- the first option for each required face layer. These are **not** taken from Default_Boy's preset data, which lives in Unity and wasn't relayed. If Default_Boy's face layers should be the server default, send the list and the defaults become a data-only change;
 - the first non-hiding starter in manifest order for each required slot, which gives `top_simplehoodie`, `bottom_baggypants`, `feet_athleticmidtop`, `hairfront_asymmetricalfringe`, `hairback_casualflow`.
 
 ```jsonc
@@ -245,11 +255,12 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
     "placeholder": false, "source": "BoZo Anime Pack runtime prefabs (Outfit.Type), manifest 2026-10-03 (120 entries)",
     "slots": [{ "slot": "hairFront", "type": "HairFront", "required": true }, /* … 13 */],
     "faceLayers": [{ "layer": "head", "required": true, "options": ["Head_AnimeYoung", /* … */] }, /* … 16 */],
-    "presets": { "options": ["Default_Boy", "Kenji", "DefaultChan", "Default_Girl", "Glover", "Hana", "Jackal", "Jayda"], "reserved": ["Zell"], "optional": true },
+    "presets": { "options": ["Default_Boy", "Kenji", "DefaultChan", "Default_Girl", "Glover", "Hana", "Jackal", "Jayda"], "reserved": ["Zell"], "optional": true, "default": "Default_Boy" },
+    "heightScale": { "min": 0.9, "max": 1.0, "default": 1.0 },
     "shapes": { "blendshapePrefix": "Shape_", "min": 0, "max": 100, "default": 0,
                 "body": ["Belly", /* … 9 */], "face": ["EarAngle", /* … 23, union over heads */],
                 "faceByHead": { "Head_AnimeYoung": ["EarLength", /* … */], "Head_BasicHead": [/* … */], /* every head option */ } },
-    "colors": { "globalChannels": ["skin", "hair", "eyes"], "defaults": { "skin": "#E8B996", "hair": "#2B2B2B", "eyes": "#3A6EA5" },
+    "colors": { "globalChannels": ["skin", "hair", "eyes"], "defaults": { "skin": "#F5CAB0", "hair": "#2B2B2B", "eyes": "#3A6EA5" },
                 "format": "#RRGGBB", "perSlot": "array of #RRGGBB, length <= the equipped item's colorChannels" },
     "maxRecipeBytes": 4096,
     "items": [{ "itemId": "top_overall", "bozoPart": "Top_Overall", "slot": "top", "type": "Top", "displayName": "Overall",
@@ -280,7 +291,7 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 ```
 
 Each loadout recipe in a reply is **canonical**:
-- `preset` is always present (`null` = none);
+- `preset` and `heightScale` are always present (`preset: null` = none; an absent `heightScale` canonicalises to `1.0`, so absent and `1.0` fingerprint alike);
 - every face layer and every slot is present (`null` = none), in catalog order;
 - shapes contain only the keys that were set, body keys then face keys;
 - colours list the global channels first, then slots, in catalog order;
@@ -292,7 +303,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 
 | rejectionCode | HTTPS code | When |
 |---|---|---|
-| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; equip `loadout` missing or not exactly `"city"`/`"field"`; `preset` not one of the allowed presets (incl. reserved `Zell`); `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
+| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; equip `loadout` missing or not exactly `"city"`/`"field"`; `preset` not one of the allowed presets (incl. reserved `Zell`); `heightScale` not a finite number in [0.90, 1.00]; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
 | `not_owned` | `failed-precondition` | equip with a sold item the pilot doesn't own |
 | `already_owned` | `already-exists` | purchase of an owned item with a new `requestId`. No charge, nothing written. |
 | `not_enough_holos` | `failed-precondition` | message **"Not enough Holos."**. Nothing written, so the same `requestId` can succeed later. |
@@ -317,6 +328,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
   - `shapes` values are finite numbers in 0..100;
   - identity colours are `#RRGGBB`;
   - `preset` is a string, `null` or absent;
+  - `heightScale` is absent or a finite number in [0.90, 1.00] (a stored identity from before this field reads as `1.0`, which is not a repair);
   - `parts` keys are known slots, with values a string or `null`;
   - outfit colour keys are known slots, with values arrays of `#RRGGBB`.
 
@@ -365,7 +377,7 @@ Render the returned loadouts, not what you sent. Each one is itself a valid `equ
 3. **On creator open:** call `wardrobeHost {schemaVersion:"wardrobe-3", operation:"status"}`.
    - Build every picker from `catalog`: slots, faceLayers, shapes (body keys plus `faceByHead[recipe.faceLayers.head]`), colours, and items with `usable`/`owned`/`hidesSlots`.
    - Load `loadouts.city` and `loadouts.field`. While `saved.field` is false, field mirrors city.
-   - Apply `preset` (restore its bone-based proportions) before the shapes.
+   - Apply `preset` (restore its bone-based proportions), then `heightScale` as a uniform scale, then the shapes.
    - If `sanitized.<loadout>` is true, the server repaired that outfit (an item was delisted, became unusable, or is no longer owned). Render the returned loadout. Optionally tell the player, and re-save it with `equip` whenever convenient.
    - Swap to `loadouts.field` on entering an Error Beast zone, and back to `loadouts.city` on leaving. The swap is Unity's job; nothing is sent to the server for it.
    - **Don't hard-code any id, price, slot, layer or whitelist.**

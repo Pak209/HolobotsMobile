@@ -116,6 +116,16 @@ export const FACE_LAYERS: readonly FaceLayerRow[] = [
 export const PRESET_OPTIONS: readonly string[] = ["Default_Boy", "Kenji", "DefaultChan", "Default_Girl", "Glover", "Hana", "Jackal", "Jayda"];
 /** Reserved presets are never accepted (rejected exactly like an unknown preset). */
 export const RESERVED_PRESETS: readonly string[] = ["Zell"];
+/** Town / creator default preset (Pak 2026-10-03). Its bone data lives in Unity; the server only names it. */
+export const DEFAULT_PRESET = "Default_Boy";
+
+/**
+ * identity.heightScale (Pak 2026-10-03): every pilot starts at the starter height and may only choose to be SHORTER.
+ * Finite number in [HEIGHT_SCALE_MIN, HEIGHT_SCALE_MAX] inclusive; absent = HEIGHT_SCALE_DEFAULT; outside → invalid_request.
+ */
+export const HEIGHT_SCALE_MIN = 0.9;
+export const HEIGHT_SCALE_MAX = 1.0;
+export const HEIGHT_SCALE_DEFAULT = 1.0;
 
 /** Presets must be unique, bare names, and never reserved. Throws otherwise (fails the build / module load). */
 export function validatePresetTables(options: readonly string[], reserved: readonly string[]): void {
@@ -124,6 +134,7 @@ export function validatePresetTables(options: readonly string[], reserved: reado
   if (clash) throw new Error(`wardrobe catalog: preset ${clash} is reserved`);
 }
 validatePresetTables(PRESET_OPTIONS, RESERVED_PRESETS);
+if (!PRESET_OPTIONS.includes(DEFAULT_PRESET)) throw new Error("wardrobe catalog: DEFAULT_PRESET must be a preset option");
 
 // ---- Body / face shapes (BoZo blendshapes) and colours ----------------------------------
 
@@ -160,7 +171,8 @@ export const SHAPE_DEFAULT = 0;
  * Global channels (one #RRGGBB each; missing = default). Per-slot colours live in the same
  * `colors` map under the slot name as an array of #RRGGBB, at most the equipped item's colorChannels.
  */
-export const GLOBAL_COLOR_DEFAULTS: Readonly<Record<string, string>> = { skin: "#E8B996", hair: "#2B2B2B", eyes: "#3A6EA5" };
+/** skin = the BoZo starter's #F5CAB0 (Pak 2026-10-03), so a canonical reply never retints the starter. hair / eyes: unchanged (no pack values relayed). */
+export const GLOBAL_COLOR_DEFAULTS: Readonly<Record<string, string>> = { skin: "#F5CAB0", hair: "#2B2B2B", eyes: "#3A6EA5" };
 export const GLOBAL_COLOR_CHANNELS: readonly string[] = Object.keys(GLOBAL_COLOR_DEFAULTS);
 
 /** Encoded (JSON, UTF-8) size cap for one recipe. Larger → invalid_request. */

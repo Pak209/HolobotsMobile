@@ -11,7 +11,8 @@
   "loadouts": {
     "city": {
       "schemaVersion": "wardrobe-3",
-      "preset": null,
+      "preset": "Default_Boy",
+      "heightScale": 1,
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
@@ -57,7 +58,8 @@
     },
     "field": {
       "schemaVersion": "wardrobe-3",
-      "preset": null,
+      "preset": "Default_Boy",
+      "heightScale": 1,
       "faceLayers": {
         "head": "Head_AnimeYoung",
         "body": "Body_AnimeBasic",
