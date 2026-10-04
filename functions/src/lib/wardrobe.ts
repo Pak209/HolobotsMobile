@@ -149,23 +149,76 @@ export function defaultRecipe(): Recipe {
 
 // ---- Stored state: wardrobes/{uid} (server-only) ------------------------------
 
-export type WardrobeState = { schemaVersion: typeof WARDROBE_SCHEMA; entitlements: string[]; recipe: Recipe | null };
+/**
+ * Pak ruling 2026-10-04: two saved outfits, City (casual, HoloCity) and Field (Error Beast zones; Unity swaps).
+ * Body / face / shapes / global colours are pilot IDENTITY, shared by both loadouts; each loadout keeps only
+ * its parts and per-slot colours. Equip takes a full recipe plus `loadout` and the server splits it.
+ */
+export const LOADOUTS = ["city", "field"] as const;
+export type LoadoutId = (typeof LOADOUTS)[number];
+/** Shared across loadouts: every face layer, the set shapes, the global colour channels. */
+export type Identity = { faceLayers: Record<string, string | null>; shapes: Record<string, number>; colors: Record<string, string> };
+/** Per loadout: every slot and the per-slot colour arrays. */
+export type Outfit = { parts: Record<string, string | null>; colors: Record<string, string[]> };
+export type WardrobeState = {
+  schemaVersion: typeof WARDROBE_SCHEMA;
+  entitlements: string[];
+  /** null until the first equip (either loadout). */
+  identity: Identity | null;
+  /** null = never saved. An unsaved field reads back as city; an unsaved city reads back as the default outfit. */
+  loadouts: Record<LoadoutId, Outfit | null>;
+};
+
+export function emptyWardrobeState(): WardrobeState {
+  return { schemaVersion: WARDROBE_SCHEMA, entitlements: [], identity: null, loadouts: { city: null, field: null } };
+}
+
+/** Splits a validated recipe into shared identity and the loadout's own outfit. */
+export function splitRecipe(r: Recipe): { identity: Identity; outfit: Outfit } {
+  const globals: Record<string, string> = {}, slotColors: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(r.colors)) {
+    if (typeof v === "string") globals[k] = v;
+    else slotColors[k] = [...v];
+  }
+  return { identity: { faceLayers: { ...r.faceLayers }, shapes: { ...r.shapes }, colors: globals }, outfit: { parts: { ...r.parts }, colors: slotColors } };
+}
+
+/** Identity + outfit → a full canonical recipe (colours: global channels first, then slots, as validateRecipe orders them). */
+export function composeRecipe(identity: Identity, outfit: Outfit): Recipe {
+  return { schemaVersion: WARDROBE_SCHEMA, faceLayers: { ...identity.faceLayers }, parts: { ...outfit.parts }, shapes: { ...identity.shapes }, colors: { ...identity.colors, ...outfit.colors } };
+}
+
+/** What each loadout reads as: city = saved or default outfit; field = saved, else a copy of city (a read; nothing is written). */
+export function loadoutRecipes(state: WardrobeState): Record<LoadoutId, Recipe> {
+  const d = splitRecipe(defaultRecipe());
+  const identity = state.identity ?? d.identity;
+  const city = composeRecipe(identity, state.loadouts.city ?? d.outfit);
+  const field = state.loadouts.field ? composeRecipe(identity, state.loadouts.field) : structuredClone(city);
+  return { city, field };
+}
 
 /**
- * undefined (no doc) → nothing owned, no saved recipe: the only "fresh" case. A present doc must be
+ * undefined (no doc) → nothing owned, nothing saved: the only "fresh" case. A present doc must be
  * well-formed or this throws `unavailable`: a malformed / wrong-schema doc is never read as empty, so
  * it can never be overwritten by the next purchase (the PR #54 "missing = fresh" trap). Well-formed
  * entitlement ids the catalog no longer lists are KEPT (a regenerated catalog never erases ownership);
  * they just can't be equipped until the catalog lists them again.
  */
 export function readWardrobeState(raw: unknown): WardrobeState {
-  if (raw === undefined) return { schemaVersion: WARDROBE_SCHEMA, entitlements: [], recipe: null };
+  if (raw === undefined) return emptyWardrobeState();
   if (!isPlainObject(raw) || raw.schemaVersion !== WARDROBE_SCHEMA) throw new WardrobeError("unavailable");
   const e = raw.entitlements;
   if (!Array.isArray(e) || e.some((id) => typeof id !== "string" || !id) || new Set(e).size !== e.length) throw new WardrobeError("unavailable");
-  const recipe = raw.recipe;
-  if (recipe !== null && !isPlainObject(recipe)) throw new WardrobeError("unavailable");
-  return { schemaVersion: WARDROBE_SCHEMA, entitlements: [...(e as string[])], recipe: recipe as Recipe | null };
+  const identity = raw.identity;
+  const okIdentity = identity === null || (isPlainObject(identity) && isPlainObject(identity.faceLayers) && isPlainObject(identity.shapes) && isPlainObject(identity.colors));
+  const lo = raw.loadouts;
+  const okOutfit = (o: unknown) => o === null || (isPlainObject(o) && isPlainObject(o.parts) && isPlainObject(o.colors));
+  const okLoadouts = isPlainObject(lo) && Object.keys(lo).length === LOADOUTS.length && LOADOUTS.every((k) => k in lo && okOutfit(lo[k]));
+  if (!okIdentity || !okLoadouts) throw new WardrobeError("unavailable");
+  const loadouts = lo as Record<LoadoutId, Outfit | null>;
+  // A saved outfit implies a saved identity (equip always writes both).
+  if (identity === null && LOADOUTS.some((k) => loadouts[k] !== null)) throw new WardrobeError("unavailable");
+  return { schemaVersion: WARDROBE_SCHEMA, entitlements: [...(e as string[])], identity: identity as Identity | null, loadouts: { city: loadouts.city, field: loadouts.field } };
 }
 
 /** Holos: missing = 0; any finite number >= 0 (the rules' sane() allows non-integers); anything else fails closed. */
@@ -181,7 +234,7 @@ export function readHolos(profile: Record<string, unknown>): number {
 export type WardrobeCommand =
   | { operation: "status" }
   | { operation: "purchase"; requestId: string; itemId: string }
-  | { operation: "equip"; requestId: string; recipe: Recipe };
+  | { operation: "equip"; requestId: string; loadout: LoadoutId; recipe: Recipe };
 
 /** Every request carries schemaVersion "wardrobe-3". */
 export function validateWardrobeCommand(raw: unknown): WardrobeCommand {
@@ -195,20 +248,28 @@ export function validateWardrobeCommand(raw: unknown): WardrobeCommand {
     if (!item || !item.sellable) bad(); // starter items are free; non-sellable overrides are never sold
     return { operation: "purchase", requestId: c.requestId as string, itemId: item!.itemId };
   }
-  return { operation: "equip", requestId: c.requestId as string, recipe: validateRecipe(c.recipe) };
+  if (typeof c.loadout !== "string" || !(LOADOUTS as readonly string[]).includes(c.loadout)) bad(); // required: "city" | "field"
+  return { operation: "equip", requestId: c.requestId as string, loadout: c.loadout as LoadoutId, recipe: validateRecipe(c.recipe) };
 }
 
 /** Receipt fingerprint: sha256 over the canonical command (recipes are canonicalised by validateRecipe). */
 export function commandFingerprint(cmd: Exclude<WardrobeCommand, { operation: "status" }>): string {
-  const canonical = cmd.operation === "purchase" ? ["purchase", cmd.itemId] : ["equip", cmd.recipe];
+  const canonical = cmd.operation === "purchase" ? ["purchase", cmd.itemId] : ["equip", cmd.loadout, cmd.recipe];
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 
 // ---- Replies ----------------------------------------------------------------
 
-export type WardrobeView = { entitlements: string[]; recipe: Recipe; recipeSaved: boolean; holosTokens: number };
+export type WardrobeView = {
+  entitlements: string[];
+  /** Both loadouts as full renderable recipes (shared identity + that loadout's outfit). */
+  loadouts: Record<LoadoutId, Recipe>;
+  /** false: never saved (city reads as the default outfit; field reads as a copy of city). */
+  saved: Record<LoadoutId, boolean>;
+  holosTokens: number;
+};
 function view(state: WardrobeState, holos: number): WardrobeView {
-  return { entitlements: [...state.entitlements], recipe: state.recipe ?? defaultRecipe(), recipeSaved: state.recipe !== null, holosTokens: holos };
+  return { entitlements: [...state.entitlements], loadouts: loadoutRecipes(state), saved: { city: state.loadouts.city !== null, field: state.loadouts.field !== null }, holosTokens: holos };
 }
 
 export type ItemView = WardrobeItem & { owned: boolean; usable: boolean };
@@ -258,14 +319,18 @@ export function applyPurchase(profile: Record<string, unknown>, state: WardrobeS
   return { state: next, holosAfter, reply };
 }
 
-/** Equip: every non-null part must be a starter item or owned (slot fit was checked by validateRecipe). Never charges. */
+/**
+ * Equip one loadout: every non-null part must be a starter item or owned (slot fit, hide rule and colour caps were
+ * checked by validateRecipe). Saves that loadout's outfit and the shared identity. Never charges.
+ */
 export function applyEquip(profile: Record<string, unknown>, state: WardrobeState, cmd: Extract<WardrobeCommand, { operation: "equip" }>) {
   for (const id of Object.values(cmd.recipe.parts)) {
     if (id === null) continue;
     const item = WARDROBE_ITEM_BY_ID.get(id)!;
     if (!item.starter && !state.entitlements.includes(id)) throw new WardrobeError("not_owned");
   }
-  const next: WardrobeState = { ...state, recipe: cmd.recipe };
+  const { identity, outfit } = splitRecipe(cmd.recipe);
+  const next: WardrobeState = { ...state, identity, loadouts: { ...state.loadouts, [cmd.loadout]: outfit } };
   const reply: MutationReply = { schemaVersion: WARDROBE_SCHEMA, operation: "equip", requestId: cmd.requestId, alreadyProcessed: false, purchased: null, ...view(next, readHolos(profile)) };
   return { state: next, reply };
 }

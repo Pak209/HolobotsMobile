@@ -8,44 +8,87 @@
     "top_fullsuit",
     "top_sundress"
   ],
-  "recipe": {
-    "schemaVersion": "wardrobe-3",
-    "faceLayers": {
-      "head": "Head_AnimeYoung",
-      "body": "Body_AnimeBasic",
-      "bodyType": null,
-      "eyes": "Eyes_AnimeBasic",
-      "pupil": "Pupil_BasicPupil",
-      "eyeShine": null,
-      "eyeBrows": "Brows_BasicBrows",
-      "eyeLashes": "EyeLashes_LongLashes",
-      "teeth": "Teeth_AnimeBasicTeeth",
-      "makeUpCheeks": null,
-      "makeUpEyes": null,
-      "makeUpLips": null,
-      "faceDetails": null,
-      "faceTexture": null,
-      "underUpper": "UnderUpper_SimpleUnderShirt",
-      "underLower": "UnderLower_SimpleBoxers"
+  "loadouts": {
+    "city": {
+      "schemaVersion": "wardrobe-3",
+      "faceLayers": {
+        "head": "Head_AnimeYoung",
+        "body": "Body_AnimeBasic",
+        "bodyType": null,
+        "eyes": "Eyes_AnimeBasic",
+        "pupil": "Pupil_BasicPupil",
+        "eyeShine": null,
+        "eyeBrows": "Brows_BasicBrows",
+        "eyeLashes": "EyeLashes_LongLashes",
+        "teeth": "Teeth_AnimeBasicTeeth",
+        "makeUpCheeks": null,
+        "makeUpEyes": null,
+        "makeUpLips": null,
+        "faceDetails": null,
+        "faceTexture": null,
+        "underUpper": "UnderUpper_SimpleUnderShirt",
+        "underLower": "UnderLower_SimpleBoxers"
+      },
+      "parts": {
+        "hairFront": "hairfront_asymmetricalfringe",
+        "hairBack": "hairback_casualflow",
+        "top": "top_sundress",
+        "bottom": null,
+        "feet": "feet_athleticmidtop",
+        "gloves": null,
+        "hat": null,
+        "headAcc": null,
+        "upperFace": null,
+        "lowerFace": null,
+        "neck": null,
+        "leggings": null,
+        "socks": null
+      },
+      "shapes": {},
+      "colors": {}
     },
-    "parts": {
-      "hairFront": "hairfront_asymmetricalfringe",
-      "hairBack": "hairback_casualflow",
-      "top": "top_sundress",
-      "bottom": null,
-      "feet": "feet_athleticmidtop",
-      "gloves": null,
-      "hat": null,
-      "headAcc": null,
-      "upperFace": null,
-      "lowerFace": null,
-      "neck": null,
-      "leggings": null,
-      "socks": null
-    },
-    "shapes": {},
-    "colors": {}
+    "field": {
+      "schemaVersion": "wardrobe-3",
+      "faceLayers": {
+        "head": "Head_AnimeYoung",
+        "body": "Body_AnimeBasic",
+        "bodyType": null,
+        "eyes": "Eyes_AnimeBasic",
+        "pupil": "Pupil_BasicPupil",
+        "eyeShine": null,
+        "eyeBrows": "Brows_BasicBrows",
+        "eyeLashes": "EyeLashes_LongLashes",
+        "teeth": "Teeth_AnimeBasicTeeth",
+        "makeUpCheeks": null,
+        "makeUpEyes": null,
+        "makeUpLips": null,
+        "faceDetails": null,
+        "faceTexture": null,
+        "underUpper": "UnderUpper_SimpleUnderShirt",
+        "underLower": "UnderLower_SimpleBoxers"
+      },
+      "parts": {
+        "hairFront": "hairfront_asymmetricalfringe",
+        "hairBack": "hairback_casualflow",
+        "top": "top_sundress",
+        "bottom": null,
+        "feet": "feet_athleticmidtop",
+        "gloves": null,
+        "hat": null,
+        "headAcc": null,
+        "upperFace": null,
+        "lowerFace": null,
+        "neck": null,
+        "leggings": null,
+        "socks": null
+      },
+      "shapes": {},
+      "colors": {}
+    }
   },
-  "recipeSaved": true,
+  "saved": {
+    "city": true,
+    "field": false
+  },
   "holosTokens": 1200
 }

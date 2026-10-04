@@ -1,14 +1,12 @@
 {
   "schemaVersion": "wardrobe-3",
-  "operation": "purchase",
-  "requestId": "p1",
+  "operation": "equip",
+  "requestId": "f1",
   "alreadyProcessed": false,
-  "purchased": {
-    "itemId": "top_openhoodie",
-    "price": 300
-  },
+  "purchased": null,
   "entitlements": [
-    "top_openhoodie"
+    "hat_fedora",
+    "top_fullsuit"
   ],
   "loadouts": {
     "city": {
@@ -34,11 +32,11 @@
       "parts": {
         "hairFront": "hairfront_asymmetricalfringe",
         "hairBack": "hairback_casualflow",
-        "top": "top_simplehoodie",
+        "top": "top_tshirt",
         "bottom": "bottom_baggypants",
         "feet": "feet_athleticmidtop",
         "gloves": null,
-        "hat": null,
+        "hat": "hat_fedora",
         "headAcc": null,
         "upperFace": null,
         "lowerFace": null,
@@ -46,8 +44,15 @@
         "leggings": null,
         "socks": null
       },
-      "shapes": {},
-      "colors": {}
+      "shapes": {
+        "Weight": 30
+      },
+      "colors": {
+        "skin": "#C08060",
+        "top": [
+          "#112233"
+        ]
+      }
     },
     "field": {
       "schemaVersion": "wardrobe-3",
@@ -72,11 +77,11 @@
       "parts": {
         "hairFront": "hairfront_asymmetricalfringe",
         "hairBack": "hairback_casualflow",
-        "top": "top_simplehoodie",
+        "top": "top_fullsuit",
         "bottom": "bottom_baggypants",
         "feet": "feet_athleticmidtop",
         "gloves": null,
-        "hat": null,
+        "hat": "hat_fedora",
         "headAcc": null,
         "upperFace": null,
         "lowerFace": null,
@@ -84,13 +89,21 @@
         "leggings": null,
         "socks": null
       },
-      "shapes": {},
-      "colors": {}
+      "shapes": {
+        "Weight": 30
+      },
+      "colors": {
+        "skin": "#C08060",
+        "top": [
+          "#FF0000",
+          "#00FF00"
+        ]
+      }
     }
   },
   "saved": {
-    "city": false,
-    "field": false
+    "city": true,
+    "field": true
   },
-  "holosTokens": 700
+  "holosTokens": 0
 }

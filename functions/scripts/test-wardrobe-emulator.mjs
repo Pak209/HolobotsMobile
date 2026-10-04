@@ -27,7 +27,7 @@ const wardrobe = async uid => (await db.doc(`wardrobes/${uid}`).get()).data();
 const receipt = async (uid, id) => (await db.doc(`wardrobes/${uid}/receipts/${id}`).get()).exists;
 const host = (uid, data) => wardrobeHost.run({ auth: { uid }, data: { schemaVersion: 'wardrobe-3', ...data } });
 const buy = (uid, itemId, requestId) => host(uid, { operation: 'purchase', itemId, requestId });
-const equip = (uid, recipe, requestId) => host(uid, { operation: 'equip', recipe, requestId });
+const equip = (uid, recipe, requestId, loadout = 'city') => host(uid, { operation: 'equip', loadout, recipe, requestId });
 const rejects = (p, code, http) => assert.rejects(p, e => e.details?.rejectionCode === code && (!http || e.code === http));
 const base = () => structuredClone(W.defaultRecipe());
 
@@ -35,7 +35,7 @@ test('status writes nothing and grants nothing: no wardrobe doc, untouched user,
   const uid = await setup({ holosTokens: 42, buddyUnits: 3 });
   const before = await user(uid);
   const s = await host(uid, { operation: 'status' });
-  assert.equal(s.schemaVersion, 'wardrobe-3'); assert.deepEqual(s.entitlements, []); assert.equal(s.recipeSaved, false); assert.deepEqual(s.recipe, W.defaultRecipe());
+  assert.equal(s.schemaVersion, 'wardrobe-3'); assert.deepEqual(s.entitlements, []); assert.deepEqual(s.saved, { city: false, field: false }); assert.deepEqual(s.loadouts, { city: W.defaultRecipe(), field: W.defaultRecipe() });
   assert.equal(s.holosTokens, 42); assert.deepEqual(s.catalog, W.wardrobeCatalogView([])); assert.equal(s.catalog.items.length, 120); assert.equal(s.catalog.placeholder, false);
   assert.deepEqual(s.catalog.slots.map(x => x.slot), C.WARDROBE_SLOTS.map(x => x.slot)); assert.deepEqual([...s.catalog.shapes.body, ...s.catalog.shapes.face], C.SHAPE_KEYS); assert.deepEqual(s.catalog.colors.globalChannels, C.GLOBAL_COLOR_CHANNELS);
   assert.equal((await db.doc(`wardrobes/${uid}`).get()).exists, false); assert.deepEqual(await user(uid), before);
@@ -78,7 +78,7 @@ test('idempotent retry: parallel and later retries charge once; same requestId w
   const r2 = base(); r2.colors = { hair: '#445566' };
   await equip(uid, r2, 'eq2');
   assert.equal((await equip(uid, r1, 'eq1')).alreadyProcessed, true);
-  assert.equal((await wardrobe(uid)).recipe.colors.hair, '#445566');
+  assert.equal((await wardrobe(uid)).identity.colors.hair, '#445566');
 });
 
 test('already_owned: a new requestId for an owned item is refused with no charge and no receipt', async () => {
@@ -99,10 +99,10 @@ test('equip: starter-only with zero Holos is OK; unowned / wrong slot / hide rul
   Object.assign(r.faceLayers, { head: 'Head_SharpHead', faceDetails: 'FaceDetail_Freakles', underLower: 'Underlower_ShortSpats' });
   r.shapes = { Weight: 40, Muscle: 100, Stern: 0 }; r.colors = { skin: '#c08060', top: ['#1f8fff', '#000000'], socks: [] };
   const ok = await equip(uid, r, 's1');
-  assert.equal(ok.recipeSaved, true); assert.equal(ok.holosTokens, 0); assert.equal(ok.recipe.colors.skin, '#C08060');
-  assert.deepEqual(ok.recipe.colors.top, ['#1F8FFF', '#000000']); assert.equal('socks' in ok.recipe.colors, false, 'empty slot arrays are dropped');
-  assert.deepEqual((await wardrobe(uid)).recipe, ok.recipe); assert.equal((await user(uid)).holosTokens, 0);
-  const st = await host(uid, { operation: 'status' }); assert.equal(st.recipeSaved, true); assert.deepEqual(st.recipe, ok.recipe);
+  assert.deepEqual(ok.saved, { city: true, field: false }); assert.equal(ok.holosTokens, 0); assert.equal(ok.loadouts.city.colors.skin, '#C08060');
+  assert.deepEqual(ok.loadouts.city.colors.top, ['#1F8FFF', '#000000']); assert.equal('socks' in ok.loadouts.city.colors, false, 'empty slot arrays are dropped');
+  assert.deepEqual(W.loadoutRecipes(W.readWardrobeState(await wardrobe(uid))), ok.loadouts); assert.equal((await wardrobe(uid)).loadouts.field, null); assert.equal((await user(uid)).holosTokens, 0);
+  const st = await host(uid, { operation: 'status' }); assert.deepEqual(st.saved, ok.saved); assert.deepEqual(st.loadouts, ok.loadouts);
   await exportFixture('wardrobe-3_equip', ok);
   const stored = await wardrobe(uid);
   const withPart = (slot, id) => { const x = base(); x.parts[slot] = id; return x; };
@@ -119,20 +119,21 @@ test('equip: starter-only with zero Holos is OK; unowned / wrong slot / hide rul
   assert.equal((await db.collection(`wardrobes/${uid}/receipts`).get()).size, 1, 'only the successful equip left a receipt');
   // Owning it makes the same recipe valid.
   await db.doc(`users/${uid}`).update({ holosTokens: 3000 }); await buy(uid, 'top_fullsuit', 'b1');
-  assert.equal((await equip(uid, withPart('top', 'top_fullsuit'), 'x99')).recipe.parts.top, 'top_fullsuit');
+  assert.equal((await equip(uid, withPart('top', 'top_fullsuit'), 'x99')).loadouts.city.parts.top, 'top_fullsuit');
   // Hide rule, both directions: a Bottom-hiding top requires bottom === null.
   await buy(uid, 'top_sundress', 'b2');
   await rejects(equip(uid, withPart('top', 'top_sundress'), 'h1'), 'invalid_request', 'invalid-argument');
   const dress = withPart('top', 'top_sundress'); dress.parts.bottom = null;
-  const hidden = await equip(uid, dress, 'h2'); assert.equal(hidden.recipe.parts.bottom, null); assert.equal(hidden.recipe.parts.top, 'top_sundress');
+  const hidden = await equip(uid, dress, 'h2'); assert.equal(hidden.loadouts.city.parts.bottom, null); assert.equal(hidden.loadouts.city.parts.top, 'top_sundress');
   await exportFixture('wardrobe-3_equip_hidden_bottom', hidden);
 });
 
 test('no reset trap: a malformed or wrong-schema wardrobe fails closed and is never overwritten by a purchase', async () => {
-  for (const bad of [{ entitlements: 'top_fullsuit' }, { schemaVersion: 'wardrobe-2', entitlements: ['ph.hat.helmet_01'], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: [3], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: 'top_fullsuit', recipe: null }]) {
+  for (const bad of [{ entitlements: 'top_fullsuit' }, { schemaVersion: 'wardrobe-2', entitlements: ['ph.hat.helmet_01'], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: [3], identity: null, loadouts: { city: null, field: null } }, { schemaVersion: 'wardrobe-3', entitlements: 'top_fullsuit', identity: null, loadouts: { city: null, field: null } },
+    { schemaVersion: 'wardrobe-3', entitlements: ['top_fullsuit'], recipe: null } /* pre-loadouts draft shape */, { schemaVersion: 'wardrobe-3', entitlements: [], identity: null, loadouts: { city: null } }]) {
     const uid = await setup({ holosTokens: 5000 });
     await db.doc(`wardrobes/${uid}`).set(bad);
-    for (const data of [{ operation: 'status' }, { operation: 'purchase', itemId: 'top_openhoodie', requestId: 'r' }, { operation: 'equip', recipe: base(), requestId: 'e' }])
+    for (const data of [{ operation: 'status' }, { operation: 'purchase', itemId: 'top_openhoodie', requestId: 'r' }, { operation: 'equip', loadout: 'city', recipe: base(), requestId: 'e' }])
       await rejects(host(uid, data), 'unavailable', 'unavailable');
     assert.deepEqual(await wardrobe(uid), bad); assert.equal((await user(uid)).holosTokens, 5000);
     await rejects(vendorCatalogHost.run({ auth: { uid }, data: { operation: 'catalog', vendorId: 'boutique' } }), 'unavailable', 'unavailable');
@@ -158,8 +159,43 @@ test('boutique catalog (vendor-3): prices equal the economy table; owned flags f
 
 test('account deletion removes the whole wardrobe tree (doc + receipts); other pilots untouched', async () => {
   const uid = await setup({ holosTokens: 1000 }), other = await setup({ holosTokens: 1000 });
-  for (const u of [uid, other]) { await buy(u, 'top_openhoodie', 'd1'); await equip(u, base(), 'd2'); }
+  for (const u of [uid, other]) { await buy(u, 'top_openhoodie', 'd1'); await equip(u, base(), 'd2', 'city'); await equip(u, base(), 'd3', 'field'); }
+  const before = await wardrobe(uid); assert.ok(before.loadouts.city && before.loadouts.field, 'both loadouts saved before deletion');
   await deleteUserData(db, uid);
   assert.equal((await db.doc(`wardrobes/${uid}`).get()).exists, false); assert.equal((await db.collection(`wardrobes/${uid}/receipts`).get()).size, 0);
-  assert.equal((await db.doc(`wardrobes/${other}`).get()).exists, true); assert.equal((await db.collection(`wardrobes/${other}/receipts`).get()).size, 2);
+  assert.equal((await db.doc(`wardrobes/${other}`).get()).exists, true); assert.equal((await db.collection(`wardrobes/${other}/receipts`).get()).size, 3);
+  const gone = await host(uid, { operation: 'status' }).catch(e => e); assert.equal(gone.details?.rejectionCode, 'unavailable', 'profile deleted too');
+});
+
+test('loadouts: City and Field equip independently; unset Field reads as City and status writes nothing; owned items in either; bad loadout rejected', async () => {
+  const uid = await setup({ holosTokens: 2250 });
+  await buy(uid, 'top_fullsuit', 'b1'); await buy(uid, 'hat_fedora', 'b2');
+  const city = base(); Object.assign(city.parts, { top: 'top_tshirt', hat: 'hat_fedora' }); city.colors = { skin: '#C08060', top: ['#112233'] }; city.shapes = { Weight: 30 };
+  const c = await equip(uid, city, 'c1', 'city');
+  assert.deepEqual(c.saved, { city: true, field: false }); assert.deepEqual(c.loadouts.field, c.loadouts.city);
+  const docAfterCity = await wardrobe(uid);
+  const s1 = await host(uid, { operation: 'status' });
+  assert.deepEqual(s1.loadouts.field, s1.loadouts.city, 'unset field reads as city'); assert.deepEqual(await wardrobe(uid), docAfterCity, 'the read wrote nothing');
+  assert.equal(docAfterCity.loadouts.field, null);
+  const field = base(); Object.assign(field.parts, { top: 'top_fullsuit', hat: 'hat_fedora' }); field.colors = { skin: '#C08060', top: ['#FF0000', '#00FF00'] }; field.shapes = { Weight: 30 };
+  const f = await equip(uid, field, 'f1', 'field');
+  assert.deepEqual(f.saved, { city: true, field: true });
+  assert.equal(f.loadouts.city.parts.top, 'top_tshirt'); assert.equal(f.loadouts.field.parts.top, 'top_fullsuit');
+  assert.equal(f.loadouts.city.parts.hat, 'hat_fedora'); assert.equal(f.loadouts.field.parts.hat, 'hat_fedora', 'owned hat worn in both');
+  await exportFixture('wardrobe-3_equip_field', f);
+  // Re-equip city: field untouched. Same requestId for the other loadout → sequence_conflict.
+  const city2 = structuredClone(city); city2.parts.hat = null;
+  const c2 = await equip(uid, city2, 'c2', 'city'); assert.equal(c2.loadouts.city.parts.hat, null); assert.equal(c2.loadouts.field.parts.hat, 'hat_fedora');
+  await rejects(equip(uid, city2, 'c2', 'field'), 'sequence_conflict', 'already-exists');
+  assert.equal((await equip(uid, city2, 'c2', 'city')).alreadyProcessed, true);
+  const st = await host(uid, { operation: 'status' }); assert.deepEqual(st.loadouts, c2.loadouts); assert.deepEqual(st.saved, { city: true, field: true });
+  await exportFixture('wardrobe-3_status_loadouts', st);
+  // Invalid loadout names, and a missing loadout, are invalid_request with nothing written.
+  const stored = await wardrobe(uid);
+  for (const loadout of ['arena', 'City', '', null, 1]) await rejects(host(uid, { operation: 'equip', loadout, recipe: base(), requestId: `bad${String(loadout)}` }), 'invalid_request', 'invalid-argument');
+  await rejects(host(uid, { operation: 'equip', recipe: base(), requestId: 'noloadout' }), 'invalid_request', 'invalid-argument');
+  // Field equip enforces ownership like city.
+  const smart = base(); smart.parts.top = 'top_smartdress'; smart.parts.bottom = null;
+  await rejects(equip(uid, smart, 'f9', 'field'), 'not_owned', 'failed-precondition');
+  assert.deepEqual(await wardrobe(uid), stored);
 });

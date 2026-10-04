@@ -12,7 +12,8 @@ const ITEMS = C.WARDROBE_ITEMS;
 const byPart = p => ITEMS.find(i => i.bozoPart === p);
 const id = p => byPart(p).itemId;
 const base = () => structuredClone(W.defaultRecipe());
-const equipCmd = (recipe, requestId = 'e1') => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-3', operation: 'equip', requestId, recipe });
+const equipCmd = (recipe, requestId = 'e1', loadout = 'city') => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-3', operation: 'equip', requestId, loadout, recipe });
+const cityOf = st => W.loadoutRecipes(st).city;
 const buyCmd = (itemId, requestId = 'b1') => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-3', operation: 'purchase', requestId, itemId });
 const fresh = () => W.readWardrobeState(undefined);
 const invalid = (fn, msg) => assert.throws(fn, e => e.code === 'invalid_request', msg);
@@ -159,12 +160,12 @@ test('equip: starter-only with zero Holos OK; unowned → not_owned; wrong slot 
   const r = base(); Object.assign(r.parts, { hairFront: id('HairFront_HimeCut'), hairBack: id('Hairback_ShinryuCut'), top: id('Top_TankTop'), socks: id('Socks_BasicSocks') });
   r.shapes = { Roundness: 100, Belly: 0, Muscle: 37.5, EarsElf: 12 }; // EarsElf: not on Head_AnimeYoung, still accepted (union)
   const out = W.applyEquip({ holosTokens: 0 }, fresh(), equipCmd(r));
-  assert.equal(out.reply.holosTokens, 0); assert.equal(out.reply.purchased, null); assert.equal(out.state.recipe.parts.hairBack, 'hairback_shinryucut');
-  assert.deepEqual(out.state.recipe.shapes, { Belly: 0, Muscle: 37.5, EarsElf: 12, Roundness: 100 }, 'canonical order: body keys, then face keys');
+  assert.equal(out.reply.holosTokens, 0); assert.equal(out.reply.purchased, null); assert.equal(cityOf(out.state).parts.hairBack, 'hairback_shinryucut');
+  assert.deepEqual(cityOf(out.state).shapes, { Belly: 0, Muscle: 37.5, EarsElf: 12, Roundness: 100 }, 'canonical order: body keys, then face keys');
   const withPart = (slot, v) => { const x = base(); x.parts[slot] = v; return x; };
   assert.throws(() => W.applyEquip({ holosTokens: 9999 }, fresh(), equipCmd(withPart('hat', id('Hat_Fedora')))), e => e.code === 'not_owned');
   assert.throws(() => W.applyEquip({}, fresh(), equipCmd(Object.assign(base(), { parts: { ...base().parts, top: id('Top_Overall'), bottom: null } }))), e => e.code === 'not_owned');
-  assert.equal(W.applyEquip({}, { ...fresh(), entitlements: [id('Hat_Fedora')] }, equipCmd(withPart('hat', id('Hat_Fedora')))).state.recipe.parts.hat, 'hat_fedora');
+  assert.equal(W.applyEquip({}, { ...fresh(), entitlements: [id('Hat_Fedora')] }, equipCmd(withPart('hat', id('Hat_Fedora')))).state.loadouts.city.parts.hat, 'hat_fedora');
   invalid(() => equipCmd(withPart('upperFace', id('UpperFace_RoundGlassesLens'))), 'lens is not equippable');
   invalid(() => equipCmd(withPart('hat', id('Top_Tshirt'))), 'wrong slot');
   invalid(() => equipCmd(withPart('hat', 'Hat_Fedora')), 'ids are lower-case; the bozoPart is not an id');
@@ -204,11 +205,17 @@ test('purchase: price from the economy table; already_owned and not_enough_holos
 });
 
 test('no reset trap: absent = nothing owned; malformed / wardrobe-2 / bad entitlements fail closed; retired ids kept', () => {
-  assert.deepEqual(W.readWardrobeState(undefined), { schemaVersion: 'wardrobe-3', entitlements: [], recipe: null });
-  for (const bad of [null, {}, [], { schemaVersion: 'wardrobe-2', entitlements: [], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: 'x', recipe: null },
-    { schemaVersion: 'wardrobe-3', entitlements: [1], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: ['a', 'a'], recipe: null }, { schemaVersion: 'wardrobe-3', entitlements: [], recipe: 'x' }])
+  assert.deepEqual(W.readWardrobeState(undefined), { schemaVersion: 'wardrobe-3', entitlements: [], identity: null, loadouts: { city: null, field: null } });
+  const doc = (extra = {}) => ({ schemaVersion: 'wardrobe-3', entitlements: [], identity: null, loadouts: { city: null, field: null }, ...extra });
+  const ident = { faceLayers: {}, shapes: {}, colors: {} }, outfit = { parts: {}, colors: {} };
+  for (const bad of [null, {}, [], { schemaVersion: 'wardrobe-2', entitlements: [], recipe: null }, doc({ entitlements: 'x' }), doc({ entitlements: [1] }), doc({ entitlements: ['a', 'a'] }),
+    { schemaVersion: 'wardrobe-3', entitlements: [], recipe: null }, // the single-recipe wardrobe-3 draft shape: no loadouts → fails closed
+    doc({ loadouts: undefined }), doc({ loadouts: { city: null } }), doc({ loadouts: { city: null, field: null, arena: null } }), doc({ loadouts: { city: 'x', field: null } }),
+    doc({ loadouts: { city: { parts: {} }, field: null }, identity: ident }), doc({ identity: 'x' }), doc({ identity: { faceLayers: {} } }),
+    doc({ loadouts: { city: outfit, field: null } }) /* outfit saved without identity */])
     assert.throws(() => W.readWardrobeState(bad), e => e.code === 'unavailable', JSON.stringify(bad));
-  const kept = W.readWardrobeState({ schemaVersion: 'wardrobe-3', entitlements: ['top_retired'], recipe: null });
+  assert.deepEqual(W.readWardrobeState(doc({ identity: ident, loadouts: { city: null, field: outfit } })).loadouts.field, outfit, 'field saved alone is fine');
+  const kept = W.readWardrobeState(doc({ entitlements: ['top_retired'] }));
   assert.deepEqual(W.applyPurchase({ holosTokens: 300 }, kept, buyCmd(id('Neck_RibbonBow'))).state.entitlements, ['neck_ribbonbow', 'top_retired']);
 });
 
@@ -219,13 +226,14 @@ test('fingerprints: equivalent recipes share one (key order, hex case, omitted o
   const c = structuredClone(a); c.faceLayers.pupil = 'Pupil_StarPupil';
   assert.notEqual(W.commandFingerprint(equipCmd(a)), W.commandFingerprint(equipCmd(c)));
   assert.notEqual(W.commandFingerprint(buyCmd(id('Hat_Fedora'))), W.commandFingerprint(buyCmd(id('Hat_Beanie'))));
+  assert.notEqual(W.commandFingerprint(equipCmd(a, 'e1', 'city')), W.commandFingerprint(equipCmd(a, 'e1', 'field')), 'same recipe, other loadout → other fingerprint');
   for (const raw of [{ operation: 'status' }, { schemaVersion: 'wardrobe-2', operation: 'status' }, { schemaVersion: 'wardrobe-3', operation: 'purchase', itemId: 'hat_fedora' }])
     invalid(() => W.validateWardrobeCommand(raw));
 });
 
 test('status view: slots, face-layer whitelists, shapes, colour rules and all 120 items (so Unity hard-codes none)', () => {
-  const s = W.wardrobeStatus({ holosTokens: 10 }, { schemaVersion: 'wardrobe-3', entitlements: ['hat_fedora'], recipe: null });
-  assert.equal(s.schemaVersion, 'wardrobe-3'); assert.equal(s.recipeSaved, false); assert.deepEqual(s.recipe, W.defaultRecipe());
+  const s = W.wardrobeStatus({ holosTokens: 10 }, { ...W.readWardrobeState(undefined), entitlements: ['hat_fedora'] });
+  assert.equal(s.schemaVersion, 'wardrobe-3'); assert.deepEqual(s.saved, { city: false, field: false }); assert.deepEqual(s.loadouts, { city: W.defaultRecipe(), field: W.defaultRecipe() });
   assert.deepEqual(s.catalog.slots.map(x => x.slot), C.WARDROBE_SLOTS.map(x => x.slot)); assert.equal(s.catalog.faceLayers.length, 16);
   assert.deepEqual(s.catalog.colors.globalChannels, ['skin', 'hair', 'eyes']); assert.equal(s.catalog.items.length, 120); assert.equal(s.catalog.placeholder, false);
   const fedora = s.catalog.items.find(i => i.itemId === 'hat_fedora'); assert.equal(fedora.owned, true); assert.equal(fedora.usable, true); assert.equal(fedora.bozoPart, 'Hat_Fedora');
@@ -246,3 +254,49 @@ test('status view: slots, face-layer whitelists, shapes, colour rules and all 12
 
 const HEAD_V2 = ['EarAngle', 'EarsElf', 'EyeLidHeight', 'EyesOuterCornersHigh', 'EyesOuterCornersLow', 'EyesSquare', 'IrisSize', 'LowerBrows', 'MouthThin',
   'MouthWide', 'NoseBridgeCurve', 'NoseTiltDown', 'NoseTiltUp', 'NoseWidth', 'RaiseBrows', 'Sharpness', 'Squareness', 'Stern'];
+
+test('loadouts (Pak 2026-10-04): City and Field saved independently; identity shared; unset field reads as city; loadout required', () => {
+  const owned = { ...fresh(), entitlements: [id('Top_FullSuit'), id('Hat_Fedora')] };
+  // Equip city, then field, independently.
+  const city = base(); Object.assign(city.parts, { top: id('Top_Tshirt'), hat: id('Hat_Fedora') }); city.colors = { skin: '#c08060', top: ['#112233'] }; city.shapes = { Weight: 30 };
+  const s1 = W.applyEquip({}, owned, equipCmd(city, 'c1', 'city'));
+  assert.deepEqual(s1.reply.saved, { city: true, field: false });
+  assert.deepEqual(s1.reply.loadouts.field, s1.reply.loadouts.city, 'unset field reads back as a copy of city');
+  assert.equal(s1.state.loadouts.field, null, 'the read wrote nothing for field');
+  const field = base(); Object.assign(field.parts, { top: id('Top_FullSuit'), hat: id('Hat_Fedora') }); field.colors = { skin: '#c08060', top: ['#FF0000', '#00FF00'] }; field.shapes = { Weight: 30 };
+  const s2 = W.applyEquip({}, s1.state, equipCmd(field, 'f1', 'field'));
+  assert.deepEqual(s2.reply.saved, { city: true, field: true });
+  assert.equal(s2.reply.loadouts.city.parts.top, 'top_tshirt'); assert.deepEqual(s2.reply.loadouts.city.colors, { skin: '#C08060', top: ['#112233'] });
+  assert.equal(s2.reply.loadouts.field.parts.top, 'top_fullsuit'); assert.deepEqual(s2.reply.loadouts.field.colors, { skin: '#C08060', top: ['#FF0000', '#00FF00'] });
+  // An owned item can be worn in either loadout (hat_fedora in both).
+  assert.equal(s2.reply.loadouts.city.parts.hat, 'hat_fedora'); assert.equal(s2.reply.loadouts.field.parts.hat, 'hat_fedora');
+  // Re-equipping city leaves field's outfit alone.
+  const city2 = structuredClone(city); city2.parts.hat = null; city2.colors = { skin: '#c08060' };
+  const s3 = W.applyEquip({}, s2.state, equipCmd(city2, 'c2', 'city'));
+  assert.equal(s3.reply.loadouts.city.parts.hat, null); assert.equal(s3.reply.loadouts.field.parts.hat, 'hat_fedora'); assert.equal(s3.reply.loadouts.field.parts.top, 'top_fullsuit');
+  // Identity (face layers, shapes, global colours) is shared: saving either loadout updates both.
+  const field2 = structuredClone(field); field2.shapes = { Weight: 90, Roundness: 10 }; field2.faceLayers.head = 'Head_Stern'; field2.colors = { skin: '#000001', hair: '#ABCDEF', top: ['#FF0000'] };
+  const s4 = W.applyEquip({}, s3.state, equipCmd(field2, 'f2', 'field'));
+  for (const l of ['city', 'field']) {
+    assert.deepEqual(s4.reply.loadouts[l].shapes, { Weight: 90, Roundness: 10 }, l);
+    assert.equal(s4.reply.loadouts[l].faceLayers.head, 'Head_Stern', l);
+    assert.equal(s4.reply.loadouts[l].colors.skin, '#000001', l); assert.equal(s4.reply.loadouts[l].colors.hair, '#ABCDEF', l);
+  }
+  assert.equal('top' in s4.reply.loadouts.city.colors, false, "city's per-slot colours stay city's"); assert.deepEqual(s4.reply.loadouts.field.colors.top, ['#FF0000']);
+  // Every composed loadout is itself a valid canonical recipe.
+  for (const l of ['city', 'field']) assert.deepEqual(W.validateRecipe(s4.reply.loadouts[l]), s4.reply.loadouts[l], l);
+  // Field saved first: city reads as the default outfit with the shared identity.
+  const fOnly = W.applyEquip({}, owned, equipCmd(field2, 'f3', 'field')).reply;
+  assert.deepEqual(fOnly.saved, { city: false, field: true }); assert.deepEqual(fOnly.loadouts.city.parts, W.defaultRecipe().parts); assert.equal(fOnly.loadouts.city.faceLayers.head, 'Head_Stern');
+  // Field equip validates exactly like city: ownership, hide rule, colour caps.
+  const unowned = base(); unowned.parts.top = id('Top_SmartDress'); unowned.parts.bottom = null;
+  assert.throws(() => W.applyEquip({}, owned, equipCmd(unowned, 'x', 'field')), e => e.code === 'not_owned');
+  invalid(() => equipCmd({ ...base(), parts: { ...base().parts, top: id('Top_Sundress') } }, 'x', 'field'), 'hide rule on field');
+  invalid(() => equipCmd({ ...base(), colors: { top: ['#111111', '#222222', '#333333'] } }, 'x', 'field'), 'colour cap on field');
+  // loadout is required and must be city | field.
+  for (const loadout of [undefined, null, '', 'City', 'arena', 'both', 0, ['city']])
+    invalid(() => W.validateWardrobeCommand({ schemaVersion: 'wardrobe-3', operation: 'equip', requestId: 'r', recipe: base(), ...(loadout === undefined ? {} : { loadout }) }), `loadout ${JSON.stringify(loadout)}`);
+  // Purchases keep both saved loadouts untouched.
+  const bought = W.applyPurchase({ holosTokens: 750 }, s4.state, buyCmd(id('Hat_Beanie'))).state;
+  assert.deepEqual(bought.loadouts, s4.state.loadouts); assert.deepEqual(bought.identity, s4.state.identity);
+});

@@ -2,11 +2,11 @@ import { Firestore } from 'firebase-admin/firestore';
 import { applyEquip, applyPurchase, commandFingerprint, MutationReply, readWardrobeState, validateWardrobeCommand, wardrobeStatus, WardrobeError } from '../lib/wardrobe';
 
 /**
- * DECISIONS #48 wardrobe. State at wardrobes/{uid} ({schemaVersion, entitlements, recipe}) and receipts
+ * DECISIONS #48 wardrobe. State at wardrobes/{uid} ({schemaVersion, entitlements, identity, loadouts:{city, field}}) and receipts
  * at wardrobes/{uid}/receipts/{requestId} ({fingerprint, reply}): top-level, server-only (rules deny
  * every client read and write), deleted with the account (deleteUserData).
  *
- * - status: two point reads, never writes, never grants (no doc → nothing owned + the default recipe).
+ * - status: two point reads, never writes, never grants (no doc → nothing owned; city = default outfit, field = copy of city).
  * - purchase / equip: one transaction. A receipt with the same fingerprint replays its reply
  *   (alreadyProcessed: true, nothing written); a different fingerprint is sequence_conflict. A purchase
  *   writes the Holos spend, the entitlement and the receipt together; equip never touches Holos.

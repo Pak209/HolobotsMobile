@@ -12,7 +12,7 @@ const HTTPS_CODE = {
   unavailable: 'unavailable',
 } as const;
 
-/** DECISIONS #48, wardrobe-3. Operations: status | purchase{itemId, requestId} | equip{recipe, requestId}. */
+/** DECISIONS #48, wardrobe-3. Operations: status | purchase{itemId, requestId} | equip{loadout, recipe, requestId}. */
 export const wardrobeHost = onCall(async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in to use your wardrobe.');

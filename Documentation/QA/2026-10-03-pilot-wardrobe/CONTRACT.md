@@ -153,6 +153,26 @@ These are not items: nothing is owned or sold. **Required** layers must be one o
   - An item with `colorChannels: 0` (none today) would take no colours.
 - **Size cap:** the encoded recipe (JSON, UTF-8) must be ≤ **4096 bytes**, else `invalid_request`. This is checked first.
 
+## Two saved outfits: City and Field (Pak ruling, 2026-10-04)
+
+Pilots wear casual BoZo clothes in HoloCity. When they enter an Error Beast zone, Unity auto-swaps them into their Field outfit (neon armour). **The server just stores both outfits; Unity performs the swap.**
+
+**Chosen layout: shared identity, with each loadout holding only parts and per-slot colours.**
+- **Identity, shared by both loadouts:** `faceLayers` (head, body, eyes, …), `shapes`, and the global colours `skin`/`hair`/`eyes`. The body, face and shapes are who the pilot *is*.
+- **Outfit, per loadout:** `parts` (all 13 slots, including hair) and the per-slot colour arrays.
+
+**How equip works with loadouts:**
+- `equip` takes `loadout: "city" | "field"`, which is **required**, plus the same full recipe as before, and validates it exactly as before (ownership, slots, the hide rule, colour caps).
+- The server splits the recipe: the identity part updates the shared identity, and the parts plus slot colours become that loadout's outfit.
+- So saving either loadout also updates the identity the other loadout renders with. The other loadout's outfit is never touched.
+
+**How status reports them:**
+- `status`, and every reply, return **both loadouts as full renderable recipes** (identity + outfit), plus `saved: {city, field}`.
+- An unsaved **field reads back as a copy of city**, and that read writes nothing.
+- An unsaved city reads back as the default outfit, with the saved identity if there is one.
+
+**No armour items exist yet.** They'll be added later as ordinary catalog items in the Top/Bottom/Feet/Gloves/Hat slots, with no special-casing. Any owned or starter item can be worn in either loadout.
+
 ## `wardrobeHost`, schema `wardrobe-3`
 
 Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version gets `invalid_request`.
@@ -162,7 +182,7 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 ```jsonc
 { "schemaVersion": "wardrobe-3", "operation": "status" }
 { "schemaVersion": "wardrobe-3", "operation": "purchase", "itemId": "top_fullsuit", "requestId": "<[A-Za-z0-9_-]{1,128}>" }
-{ "schemaVersion": "wardrobe-3", "operation": "equip", "requestId": "<id>", "recipe": {
+{ "schemaVersion": "wardrobe-3", "operation": "equip", "loadout": "city", "requestId": "<id>", "recipe": {   // loadout: "city" | "field", required
     "schemaVersion": "wardrobe-3",
     "faceLayers": { "head": "Head_SharpHead", "body": "Body_AnimeBasic", "eyes": "Eyes_AnimeBasic", "pupil": "Pupil_BasicPupil",
                     "eyeBrows": "Brows_BasicBrows", "eyeLashes": "EyeLashes_LongLashes", "teeth": "Teeth_AnimeBasicTeeth",
@@ -178,7 +198,7 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 
 ### Replies
 
-**`status`.** It never writes and never grants. With no saved recipe it returns the default recipe with `recipeSaved: false`:
+**`status`.** It never writes and never grants. With nothing saved, both loadouts read as the default recipe and `saved` is `{city:false, field:false}`. The default recipe is:
 - the first option for each required face layer;
 - the first non-hiding starter in manifest order for each required slot, which gives `top_simplehoodie`, `bottom_baggypants`, `feet_athleticmidtop`, `hairfront_asymmetricalfringe`, `hairback_casualflow`.
 
@@ -186,8 +206,11 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
 {
   "schemaVersion": "wardrobe-3",
   "entitlements": ["top_fullsuit"],               // owned sold items (sorted)
-  "recipe": { /* canonical wardrobe-3 recipe: the saved one, or the default */ },
-  "recipeSaved": false,
+  "loadouts": {
+    "city":  { /* full canonical wardrobe-3 recipe: shared identity + city outfit (or the default outfit) */ },
+    "field": { /* full canonical recipe: shared identity + field outfit; a copy of city while field is unsaved */ }
+  },
+  "saved": { "city": true, "field": false },
   "holosTokens": 1500,
   "catalog": {
     "placeholder": false, "source": "BoZo Anime Pack runtime prefabs (Outfit.Type), manifest 2026-10-03 (120 entries)",
@@ -219,25 +242,25 @@ Every request carries `schemaVersion: "wardrobe-3"`. A missing or other version 
   "alreadyProcessed": false,                      // true on a replay of the same requestId + command
   "purchased": { "itemId": "top_fullsuit", "price": 1500 },   // null for equip
   "entitlements": ["top_fullsuit"],
-  "recipe": { /* saved recipe (equip) or saved / default (purchase) */ },
-  "recipeSaved": true,
+  "loadouts": { "city": { /* … */ }, "field": { /* … */ } },   // as in status
+  "saved": { "city": true, "field": false },
   "holosTokens": 0
 }
 ```
 
-The reply recipe is **canonical**:
+Each loadout recipe in a reply is **canonical**:
 - every face layer and every slot is present (`null` = none), in catalog order;
 - shapes contain only the keys that were set, body keys then face keys;
 - colours list the global channels first, then slots, in catalog order;
 - hex is upper-case.
 
-Render the returned recipe, not the one you sent. Fixtures are in `fixtures/`: `wardrobe-3_status_fresh`, `wardrobe-3_purchase`, `wardrobe-3_equip`, `wardrobe-3_equip_hidden_bottom`, `vendor-3_catalog_boutique`.
+Render the returned loadouts, not what you sent. Each one is itself a valid `equip` recipe, so you can send it back unchanged. Fixtures are in `fixtures/`: `wardrobe-3_status_fresh`, `wardrobe-3_purchase`, `wardrobe-3_equip` (city only; field mirrors it), `wardrobe-3_equip_field`, `wardrobe-3_equip_hidden_bottom`, `wardrobe-3_status_loadouts`, `vendor-3_catalog_boutique`.
 
 ### Rejection codes (`HttpsError`, `details.rejectionCode`)
 
 | rejectionCode | HTTPS code | When |
 |---|---|---|
-| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
+| `invalid_request` | `invalid-argument` | Request: bad or missing `schemaVersion`, operation or `requestId`; equip `loadout` missing or not exactly `"city"`/`"field"`; `itemId` unknown, a starter, or non-sellable (the lens). Recipe defect: oversize; unknown top-level key (including the old `sliders`); wrong schema; unknown face layer; face option off-whitelist; required face layer null or missing; unknown slot; unknown item; **item in the wrong slot**; non-equippable item (the lens); **non-null item in a slot hidden by or incompatible with an equipped item**; required slot empty when not hidden; shape key outside body ∪ face union, weight outside [0, 100] or non-finite; colour key unknown; colour not strict `#RRGGBB`; per-slot colours on an empty slot; **more per-slot colours than `colorChannels`** |
 | `not_owned` | `failed-precondition` | equip with a sold item the pilot doesn't own |
 | `already_owned` | `already-exists` | purchase of an owned item with a new `requestId`. No charge, nothing written. |
 | `not_enough_holos` | `failed-precondition` | message **"Not enough Holos."**. Nothing written, so the same `requestId` can succeed later. |
@@ -256,7 +279,8 @@ Render the returned recipe, not the one you sent. Fixtures are in `fixtures/`: `
 
 ### Storage and data safety
 
-- **Layout:** `wardrobes/{uid}` holds `{schemaVersion:"wardrobe-3", entitlements: string[], recipe: Recipe|null}`. Receipts live at `wardrobes/{uid}/receipts/{requestId}`.
+- **Layout:** `wardrobes/{uid}` holds `{schemaVersion:"wardrobe-3", entitlements: string[], identity: {faceLayers, shapes, colors}|null, loadouts: {city: {parts, colors}|null, field: {parts, colors}|null}}`. Receipts live at `wardrobes/{uid}/receipts/{requestId}`.
+- `identity` is null until the first equip of either loadout. A saved outfit with a null identity is malformed and fails closed. The single-`recipe` shape from earlier wardrobe-3 drafts also fails closed (never deployed).
 - **`firestore.rules` denies every client read and write of the whole tree.** Rules tests cover it.
 - **No reset trap:**
   - Only an *absent* doc means "nothing owned".
@@ -299,11 +323,13 @@ Render the returned recipe, not the one you sent. Fixtures are in `fixtures/`: `
    - Face-layer values are exact BoZo names too.
 3. **On creator open:** call `wardrobeHost {schemaVersion:"wardrobe-3", operation:"status"}`.
    - Build every picker from `catalog`: slots, faceLayers, shapes (body keys plus `faceByHead[recipe.faceLayers.head]`), colours, and items with `usable`/`owned`/`hidesSlots`.
-   - Load `recipe` (the default if `recipeSaved: false`).
+   - Load `loadouts.city` and `loadouts.field`. While `saved.field` is false, field mirrors city.
+   - Swap to `loadouts.field` on entering an Error Beast zone, and back to `loadouts.city` on leaving. The swap is Unity's job; nothing is sent to the server for it.
    - **Don't hard-code any id, price, slot, layer or whitelist.**
 4. **Hide rule in the UI:** when the user picks a top whose `hidesSlots` contains `bottom`, clear `parts.bottom` to `null` and grey out the bottom picker. When they switch to a non-hiding top, require a bottom again: restore the previous bottom or the default. The server enforces this both ways.
 5. **Colours:** offer `item.colorChannels` swatches per equipped item. Send `colors.<slot>` with at most that many entries. Clear a slot's colours when its item changes, since channel counts differ.
-6. **Save:** send `equip {recipe, requestId}`, using a fresh `requestId` per save and reusing it on network retry. Render the reply's canonical `recipe`.
+6. **Save:** send `equip {loadout, recipe, requestId}` for the outfit being edited, using a fresh `requestId` per save and reusing it on network retry. Reusing a `requestId` for the other loadout gets `sequence_conflict`.
+   - Render the reply's `loadouts`. Face, shapes and skin/hair/eyes colours are shared, so editing them in either loadout changes both.
    - On `not_owned`, show the item as locked.
    - On `invalid_request`, the client sent something off-whitelist. Treat it as a bug and keep the last server recipe.
 7. **Buy:** open the boutique with `vendorCatalogHost {operation:"catalog", vendorId:"boutique"}`. Send `listing.purchase.request` (with a fresh `requestId` replacing `"<client-generated>"`) to `wardrobeHost`. Then refresh `status` and the catalog.
