@@ -1,0 +1,2349 @@
+{
+  "schemaVersion": "vendor-3",
+  "vendorId": "boutique",
+  "holosTokens": 500,
+  "inventory": {
+    "arenaPasses": 0,
+    "gachaTickets": 0,
+    "energyRefills": 0,
+    "expBoosters": 0,
+    "rankSkips": 0,
+    "wildcardBlueprints": 0,
+    "parts": 0,
+    "buddyUnits": {
+      "light": 1,
+      "medium": 0,
+      "heavy": 0
+    }
+  },
+  "listings": [
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": false,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_basichakma",
+      "kind": "clothing",
+      "displayName": "Basic Hakma",
+      "price": 1500,
+      "owned": 1,
+      "details": {
+        "itemId": "bottom_basichakma",
+        "bozoPart": "Bottom_BasicHakma",
+        "slot": "bottom",
+        "rarity": "epic",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_basichakma",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_beltedpants",
+      "kind": "clothing",
+      "displayName": "Belted Pants",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_beltedpants",
+        "bozoPart": "Bottom_BeltedPants",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "4",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_beltedpants",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_beltedshorts",
+      "kind": "clothing",
+      "displayName": "Belted Shorts",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_beltedshorts",
+        "bozoPart": "Bottom_BeltedShorts",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_beltedshorts",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_beltedskort",
+      "kind": "clothing",
+      "displayName": "Belted Skort",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_beltedskort",
+        "bozoPart": "Bottom_BeltedSkort",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "6",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_beltedskort",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_cuffedshorts",
+      "kind": "clothing",
+      "displayName": "Cuffed Shorts",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_cuffedshorts",
+        "bozoPart": "Bottom_CuffedShorts",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "9",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_cuffedshorts",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_dolphinshorts",
+      "kind": "clothing",
+      "displayName": "Dolphin Shorts",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_dolphinshorts",
+        "bozoPart": "Bottom_DolphinShorts",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_dolphinshorts",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_longsimpleskirt",
+      "kind": "clothing",
+      "displayName": "Long Simple Skirt",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_longsimpleskirt",
+        "bozoPart": "Bottom_LongSimpleSkirt",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_longsimpleskirt",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_pleatedskirt",
+      "kind": "clothing",
+      "displayName": "Pleated Skirt",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_pleatedskirt",
+        "bozoPart": "Bottom_PleatedSkirt",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_pleatedskirt",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_rippedcapris",
+      "kind": "clothing",
+      "displayName": "Ripped Capris",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_rippedcapris",
+        "bozoPart": "Bottom_RippedCapris",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "4",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_rippedcapris",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_shortsimpleskirt",
+      "kind": "clothing",
+      "displayName": "Short Simple Skirt",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_shortsimpleskirt",
+        "bozoPart": "Bottom_ShortSimpleSkirt",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_shortsimpleskirt",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_simplekhakies",
+      "kind": "clothing",
+      "displayName": "Simple Khakies",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_simplekhakies",
+        "bozoPart": "Bottom_SimpleKhakies",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_simplekhakies",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_simpleskirt",
+      "kind": "clothing",
+      "displayName": "Simple Skirt",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_simpleskirt",
+        "bozoPart": "Bottom_SimpleSkirt",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_simpleskirt",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.bottom_tightdresspants",
+      "kind": "clothing",
+      "displayName": "Tight Dress Pants",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "bottom_tightdresspants",
+        "bozoPart": "Bottom_TightDressPants",
+        "slot": "bottom",
+        "rarity": "common",
+        "colorChannels": "6",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "bottom_tightdresspants",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_balletflats",
+      "kind": "clothing",
+      "displayName": "Ballet Flats",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_balletflats",
+        "bozoPart": "Feet_BalletFlats",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_balletflats",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_classyloafers",
+      "kind": "clothing",
+      "displayName": "Classy Loafers",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_classyloafers",
+        "bozoPart": "Feet_ClassyLoafers",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_classyloafers",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_flowerflipflops",
+      "kind": "clothing",
+      "displayName": "Flower Flip Flops",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_flowerflipflops",
+        "bozoPart": "Feet_FlowerFlipFlops",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_flowerflipflops",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_highlaceshoe",
+      "kind": "clothing",
+      "displayName": "High Lace Shoe",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_highlaceshoe",
+        "bozoPart": "Feet_HighLaceShoe",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_highlaceshoe",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_officeheels",
+      "kind": "clothing",
+      "displayName": "Office Heels",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_officeheels",
+        "bozoPart": "Feet_OfficeHeels",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_officeheels",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_officeloafer",
+      "kind": "clothing",
+      "displayName": "Office Loafer",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_officeloafer",
+        "bozoPart": "Feet_OfficeLoafer",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_officeloafer",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_simpleflipflops",
+      "kind": "clothing",
+      "displayName": "Simple Flip Flops",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_simpleflipflops",
+        "bozoPart": "Feet_SimpleFlipFlops",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_simpleflipflops",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_sockedballetflats",
+      "kind": "clothing",
+      "displayName": "Socked Ballet Flats",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_sockedballetflats",
+        "bozoPart": "Feet_SockedBalletFlats",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_sockedballetflats",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_strappedsandals",
+      "kind": "clothing",
+      "displayName": "Strapped Sandals",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_strappedsandals",
+        "bozoPart": "Feet_StrappedSandals",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_strappedsandals",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_tobisandles",
+      "kind": "clothing",
+      "displayName": "Tobi Sandles",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_tobisandles",
+        "bozoPart": "Feet_TobiSandles",
+        "slot": "feet",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_tobisandles",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.feet_workboots",
+      "kind": "clothing",
+      "displayName": "Work Boots",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "feet_workboots",
+        "bozoPart": "Feet_WorkBoots",
+        "slot": "feet",
+        "rarity": "rare",
+        "colorChannels": "4",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "feet_workboots",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_armbands",
+      "kind": "clothing",
+      "displayName": "Arm Bands",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_armbands",
+        "bozoPart": "Gloves_ArmBands",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_armbands",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_armwarmers",
+      "kind": "clothing",
+      "displayName": "Arm Warmers",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_armwarmers",
+        "bozoPart": "Gloves_ArmWarmers",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "9",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_armwarmers",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_fingerlessgloves",
+      "kind": "clothing",
+      "displayName": "Fingerless Gloves",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_fingerlessgloves",
+        "bozoPart": "Gloves_FingerlessGloves",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_fingerlessgloves",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_loosebracelets",
+      "kind": "clothing",
+      "displayName": "Loose Bracelets",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_loosebracelets",
+        "bozoPart": "Gloves_LooseBracelets",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_loosebracelets",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_ringedgloves",
+      "kind": "clothing",
+      "displayName": "Ringed Gloves",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_ringedgloves",
+        "bozoPart": "Gloves_RingedGloves",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "9",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_ringedgloves",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_simplegloves",
+      "kind": "clothing",
+      "displayName": "Simple Gloves",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_simplegloves",
+        "bozoPart": "Gloves_SimpleGloves",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_simplegloves",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_simplering",
+      "kind": "clothing",
+      "displayName": "Simple Ring",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_simplering",
+        "bozoPart": "Gloves_SimpleRing",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_simplering",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.gloves_sweatbands",
+      "kind": "clothing",
+      "displayName": "Sweat Bands",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "gloves_sweatbands",
+        "bozoPart": "Gloves_SweatBands",
+        "slot": "gloves",
+        "rarity": "rare",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "gloves_sweatbands",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_ballcap",
+      "kind": "clothing",
+      "displayName": "Ball Cap",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_ballcap",
+        "bozoPart": "Hat_BallCap",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_ballcap",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_beanie",
+      "kind": "clothing",
+      "displayName": "Beanie",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_beanie",
+        "bozoPart": "Hat_Beanie",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_beanie",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_buckethat",
+      "kind": "clothing",
+      "displayName": "Bucket Hat",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_buckethat",
+        "bozoPart": "Hat_BucketHat",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_buckethat",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_fedora",
+      "kind": "clothing",
+      "displayName": "Fedora",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_fedora",
+        "bozoPart": "Hat_Fedora",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_fedora",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_kittywoolie",
+      "kind": "clothing",
+      "displayName": "Kitty Woolie",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_kittywoolie",
+        "bozoPart": "Hat_KittyWoolie",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_kittywoolie",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_militaryhat",
+      "kind": "clothing",
+      "displayName": "Military Hat",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_militaryhat",
+        "bozoPart": "Hat_MilitaryHat",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_militaryhat",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_newsboycap",
+      "kind": "clothing",
+      "displayName": "News Boy Cap",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_newsboycap",
+        "bozoPart": "Hat_NewsBoyCap",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_newsboycap",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_summercap",
+      "kind": "clothing",
+      "displayName": "Summer Cap",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_summercap",
+        "bozoPart": "Hat_SummerCap",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_summercap",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.hat_sunhat",
+      "kind": "clothing",
+      "displayName": "Sun Hat",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "hat_sunhat",
+        "bozoPart": "Hat_SunHat",
+        "slot": "hat",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "hat_sunhat",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.headacc_alienattena",
+      "kind": "clothing",
+      "displayName": "Alien Attena",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "headacc_alienattena",
+        "bozoPart": "HeadAcc_AlienAttena",
+        "slot": "headAcc",
+        "rarity": "epic",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "headacc_alienattena",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.headacc_devilhorns",
+      "kind": "clothing",
+      "displayName": "Devil Horns",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "headacc_devilhorns",
+        "bozoPart": "HeadAcc_DevilHorns",
+        "slot": "headAcc",
+        "rarity": "epic",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "headacc_devilhorns",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.headacc_flufflesskittyears",
+      "kind": "clothing",
+      "displayName": "Fluffless Kitty Ears",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "headacc_flufflesskittyears",
+        "bozoPart": "HeadAcc_FlufflessKittyEars",
+        "slot": "headAcc",
+        "rarity": "epic",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "headacc_flufflesskittyears",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.headacc_kittyears",
+      "kind": "clothing",
+      "displayName": "Kitty Ears",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "headacc_kittyears",
+        "bozoPart": "HeadAcc_KittyEars",
+        "slot": "headAcc",
+        "rarity": "epic",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "headacc_kittyears",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.leggings_stocking",
+      "kind": "clothing",
+      "displayName": "Stocking",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "leggings_stocking",
+        "bozoPart": "Leggings_Stocking",
+        "slot": "leggings",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "leggings_stocking",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.lowerface_sharpbeard",
+      "kind": "clothing",
+      "displayName": "Sharp Beard",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "lowerface_sharpbeard",
+        "bozoPart": "LowerFace_SharpBeard",
+        "slot": "lowerFace",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "lowerface_sharpbeard",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.lowerface_sharpchin",
+      "kind": "clothing",
+      "displayName": "Sharp Chin",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "lowerface_sharpchin",
+        "bozoPart": "LowerFace_SharpChin",
+        "slot": "lowerFace",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "lowerface_sharpchin",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.lowerface_sharpgoatee",
+      "kind": "clothing",
+      "displayName": "Sharp Goatee",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "lowerface_sharpgoatee",
+        "bozoPart": "LowerFace_SharpGoatee",
+        "slot": "lowerFace",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "lowerface_sharpgoatee",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.neck_ribbonbow",
+      "kind": "clothing",
+      "displayName": "Ribbon Bow",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "neck_ribbonbow",
+        "bozoPart": "Neck_RibbonBow",
+        "slot": "neck",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "neck_ribbonbow",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.socks_anklesocks",
+      "kind": "clothing",
+      "displayName": "Ankle Socks",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "socks_anklesocks",
+        "bozoPart": "Socks_AnkleSocks",
+        "slot": "socks",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "socks_anklesocks",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.socks_kneehighs",
+      "kind": "clothing",
+      "displayName": "Knee Highs",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "socks_kneehighs",
+        "bozoPart": "Socks_KneeHighs",
+        "slot": "socks",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "socks_kneehighs",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.socks_stripedkneehighs",
+      "kind": "clothing",
+      "displayName": "Striped Knee Highs",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "socks_stripedkneehighs",
+        "bozoPart": "Socks_StripedKneeHighs",
+        "slot": "socks",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "socks_stripedkneehighs",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.socks_thighhigh",
+      "kind": "clothing",
+      "displayName": "Thigh High",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "socks_thighhigh",
+        "bozoPart": "Socks_ThighHigh",
+        "slot": "socks",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "socks_thighhigh",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.socks_thighhighsturrips",
+      "kind": "clothing",
+      "displayName": "Thigh High Sturrips",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "socks_thighhighsturrips",
+        "bozoPart": "Socks_ThighHighSturrips",
+        "slot": "socks",
+        "rarity": "common",
+        "colorChannels": "1",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "socks_thighhighsturrips",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_comfycartagan",
+      "kind": "clothing",
+      "displayName": "Comfy Cartagan",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_comfycartagan",
+        "bozoPart": "Top_ComfyCartagan",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_comfycartagan",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_dressshirt",
+      "kind": "clothing",
+      "displayName": "Dress Shirt",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_dressshirt",
+        "bozoPart": "Top_DressShirt",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_dressshirt",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_fullsuit",
+      "kind": "clothing",
+      "displayName": "Full Suit",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "top_fullsuit",
+        "bozoPart": "Top_FullSuit",
+        "slot": "top",
+        "rarity": "epic",
+        "colorChannels": "6",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_fullsuit",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_hardjacket",
+      "kind": "clothing",
+      "displayName": "Hard Jacket",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "top_hardjacket",
+        "bozoPart": "Top_HardJacket",
+        "slot": "top",
+        "rarity": "rare",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_hardjacket",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_nagagi",
+      "kind": "clothing",
+      "displayName": "Nagagi",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "top_nagagi",
+        "bozoPart": "Top_Nagagi",
+        "slot": "top",
+        "rarity": "epic",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_nagagi",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_openhoodie",
+      "kind": "clothing",
+      "displayName": "Open Hoodie",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_openhoodie",
+        "bozoPart": "Top_OpenHoodie",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_openhoodie",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_overall",
+      "kind": "clothing",
+      "displayName": "Overall",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_overall",
+        "bozoPart": "Top_Overall",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": [
+          "bottom"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_overall",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_schoolboyjacket",
+      "kind": "clothing",
+      "displayName": "School Boy Jacket",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "top_schoolboyjacket",
+        "bozoPart": "Top_SchoolBoyJacket",
+        "slot": "top",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_schoolboyjacket",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_sefuku",
+      "kind": "clothing",
+      "displayName": "Sefuku",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_sefuku",
+        "bozoPart": "Top_Sefuku",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_sefuku",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_shortsleevedressshirt",
+      "kind": "clothing",
+      "displayName": "Short Sleeve Dress Shirt",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_shortsleevedressshirt",
+        "bozoPart": "Top_ShortSleeveDressShirt",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_shortsleevedressshirt",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_shortsleevesefuku",
+      "kind": "clothing",
+      "displayName": "Short Sleeve Sefuku",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_shortsleevesefuku",
+        "bozoPart": "Top_ShortSleeveSefuku",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_shortsleevesefuku",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_shortsleevesweatervest",
+      "kind": "clothing",
+      "displayName": "Short Sleeve Sweater Vest",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_shortsleevesweatervest",
+        "bozoPart": "Top_ShortSleeveSweaterVest",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_shortsleevesweatervest",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_simplebandeau",
+      "kind": "clothing",
+      "displayName": "Simple Bandeau",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_simplebandeau",
+        "bozoPart": "Top_SimpleBandeau",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_simplebandeau",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_simplekimono",
+      "kind": "clothing",
+      "displayName": "Simple Kimono",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "top_simplekimono",
+        "bozoPart": "Top_SimpleKimono",
+        "slot": "top",
+        "rarity": "epic",
+        "colorChannels": "6",
+        "hidesSlots": [
+          "bottom"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_simplekimono",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_simplesweater",
+      "kind": "clothing",
+      "displayName": "Simple Sweater",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_simplesweater",
+        "bozoPart": "Top_SimpleSweater",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_simplesweater",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_simplesweatervest",
+      "kind": "clothing",
+      "displayName": "Simple Sweater Vest",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_simplesweatervest",
+        "bozoPart": "Top_SimpleSweaterVest",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_simplesweatervest",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_sleevelessdressshirt",
+      "kind": "clothing",
+      "displayName": "Sleeveless Dress Shirt",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_sleevelessdressshirt",
+        "bozoPart": "Top_SleevelessDressShirt",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_sleevelessdressshirt",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_smartdress",
+      "kind": "clothing",
+      "displayName": "Smart Dress",
+      "price": 1500,
+      "owned": 0,
+      "details": {
+        "itemId": "top_smartdress",
+        "bozoPart": "Top_SmartDress",
+        "slot": "top",
+        "rarity": "epic",
+        "colorChannels": "5",
+        "hidesSlots": [
+          "bottom"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_smartdress",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_straplesstubetop",
+      "kind": "clothing",
+      "displayName": "Strapless Tube Top",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_straplesstubetop",
+        "bozoPart": "Top_StraplessTubeTop",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_straplesstubetop",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_sundress",
+      "kind": "clothing",
+      "displayName": "Sundress",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_sundress",
+        "bozoPart": "Top_Sundress",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "5",
+        "hidesSlots": [
+          "bottom"
+        ]
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_sundress",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.top_thickhenslay",
+      "kind": "clothing",
+      "displayName": "Thick Henslay",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "top_thickhenslay",
+        "bozoPart": "Top_ThickHenslay",
+        "slot": "top",
+        "rarity": "common",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "top_thickhenslay",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.upperface_medicaleyepatch",
+      "kind": "clothing",
+      "displayName": "Medical Eye Patch",
+      "price": 300,
+      "owned": 0,
+      "details": {
+        "itemId": "upperface_medicaleyepatch",
+        "bozoPart": "UpperFace_MedicalEyePatch",
+        "slot": "upperFace",
+        "rarity": "common",
+        "colorChannels": "2",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "upperface_medicaleyepatch",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.upperface_roundglasses",
+      "kind": "clothing",
+      "displayName": "Round Glasses",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "upperface_roundglasses",
+        "bozoPart": "UpperFace_RoundGlasses",
+        "slot": "upperFace",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "upperface_roundglasses",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.upperface_simpleglasses",
+      "kind": "clothing",
+      "displayName": "Simple Glasses",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "upperface_simpleglasses",
+        "bozoPart": "UpperFace_SimpleGlasses",
+        "slot": "upperFace",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "upperface_simpleglasses",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "clothing.upperface_simplehalfmoon",
+      "kind": "clothing",
+      "displayName": "Simple Half Moon",
+      "price": 750,
+      "owned": 0,
+      "details": {
+        "itemId": "upperface_simplehalfmoon",
+        "bozoPart": "UpperFace_SimpleHalfMoon",
+        "slot": "upperFace",
+        "rarity": "rare",
+        "colorChannels": "3",
+        "hidesSlots": []
+      },
+      "purchase": {
+        "callable": "wardrobeHost",
+        "request": {
+          "schemaVersion": "wardrobe-3",
+          "operation": "purchase",
+          "itemId": "upperface_simplehalfmoon",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    }
+  ]
+}

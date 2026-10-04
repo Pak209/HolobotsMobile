@@ -16,12 +16,15 @@ import {
   type MarketplaceBoosterId,
 } from "./economy";
 import { BUDDY_UNIT_PRICES_HOLOS, BUDDY_UNIT_TIERS, BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, readBuddyInventory, tierById, withTierDelta } from "./buddyUnits";
+import { WARDROBE_ITEMS } from "./wardrobeCatalog";
+import { WARDROBE_SCHEMA } from "./wardrobe";
 
-export const VENDOR_SCHEMA = "vendor-1";
-export const VENDOR_IDS = ["marketplace", "workshop"] as const;
+/** vendor-3 (DECISIONS #48): adds the `boutique` vendor and `clothing` listings (details.hidesSlots is a string[]). */
+export const VENDOR_SCHEMA = "vendor-3";
+export const VENDOR_IDS = ["marketplace", "workshop", "boutique"] as const;
 export type VendorId = (typeof VENDOR_IDS)[number];
 
-export type ListingKind = "item" | "booster" | "buddy_unit" | "part";
+export type ListingKind = "item" | "booster" | "buddy_unit" | "part" | "clothing";
 export type PurchaseCall = { callable: string; request: Record<string, unknown> };
 export type Listing = {
   listingId: string;
@@ -38,8 +41,8 @@ export type Listing = {
   available: boolean;
   /** Epoch ms when an unavailable listing reopens; 0 when available. */
   availableAtMs: number;
-  /** Extra per-kind facts (part rarity/slot, booster bonus item, buddy tier id). */
-  details: Record<string, string>;
+  /** Extra per-kind facts (part rarity/slot, booster bonus item, buddy tier id, clothing itemId/bozoPart/slot/rarity/colorChannels/hidesSlots). */
+  details: Record<string, string | string[]>;
   /** Exactly what Unity sends to buy it. `requestId` placeholders are client-generated per purchase attempt. */
   purchase: PurchaseCall;
 };
@@ -86,7 +89,8 @@ const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
  * A pure read: a missing / #43-integer buddyUnits is reported as the inventory the next server write
  * will persist (starter Light / migrated), without writing. Malformed → unavailable.
  */
-export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorId, nowMs: number): CatalogReply {
+/** `wardrobeEntitlements`: owned clothing ids (wardrobes/{uid}.entitlements), only read for the boutique. */
+export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorId, nowMs: number, wardrobeEntitlements: readonly string[] = []): CatalogReply {
   const inv = readBuddyInventory(profile);
   if (!inv) throw new VendorError("unavailable");
   const holos = num(profile.holosTokens);
@@ -131,6 +135,18 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
         listingId: `buddy.${tier.key}`, kind: "buddy_unit", displayName: tier.displayName, price, owned: inv.units[tier.key],
         details: { tierId: tier.id, modelKey: tier.modelKey },
         purchase: { callable: "purchaseBuddyUnit", request: { tierId: tier.id, requestId: "<client-generated>" } },
+      }));
+    }
+  } else if (vendorId === "boutique") {
+    // DECISIONS #48 clothing: sellable wardrobe items only (starter items are free; non-sellable overrides never listed).
+    for (const item of WARDROBE_ITEMS) {
+      if (!item.sellable || item.vendorId !== "boutique") continue;
+      const owned = wardrobeEntitlements.includes(item.itemId);
+      listings.push(listing({
+        listingId: `clothing.${item.itemId}`, kind: "clothing", displayName: item.displayName, price: item.price,
+        owned: owned ? 1 : 0, available: !owned,
+        details: { itemId: item.itemId, bozoPart: item.bozoPart, slot: item.slot, rarity: item.rarity, colorChannels: String(item.colorChannels), hidesSlots: [...item.hidesSlots] },
+        purchase: { callable: "wardrobeHost", request: { schemaVersion: WARDROBE_SCHEMA, operation: "purchase", itemId: item.itemId, requestId: "<client-generated>" } },
       }));
     }
   } else {

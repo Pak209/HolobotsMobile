@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "wardrobe-3",
+  "operation": "equip",
+  "requestId": "f1",
+  "alreadyProcessed": false,
+  "purchased": null,
+  "entitlements": [
+    "hat_fedora",
+    "top_fullsuit"
+  ],
+  "loadouts": {
+    "city": {
+      "schemaVersion": "wardrobe-3",
+      "preset": "Default_Boy",
+      "heightScale": 1,
+      "faceLayers": {
+        "head": "Head_AnimeYoung",
+        "body": "Body_AnimeBasic",
+        "bodyType": null,
+        "eyes": "Eyes_AnimeBasic",
+        "pupil": "Pupil_BasicPupil",
+        "eyeShine": null,
+        "eyeBrows": "Brows_BasicBrows",
+        "eyeLashes": "EyeLashes_LongLashes",
+        "teeth": "Teeth_AnimeBasicTeeth",
+        "makeUpCheeks": null,
+        "makeUpEyes": null,
+        "makeUpLips": null,
+        "faceDetails": null,
+        "faceTexture": null,
+        "underUpper": "UnderUpper_SimpleUnderShirt",
+        "underLower": "UnderLower_SimpleBoxers"
+      },
+      "parts": {
+        "hairFront": "hairfront_asymmetricalfringe",
+        "hairBack": "hairback_casualflow",
+        "top": "top_tshirt",
+        "bottom": "bottom_baggypants",
+        "feet": "feet_athleticmidtop",
+        "gloves": null,
+        "hat": "hat_fedora",
+        "headAcc": null,
+        "upperFace": null,
+        "lowerFace": null,
+        "neck": null,
+        "leggings": null,
+        "socks": null
+      },
+      "shapes": {
+        "Weight": 30
+      },
+      "colors": {
+        "skin": "#C08060",
+        "top": [
+          "#112233"
+        ]
+      }
+    },
+    "field": {
+      "schemaVersion": "wardrobe-3",
+      "preset": "Default_Boy",
+      "heightScale": 1,
+      "faceLayers": {
+        "head": "Head_AnimeYoung",
+        "body": "Body_AnimeBasic",
+        "bodyType": null,
+        "eyes": "Eyes_AnimeBasic",
+        "pupil": "Pupil_BasicPupil",
+        "eyeShine": null,
+        "eyeBrows": "Brows_BasicBrows",
+        "eyeLashes": "EyeLashes_LongLashes",
+        "teeth": "Teeth_AnimeBasicTeeth",
+        "makeUpCheeks": null,
+        "makeUpEyes": null,
+        "makeUpLips": null,
+        "faceDetails": null,
+        "faceTexture": null,
+        "underUpper": "UnderUpper_SimpleUnderShirt",
+        "underLower": "UnderLower_SimpleBoxers"
+      },
+      "parts": {
+        "hairFront": "hairfront_asymmetricalfringe",
+        "hairBack": "hairback_casualflow",
+        "top": "top_fullsuit",
+        "bottom": "bottom_baggypants",
+        "feet": "feet_athleticmidtop",
+        "gloves": null,
+        "hat": "hat_fedora",
+        "headAcc": null,
+        "upperFace": null,
+        "lowerFace": null,
+        "neck": null,
+        "leggings": null,
+        "socks": null
+      },
+      "shapes": {
+        "Weight": 30
+      },
+      "colors": {
+        "skin": "#C08060",
+        "top": [
+          "#FF0000",
+          "#00FF00"
+        ]
+      }
+    }
+  },
+  "saved": {
+    "city": true,
+    "field": true
+  },
+  "sanitized": {
+    "city": false,
+    "field": false
+  },
+  "holosTokens": 0
+}

@@ -82,12 +82,15 @@ test('ordering and once-only through the callable: typed rejection codes, nothin
 
 test('idempotent retries: parallel same-requestId claims pay once; parallel different requestIds pay once', async () => {
   const uid = await setup();
-  const rs = await Promise.all(Array.from({ length: 8 }, () => claim(uid, 'visit_mission_board', 'same')));
+  const settled = await Promise.allSettled(Array.from({ length: 8 }, () => claim(uid, 'visit_mission_board', 'same')));
+  assert.deepEqual(settled.filter(r => r.status === 'rejected').map(r => `${r.reason?.code} ${r.reason?.message}`), [], 'no retry may fail');
+  const rs = settled.map(r => r.value);
   assert.equal(rs.filter(r => !r.alreadyProcessed).length, 1); for (const r of rs) assert.equal(r.reward.holos, 50);
   assert.equal((await user(uid)).holosTokens, 50);
   const mixed = await Promise.allSettled(Array.from({ length: 6 }, (_, k) => claim(uid, 'visit_marketplace', `m${k}`)));
   assert.equal(mixed.filter(r => r.status === 'fulfilled').length, 1);
-  for (const r of mixed.filter(r => r.status === 'rejected')) assert.match(String(r.reason), /already_claimed/);
+  // Diagnostic message: if a loser ever fails for another reason (e.g. transaction contention), show it.
+  for (const r of mixed.filter(r => r.status === 'rejected')) assert.match(String(r.reason), /already_claimed/, `unexpected rejection: ${r.reason?.code} ${r.reason?.message}`);
   const p = await user(uid); assert.equal(p.holosTokens, 100); assert.equal(p.gachaTickets, 1);
   // A later retry of the first request replays its original ruling.
   const later = await claim(uid, 'visit_mission_board', 'same'); assert.equal(later.alreadyProcessed, true); assert.equal((await user(uid)).holosTokens, 100);
@@ -134,7 +137,7 @@ test('vendorCatalogHost: catalog prices match the economy module; Holos and inve
   const uid = await setup({ holosTokens: 420, buddyUnits: 2, arenaPassses: 3, parts: [{ name: 'Void Mask', slot: 'head' }] });
   const before = await user(uid);
   const m = await vendorCatalogHost.run({ auth: { uid }, data: { operation: 'catalog', vendorId: 'marketplace' } });
-  assert.equal(m.schemaVersion, 'vendor-1'); assert.equal(m.holosTokens, 420);
+  assert.equal(m.schemaVersion, 'vendor-3'); assert.equal(m.holosTokens, 420);
   for (const l of m.listings.filter(l => l.kind === 'item')) assert.equal(l.price, E.getMarketplacePrice(l.displayName));
   for (const l of m.listings.filter(l => l.kind === 'booster')) assert.equal(l.price, E.MARKETPLACE_BOOSTER_PRICES[l.details.packId]);
   assert.deepEqual(m.listings.filter(l => l.kind === 'buddy_unit').map(l => [l.details.tierId, l.price, l.affordable]), [['buddy_medium', 300, true], ['buddy_heavy', 1500, false]]);
@@ -145,16 +148,16 @@ test('vendorCatalogHost: catalog prices match the economy module; Holos and inve
   assert.deepEqual(await user(uid), before, 'read callable: the #43 integer is reported migrated but not written');
   await assert.rejects(() => vendorCatalogHost.run({ auth: { uid }, data: { operation: 'catalog', vendorId: 'arena' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
   await assert.rejects(() => vendorCatalogHost.run({ data: { operation: 'catalog', vendorId: 'marketplace' } }), e => e.code === 'unauthenticated');
-  await exportFixture('vendor-1_catalog_marketplace', m); await exportFixture('vendor-1_catalog_workshop', w);
+  await exportFixture('vendor-3_catalog_marketplace', m); await exportFixture('vendor-3_catalog_workshop', w);
 });
 
 test('purchaseBuddyUnit: Medium and Heavy spend Holos and add the tier in one transaction; not enough Holos refuses with nothing written', async () => {
   const uid = await setup({ holosTokens: 2000, buddyUnits: inv(1) });
   const buy = (tierId, requestId) => purchaseBuddyUnit.run({ auth: { uid }, data: { tierId, requestId } });
   const m = await buy('buddy_medium', 'b1');
-  assert.deepEqual(m, { schemaVersion: 'vendor-1', requestId: 'b1', tierId: 'buddy_medium', price: 300, holosTokens: 1700, buddyUnits: inv(1, 1, 0), alreadyProcessed: false });
+  assert.deepEqual(m, { schemaVersion: 'vendor-3', requestId: 'b1', tierId: 'buddy_medium', price: 300, holosTokens: 1700, buddyUnits: inv(1, 1, 0), alreadyProcessed: false });
   const h = await buy('buddy_heavy', 'b2'); assert.equal(h.holosTokens, 200); assert.deepEqual(h.buddyUnits, inv(1, 1, 1));
-  await exportFixture('vendor-1_purchase_buddy_heavy', h);
+  await exportFixture('vendor-3_purchase_buddy_heavy', h);
   const before = await user(uid);
   await assert.rejects(() => buy('buddy_medium', 'b3'), e => e.code === 'failed-precondition' && e.message === 'Not enough Holos.' && e.details.rejectionCode === 'not_enough_holos');
   assert.deepEqual(await user(uid), before); assert.equal((await db.doc(`vendorPurchases/${uid}/receipts/b3`).get()).exists, false);

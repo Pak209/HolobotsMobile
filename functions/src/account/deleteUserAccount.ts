@@ -10,7 +10,7 @@ import { auth, db } from "../admin";
  * quest state, #47 Buddy Unit purchase receipts).
  */
 export async function deleteUserData(firestore: Firestore, uid: string): Promise<void> {
-  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`]) {
+  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`]) {
     await firestore.recursiveDelete(firestore.doc(path));
   }
 }

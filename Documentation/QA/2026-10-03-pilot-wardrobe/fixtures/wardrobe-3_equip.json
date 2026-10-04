@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "wardrobe-3",
+  "operation": "equip",
+  "requestId": "s1",
+  "alreadyProcessed": false,
+  "purchased": null,
+  "entitlements": [],
+  "loadouts": {
+    "city": {
+      "schemaVersion": "wardrobe-3",
+      "preset": "Default_Boy",
+      "heightScale": 1,
+      "faceLayers": {
+        "head": "Head_SharpHead",
+        "body": "Body_AnimeBasic",
+        "bodyType": null,
+        "eyes": "Eyes_AnimeBasic",
+        "pupil": "Pupil_BasicPupil",
+        "eyeShine": null,
+        "eyeBrows": "Brows_BasicBrows",
+        "eyeLashes": "EyeLashes_LongLashes",
+        "teeth": "Teeth_AnimeBasicTeeth",
+        "makeUpCheeks": null,
+        "makeUpEyes": null,
+        "makeUpLips": null,
+        "faceDetails": "FaceDetail_Freakles",
+        "faceTexture": null,
+        "underUpper": "UnderUpper_SimpleUnderShirt",
+        "underLower": "Underlower_ShortSpats"
+      },
+      "parts": {
+        "hairFront": "hairfront_asymmetricalfringe",
+        "hairBack": "hairback_casualflow",
+        "top": "top_tshirt",
+        "bottom": "bottom_baggypants",
+        "feet": "feet_athleticmidtop",
+        "gloves": null,
+        "hat": null,
+        "headAcc": null,
+        "upperFace": null,
+        "lowerFace": null,
+        "neck": null,
+        "leggings": null,
+        "socks": "socks_basicsocks"
+      },
+      "shapes": {
+        "Muscle": 100,
+        "Weight": 40,
+        "Stern": 0
+      },
+      "colors": {
+        "skin": "#C08060",
+        "top": [
+          "#1F8FFF",
+          "#000000"
+        ]
+      }
+    },
+    "field": {
+      "schemaVersion": "wardrobe-3",
+      "preset": "Default_Boy",
+      "heightScale": 1,
+      "faceLayers": {
+        "head": "Head_SharpHead",
+        "body": "Body_AnimeBasic",
+        "bodyType": null,
+        "eyes": "Eyes_AnimeBasic",
+        "pupil": "Pupil_BasicPupil",
+        "eyeShine": null,
+        "eyeBrows": "Brows_BasicBrows",
+        "eyeLashes": "EyeLashes_LongLashes",
+        "teeth": "Teeth_AnimeBasicTeeth",
+        "makeUpCheeks": null,
+        "makeUpEyes": null,
+        "makeUpLips": null,
+        "faceDetails": "FaceDetail_Freakles",
+        "faceTexture": null,
+        "underUpper": "UnderUpper_SimpleUnderShirt",
+        "underLower": "Underlower_ShortSpats"
+      },
+      "parts": {
+        "hairFront": "hairfront_asymmetricalfringe",
+        "hairBack": "hairback_casualflow",
+        "top": "top_tshirt",
+        "bottom": "bottom_baggypants",
+        "feet": "feet_athleticmidtop",
+        "gloves": null,
+        "hat": null,
+        "headAcc": null,
+        "upperFace": null,
+        "lowerFace": null,
+        "neck": null,
+        "leggings": null,
+        "socks": "socks_basicsocks"
+      },
+      "shapes": {
+        "Muscle": 100,
+        "Weight": 40,
+        "Stern": 0
+      },
+      "colors": {
+        "skin": "#C08060",
+        "top": [
+          "#1F8FFF",
+          "#000000"
+        ]
+      }
+    }
+  },
+  "saved": {
+    "city": true,
+    "field": false
+  },
+  "sanitized": {
+    "city": false,
+    "field": false
+  },
+  "holosTokens": 0
+}

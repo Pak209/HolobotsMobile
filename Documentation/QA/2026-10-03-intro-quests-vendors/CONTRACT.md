@@ -2,6 +2,13 @@
 
 Server lane, HolobotsMobile functions. Spec: Pak, 2026-10-03. Local only; nothing deployed.
 
+> **vendor-1 → vendor-3 (DECISIONS #48, `claude/pilot-wardrobe`).** The vendor schema string is now `vendor-3` on `vendorCatalogHost` and `purchaseBuddyUnit` replies. Nothing below changes in shape, with three additions:
+> - a third `vendorId`, `boutique`;
+> - a `clothing` listing kind;
+> - listing `details` values may be a `string[]`. Clothing `details` are `{itemId, bozoPart, slot, rarity, colorChannels, hidesSlots}`, where `hidesSlots` is the `string[]` and `colorChannels` is a decimal string.
+>
+> vendor-1 was never deployed. Fixture files are renamed `vendor-3_*`. See `Documentation/QA/2026-10-03-pilot-wardrobe/CONTRACT.md`.
+
 Three new callables:
 - `introQuestHost` (`intro-quest-1`)
 - `vendorCatalogHost` (`vendor-1`)

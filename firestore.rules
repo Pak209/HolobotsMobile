@@ -299,12 +299,19 @@ service cloud.firestore {
       allow delete: if isParticipant(resource.data);
     }
 
-    // ---- server-only state (DECISIONS #46 / #47) -----------------------------
+    // ---- server-only state (DECISIONS #46 / #47 / #48) ------------------------
     // Intro quest chain state and Buddy Unit purchase receipts are written
     // only by the callables (Admin SDK). Explicit here so a future wildcard
     // can't open them; the default deny below covers them too. No client
     // read: the callables return everything Unity renders.
     match /introQuests/{uid} {
+      allow read, write: if false;
+    }
+    // DECISIONS #48 wardrobe (entitlements, saved appearance recipe, receipts):
+    // written only by wardrobeHost. No client read either: wardrobeHost
+    // `status` returns everything Unity renders, so no stored shape becomes
+    // a client contract.
+    match /wardrobes/{uid}/{document=**} {
       allow read, write: if false;
     }
     match /vendorPurchases/{uid}/{document=**} {

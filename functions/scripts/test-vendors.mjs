@@ -12,7 +12,7 @@ const profile = (extra = {}) => ({ holosTokens: 1000, arenaPassses: 2, gachaTick
 
 test('marketplace catalog: every item, booster and Buddy Unit at the economy / data-module price, with its purchase call', () => {
   const c = V.buildCatalog(profile(), 'marketplace', NOW);
-  assert.equal(c.schemaVersion, 'vendor-1'); assert.equal(c.vendorId, 'marketplace'); assert.equal(c.holosTokens, 1000);
+  assert.equal(c.schemaVersion, 'vendor-3'); assert.equal(c.vendorId, 'marketplace'); assert.equal(c.holosTokens, 1000);
   const items = c.listings.filter(l => l.kind === 'item');
   assert.deepEqual(items.map(l => l.displayName), E.MARKETPLACE_ITEM_NAMES);
   for (const l of items) { assert.equal(l.price, E.getMarketplacePrice(l.displayName)); assert.deepEqual(l.purchase, { callable: 'purchaseMarketplaceItem', request: { itemName: l.displayName } }); }
@@ -24,7 +24,7 @@ test('marketplace catalog: every item, booster and Buddy Unit at the economy / d
   assert.deepEqual(buddy.map(l => [l.details.tierId, l.price, l.owned]), [['buddy_medium', 300, 2], ['buddy_heavy', 1500, 0]]);
   assert.deepEqual(buddy[0].purchase, { callable: 'purchaseBuddyUnit', request: { tierId: 'buddy_medium', requestId: '<client-generated>' } });
   assert.deepEqual(B.BUDDY_UNIT_PRICES_HOLOS, { medium: 300, heavy: 1500 });
-  assert.equal(c.listings.some(l => l.kind === 'part'), false);
+  assert.equal(c.listings.some(l => l.kind === 'part' || l.kind === 'clothing'), false);
   assert.deepEqual(c.listings.map(l => [l.listingId, l.affordable]).filter(([, a]) => !a).map(([id]) => id), ['item.rank_skip', 'buddy.heavy']);
   assert.equal(new Set(c.listings.map(l => l.listingId)).size, c.listings.length);
 });
@@ -57,7 +57,7 @@ test('catalog is a pure read: missing / integer buddyUnits are reported as they 
 test('Buddy Unit purchase: Medium 300 / Heavy 1500 spend Holos and add one of that tier in the same update', () => {
   const m = V.buildBuddyUnitPurchase(profile(), V.validateBuddyPurchase({ tierId: 'buddy_medium', requestId: 'r1' }));
   assert.deepEqual(m.updates, { holosTokens: 700, buddyUnits: inv(1, 3, 0) });
-  assert.deepEqual(m.reply, { schemaVersion: 'vendor-1', requestId: 'r1', tierId: 'buddy_medium', price: 300, holosTokens: 700, buddyUnits: inv(1, 3, 0), alreadyProcessed: false });
+  assert.deepEqual(m.reply, { schemaVersion: 'vendor-3', requestId: 'r1', tierId: 'buddy_medium', price: 300, holosTokens: 700, buddyUnits: inv(1, 3, 0), alreadyProcessed: false });
   const h = V.buildBuddyUnitPurchase(profile({ holosTokens: 1500 }), V.validateBuddyPurchase({ tierId: 'buddy_heavy', requestId: 'r2' }));
   assert.deepEqual(h.updates, { holosTokens: 0, buddyUnits: inv(1, 2, 1) });
   // #43 integer / missing inventories are migrated in the same write.
@@ -76,6 +76,28 @@ test('Buddy Unit purchase refusals: not enough Holos, Light not for sale, bad id
   for (const holosTokens of ['1500', [1500], null, NaN, -1, true, { v: 1500 }])
     assert.throws(() => V.buildBuddyUnitPurchase(profile({ holosTokens }), { tierId: 'buddy_medium', requestId: 'r' }), /unavailable/, JSON.stringify(holosTokens));
   assert.throws(() => V.buildBuddyUnitPurchase(profile({ buddyUnits: null }), { tierId: 'buddy_medium', requestId: 'r' }), /unavailable/);
+});
+
+test('boutique catalog (vendor-3): every sold wardrobe item at MARKETPLACE_PART_PRICES[rarity], owned flags, wardrobeHost purchase descriptor', () => {
+  const C = require('../lib/lib/wardrobeCatalog.js');
+  const sold = C.WARDROBE_ITEMS.filter(i => i.sellable);
+  assert.equal(sold.length, 80);
+  const c = V.buildCatalog(profile(), 'boutique', NOW, ['hat_fedora', 'retired_item']);
+  assert.equal(c.schemaVersion, 'vendor-3'); assert.equal(c.vendorId, 'boutique');
+  assert.deepEqual(c.listings.map(l => [l.listingId, l.kind, l.price]), sold.map(i => [`clothing.${i.itemId}`, 'clothing', E.MARKETPLACE_PART_PRICES[i.rarity]]));
+  for (const l of c.listings) {
+    const item = C.WARDROBE_ITEM_BY_ID.get(l.details.itemId);
+    assert.deepEqual(l.details, { itemId: item.itemId, bozoPart: item.bozoPart, slot: item.slot, rarity: item.rarity, colorChannels: String(item.colorChannels), hidesSlots: item.hidesSlots });
+    assert.deepEqual(l.purchase, { callable: 'wardrobeHost', request: { schemaVersion: 'wardrobe-3', operation: 'purchase', itemId: item.itemId, requestId: '<client-generated>' } });
+  }
+  const helmet = c.listings.find(l => l.listingId === 'clothing.hat_fedora');
+  assert.equal(helmet.owned, 1); assert.equal(helmet.available, false);
+  assert.ok(c.listings.filter(l => l !== helmet).every(l => l.owned === 0 && l.available));
+  assert.equal(c.listings.some(l => C.WARDROBE_ITEM_BY_ID.get(l.details.itemId).starter), false, 'starter items are never listed');
+  assert.equal(c.listings.some(l => l.details.itemId === 'upperface_roundglasseslens'), false, 'non-sellable lens is never listed');
+  const overall = c.listings.find(l => l.details.bozoPart === 'Top_Overall');
+  assert.deepEqual(overall.details.hidesSlots, ['bottom']);
+  assert.deepEqual(V.validateCatalogCommand({ operation: 'catalog', vendorId: 'boutique' }), { operation: 'catalog', vendorId: 'boutique' });
 });
 
 test('legacy marketplace refusals: additive details.rejectionCode; HTTPS status and English message byte-identical to before', () => {
