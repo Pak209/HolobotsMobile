@@ -21,7 +21,13 @@
  * Pure module: no firebase imports, safe to import from tests.
  */
 
-import { applyHolobotExperience, computeLeaderboardScore, getSyncRank, normalizeUserHolobot } from "./progression";
+import {
+  applyHolobotExperience,
+  computeLeaderboardScore,
+  getHolobotBattleStats,
+  getSyncRank,
+  normalizeUserHolobot,
+} from "./progression";
 
 // ---------------------------------------------------------------------------
 // Tables (mirrors of QUEST_DEFINITIONS / TRAINING_COURSES economy fields)
@@ -301,6 +307,64 @@ export function normalizeSyncStats(syncStats: unknown): Record<SyncStatKey, numb
     guard: clamp(raw.guard),
     power: clamp(raw.power),
     tempo: clamp(raw.tempo),
+  };
+}
+
+/** Mirror of syncProgression.calculateSyncBattleModifiers (mobile). */
+export type SyncBattleModifiers = {
+  bondExpRewardMultiplier: number;
+  focusIntelligenceMultiplier: number;
+  focusSpecialMeterMultiplier: number;
+  guardDefenseMultiplier: number;
+  powerDamageMultiplier: number;
+  tempoSpeedMultiplier: number;
+  tempoStaminaMultiplier: number;
+};
+
+export function calculateSyncBattleModifiers(syncStats: unknown): SyncBattleModifiers {
+  const stats = normalizeSyncStats(syncStats);
+
+  return {
+    bondExpRewardMultiplier: 1 + stats.bond * 0.003,
+    focusIntelligenceMultiplier: 1 + stats.focus * 0.002,
+    focusSpecialMeterMultiplier: 1 + stats.focus * 0.002,
+    guardDefenseMultiplier: 1 + stats.guard * 0.0015,
+    powerDamageMultiplier: 1 + stats.power * 0.002,
+    tempoSpeedMultiplier: 1 + stats.tempo * 0.002,
+    tempoStaminaMultiplier: 1 + stats.tempo * 0.002,
+  };
+}
+
+export type PlayerBattleStats = {
+  attack: number;
+  defense: number;
+  intelligence: number;
+  maxHP: number;
+  speed: number;
+};
+
+function clampPositive(value: number, fallback: number): number {
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+/**
+ * DECISIONS #53-2/3: a Holobot's real battle stats — getHolobotBattleStats(name,
+ * level, boostedAttributes) with the sync modifiers applied exactly as
+ * mobile/src/config/arenaConfig.ts buildPlayerFighter does (power → attack,
+ * guard → defense, tempo → speed, focus → intelligence = SPECIAL). Equipped
+ * parts are NOT included (the arena adds them as flat boosts afterwards).
+ */
+export function getPlayerBattleStats(rawHolobot: unknown): PlayerBattleStats {
+  const holobot = normalizeUserHolobot(rawHolobot);
+  const stats = getHolobotBattleStats(holobot.name, holobot.level || 1, holobot.boostedAttributes);
+  const sync = calculateSyncBattleModifiers(holobot.syncStats);
+
+  return {
+    attack: clampPositive(Math.floor(stats.attack * sync.powerDamageMultiplier), 50),
+    defense: clampPositive(Math.floor(stats.defense * sync.guardDefenseMultiplier), 50),
+    intelligence: clampPositive(Math.floor(stats.intelligence * sync.focusIntelligenceMultiplier), 50),
+    maxHP: clampPositive(stats.maxHP, 150),
+    speed: clampPositive(Math.floor(stats.speed * sync.tempoSpeedMultiplier), 50),
   };
 }
 
