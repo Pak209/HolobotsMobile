@@ -8,6 +8,12 @@
  * Pure module: no firebase imports, safe to import from tests.
  */
 
+import {
+  applyExpBooster,
+  computeBattleSettlement,
+  getBattleBaseRewards,
+  MAX_PERFORMANCE_EVENTS,
+} from "./battleSettlement";
 import { applyHolobotExperience } from "./progression";
 
 export type ArenaTierId = "rookie" | "challenger" | "elite" | "legend";
@@ -44,17 +50,18 @@ export type ArenaBaseRewards = {
 export function getArenaBaseRewards(
   tier: Pick<ArenaEconomyTier, "id" | "entryFeeHolos">,
 ): ArenaBaseRewards {
+  // DECISIONS #53-1: the one battle XP table (lib/battleSettlement.ts) by tier index.
   const tierIndex = ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id);
-  const multiplier = 1 + Math.max(0, tierIndex) * 0.45;
+  const shared = getBattleBaseRewards(Math.max(0, tierIndex));
 
   return {
-    exp: Math.floor(95 * multiplier),
+    exp: shared.exp,
     holos: tier.entryFeeHolos * 2,
-    syncPoints: Math.floor(35 * multiplier),
+    syncPoints: shared.syncPoints,
   };
 }
 
-export const MAX_PERFORMANCE_EVENTS = 25;
+export { MAX_PERFORMANCE_EVENTS };
 
 export type ArenaSettlementInput = {
   combosCompleted: number;
@@ -78,22 +85,25 @@ export function computeArenaSettlement(input: ArenaSettlementInput): ArenaSettle
   }
 
   const base = getArenaBaseRewards(tier);
+  // EXP / sync points come from the one battle table (DECISIONS #53-1); holos and
+  // blueprints are the arena's own payout.
+  const shared = computeBattleSettlement({
+    combosCompleted: input.combosCompleted,
+    didWin: input.didWin,
+    kind: "arena",
+    perfectDefenses: input.perfectDefenses,
+    tier: Math.max(0, ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id)),
+  })!;
 
   if (!input.didWin) {
     return {
       blueprints: null,
-      exp: Math.floor(base.exp * 0.3),
+      exp: shared.exp,
       holos: 0,
-      syncPoints: Math.floor(base.syncPoints * 0.2),
+      syncPoints: shared.syncPoints,
     };
   }
 
-  const perfectDefenses = Math.min(
-    MAX_PERFORMANCE_EVENTS,
-    Math.max(0, Math.floor(input.perfectDefenses || 0)),
-  );
-  const combos = Math.min(MAX_PERFORMANCE_EVENTS, Math.max(0, Math.floor(input.combosCompleted || 0)));
-  const performanceBonus = 1 + perfectDefenses * 0.05 + combos * 0.1;
   const normalizedOpponent = input.opponentName?.trim().toUpperCase() ?? "";
   // Rookie's third slot rotates GAMA/KUMA/SHADOW weekly on the client
   // (Genesis rotation); settlements accept the union so week boundaries
@@ -108,9 +118,9 @@ export function computeArenaSettlement(input: ArenaSettlementInput): ArenaSettle
     blueprints: opponentInPool
       ? { amount: getArenaBlueprintAmount(tier), holobotKey: normalizedOpponent.toLowerCase() }
       : null,
-    exp: Math.floor(base.exp * performanceBonus),
+    exp: shared.exp,
     holos: base.holos,
-    syncPoints: Math.floor(base.syncPoints * performanceBonus),
+    syncPoints: shared.syncPoints,
   };
 }
 
@@ -180,8 +190,7 @@ export function buildArenaSettlementUpdatesRaw(
   // EXP Booster (marketplace item): doubled arena EXP while active. The
   // timestamp is server-set by useExpBooster and rules-frozen, so the
   // multiplier cannot be forged.
-  const boosted = Number(userData.expBoosterActiveUntil || 0) > now.getTime();
-  const awardedExp = boosted ? settlement.exp * 2 : settlement.exp;
+  const awardedExp = applyExpBooster(settlement.exp, userData.expBoosterActiveUntil, now.getTime());
 
   const currentHolobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
   const updatedHolobots = currentHolobots.map((holobot) => {

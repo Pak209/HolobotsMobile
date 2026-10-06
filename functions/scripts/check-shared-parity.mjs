@@ -1,6 +1,7 @@
 /**
- * Fails (exit 1) if any file in functions/src/shared/ has drifted from its
- * canonical twin in the mobile package. Runs as part of `npm run build`, so a
+ * Fails (exit 1) if any listed byte-identical file (functions/src/shared/, plus
+ * src/lib/battleSettlement.ts) has drifted from its canonical twin in the
+ * mobile package. Runs as part of `npm run build`, so a
  * drifted copy can never be deployed. See the header comment in
  * src/shared/workoutRewardLimits.ts for why these files are duplicated.
  */
@@ -14,6 +15,11 @@ const SHARED_FILES = [
   {
     functionsCopy: "src/shared/workoutRewardLimits.ts",
     mobileCopy: "../mobile/src/lib/security/workoutRewardLimits.ts",
+  },
+  {
+    // DECISIONS #53-1: the one battle XP table (arena, rival, beast).
+    functionsCopy: "src/lib/battleSettlement.ts",
+    mobileCopy: "../mobile/src/lib/battleSettlement.ts",
   },
 ];
 
