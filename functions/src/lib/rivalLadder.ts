@@ -11,6 +11,9 @@
 import { HOLOBOT_NAMES } from "./economy";
 import { toHolobotKey } from "./mintingEconomy";
 import { BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, BuddyTierKey, readBuddyInventory, tierByKey, totalBuddyUnits, withTierDelta } from "./buddyUnits";
+import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
+import { getHolobotRank, normalizeUserHolobot } from "./progression";
+import { getPlayerBattleStats } from "./progressionEconomy";
 
 // ---- Daily rival reward (Buddy Unit inventory: lib/buddyUnits.ts, #44) ---------
 
@@ -30,7 +33,14 @@ export const RIVAL_RECORD_SCHEMA = "rival-battle-1";
 export const RIVAL_SCHEMA_V1 = "rival-battle-1";
 /** Wire v2 (DECISIONS #44): status.buddyUnits is {light, medium, heavy}; settle adds buddyUnitTierGranted. */
 export const RIVAL_SCHEMA_V2 = "rival-battle-2";
-export type RivalWireVersion = typeof RIVAL_SCHEMA_V1 | typeof RIVAL_SCHEMA_V2;
+/**
+ * Wire v3 (DECISIONS #53, additive over v2): issue adds `playerCombatants[]` (the player's travel
+ * squad with real stats) and `speed` / `intelligence` on every opponent; settle accepts `fielded`
+ * (Holobot ids that took part) and adds `progression[]` (Holobot XP). v2 / v1 replies are projections
+ * that strip exactly those fields.
+ */
+export const RIVAL_SCHEMA_V3 = "rival-battle-3";
+export type RivalWireVersion = typeof RIVAL_SCHEMA_V1 | typeof RIVAL_SCHEMA_V2 | typeof RIVAL_SCHEMA_V3;
 /** tier = floor(rivalWins / RIVAL_WINS_PER_TIER). Losses never count. */
 export const RIVAL_WINS_PER_TIER = 10;
 /** An issued battleId settles only within this window. */
@@ -49,6 +59,12 @@ export const RIVAL_BATTLE_CLEANUP_FIELD = "expireAt";
 export const RIVAL_MAX_OPEN_BATTLES = 3;
 /** A settle claiming a win sooner than this after issue is too_fast (nothing written; may retry later). Losses are never too fast. */
 export const RIVAL_MIN_WIN_MS = 20 * 1000;
+/**
+ * DECISIONS #53 Holobot XP: a LOSS settled sooner than this after issue still settles (the ladder
+ * ruling is unchanged) but earns no XP (progression rows report expGained 0), so issue→instant-loss
+ * cannot farm XP. Wins already need RIVAL_MIN_WIN_MS. Producer default; Pak tunes.
+ */
+export const RIVAL_MIN_XP_MS = RIVAL_MIN_WIN_MS;
 /** Server-only open-battle ledger doc (parent of the battles): { openBattles: { [battleId]: expiresAtMs } }. */
 export const RIVAL_OPEN_BATTLES_FIELD = "openBattles";
 /** PilotBattleDirector spawns at most three opponents. */
@@ -90,11 +106,17 @@ export const RIVAL_TIER_TABLE: readonly RivalTierRow[] = [
 ];
 export const RIVAL_TIER_EXTRAPOLATION = { levelPerTier: 5, statScalePerTier: 0.12, label: "legend" } as const;
 
-/** Scale-1.0 rival (the wolf in Unity's pilot-battle sample payload). Health/attack/defense scale; the rest is fixed. */
+/**
+ * Scale-1.0 rival (the wolf in Unity's pilot-battle sample payload). Health/attack/defense (and, from
+ * rival-battle-3, speed/intelligence) scale; the rest is fixed. speed/intelligence = WOLF's level-1
+ * battle stats (base 5 / 4 x 10, lib/progression.ts HOLOBOT_BASE_STATS) — producer default, Pak tunes.
+ */
 export const RIVAL_BASELINE = {
   maxHealth: 285,
   attack: 52,
   defense: 18,
+  speed: 50,
+  intelligence: 40,
   maxStamina: 110,
   staminaRegen: 16,
   deployment: { deployCost: 14, drainPerSecond: 1.6, rechargePerSecond: 4 },
@@ -140,6 +162,28 @@ export type CombatantSnapshot = {
   staminaRegen: number;
   deployment: { deployCost: number; drainPerSecond: number; rechargePerSecond: number };
   moves: MoveSnapshot[];
+  /** rival-battle-3 (stripped from v1/v2 replies). */
+  speed?: number;
+  /** rival-battle-3: SPECIAL (stripped from v1/v2 replies). */
+  intelligence?: number;
+};
+/** rival-battle-3: the stored flat boosts, every key present (integers >= 0). */
+export type BoostedAttributesSnapshot = { attack: number; defense: number; speed: number; special: number; health: number };
+/**
+ * rival-battle-3 (DECISIONS #53-2/3): one of the player's travel-squad Holobots with its REAL stats —
+ * getHolobotBattleStats(name, level, boostedAttributes) with the sync modifiers applied as
+ * arenaConfig.buildPlayerFighter does (lib/progressionEconomy.ts getPlayerBattleStats; equipped parts
+ * not included). maxStamina / staminaRegen / deployment / moves are the RIVAL_BASELINE constants so every
+ * required combatant field is present; they are not stat-derived.
+ */
+export type PlayerCombatantSnapshot = CombatantSnapshot & {
+  speed: number;
+  intelligence: number;
+  experience: number;
+  nextLevelExp: number;
+  attributePoints: number;
+  boostedAttributes: BoostedAttributesSnapshot;
+  rank: string;
 };
 export type NpcPilotSnapshot = { pilotId: string; displayName: string; tier: string };
 export type RivalLineup = { opponentPilot: NpcPilotSnapshot; opponentSquad: CombatantSnapshot[] };
@@ -157,6 +201,53 @@ export function rivalCombatant(holobotId: string, row: RivalTierRow): CombatantS
     deployment: { ...b.deployment },
     moves: b.moves.map((m) => ({ ...m })),
   };
+}
+
+/**
+ * rival-battle-3 opponent speed / intelligence for a tier, scaled like attack. Added to the issue reply
+ * only: the stored lineup (rivalBattles/{uid}/battles/*) keeps the #43 record format.
+ */
+export function rivalCombatantStats(row: RivalTierRow): { speed: number; intelligence: number } {
+  return { speed: Math.round(RIVAL_BASELINE.speed * row.statScale), intelligence: Math.round(RIVAL_BASELINE.intelligence * row.statScale) };
+}
+
+const whole = (value: unknown) => Math.max(0, Math.floor(Number(value) || 0));
+
+/** The player's combatant for `holobotId` from its stored record (see PlayerCombatantSnapshot). */
+export function playerCombatant(holobotId: string, rawHolobot: unknown): PlayerCombatantSnapshot {
+  const holobot = normalizeUserHolobot(rawHolobot);
+  const stats = getPlayerBattleStats(holobot);
+  const boosts = (holobot.boostedAttributes && typeof holobot.boostedAttributes === "object" ? holobot.boostedAttributes : {}) as Record<string, unknown>;
+  const b = RIVAL_BASELINE;
+  return {
+    holobotId,
+    level: Math.max(1, Math.floor(holobot.level)),
+    maxHealth: stats.maxHP,
+    attack: stats.attack,
+    defense: stats.defense,
+    maxStamina: b.maxStamina,
+    staminaRegen: b.staminaRegen,
+    deployment: { ...b.deployment },
+    moves: b.moves.map((m) => ({ ...m })),
+    speed: stats.speed,
+    intelligence: stats.intelligence,
+    experience: whole(holobot.experience),
+    nextLevelExp: whole(holobot.nextLevelExp),
+    attributePoints: whole(holobot.attributePoints),
+    boostedAttributes: { attack: whole(boosts.attack), defense: whole(boosts.defense), speed: whole(boosts.speed), special: whole(boosts.special), health: whole(boosts.health) },
+    rank: typeof holobot.rank === "string" && holobot.rank ? holobot.rank : getHolobotRank(holobot.level),
+  };
+}
+
+/** Player combatants for the travel-squad ids, in slot order. An id with no Holobot record is skipped. */
+export function buildPlayerCombatants(profile: Record<string, unknown>, squadIds: readonly string[]): PlayerCombatantSnapshot[] {
+  const holobots: unknown[] = Array.isArray(profile.holobots) ? profile.holobots : [];
+  const out: PlayerCombatantSnapshot[] = [];
+  for (const id of squadIds) {
+    const record = holobots.find((h) => h && typeof h === "object" && typeof (h as { name?: unknown }).name === "string" && toHolobotKey((h as { name: string }).name) === id);
+    if (record) out.push(playerCombatant(id, record));
+  }
+  return out;
 }
 
 /** `random` returns [0,1). Rivals are distinct roster ids. */
@@ -218,7 +309,12 @@ export type RivalStatus = {
 };
 
 /** buddyUnitTierGranted: the tier id of buddyUnitsGranted ("" when nothing was granted). Older records lack it. */
-export type RivalSettlement = { didWin: boolean; buddyUnitsGranted: number; buddyUnitTierGranted?: BuddyTierId | ""; tierBefore: number; tierAfter: number; settledAtMs: number };
+export type RivalSettlement = {
+  didWin: boolean; buddyUnitsGranted: number; buddyUnitTierGranted?: BuddyTierId | ""; tierBefore: number; tierAfter: number; settledAtMs: number;
+  /** DECISIONS #53 (records settled from 2026-10-06): the fielded ids the settle named, and the XP ruling replayed by duplicates. */
+  fielded?: string[];
+  progression?: HolobotProgressionEntry[];
+};
 
 /** Stored at rivalBattles/{uid}/battles/{battleId}; server-only path. */
 export type RivalBattleRecord = {
@@ -230,6 +326,8 @@ export type RivalBattleRecord = {
   lineup: RivalLineup;
   seed: number;
   settlement: RivalSettlement | null;
+  /** DECISIONS #53: the travel squad at issue (records issued from 2026-10-06). `fielded` must come from it or the current squad. */
+  playerSquadIds?: string[];
 };
 
 /** When the TTL policy may delete an issued battle (epoch ms). */
@@ -268,19 +366,30 @@ export function openBattlesAfterSettle(open: Record<string, number>, battleId: s
 }
 
 /** `schemaVersion` is the reply version the client asked for (request field; missing = v1, the deployed shape). */
-export type RivalCommand = ({ operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean }) & { schemaVersion: RivalWireVersion };
+export type RivalCommand = ({ operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean; fielded?: string[] }) & { schemaVersion: RivalWireVersion };
 
 export const RIVAL_BATTLE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
+/** A fielded Holobot id: the travel-squad id rule. */
+export const RIVAL_FIELDED_ID = /^[a-z][a-z0-9_]{0,127}$/;
+export const RIVAL_MAX_FIELDED = 3;
+
+/** `fielded` (optional on settle): 0-3 distinct travel-squad ids. undefined = not sent (no XP). */
+function validateFielded(raw: unknown): string[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.length > RIVAL_MAX_FIELDED || raw.some((id) => typeof id !== "string" || !RIVAL_FIELDED_ID.test(id)) || new Set(raw).size !== raw.length) throw new RivalError("invalid_request");
+  return [...(raw as string[])];
+}
 
 export function validateRivalCommand(raw: unknown): RivalCommand {
   if (!raw || typeof raw !== "object") throw new RivalError("invalid_request");
   const c = raw as Record<string, unknown>;
-  if (c.schemaVersion !== undefined && c.schemaVersion !== RIVAL_SCHEMA_V1 && c.schemaVersion !== RIVAL_SCHEMA_V2) throw new RivalError("invalid_request");
-  const schemaVersion: RivalWireVersion = c.schemaVersion === RIVAL_SCHEMA_V2 ? RIVAL_SCHEMA_V2 : RIVAL_SCHEMA_V1;
+  if (c.schemaVersion !== undefined && c.schemaVersion !== RIVAL_SCHEMA_V1 && c.schemaVersion !== RIVAL_SCHEMA_V2 && c.schemaVersion !== RIVAL_SCHEMA_V3) throw new RivalError("invalid_request");
+  const schemaVersion: RivalWireVersion = c.schemaVersion === RIVAL_SCHEMA_V3 ? RIVAL_SCHEMA_V3 : c.schemaVersion === RIVAL_SCHEMA_V2 ? RIVAL_SCHEMA_V2 : RIVAL_SCHEMA_V1;
   if (c.operation === "status" || c.operation === "issue") return { operation: c.operation, schemaVersion };
   if (c.operation !== "settle") throw new RivalError("invalid_request");
   if (typeof c.battleId !== "string" || !RIVAL_BATTLE_ID.test(c.battleId) || typeof c.didWin !== "boolean") throw new RivalError("invalid_request");
-  return { operation: "settle", battleId: c.battleId, didWin: c.didWin, schemaVersion };
+  const fielded = validateFielded(c.fielded);
+  return fielded === undefined ? { operation: "settle", battleId: c.battleId, didWin: c.didWin, schemaVersion } : { operation: "settle", battleId: c.battleId, didWin: c.didWin, fielded, schemaVersion };
 }
 
 type Ledger = { units: BuddyInventory; inventoryUpdates: Profile; wins: number; rewardDay: string };
@@ -313,7 +422,7 @@ function starterUpdates(l: Ledger): Profile {
 
 export function rivalStatus(profile: Profile, nowMs: number): { userUpdates: Profile; reply: { schemaVersion: string; status: RivalStatus } } {
   const l = readLedger(profile);
-  return { userUpdates: starterUpdates(l), reply: { schemaVersion: RIVAL_SCHEMA_V2, status: statusOf(l, nowMs) } };
+  return { userUpdates: starterUpdates(l), reply: { schemaVersion: RIVAL_SCHEMA_V3, status: statusOf(l, nowMs) } };
 }
 
 export type IssueReply = {
@@ -323,19 +432,26 @@ export type IssueReply = {
   tier: number;
   encounter: { encounterId: string; seed: number; opponentPilot: NpcPilotSnapshot; opponentSquad: CombatantSnapshot[] };
   status: RivalStatus;
+  /** rival-battle-3: the player's travel squad with real stats ([] when the squad is empty). */
+  playerCombatants: PlayerCombatantSnapshot[];
 };
 
-export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
+/** `playerSquadIds`: the travel squad at issue (the store reads it; [] when unreadable). */
+export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number, playerSquadIds: readonly string[] = []): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
   if (!RIVAL_BATTLE_ID.test(battleId)) throw new RivalError("unavailable");
   const l = readLedger(profile);
   const status = statusOf(l, nowMs);
   const lineup = buildRivalLineup(status.tier, random);
   const seed = Math.floor(random() * 0x7fffffff);
-  const battle: RivalBattleRecord = { schemaVersion: RIVAL_RECORD_SCHEMA, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null };
+  const battle: RivalBattleRecord = { schemaVersion: RIVAL_RECORD_SCHEMA, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null, playerSquadIds: [...playerSquadIds] };
   return {
     userUpdates: starterUpdates(l),
     battle,
-    reply: { schemaVersion: RIVAL_SCHEMA_V2, battleId, expiresAtMs: battle.expiresAtMs, tier: status.tier, encounter: { encounterId: battleId, seed, ...lineup }, status },
+    reply: {
+      schemaVersion: RIVAL_SCHEMA_V3, battleId, expiresAtMs: battle.expiresAtMs, tier: status.tier,
+      encounter: { encounterId: battleId, seed, opponentPilot: { ...lineup.opponentPilot }, opponentSquad: lineup.opponentSquad.map((c) => ({ ...c, ...rivalCombatantStats(getRivalTierRow(status.tier)) })) },
+      status, playerCombatants: buildPlayerCombatants(profile, playerSquadIds),
+    },
   };
 }
 
@@ -350,6 +466,8 @@ export type SettleReply = {
   tierBefore: number;
   tierAfter: number;
   status: RivalStatus;
+  /** rival-battle-3 (DECISIONS #53): one row per fielded Holobot; [] when `fielded` was not sent. Duplicates replay it. */
+  progression: HolobotProgressionEntry[];
 };
 
 /**
@@ -359,7 +477,14 @@ export type SettleReply = {
  * A settled battle replays its original ruling with the CURRENT status and
  * writes nothing (once per battleId).
  */
-export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, didWin: boolean, nowMs: number): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord> | null; reply: SettleReply } {
+/**
+ * DECISIONS #53 Holobot XP: when `fielded` is sent, every fielded Holobot gets the one battle table's
+ * EXP (kind "rival", the battle's issued tier; EXP Booster honoured) via applyHolobotExperience, once per
+ * battleId (stored in the settlement, replayed by duplicates). Each fielded id must be in the travel squad
+ * at issue or the current one (`currentSquadIds`), else invalid_request. rivalWins / Buddy Units are
+ * ruled exactly as before; `fielded` never changes them.
+ */
+export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, didWin: boolean, nowMs: number, fielded?: readonly string[], currentSquadIds: readonly string[] = []): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord> | null; reply: SettleReply } {
   const l = readLedger(profile);
   if (!battle || battle.battleId !== battleId || battle.schemaVersion !== RIVAL_RECORD_SCHEMA) throw new RivalError("unknown_battle");
   if (battle.settlement) {
@@ -367,7 +492,7 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     return {
       userUpdates: starterUpdates(l),
       battleUpdates: null,
-      reply: { schemaVersion: RIVAL_SCHEMA_V2, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs) },
+      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })) },
     };
   }
   if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
@@ -390,11 +515,21 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     }
   }
   const tierGranted: BuddyTierId | "" = granted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : "";
-  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs };
+  let progression: HolobotProgressionEntry[] = [];
+  if (fielded && fielded.length) {
+    const allowed = new Set([...(Array.isArray(battle.playerSquadIds) ? battle.playerSquadIds : []), ...currentSquadIds]);
+    if (fielded.some((id) => !allowed.has(id))) throw new RivalError("invalid_request");
+    const withheld = !didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_XP_MS);
+    const award = awardBattleExperienceRaw(profile, fielded, { kind: "rival", tier: battle.tier, didWin }, nowMs, { withheld });
+    if (!award) throw new RivalError("unavailable");
+    progression = award.progression;
+    if (award.expPerHolobot > 0) userUpdates.holobots = award.holobots;
+  }
+  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: [...(fielded ?? [])], progression };
   return {
     userUpdates,
     battleUpdates: { settlement },
-    reply: { schemaVersion: RIVAL_SCHEMA_V2, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs) },
+    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs), progression: progression.map((row) => ({ ...row })) },
   };
 }
 
@@ -403,14 +538,32 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
 /** rival-battle-1 status: identical to the 2026-09-30 deployment; buddyUnits is the TOTAL of all tiers. */
 export type RivalStatusV1 = Omit<RivalStatus, "buddyUnits"> & { buddyUnits: number };
 
+/** The fields rival-battle-3 adds; a v2 projection removes exactly these (and nothing else). */
+export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression"] as const;
+export const RIVAL_V3_COMBATANT_FIELDS = ["speed", "intelligence"] as const;
+
+/** The rival-battle-2 shape of a v3 reply: identical to the 2026-10-01 deployment (#44). */
+function toV2(reply: { schemaVersion: string; status: RivalStatus }): Record<string, unknown> & { status: RivalStatus } {
+  const { playerCombatants: _p, progression: _g, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown };
+  const out: Record<string, unknown> & { status: RivalStatus } = { ...rest, schemaVersion: RIVAL_SCHEMA_V2 };
+  const encounter = (reply as { encounter?: { opponentSquad?: CombatantSnapshot[] } }).encounter;
+  if (encounter && Array.isArray(encounter.opponentSquad)) {
+    out.encounter = { ...encounter, opponentSquad: encounter.opponentSquad.map(({ speed: _s, intelligence: _i, ...combatant }) => combatant) };
+  }
+  return out;
+}
+
 /**
- * Every rule above produces the rival-battle-2 reply. A client that did not ask for v2 (the shipped
- * Unity build) gets the exact v1 shape: schemaVersion "rival-battle-1", status.buddyUnits as the
- * total Unit count across tiers, and no buddyUnitTierGranted. Rulings are identical in both.
+ * Every rule above produces the rival-battle-3 reply (v2 + DECISIONS #53 fields). A client that asks for
+ * v2 gets the exact v2 shape (RIVAL_V3_* fields stripped); a client that did not ask (the shipped Unity
+ * build) gets the exact v1 shape: schemaVersion "rival-battle-1", status.buddyUnits as the total Unit
+ * count across tiers, and no buddyUnitTierGranted. Rulings are identical in all three.
  */
 export function rivalReplyForVersion(reply: { schemaVersion: string; status: RivalStatus }, version: RivalWireVersion): Record<string, unknown> {
-  if (version === RIVAL_SCHEMA_V2) return { ...reply };
-  const { buddyUnitTierGranted: _, ...rest } = reply as typeof reply & { buddyUnitTierGranted?: unknown };
-  const status: RivalStatusV1 = { ...reply.status, buddyUnits: totalBuddyUnits(reply.status.buddyUnits) };
+  if (version === RIVAL_SCHEMA_V3) return { ...reply, schemaVersion: RIVAL_SCHEMA_V3 };
+  const v2 = toV2(reply);
+  if (version === RIVAL_SCHEMA_V2) return v2;
+  const { buddyUnitTierGranted: _, ...rest } = v2 as typeof v2 & { buddyUnitTierGranted?: unknown };
+  const status: RivalStatusV1 = { ...v2.status, buddyUnits: totalBuddyUnits(v2.status.buddyUnits) };
   return { ...rest, schemaVersion: RIVAL_SCHEMA_V1, status };
 }

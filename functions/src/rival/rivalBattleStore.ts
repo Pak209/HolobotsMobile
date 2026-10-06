@@ -1,5 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { Firestore, Timestamp } from 'firebase-admin/firestore';
+import { readTravelSquad } from '../acquisition/captureOwnership';
 import { issueRivalBattle, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
@@ -11,7 +12,18 @@ import { issueRivalBattle, rivalReplyForVersion, openBattlesAfterIssue, openBatt
  * Each battle also carries `expireAt` (Timestamp) for TTL cleanup; see RIVAL_BATTLE_TTL_GRACE_MS.
  * The parent doc rivalBattles/{uid} is the open-battle ledger (≤ RIVAL_MAX_OPEN_BATTLES entries), so the
  * cap is a point read, not a query.
+ * rival-battle-3 (DECISIONS #53): issue snapshots the travel squad into the record and serves
+ * playerCombatants; settle{fielded} awards Holobot XP in the same transaction (users/{uid}.holobots).
  */
+
+/** The travel squad ids for the player-side additions; [] when unreadable so v1/v2 rulings never depend on it. */
+function squadIdsOf(profile: Record<string, unknown>): string[] {
+  try {
+    return readTravelSquad(profile).holobotIds;
+  } catch {
+    return [];
+  }
+}
 export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000) {
   const command = validateRivalCommand(raw);
   const userRef = db.doc(`users/${uid}`);
@@ -32,7 +44,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     if (command.operation === 'issue') {
       const open = readOpenBattles((await tx.get(ledgerRef)).data(), nowMs);
       let i = 0;
-      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length]);
+      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile));
       const nextOpen = openBattlesAfterIssue(open, r.battle);
       if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen });
@@ -42,7 +54,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     }
     const battle = await tx.get(battleRef);
     const ledger = await tx.get(ledgerRef);
-    const r = settleRivalBattle(profile, battle.exists ? (battle.data() as RivalBattleRecord) : undefined, command.battleId, command.didWin, nowMs);
+    const r = settleRivalBattle(profile, battle.exists ? (battle.data() as RivalBattleRecord) : undefined, command.battleId, command.didWin, nowMs, command.fielded, squadIdsOf(profile));
     if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
     if (r.battleUpdates) {
       tx.update(battleRef, r.battleUpdates);
