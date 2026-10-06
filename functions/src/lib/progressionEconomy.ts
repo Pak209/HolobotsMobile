@@ -22,11 +22,14 @@
  */
 
 import {
+  applyAttributeBoost,
   applyHolobotExperience,
   computeLeaderboardScore,
   getHolobotBattleStats,
   getSyncRank,
   normalizeUserHolobot,
+  type AttributeBoostRefusal,
+  type ServerHolobot,
 } from "./progression";
 
 // ---------------------------------------------------------------------------
@@ -506,4 +509,94 @@ export function isSyncUpgradeRefusal(
   result: SyncUpgradeResult | SyncUpgradeRefusal,
 ): result is SyncUpgradeRefusal {
   return (result as SyncUpgradeRefusal).reason !== undefined;
+}
+
+// ---------------------------------------------------------------------------
+// boostHolobotAttribute (DECISIONS #53-2)
+// ---------------------------------------------------------------------------
+
+/** users/{uid} field: the last MAX_ATTRIBUTE_BOOST_REQUEST_IDS applied request ids (idempotency ledger). */
+export const ATTRIBUTE_BOOST_REQUEST_IDS_FIELD = "attributeBoostRequestIds";
+export const MAX_ATTRIBUTE_BOOST_REQUEST_IDS = 20;
+export const ATTRIBUTE_BOOST_REQUEST_ID = /^[a-zA-Z0-9_-]{1,128}$/;
+/** Accepted on the wire. "special" is accepted only to be refused with a typed reason (SPECIAL comes from SYNC). */
+export const ATTRIBUTE_BOOST_WIRE_ATTRIBUTES = ["attack", "defense", "speed", "health", "special"] as const;
+export const MAX_HOLOBOT_NAME_LENGTH = 64;
+
+export type AttributeBoostRequest = {
+  attribute: (typeof ATTRIBUTE_BOOST_WIRE_ATTRIBUTES)[number];
+  holobotName: string;
+  requestId: string;
+};
+
+export type AttributeBoostReason = AttributeBoostRefusal | "already_processed";
+
+export type AttributeBoostReply = {
+  applied: boolean;
+  holobot: ServerHolobot;
+  reason?: AttributeBoostReason;
+};
+
+/** Null on any malformed request (→ invalid-argument). */
+export function validateAttributeBoostRequest(raw: unknown): AttributeBoostRequest | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const data = raw as Record<string, unknown>;
+  const holobotName = typeof data.holobotName === "string" ? data.holobotName.trim() : "";
+  if (!holobotName || holobotName.length > MAX_HOLOBOT_NAME_LENGTH) return null;
+  if (typeof data.attribute !== "string" || !(ATTRIBUTE_BOOST_WIRE_ATTRIBUTES as readonly string[]).includes(data.attribute)) {
+    return null;
+  }
+  if (typeof data.requestId !== "string" || !ATTRIBUTE_BOOST_REQUEST_ID.test(data.requestId)) return null;
+  return {
+    attribute: data.attribute as AttributeBoostRequest["attribute"],
+    holobotName,
+    requestId: data.requestId,
+  };
+}
+
+function readBoostLedger(userData: Record<string, unknown>): string[] {
+  const raw = userData[ATTRIBUTE_BOOST_REQUEST_IDS_FIELD];
+  return Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+/**
+ * Raw-document boost. "not_owned" when no holobot of that name is on the
+ * account. A request id already in the ledger replays as applied:false /
+ * already_processed with the CURRENT holobot and writes nothing; typed
+ * refusals (SPECIAL, no points) write nothing either. Only an applied boost
+ * returns updates: the holobots array (the boosted entry spread from the
+ * stored one) and the ledger with this request id appended (last 20 kept).
+ */
+export function buildAttributeBoostRaw(
+  userData: Record<string, unknown>,
+  request: AttributeBoostRequest,
+): { reply: AttributeBoostReply; updates: Record<string, unknown> | null } | "not_owned" {
+  const holobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
+  const target = request.holobotName.trim().toUpperCase();
+  const index = holobots.findIndex((holobot) => {
+    const name = holobot && typeof holobot === "object" ? (holobot as { name?: unknown }).name : undefined;
+    return typeof name === "string" && name.trim().toUpperCase() === target;
+  });
+  if (index < 0) return "not_owned";
+
+  const ledger = readBoostLedger(userData);
+  if (ledger.includes(request.requestId)) {
+    return {
+      reply: { applied: false, holobot: normalizeUserHolobot(holobots[index]), reason: "already_processed" },
+      updates: null,
+    };
+  }
+
+  const result = applyAttributeBoost(holobots[index], request.attribute);
+  if (!result.applied) {
+    return { reply: { applied: false, holobot: result.holobot, reason: result.reason }, updates: null };
+  }
+
+  return {
+    reply: { applied: true, holobot: result.holobot },
+    updates: {
+      [ATTRIBUTE_BOOST_REQUEST_IDS_FIELD]: [...ledger, request.requestId].slice(-MAX_ATTRIBUTE_BOOST_REQUEST_IDS),
+      holobots: holobots.map((holobot, i) => (i === index ? result.holobot : holobot)),
+    },
+  };
 }

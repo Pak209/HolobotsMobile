@@ -12,6 +12,7 @@ export { assignWildcardBlueprints } from "./growth/assignWildcardBlueprints";
 export { chargeArenaEntry } from "./arena/chargeArenaEntry";
 export { createGenesisProfile } from "./account/createGenesisProfile";
 export { createWebviewBridgeToken } from "./account/createWebviewBridgeToken";
+export { boostHolobotAttribute } from "./progression/boostHolobotAttribute";
 export { claimDailyMission } from "./economy/claimDailyMission";
 export { claimGenesisSquad } from "./growth/claimGenesisSquad";
 export { claimQuestRun } from "./progression/claimQuestRun";
