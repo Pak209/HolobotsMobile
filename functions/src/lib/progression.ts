@@ -94,6 +94,126 @@ export function applyHolobotExperience(rawHolobot: unknown, expGain: number): Se
   };
 }
 
+// ---- Battle stats (mirror of mobile/src/lib/progression.ts getHolobotBattleStats) ----
+
+export const HOLOBOT_BASE_STATS = {
+  ACE: { attack: 8, defense: 6, hp: 150, intelligence: 5, speed: 7 },
+  KUMA: { attack: 7, defense: 5, hp: 200, intelligence: 4, speed: 3 },
+  SHADOW: { attack: 5, defense: 7, hp: 170, intelligence: 3, speed: 4 },
+  ERA: { attack: 5, defense: 4, hp: 165, intelligence: 4, speed: 6 },
+  HARE: { attack: 4, defense: 5, hp: 160, intelligence: 3, speed: 4 },
+  TORA: { attack: 5, defense: 4, hp: 180, intelligence: 4, speed: 6 },
+  WAKE: { attack: 6, defense: 3, hp: 170, intelligence: 4, speed: 4 },
+  GAMA: { attack: 6, defense: 5, hp: 180, intelligence: 4, speed: 3 },
+  KEN: { attack: 7, defense: 3, hp: 150, intelligence: 5, speed: 6 },
+  KURAI: { attack: 4, defense: 6, hp: 190, intelligence: 3, speed: 3 },
+  TSUIN: { attack: 6, defense: 4, hp: 160, intelligence: 4, speed: 5 },
+  WOLF: { attack: 5, defense: 5, hp: 175, intelligence: 4, speed: 5 },
+} as const;
+
+export const HOLOBOT_ARCHETYPES = {
+  ACE: "balanced",
+  KUMA: "grappler",
+  SHADOW: "technical",
+  ERA: "balanced",
+  HARE: "striker",
+  TORA: "striker",
+  WAKE: "balanced",
+  GAMA: "grappler",
+  KEN: "technical",
+  KURAI: "grappler",
+  TSUIN: "balanced",
+  WOLF: "striker",
+} as const;
+
+export type BoostedAttributes = {
+  attack?: number;
+  defense?: number;
+  health?: number;
+  special?: number;
+  speed?: number;
+};
+
+export type HolobotBattleStats = {
+  archetype: string;
+  attack: number;
+  defense: number;
+  intelligence: number;
+  maxHP: number;
+  speed: number;
+};
+
+function boostValue(boosted: unknown, key: keyof BoostedAttributes): number {
+  if (!boosted || typeof boosted !== "object") return 0;
+  return Number((boosted as Record<string, unknown>)[key] || 0) || 0;
+}
+
+/** Level-scaled base stats + flat attribute boosts (no sync modifiers, no parts). */
+export function getHolobotBattleStats(name: string, level = 1, boostedAttributes?: unknown): HolobotBattleStats {
+  const normalizedName = String(name || "").trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
+  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const archetype = HOLOBOT_ARCHETYPES[normalizedName] ?? HOLOBOT_ARCHETYPES.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+
+  return {
+    archetype,
+    attack: Math.floor(base.attack * 10 * levelBonus) + boostValue(boostedAttributes, "attack"),
+    defense: Math.floor(base.defense * 10 * levelBonus) + boostValue(boostedAttributes, "defense"),
+    intelligence: Math.floor(base.intelligence * 10 * levelBonus) + boostValue(boostedAttributes, "special"),
+    maxHP: Math.floor(base.hp * levelBonus) + boostValue(boostedAttributes, "health"),
+    speed: Math.floor(base.speed * 10 * levelBonus) + boostValue(boostedAttributes, "speed"),
+  };
+}
+
+// ---- Attribute boosts (DECISIONS #53-2; mirror of mobile applyAttributeBoost) ----
+
+/** Points buy attack / defense / speed / HP. SPECIAL is tied to SYNC (focus) and is not boostable. */
+export const BOOSTABLE_ATTRIBUTES = ["attack", "defense", "speed", "health"] as const;
+export type BoostableAttribute = (typeof BOOSTABLE_ATTRIBUTES)[number];
+export const ATTRIBUTE_BOOST_AMOUNTS: Record<BoostableAttribute, number> = {
+  attack: 1,
+  defense: 1,
+  health: 10,
+  speed: 1,
+};
+export type AttributeBoostRefusal = "attribute_not_boostable" | "no_attribute_points";
+export type AttributeBoostResult =
+  | { applied: true; holobot: ServerHolobot }
+  | { applied: false; holobot: ServerHolobot; reason: AttributeBoostRefusal };
+
+export function isBoostableAttribute(value: unknown): value is BoostableAttribute {
+  return typeof value === "string" && (BOOSTABLE_ATTRIBUTES as readonly string[]).includes(value);
+}
+
+/** Spend one attribute point (the mobile InventoryScreen math). Pure; refusals change nothing. */
+export function applyAttributeBoost(rawHolobot: unknown, attribute: unknown): AttributeBoostResult {
+  const normalized = normalizeUserHolobot(rawHolobot);
+  if (!isBoostableAttribute(attribute)) {
+    return { applied: false, holobot: normalized, reason: "attribute_not_boostable" };
+  }
+
+  const points = Number(normalized.attributePoints || 0);
+  if (!(points > 0)) {
+    return { applied: false, holobot: normalized, reason: "no_attribute_points" };
+  }
+
+  const rawBoosts = normalized.boostedAttributes;
+  const boosts: Record<string, unknown> =
+    rawBoosts && typeof rawBoosts === "object" && !Array.isArray(rawBoosts)
+      ? { ...(rawBoosts as Record<string, unknown>) }
+      : {};
+  boosts[attribute] = (Number(boosts[attribute]) || 0) + ATTRIBUTE_BOOST_AMOUNTS[attribute];
+
+  return {
+    applied: true,
+    holobot: {
+      ...normalized,
+      attributePoints: Math.max(0, points - 1),
+      boostedAttributes: boosts,
+    },
+  };
+}
+
 export type WorkoutCareerUpdate = {
   date: string;
   distanceMeters?: number;

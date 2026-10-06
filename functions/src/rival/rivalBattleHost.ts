@@ -3,7 +3,7 @@ import { db } from '../admin';
 import { RivalError } from '../lib/rivalLadder';
 import { transactRivalBattle } from './rivalBattleStore';
 
-/** DECISIONS #43. Operations: status | issue | settle{battleId,didWin}. Client claims the win; the server owns tier, lineup, grant and once-per-battleId settlement. */
+/** DECISIONS #43. Operations: status | issue | settle{battleId,didWin,fielded?}. Client claims the win; the server owns tier, lineup, grant and once-per-battleId settlement. rival-battle-3 (#53): issue adds playerCombatants, settle{fielded} awards Holobot XP (progression[]). */
 export const rivalBattleHost = onCall(async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in to battle rivals.');

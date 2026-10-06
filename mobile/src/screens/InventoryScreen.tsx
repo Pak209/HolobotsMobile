@@ -15,7 +15,12 @@ import { gameAssets, getMarketplaceItemImageSource, getPartImageSource } from "@
 import { getExpProgress, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { assignWildcardBlueprintsAuthoritative } from "@/lib/genesisClient";
-import { redeemLegendaryBlueprintAuthoritative, useExpBoosterAuthoritative, useRankSkipAuthoritative } from "@/lib/progressionClient";
+import {
+  boostHolobotAttributeAuthoritative,
+  redeemLegendaryBlueprintAuthoritative,
+  useExpBoosterAuthoritative,
+  useRankSkipAuthoritative,
+} from "@/lib/progressionClient";
 import { describePartBoosts } from "@/lib/partStats";
 import { getTierByLabel, type UpgradeTierLabel } from "@/lib/minting";
 import {
@@ -24,7 +29,6 @@ import {
   upgradeSyncStatAuthoritative,
 } from "@/lib/progressionClient";
 import { canUpgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
-import type { UserHolobot } from "@/types/profile";
 
 const tabs = ["Holobots", "Parts", "Items", "Move Lab"] as const;
 type InventoryTab = (typeof tabs)[number];
@@ -128,27 +132,11 @@ export function InventoryScreen() {
       return;
     }
 
-    const updatedHolobots: UserHolobot[] = profile.holobots.map((holobot) => {
-      if (holobot.name.toUpperCase() !== normalizedTarget.name.toUpperCase()) {
-        return holobot;
-      }
-
-      const boosts = { ...(normalizedTarget.boostedAttributes || {}) };
-      if (attribute === "health") {
-        boosts.health = (boosts.health || 0) + 10;
-      } else {
-        boosts[attribute] = (boosts[attribute] || 0) + 1;
-      }
-
-      return {
-        ...normalizedTarget,
-        attributePoints: Math.max(0, (normalizedTarget.attributePoints || 0) - 1),
-        boostedAttributes: boosts,
-      };
-    });
-
+    // Server-authoritative (DECISIONS #53-2): the boostHolobotAttribute
+    // callable applies the same math (lib/progression applyAttributeBoost);
+    // the profile listener redraws from the confirmed write.
     try {
-      await updateProfile({ holobots: updatedHolobots });
+      await boostHolobotAttributeAuthoritative(normalizedTarget.name, attribute);
     } catch (error) {
       Alert.alert("Upgrade failed", error instanceof Error ? error.message : "Please try again.");
     }

@@ -140,6 +140,55 @@ export function applyHolobotExperience(holobot: UserHolobot, expGain: number): U
   };
 }
 
+/**
+ * DECISIONS #53-2 (Pak, 2026-10-06): attribute points buy attack / defense /
+ * speed / HP only. SPECIAL (intelligence) is tied to the SYNC stat (focus) and
+ * is NOT boostable with points. 1 point → +1 attack/defense/speed, +10 HP.
+ * Applied server-side by the `boostHolobotAttribute` callable; the server
+ * mirror is functions/src/lib/progression.ts (attributeBoostParity.test.ts).
+ */
+export const BOOSTABLE_ATTRIBUTES = ["attack", "defense", "speed", "health"] as const;
+export type BoostableAttribute = (typeof BOOSTABLE_ATTRIBUTES)[number];
+export const ATTRIBUTE_BOOST_AMOUNTS: Record<BoostableAttribute, number> = {
+  attack: 1,
+  defense: 1,
+  health: 10,
+  speed: 1,
+};
+export type AttributeBoostRefusal = "attribute_not_boostable" | "no_attribute_points";
+export type AttributeBoostResult =
+  | { applied: true; holobot: UserHolobot }
+  | { applied: false; holobot: UserHolobot; reason: AttributeBoostRefusal };
+
+export function isBoostableAttribute(value: unknown): value is BoostableAttribute {
+  return typeof value === "string" && (BOOSTABLE_ATTRIBUTES as readonly string[]).includes(value);
+}
+
+/** The InventoryScreen boost math (spend 1 point), with SPECIAL refused. Pure. */
+export function applyAttributeBoost(holobot: UserHolobot, attribute: string): AttributeBoostResult {
+  const normalized = normalizeUserHolobot(holobot);
+  if (!isBoostableAttribute(attribute)) {
+    return { applied: false, holobot: normalized, reason: "attribute_not_boostable" };
+  }
+
+  const points = Number(normalized.attributePoints || 0);
+  if (!(points > 0)) {
+    return { applied: false, holobot: normalized, reason: "no_attribute_points" };
+  }
+
+  const boosts = { ...(normalized.boostedAttributes || {}) };
+  boosts[attribute] = (Number(boosts[attribute]) || 0) + ATTRIBUTE_BOOST_AMOUNTS[attribute];
+
+  return {
+    applied: true,
+    holobot: {
+      ...normalized,
+      attributePoints: Math.max(0, points - 1),
+      boostedAttributes: boosts,
+    },
+  };
+}
+
 export type WorkoutCareerUpdate = {
   /** Local date key (yyyy-mm-dd) of the completed workout. */
   date: string;

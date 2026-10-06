@@ -1,8 +1,9 @@
 import { functions, httpsCallable } from "@/config/firebase";
 import { toServerActionError } from "@/lib/callables";
+import type { BoostableAttribute } from "@/lib/progression";
 import type { ActiveQuestRecord, TrainingSessionRecord } from "@/lib/progressionSystems";
 import { type SyncStatKey } from "@/lib/syncProgression";
-import type { UserProfile } from "@/types/profile";
+import type { UserHolobot, UserProfile } from "@/types/profile";
 
 /**
  * Server-authoritative quest/training claims, minting, rank-ups, energy
@@ -52,6 +53,19 @@ const useExpBoosterCallable = httpsCallable<Record<string, never>, { activeUntil
   functions,
   "useExpBooster",
 );
+
+export type AttributeBoostReason = "already_processed" | "attribute_not_boostable" | "no_attribute_points";
+
+export type BoostHolobotAttributeResponse = {
+  applied: boolean;
+  holobot: UserHolobot;
+  reason?: AttributeBoostReason;
+};
+
+const boostHolobotAttributeCallable = httpsCallable<
+  { attribute: BoostableAttribute; holobotName: string; requestId: string },
+  BoostHolobotAttributeResponse
+>(functions, "boostHolobotAttribute");
 
 const redeemLegendaryBlueprintCallable = httpsCallable<
   { holobotName: string },
@@ -164,4 +178,39 @@ export async function useExpBoosterAuthoritative(): Promise<{ activeUntil: numbe
   } catch (error) {
     throw toServerActionError(error);
   }
+}
+
+const ATTRIBUTE_BOOST_REFUSAL_MESSAGES: Record<Exclude<AttributeBoostReason, "already_processed">, string> = {
+  attribute_not_boostable: "SPECIAL grows with the Sync Focus stat, not with attribute points.",
+  no_attribute_points: "This Holobot has no attribute points available to spend.",
+};
+
+/** One id per tap; matches the server's ^[a-zA-Z0-9_-]{1,128}$ request-id rule. */
+export function makeAttributeBoostRequestId(): string {
+  return `boost_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Spend one attribute point server-side (DECISIONS #53-2): +1 attack /
+ * defense / speed or +10 HP. The profile listener picks up the write; the
+ * reply's holobot is the authoritative record. Typed refusals throw a readable
+ * Error; a replayed request id (already_processed) resolves without spending.
+ */
+export async function boostHolobotAttributeAuthoritative(
+  holobotName: string,
+  attribute: BoostableAttribute,
+  requestId: string = makeAttributeBoostRequestId(),
+): Promise<BoostHolobotAttributeResponse> {
+  let response: BoostHolobotAttributeResponse;
+  try {
+    const result = await boostHolobotAttributeCallable({ attribute, holobotName, requestId });
+    response = result.data;
+  } catch (error) {
+    throw toServerActionError(error);
+  }
+
+  if (!response.applied && response.reason && response.reason !== "already_processed") {
+    throw new Error(ATTRIBUTE_BOOST_REFUSAL_MESSAGES[response.reason]);
+  }
+  return response;
 }

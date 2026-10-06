@@ -71,7 +71,7 @@ test('callable maps rejections to typed codes and requires auth', async () => {
   await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { operation: 'settle', battleId: 'rb_nope', didWin: true } }), e => e.code === 'not-found' && e.details.rejectionCode === 'unknown_battle');
   await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { operation: 'grant' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
   const s = await rivalBattleHost.run({ auth: { uid }, data: { operation: 'status', schemaVersion: 'rival-battle-2' } }); assert.deepEqual(s.status.buddyUnits, light(0));
-  await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { operation: 'status', schemaVersion: 'rival-battle-3' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
+  await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { operation: 'status', schemaVersion: 'rival-battle-4' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
 });
 
 test('starter Unit exactly once: createGenesisProfile, then desktop snapshot, wild refresh and rival status never re-grant', async () => {

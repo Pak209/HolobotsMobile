@@ -18,10 +18,11 @@ A bare `firebase deploy --only functions` from this repo will offer to
 auth bridge. Always deploy with an explicit function list:
 
 ```bash
-firebase deploy --project holobots-24046 --only functions:applyReferralCode,functions:assignWildcardBlueprints,functions:chargeArenaEntry,functions:createGenesisProfile,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:claimGenesisSquad,functions:claimQuestRun,functions:claimTrainingSession,functions:clearWorkoutCooldown,functions:deleteUserAccountV2,functions:mintHolobot,functions:mirrorLeaderboardEntry,functions:openGachaPack,functions:purchaseMarketplaceBooster,functions:purchaseMarketplaceItem,functions:redeemLegendaryBlueprint,functions:revenuecatWebhook,functions:purchaseMarketplacePart,functions:saveHolobotCombatKit,functions:settleArenaBattle,functions:syncFitnessActivity,functions:syncWatchWorkoutRewards,functions:upgradeHolobotRank,functions:upgradeHolobotMove,functions:upgradeSyncStat,functions:useEnergyRefill,functions:useExpBooster,functions:useRankSkip,functions:wildEncounterHost,functions:travelSquadHost,functions:desktopAccountSnapshot,functions:rivalBattleHost,functions:introQuestHost,functions:vendorCatalogHost,functions:purchaseBuddyUnit,functions:wardrobeHost
+firebase deploy --project holobots-24046 --only functions:applyReferralCode,functions:assignWildcardBlueprints,functions:chargeArenaEntry,functions:createGenesisProfile,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:claimGenesisSquad,functions:claimQuestRun,functions:claimTrainingSession,functions:clearWorkoutCooldown,functions:deleteUserAccountV2,functions:mintHolobot,functions:mirrorLeaderboardEntry,functions:openGachaPack,functions:purchaseMarketplaceBooster,functions:purchaseMarketplaceItem,functions:redeemLegendaryBlueprint,functions:revenuecatWebhook,functions:purchaseMarketplacePart,functions:saveHolobotCombatKit,functions:settleArenaBattle,functions:syncFitnessActivity,functions:syncWatchWorkoutRewards,functions:upgradeHolobotRank,functions:upgradeHolobotMove,functions:upgradeSyncStat,functions:useEnergyRefill,functions:useExpBooster,functions:useRankSkip,functions:wildEncounterHost,functions:travelSquadHost,functions:desktopAccountSnapshot,functions:rivalBattleHost,functions:introQuestHost,functions:vendorCatalogHost,functions:purchaseBuddyUnit,functions:wardrobeHost,functions:boostHolobotAttribute
 ```
 
-That is all 37 functions exported from `src/index.ts` (2026-10-03: `wardrobeHost` added
+That is all 38 functions exported from `src/index.ts` (2026-10-06: `boostHolobotAttribute` added
+for DECISIONS #53, see `docs/HOLOCITY_PROGRESSION.md`; 2026-10-03: `wardrobeHost` added
 for DECISIONS #48, see `Documentation/QA/2026-10-03-pilot-wardrobe/CONTRACT.md`; `introQuestHost`,
 `vendorCatalogHost` and `purchaseBuddyUnit` added for DECISIONS #46/#47; see
 `Documentation/QA/2026-10-03-intro-quests-vendors/CONTRACT.md`. 2026-09-30: `rivalBattleHost`
@@ -110,8 +111,8 @@ runs the shared-file parity check). `src/index.ts` is re-exports only:
 - `src/account/` — auth / account lifecycle (`deleteUserAccountV2`)
 - `src/fitness/` — watch workout reward syncing (`syncWatchWorkoutRewards`)
 - `src/lib/` — server-side domain logic (progression, scoring)
-- `src/shared/` — files kept **byte-identical** with the mobile app,
-  enforced by `scripts/check-shared-parity.mjs` on every build
+- `src/shared/` (and `src/lib/battleSettlement.ts`) — files kept **byte-identical** with the
+  mobile app, enforced by `scripts/check-shared-parity.mjs` on every build
 
 ## Shared progression math
 
