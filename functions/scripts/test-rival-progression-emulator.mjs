@@ -64,13 +64,17 @@ test('parallel first settles award XP exactly once', async () => {
 
 test('fielded outside the travel squad is invalid_request (nothing written); v2 callers see the #44 shapes', async () => {
   const uid = await setup();
-  const i = await v3(uid, { operation: 'issue' }, T0 - L.RIVAL_MIN_WIN_MS);
+  // Issued on the real clock: the callable settles below use Date.now() (a fixed T0 expires 2 h after it).
+  const i = await v3(uid, { operation: 'issue' }, Date.now() - L.RIVAL_MIN_WIN_MS);
   const before = await user(uid);
   await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { schemaVersion: 'rival-battle-3', operation: 'settle', battleId: i.battleId, didWin: true, fielded: ['wolf'] } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
   assert.deepEqual(await user(uid), before);
   const i2 = await rivalBattleHost.run({ auth: { uid }, data: { schemaVersion: 'rival-battle-2', operation: 'issue' } });
   assert.equal(i2.schemaVersion, 'rival-battle-2'); assert.equal('playerCombatants' in i2, false);
   for (const c of i2.encounter.opponentSquad) { assert.equal('speed' in c, false); assert.equal('intelligence' in c, false); }
+  // #53 amendment 1: a v2 issue keeps the #43 baseline (tier 0: L5, 285/52/18 x 0.8) and says so on the record.
+  for (const c of i2.encounter.opponentSquad) assert.deepEqual([c.level, c.maxHealth, c.attack, c.defense], [5, 228, 42, 14]);
+  assert.equal((await db.doc(`rivalBattles/${uid}/battles/${i2.battleId}`).get()).data().lineupScale, 'baseline-statscale');
   const s2 = await rivalBattleHost.run({ auth: { uid }, data: { schemaVersion: 'rival-battle-2', operation: 'settle', battleId: i.battleId, didWin: false } });
   assert.equal(s2.schemaVersion, 'rival-battle-2'); assert.equal('progression' in s2, false);
   assert.deepEqual((await user(uid)).holobots, bots(), 'a v2 settle without fielded awards no XP');
