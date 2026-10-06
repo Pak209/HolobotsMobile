@@ -30,10 +30,12 @@ test('v3 issue serves the travel squad as playerCombatants and snapshots it into
   assert.equal(i.schemaVersion, 'rival-battle-3'); assert.equal(i.tier, 2);
   assert.deepEqual(i.playerCombatants.map(c => c.holobotId), ['ace', 'kuma']);
   assert.equal(i.playerCombatants[0].attack, L.playerCombatant('ace', bots()[0]).attack);
-  for (const c of i.encounter.opponentSquad) { assert.equal(c.speed, 50); assert.equal(c.intelligence, 40); }
+  // #53 amendment 1: tier 2 = WOLF at level 9.
+  for (const c of i.encounter.opponentSquad) assert.deepEqual([c.level, c.maxHealth, c.attack, c.defense, c.speed, c.intelligence], [9, 244, 70, 70, 70, 56]);
   const stored = (await db.doc(`rivalBattles/${uid}/battles/${i.battleId}`).get()).data();
   assert.deepEqual(stored.playerSquadIds, ['ace', 'kuma']);
   assert.equal('speed' in stored.lineup.opponentSquad[0], false, 'stored lineup keeps the #43 record format');
+  assert.equal(stored.lineupScale, 'wolf-level-1-plus-4t'); assert.equal(stored.lineup.opponentSquad[0].maxHealth, 244);
 });
 
 test('v3 settle{fielded} writes Holobot XP once; duplicates replay the progression and write nothing', async () => {

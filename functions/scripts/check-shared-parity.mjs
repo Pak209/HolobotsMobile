@@ -1,6 +1,6 @@
 /**
  * Fails (exit 1) if any listed byte-identical file (functions/src/shared/, plus
- * src/lib/battleSettlement.ts) has drifted from its canonical twin in the
+ * src/lib/battleSettlement.ts and src/lib/rivalTierStats.ts) has drifted from its canonical twin in the
  * mobile package. Runs as part of `npm run build`, so a
  * drifted copy can never be deployed. See the header comment in
  * src/shared/workoutRewardLimits.ts for why these files are duplicated.
@@ -20,6 +20,11 @@ const SHARED_FILES = [
     // DECISIONS #53-1: the one battle XP table (arena, rival, beast).
     functionsCopy: "src/lib/battleSettlement.ts",
     mobileCopy: "../mobile/src/lib/battleSettlement.ts",
+  },
+  {
+    // DECISIONS #53 amendment 1: rival tier t = WOLF's battle stats at level 1 + 4t.
+    functionsCopy: "src/lib/rivalTierStats.ts",
+    mobileCopy: "../mobile/src/lib/rivalTierStats.ts",
   },
 ];
 
