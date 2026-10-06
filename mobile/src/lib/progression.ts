@@ -78,6 +78,30 @@ export function getHolobotBattleStats(
   };
 }
 
+/**
+ * The mobile DISPLAY scale (TrainingScreen, HoloCity STATS page via desktop-account-3):
+ * floor(base x levelBonus) + flat boost — no x10 on attack / defense / speed / special; HP is
+ * the battle formula. Moved here from config/holobots.ts (DECISIONS #53 amendment 2) so the
+ * app and the server (functions/src/lib/progression.ts, parity-tested) share one formula.
+ */
+export function getHolobotDisplayStats(
+  name: string,
+  level = 1,
+  boostedAttributes?: UserHolobot["boostedAttributes"],
+) {
+  const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
+  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+
+  return {
+    attack: Math.floor(base.attack * levelBonus) + (boostedAttributes?.attack || 0),
+    defense: Math.floor(base.defense * levelBonus) + (boostedAttributes?.defense || 0),
+    hp: Math.floor(base.hp * levelBonus) + (boostedAttributes?.health || 0),
+    special: Math.floor(base.intelligence * levelBonus) + (boostedAttributes?.special || 0),
+    speed: Math.floor(base.speed * levelBonus) + (boostedAttributes?.speed || 0),
+  };
+}
+
 export function calculateExperience(level: number) {
   return Math.floor(100 * Math.pow(Math.max(1, level), 2));
 }

@@ -165,6 +165,34 @@ export function getHolobotBattleStats(name: string, level = 1, boostedAttributes
   };
 }
 
+/** The mobile DISPLAY scale: no x10 on attack / defense / speed / special; HP as in battle. */
+export type HolobotDisplayStats = {
+  attack: number;
+  defense: number;
+  hp: number;
+  special: number;
+  speed: number;
+};
+
+/**
+ * Mirror of mobile/src/lib/progression.ts getHolobotDisplayStats (DECISIONS #53 amendment 2):
+ * floor(base x levelBonus) + flat boost. The HoloCity STATS page shows these numbers
+ * (desktop-account-3 displayStats); battles use getHolobotBattleStats.
+ */
+export function getHolobotDisplayStats(name: string, level = 1, boostedAttributes?: unknown): HolobotDisplayStats {
+  const normalizedName = String(name || "").trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
+  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+
+  return {
+    attack: Math.floor(base.attack * levelBonus) + boostValue(boostedAttributes, "attack"),
+    defense: Math.floor(base.defense * levelBonus) + boostValue(boostedAttributes, "defense"),
+    hp: Math.floor(base.hp * levelBonus) + boostValue(boostedAttributes, "health"),
+    special: Math.floor(base.intelligence * levelBonus) + boostValue(boostedAttributes, "special"),
+    speed: Math.floor(base.speed * levelBonus) + boostValue(boostedAttributes, "speed"),
+  };
+}
+
 // ---- Attribute boosts (DECISIONS #53-2; mirror of mobile applyAttributeBoost) ----
 
 /** Points buy attack / defense / speed / HP. SPECIAL is tied to SYNC (focus) and is not boostable. */

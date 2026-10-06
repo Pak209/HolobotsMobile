@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const L = require('../lib/lib/rivalLadder.js');
+const S = require('../lib/lib/rivalTierStats.js');
 const B = require('../lib/lib/battleSettlement.js');
 const E = require('../lib/lib/progressionEconomy.js');
 const P = require('../lib/lib/progression.js');
@@ -52,8 +53,8 @@ test('issue: playerCombatants carry the real stats (getPlayerBattleStats) and pr
   assert.deepEqual(ace.boostedAttributes, { attack: 3, defense: 0, speed: 0, special: 0, health: 20 });
   assert.equal(wolf.level, 12); assert.equal(wolf.rank, 'Champion');
   assert.deepEqual({ maxStamina: ace.maxStamina, staminaRegen: ace.staminaRegen, deployment: ace.deployment }, { maxStamina: L.RIVAL_BASELINE.maxStamina, staminaRegen: L.RIVAL_BASELINE.staminaRegen, deployment: { ...L.RIVAL_BASELINE.deployment } });
-  const row = L.getRivalTierRow(i.reply.tier);
-  for (const c of i.reply.encounter.opponentSquad) { assert.equal(c.speed, Math.round(50 * row.statScale)); assert.equal(c.intelligence, Math.round(40 * row.statScale)); }
+  // #53 amendment 1: v3 opponents are WOLF at level 1 + 4t (tier 0 = a fresh L1 WOLF).
+  for (const c of i.reply.encounter.opponentSquad) assert.deepEqual([c.level, c.maxHealth, c.attack, c.defense, c.speed, c.intelligence], [1, 175, 50, 50, 50, 40]);
   assert.deepEqual(issue(profile(), []).reply.playerCombatants, [], 'empty travel squad → []');
 });
 
@@ -160,4 +161,42 @@ test('no fielded: progression [] and no holobots write (the shipped v2 Unity bui
   const s = settle(p, issue(p), true, undefined);
   assert.deepEqual(s.reply.progression, []); assert.equal('holobots' in s.userUpdates, false);
   assert.deepEqual(s.battleUpdates.settlement.fielded, []); assert.deepEqual(p.holobots, bots());
+});
+
+test('#53 amendment 1: rival tier t = WOLF getHolobotBattleStats at level 1 + 4t (v3); v1 / v2 keep the #43 baseline x statScale', () => {
+  // Tier 0 = a fresh L1 WOLF, tier 9 = L37; capped at level 99 (tier 25+).
+  const expected = [
+    [0, 1, 175, 50, 50, 50, 40], [1, 5, 210, 60, 60, 60, 48], [2, 9, 244, 70, 70, 70, 56], [3, 13, 280, 80, 80, 80, 64], [4, 17, 315, 90, 90, 90, 72],
+    [5, 21, 350, 100, 100, 100, 80], [6, 25, 385, 110, 110, 110, 88], [7, 29, 420, 120, 120, 120, 96], [8, 33, 455, 130, 130, 130, 104], [9, 37, 489, 140, 140, 140, 112],
+  ];
+  for (const [tier, level, maxHealth, attack, defense, speed, intelligence] of expected) {
+    assert.deepEqual(S.rivalTierBattleStats(tier), { level, maxHealth, attack, defense, speed, intelligence }, `tier ${tier}`);
+    const w = P.getHolobotBattleStats('WOLF', level, {});
+    assert.deepEqual([w.maxHP, w.attack, w.defense, w.speed, w.intelligence], [maxHealth, attack, defense, speed, intelligence]);
+  }
+  assert.equal(S.rivalTierBattleStats(24).level, 97); assert.equal(S.rivalTierBattleStats(25).level, 99); assert.equal(S.rivalTierBattleStats(10000).level, 99);
+  for (const bad of [-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => S.rivalTierBattleStats(bad), RangeError, String(bad));
+  assert.equal(L.rivalLineupScaleFor('rival-battle-3'), S.RIVAL_LINEUP_SCALE_WOLF);
+  assert.equal(L.rivalLineupScaleFor('rival-battle-2'), L.RIVAL_LINEUP_SCALE_BASELINE); assert.equal(L.rivalLineupScaleFor('rival-battle-1'), L.RIVAL_LINEUP_SCALE_BASELINE);
+  for (const wins of [0, 10, 25, 45, 90, 99, 400]) {
+    const tier = L.tierForWins(wins), row = L.getRivalTierRow(tier), st = S.rivalTierBattleStats(tier);
+    n = 31; const v3 = L.issueRivalBattle(profile({ rivalWins: wins }), T0, 'rb_scale', rnd, ['ace'], L.rivalLineupScaleFor('rival-battle-3'));
+    n = 31; const v2 = L.issueRivalBattle(profile({ rivalWins: wins }), T0, 'rb_scale', rnd, ['ace'], L.rivalLineupScaleFor('rival-battle-2'));
+    // Same draws: same rival ids, pilot (label = the #43 table), count and seed.
+    assert.deepEqual(v3.reply.encounter.opponentSquad.map(c => c.holobotId), v2.reply.encounter.opponentSquad.map(c => c.holobotId));
+    assert.equal(v3.reply.encounter.seed, v2.reply.encounter.seed); assert.deepEqual(v3.reply.encounter.opponentPilot, v2.reply.encounter.opponentPilot);
+    assert.equal(v3.reply.encounter.opponentPilot.tier, row.label); assert.equal(v3.reply.encounter.opponentSquad.length, row.rivals);
+    for (const c of v3.reply.encounter.opponentSquad) assert.deepEqual({ level: c.level, maxHealth: c.maxHealth, attack: c.attack, defense: c.defense, speed: c.speed, intelligence: c.intelligence }, st);
+    for (const c of L.rivalReplyForVersion(v2.reply, 'rival-battle-2').encounter.opponentSquad) {
+      assert.deepEqual(Object.keys(c).sort(), V2_COMBATANT_KEYS);
+      assert.deepEqual([c.level, c.maxHealth, c.attack, c.defense], [row.level, Math.round(285 * row.statScale), Math.round(52 * row.statScale), Math.round(18 * row.statScale)]);
+    }
+    // The record keeps the #43 combatant format (no speed / intelligence) and names its scale.
+    assert.equal(v3.battle.lineupScale, S.RIVAL_LINEUP_SCALE_WOLF); assert.equal(v2.battle.lineupScale, L.RIVAL_LINEUP_SCALE_BASELINE);
+    for (const c of [...v3.battle.lineup.opponentSquad, ...v2.battle.lineup.opponentSquad]) assert.deepEqual(Object.keys(c).sort(), V2_COMBATANT_KEYS);
+    assert.deepEqual(v3.battle.lineup.opponentSquad.map(c => [c.level, c.maxHealth, c.attack, c.defense]), v3.battle.lineup.opponentSquad.map(() => [st.level, st.maxHealth, st.attack, st.defense]));
+    assert.equal(v3.battle.tier, v2.battle.tier); assert.equal(v3.battle.schemaVersion, 'rival-battle-1');
+  }
+  // The #43 table rows (labels, rival counts, levels, statScale) are unchanged.
+  assert.deepEqual(L.RIVAL_TIER_TABLE.map(r => [r.label, r.level, r.statScale, r.rivals]), [['rookie', 5, 0.8, 1], ['rookie', 8, 0.9, 1], ['challenger', 11, 1, 2], ['challenger', 14, 1.1, 2], ['elite', 18, 1.2, 3], ['elite', 22, 1.3, 3], ['elite', 26, 1.4, 3], ['legend', 30, 1.5, 3], ['legend', 35, 1.62, 3], ['legend', 40, 1.75, 3]]);
 });

@@ -14,6 +14,7 @@ import { BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, BuddyTierKey, readBuddy
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { getHolobotRank, normalizeUserHolobot } from "./progression";
 import { getPlayerBattleStats } from "./progressionEconomy";
+import { RIVAL_LINEUP_SCALE_WOLF, rivalTierBattleStats } from "./rivalTierStats";
 
 // ---- Daily rival reward (Buddy Unit inventory: lib/buddyUnits.ts, #44) ---------
 
@@ -81,8 +82,9 @@ export type RivalTierRow = {
   tier: number;
   /** NpcPilotSnapshot.tier display label. */
   label: string;
+  /** #43 opponent level — rival-battle-1 / -2 only (rival-battle-3: rivalTierStats.ts, 1 + 4t). */
   level: number;
-  /** Multiplies the baseline health / attack / defense. */
+  /** #43: multiplies the baseline health / attack / defense — rival-battle-1 / -2 only (retired for rival-battle-3). */
   statScale: number;
   rivals: number;
 };
@@ -91,6 +93,10 @@ export type RivalTierRow = {
  * Explicit table for tiers 0-9. Rival count: every second tier adds one
  * (0-1 → 1, 2-3 → 2, 4+ → 3). Beyond the last row the ladder keeps climbing
  * by RIVAL_TIER_EXTRAPOLATION per tier (level capped at RIVAL_MAX_LEVEL).
+ * DECISIONS #53 amendment 1: `label` and `rivals` hold for every wire version; `level` and
+ * `statScale` are the #43 scale that rival-battle-1 / -2 replies keep (byte-identical to the
+ * deployed shapes). rival-battle-3 opponents use WOLF's battle stats at level 1 + 4t
+ * (lib/rivalTierStats.ts).
  */
 export const RIVAL_TIER_TABLE: readonly RivalTierRow[] = [
   { tier: 0, label: "rookie", level: 5, statScale: 0.8, rivals: 1 },
@@ -107,16 +113,15 @@ export const RIVAL_TIER_TABLE: readonly RivalTierRow[] = [
 export const RIVAL_TIER_EXTRAPOLATION = { levelPerTier: 5, statScalePerTier: 0.12, label: "legend" } as const;
 
 /**
- * Scale-1.0 rival (the wolf in Unity's pilot-battle sample payload). Health/attack/defense (and, from
- * rival-battle-3, speed/intelligence) scale; the rest is fixed. speed/intelligence = WOLF's level-1
- * battle stats (base 5 / 4 x 10, lib/progression.ts HOLOBOT_BASE_STATS) — producer default, Pak tunes.
+ * Scale-1.0 rival (the wolf in Unity's pilot-battle sample payload). #43: health / attack / defense
+ * scale by statScale — the rival-battle-1 / -2 opponents. maxStamina / staminaRegen / deployment /
+ * moves are fixed for every version and every combatant (rival and player). rival-battle-3 opponents
+ * take level / health / attack / defense / speed / intelligence from rivalTierStats.ts instead.
  */
 export const RIVAL_BASELINE = {
   maxHealth: 285,
   attack: 52,
   defense: 18,
-  speed: 50,
-  intelligence: 40,
   maxStamina: 110,
   staminaRegen: 16,
   deployment: { deployCost: 14, drainPerSecond: 1.6, rechargePerSecond: 4 },
@@ -188,6 +193,21 @@ export type PlayerCombatantSnapshot = CombatantSnapshot & {
 export type NpcPilotSnapshot = { pilotId: string; displayName: string; tier: string };
 export type RivalLineup = { opponentPilot: NpcPilotSnapshot; opponentSquad: CombatantSnapshot[] };
 
+/** #43 scale: RIVAL_BASELINE x the tier row's statScale at the row's level. */
+export const RIVAL_LINEUP_SCALE_BASELINE = "baseline-statscale";
+/**
+ * Which stat scale an issued lineup used; stored on the battle record (lineupScale) so it is
+ * unambiguous. Records issued before 2026-10-06 (#53 amendment 1) have no field = the baseline.
+ */
+export type RivalLineupScale = typeof RIVAL_LINEUP_SCALE_BASELINE | typeof RIVAL_LINEUP_SCALE_WOLF;
+export { RIVAL_LINEUP_SCALE_WOLF };
+
+/** rival-battle-3 → WOLF at level 1 + 4t; rival-battle-1 / -2 → the #43 baseline (their replies stay byte-identical). */
+export function rivalLineupScaleFor(version: RivalWireVersion): RivalLineupScale {
+  return version === RIVAL_SCHEMA_V3 ? RIVAL_LINEUP_SCALE_WOLF : RIVAL_LINEUP_SCALE_BASELINE;
+}
+
+/** #43 baseline combatant (rival-battle-1 / -2). */
 export function rivalCombatant(holobotId: string, row: RivalTierRow): CombatantSnapshot {
   const b = RIVAL_BASELINE;
   return {
@@ -204,11 +224,31 @@ export function rivalCombatant(holobotId: string, row: RivalTierRow): CombatantS
 }
 
 /**
- * rival-battle-3 opponent speed / intelligence for a tier, scaled like attack. Added to the issue reply
- * only: the stored lineup (rivalBattles/{uid}/battles/*) keeps the #43 record format.
+ * DECISIONS #53 amendment 1 combatant in the #43 record format: level / maxHealth / attack / defense =
+ * WOLF's battle stats at level 1 + 4t (rivalTierStats.ts); stamina / deployment / moves = RIVAL_BASELINE.
+ * speed / intelligence are NOT stored (the record keeps the #43 format); the rival-battle-3 issue reply
+ * adds them (rivalScaledCombatantStats).
  */
-export function rivalCombatantStats(row: RivalTierRow): { speed: number; intelligence: number } {
-  return { speed: Math.round(RIVAL_BASELINE.speed * row.statScale), intelligence: Math.round(RIVAL_BASELINE.intelligence * row.statScale) };
+export function rivalScaledCombatant(holobotId: string, tier: number): CombatantSnapshot {
+  const stats = rivalTierBattleStats(tier);
+  const b = RIVAL_BASELINE;
+  return {
+    holobotId,
+    level: stats.level,
+    maxHealth: stats.maxHealth,
+    attack: stats.attack,
+    defense: stats.defense,
+    maxStamina: b.maxStamina,
+    staminaRegen: b.staminaRegen,
+    deployment: { ...b.deployment },
+    moves: b.moves.map((m) => ({ ...m })),
+  };
+}
+
+/** rival-battle-3 opponent speed / intelligence (WOLF at level 1 + 4t). Issue reply only. */
+export function rivalScaledCombatantStats(tier: number): { speed: number; intelligence: number } {
+  const stats = rivalTierBattleStats(tier);
+  return { speed: stats.speed, intelligence: stats.intelligence };
 }
 
 const whole = (value: unknown) => Math.max(0, Math.floor(Number(value) || 0));
@@ -250,8 +290,11 @@ export function buildPlayerCombatants(profile: Record<string, unknown>, squadIds
   return out;
 }
 
-/** `random` returns [0,1). Rivals are distinct roster ids. */
-export function buildRivalLineup(tier: number, random: () => number): RivalLineup {
+/**
+ * `random` returns [0,1). Rivals are distinct roster ids. The ids, pilot and draw count are the same
+ * for both scales (only the stat numbers differ), so a battle's seed never depends on the version.
+ */
+export function buildRivalLineup(tier: number, random: () => number, scale: RivalLineupScale = RIVAL_LINEUP_SCALE_BASELINE): RivalLineup {
   const row = getRivalTierRow(tier);
   const pool = [...RIVAL_ROSTER_IDS];
   const picked: string[] = [];
@@ -261,7 +304,7 @@ export function buildRivalLineup(tier: number, random: () => number): RivalLineu
   }
   return {
     opponentPilot: { pilotId: `rival_tier_${tier}`, displayName: "Rival", tier: row.label },
-    opponentSquad: picked.map((id) => rivalCombatant(id, row)),
+    opponentSquad: picked.map((id) => (scale === RIVAL_LINEUP_SCALE_WOLF ? rivalScaledCombatant(id, tier) : rivalCombatant(id, row))),
   };
 }
 
@@ -328,6 +371,8 @@ export type RivalBattleRecord = {
   settlement: RivalSettlement | null;
   /** DECISIONS #53: the travel squad at issue (records issued from 2026-10-06). `fielded` must come from it or the current squad. */
   playerSquadIds?: string[];
+  /** DECISIONS #53 amendment 1: the stat scale of `lineup` (records issued from 2026-10-06 ~14:07; absent = the #43 baseline). */
+  lineupScale?: RivalLineupScale;
 };
 
 /** When the TTL policy may delete an issued battle (epoch ms). */
@@ -436,20 +481,27 @@ export type IssueReply = {
   playerCombatants: PlayerCombatantSnapshot[];
 };
 
-/** `playerSquadIds`: the travel squad at issue (the store reads it; [] when unreadable). */
-export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number, playerSquadIds: readonly string[] = []): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
+/**
+ * `playerSquadIds`: the travel squad at issue (the store reads it; [] when unreadable).
+ * `scale` (DECISIONS #53 amendment 1): the store passes rivalLineupScaleFor(request version) — WOLF at
+ * level 1 + 4t for rival-battle-3, the #43 baseline for rival-battle-1 / -2. The reply is the v3 shape
+ * either way (projected by rivalReplyForVersion); with the baseline scale its opponents carry no
+ * speed / intelligence (the v1 / v2 projection has none).
+ */
+export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number, playerSquadIds: readonly string[] = [], scale: RivalLineupScale = RIVAL_LINEUP_SCALE_WOLF): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
   if (!RIVAL_BATTLE_ID.test(battleId)) throw new RivalError("unavailable");
   const l = readLedger(profile);
   const status = statusOf(l, nowMs);
-  const lineup = buildRivalLineup(status.tier, random);
+  const lineup = buildRivalLineup(status.tier, random, scale);
   const seed = Math.floor(random() * 0x7fffffff);
-  const battle: RivalBattleRecord = { schemaVersion: RIVAL_RECORD_SCHEMA, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null, playerSquadIds: [...playerSquadIds] };
+  const battle: RivalBattleRecord = { schemaVersion: RIVAL_RECORD_SCHEMA, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null, playerSquadIds: [...playerSquadIds], lineupScale: scale };
+  const extra = scale === RIVAL_LINEUP_SCALE_WOLF ? rivalScaledCombatantStats(status.tier) : null;
   return {
     userUpdates: starterUpdates(l),
     battle,
     reply: {
       schemaVersion: RIVAL_SCHEMA_V3, battleId, expiresAtMs: battle.expiresAtMs, tier: status.tier,
-      encounter: { encounterId: battleId, seed, opponentPilot: { ...lineup.opponentPilot }, opponentSquad: lineup.opponentSquad.map((c) => ({ ...c, ...rivalCombatantStats(getRivalTierRow(status.tier)) })) },
+      encounter: { encounterId: battleId, seed, opponentPilot: { ...lineup.opponentPilot }, opponentSquad: lineup.opponentSquad.map((c) => (extra ? { ...c, ...extra } : { ...c })) },
       status, playerCombatants: buildPlayerCombatants(profile, playerSquadIds),
     },
   };

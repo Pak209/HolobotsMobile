@@ -317,6 +317,13 @@ service cloud.firestore {
     match /vendorPurchases/{uid}/{document=**} {
       allow read, write: if false;
     }
+    // DECISIONS #53 amendment 1: HoloZone (Error Beast) runs — server-issued run ids and their
+    // once-per-run XP rulings, written only by holoZoneHost. Kept off users/{uid} because that
+    // doc is client-writable outside protectedFieldsUntouched (a forged run would farm XP). No
+    // client read: holoZoneHost `status` returns the open run. Same effect as the default deny.
+    match /holoZoneRuns/{uid}/{document=**} {
+      allow read, write: if false;
+    }
 
     // ---- default deny ------------------------------------------------------
     match /{document=**} {

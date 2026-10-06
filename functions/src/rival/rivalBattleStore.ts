@@ -1,7 +1,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { Firestore, Timestamp } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
-import { issueRivalBattle, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
+import { issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
@@ -14,6 +14,8 @@ import { issueRivalBattle, rivalReplyForVersion, openBattlesAfterIssue, openBatt
  * cap is a point read, not a query.
  * rival-battle-3 (DECISIONS #53): issue snapshots the travel squad into the record and serves
  * playerCombatants; settle{fielded} awards Holobot XP in the same transaction (users/{uid}.holobots).
+ * #53 amendment 1: a rival-battle-3 issue fields WOLF's battle stats at level 1 + 4t (lineupScale on the
+ * record); rival-battle-1 / -2 issues keep the #43 baseline x statScale.
  */
 
 /** The travel squad ids for the player-side additions; [] when unreadable so v1/v2 rulings never depend on it. */
@@ -44,7 +46,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     if (command.operation === 'issue') {
       const open = readOpenBattles((await tx.get(ledgerRef)).data(), nowMs);
       let i = 0;
-      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile));
+      // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
+      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion));
       const nextOpen = openBattlesAfterIssue(open, r.battle);
       if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen });
