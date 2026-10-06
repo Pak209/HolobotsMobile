@@ -6,6 +6,7 @@ import {
   applyHolobotExperience,
   calculateExperience,
   getHolobotBattleStats,
+  getHolobotDisplayStats,
   getHolobotRank,
   HOLOBOT_ARCHETYPES,
   HOLOBOT_BASE_STATS,
@@ -13,10 +14,13 @@ import {
   normalizeUserHolobot,
 } from "@/lib/progression";
 
+// getHolobotDisplayStats lives in the lib pair since DECISIONS #53 amendment 2 (one formula for the
+// app and the server's desktop-account-3 displayStats); re-exported here for existing importers.
 export {
   applyHolobotExperience,
   calculateExperience,
   getHolobotBattleStats,
+  getHolobotDisplayStats,
   getHolobotRank,
   normalizeUserHolobot,
 };
@@ -247,24 +251,6 @@ export function mergeHolobotRoster(userHolobots?: UserHolobot[], variant: Holobo
   return [...normalizedUserHolobots, ...missingDefaults];
 }
 
-
-export function getHolobotDisplayStats(
-  name: string,
-  level = 1,
-  boostedAttributes?: UserHolobot["boostedAttributes"],
-) {
-  const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
-  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
-  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
-
-  return {
-    attack: Math.floor(base.attack * levelBonus) + (boostedAttributes?.attack || 0),
-    defense: Math.floor(base.defense * levelBonus) + (boostedAttributes?.defense || 0),
-    hp: Math.floor(base.hp * levelBonus) + (boostedAttributes?.health || 0),
-    special: Math.floor(base.intelligence * levelBonus) + (boostedAttributes?.special || 0),
-    speed: Math.floor(base.speed * levelBonus) + (boostedAttributes?.speed || 0),
-  };
-}
 
 export function getExpProgress(holobot: Pick<HolobotRosterEntry, "experience" | "nextLevelExp">) {
   if (!holobot.nextLevelExp) {
