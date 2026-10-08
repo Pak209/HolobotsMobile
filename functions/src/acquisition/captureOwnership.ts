@@ -20,6 +20,19 @@ export function readTravelSquad(profile: Profile): TravelSquad {
   if (!s || s.schemaVersion !== 'travel-squad-1' || !Number.isSafeInteger(s.revision) || s.revision < 0 || s.revision > 2147483647 || !Array.isArray(s.holobotIds) || s.holobotIds.length > 3 || new Set(s.holobotIds).size !== s.holobotIds.length || s.holobotIds.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9_]{0,127}$/.test(id) || toHolobotKey(id) !== id || !owned.has(id))) throw new HostError('unavailable');
   return structuredClone(s);
 }
+/** Initialise only an empty squad from the first owned bot. Persist in a host transaction.
+ * Existing slot order/revision and ownership records stay untouched. */
+export function projectFirstTravelHolobot(profile: Profile): { travelSquad: TravelSquad; updates: Profile } {
+  const travelSquad = readTravelSquad(profile);
+  if (travelSquad.holobotIds.length) return { travelSquad, updates: {} };
+  const owned = bots(profile);
+  if (!owned.length) return { travelSquad, updates: {} };
+  const id = toHolobotKey(owned[0].name as string);
+  if (!/^[a-z][a-z0-9_]{0,127}$/.test(id) || travelSquad.revision >= 2147483647) throw new HostError('unavailable');
+  travelSquad.holobotIds = [id];
+  travelSquad.revision++;
+  return { travelSquad, updates: { travelSquad } };
+}
 export function projectCapture(profile: Profile, holobotId: string): { updates: Profile; travelSquad: TravelSquad; ownershipOutcome: 'new_bot' | 'added_to_squad' | 'blueprints'; blueprintDelta: number } {
   if (typeof holobotId !== 'string' || !/^[a-z][a-z0-9_]{0,127}$/.test(holobotId) || toHolobotKey(holobotId) !== holobotId) throw new HostError('unavailable');
   const owned = bots(profile);

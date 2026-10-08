@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
-import { readTravelSquad, ownsCaptureBot } from './captureOwnership';
+import { readTravelSquad, ownsCaptureBot, projectFirstTravelHolobot } from './captureOwnership';
 import { HostError, TravelSquad } from './wildEncounterDomain';
 
 export type SquadCommand = { operation: 'refresh' } | { operation: 'setSlot'; intent: { schemaVersion: 'travel-squad-1'; requestId: string; expectedRevision: number; slotIndex: number; holobotId: string } };
@@ -38,7 +38,13 @@ export async function transactTravelSquad(db: Firestore, uid: string, raw: unkno
     const profile = user.data()!;
     const current = readTravelSquad(profile);
     const reply: SquadReply = { schemaVersion: 'travel-squad-1', requestId: command.operation === 'setSlot' ? command.intent.requestId : '', travelSquad: current };
-    if (!receiptRef || command.operation === 'refresh') return reply;
+    if (command.operation === 'refresh') {
+      const initial = projectFirstTravelHolobot(profile);
+      if (Object.keys(initial.updates).length) tx.update(userRef, initial.updates);
+      reply.travelSquad = initial.travelSquad;
+      return reply;
+    }
+    if (!receiptRef) return reply;
     const receipt = await tx.get(receiptRef);
     if (receipt.exists) {
       if (receipt.data()?.digest !== digest) throw new HostError('sequence_conflict');
