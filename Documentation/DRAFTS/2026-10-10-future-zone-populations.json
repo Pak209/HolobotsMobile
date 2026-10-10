@@ -1,0 +1,36 @@
+{
+  "draftVersion": 1,
+  "runtimeEnabled": false,
+  "sourceKind": "MOCK dashboard labels; not authoritative zone definitions",
+  "sourceUnityPath": "Assets/HoloCity/Resources/Dashboard/dashboard-preview.json",
+  "sourceSha256": "369a3765a27d829fc2bd0a9089cc1d2a7849eb7c806df97dde3ed1ec1f80d05d",
+  "approvedRuntimeZones": [
+    "neonforest"
+  ],
+  "rows": [
+    {
+      "zoneId": "tide_hollow",
+      "displayName": "Tide Hollow",
+      "state": "NEEDS_TUNING",
+      "approved": false,
+      "tier": null,
+      "beasts": null,
+      "spawnCount": null,
+      "respawn": null,
+      "boss": null,
+      "sceneName": null
+    },
+    {
+      "zoneId": "sky_reach",
+      "displayName": "Sky Reach",
+      "state": "NEEDS_TUNING",
+      "approved": false,
+      "tier": null,
+      "beasts": null,
+      "spawnCount": null,
+      "respawn": null,
+      "boss": null,
+      "sceneName": null
+    }
+  ]
+}

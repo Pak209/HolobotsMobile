@@ -1,0 +1,1 @@
+PASS: two inert draft rows, 6 invented-tuning controls, two runtime hashes unchanged; no future zone enabled
