@@ -1,3 +1,4 @@
+import {repairGrant} from "./repairItems";
 /**
  * Server-side gacha and marketplace economy.
  *
@@ -310,7 +311,7 @@ export function buildPackGrantUpdatesRaw(
   userData: Record<string, unknown>,
   items: GachaGrantedItem[],
 ): Record<string, unknown> {
-  const updates: Record<string, unknown> = {};
+  const updates: Record<string, unknown> = repairGrant(userData);
   let nextBlueprints: Record<string, number> | null = null;
   let nextParts: Array<Record<string, unknown>> | null = null;
 

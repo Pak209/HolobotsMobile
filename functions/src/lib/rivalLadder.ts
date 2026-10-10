@@ -1,3 +1,4 @@
+import {repairGrant} from "./repairItems";
 import { desktopPracticeCommands } from "./desktopPracticeCommands";
 /**
  * Pak DECISIONS #43 (2026-09-30): daily rival reward and rival difficulty
@@ -557,6 +558,7 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
   const userUpdates: Profile = starterUpdates(l);
   let granted = 0;
   if (didWin) {
+    Object.assign(userUpdates, repairGrant(profile));
     if (l.wins >= Number.MAX_SAFE_INTEGER) throw new RivalError("unavailable");
     l.wins += 1;
     userUpdates[RIVAL_WINS_FIELD] = l.wins;

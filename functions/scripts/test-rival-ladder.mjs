@@ -194,3 +194,5 @@ test('wire versions: requests default to rival-battle-1; v1 replies carry the to
   assert.equal(w.battle.schemaVersion, 'rival-battle-1', 'stored records keep the deployed record format');
   assert.equal(L.RIVAL_RECORD_SCHEMA, 'rival-battle-1');
 });
+
+test('wins grant one Emergency Patch, loss and duplicate grant none',()=>{const p={buddyUnits:light(0),rivalWins:0};const i=issue(p,T0,'rb_repair');const a=L.settleRivalBattle(p,i.battle,'rb_repair',true,T0+L.RIVAL_MIN_WIN_MS);assert.equal(a.userUpdates.emergencyPatches,1);const b=L.settleRivalBattle({...p,...a.userUpdates},{...i.battle,...a.battleUpdates},'rb_repair',true,T0+L.RIVAL_MIN_WIN_MS+1);assert.equal(b.userUpdates.emergencyPatches,undefined);const j=issue(p,T0,'rb_loss');const c=L.settleRivalBattle(p,j.battle,'rb_loss',false,T0+L.RIVAL_MIN_WIN_MS);assert.equal(c.userUpdates.emergencyPatches,undefined);});

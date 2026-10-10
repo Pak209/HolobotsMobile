@@ -102,7 +102,7 @@ service cloud.firestore {
       return !data.diff(existing).affectedKeys().hasAny([
         'holosTokens', 'syncPoints', 'lifetimeSyncPoints', 'seasonSyncPoints',
         'syncRank', 'gachaTickets', 'arenaPassses', 'expBoosters',
-        'energyRefills', 'rankSkips', 'wins', 'losses', 'blueprints',
+        'energyRefills', 'emergencyPatches', 'holobotVitals', 'itemStocks', 'rankSkips', 'wins', 'losses', 'blueprints',
         'wildcardBlueprints', 'legendaryBlueprints', 'expBoosterActiveUntil',
         'lastWildcardPackAt', 'parts', 'packHistory', 'todaySteps',
         'referredBy', 'referrals', 'referralQualified', 'genesisSquadClaimed',
@@ -131,6 +131,9 @@ service cloud.firestore {
         && frozenZeroOnCreate(data, 'arenaPassses')
         && frozenZeroOnCreate(data, 'expBoosters')
         && frozenZeroOnCreate(data, 'energyRefills')
+        && frozenZeroOnCreate(data, 'emergencyPatches')
+        && !('holobotVitals' in data)
+        && !('itemStocks' in data)
         && frozenZeroOnCreate(data, 'rankSkips')
         && frozenZeroOnCreate(data, 'wins')
         && frozenZeroOnCreate(data, 'losses')
