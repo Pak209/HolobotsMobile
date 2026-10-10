@@ -1,0 +1,39 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node functions/scripts/test-desktop-items-emulator.mjs
+✔ same purchase retry spends exactly once (555.711125ms)
+✔ parallel consumes cannot spend one item twice (2916.213916ms)
+✔ favorite survives reconnect and belongs only to its account (43.554292ms)
+✔ cache retry returns the same reveal and consumes once (35.5145ms)
+✔ account deletion removes favorites and receipts (72.172292ms)
+[2026-10-10T09:58:46.055Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22a54a69 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T09:58:46.061Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22a54a6a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+✔ rules deny client inventory, favorites and receipt writes (321.023958ms)
+✔ repair retry restores only the chosen bot and spends once (40.526167ms)
+✔ repair refuses during a host-issued battle without spending (17.873125ms)
+[2026-10-10T09:58:46.226Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22a54a6b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T09:58:46.234Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22a54a6c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T09:58:46.249Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22a54a6d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L186, false for 'create' @ L333, evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'create' @ L186, false for 'create' @ L333
+✔ rules deny repair stock and health spoofing (129.353708ms)
+✔ repair refuses during an active zone without spending (19.385042ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4154.101583
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
