@@ -26,7 +26,7 @@ const settle = (p, i, didWin, fielded, now = T0, current = []) => { const s = L.
 const V2_ISSUE_KEYS = ['battleId', 'encounter', 'expiresAtMs', 'schemaVersion', 'status', 'tier'];
 const V2_SETTLE_KEYS = ['alreadyProcessed', 'battleId', 'buddyUnitTierGranted', 'buddyUnitsGranted', 'didWin', 'schemaVersion', 'status', 'tierAfter', 'tierBefore'];
 const V2_COMBATANT_KEYS = ['attack', 'defense', 'deployment', 'holobotId', 'level', 'maxHealth', 'maxStamina', 'moves', 'staminaRegen'];
-const PLAYER_KEYS = [...V2_COMBATANT_KEYS, 'attributePoints', 'boostedAttributes', 'experience', 'intelligence', 'nextLevelExp', 'rank', 'speed'].sort();
+const PLAYER_KEYS = [...V2_COMBATANT_KEYS, 'attributePoints', 'boostedAttributes', 'experience', 'intelligence', 'nextLevelExp', 'rank', 'speed', 'commandRules'].sort();
 
 test('requests: rival-battle-3 accepted; settle.fielded is 0-3 distinct travel-squad ids', () => {
   assert.deepEqual(L.validateRivalCommand({ operation: 'settle', battleId: 'rb_x', didWin: true, schemaVersion: 'rival-battle-3', fielded: ['ace', 'kuma'] }), { operation: 'settle', battleId: 'rb_x', didWin: true, fielded: ['ace', 'kuma'], schemaVersion: 'rival-battle-3' });
@@ -199,4 +199,12 @@ test('#53 amendment 1: rival tier t = WOLF getHolobotBattleStats at level 1 + 4t
   }
   // The #43 table rows (labels, rival counts, levels, statScale) are unchanged.
   assert.deepEqual(L.RIVAL_TIER_TABLE.map(r => [r.label, r.level, r.statScale, r.rivals]), [['rookie', 5, 0.8, 1], ['rookie', 8, 0.9, 1], ['challenger', 11, 1, 2], ['challenger', 14, 1.1, 2], ['elite', 18, 1.2, 3], ['elite', 22, 1.3, 3], ['elite', 26, 1.4, 3], ['legend', 30, 1.5, 3], ['legend', 35, 1.62, 3], ['legend', 40, 1.75, 3]]);
+});
+
+// Additive practice command tuning: host data, never a client fallback.
+test('command profile: all roster ids, costs and identity exceptions; v2 strips it', () => {
+ const C=require('../lib/lib/desktopPracticeCommands.js');
+ for(const id of L.RIVAL_ROSTER_IDS){const r=C.desktopPracticeCommands(id);assert.equal(r.maxStamina,7);assert.deepEqual([r.halfCost,r.fullCost,r.halfSync,r.fullSync,r.halfEffect,r.fullEffect],[2,4,50,100,.5,1]);assert.equal(r.guardCharges,id==='hare'?2:1);assert.equal(r.syncFloor,id==='era'?25:0);}
+ const reply=issue(profile(),['ace']).reply;assert.deepEqual(reply.playerCombatants[0].commandRules,C.desktopPracticeCommands('ace'));
+ const legacy=L.rivalReplyForVersion(reply,'rival-battle-2');assert.equal(legacy.playerCombatants,undefined);assert.ok(legacy.encounter.opponentSquad.every(c=>!('commandRules' in c)));
 });

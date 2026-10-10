@@ -1,3 +1,4 @@
+import { desktopPracticeCommands } from "./desktopPracticeCommands";
 /**
  * Pak DECISIONS #43 (2026-09-30): daily rival reward and rival difficulty
  * ladder. ONE data module: every tunable rival number lives here (producer
@@ -158,6 +159,7 @@ export function getRivalTierRow(tier: number): RivalTierRow {
 
 export type MoveSnapshot = { moveId: string; staminaCost: number; damageScale: number; breakPower: number; chargeable: boolean };
 export type CombatantSnapshot = {
+  commandRules?: ReturnType<typeof desktopPracticeCommands>;
   holobotId: string;
   level: number;
   maxHealth: number;
@@ -261,6 +263,7 @@ export function playerCombatant(holobotId: string, rawHolobot: unknown): PlayerC
   const b = RIVAL_BASELINE;
   return {
     holobotId,
+    commandRules: desktopPracticeCommands(holobotId),
     level: Math.max(1, Math.floor(holobot.level)),
     maxHealth: stats.maxHP,
     attack: stats.attack,
@@ -501,7 +504,7 @@ export function issueRivalBattle(profile: Profile, nowMs: number, battleId: stri
     battle,
     reply: {
       schemaVersion: RIVAL_SCHEMA_V3, battleId, expiresAtMs: battle.expiresAtMs, tier: status.tier,
-      encounter: { encounterId: battleId, seed, opponentPilot: { ...lineup.opponentPilot }, opponentSquad: lineup.opponentSquad.map((c) => (extra ? { ...c, ...extra } : { ...c })) },
+      encounter: { encounterId: battleId, seed, opponentPilot: { ...lineup.opponentPilot }, opponentSquad: lineup.opponentSquad.map((c) => (extra ? { ...c, ...extra, commandRules: desktopPracticeCommands(c.holobotId) } : { ...c })) },
       status, playerCombatants: buildPlayerCombatants(profile, playerSquadIds),
     },
   };
@@ -592,7 +595,7 @@ export type RivalStatusV1 = Omit<RivalStatus, "buddyUnits"> & { buddyUnits: numb
 
 /** The fields rival-battle-3 adds; a v2 projection removes exactly these (and nothing else). */
 export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression"] as const;
-export const RIVAL_V3_COMBATANT_FIELDS = ["speed", "intelligence"] as const;
+export const RIVAL_V3_COMBATANT_FIELDS = ["speed", "intelligence", "commandRules"] as const;
 
 /** The rival-battle-2 shape of a v3 reply: identical to the 2026-10-01 deployment (#44). */
 function toV2(reply: { schemaVersion: string; status: RivalStatus }): Record<string, unknown> & { status: RivalStatus } {
@@ -600,7 +603,7 @@ function toV2(reply: { schemaVersion: string; status: RivalStatus }): Record<str
   const out: Record<string, unknown> & { status: RivalStatus } = { ...rest, schemaVersion: RIVAL_SCHEMA_V2 };
   const encounter = (reply as { encounter?: { opponentSquad?: CombatantSnapshot[] } }).encounter;
   if (encounter && Array.isArray(encounter.opponentSquad)) {
-    out.encounter = { ...encounter, opponentSquad: encounter.opponentSquad.map(({ speed: _s, intelligence: _i, ...combatant }) => combatant) };
+    out.encounter = { ...encounter, opponentSquad: encounter.opponentSquad.map(({ speed: _s, intelligence: _i, commandRules: _c, ...combatant }) => combatant) };
   }
   return out;
 }
