@@ -24,11 +24,11 @@ const SETTLEMENT_KEYS = ['bossDefeated', 'combosCompleted', 'didWin', 'expPerHol
 
 test('requests: status / issue{zoneId} / settle{runId, kills, bossDefeated, fielded}; everything else invalid_request', () => {
   const id = uuid();
-  assert.deepEqual(Z.validateHoloZoneCommand({ operation: 'status' }), { operation: 'status' });
-  assert.deepEqual(Z.validateHoloZoneCommand({ schemaVersion: 'holozone-run-1', operation: 'issue', zoneId: 'neonforest' }), { operation: 'issue', zoneId: 'neonforest' });
-  assert.deepEqual(Z.validateHoloZoneCommand({ operation: 'settle', runId: id, kills: 3, bossDefeated: false, fielded: ['ace'] }), { operation: 'settle', runId: id, kills: 3, bossDefeated: false, fielded: ['ace'] });
+  assert.deepEqual(Z.validateHoloZoneCommand({ operation: 'status' }), { operation: 'status', schemaVersion: 'holozone-run-1' });
+  assert.deepEqual(Z.validateHoloZoneCommand({ schemaVersion: 'holozone-run-1', operation: 'issue', zoneId: 'neonforest' }), { operation: 'issue', zoneId: 'neonforest', schemaVersion: 'holozone-run-1' });
+  assert.deepEqual(Z.validateHoloZoneCommand({ operation: 'settle', runId: id, kills: 3, bossDefeated: false, fielded: ['ace'] }), { operation: 'settle', runId: id, kills: 3, bossDefeated: false, fielded: ['ace'], schemaVersion: 'holozone-run-1' });
   const settleOf = (over) => ({ operation: 'settle', runId: id, kills: 0, bossDefeated: false, fielded: [], ...over });
-  for (const bad of [null, [], 'status', { operation: 'grant' }, { operation: 'status', schemaVersion: 'holozone-run-2' }, { operation: 'issue' }, { operation: 'issue', zoneId: 'Neon Forest' }, { operation: 'issue', zoneId: 7 },
+  for (const bad of [null, [], 'status', { operation: 'grant' }, { operation: 'status', schemaVersion: 'holozone-run-3' }, { operation: 'issue' }, { operation: 'issue', zoneId: 'Neon Forest' }, { operation: 'issue', zoneId: 7 },
     settleOf({ runId: 'rb_1' }), settleOf({ runId: id.toUpperCase() }), settleOf({ kills: -1 }), settleOf({ kills: 1.5 }), settleOf({ kills: '3' }), settleOf({ kills: 2 ** 53 }), settleOf({ bossDefeated: 1 }),
     settleOf({ fielded: undefined }), settleOf({ fielded: 'ace' }), settleOf({ fielded: ['ace', 'ace'] }), settleOf({ fielded: ['ACE'] }), settleOf({ fielded: ['ace', 'kuma', 'wolf', 'hare'] })]) {
     assert.throws(() => Z.validateHoloZoneCommand(bad), /invalid_request/, JSON.stringify(bad));

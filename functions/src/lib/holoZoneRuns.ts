@@ -27,8 +27,16 @@
 import { MAX_PERFORMANCE_EVENTS, computeBattleSettlement } from "./battleSettlement";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 
-/** Wire version of every holoZoneHost request / reply. */
+/** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
 export const HOLOZONE_SCHEMA = "holozone-run-1";
+export const HOLOZONE_SCHEMA_V1 = HOLOZONE_SCHEMA;
+/**
+ * Wire v2 (DECISIONS #54 plan §P1 item 2, additive over v1): issue adds `population` (the zone's beast roster, spawn
+ * counts and respawn rule by zone and tier — lib/holoZonePopulation.ts) and status adds the open run's `population`;
+ * settle is the v1 reply under the v2 version. v1 replies are byte-identical to the deployed shape (lib/holoZoneWire.ts).
+ */
+export const HOLOZONE_SCHEMA_V2 = "holozone-run-2";
+export type HoloZoneWireVersion = typeof HOLOZONE_SCHEMA_V1 | typeof HOLOZONE_SCHEMA_V2;
 /** Stored doc format (holoZoneRuns/{uid}). */
 export const HOLOZONE_RECORD_SCHEMA = "holozone-runs-1";
 
@@ -105,19 +113,22 @@ export type HoloZoneRunRecord = HoloZoneRunView & {
 
 export type HoloZoneRunsDoc = { schemaVersion: typeof HOLOZONE_RECORD_SCHEMA; runs: HoloZoneRunRecord[] };
 
-export type HoloZoneCommand =
+/** `schemaVersion` is the reply version the client asked for (request field; missing = v1, the deployed shape). */
+export type HoloZoneCommand = (
   | { operation: "status" }
   | { operation: "issue"; zoneId: string }
-  | { operation: "settle"; runId: string; kills: number; bossDefeated: boolean; fielded: string[] };
+  | { operation: "settle"; runId: string; kills: number; bossDefeated: boolean; fielded: string[] }
+) & { schemaVersion: HoloZoneWireVersion };
 
 export function validateHoloZoneCommand(raw: unknown): HoloZoneCommand {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new HoloZoneError("invalid_request");
   const c = raw as Record<string, unknown>;
-  if (c.schemaVersion !== undefined && c.schemaVersion !== HOLOZONE_SCHEMA) throw new HoloZoneError("invalid_request");
-  if (c.operation === "status") return { operation: "status" };
+  if (c.schemaVersion !== undefined && c.schemaVersion !== HOLOZONE_SCHEMA_V1 && c.schemaVersion !== HOLOZONE_SCHEMA_V2) throw new HoloZoneError("invalid_request");
+  const schemaVersion: HoloZoneWireVersion = c.schemaVersion === HOLOZONE_SCHEMA_V2 ? HOLOZONE_SCHEMA_V2 : HOLOZONE_SCHEMA_V1;
+  if (c.operation === "status") return { operation: "status", schemaVersion };
   if (c.operation === "issue") {
     if (typeof c.zoneId !== "string" || !HOLOZONE_ZONE_ID.test(c.zoneId)) throw new HoloZoneError("invalid_request");
-    return { operation: "issue", zoneId: c.zoneId };
+    return { operation: "issue", zoneId: c.zoneId, schemaVersion };
   }
   if (c.operation !== "settle") throw new HoloZoneError("invalid_request");
   if (typeof c.runId !== "string" || !HOLOZONE_RUN_ID.test(c.runId)) throw new HoloZoneError("invalid_request");
@@ -125,7 +136,7 @@ export function validateHoloZoneCommand(raw: unknown): HoloZoneCommand {
   if (typeof c.bossDefeated !== "boolean") throw new HoloZoneError("invalid_request");
   const f = c.fielded;
   if (!Array.isArray(f) || f.length > HOLOZONE_MAX_FIELDED || f.some((id) => typeof id !== "string" || !HOLOZONE_FIELDED_ID.test(id)) || new Set(f).size !== f.length) throw new HoloZoneError("invalid_request");
-  return { operation: "settle", runId: c.runId, kills: c.kills, bossDefeated: c.bossDefeated, fielded: [...(f as string[])] };
+  return { operation: "settle", runId: c.runId, kills: c.kills, bossDefeated: c.bossDefeated, fielded: [...(f as string[])], schemaVersion };
 }
 
 /** Tier of a zone id, or null when the zone is not in the table. */
