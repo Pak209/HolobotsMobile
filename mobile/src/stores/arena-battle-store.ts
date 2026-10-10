@@ -10,6 +10,7 @@ import type {
 import { ArenaCombatEngine } from '../features/arena/combatEngine';
 import type { ArenaCardAvailability } from '../features/arena/arenaCards';
 import { resolveCombatKit } from '../features/arena/moveKits';
+import type { FinisherPower } from '../features/arena/finisherPolicy';
 
 // ============================================================================
 // Arena Battle Store
@@ -50,7 +51,7 @@ interface ArenaBattleStore {
     config?: Partial<ArenaBattleConfig>
   ) => void;
   useMove: (moveId: string) => void;
-  useSignatureFinisher: () => void;
+  useSignatureFinisher: (power?: FinisherPower) => void;
   toggleDefenseMode: () => void;
   processAITurn: () => void;
   endBattle: () => void;
@@ -141,8 +142,8 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
 
     // Player uses a kit move (real-time: any moment stamina/requirements allow)
     useMove: (moveId) => {
-      const { currentBattle, playerMoves, paused } = get();
-      if (paused) return;
+      const { currentBattle, playerMoves, paused, isAnimating } = get();
+      if (paused || isAnimating) return;
       if (!currentBattle || currentBattle.status !== 'active') return;
 
       const move = playerMoves.find((candidate) => candidate.id === moveId);
@@ -154,20 +155,22 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
       }
 
       const newState = ArenaCombatEngine.resolveAction(currentBattle, move, currentBattle.player.holobotId);
+      if (newState === currentBattle) return;
       commitResolution(newState);
     },
 
     // Player fires their Signature Finisher (explicit command; requires a
     // full special meter, which it consumes).
-    useSignatureFinisher: () => {
-      const { currentBattle, paused } = get();
-      if (paused) return;
+    useSignatureFinisher: (power = 'full') => {
+      const { currentBattle, paused, isAnimating } = get();
+      if (paused || isAnimating) return;
       if (!currentBattle || currentBattle.status !== 'active') return;
-      if (!ArenaCombatEngine.canUseSignatureFinisher(currentBattle, 'player')) return;
+      if (!ArenaCombatEngine.canUseSignatureFinisher(currentBattle, 'player', power)) return;
 
       const newState = ArenaCombatEngine.resolveSignatureFinisher(
         currentBattle,
         currentBattle.player.holobotId,
+        power,
       );
       if (newState === currentBattle) return;
 

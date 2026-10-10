@@ -81,7 +81,7 @@ describe('resolveCombatKit', () => {
 
 describe('getSignatureFinisher', () => {
   it('maps holobots to their signature identity (case-insensitive)', () => {
-    expect(getSignatureFinisher('ace').name).toBe('1st Strike');
+    expect(getSignatureFinisher('ace').name).toBe('Skybreaker');
     expect(getSignatureFinisher('WOLF').name).toBe('Lunar Howl');
     expect(getSignatureFinisher(' shadow ').name).toBe('Shadow Strike');
   });

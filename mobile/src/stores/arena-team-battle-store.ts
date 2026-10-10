@@ -1,3 +1,4 @@
+import type { FinisherPower } from '../features/arena/finisherPolicy';
 import { create } from 'zustand';
 
 import { ArenaCombatEngine } from '@/features/arena/combatEngine';
@@ -47,7 +48,7 @@ interface ArenaTeamBattleStore {
     config?: Partial<ArenaBattleConfig>,
   ) => void;
   useMove: (moveId: string) => void;
-  useSignatureFinisher: () => void;
+  useSignatureFinisher: (power?: FinisherPower) => void;
   switchTo: (index: number) => void;
   chooseSendIn: (index: number) => void;
   endBattle: () => void;
@@ -199,12 +200,12 @@ export const useArenaTeamBattleStore = create<ArenaTeamBattleStore>((set, get) =
       commitTeam(applyDuelResolution(team, nextDuel));
     },
 
-    useSignatureFinisher: () => {
+    useSignatureFinisher: (power = 'full') => {
       const team = playerGuard();
       if (!team) return;
-      if (!ArenaCombatEngine.canUseSignatureFinisher(team.duel, 'player')) return;
+      if (!ArenaCombatEngine.canUseSignatureFinisher(team.duel, 'player', power)) return;
 
-      const nextDuel = ArenaCombatEngine.resolveSignatureFinisher(team.duel, team.duel.player.holobotId);
+      const nextDuel = ArenaCombatEngine.resolveSignatureFinisher(team.duel, team.duel.player.holobotId, power);
       if (nextDuel === team.duel) return;
       commitTeam(applyDuelResolution(team, nextDuel));
     },

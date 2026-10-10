@@ -128,7 +128,7 @@ describe('buildPvpFighterDoc', () => {
       'finisher.tacticalOverride',
     ]);
     expect(doc.moves[0].baseDamage).toBeGreaterThan(baseDamage);
-    expect(doc.signatureFinisher.name).toBe('1st Strike');
+    expect(doc.signatureFinisher.name).toBe('Skybreaker');
   });
 
   it('is fully serializable for Firestore (JSON round trip)', () => {

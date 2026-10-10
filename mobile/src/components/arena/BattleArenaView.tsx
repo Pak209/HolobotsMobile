@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { ImageStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
 import type { ActionCard, ArmedDefenseTrap, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
 import {
-  FINISHER_UNLOCK_SEGMENTS,
-  getSpecialMeterSegments,
-  SPECIAL_METER_SEGMENTS,
+      SPECIAL_METER_SEGMENTS,
 } from "../../features/arena/moveKits";
 import { GameSurfaceFrame } from "../ui/GameSurfaceFrame";
 import { HolobotAnimatedCharacter } from "../character/HolobotAnimatedCharacter";
@@ -18,6 +17,8 @@ import {
 } from "../character/holobotAnimationAssets";
 import { getActionSides, getCompletedVisualStates, type FighterVisualStates } from "./battleVisualStates";
 
+import { ArenaCombatEngine } from "../../features/arena/combatEngine";
+import { FINISHER_POLICY, type FinisherPower } from "../../features/arena/finisherPolicy";
 const CARD_SLOTS = 4;
 const battlefieldImage = require("../../../assets/game/BattleField.png");
 const arenaMoveIcons: Record<CardType, number> = {
@@ -69,7 +70,7 @@ type BattleArenaViewProps = {
   lastAction: BattleAction | null;
   isAnimating: boolean;
   onCardPlay: (cardId: string) => void;
-  onSignaturePlay: () => void;
+  onSignaturePlay: (power?: FinisherPower) => void;
   /** 3v3 Showdown HUD: bench chips, switching, and the send-in overlay. */
   team?: TeamHudProps | null;
 };
@@ -100,15 +101,17 @@ function getCardLabel(type: CardType) {
   }
 }
 
-function getAvailabilityLabel(availability?: ArenaCardAvailability) {
+function getAvailabilityLabel(availability?: ArenaCardAvailability, card?: ActionCard) {
   if (!availability || availability.playable) {
     return null;
   }
   switch (availability.reason) {
+    case "inactive": return "BATTLE ENDED";
+    case "invalid_target": return "NO LIVE TARGET";
     case "cooldown":
       return `CD ${availability.cooldownTurns ?? "?"}`;
     case "stamina":
-      return "LOW STA";
+      return `NEED ${card?.staminaCost ?? ""} STA`;
     case "combo":
       return "NEEDS COMBO";
     case "special_meter":
@@ -230,7 +233,7 @@ function ArenaCard({
       style={[
         styles.cardSlot,
         {
-          opacity: isPlayable ? 1 : 0.45,
+          opacity: isPlayable ? 1 : 0.78,
         },
       ]}
     >
@@ -272,7 +275,7 @@ function ArenaCard({
         />
       </Svg>
       <View style={styles.cardCostBadge}>
-        <Text style={[styles.cardCostText, { color: colors.accent }]}>{card.staminaCost}</Text>
+        <Text style={[styles.cardCostText, { color: colors.accent }]}>{`${card.type === "defense" ? "NEED " : ""}${card.staminaCost} STA`}</Text>
       </View>
       <Text numberOfLines={1} style={[styles.cardTypeLabel, { color: colors.accent }]}>
         {getCardLabel(card.type)}
@@ -289,7 +292,7 @@ function ArenaCard({
         {card.name}
       </Text>
       <Text style={[styles.cardDamage, { color: colors.accent }]}>
-        {card.baseDamage > 0 ? `${card.baseDamage} DMG` : card.type === "defense" ? "BLOCK" : "UTILITY"}
+        {card.type === "finisher" ? "SIGNATURE" : card.baseDamage > 0 ? `${card.baseDamage} DMG` : card.type === "defense" ? "BLOCK" : "UTILITY"}
       </Text>
       {reasonLabel ? (
         <View style={styles.cardReasonBadge}>
@@ -349,6 +352,16 @@ export function BattleArenaView({
     player: "idle",
     opponent: "idle",
   });
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const [passiveDetail, setPassiveDetail] = useState<"player" | "opponent" | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (live) setReduceMotion(value); });
+    const listener = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => { live = false; listener.remove(); };
+  }, []);
   const playerLunge = useRef(new Animated.Value(0)).current;
   const opponentLunge = useRef(new Animated.Value(0)).current;
   const playerFlash = useRef(new Animated.Value(0)).current;
@@ -367,7 +380,7 @@ export function BattleArenaView({
   }, [battle.battleId, opponentFlash, opponentLunge, playerFlash, playerLunge]);
 
   useEffect(() => {
-    if (!lastAction) return;
+    if (!lastAction || reduceMotion) return;
 
     const { attacker, damaged } = getActionSides(lastAction, battle);
     setTransientVisualStates({
@@ -408,16 +421,17 @@ export function BattleArenaView({
         flash.setValue(0);
       }
     };
-  }, [lastAction?.id, battle.battleId, opponentFlash, opponentLunge, playerFlash, playerLunge]);
+  }, [lastAction?.id, battle.battleId, opponentFlash, opponentLunge, playerFlash, playerLunge, reduceMotion]);
 
+  const [finisherPower, setFinisherPower] = useState<FinisherPower>("half");
+  const finisherAvailability = ArenaCombatEngine.getSignatureAvailability(battle, "player", finisherPower);
   const visualStates = getCompletedVisualStates(battle) ?? transientVisualStates;
   const visibleCards = useMemo(() => {
-    const slots = playerCards.slice(0, CARD_SLOTS);
-    while (slots.length < CARD_SLOTS) {
-      slots.push(undefined as never);
-    }
+    const slots = playerCards.filter(card => card.type !== "finisher").slice(0, CARD_SLOTS - 1);
+    while (slots.length < CARD_SLOTS - 1) slots.push(undefined as never);
+    slots.push(ArenaCombatEngine.buildSignatureCard(battle.player, finisherPower));
     return slots;
-  }, [playerCards]);
+  }, [playerCards, battle.player, finisherPower]);
 
   const playerCanAct = playableCardIds.length > 0 && !isAnimating;
   const chainLength = battle.player.comboCounter;
@@ -429,11 +443,11 @@ export function BattleArenaView({
   const playerStaminaPercent = getHealthPercent(battle.player.stamina, battle.player.maxStamina);
   const opponentStaminaPercent = getHealthPercent(battle.opponent.stamina, battle.opponent.maxStamina);
   const playerSpecialPercent = getHealthPercent(battle.player.specialMeter, 100);
-  const finisherReady = battle.player.specialMeter >= 100;
+  const finisherReady = finisherAvailability.playable;
   const lastActionDamage = lastAction ? (lastAction.actualDamage ?? lastAction.damageDealt) : 0;
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.backgroundAngles}>
         <View style={styles.angleOne} />
         <View style={styles.angleTwo} />
@@ -531,7 +545,7 @@ export function BattleArenaView({
       </View>
 
       <View style={styles.battleStageWrap}>
-        <View style={styles.battleStage}>
+        <View style={[styles.battleStage, { height: Math.max(140, Math.min(240, windowHeight - insets.top - insets.bottom - (team ? 510 : 460))) }]}>
           <View style={styles.battleFloor}>
             <Image source={battlefieldImage} style={styles.battlefieldImage} resizeMode="contain" />
             <View pointerEvents="none" style={styles.fighterOverlay}>
@@ -677,28 +691,19 @@ export function BattleArenaView({
             <View
               style={[
                 styles.specialGaugeUnlockTick,
-                { left: `${(FINISHER_UNLOCK_SEGMENTS / SPECIAL_METER_SEGMENTS) * 100}%` },
+                { left: `${FINISHER_POLICY.half.sync}%` },
               ]}
             />
           </View>
-          {finisherReady ? (
-            <Pressable
-              disabled={isAnimating}
-              onPress={onSignaturePlay}
-              style={[styles.signatureButton, isAnimating ? styles.signatureButtonDisabled : null]}
-            >
-              <Text numberOfLines={1} style={styles.signatureButtonText}>
-                {`✦ ${(battle.player.signatureFinisher?.name || "SIGNATURE").toUpperCase()}`}
-              </Text>
-            </Pressable>
-          ) : (
-            <View style={styles.specialCluster}>
-              <Text style={styles.specialIcon}>{"✦"}</Text>
-              <Text style={styles.specialText}>
-                {`${getSpecialMeterSegments(battle.player.specialMeter)}/${SPECIAL_METER_SEGMENTS}`}
-              </Text>
-            </View>
-          )}
+          <View style={styles.specialCluster}>
+            {(["half", "full"] as const).map(power => (
+              <Pressable key={power} accessibilityRole="button" accessibilityState={{ selected: finisherPower === power }}
+                accessibilityLabel={`${power === "half" ? "Half" : "Full"} strength Finisher`}
+                onPress={() => setFinisherPower(power)} style={[styles.powerChoice, finisherPower === power ? styles.powerChoiceSelected : null]}>
+                <Text style={styles.specialText}>{`${FINISHER_POLICY[power].sync}% · ${FINISHER_POLICY[power].stamina} STA`}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
         <View style={styles.cardBayHeader}>
           <Text style={styles.deckHint}>
@@ -707,7 +712,7 @@ export function BattleArenaView({
               : battle.player.armedDefenseTrap
               ? "DEFENSE TRAP ARMED"
               : finisherReady
-                ? "FULL FINISHER READY — TAP THE GOLD BUTTON"
+                ? "FINISHER READY — TAP THE GOLD COMMAND"
                 : playableFinisher && chainLength >= 1
                   ? `CHAIN ×${chainLength} LIVE — FINISHER CASHES IT (DEFENDING DROPS IT)`
                   : playerCanAct
@@ -718,14 +723,15 @@ export function BattleArenaView({
 
         <View style={styles.cardRow}>
           {visibleCards.map((card, index) => {
-            const isPlayable = !!card && playableCardIds.includes(card.id);
+            const isSignature = index === CARD_SLOTS - 1;
+            const isPlayable = !!card && (isSignature ? finisherAvailability.playable : playableCardIds.includes(card.id)) && !team?.entryLocked;
             return (
               <ArenaCard
                 key={card?.id ?? `empty-${index}`}
                 card={card}
                 disabled={!card || isAnimating || !isPlayable}
                 isPlayable={isPlayable}
-                reasonLabel={card ? getAvailabilityLabel(cardAvailability[card.id]) : null}
+                reasonLabel={isSignature ? (finisherAvailability.playable ? null : finisherAvailability.reason === "stamina" ? `NEED ${finisherAvailability.staminaCost} STA` : finisherAvailability.reason === "special_meter" ? `NEED ${finisherAvailability.syncCost}% SYNC` : "NOT READY") : card ? getAvailabilityLabel(cardAvailability[card.id], card) : null}
                 bonusLabel={
                   card?.type === "finisher" && isPlayable && chainLength >= 1
                     ? `CHAIN ENDER ×${chainLength}`
@@ -733,7 +739,8 @@ export function BattleArenaView({
                 }
                 onPress={() => {
                   if (card && isPlayable) {
-                    onCardPlay(card.id);
+                    if (isSignature) onSignaturePlay(finisherPower);
+                    else onCardPlay(card.id);
                   }
                 }}
               />
@@ -741,45 +748,32 @@ export function BattleArenaView({
           })}
         </View>
 
-        {/* Rule-bend crib sheet: how each fighter cheats, spelled out so
-            players learn the bends (and QA can verify them mid-fight). */}
         <View style={styles.abilityDock}>
-          {[
-            { fighter: battle.player, label: "YOUR BEND" },
-            { fighter: battle.opponent, label: "CPU BEND" },
-          ].map(({ fighter, label }) => (
-            <View key={label} style={styles.abilityPanel}>
-              <GameSurfaceFrame accent={label === "YOUR BEND" ? "#17d9ff" : "#596273"} />
-              <Text style={styles.abilityPanelEyebrow}>{`${label} — ${fighter.name}`}</Text>
-              <Text style={styles.abilityPanelName}>
-                {`◈ ${(fighter.ability?.name ?? "COMBAT ROUTINE").toUpperCase()}`}
-              </Text>
-              <Text numberOfLines={3} style={styles.abilityPanelCopy}>
-                {fighter.ability?.description ?? "Every landed hit grants +1 special meter."}
-              </Text>
-              {fighter.armedDefenseTrap ? (
-                <>
-                  <Text numberOfLines={1} style={styles.abilityPanelTrapName}>
-                    {`⛨ ${fighter.armedDefenseTrap.name.toUpperCase()}${
-                      (fighter.armedDefenseTrap.stackLevel ?? 0) > 0
-                        ? ` ▲${fighter.armedDefenseTrap.stackLevel}`
-                        : ""
-                    }`}
-                  </Text>
-                  <Text numberOfLines={2} style={styles.abilityPanelCopy}>
-                    {describeTrap(fighter.armedDefenseTrap)}
-                  </Text>
-                </>
-              ) : null}
-            </View>
+          {(["player", "opponent"] as const).map(side => (
+            <Pressable key={side} accessibilityRole="button" accessibilityLabel={`${battle[side].name} passive details`}
+              onPress={() => setPassiveDetail(side)} style={styles.abilityPanel}>
+              <GameSurfaceFrame accent={side === "player" ? "#17d9ff" : "#596273"} />
+              <Text numberOfLines={1} style={styles.abilityPanelName}>{battle[side].name} · {battle[side].ability?.name ?? "Combat routine"}</Text>
+            </Pressable>
           ))}
         </View>
+        <Modal visible={passiveDetail !== null} transparent animationType={reduceMotion ? "none" : "fade"} onRequestClose={() => setPassiveDetail(null)}>
+          <View style={styles.detailBackdrop}><View style={styles.detailPanel}>
+            <Text style={styles.abilityPanelName}>{passiveDetail ? battle[passiveDetail].ability?.name : ""}</Text>
+            <Text style={styles.detailCopy}>{passiveDetail ? battle[passiveDetail].ability?.description : ""}</Text>
+            <Text style={styles.detailCopy}>{passiveDetail && battle[passiveDetail].armedDefenseTrap ? describeTrap(battle[passiveDetail].armedDefenseTrap!) : ""}</Text>
+            <Pressable onPress={() => setPassiveDetail(null)} style={styles.powerChoice} accessibilityRole="button"><Text style={styles.specialText}>CLOSE</Text></Pressable>
+          </View></View>
+        </Modal>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  detailBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.75)" },
+  detailPanel: { padding: 20, backgroundColor: "#10161c", borderWidth: 1, borderColor: "#17d9ff" },
+  detailCopy: { color: "#fef1e0", fontSize: 14, lineHeight: 20, marginVertical: 10 },
   actionTicker: {
     alignItems: "center",
     marginHorizontal: 18,
@@ -827,7 +821,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   battlefieldImage: {
-    height: 276,
+    height: "100%",
     width: "100%",
   },
   battleFloor: {
@@ -838,7 +832,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   fighterOverlay: {
-    bottom: 104,
+    bottom: 40,
     left: 0,
     position: "absolute",
     right: 0,
@@ -853,8 +847,8 @@ const styles = StyleSheet.create({
   },
   battleStageWrap: {
     marginHorizontal: 18,
-    marginTop: 14,
-    marginBottom: -18,
+    marginTop: 6,
+    marginBottom: 0,
   },
   stageFighter: {
     alignItems: "center",
@@ -882,11 +876,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     marginBottom: 5,
-    marginTop: 8,
+    marginTop: 3,
     width: "100%",
   },
   cardMoveIcon: {
-    height: 54,
+    height: 28,
     width: 54,
   },
   benchBarTrack: {
@@ -925,7 +919,7 @@ const styles = StyleSheet.create({
   },
   abilityPanel: {
     flex: 1,
-    minHeight: 82,
+    minHeight: 44,
     paddingHorizontal: 11,
     paddingVertical: 9,
     position: "relative",
@@ -1118,7 +1112,7 @@ const styles = StyleSheet.create({
     left: 6,
     position: "absolute",
     top: 6,
-    width: 22,
+    width: 65,
   },
   abilityBadge: {
     alignSelf: "flex-start",
@@ -1179,7 +1173,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   cardCostText: {
-    fontSize: 18,
+    fontSize: 10,
     fontWeight: "900",
   },
   cardDamage: {
@@ -1219,14 +1213,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
+  powerChoice: { minHeight: 44, minWidth: 88, paddingHorizontal: 6, justifyContent: "center", opacity: 0.55 },
+  powerChoiceSelected: { opacity: 1, borderBottomWidth: 2, borderBottomColor: "#f0bf14" },
   cardRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   cardSlot: {
     alignItems: "center",
-    flex: 1,
-    height: 146,
+    flexBasis: "48%",
+    flexGrow: 1,
+    height: 112,
     justifyContent: "flex-start",
     overflow: "hidden",
     paddingHorizontal: 6,
@@ -1397,7 +1395,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   screen: {
-    backgroundColor: "#f5c40d",
+    backgroundColor: "#10161c",
     flex: 1,
     paddingTop: 40,
   },

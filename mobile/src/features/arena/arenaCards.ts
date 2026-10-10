@@ -8,6 +8,8 @@ import type {
 } from '@/types/arena';
 
 export type ArenaCardDisabledReason =
+  | 'inactive'
+  | 'invalid_target'
   | 'cooldown'
   | 'stamina'
   | 'combo'
@@ -201,6 +203,11 @@ export function evaluateCardAvailability(
 ): ArenaCardAvailability {
   const fighter = role === 'player' ? state.player : state.opponent;
   const target = role === 'player' ? state.opponent : state.player;
+  if (state.status !== 'active') return { playable: false, reason: 'inactive' };
+  if (![fighter.currentHP, target.currentHP].every(Number.isFinite) || fighter.currentHP <= 0 || target.currentHP <= 0)
+    return { playable: false, reason: 'invalid_target' };
+  if (!Number.isFinite(fighter.stamina) || !Number.isFinite(card.staminaCost) || card.staminaCost < 0)
+    return { playable: false, reason: 'stamina' };
   const cooldownTurns = getRoleCardCooldowns(state, role)[card.templateId] ?? 0;
 
   if (cooldownTurns > 0) {

@@ -282,7 +282,7 @@ export function validateCombatKit(kit: CombatKit): void {
 const SIGNATURE_BASE_DAMAGE = 38;
 
 const SIGNATURE_FINISHERS: Record<string, ResolvedSignatureFinisher> = {
-  ACE: { id: 'signature.ace', name: '1st Strike', baseDamage: SIGNATURE_BASE_DAMAGE, animationId: 'finisher_signature' },
+  ACE: { id: 'signature.ace', name: 'Skybreaker', baseDamage: SIGNATURE_BASE_DAMAGE, animationId: 'finisher_signature' },
   KUMA: { id: 'signature.kuma', name: 'Sharp Claws', baseDamage: SIGNATURE_BASE_DAMAGE, animationId: 'finisher_signature' },
   SHADOW: { id: 'signature.shadow', name: 'Shadow Strike', baseDamage: SIGNATURE_BASE_DAMAGE, animationId: 'finisher_signature' },
   ERA: { id: 'signature.era', name: 'Time Warp', baseDamage: SIGNATURE_BASE_DAMAGE, animationId: 'finisher_signature' },

@@ -13,6 +13,7 @@ import type {
 } from '@/types/arena';
 import { fireAbility, getRuleBend } from './abilities';
 import { FINISHER_METER_REQUIREMENT } from './moveKits';
+import { evaluateFinisher, FINISHER_POLICY, FINISHER_RECOVERY_MS, type FinisherPower } from './finisherPolicy';
 import { getSyncAbilityDefinition } from '@/lib/syncProgression';
 import {
   createArmedDefenseTrap,
@@ -226,6 +227,7 @@ export class ArenaCombatEngine {
     card: ActionCard,
     actorId: string,
   ): BattleState {
+    if (actorId !== state.player.holobotId && actorId !== state.opponent.holobotId) return state;
     const nextState: BattleState = {
       ...state,
       player: cloneFighter(state.player),
@@ -374,24 +376,26 @@ export class ArenaCombatEngine {
   }
 
   // -------------------------------------------------------------------------
-  // Signature Finisher — innate Holobot identity, never part of the four-slot
-  // kit. Available at exactly 100 special meter, fired only by an explicit
-  // command (never auto-selected for the player), and consumes the full
-  // meter. Traps still apply, preserving counterplay.
+  // Signature Finisher — one visible command with explicit half/full choice.
+  // Existing saved technical-finisher IDs remain supported by resolveAction.
+  // Stamina and Sync commit together; traps preserve counterplay.
   // -------------------------------------------------------------------------
 
   static readonly SIGNATURE_METER_COST = SPECIAL_METER_MAX;
 
-  static canUseSignatureFinisher(state: BattleState, role: FighterRole): boolean {
+  static getSignatureAvailability(state: BattleState, role: FighterRole, power: FinisherPower = 'full') {
     const fighter = role === 'player' ? state.player : state.opponent;
-    return (
-      state.status === 'active' &&
-      fighter.specialMeter >= SPECIAL_METER_MAX &&
-      (fighter.actionLockUntil ?? 0) <= Date.now()
-    );
+    const target = role === 'player' ? state.opponent : state.player;
+    return evaluateFinisher({ active: state.status === 'active', actorHealth: fighter.currentHP,
+      targetHealth: target.currentHP, stamina: fighter.stamina, sync: fighter.specialMeter,
+      lockedUntil: fighter.actionLockUntil ?? 0, now: Date.now(), power });
   }
 
-  static buildSignatureCard(fighter: ArenaFighter): ActionCard {
+  static canUseSignatureFinisher(state: BattleState, role: FighterRole, power: FinisherPower = 'full'): boolean {
+    return this.getSignatureAvailability(state, role, power).playable;
+  }
+
+  static buildSignatureCard(fighter: ArenaFighter, power: FinisherPower = 'full'): ActionCard {
     const signature = fighter.signatureFinisher ?? {
       id: 'signature.generic',
       name: 'Arena Burst',
@@ -404,8 +408,8 @@ export class ArenaCombatEngine {
       templateId: signature.id,
       name: signature.name,
       type: 'finisher',
-      staminaCost: 0,
-      requirements: [],
+      staminaCost: FINISHER_POLICY[power].stamina,
+      requirements: [{ type: 'special_meter', operator: 'gte', value: FINISHER_POLICY[power].sync }],
       baseDamage: signature.baseDamage,
       speedModifier: 0.8,
       effects: [],
@@ -414,9 +418,10 @@ export class ArenaCombatEngine {
     };
   }
 
-  static resolveSignatureFinisher(state: BattleState, actorId: string): BattleState {
+  static resolveSignatureFinisher(state: BattleState, actorId: string, power: FinisherPower = 'full'): BattleState {
+    if (actorId !== state.player.holobotId && actorId !== state.opponent.holobotId) return state;
     const actorRole: FighterRole = actorId === state.player.holobotId ? 'player' : 'opponent';
-    if (!this.canUseSignatureFinisher(state, actorRole)) {
+    if (!this.canUseSignatureFinisher(state, actorRole, power)) {
       return state;
     }
 
@@ -429,7 +434,8 @@ export class ArenaCombatEngine {
 
     const actor = actorRole === 'player' ? nextState.player : nextState.opponent;
     const target = actorRole === 'player' ? nextState.opponent : nextState.player;
-    const card = this.buildSignatureCard(actor);
+    const card = this.buildSignatureCard(actor, power);
+    const policy = this.getSignatureAvailability(state, actorRole, power);
     const now = Date.now();
 
     const action: BattleAction = {
@@ -447,8 +453,8 @@ export class ArenaCombatEngine {
       outcome: 'hit',
       damageDealt: 0,
       actualDamage: 0,
-      staminaChange: 0,
-      specialMeterChange: -SPECIAL_METER_MAX,
+      staminaChange: -policy.staminaCost,
+      specialMeterChange: -policy.syncCost,
       wasCountered: false,
       triggeredCombo: false,
       perfectDefense: false,
@@ -467,8 +473,15 @@ export class ArenaCombatEngine {
     }
     actor.lastActionTime = now;
 
+    // Snapshot damage at valid start, then commit both resources exactly once on the cloned state.
     const damageResult = this.calculateDamage(actor, target, card, false, 0);
-    let actualDamage = damageResult.rawDamage * 2;
+    actor.stamina -= policy.staminaCost;
+    actor.staminaState = this.getStaminaState(actor.stamina);
+    const meterBefore = actor.specialMeter;
+    this.setMeter(actor, Math.max(0, meterBefore - policy.syncCost));
+    action.specialMeterChange = actor.specialMeter - meterBefore;
+    actor.actionLockUntil = now + FINISHER_RECOVERY_MS; // existing solo presentation recovery; no queued second tap
+    let actualDamage = damageResult.rawDamage * 2 * policy.effectScale;
     if (target.armedDefenseTrap) {
       const trapResult = this.consumeDefenseTrap(actor, target, actualDamage);
       if (trapResult) {
@@ -480,12 +493,12 @@ export class ArenaCombatEngine {
     }
 
     const dealt = this.dealDamage(target, actualDamage);
-    action.damageDealt = damageResult.rawDamage * 2;
+    action.damageDealt = damageResult.rawDamage * 2 * policy.effectScale;
     action.actualDamage = dealt;
     this.applyLifesteal(actor, dealt);
 
-    this.setMeter(actor, 0);
     actor.comboCounter = 0;
+    actor.guardStacks = 0;
     actor.totalDamageDealt = (actor.totalDamageDealt ?? 0) + dealt;
 
     this.applyAbilityTriggers(nextState, action, actor, target);

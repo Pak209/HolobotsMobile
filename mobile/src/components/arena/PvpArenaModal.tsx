@@ -1,3 +1,4 @@
+import type { FinisherPower } from "../../features/arena/finisherPolicy";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -176,9 +177,9 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     }
   };
 
-  const handleSignature = async () => {
+  const handleSignature = async (power: FinisherPower = "full") => {
     try {
-      await fireSignature();
+      await fireSignature(power);
     } catch (signatureError: any) {
       Alert.alert("Signature Not Ready", signatureError.message || "Charge the special meter to 7/7 first.");
     }
@@ -292,7 +293,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
               lastAction={room!.lastAction ?? null}
               isAnimating={false}
               onCardPlay={(moveId) => void handlePlayMove(moveId)}
-              onSignaturePlay={() => void handleSignature()}
+              onSignaturePlay={(power) => void handleSignature(power)}
               team={teamHud}
             />
           </View>

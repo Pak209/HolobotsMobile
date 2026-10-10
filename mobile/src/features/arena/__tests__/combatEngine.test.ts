@@ -4,7 +4,7 @@ import type { ActionCard, ArenaFighter } from '@/types/arena';
 import { ArenaCombatEngine } from '../combatEngine';
 import { getAbility } from '../abilities';
 import { DEFENSE_COOLDOWN_MS_PER_TURN, POST_DEFENSE_ACTION_LOCK_MS } from '../arenaCards';
-import { FINISHER_METER_REQUIREMENT } from '../moveKits';
+import { getSignatureFinisher, FINISHER_METER_REQUIREMENT } from '../moveKits';
 
 function makeFighter(overrides: Partial<ArenaFighter> = {}): ArenaFighter {
   return ArenaCombatEngine.prepareFighter({
@@ -843,4 +843,77 @@ describe('post-defend action brace', () => {
     // The opponent was never braced by the player's defend.
     expect(ArenaCombatEngine.canPlayCard(defended, 'opponent', jab)).toBe(true);
   });
+});
+
+
+describe('chosen half/full signatures', () => {
+  afterEach(() => vi.useRealTimers());
+  it('spends both resources atomically and halves the same signature damage', () => {
+    const battle = makeBattle({ stamina: 7, specialMeter: 100 }, { currentHP: 10000, maxHP: 10000 });
+    const half = ArenaCombatEngine.resolveSignatureFinisher(battle, battle.player.holobotId, 'half');
+    const full = ArenaCombatEngine.resolveSignatureFinisher(battle, battle.player.holobotId, 'full');
+    expect(half.player.stamina).toBe(5); expect(half.player.specialMeter).toBe(50);
+    expect(full.player.stamina).toBe(3); expect(full.player.specialMeter).toBe(0);
+    expect(half.actionHistory.at(-1)?.actualDamage).toBe((full.actionHistory.at(-1)?.actualDamage ?? 0) / 2);
+    expect(half.actionHistory.at(-1)?.card.id).toBe(full.actionHistory.at(-1)?.card.id);
+    expect(battle.player.stamina).toBe(7); expect(battle.player.specialMeter).toBe(100);
+  });
+  it('invalid resource or target checks mutate nothing', () => {
+    for (const patch of [{ stamina: 1, specialMeter: 100 }, { stamina: 7, specialMeter: 49 }, { currentHP: 0, specialMeter: 100 }]) {
+      const battle = makeBattle(patch);
+      expect(ArenaCombatEngine.resolveSignatureFinisher(battle, battle.player.holobotId, 'half')).toBe(battle);
+    }
+    const battle = makeBattle({ specialMeter: 100 }, { currentHP: 0 });
+    expect(ArenaCombatEngine.resolveSignatureFinisher(battle, battle.player.holobotId)).toBe(battle);
+    expect(ArenaCombatEngine.resolveSignatureFinisher(battle, 'not-a-fighter')).toBe(battle);
+  });
+  it('cannot double spend during recovery but permits a deliberate later half cast', () => {
+    vi.useFakeTimers(); vi.setSystemTime(10000);
+    const battle = makeBattle({ stamina: 7, specialMeter: 100 }, { currentHP: 10000, maxHP: 10000 });
+    const first = ArenaCombatEngine.resolveSignatureFinisher(battle, battle.player.holobotId, 'half');
+    expect(ArenaCombatEngine.resolveSignatureFinisher(first, first.player.holobotId, 'half')).toBe(first);
+    vi.setSystemTime(10350);
+    const second = ArenaCombatEngine.resolveSignatureFinisher(first, first.player.holobotId, 'half');
+    expect(second.player.stamina).toBe(3);expect(second.player.specialMeter).toBe(0);
+    expect(second.actionHistory.length).toBe(first.actionHistory.length + 1);
+  });
+});
+
+
+describe('command invalid-input spending', () => {
+  it('rejects an unknown actor and a defeated target without changing state', () => {
+    const battle = makeBattle(); const jab = makeCard();
+    expect(ArenaCombatEngine.resolveAction(battle, jab, 'unknown')).toBe(battle);
+    battle.opponent.currentHP = 0;
+    expect(ArenaCombatEngine.canPlayCard(battle, 'player', jab)).toBe(false);
+    expect(ArenaCombatEngine.resolveAction(battle, jab, battle.player.holobotId)).toBe(battle);
+  });
+  it('rejects malformed costs and non-finite pools without awarding stamina', () => {
+    const battle = makeBattle();
+    for (const staminaCost of [-1, NaN, Infinity])
+      expect(ArenaCombatEngine.resolveAction(battle, makeCard({staminaCost}), battle.player.holobotId)).toBe(battle);
+    battle.player.stamina = NaN;
+    expect(ArenaCombatEngine.canPlayCard(battle, 'player', makeCard())).toBe(false);
+  });
+});
+
+
+describe('whole-roster half/full signature mapping', () => {
+  for (const name of ['ACE','KUMA','SHADOW','ERA','HARE','TORA','WAKE','GAMA','KEN','KURAI','TSUIN','WOLF']) {
+    it(`${name} keeps its own signature and meter-floor identity`, () => {
+      vi.useFakeTimers(); vi.setSystemTime(10_000);
+      const battle = makeBattle({ name, stamina:7, specialMeter:100, signatureFinisher:getSignatureFinisher(name), ability:getAbility(name) }, {maxHP:5000,currentHP:5000});
+      for (const power of ['half','full'] as const) {
+        const result = ArenaCombatEngine.resolveSignatureFinisher(battle,battle.player.holobotId,power);
+        expect(result.actionHistory.at(-1)?.card.id).toBe(getSignatureFinisher(name).id);
+        expect(result.player.stamina).toBe(power === 'half' ? 5 : 3);
+        const spentMeter = power === 'half' ? 50 : name === 'ERA' ? 25 : 0;
+        // TSUIN keeps its existing landed-hit meter proc (capped at 12).
+        expect(result.player.specialMeter).toBe(spentMeter + (name === 'TSUIN' ? 12 : 0));
+        expect(result.actionHistory.at(-1)?.actualDamage).toBeGreaterThan(0);
+        expect(battle.player.stamina).toBe(7); expect(battle.player.specialMeter).toBe(100);
+      }
+      vi.useRealTimers();
+    });
+  }
 });

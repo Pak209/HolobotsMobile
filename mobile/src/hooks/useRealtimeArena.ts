@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/config/firebase";
+import type { FinisherPower } from "@/features/arena/finisherPolicy";
 import { ArenaCombatEngine } from "@/features/arena/combatEngine";
 import {
   battleStateToRoomUpdates,
@@ -469,7 +470,7 @@ export function useRealtimeArena() {
   }, [myRole, room, user]);
 
   // Fires my signature finisher (7/7 meter) through the shared engine.
-  const useSignature = useCallback(async () => {
+  const useSignature = useCallback(async (power: FinisherPower = "full") => {
     if (!room || !myRole || !user) throw new Error("You are not in a battle.");
     const roomRef = doc(db, BATTLE_ROOMS, room.roomId);
     const engineRole = myRole === "p1" ? "player" : "opponent";
@@ -486,11 +487,11 @@ export function useRealtimeArena() {
       if (actGate === "entry_locked") throw new Error("Your Holobot is still entering the arena.");
 
       const state = roomToBattleState(freshRoom);
-      if (!ArenaCombatEngine.canUseSignatureFinisher(state, engineRole)) {
-        throw new Error("Your signature finisher needs a full special meter.");
+      if (!ArenaCombatEngine.canUseSignatureFinisher(state, engineRole, power)) {
+        throw new Error("Your Finisher needs enough stamina and the selected Sync charge.");
       }
 
-      const nextState = ArenaCombatEngine.resolveSignatureFinisher(state, PVP_FIGHTER_IDS[myRole]);
+      const nextState = ArenaCombatEngine.resolveSignatureFinisher(state, PVP_FIGHTER_IDS[myRole], power);
       if (nextState === state) throw new Error("Signature finisher is not ready.");
 
       transaction.update(roomRef, interceptTeamKo(freshRoom, battleStateToRoomUpdates(freshRoom, nextState)));
