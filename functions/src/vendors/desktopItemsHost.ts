@@ -1,3 +1,4 @@
+import {readHoloZoneRuns,HoloZoneError} from "../lib/holoZoneRuns";
 import {readOpenBattles} from "../lib/rivalLadder";
 import {REPAIR_ITEM,RepairError} from "../lib/repairItems";
 import {randomInt} from "node:crypto";
@@ -16,7 +17,7 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
   if(receipt?.exists){const saved=receipt.data()!;if(saved.identity!==identity)throw new ItemError("sequence_conflict");return {...saved.reply,alreadyProcessed:true};}
   const favorite=typeof state.data()?.favoriteId==="string"?state.data()!.favoriteId:null;
   if(c.operation==="read")return itemSnapshot(user.data()!,favorite,now);
-  if(c.operation==="use"&&c.itemId===REPAIR_ITEM){const open=await tx.get(firestore.doc(`rivalBattles/${uid}`));if(Object.keys(readOpenBattles(open.data(),now)).length)throw new ItemError("between_battles_only");}
+  if(c.operation==="use"&&c.itemId===REPAIR_ITEM){const open=await tx.get(firestore.doc(`rivalBattles/${uid}`));const zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));if(Object.keys(readOpenBattles(open.data(),now)).length||readHoloZoneRuns(zone.data()).some(r=>r.settlement===null&&r.closedAtMs===null&&now<=r.expiresAtMs))throw new ItemError("between_battles_only");}
   let i=0;const r=applyItemCommand(user.data()!,favorite,c,now,()=>draws[i++%draws.length]);
   if(Object.keys(r.updates).length)tx.update(userRef,r.updates);
   tx.set(stateRef,{schemaVersion:"desktop-items-2",favoriteId:r.favoriteId},{merge:true});
@@ -26,5 +27,5 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
 export const desktopItemsHost=onCall(async request=>{
  if(!request.auth)throw new HttpsError("unauthenticated","Sign in to use items.");
  try{return await transactDesktopItems(db,request.auth.uid,request.data);}
- catch(e){if(e instanceof ItemError||e instanceof RepairError)throw new HttpsError("failed-precondition",e.code,{rejectionCode:e.code});throw e;}
+ catch(e){if(e instanceof ItemError||e instanceof RepairError||e instanceof HoloZoneError)throw new HttpsError("failed-precondition",e.code,{rejectionCode:e.code});throw e;}
 });
