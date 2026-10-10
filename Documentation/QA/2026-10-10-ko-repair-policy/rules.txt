@@ -1,0 +1,30 @@
+KNOWN-BAD: unprotected ledger permits a client heal
+[2026-10-10T23:36:02.901Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3d8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:36:02.907Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3d9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:36:02.911Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3da error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T23:36:02.915Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3db error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T23:36:02.923Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3dc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:36:02.927Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3dd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:36:02.931Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3de error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T23:36:02.936Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3df error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T23:36:02.945Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3e0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:36:02.949Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3e1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:36:02.952Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3e2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T23:36:02.955Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3e3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T23:36:02.967Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3e4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L186, false for 'create' @ L333, evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'create' @ L186, false for 'create' @ L333
+[2026-10-10T23:36:02.979Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6cede3e5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L186, false for 'create' @ L333, evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'create' @ L186, false for 'create' @ L333
+PASS: 14 repair stock, health and receipt denials

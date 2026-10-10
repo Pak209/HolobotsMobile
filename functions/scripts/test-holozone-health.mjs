@@ -58,10 +58,10 @@ test('issue with the flag: playerCombatants carry currentHealth, the ledger writ
   const rec = i.doc.runs[i.doc.runs.length - 1];
   assert.equal(rec.healthSchema, FLAG); assert.deepEqual(rec.issuedVitals, p.holobotVitals);
   assert.deepEqual(Z.readHoloZoneRuns(i.doc)[i.doc.runs.length - 1].issuedVitals, rec.issuedVitals, 'stored records with the new fields still read');
-  // A ledger value is served and clamped to the current max; the host's recovery at zero (40 %) is the rival issue's policy, unchanged here.
+  // A ledger value is served and clamped to the current max; a zero ledger remains KO until an accepted repair (DECISIONS #53 amendment 6).
   const q = profile({ holobotVitals: { ace: { currentHealth: 30, maxHealth: 100 }, kuma: { currentHealth: 0, maxHealth: 300 } } });
   const j = issue(q, true);
-  assert.deepEqual(j.reply.playerCombatants.map(c => c.currentHealth), [30, KUMA_MAX * 0.4]);
+  assert.deepEqual(j.reply.playerCombatants.map(c => c.currentHealth), [30, 0]);
   assert.deepEqual(j.reply.playerCombatants.map(c => c.currentHealth), [H.issueVitals(profile({ holobotVitals: { ace: { currentHealth: 30, maxHealth: 100 } } }), [{ holobotId: 'ace', maxHealth: ACE_MAX }]).ace.currentHealth, H.issueVitals(profile({ holobotVitals: { kuma: { currentHealth: 0, maxHealth: 300 } } }), [{ holobotId: 'kuma', maxHealth: KUMA_MAX }]).kuma.currentHealth]);
   // A tampered ledger fails closed on a flagged issue (unavailable) and is ignored by a plain one.
   const t = profile({ holobotVitals: { ace: { currentHealth: 9999, maxHealth: 192 } } });

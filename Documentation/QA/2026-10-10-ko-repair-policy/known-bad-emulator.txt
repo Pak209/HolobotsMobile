@@ -1,0 +1,51 @@
+✖ known-bad: rival loss at zero stays zero on reconnect and the next rival and zone issue (464.562583ms)
+✖ known-bad: zone issue cannot heal zero; open zone refuses repair, closed zone permits accepted repair (14.130542ms)
+✔ duplicate repair retries spend once; changing the target under the same id refuses (3509.761791ms)
+✔ independent concurrent repairs cannot spend one patch twice (3269.772542ms)
+✔ open rival refuses repair without stock, ledger or receipt changes (25.425625ms)
+✔ callable requires authentication and refuses spoofed health/amount before writes (6.586625ms)
+✔ old clients without health opt-in leave an existing zero ledger untouched (11.553542ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 5
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7478.657
+
+✖ failing tests:
+
+test at functions/scripts/test-ko-repair-policy-emulator.mjs:19:1
+✖ known-bad: rival loss at zero stays zero on reconnect and the next rival and zone issue (464.562583ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  60 !== 0
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobotsmobile-ko-repair-20261010/functions/scripts/test-ko-repair-policy-emulator.mjs:23:62)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 60,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at functions/scripts/test-ko-repair-policy-emulator.mjs:27:1
+✖ known-bad: zone issue cannot heal zero; open zone refuses repair, closed zone permits accepted repair (14.130542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  60 !== 0
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobotsmobile-ko-repair-20261010/functions/scripts/test-ko-repair-policy-emulator.mjs:28:97)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 60,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

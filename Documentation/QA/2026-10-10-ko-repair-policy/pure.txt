@@ -1,0 +1,12 @@
+✔ known-bad: issuing again cannot heal a knocked-out bot (0.82525ms)
+✔ an accepted repair is the existing health increase, and its value carries on issue (0.4805ms)
+✔ no stock, full health, foreign bot and unknown health refuse without mutating input (0.564875ms)
+✔ fresh host bot starts full, survivors carry, health reports cannot manufacture a heal (0.120208ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40.765167

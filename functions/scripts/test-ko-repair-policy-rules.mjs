@@ -1,0 +1,12 @@
+import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import assert from 'node:assert/strict';
+const require=createRequire(new URL('../../rules-tests/package.json',import.meta.url));
+const {initializeTestEnvironment,assertFails,assertSucceeds}=require('@firebase/rules-unit-testing');const {doc,setDoc,updateDoc}=require('firebase/firestore');
+const address=process.env.FIRESTORE_EMULATOR_HOST??'';if(!/^(127\.0\.0\.1|localhost):\d+$/.test(address))throw Error('Local emulator required');const [host,port]=address.split(':');
+const rules=readFileSync(new URL('../../firestore.rules',import.meta.url),'utf8');const weak=rules.replace("'emergencyPatches', 'holobotVitals',", "'emergencyPatches',");assert.notEqual(weak,rules);
+const zero={displayName:'Pilot',emergencyPatches:1,holobotVitals:{ace:{currentHealth:0,maxHealth:160}}};
+const bad=await initializeTestEnvironment({projectId:'demo-ko-rules-control',firestore:{host,port:Number(port),rules:weak}});
+try{await bad.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice'),zero));await assertSucceeds(updateDoc(doc(bad.authenticatedContext('alice').firestore(),'users/alice'),{holobotVitals:{ace:{currentHealth:160,maxHealth:160}}}));console.log('KNOWN-BAD: unprotected ledger permits a client heal');}finally{await bad.cleanup();}
+const env=await initializeTestEnvironment({projectId:'demo-ko-rules',firestore:{host,port:Number(port),rules}});let n=0;
+try{await env.withSecurityRulesDisabled(async c=>setDoc(doc(c.firestore(),'users/alice'),zero));await assertSucceeds(updateDoc(doc(env.authenticatedContext('alice').firestore(),'users/alice'),{displayName:'Allowed'}));
+for(const who of ['alice','bob',null]){const db=(who?env.authenticatedContext(who):env.unauthenticatedContext()).firestore();for(const update of [{holobotVitals:{ace:{currentHealth:160,maxHealth:160}}},{emergencyPatches:99}]){await assertFails(updateDoc(doc(db,'users/alice'),update));n++;}for(const path of ['itemInventories/alice','itemInventories/alice/receipts/forged']){await assertFails(setDoc(doc(db,path),{result:{kind:'repair',currentHealth:160}}));n++;}}
+for(const key of ['emergencyPatches','holobotVitals']){const db=env.authenticatedContext('new_'+key).firestore();await assertFails(setDoc(doc(db,'users/new_'+key),{[key]:zero[key]}));n++;}console.log('PASS: '+n+' repair stock, health and receipt denials');}finally{await env.cleanup();}

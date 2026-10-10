@@ -17,9 +17,9 @@ function ledger(profile:Record<string,unknown>):Vitals{
  const out:Vitals={};for(const [id,v]of Object.entries(raw)){const x=v as Vitals[string];if(!x||typeof x.currentHealth!=='number'||!Number.isFinite(x.currentHealth)||typeof x.maxHealth!=='number'||!Number.isFinite(x.maxHealth)||x.maxHealth<=0||x.currentHealth<0||x.currentHealth>x.maxHealth)throw new HealthError('unavailable');out[id]={...x};}return out;
 }
 export function issueVitals(profile:Record<string,unknown>,players:{holobotId:string;maxHealth:number}[]){
- const next=ledger(profile);for(const p of players){if(!Number.isFinite(p.maxHealth)||p.maxHealth<=0)throw new HealthError('unavailable');const old=next[p.holobotId];let hp=old?Math.min(old.currentHealth,p.maxHealth):p.maxHealth;
- // Pak: recovery at zero is host-owned. Retain the existing forty-percent recovery as host policy.
- if(hp===0)hp=p.maxHealth*.4;next[p.holobotId]={currentHealth:hp,maxHealth:p.maxHealth};}return next;
+ const next=ledger(profile);for(const p of players){if(!Number.isFinite(p.maxHealth)||p.maxHealth<=0)throw new HealthError('unavailable');const old=next[p.holobotId];const hp=old?Math.min(old.currentHealth,p.maxHealth):p.maxHealth;
+ // DECISIONS #53 amendment 6: repair items now exist. A persisted KO stays at zero; issue never heals.
+ next[p.holobotId]={currentHealth:hp,maxHealth:p.maxHealth};}return next;
 }
 export function settleVitals(profile:Record<string,unknown>,issued:Vitals,rows:HealthRow[]):Vitals{
  const next=ledger(profile);for(const r of rows){const start=issued[r.holobotId],current=next[r.holobotId];if(!start||!current||r.currentHealth>start.currentHealth)throw new HealthError('invalid_request');next[r.holobotId]={...current,currentHealth:Math.min(current.currentHealth,r.currentHealth)};}return next;

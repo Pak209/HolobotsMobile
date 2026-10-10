@@ -1,0 +1,11 @@
+✔ issue → loss → reconnect → repair → next issue carries actual health, retries spend once (399.375208ms)
+✔ foreign, inflated and nonfinite reports fail before settlement; concurrent issue blocked (34.672791ms)
+✔ zero-health stays KO until repair, and a larger max does not heal survivors (0.518333ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3238.490375
