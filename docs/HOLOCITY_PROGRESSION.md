@@ -422,6 +422,10 @@ TrainingScreen would use `getHolobotDisplayStats`.
    no stored-record change. Additive behind the request version: the shipped Unity build (v1) is untouched until Unity
    flips its request to `holozone-run-2` and reads `population`.
 
+**Zone health (branch `claude/vigilant-maxwell-tfbtqx-current-health`, section 9):** `firebase deploy --project
+holobots-24046 --only functions:holoZoneHost` — the same function; behind the `healthSchema` request flag on the zone
+requests, which the shipped Unity zone client does not send yet.
+
 ## 8. Tests
 
 `mobile`: `npm test` — `battleSettlementParity`, `attributeBoostParity`, `playerCombatantParity`
@@ -440,3 +444,63 @@ emulator transaction-contention flakes in the existing parallel-settle tests.
 Zone population adds: `functions` `test-holozone-population` (the table's data rules + coverage, the producer defaults,
 v1 byte-identity against pinned strings, v2 shapes, the known-bad rows) and a `holozone-run-2` case in
 `test-holozone-emulator` (both versions through the store and the callable; the stored run unchanged).
+
+## 9. Host-owned current health on the zone — `rival-health-1` for `holoZoneHost` (DECISIONS #53 amendment 4, #54 amendment 2)
+
+Pak (2026-10-08): each Holobot carries its host-confirmed remaining health across battles and zone returns; at zero it
+needs host-approved recovery. **The rival half is deployed** (2026-10-10, `lib/rivalHealth.ts`, `rival/rivalBattleStore.ts`;
+`Documentation/QA/2026-10-10-items-health/`): a `rival-battle-3` request carrying `healthSchema: "rival-health-1"` gets
+`currentHealth` on every player combatant on issue, the issue writes the ledger, and `settle{health[]}` writes the
+reports; the Emergency Patch (`desktopItemsHost`, `lib/repairItems.ts`) repairs from the same ledger between battles.
+This section is the **zone half**: the same flag, the same ledger, the same rules on `holoZoneHost`, so health carries
+town → zone → town without a second store.
+
+**The one ledger:** `users/{uid}.holobotVitals = { [holobotId]: { currentHealth, maxHealth } }` — a protected field
+(`protectedFieldsUntouched`; never on create), written only by the two hosts' issue / settle and the repair item. Rules
+(`lib/rivalHealth.ts`, unchanged by this section): `issueVitals` serves a bot never seen at full health, clamps a stored
+value to the combatant's current `maxHealth` (a level-up raises the max and the current carries), and applies the host's
+recovery at zero (40 % of max — Pak's amount call pending); `settleVitals` keeps `min(current, reported)` and refuses a
+report above what was issued, a bot the issue did not carry, or a non-finite value (`invalid_request`, nothing written).
+
+### issue + flag → `playerCombatants[]` with `currentHealth`
+
+`{ "schemaVersion": "holozone-run-1" | "holozone-run-2", "operation": "issue", "zoneId": "neonforest", "healthSchema": "rival-health-1" }` →
+the v1 / v2 reply plus `playerCombatants[]` — the travel squad in slot order, each the rival-battle-3 player shape
+(`lib/rivalLadder.ts` `buildPlayerCombatants`: real stats, `commandRules`, progression fields) plus `currentHealth` from
+`issueVitals`. The issue **writes the ledger** (`holobotVitals`, exactly what the rival issue writes) and the run record
+keeps what it issued (`healthSchema`, `issuedVitals` — the rival record's field names). Without the flag the reply, the
+record and the user doc are exactly as before.
+
+```json
+{ "schemaVersion": "holozone-run-1", "runId": "0b9f3c1e-…", "zoneId": "neonforest", "tier": 0, "squad": ["ace", "kuma"],
+  "issuedAtMs": 1791309580000, "expiresAtMs": 1791316780000,
+  "playerCombatants": [ { "holobotId": "ace", "level": 4, "maxHealth": 192, "currentHealth": 30, "attack": 96, "…": "…" }, { "holobotId": "kuma", "level": 1, "maxHealth": 200, "currentHealth": 200, "…": "…" } ] }
+```
+
+### settle + flag + `health: [{ holobotId, currentHealth }]` → written with the ruling
+
+`{ "operation": "settle", "runId": "…", "kills": 3, "bossDefeated": false, "fielded": ["ace", "kuma"], "healthSchema": "rival-health-1", "health": [ { "holobotId": "ace", "currentHealth": 12 } ] }`
+
+- `health` needs the flag (else `invalid_request`); 0–3 distinct rows, `holobotId` + `currentHealth` only, finite ≥ 0.
+- The run must have been issued with the flag (`healthSchema` on the record), each row must name a bot it issued, and
+  no row may exceed what it issued — else `invalid_request` and **nothing is written** (XP included).
+- `settleVitals` lands in `users/{uid}.holobotVitals` in the same transaction as the XP (`holobots`) and the ruling.
+- **Nothing health-related goes on the settle reply or the settlement** (the rival host's rule); a duplicate settle
+  replays the ruling and writes nothing. A flagged settle with no `health` rules as before and touches no ledger.
+- The repair item already refuses while a zone run is open (`between_battles_only`, `desktopItemsHost`); unchanged.
+
+### Deploy (Pak)
+
+`firebase deploy --project holobots-24046 --only functions:holoZoneHost` — no new function, no rules change (the ledger
+field is already protected), no index change, no deletion change (the ledger lives on `users/{uid}`). Everything is
+behind the request flag; the shipped Unity zone client sends no flag yet (its files are byte-pinned), so the deployed
+behaviour is unchanged until Unity flips.
+
+### Tests
+
+`functions` `test-holozone-health` (requests, the flagged issue = the rival issue's ledger write, the record, clamping and
+the 40 % recovery through `issueVitals` itself, settle reports at or below the bound with inflated / foreign /
+unflagged-run refusals writing nothing, replays, carry rival → zone → rival through the one ledger, no-flag byte pins);
+`test-holozone-health-emulator` (through the store and the callable on the Firestore emulator: the user doc's ledger,
+parallel settles, refusals writing nothing, a tampered ledger failing closed, the rival host's values served by the zone
+and back, the repair item refused while the run is open).
