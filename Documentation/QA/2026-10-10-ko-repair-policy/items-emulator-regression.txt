@@ -1,0 +1,46 @@
+✔ same purchase retry spends exactly once (126.193125ms)
+✔ parallel consumes cannot spend one item twice (3203.31925ms)
+✔ favorite survives reconnect and belongs only to its account (40.579625ms)
+✔ cache retry returns the same reveal and consumes once (31.942083ms)
+✔ account deletion removes favorites and receipts (59.189958ms)
+✖ rules deny client inventory, favorites and receipt writes (82.587083ms)
+✔ repair retry restores only the chosen bot and spends once (34.656875ms)
+✔ repair refuses during a host-issued battle without spending (14.79925ms)
+✖ rules deny repair stock and health spoofing (1.021208ms)
+✔ repair refuses during an active zone without spending (19.474333ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3713.441125
+
+✖ failing tests:
+
+test at functions/scripts/test-desktop-items-emulator.mjs:11:1
+✖ rules deny client inventory, favorites and receipt writes (82.587083ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect ECONNREFUSED 127.0.0.1:18080
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2017:16) {
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 18080
+    }
+  }
+
+test at functions/scripts/test-desktop-items-emulator.mjs:15:1
+✖ rules deny repair stock and health spoofing (1.021208ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect ECONNREFUSED 127.0.0.1:18080
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2017:16) {
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 18080
+    }
+  }

@@ -25,7 +25,7 @@
  * health ledger users/{uid}.holobotVitals the deployed rival host writes): a request carrying `healthSchema` gets
  * `playerCombatants[]` on the issue reply (the rival-battle-3 player shape, built the same way) each with the host's
  * `currentHealth`; the issue writes the ledger (issueVitals: full for a bot never seen, clamped to the max, the host's
- * recovery at zero) and the run record keeps what it issued (`issuedVitals`); settle{health[]} keeps each report at or
+ * persisted zero remains KO until repair) and the run record keeps what it issued (`issuedVitals`); settle{health[]} keeps each report at or
  * below what was issued (settleVitals: inflated / foreign / non-finite reports are invalid_request, nothing written) in
  * the same transaction as the ruling. Without the flag every reply is exactly the deployed shape and the ledger is never
  * touched. Nothing health-related goes on a settle reply or a settlement (the rival host's rule).

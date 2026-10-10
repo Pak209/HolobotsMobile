@@ -1,0 +1,19 @@
+✔ catalog uses actual host counts and rates (0.734375ms)
+✔ favorites never grant an item (0.5015ms)
+✔ energy use consumes once and returns confirmed energy (0.168209ms)
+✔ no inventory and full energy refuse without write (0.2085ms)
+✔ booster window comes from existing economy (0.136209ms)
+✔ purchase charges canonical price (0.572542ms)
+✔ cache consumes tickets and server grants rewards (0.391916ms)
+✔ malformed counts, unknown items and schema fail closed (0.099416ms)
+✔ cache grants one repair alongside existing rewards (0.114125ms)
+✔ repair uses owned squad target and server health, never supplied health (0.181792ms)
+✔ repair refuses missing/full/foreign health without consumption (0.13125ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44.905167

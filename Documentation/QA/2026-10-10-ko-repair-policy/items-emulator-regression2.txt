@@ -1,0 +1,101 @@
+✖ same purchase retry spends exactly once (338.486541ms)
+✖ parallel consumes cannot spend one item twice (52.488792ms)
+✔ favorite survives reconnect and belongs only to its account (46.254ms)
+✖ cache retry returns the same reveal and consumes once (56.925042ms)
+✔ account deletion removes favorites and receipts (163.463042ms)
+[2026-10-10T23:42:07.738Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x68ddb054 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T23:42:07.753Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x68ddb055 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+✔ rules deny client inventory, favorites and receipt writes (456.564166ms)
+✖ repair retry restores only the chosen bot and spends once (88.131083ms)
+✔ repair refuses during a host-issued battle without spending (64.06275ms)
+[2026-10-10T23:42:08.052Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x68ddb056 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:42:08.068Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x68ddb057 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T23:42:08.116Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x68ddb058 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L186, false for 'create' @ L333, evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'create' @ L186, false for 'create' @ L333
+✔ rules deny repair stock and health spoofing (209.821084ms)
+✔ repair refuses during an active zone without spending (29.814541ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 6
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3404.878833
+
+✖ failing tests:
+
+test at functions/scripts/test-desktop-items-emulator.mjs:7:1
+✖ same purchase retry spends exactly once (338.486541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 3
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobotsmobile-ko-repair-20261010/functions/scripts/test-desktop-items-emulator.mjs:7:325)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at functions/scripts/test-desktop-items-emulator.mjs:8:1
+✖ parallel consumes cannot spend one item twice (52.488792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobotsmobile-ko-repair-20261010/functions/scripts/test-desktop-items-emulator.mjs:8:291)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at functions/scripts/test-desktop-items-emulator.mjs:10:1
+✖ cache retry returns the same reveal and consumes once (56.925042ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  10 !== 9
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobotsmobile-ko-repair-20261010/functions/scripts/test-desktop-items-emulator.mjs:10:304)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 10,
+    expected: 9,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at functions/scripts/test-desktop-items-emulator.mjs:14:1
+✖ repair retry restores only the chosen bot and spends once (88.131083ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobotsmobile-ko-repair-20261010/functions/scripts/test-desktop-items-emulator.mjs:14:603)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

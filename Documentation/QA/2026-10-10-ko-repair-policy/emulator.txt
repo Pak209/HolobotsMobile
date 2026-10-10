@@ -1,0 +1,15 @@
+✔ known-bad: rival loss at zero stays zero on reconnect and the next rival and zone issue (494.921208ms)
+✔ known-bad: zone issue cannot heal zero; open zone refuses repair, closed zone permits accepted repair (57.968667ms)
+✔ duplicate repair retries spend once; changing the target under the same id refuses (3143.011292ms)
+✔ independent concurrent repairs cannot spend one patch twice (2879.595167ms)
+✔ open rival refuses repair without stock, ledger or receipt changes (34.775333ms)
+✔ callable requires authentication and refuses spoofed health/amount before writes (6.474583ms)
+✔ old clients without health opt-in leave an existing zero ledger untouched (11.858625ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6771.216917
