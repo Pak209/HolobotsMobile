@@ -1,3 +1,4 @@
+import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
 import { randomBytes, randomInt } from 'node:crypto';
 import { Firestore, Timestamp } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
@@ -28,6 +29,7 @@ function squadIdsOf(profile: Record<string, unknown>): string[] {
 }
 export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000) {
   const command = validateRivalCommand(raw);
+  const healthEnabled=(raw as {healthSchema?:unknown})?.healthSchema===RIVAL_HEALTH_SCHEMA;
   const userRef = db.doc(`users/${uid}`);
   // Pin the battle id and draws outside the transaction so retries rule identically.
   const battleId = command.operation === 'settle' ? command.battleId : `rb_${randomBytes(12).toString('hex')}`;
@@ -48,6 +50,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
       const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion));
+      if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{const vitals=issueVitals(profile,r.reply.playerCombatants);r.userUpdates.holobotVitals=vitals;(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
       const nextOpen = openBattlesAfterIssue(open, r.battle);
       if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen });
@@ -58,6 +61,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     const battle = await tx.get(battleRef);
     const ledger = await tx.get(ledgerRef);
     const r = settleRivalBattle(profile, battle.exists ? (battle.data() as RivalBattleRecord) : undefined, command.battleId, command.didWin, nowMs, command.fielded, squadIdsOf(profile));
+    if(r.battleUpdates&&command.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,command.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
     if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
     if (r.battleUpdates) {
       tx.update(battleRef, r.battleUpdates);

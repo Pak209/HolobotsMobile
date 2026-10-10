@@ -1,3 +1,4 @@
+import {healthRows,RIVAL_HEALTH_SCHEMA,HealthRow,HealthError} from "./rivalHealth";
 import {repairGrant} from "./repairItems";
 import { desktopPracticeCommands } from "./desktopPracticeCommands";
 /**
@@ -415,7 +416,7 @@ export function openBattlesAfterSettle(open: Record<string, number>, battleId: s
 }
 
 /** `schemaVersion` is the reply version the client asked for (request field; missing = v1, the deployed shape). */
-export type RivalCommand = ({ operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean; fielded?: string[] }) & { schemaVersion: RivalWireVersion };
+export type RivalCommand = ({ operation: "status" } | { operation: "issue" } | { operation: "settle"; battleId: string; didWin: boolean; fielded?: string[]; healthSchema?:string; health?:HealthRow[] }) & { schemaVersion: RivalWireVersion };
 
 export const RIVAL_BATTLE_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 /** A fielded Holobot id: the travel-squad id rule. */
@@ -438,7 +439,10 @@ export function validateRivalCommand(raw: unknown): RivalCommand {
   if (c.operation !== "settle") throw new RivalError("invalid_request");
   if (typeof c.battleId !== "string" || !RIVAL_BATTLE_ID.test(c.battleId) || typeof c.didWin !== "boolean") throw new RivalError("invalid_request");
   const fielded = validateFielded(c.fielded);
-  return fielded === undefined ? { operation: "settle", battleId: c.battleId, didWin: c.didWin, schemaVersion } : { operation: "settle", battleId: c.battleId, didWin: c.didWin, fielded, schemaVersion };
+  if(c.healthSchema!==undefined&&c.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");
+  let health:HealthRow[]|undefined;try{health=healthRows(c.health);}catch{throw new RivalError("invalid_request");}
+  if(health!==undefined&&c.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");
+  return fielded === undefined ? { operation: "settle", battleId: c.battleId, didWin: c.didWin, ...(c.healthSchema===RIVAL_HEALTH_SCHEMA?{healthSchema:RIVAL_HEALTH_SCHEMA,health}:{}), schemaVersion } : { operation: "settle", battleId: c.battleId, didWin: c.didWin, fielded, ...(c.healthSchema===RIVAL_HEALTH_SCHEMA?{healthSchema:RIVAL_HEALTH_SCHEMA,health}:{}), schemaVersion };
 }
 
 type Ledger = { units: BuddyInventory; inventoryUpdates: Profile; wins: number; rewardDay: string };

@@ -1,0 +1,61 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test /Users/pak/Projects/HolobotsMobile/functions/scripts/test-rival-health-emulator.mjs /Users/pak/Projects/HolobotsMobile/functions/scripts/test-desktop-items-emulator.mjs /Users/pak/Projects/HolobotsMobile/functions/scripts/test-rival-battle-emulator.mjs /Users/pak/Projects/HolobotsMobile/functions/scripts/test-rival-progression-emulator.mjs
+✔ same purchase retry spends exactly once (653.092708ms)
+✔ parallel consumes cannot spend one item twice (3529.244292ms)
+✔ favorite survives reconnect and belongs only to its account (28.219417ms)
+✔ cache retry returns the same reveal and consumes once (28.92075ms)
+✔ account deletion removes favorites and receipts (73.210625ms)
+[2026-10-10T09:49:00.708Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x89d23535 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+[2026-10-10T09:49:00.714Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x89d23536 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'update' @ L333
+✔ rules deny client inventory, favorites and receipt writes (317.181667ms)
+✔ repair retry restores only the chosen bot and spends once (37.625ms)
+✔ repair refuses during a host-issued battle without spending (15.998959ms)
+[2026-10-10T09:49:00.875Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x89d23537 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T09:49:00.884Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x89d23538 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'update' @ L197, false for 'update' @ L333
+[2026-10-10T09:49:00.899Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x89d23539 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L186, false for 'create' @ L333, evaluation error at L197:24 for 'update' @ L197, false for 'update' @ L333, false for 'create' @ L186, false for 'create' @ L333
+✔ rules deny repair stock and health spoofing (131.795708ms)
+✔ issue returns a server lineup and persists the battle outside user-writable paths (606.433042ms)
+✔ first win of the day grants a Unit; the second does not; next UTC day does; loss counts nothing (127.596166ms)
+✔ parallel duplicate settles grant once and count one win (3541.265083ms)
+✔ foreign, unknown and expired battle ids are rejected with nothing written (41.772125ms)
+✔ callable maps rejections to typed codes and requires auth (12.942833ms)
+✔ starter Unit exactly once: createGenesisProfile, then desktop snapshot, wild refresh and rival status never re-grant (34.369792ms)
+✔ starter Unit exactly once for a mobile-created profile reached first by parallel desktop/rival reads (3483.294209ms)
+✔ TTL field: every issued battle carries expireAt (Timestamp) = expiry + grace; settle keeps it; replay works inside the grace window (64.238416ms)
+✔ parallel wins on different battles in one UTC day grant the daily Unit once and count every win (3387.1315ms)
+✔ max 3 open battles: a 4th issue is too_many_open (nothing written); settle or expiry frees a slot (99.2355ms)
+✔ parallel issues never exceed 3 open battles (3216.619292ms)
+✔ too_fast: a win under 20 s after issue is rejected with nothing written; it can settle once 20 s have passed (64.899708ms)
+✔ #44 per-tier inventory: status reports every tier, the daily win grants Light only, a #43 integer migrates once (39.602167ms)
+✔ rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact deployed shape, buddyUnits = total int, same rulings (46.992083ms)
+✔ desktop-account-1 (no data, as the shipped Unity build sends): exact deployed shape with buddyUnits = total int; desktop-account-2 on request (31.203167ms)
+✔ issue → loss → reconnect → repair → next issue carries actual health, retries spend once (694.902083ms)
+✔ foreign, inflated and nonfinite reports fail before settlement; concurrent issue blocked (46.206334ms)
+✔ zero-health recovery is host policy, and a larger max does not heal survivors (0.482458ms)
+✔ v3 issue serves the travel squad as playerCombatants and snapshots it into the record (607.760625ms)
+✔ v3 settle{fielded} writes Holobot XP once; duplicates replay the progression and write nothing (73.3515ms)
+✔ parallel first settles award XP exactly once (3300.040958ms)
+✔ fielded outside the travel squad is invalid_request (nothing written); v2 callers see the #44 shapes (53.181083ms)
+✔ a malformed travel squad never breaks issue/settle: playerCombatants [] and fielded refused (28.628792ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14955.370833
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
