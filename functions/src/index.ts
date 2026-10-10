@@ -49,3 +49,5 @@ export { holoZoneHost } from "./holozone/holoZoneHost";
 export { introQuestHost } from "./quests/introQuestHost";
 export { vendorCatalogHost, purchaseBuddyUnit } from "./vendors/vendorCatalogHost";
 export { wardrobeHost } from "./vendors/wardrobeHost";
+
+export {desktopItemsHost} from "./vendors/desktopItemsHost";
