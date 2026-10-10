@@ -10,6 +10,7 @@ const { db } = require('../lib/admin.js');
 const { transactHoloZoneRun } = require('../lib/holozone/holoZoneStore.js');
 const { holoZoneHost } = require('../lib/holozone/holoZoneHost.js');
 const Z = require('../lib/lib/holoZoneRuns.js');
+const POP = require('../lib/lib/holoZonePopulation.js');
 const P = require('../lib/lib/progression.js');
 const T0 = Date.UTC(2026, 9, 6, 18, 0, 0);
 let serial = 0;
@@ -104,4 +105,37 @@ test('zero-kill loss earns the loss amount; a settle < 20 s after issue earns 0;
   assert.deepEqual((await call(empty, { operation: 'issue', zoneId: 'neonforest' })).squad, []);
   const broken = await setup({ travelSquad: squad(['NOT_A_BOT']) });
   await assert.rejects(() => call(broken, { operation: 'issue', zoneId: 'neonforest' }), /unavailable/);
+});
+
+test('holozone-run-2: issue / status carry the population by zone and tier; v1 replies and the stored run are untouched', async () => {
+  const uid = await setup();
+  const v2 = (data, now = T0) => transactHoloZoneRun(db, uid, { schemaVersion: 'holozone-run-2', ...data }, now);
+  assert.deepEqual(await v2({ operation: 'status' }), { schemaVersion: 'holozone-run-2', run: null, population: null });
+  const i = await v2({ operation: 'issue', zoneId: 'neonforest' }, ISSUED);
+  assert.equal(i.schemaVersion, 'holozone-run-2'); assert.match(i.runId, Z.HOLOZONE_RUN_ID); assert.deepEqual(i.squad, ['ace', 'kuma']);
+  assert.deepEqual(i.population, POP.holoZonePopulation('neonforest', 0));
+  assert.deepEqual(i.population.beasts.map(b => [b.beastId, b.count, b.respawn.kind]), [['scrapling', 3, 'timer']]); assert.equal(i.population.boss.bossId, 'root_nexus');
+  const st = await v2({ operation: 'status' });
+  assert.equal(st.schemaVersion, 'holozone-run-2'); assert.equal(st.run.runId, i.runId); assert.deepEqual(st.population, i.population);
+  // The same open run through v1 (the shipped client): the deployed shape, no population key.
+  const v1 = await call(uid, { operation: 'status' });
+  assert.deepEqual(Object.keys(v1), ['schemaVersion', 'run']); assert.equal(v1.schemaVersion, 'holozone-run-1'); assert.deepEqual(v1.run, st.run);
+  // The stored record does not carry the population (it is derived from zone + tier at read time).
+  const stored = await runsDoc(uid);
+  assert.deepEqual(Object.keys(stored.runs[0]).sort(), ['closedAtMs', 'expiresAtMs', 'issuedAtMs', 'progression', 'runId', 'settlement', 'squad', 'tier', 'zoneId']);
+  // settle under v2 = the v1 ruling under the v2 version; afterwards status v2 has no open run and population null.
+  const s = await v2({ operation: 'settle', runId: i.runId, kills: 2, bossDefeated: true, fielded: ['ace'] });
+  assert.equal(s.schemaVersion, 'holozone-run-2'); assert.equal(s.alreadyProcessed, false); assert.equal(s.settlement.tableExp, 137); assert.equal('population' in s, false);
+  assert.deepEqual(await v2({ operation: 'status' }), { schemaVersion: 'holozone-run-2', run: null, population: null });
+  // Through the callable (real clock), both versions: a v2 issue carries the population, a v1 status of the same run does not.
+  const c2 = await holoZoneHost.run({ auth: { uid }, data: { schemaVersion: 'holozone-run-2', operation: 'issue', zoneId: 'neonforest' } });
+  assert.equal(c2.schemaVersion, 'holozone-run-2'); assert.deepEqual(c2.population, POP.holoZonePopulation('neonforest', 0));
+  const c1 = await holoZoneHost.run({ auth: { uid }, data: { operation: 'status' } });
+  assert.equal(c1.schemaVersion, 'holozone-run-1'); assert.equal(c1.run.runId, c2.runId); assert.equal('population' in c1, false);
+  const c2s = await holoZoneHost.run({ auth: { uid }, data: { schemaVersion: 'holozone-run-2', operation: 'status' } });
+  assert.deepEqual(c2s.population, c2.population);
+  // An unknown version is invalid-argument through the callable, nothing written.
+  const before = await runsDoc(uid);
+  await assert.rejects(() => holoZoneHost.run({ auth: { uid }, data: { schemaVersion: 'holozone-run-3', operation: 'status' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
+  assert.deepEqual(await runsDoc(uid), before);
 });
