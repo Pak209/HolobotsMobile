@@ -4,10 +4,12 @@ import { HoloZoneError } from '../lib/holoZoneRuns';
 import { transactHoloZoneRun } from './holoZoneStore';
 
 /**
- * DECISIONS #53 amendment 1: the beast counterpart of rivalBattleHost. Operations (schemaVersion "holozone-run-1"):
+ * DECISIONS #53 amendment 1: the beast counterpart of rivalBattleHost. Operations (schemaVersion "holozone-run-1", or
+ * "holozone-run-2" for the population on issue / status — DECISIONS #54 plan §P1 item 2, additive):
  * status | issue{zoneId} | settle{runId, kills, bossDefeated, fielded}. The server issues the run id, owns the zone
- * tier and the EXP, and settles once per runId; the client reports kills / boss / the fielded Holobots.
- * Spec: docs/HOLOCITY_PROGRESSION.md section 5.
+ * tier, the beast roster / spawn counts / respawn rule (by zone and tier) and the EXP, and settles once per runId; the
+ * client places the bodies and reports kills / boss / the fielded Holobots.
+ * Spec: docs/HOLOCITY_PROGRESSION.md section 5 (+ 5a for holozone-run-2).
  */
 export const holoZoneHost = onCall(async request => {
   const uid = request.auth?.uid;

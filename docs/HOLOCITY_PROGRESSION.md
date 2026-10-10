@@ -305,6 +305,56 @@ rule; an explicit `allow read, write: if false` block was added to `firestore.ru
 no behaviour change, deploying the rules is optional). `deleteUserData` (account deletion) removes it.
 settle writes `users/{uid}.holobots` and the ruling in one transaction.
 
+## 5a. `holoZoneHost` — `holozone-run-2`: the zone population by zone and tier (DECISIONS #54, plan §P1 item 2)
+
+Additive over `holozone-run-1`, negotiated like `rival-battle-3`: a request carrying `schemaVersion: "holozone-run-2"`
+gets v2 replies; `holozone-run-1` / no version get **exactly** the deployed v1 shapes (byte-identical, key order
+included; one-off control against the `main` build d5ad1de: 476 compared v1 outputs — issue / status / settle /
+duplicate-settle replies and the stored docs — **0 mismatches**; a one-value change and a key-order change are both
+flagged). Rulings are identical in both versions. The stored record (`holoZoneRuns/{uid}`) never changes: the
+population is derived from the run's zone and tier at read time.
+
+**What the host now serves** (`lib/holoZonePopulation.ts`, server data, Pak tunes): the beast roster, how many bodies
+each beast fields at zone entry, and the respawn rule — instead of Unity's StreamingAssets sample. Unity places the
+bodies and plays the returns; the settle still rules on the counted kills (clamped to 25) and the boss flag.
+
+**issue** (v2) → the v1 reply plus `population`:
+
+```json
+{ "schemaVersion": "holozone-run-2", "runId": "0b9f3c1e-…", "zoneId": "neonforest", "tier": 0, "squad": ["ace", "kuma"],
+  "issuedAtMs": 1791309600000, "expiresAtMs": 1791316800000,
+  "population": {
+    "zoneId": "neonforest", "tier": 0,
+    "beasts": [ { "beastId": "scrapling", "count": 3, "respawn": { "kind": "timer", "delaySeconds": 8, "maxRespawns": 22 } } ],
+    "boss": { "bossId": "root_nexus", "count": 1, "respawn": { "kind": "none" } },
+    "spawnCount": 3, "maxKillsCredited": 25 } }
+```
+
+**status** (v2) → `{ "schemaVersion": "holozone-run-2", "run": <run> | null, "population": <population> | null }` — the open
+run's population, `null` when no run is open. **settle** (v2) → the v1 settle reply under `"holozone-run-2"` (nothing
+added).
+
+- `beasts[].beastId` / `boss.bossId`: lowercase stable ids (`^[a-z][a-z0-9_]{0,63}$`) — the ids Unity's
+  `BeastSnapshot.beastId` already carries (`scrapling`, `nullstalker`, `cacheback`, `wyrm`); `root_nexus` names the Root
+  Nexus. **Beast stats are not served** (health / attack / break threshold stay on Unity's encounter payload until Pak
+  schedules them).
+- `count`: bodies fielded at zone entry (≥ 1). `respawn`: `{kind: "timer", delaySeconds, maxRespawns}` (seconds after
+  a defeat before a body returns; returns in all for the entry over the run, every body together) or `{kind: "none"}`.
+- `spawnCount` = Σ `beasts[].count` (the boss not included). `maxKillsCredited` = 25 (`MAX_PERFORMANCE_EVENTS`): the
+  settle credits at most that many kills; the roster never promises more.
+- A zone in the tier table with no population row for its tier still issues (`population: null`); the unit test pins
+  that every listed zone is covered.
+
+**Producer defaults (2026-10-10; Pak tunes):**
+
+| zoneId | tier | beasts | boss |
+|---|---|---|---|
+| `neonforest` | 0 | `scrapling` × 3, returns 8 s after a defeat, 22 returns in all (3 + 22 = the 25 credited kills) | `root_nexus` × 1, never returns |
+
+Unity's local fallback (HolobotsUnity `4fefbdfc6`, `LocalScraplingPopulation`: one placed body, 8 s, up to 24 returns)
+is the same rule on the one body the scene places today; the host population replaces it once Unity flips its request
+to `holozone-run-2` and installs bodies for `count`.
+
 ## 6. `desktopAccountSnapshot` — `desktop-account-3` (DECISIONS #53 amendments 1 + 2)
 
 Request `{ "schemaVersion": "desktop-account-3" }`. Same top-level shape as v2 (`schemaVersion, uid,
@@ -365,6 +415,13 @@ TrainingScreen would use `getHolobotDisplayStats`.
 4. `firestore.rules`: one explicit deny block for `holoZoneRuns/{uid}/**` (same effect as the default deny;
    deploying the rules is optional). `firestore.indexes.json`: unchanged. No TTL policy (one bounded doc per pilot).
 
+**Zone population (branch `claude/vigilant-maxwell-tfbtqx-zone-population`, DECISIONS #54 plan §P1 item 2):**
+
+1. Merge the PR; `cd functions && npm run build` (`check:shared` unchanged: 3 byte-identical files).
+2. `firebase deploy --project holobots-24046 --only functions:holoZoneHost` — no new function, no rules or index change,
+   no stored-record change. Additive behind the request version: the shipped Unity build (v1) is untouched until Unity
+   flips its request to `holozone-run-2` and reads `population`.
+
 ## 8. Tests
 
 `mobile`: `npm test` — `battleSettlementParity`, `attributeBoostParity`, `playerCombatantParity`
@@ -379,3 +436,7 @@ Progression 2 adds: `mobile` `rivalLadderScaleParity`, `desktopAccountParity`; `
 `test-desktop-account-emulator` (+ `holoZoneRuns/{uid}` in `test-delete-user-data-emulator`); `rules-tests`
 `holozone-runs`. Run the emulator suite serially (`node --test --test-concurrency=1 …`): parallel runs hit
 emulator transaction-contention flakes in the existing parallel-settle tests.
+
+Zone population adds: `functions` `test-holozone-population` (the table's data rules + coverage, the producer defaults,
+v1 byte-identity against pinned strings, v2 shapes, the known-bad rows) and a `holozone-run-2` case in
+`test-holozone-emulator` (both versions through the store and the callable; the stored run unchanged).
