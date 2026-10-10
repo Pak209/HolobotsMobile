@@ -21,11 +21,22 @@
  * a forged run there would farm XP). The doc keeps the last
  * HOLOZONE_MAX_STORED_RUNS runs, newest last; at most one run is open.
  *
+ * rival-health-1 on the zone (DECISIONS #53 amendment 4, #54 amendment 2; lib/rivalHealth.ts — the ONE host-owned
+ * health ledger users/{uid}.holobotVitals the deployed rival host writes): a request carrying `healthSchema` gets
+ * `playerCombatants[]` on the issue reply (the rival-battle-3 player shape, built the same way) each with the host's
+ * `currentHealth`; the issue writes the ledger (issueVitals: full for a bot never seen, clamped to the max, the host's
+ * recovery at zero) and the run record keeps what it issued (`issuedVitals`); settle{health[]} keeps each report at or
+ * below what was issued (settleVitals: inflated / foreign / non-finite reports are invalid_request, nothing written) in
+ * the same transaction as the ruling. Without the flag every reply is exactly the deployed shape and the ledger is never
+ * touched. Nothing health-related goes on a settle reply or a settlement (the rival host's rule).
+ *
  * Pure module: no firebase imports, safe to import from tests
- * (functions/scripts/test-holozone-runs.mjs).
+ * (functions/scripts/test-holozone-runs.mjs, test-holozone-health.mjs).
  */
 import { MAX_PERFORMANCE_EVENTS, computeBattleSettlement } from "./battleSettlement";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
+import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, settleVitals, Vitals } from "./rivalHealth";
+import { buildPlayerCombatants, PlayerCombatantSnapshot } from "./rivalLadder";
 
 /** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
 export const HOLOZONE_SCHEMA = "holozone-run-1";
@@ -109,26 +120,47 @@ export type HoloZoneRunRecord = HoloZoneRunView & {
   settlement: HoloZoneSettlement | null;
   /** Stored with the settlement; duplicates replay it. */
   progression: HolobotProgressionEntry[] | null;
+  /** rival-health-1: set on a run issued with the flag (the rival record's field names); absent = issued without it. */
+  healthSchema?: typeof RIVAL_HEALTH_SCHEMA;
+  /** rival-health-1: the {currentHealth, maxHealth} each player combatant was issued with — the settle's bound. */
+  issuedVitals?: Vitals;
 };
 
 export type HoloZoneRunsDoc = { schemaVersion: typeof HOLOZONE_RECORD_SCHEMA; runs: HoloZoneRunRecord[] };
 
 /** `schemaVersion` is the reply version the client asked for (request field; missing = v1, the deployed shape). */
+/**
+ * `schemaVersion` is the reply version the client asked for (request field; missing = v1, the deployed shape).
+ * rival-health-1: `healthSchema` (issue / settle) asks for host health; settle `health[]` carries the reports (needs the
+ * flag). Both are absent from the command when not sent — the rival host's request rule (lib/rivalHealth.ts healthRows).
+ */
 export type HoloZoneCommand = (
   | { operation: "status" }
   | { operation: "issue"; zoneId: string }
-  | { operation: "settle"; runId: string; kills: number; bossDefeated: boolean; fielded: string[] }
-) & { schemaVersion: HoloZoneWireVersion };
+  | { operation: "settle"; runId: string; kills: number; bossDefeated: boolean; fielded: string[]; health?: HealthRow[] }
+) & { schemaVersion: HoloZoneWireVersion; healthSchema?: typeof RIVAL_HEALTH_SCHEMA };
+
+/** lib/rivalHealth.ts throws its own error type (its message is the code); the zone host maps it onto the zone codes. */
+function asZone<T>(f: () => T): T {
+  try {
+    return f();
+  } catch (e) {
+    if (e instanceof HealthError) throw new HoloZoneError(e.message === "invalid_request" ? "invalid_request" : "unavailable");
+    throw e;
+  }
+}
 
 export function validateHoloZoneCommand(raw: unknown): HoloZoneCommand {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new HoloZoneError("invalid_request");
   const c = raw as Record<string, unknown>;
   if (c.schemaVersion !== undefined && c.schemaVersion !== HOLOZONE_SCHEMA_V1 && c.schemaVersion !== HOLOZONE_SCHEMA_V2) throw new HoloZoneError("invalid_request");
   const schemaVersion: HoloZoneWireVersion = c.schemaVersion === HOLOZONE_SCHEMA_V2 ? HOLOZONE_SCHEMA_V2 : HOLOZONE_SCHEMA_V1;
-  if (c.operation === "status") return { operation: "status", schemaVersion };
+  if (c.healthSchema !== undefined && c.healthSchema !== RIVAL_HEALTH_SCHEMA) throw new HoloZoneError("invalid_request");
+  const flag: { healthSchema?: typeof RIVAL_HEALTH_SCHEMA } = c.healthSchema === RIVAL_HEALTH_SCHEMA ? { healthSchema: RIVAL_HEALTH_SCHEMA } : {};
+  if (c.operation === "status") return { operation: "status", schemaVersion, ...flag };
   if (c.operation === "issue") {
     if (typeof c.zoneId !== "string" || !HOLOZONE_ZONE_ID.test(c.zoneId)) throw new HoloZoneError("invalid_request");
-    return { operation: "issue", zoneId: c.zoneId, schemaVersion };
+    return { operation: "issue", zoneId: c.zoneId, schemaVersion, ...flag };
   }
   if (c.operation !== "settle") throw new HoloZoneError("invalid_request");
   if (typeof c.runId !== "string" || !HOLOZONE_RUN_ID.test(c.runId)) throw new HoloZoneError("invalid_request");
@@ -136,7 +168,10 @@ export function validateHoloZoneCommand(raw: unknown): HoloZoneCommand {
   if (typeof c.bossDefeated !== "boolean") throw new HoloZoneError("invalid_request");
   const f = c.fielded;
   if (!Array.isArray(f) || f.length > HOLOZONE_MAX_FIELDED || f.some((id) => typeof id !== "string" || !HOLOZONE_FIELDED_ID.test(id)) || new Set(f).size !== f.length) throw new HoloZoneError("invalid_request");
-  return { operation: "settle", runId: c.runId, kills: c.kills, bossDefeated: c.bossDefeated, fielded: [...(f as string[])], schemaVersion };
+  const health = asZone(() => healthRows(c.health));
+  if (health !== undefined && c.healthSchema !== RIVAL_HEALTH_SCHEMA) throw new HoloZoneError("invalid_request");
+  const rows: { health?: HealthRow[] } = health === undefined ? {} : { health };
+  return { operation: "settle", runId: c.runId, kills: c.kills, bossDefeated: c.bossDefeated, fielded: [...(f as string[])], schemaVersion, ...flag, ...rows };
 }
 
 /** Tier of a zone id, or null when the zone is not in the table. */
@@ -183,7 +218,8 @@ export function viewOf(r: HoloZoneRunRecord): HoloZoneRunView {
 }
 
 export type HoloZoneStatusReply = { schemaVersion: typeof HOLOZONE_SCHEMA; run: HoloZoneRunView | null };
-export type HoloZoneIssueReply = { schemaVersion: typeof HOLOZONE_SCHEMA } & HoloZoneRunView;
+/** rival-health-1: `playerCombatants` only on an issue that carried `healthSchema` (the rival-battle-3 player shape + currentHealth). */
+export type HoloZoneIssueReply = { schemaVersion: typeof HOLOZONE_SCHEMA } & HoloZoneRunView & { playerCombatants?: (PlayerCombatantSnapshot & { currentHealth: number })[] };
 export type HoloZoneSettleReply = {
   schemaVersion: typeof HOLOZONE_SCHEMA;
   runId: string;
@@ -204,15 +240,31 @@ export function holoZoneStatus(runs: readonly HoloZoneRunRecord[], nowMs: number
  * issue → a new run for `zoneId` with the current travel squad. An open run is superseded (closedAtMs = now;
  * it can no longer settle), so at most one run is open. `runId` comes from the store (crypto.randomUUID()).
  */
-export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: string, squadIds: readonly string[], runId: string, nowMs: number): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply } {
+/**
+ * `health` (rival-health-1): the profile when the request carried `healthSchema` — the reply then adds
+ * `playerCombatants[]` (buildPlayerCombatants, the rival-battle-3 shape) each with `currentHealth`, `userUpdates` carries
+ * the ledger to write (`holobotVitals`, lib/rivalHealth.ts issueVitals: exactly what the rival issue writes) and the
+ * record keeps the issued values. Absent: the reply and the record are exactly as before and `userUpdates` is empty.
+ */
+export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: string, squadIds: readonly string[], runId: string, nowMs: number, health?: { profile: Record<string, unknown> }): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply; userUpdates: Record<string, unknown> } {
   if (!HOLOZONE_RUN_ID.test(runId)) throw new HoloZoneError("unavailable");
   const tier = holoZoneTier(zoneId);
   if (tier === null) throw new HoloZoneError("unknown_zone");
   if (runs.some((r) => r.runId === runId)) throw new HoloZoneError("unavailable");
   const run: HoloZoneRunRecord = { runId, zoneId, tier, squad: [...squadIds], issuedAtMs: nowMs, expiresAtMs: nowMs + HOLOZONE_RUN_TTL_MS, closedAtMs: null, settlement: null, progression: null };
+  let players: { playerCombatants: (PlayerCombatantSnapshot & { currentHealth: number })[] } | Record<string, never> = {};
+  const userUpdates: Record<string, unknown> = {};
+  if (health) {
+    const combatants = buildPlayerCombatants(health.profile, squadIds);
+    const vitals = asZone(() => issueVitals(health.profile, combatants));
+    userUpdates.holobotVitals = vitals;
+    run.healthSchema = RIVAL_HEALTH_SCHEMA;
+    run.issuedVitals = Object.fromEntries(combatants.map((p) => [p.holobotId, { ...vitals[p.holobotId] }]));
+    players = { playerCombatants: combatants.map((p) => ({ ...p, currentHealth: vitals[p.holobotId].currentHealth })) };
+  }
   const next = runs.map((r) => (isOpen(r, nowMs) ? { ...r, closedAtMs: nowMs } : r));
   next.push(run);
-  return { doc: { schemaVersion: HOLOZONE_RECORD_SCHEMA, runs: next.slice(-HOLOZONE_MAX_STORED_RUNS) }, reply: { schemaVersion: HOLOZONE_SCHEMA, ...viewOf(run) } };
+  return { doc: { schemaVersion: HOLOZONE_RECORD_SCHEMA, runs: next.slice(-HOLOZONE_MAX_STORED_RUNS) }, reply: { schemaVersion: HOLOZONE_SCHEMA, ...viewOf(run), ...players }, userUpdates };
 }
 
 /**
@@ -224,7 +276,7 @@ export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: str
 export function settleHoloZoneRun(
   profile: Record<string, unknown>,
   runs: readonly HoloZoneRunRecord[],
-  command: { runId: string; kills: number; bossDefeated: boolean; fielded: readonly string[] },
+  command: { runId: string; kills: number; bossDefeated: boolean; fielded: readonly string[]; health?: readonly HealthRow[] },
   nowMs: number,
 ): { userUpdates: Record<string, unknown>; doc: HoloZoneRunsDoc | null; reply: HoloZoneSettleReply } {
   const index = runs.findIndex((r) => r.runId === command.runId);
@@ -250,6 +302,13 @@ export function settleHoloZoneRun(
   };
   const next = runs.map((r, i) => (i === index ? { ...r, settlement, progression: award.progression } : r));
   const userUpdates: Record<string, unknown> = award.expPerHolobot > 0 && award.progression.length ? { holobots: award.holobots } : {};
+  // rival-health-1: `health[]` reports settle the ledger with the ruling — only on a run issued with the flag, each
+  // report at or below what that run issued (lib/rivalHealth.ts settleVitals; a violation refuses the whole settle).
+  if (command.health !== undefined) {
+    if (run.healthSchema !== RIVAL_HEALTH_SCHEMA || !run.issuedVitals) throw new HoloZoneError("invalid_request");
+    const issued = run.issuedVitals;
+    userUpdates.holobotVitals = asZone(() => settleVitals(profile, issued, [...command.health!]));
+  }
   return {
     userUpdates,
     doc: { schemaVersion: HOLOZONE_RECORD_SCHEMA, runs: next },

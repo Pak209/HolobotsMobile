@@ -11,6 +11,10 @@ import { holoZoneIssueReplyForVersion, holoZoneSettleReplyForVersion, holoZoneSt
  * resolves. settle writes the Holobot XP (users/{uid}.holobots) and the ruling in one transaction.
  * Replies: holozone-run-2 (population on issue / status) when the request asks for it, else the deployed
  * holozone-run-1 shape, byte-identical (lib/holoZoneWire.ts). The stored record never changes with the wire version.
+ * rival-health-1 (DECISIONS #54 amendment 2): a request carrying `healthSchema` uses the ONE host-owned health ledger
+ * users/{uid}.holobotVitals the rival host writes (lib/rivalHealth.ts) — issue serves playerCombatants[] with
+ * currentHealth and writes the ledger; settle{health[]} writes the reports (downward only) with the ruling. Without the
+ * flag the ledger is never touched.
  */
 export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), newRunId: () => string = randomUUID) {
   const command = validateHoloZoneCommand(raw);
@@ -31,7 +35,8 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
       } catch {
         throw new HoloZoneError('unavailable');
       }
-      const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs);
+      const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, command.healthSchema ? { profile } : undefined);
+      if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
       tx.set(runsRef, r.doc);
       return holoZoneIssueReplyForVersion(r.reply, command.schemaVersion);
     }
