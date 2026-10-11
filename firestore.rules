@@ -175,6 +175,10 @@ service cloud.firestore {
         && saneEpochMsOptional(data, 'lastWildcardPackAt');
     }
 
+    function presenceOptOutSane(data) {
+      return !('presenceOptOut' in data) || data.presenceOptOut is bool;
+    }
+
     // ---- users -------------------------------------------------------------
     // Read: OWNER ONLY (privacy hardening 2026-07-13). The leaderboard reads
     // the /leaderboard projection below — full user documents are no longer
@@ -188,7 +192,8 @@ service cloud.firestore {
         && economyFieldsSane(request.resource.data)
         && economyFrozenOnCreate(request.resource.data)
         && referralFieldsAbsent(request.resource.data)
-        && referralCodeSane(request.resource.data);
+        && referralCodeSane(request.resource.data)
+        && presenceOptOutSane(request.resource.data);
 
       // isDevAccount is inside the protected set: a MapDiff "affected" key
       // means added/removed/CHANGED, so a legacy account that already has
@@ -197,7 +202,8 @@ service cloud.firestore {
       allow update: if isOwner(uid)
         && economyFieldsSane(request.resource.data)
         && protectedFieldsUntouched(request.resource.data, resource.data)
-        && referralCodeSane(request.resource.data);
+        && referralCodeSane(request.resource.data)
+        && presenceOptOutSane(request.resource.data);
 
       // Server-only (2026-10-01 cloud review #1): a client delete + recreate
       // would wipe buddyUnits / rivalWins / rivalRewardDay and let the server
@@ -314,6 +320,12 @@ service cloud.firestore {
     // written only by wardrobeHost. No client read either: wardrobeHost
     // `status` returns everything Unity renders, so no stored shape becomes
     // a client contract.
+    // M1 public projection: one point-read per poll, signed-in only. No list or client writes.
+    match /presenceScenes/{scene} {
+      allow get: if isSignedIn() && scene == 'HoloCity_Main';
+      allow list, write: if false;
+    }
+
     match /wardrobes/{uid}/{document=**} {
       allow read, write: if false;
     }
