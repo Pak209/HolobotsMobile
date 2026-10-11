@@ -1,0 +1,38 @@
+KNOWN-BAD: weakened story rule permits the forged ally flag
+[2026-10-10T23:32:33.231Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5617c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'create' @ L338, false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.236Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5617d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.240Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5617e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L333, false for 'delete' @ L338
+[2026-10-10T23:32:33.247Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5617f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'create' @ L338, false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.252Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56180 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.256Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56181 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L333, false for 'delete' @ L338
+[2026-10-10T23:32:33.270Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56183 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'create' @ L338, false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.274Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56184 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.278Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56185 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L333, false for 'delete' @ L338
+[2026-10-10T23:32:33.286Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56186 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'create' @ L338, false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.291Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56187 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.296Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce56188 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L333, false for 'delete' @ L338
+[2026-10-10T23:32:33.309Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5618a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'create' @ L338, false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.313Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5618b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.317Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5618c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L333, false for 'delete' @ L338
+[2026-10-10T23:32:33.323Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5618d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L333, false for 'create' @ L338, false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.327Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5618e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L333, false for 'update' @ L338
+[2026-10-10T23:32:33.330Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ce5618f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L333, false for 'delete' @ L338
+PASS: 24 owner, foreign and anonymous reads/writes refused

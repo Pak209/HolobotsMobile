@@ -2,6 +2,7 @@ import { Firestore } from "firebase-admin/firestore";
 import { CallableRequest, HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { auth, db } from "../admin";
+import { removePresence } from "../presence/presenceStore";
 
 /**
  * Every Firestore tree keyed by the pilot's uid. users/{uid} covers its own
@@ -10,9 +11,11 @@ import { auth, db } from "../admin";
  * quest state, #47 Buddy Unit purchase receipts, #53 amendment 1 HoloZone runs).
  */
 export async function deleteUserData(firestore: Firestore, uid: string): Promise<void> {
-  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`]) {
+  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`]) {
     await firestore.recursiveDelete(firestore.doc(path));
   }
+  // Profile is gone first: a racing heartbeat must re-read the absent profile and cannot resurrect the row.
+  await removePresence(firestore, uid);
 }
 
 async function clearUserPresence(uid: string): Promise<void> {
