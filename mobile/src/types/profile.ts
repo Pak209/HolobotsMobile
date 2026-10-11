@@ -70,6 +70,7 @@ export type UserProfile = {
   exp_boosters?: number;
   energy_refills?: number;
   rank_skips?: number;
+  emergency_patches?: number;
   async_battle_tickets?: number;
   last_async_ticket_refresh?: string;
   blueprints?: Record<string, number>;

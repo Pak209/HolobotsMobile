@@ -117,8 +117,9 @@ describe("buildPackGrantUpdates", () => {
     expect(updates.blueprints).toEqual({ ace: 5, kuma: 6 });
   });
 
-  it("returns an empty object when there is nothing to grant", () => {
-    expect(buildPackGrantUpdates({}, [])).toEqual({});
+  it("grants exactly one Emergency Patch even when the pack reveals nothing else (host repairGrant parity)", () => {
+    expect(buildPackGrantUpdates({}, [])).toEqual({ emergency_patches: 1 });
+    expect(buildPackGrantUpdates({ emergency_patches: 2 }, [])).toEqual({ emergency_patches: 3 });
   });
 });
 

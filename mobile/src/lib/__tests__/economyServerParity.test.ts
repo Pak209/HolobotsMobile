@@ -39,6 +39,7 @@ const NOW = new Date("2026-07-07T16:30:00.000Z");
  */
 const CLIENT_TO_RAW_KEYS: Record<string, string> = {
   arena_passes: "arenaPassses",
+  emergency_patches: "emergencyPatches",
   energy_refills: "energyRefills",
   exp_boosters: "expBoosters",
   pack_history: "packHistory",
