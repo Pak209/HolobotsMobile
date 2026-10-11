@@ -56,3 +56,26 @@ export async function seedUser(
 ): Promise<void> {
   await seedDoc(env, `users/${uid}`, data);
 }
+
+/** The checked-in firestore.rules text (for suites that derive a variant of it). */
+export function readRulesText(): string {
+  return readFileSync(RULES_PATH, "utf8");
+}
+
+/**
+ * A RulesTestEnvironment over arbitrary rules text under its own projectId,
+ * e.g. a deliberately weakened copy of firestore.rules for a known-bad
+ * control. The emulator keeps rules per project, so this never replaces the
+ * rules the other suites load under "holobots-rules-test".
+ */
+export async function initTestEnvWithRules(
+  rules: string,
+  projectId: string,
+): Promise<RulesTestEnvironment> {
+  const { host, port } = parseEmulatorHost();
+
+  return initializeTestEnvironment({
+    projectId,
+    firestore: { rules, host, port },
+  });
+}

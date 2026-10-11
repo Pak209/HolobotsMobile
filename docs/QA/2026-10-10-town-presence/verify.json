@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-10",
+  "environment": "local demo Firestore only",
+  "compilerKnownBad": "caught",
+  "typescriptErrors": 0,
+  "sharedParityFiles": 3,
+  "projection": {
+    "passed": 4,
+    "failed": 0
+  },
+  "transactions": {
+    "passed": 3,
+    "failed": 0,
+    "deletedHeartbeatResurrection": "refused"
+  },
+  "firestoreRules": {
+    "passed": 2,
+    "failed": 0
+  },
+  "existingPureRegression": {
+    "passed": 124,
+    "failed": 0
+  },
+  "productionDeployed": false,
+  "unityEditorUsed": false
+}
