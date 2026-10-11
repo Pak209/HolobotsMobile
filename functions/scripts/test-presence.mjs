@@ -23,3 +23,8 @@ test('expiry control: an expired pilot is pruned, future pilot retained, malform
  const r=P.projectPresence('abcdefghijk',{...profile,username:''},undefined,P.validatePresenceCommand(command()),now);
  assert.equal(r.username,'pilot_abcdefgh');const s=P.prunePresence({schemaVersion:'presence-1',pilots:{expired:{...r,expiresAtMs:now},live:r}},now);assert.deepEqual(Object.keys(s.pilots),['live']);assert.throws(()=>P.prunePresence({schemaVersion:'presence-0',pilots:{}},now),/unavailable/);
 });
+test('positions snap to the 0.5 m grid (KNOWN-BAD: whole-metre rounding gives a different row); all six bounds clamp',()=>{
+ const raw=[1.3,2.74,-4.3],r=P.projectPresence('alice',profile,undefined,P.validatePresenceCommand(command({pos:raw})),now);
+ assert.deepEqual(r.pos,[1.5,2.5,-4.5]);assert.notDeepEqual(raw.map(Math.round),r.pos,'this input separates 0.5 m from 1 m rounding');
+ assert.deepEqual(P.projectPresence('alice',profile,undefined,P.validatePresenceCommand(command({pos:[1e9,-1e9,-1e9]})),now).pos,[256,-64,-256]);
+});
