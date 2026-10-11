@@ -77,12 +77,12 @@ function cloneRule(r: HoloZoneRespawnRule): HoloZoneRespawnRule {
   return r.kind === "timer" ? { kind: "timer", delaySeconds: r.delaySeconds, maxRespawns: r.maxRespawns } : { kind: "none" };
 }
 
-/** The population for a zone at a tier, a fresh copy each call, or null when the table has no row. */
-export function holoZonePopulation(zoneId: string, tier: number): HoloZonePopulation | null {
-  if (!Object.prototype.hasOwnProperty.call(HOLOZONE_POPULATION_TABLE, zoneId)) return null;
-  const rows = HOLOZONE_POPULATION_TABLE[zoneId];
-  if (!Object.prototype.hasOwnProperty.call(rows, tier)) return null;
-  const row = rows[tier];
+/**
+ * The holozone-run-2 `population` for one roster row: fresh copies, `spawnCount` / `maxKillsCredited` derived. The one
+ * builder: the lookup below serves it, and the inert future-zone drafts (tests only, never imported at runtime) derive
+ * through it, so a draft row has exactly the shape the live row would serve.
+ */
+export function populationFromRow(zoneId: string, tier: number, row: HoloZonePopulationRow): HoloZonePopulation {
   const beasts = row.beasts.map((b) => ({ beastId: b.beastId, count: b.count, respawn: cloneRule(b.respawn) }));
   return {
     zoneId,
@@ -92,6 +92,14 @@ export function holoZonePopulation(zoneId: string, tier: number): HoloZonePopula
     spawnCount: beasts.reduce((n, b) => n + b.count, 0),
     maxKillsCredited: MAX_PERFORMANCE_EVENTS,
   };
+}
+
+/** The population for a zone at a tier, a fresh copy each call, or null when the table has no row. */
+export function holoZonePopulation(zoneId: string, tier: number): HoloZonePopulation | null {
+  if (!Object.prototype.hasOwnProperty.call(HOLOZONE_POPULATION_TABLE, zoneId)) return null;
+  const rows = HOLOZONE_POPULATION_TABLE[zoneId];
+  if (!Object.prototype.hasOwnProperty.call(rows, tier)) return null;
+  return populationFromRow(zoneId, tier, rows[tier]);
 }
 
 /** Every zone in the tier table has a population row for its tier (the data-integrity rule the test pins). */

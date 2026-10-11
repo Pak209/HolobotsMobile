@@ -350,10 +350,21 @@ added).
 | zoneId | tier | beasts | boss |
 |---|---|---|---|
 | `neonforest` | 0 | `scrapling` × 3, returns 8 s after a defeat, 22 returns in all (3 + 22 = the 25 credited kills) | `root_nexus` × 1, never returns |
+| `tide_hollow` — DRAFT, inert (PR #67) — Pak tunes | 1 | `cacheback` × 3, returns 8 s after a defeat, 14 returns in all; `nullstalker` × 2, 12 s, 6 returns (5 + 20 = the 25 credited kills) | none named yet (`null`) |
+| `sky_reach` — DRAFT, inert (PR #67) — Pak tunes | 2 | `nullstalker` × 3, returns 8 s after a defeat, 12 returns in all; `wyrm` × 2, 15 s, 8 returns (5 + 20 = the 25 credited kills) | none named yet (`null`) |
 
 Unity's local fallback (HolobotsUnity `4fefbdfc6`, `LocalScraplingPopulation`: one placed body, 8 s, up to 24 returns)
 is the same rule on the one body the scene places today; the host population replaces it once Unity flips its request
 to `holozone-run-2` and installs bodies for `count`.
+
+The two DRAFT rows are the producer defaults for the locked dashboard zones (2026-10-11), recorded as data only:
+`lib/holoZonePopulationDrafts.ts` (`HOLOZONE_POPULATION_DRAFTS`, `draftZonePopulation`, derived through the live builder
+`populationFromRow`) and `Documentation/DRAFTS/2026-10-10-future-zone-populations.json` (`PRODUCER_DEFAULT`, not approved,
+`runtimeEnabled: false`). Neither zone is in `HOLOZONE_ZONE_TIERS` or the live table and no runtime module imports the
+drafts, so an issue for either is still `unknown_zone` and no reply changes. The producer ceiling rule is the Neon Forest
+one: `spawnCount` + Σ timer `maxRespawns` = 25. A zone goes live only in its own scoped PR that adds its tier row and its
+population row together (the row moved from the drafts, with Pak's tuning), with proof: the coverage test, pinned v1 / v2
+replies and the zone's playable scene.
 
 ## 6. `desktopAccountSnapshot` — `desktop-account-3` (DECISIONS #53 amendments 1 + 2)
 
@@ -444,6 +455,10 @@ emulator transaction-contention flakes in the existing parallel-settle tests.
 Zone population adds: `functions` `test-holozone-population` (the table's data rules + coverage, the producer defaults,
 v1 byte-identity against pinned strings, v2 shapes, the known-bad rows) and a `holozone-run-2` case in
 `test-holozone-emulator` (both versions through the store and the callable; the stored run unchanged).
+
+Future-zone drafts add: `functions` `test-holozone-population-drafts` (the inert producer-default rows: shape, the
+ceiling rule, inertness, the live Neon Forest v1 / v2 bytes, the draft JSON agreeing with the module, no runtime import;
+each with its known-bad control).
 
 ## 9. Host-owned current health on the zone — `rival-health-1` for `holoZoneHost` (DECISIONS #53 amendment 4, #54 amendment 2)
 
