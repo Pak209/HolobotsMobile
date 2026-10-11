@@ -11,7 +11,7 @@ import { removePresence } from "../presence/presenceStore";
  * quest state, #47 Buddy Unit purchase receipts, #53 amendment 1 HoloZone runs).
  */
 export async function deleteUserData(firestore: Firestore, uid: string): Promise<void> {
-  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`]) {
+  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`]) {
     await firestore.recursiveDelete(firestore.doc(path));
   }
   // Profile is gone first: a racing heartbeat must re-read the absent profile and cannot resurrect the row.
