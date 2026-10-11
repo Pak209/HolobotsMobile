@@ -107,6 +107,26 @@ Notes:
   field overrides that the file does not list, so re-check the TTL policy
   (or add the overrides to the file first).
 
+## Zell story rival flag (`HOLOCITY_ZELL_STORY`) — off by default
+
+`rivalBattleHost` issues the opt-in Zell story rival (DECISIONS #54-1, `src/lib/zellStory.ts`) only while
+the function's environment has `HOLOCITY_ZELL_STORY=1` — exactly `1`; unset, empty, `0`, `true` are all off.
+The callable reads it on every request. While it is off, the Zell issue
+(`{schemaVersion: "rival-battle-3", storySchema: "zell-story-1", operation: "issue", rivalId: "zell"}`) is
+refused `unavailable` and nothing is written; status / settle that carry `storySchema` still answer with
+`story.enabled: false`, and a Zell battle issued while it was on still settles. Requests without
+`storySchema` / `rivalId` never depend on it.
+
+- Tests / Firestore emulator (no functions emulator): pass `{ zellEnabled: true }` as the sixth argument of
+  `transactRivalBattle`, or set `process.env.HOLOCITY_ZELL_STORY = '1'` in the test process before
+  `rivalBattleHost.run(...)` (both in `scripts/test-zell-story-emulator.mjs`). With the functions emulator,
+  put `HOLOCITY_ZELL_STORY=1` in `functions/.env.local` (read by the emulator only).
+- Deployed: put `HOLOCITY_ZELL_STORY=1` in `functions/.env.holobots-24046` (or `functions/.env`) and redeploy
+  `rivalBattleHost` alone (`--only functions:rivalBattleHost`). The Firebase CLI applies these dotenv files at
+  deploy time; `.env*` files are git-ignored, so the file lives on the deploying machine and every later
+  `rivalBattleHost` deploy must carry it or the flag reverts to off. To switch off: remove the line, redeploy.
+  Turning it on is Pak's call, after the Unity story reader lands; nothing in this repo enables it.
+
 ## Layout
 
 Functions are TypeScript, compiled to `lib/` (`npm run build`, which also

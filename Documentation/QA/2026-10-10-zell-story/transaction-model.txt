@@ -1,0 +1,19 @@
+✔ known-bad control: generic fight does not issue Zell, cannot turn him ally (1.985584ms)
+✔ server feature defaults OFF: Zell issue refuses without writing any battle or story (0.64425ms)
+✔ Zell issue is an existing ladder battle with a host-owned placeholder and persists meeting (0.274791ms)
+✔ loss keeps the story rival, validated win turns ally; repeated issues do not reset ally (0.512542ms)
+✔ too-fast, foreign, invented and expired wins cannot advance the flag or pay (0.413208ms)
+✔ parallel duplicate wins grant once and never rewrite the first ally transition (0.399459ms)
+✔ old client settlement still advances the flag while the reply stays old-shaped (0.256417ms)
+✔ disabling the feature after issue never strands an existing settlement (0.156209ms)
+✔ requests cannot write a phase; corrupted stored state fails closed without touching balances (0.3815ms)
+✔ callable auth, malformed version and unknown rival fail before transaction (0.27ms)
+✔ account deletion removes story state and subcollections alongside existing records (0.224583ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 117.915125

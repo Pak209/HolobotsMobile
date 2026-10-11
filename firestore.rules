@@ -328,6 +328,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // DECISIONS #54-1: Zell's story phase is host-owned; clients use rivalBattleHost.
+    match /storyProgress/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
     // ---- default deny ------------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
