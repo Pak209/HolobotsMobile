@@ -182,6 +182,7 @@ export function buildPackRewards(packId: GachaPackId, random: () => number = Mat
 
 export type GachaGrantUpdates = {
   arena_passes?: number;
+  emergency_patches?: number;
   blueprints?: Record<string, number>;
   energy_refills?: number;
   exp_boosters?: number;
@@ -195,10 +196,11 @@ export type GachaGrantUpdates = {
  * player sees is actually granted. Returns only the fields that changed.
  */
 export function buildPackGrantUpdates(
-  profile: Pick<UserProfile, "arena_passes" | "blueprints" | "energy_refills" | "exp_boosters" | "legendaryBlueprints" | "parts" | "wildcardBlueprints">,
+  profile: Pick<UserProfile, "arena_passes" | "blueprints" | "emergency_patches" | "energy_refills" | "exp_boosters" | "legendaryBlueprints" | "parts" | "wildcardBlueprints">,
   items: GachaGrantedItem[],
 ): GachaGrantUpdates {
-  const updates: GachaGrantUpdates = {};
+  // Host parity: every opened pack also grants one Emergency Patch (server repairGrant).
+  const updates: GachaGrantUpdates = { emergency_patches: Number(profile.emergency_patches || 0) + 1 };
   let nextBlueprints: Record<string, number> | null = null;
   let nextParts: Array<Record<string, unknown>> | null = null;
 

@@ -18,6 +18,7 @@ const DEFAULT_USER_PROFILE = {
   expBoosters: 0,
   energyRefills: 0,
   rankSkips: 0,
+  emergencyPatches: 0,
   asyncBattleTickets: 3,
   playerRank: "Rookie",
   blueprints: {},
@@ -47,6 +48,7 @@ type FirestoreUserDocument = {
   arenaPassses?: number;
   expBoosters?: number;
   energyRefills?: number;
+  emergencyPatches?: number;
   rankSkips?: number;
   asyncBattleTickets?: number;
   lastAsyncTicketRefresh?: { toDate?: () => Date };
@@ -152,6 +154,7 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
     exp_boosters: data.expBoosters ?? DEFAULT_USER_PROFILE.expBoosters,
     energy_refills: data.energyRefills ?? DEFAULT_USER_PROFILE.energyRefills,
     rank_skips: data.rankSkips ?? DEFAULT_USER_PROFILE.rankSkips,
+    emergency_patches: data.emergencyPatches ?? DEFAULT_USER_PROFILE.emergencyPatches,
     async_battle_tickets:
       data.asyncBattleTickets ?? DEFAULT_USER_PROFILE.asyncBattleTickets,
     last_async_ticket_refresh:
@@ -252,6 +255,7 @@ type UserProfileUpdates = Partial<{
   exp_boosters: number;
   energy_refills: number;
   rank_skips: number;
+  emergency_patches: number;
   async_battle_tickets: number;
   blueprints: Record<string, number>;
   inventory: Record<string, number>;
@@ -294,6 +298,7 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.exp_boosters !== undefined) firestoreUpdates.expBoosters = updates.exp_boosters;
   if (updates.energy_refills !== undefined) firestoreUpdates.energyRefills = updates.energy_refills;
   if (updates.rank_skips !== undefined) firestoreUpdates.rankSkips = updates.rank_skips;
+  if (updates.emergency_patches !== undefined) firestoreUpdates.emergencyPatches = updates.emergency_patches;
   if (updates.async_battle_tickets !== undefined) firestoreUpdates.asyncBattleTickets = updates.async_battle_tickets;
   if (updates.blueprints !== undefined) firestoreUpdates.blueprints = updates.blueprints;
   if (updates.inventory !== undefined) firestoreUpdates.inventory = updates.inventory;
