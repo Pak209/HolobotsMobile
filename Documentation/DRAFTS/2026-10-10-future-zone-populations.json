@@ -1,5 +1,5 @@
 {
-  "draftVersion": 1,
+  "draftVersion": 2,
   "runtimeEnabled": false,
   "sourceKind": "MOCK dashboard labels; not authoritative zone definitions",
   "sourceUnityPath": "Assets/HoloCity/Resources/Dashboard/dashboard-preview.json",
@@ -7,29 +7,69 @@
   "approvedRuntimeZones": [
     "neonforest"
   ],
+  "producerDefaultsRecordedAt": "2026-10-11",
+  "producerCeilingRule": "spawnCount + sum(timer maxRespawns) == 25",
   "rows": [
     {
       "zoneId": "tide_hollow",
       "displayName": "Tide Hollow",
-      "state": "NEEDS_TUNING",
+      "state": "PRODUCER_DEFAULT",
       "approved": false,
-      "tier": null,
-      "beasts": null,
-      "spawnCount": null,
-      "respawn": null,
+      "tier": 1,
+      "beasts": [
+        {
+          "beastId": "cacheback",
+          "count": 3,
+          "respawn": {
+            "kind": "timer",
+            "delaySeconds": 8,
+            "maxRespawns": 14
+          }
+        },
+        {
+          "beastId": "nullstalker",
+          "count": 2,
+          "respawn": {
+            "kind": "timer",
+            "delaySeconds": 12,
+            "maxRespawns": 6
+          }
+        }
+      ],
       "boss": null,
+      "spawnCount": 5,
+      "maxKillsCredited": 25,
       "sceneName": null
     },
     {
       "zoneId": "sky_reach",
       "displayName": "Sky Reach",
-      "state": "NEEDS_TUNING",
+      "state": "PRODUCER_DEFAULT",
       "approved": false,
-      "tier": null,
-      "beasts": null,
-      "spawnCount": null,
-      "respawn": null,
+      "tier": 2,
+      "beasts": [
+        {
+          "beastId": "nullstalker",
+          "count": 3,
+          "respawn": {
+            "kind": "timer",
+            "delaySeconds": 8,
+            "maxRespawns": 12
+          }
+        },
+        {
+          "beastId": "wyrm",
+          "count": 2,
+          "respawn": {
+            "kind": "timer",
+            "delaySeconds": 15,
+            "maxRespawns": 8
+          }
+        }
+      ],
       "boss": null,
+      "spawnCount": 5,
+      "maxKillsCredited": 25,
       "sceneName": null
     }
   ]
