@@ -48,3 +48,23 @@ test('only a stamped, validated Zell WIN advances the ally flag, once', () => {
 test('public view has the placeholder and feature flag but no internal timestamps or victory ids', () => {
   assert.deepEqual(Z.zellStoryView(initial(), false), { schemaVersion: S, pilotId: 'zell', phase: 'unmet', turnedAlly: false, placeholder: true, placeholderHolobotId: 'wolf', enabled: false });
 });
+test('stand-in: Zell is WOLF at exactly the ladder tier an ordinary issue serves, with rivalScaledCombatant numbers, at every tier', () => {
+  const { desktopPracticeCommands } = require('../lib/lib/desktopPracticeCommands.js');
+  const tiers = [];
+  for (const wins of [0, 9, 10, 25, 35, 45, 55, 65, 75, 85, 95, 105, 150, 240, 250, 1000]) {
+    const profile = { buddyUnits: { light: 0, medium: 0, heavy: 0 }, rivalWins: wins }, tier = L.tierForWins(wins);
+    const ordinary = L.issueRivalBattle(profile, 1000, 'rb_ordinary', () => .5, [], L.rivalLineupScaleFor(V3));
+    const zell = L.issueRivalBattle(profile, 1000, 'rb_zell', () => .5, [], L.rivalLineupScaleFor(V3)); Z.bindZellLineup(zell);
+    assert.equal(zell.battle.tier, tier); assert.equal(zell.reply.tier, ordinary.reply.tier); assert.deepEqual(zell.reply.status, ordinary.reply.status);
+    assert.equal(zell.battle.lineup.opponentPilot.tier, ordinary.battle.lineup.opponentPilot.tier);
+    const expected = L.rivalScaledCombatant('wolf', tier);
+    assert.deepEqual(zell.battle.lineup.opponentSquad, [expected]);
+    assert.deepEqual(zell.reply.encounter.opponentSquad, [{ ...expected, ...L.rivalScaledCombatantStats(tier), commandRules: desktopPracticeCommands('wolf') }]);
+    const numbers = ({ holobotId: _id, commandRules: _rules, ...rest }) => rest;
+    assert.deepEqual(numbers(zell.reply.encounter.opponentSquad[0]), numbers(ordinary.reply.encounter.opponentSquad[0]), 'same numbers an ordinary rival gets at this tier');
+    // known-bad: the comparison tells a neighbouring tier apart (below the level-99 cap at tier 25)
+    if (tier < 24) assert.notDeepEqual(zell.battle.lineup.opponentSquad[0], L.rivalScaledCombatant('wolf', tier + 1));
+    tiers.push(tier);
+  }
+  assert.deepEqual(tiers, [0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 24, 25, 100]);
+});
