@@ -1,0 +1,1 @@
+PASS: two inert PRODUCER_DEFAULT rows (tide_hollow tier 1, sky_reach tier 2; 5 + 20 = 25 each), 30 known-bad draft controls refused; 4 runtime file hashes + 2 live table literals pinned (8 tamper controls caught; holoZonePopulation.ts re-pinned for populationFromRow); no future zone enabled
