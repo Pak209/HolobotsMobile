@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
@@ -39,7 +40,7 @@ export const redeemLegendaryBlueprint = onCall(
         throw new HttpsError("failed-precondition", "No Legendary Blueprint available.");
       }
 
-      transaction.set(userRef, result.updates, { merge: true });
+      transaction.set(userRef, withRankHealingReward(snapshot.data() ?? {},result.updates), { merge: true });
       return {
         holobotName,
         outcome: result.outcome,
