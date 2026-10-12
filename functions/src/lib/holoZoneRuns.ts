@@ -24,18 +24,18 @@
  * rival-health-1 on the zone (DECISIONS #53 amendment 4, #54 amendment 2; lib/rivalHealth.ts — the ONE host-owned
  * health ledger users/{uid}.holobotVitals the deployed rival host writes): a request carrying `healthSchema` gets
  * `playerCombatants[]` on the issue reply (the rival-battle-3 player shape, built the same way) each with the host's
- * `currentHealth`; the issue writes the ledger (issueVitals: full for a bot never seen, clamped to the max, the host's
- * recovery at zero) and the run record keeps what it issued (`issuedVitals`); settle{health[]} keeps each report at or
+ * `currentHealth`; the issue writes the ledger (issueVitals: full for a bot never seen, clamped to the max, the city's
+ * recovery at zero; zones refuse KO before issuing) and the run record keeps what it issued (`issuedVitals`); settle{health[]} keeps each report at or
  * below what was issued (settleVitals: inflated / foreign / non-finite reports are invalid_request, nothing written) in
- * the same transaction as the ruling. Without the flag every reply is exactly the deployed shape and the ledger is never
- * touched. Nothing health-related goes on a settle reply or a settlement (the rival host's rule).
+ * the same transaction as the ruling. Without the flag accepted replies keep the deployed shape; the ledger is read
+ * for KO admission but never written. Nothing health-related goes on a settle reply or a settlement (the rival host's rule).
  *
  * Pure module: no firebase imports, safe to import from tests
  * (functions/scripts/test-holozone-runs.mjs, test-holozone-health.mjs).
  */
 import { MAX_PERFORMANCE_EVENTS, computeBattleSettlement } from "./battleSettlement";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
-import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, settleVitals, Vitals } from "./rivalHealth";
+import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, requireLivingVitals, settleVitals, Vitals } from "./rivalHealth";
 import { buildPlayerCombatants, PlayerCombatantSnapshot } from "./rivalLadder";
 
 /** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
@@ -77,7 +77,7 @@ export const HOLOZONE_RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9
 /** A fielded Holobot id: the travel-squad id rule. */
 export const HOLOZONE_FIELDED_ID = /^[a-z][a-z0-9_]{0,127}$/;
 
-export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "unavailable";
+export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "holobot_ko" | "unavailable";
 export class HoloZoneError extends Error {
   constructor(public code: HoloZoneErrorCode) {
     super(code);
@@ -145,7 +145,7 @@ function asZone<T>(f: () => T): T {
   try {
     return f();
   } catch (e) {
-    if (e instanceof HealthError) throw new HoloZoneError(e.message === "invalid_request" ? "invalid_request" : "unavailable");
+    if (e instanceof HealthError) throw new HoloZoneError(e.message === "invalid_request" ? "invalid_request" : e.message === "holobot_ko" ? "holobot_ko" : "unavailable");
     throw e;
   }
 }
@@ -241,12 +241,13 @@ export function holoZoneStatus(runs: readonly HoloZoneRunRecord[], nowMs: number
  * it can no longer settle), so at most one run is open. `runId` comes from the store (crypto.randomUUID()).
  */
 /**
- * `health` (rival-health-1): the profile when the request carried `healthSchema` — the reply then adds
+ * `health`: the store always supplies the profile for zone admission. `includeHealth:false` validates eligibility
+ * without changing legacy reply/record shapes or writing the ledger. Otherwise (rival-health-1), the reply adds
  * `playerCombatants[]` (buildPlayerCombatants, the rival-battle-3 shape) each with `currentHealth`, `userUpdates` carries
  * the ledger to write (`holobotVitals`, lib/rivalHealth.ts issueVitals: exactly what the rival issue writes) and the
  * record keeps the issued values. Absent: the reply and the record are exactly as before and `userUpdates` is empty.
  */
-export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: string, squadIds: readonly string[], runId: string, nowMs: number, health?: { profile: Record<string, unknown> }): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply; userUpdates: Record<string, unknown> } {
+export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: string, squadIds: readonly string[], runId: string, nowMs: number, health?: { profile: Record<string, unknown>; includeHealth?: boolean }): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply; userUpdates: Record<string, unknown> } {
   if (!HOLOZONE_RUN_ID.test(runId)) throw new HoloZoneError("unavailable");
   const tier = holoZoneTier(zoneId);
   if (tier === null) throw new HoloZoneError("unknown_zone");
@@ -254,7 +255,9 @@ export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: str
   const run: HoloZoneRunRecord = { runId, zoneId, tier, squad: [...squadIds], issuedAtMs: nowMs, expiresAtMs: nowMs + HOLOZONE_RUN_TTL_MS, closedAtMs: null, settlement: null, progression: null };
   let players: { playerCombatants: (PlayerCombatantSnapshot & { currentHealth: number })[] } | Record<string, never> = {};
   const userUpdates: Record<string, unknown> = {};
-  if (health) {
+  // Store always supplies the profile for admission, even when legacy clients omit healthSchema.
+  if (health) asZone(() => requireLivingVitals(health.profile, squadIds));
+  if (health && health.includeHealth !== false) {
     const combatants = buildPlayerCombatants(health.profile, squadIds);
     const vitals = asZone(() => issueVitals(health.profile, combatants));
     userUpdates.holobotVitals = vitals;

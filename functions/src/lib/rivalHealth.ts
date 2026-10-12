@@ -16,6 +16,13 @@ function ledger(profile:Record<string,unknown>):Vitals{
  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new HealthError('unavailable');
  const out:Vitals={};for(const [id,v]of Object.entries(raw)){const x=v as Vitals[string];if(!x||typeof x.currentHealth!=='number'||!Number.isFinite(x.currentHealth)||typeof x.maxHealth!=='number'||!Number.isFinite(x.maxHealth)||x.maxHealth<=0||x.currentHealth<0||x.currentHealth>x.maxHealth)throw new HealthError('unavailable');out[id]={...x};}return out;
 }
+/** Zone admission reads the validated authoritative ledger; missing entries are fresh, not KO.
+ * Keep separate from issueVitals: city recovery at zero stays forty percent.
+ */
+export function requireLivingVitals(profile:Record<string,unknown>,holobotIds:readonly string[]):void{
+ const current=ledger(profile);
+ if(holobotIds.some(id=>current[id]?.currentHealth===0))throw new HealthError('holobot_ko');
+}
 export function issueVitals(profile:Record<string,unknown>,players:{holobotId:string;maxHealth:number}[]){
  const next=ledger(profile);for(const p of players){if(!Number.isFinite(p.maxHealth)||p.maxHealth<=0)throw new HealthError('unavailable');const old=next[p.holobotId];let hp=old?Math.min(old.currentHealth,p.maxHealth):p.maxHealth;
  // Pak: recovery at zero is host-owned. Retain the existing forty-percent recovery as host policy.

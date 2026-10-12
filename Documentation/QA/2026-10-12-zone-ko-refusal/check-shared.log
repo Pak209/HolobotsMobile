@@ -1,0 +1,5 @@
+
+> check:shared
+> node scripts/check-shared-parity.mjs
+
+check:shared — 3 shared file(s) in sync.
