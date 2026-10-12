@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { randomUUID } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
@@ -37,12 +38,12 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
         throw new HoloZoneError('unavailable');
       }
       const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, { profile, includeHealth: command.healthSchema !== undefined });
-      if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
+      if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
       tx.set(runsRef, r.doc);
       return holoZoneIssueReplyForVersion(r.reply, command.schemaVersion);
     }
     const r = settleHoloZoneRun(profile, runs, command, nowMs);
-    if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
+    if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
     if (r.doc) tx.set(runsRef, r.doc);
     return holoZoneSettleReplyForVersion(r.reply, command.schemaVersion);
   });
