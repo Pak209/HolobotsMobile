@@ -19,6 +19,7 @@
  */
 import { MAX_PERFORMANCE_EVENTS } from "./battleSettlement";
 import { HOLOZONE_ZONE_TIERS } from "./holoZoneRuns";
+import { HOLOZONE_BEAST_STATS_ENABLED, holoZoneBeastStats, type HoloZoneBeastStats } from "./holoZoneBeastStats";
 
 /** A beast's return rule after a defeat. `none` = one life per body. */
 export type HoloZoneRespawnRule =
@@ -31,6 +32,8 @@ export type HoloZoneBeastSpawn = {
   /** Bodies fielded at zone entry (>= 1). */
   count: number;
   respawn: HoloZoneRespawnRule;
+  /** DECISIONS #56: host stats for the card + practice sim; present only while HOLOZONE_BEAST_STATS_ENABLED. */
+  stats?: HoloZoneBeastStats;
 };
 
 export type HoloZoneBossSpawn = {
@@ -39,6 +42,8 @@ export type HoloZoneBossSpawn = {
   /** Bodies fielded at zone entry (>= 1). */
   count: number;
   respawn: HoloZoneRespawnRule;
+  /** DECISIONS #56: as HoloZoneBeastSpawn.stats. */
+  stats?: HoloZoneBeastStats;
 };
 
 /** The population as Unity sees it (issue reply `population`, status reply `population` for the open run). */
@@ -99,7 +104,18 @@ export function holoZonePopulation(zoneId: string, tier: number): HoloZonePopula
   if (!Object.prototype.hasOwnProperty.call(HOLOZONE_POPULATION_TABLE, zoneId)) return null;
   const rows = HOLOZONE_POPULATION_TABLE[zoneId];
   if (!Object.prototype.hasOwnProperty.call(rows, tier)) return null;
-  return populationFromRow(zoneId, tier, rows[tier]);
+  return withBeastStats(populationFromRow(zoneId, tier, rows[tier]), HOLOZONE_BEAST_STATS_ENABLED);
+}
+
+/**
+ * DECISIONS #56: attach each entry's host stats when <enabled>; returns the population unchanged (same object, same
+ * key order, so the JSON is byte-identical) when disabled. An entry with no stats row is left without `stats`.
+ */
+export function withBeastStats(p: HoloZonePopulation, enabled: boolean): HoloZonePopulation {
+  if (!enabled) return p;
+  for (const b of p.beasts) { const s = holoZoneBeastStats(p.zoneId, p.tier, b.beastId); if (s) b.stats = s; }
+  if (p.boss) { const s = holoZoneBeastStats(p.zoneId, p.tier, p.boss.bossId); if (s) p.boss.stats = s; }
+  return p;
 }
 
 /** Every zone in the tier table has a population row for its tier (the data-integrity rule the test pins). */
