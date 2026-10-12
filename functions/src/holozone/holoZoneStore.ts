@@ -14,7 +14,8 @@ import { holoZoneIssueReplyForVersion, holoZoneSettleReplyForVersion, holoZoneSt
  * rival-health-1 (DECISIONS #54 amendment 2): a request carrying `healthSchema` uses the ONE host-owned health ledger
  * users/{uid}.holobotVitals the rival host writes (lib/rivalHealth.ts) — issue serves playerCombatants[] with
  * currentHealth and writes the ledger; settle{health[]} writes the reports (downward only) with the ruling. Without the
- * flag the ledger is never touched.
+ * flag the ledger is read for KO admission but never written. Zone issue refuses ledger-zero travel-squad members
+ * with holobot_ko before writing or closing any run (DECISIONS #56 amendment 5).
  */
 export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), newRunId: () => string = randomUUID) {
   const command = validateHoloZoneCommand(raw);
@@ -35,7 +36,7 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
       } catch {
         throw new HoloZoneError('unavailable');
       }
-      const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, command.healthSchema ? { profile } : undefined);
+      const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, { profile, includeHealth: command.healthSchema !== undefined });
       if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
       tx.set(runsRef, r.doc);
       return holoZoneIssueReplyForVersion(r.reply, command.schemaVersion);

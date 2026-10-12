@@ -474,8 +474,21 @@ town → zone → town without a second store.
 (`protectedFieldsUntouched`; never on create), written only by the two hosts' issue / settle and the repair item. Rules
 (`lib/rivalHealth.ts`, unchanged by this section): `issueVitals` serves a bot never seen at full health, clamps a stored
 value to the combatant's current `maxHealth` (a level-up raises the max and the current carries), and applies the host's
-recovery at zero (40 % of max — Pak's amount call pending); `settleVitals` keeps `min(current, reported)` and refuses a
+CITY recovery at zero (40 % of max — DECISIONS #56 amendment 5; zones refuse KO before this recovery); `settleVitals` keeps `min(current, reported)` and refuses a
 report above what was issued, a bot the issue did not carry, or a non-finite value (`invalid_request`, nothing written).
+
+### Zone KO admission (DECISIONS #56 amendment 5)
+
+Every `holoZoneHost` issue, including v1/no-version and v2 requests without `healthSchema`, reads the authenticated
+travel squad against the validated server-owned `holobotVitals` ledger. If any selected member has `currentHealth === 0`,
+issue returns `failed-precondition`, message `holobot_ko`, details `{ rejectionCode: "holobot_ko" }`. The client can present
+that refusal as requiring repair. No user/run write occurs, and an existing open run is not closed. Missing ledger entries
+remain eligible as fresh bots; positive HP carries as before; KO bots outside the travel squad do not block entry.
+Malformed ledger data fails closed as `unavailable`. Status and settle behavior and accepted reply shapes are unchanged.
+The rule covers every zone the host enables, not only Neon Forest; unknown/unshipped zones remain `unknown_zone`.
+
+Use the existing `item.emergency_patch` between battles (+25% of max health); the repaired bot may then enter. The city
+rival host retains its 40% issue recovery. No client flag or submitted health field can waive zone admission.
 
 ### issue + flag → `playerCombatants[]` with `currentHealth`
 
@@ -484,7 +497,7 @@ the v1 / v2 reply plus `playerCombatants[]` — the travel squad in slot order, 
 (`lib/rivalLadder.ts` `buildPlayerCombatants`: real stats, `commandRules`, progression fields) plus `currentHealth` from
 `issueVitals`. The issue **writes the ledger** (`holobotVitals`, exactly what the rival issue writes) and the run record
 keeps what it issued (`healthSchema`, `issuedVitals` — the rival record's field names). Without the flag the reply, the
-record and the user doc are exactly as before.
+record and the user doc are exactly as before on an accepted issue; eligibility is still checked against the ledger.
 
 ```json
 { "schemaVersion": "holozone-run-1", "runId": "0b9f3c1e-…", "zoneId": "neonforest", "tier": 0, "squad": ["ace", "kuma"],
@@ -514,7 +527,7 @@ behaviour is unchanged until Unity flips.
 ### Tests
 
 `functions` `test-holozone-health` (requests, the flagged issue = the rival issue's ledger write, the record, clamping and
-the 40 % recovery through `issueVitals` itself, settle reports at or below the bound with inflated / foreign /
+the city-only 40 % recovery through `issueVitals` itself, settle reports at or below the bound with inflated / foreign /
 unflagged-run refusals writing nothing, replays, carry rival → zone → rival through the one ledger, no-flag byte pins);
 `test-holozone-health-emulator` (through the store and the callable on the Firestore emulator: the user doc's ledger,
 parallel settles, refusals writing nothing, a tampered ledger failing closed, the rival host's values served by the zone

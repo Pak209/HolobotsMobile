@@ -1,0 +1,55 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-zone-ko", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test --test-concurrency=1 functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs functions/scripts/test-rival-health-emulator.mjs functions/scripts/test-desktop-items-emulator.mjs
+✔ same purchase retry spends exactly once (641.783166ms)
+✔ parallel consumes cannot spend one item twice (3227.146125ms)
+✔ favorite survives reconnect and belongs only to its account (46.715291ms)
+✔ cache retry returns the same reveal and consumes once (35.474625ms)
+✔ account deletion removes favorites and receipts (91.495125ms)
+[2026-10-12T07:17:52.156Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22bceb57 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+[2026-10-12T07:17:52.162Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22bceb58 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+✔ rules deny client inventory, favorites and receipt writes (339.686542ms)
+✔ repair retry restores only the chosen bot and spends once (48.150916ms)
+✔ repair refuses during a host-issued battle without spending (19.953125ms)
+[2026-10-12T07:17:52.351Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22bceb59 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'update' @ L202, false for 'update' @ L350
+[2026-10-12T07:17:52.362Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22bceb5a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'update' @ L202, false for 'update' @ L350
+[2026-10-12T07:17:52.378Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x22bceb5b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L190, false for 'create' @ L350, evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'create' @ L190, false for 'create' @ L350
+✔ rules deny repair stock and health spoofing (147.895ms)
+✔ repair refuses during an active zone without spending (24.41825ms)
+✔ issue → settle → replay: server uuid, travel squad snapshot, XP written once; duplicates and parallel settles replay (3511.68375ms)
+✔ expired run: run_expired (failed-precondition), nothing written (42.267ms)
+✔ wrong owner: another pilot settling the run id reads unknown_run (not-found); both pilots unchanged (49.092417ms)
+✔ fielded outside the run squad is invalid_request (nothing written), even when the bot is owned or joined the squad later (45.121167ms)
+✔ zero-kill loss earns the loss amount; a settle < 20 s after issue earns 0; a re-issue supersedes the open run (118.957166ms)
+✔ holozone-run-2: issue / status carry the population by zone and tier; v1 replies and the stored run are untouched (70.572875ms)
+✔ zone: a flagged issue serves playerCombatants with currentHealth and writes the ledger; the settle writes the reports with the ruling; replays and plain requests never touch it (3519.625125ms)
+✔ zone: inflated / foreign reports, reports on an unflagged run, and a tampered ledger refuse with nothing written (98.665458ms)
+✔ one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open (72.284625ms)
+✔ issue → loss → reconnect → repair → next issue carries actual health, retries spend once (148.916875ms)
+✔ foreign, inflated and nonfinite reports fail before settlement; concurrent issue blocked (33.893417ms)
+✔ zero-health recovery is host policy, and a larger max does not heal survivors (0.467334ms)
+✔ KO refusal: zero ledger HP cannot issue a zone run (all versions, health flag cannot bypass) (172.186792ms)
+✔ existing emergency patch repairs 25 percent and the zone then accepts the bot (33.699583ms)
+✔ city rival issue retains 40 percent recovery, unaffected by zone policy (14.405625ms)
+✔ positive HP, missing ledger and an unselected KO bot keep accepted reply shapes (38.219208ms)
+✔ refused reissue never closes an existing run; malformed ledger fails closed even without flag (31.592791ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13110.919375
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

@@ -1,0 +1,75 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-zone-ko", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test --test-concurrency=1 functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs functions/scripts/test-rival-health-emulator.mjs functions/scripts/test-desktop-items-emulator.mjs
+✔ same purchase retry spends exactly once (655.947ms)
+✔ parallel consumes cannot spend one item twice (2722.595666ms)
+✔ favorite survives reconnect and belongs only to its account (47.570708ms)
+✔ cache retry returns the same reveal and consumes once (37.789125ms)
+✔ account deletion removes favorites and receipts (88.945834ms)
+✖ rules deny client inventory, favorites and receipt writes (76.928917ms)
+✔ repair retry restores only the chosen bot and spends once (52.417958ms)
+✔ repair refuses during a host-issued battle without spending (27.567166ms)
+✖ rules deny repair stock and health spoofing (2.336709ms)
+✔ repair refuses during an active zone without spending (23.682959ms)
+✔ issue → settle → replay: server uuid, travel squad snapshot, XP written once; duplicates and parallel settles replay (3782.2205ms)
+✔ expired run: run_expired (failed-precondition), nothing written (39.782666ms)
+✔ wrong owner: another pilot settling the run id reads unknown_run (not-found); both pilots unchanged (44.237542ms)
+✔ fielded outside the run squad is invalid_request (nothing written), even when the bot is owned or joined the squad later (44.883458ms)
+✔ zero-kill loss earns the loss amount; a settle < 20 s after issue earns 0; a re-issue supersedes the open run (81.493417ms)
+✔ holozone-run-2: issue / status carry the population by zone and tier; v1 replies and the stored run are untouched (67.684291ms)
+✔ zone: a flagged issue serves playerCombatants with currentHealth and writes the ledger; the settle writes the reports with the ruling; replays and plain requests never touch it (3401.292ms)
+✔ zone: inflated / foreign reports, reports on an unflagged run, and a tampered ledger refuse with nothing written (81.757125ms)
+✔ one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open (88.6735ms)
+✔ issue → loss → reconnect → repair → next issue carries actual health, retries spend once (158.908875ms)
+✔ foreign, inflated and nonfinite reports fail before settlement; concurrent issue blocked (35.207792ms)
+✔ zero-health recovery is host policy, and a larger max does not heal survivors (0.509792ms)
+✔ KO refusal: zero ledger HP cannot issue a zone run (all versions, health flag cannot bypass) (172.723125ms)
+✔ existing emergency patch repairs 25 percent and the zone then accepts the bot (34.619625ms)
+✔ city rival issue retains 40 percent recovery, unaffected by zone policy (13.568125ms)
+✔ positive HP, missing ledger and an unselected KO bot keep accepted reply shapes (38.153125ms)
+✔ refused reissue never closes an existing run; malformed ledger fails closed even without flag (34.55075ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 25
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12365.998125
+
+✖ failing tests:
+
+test at functions/scripts/test-desktop-items-emulator.mjs:11:1
+✖ rules deny client inventory, favorites and receipt writes (76.928917ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect ECONNREFUSED 127.0.0.1:18080
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2017:16) {
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 18080
+    }
+  }
+
+test at functions/scripts/test-desktop-items-emulator.mjs:15:1
+✖ rules deny repair stock and health spoofing (2.336709ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect ECONNREFUSED 127.0.0.1:18080
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2017:16) {
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 18080
+    }
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test --test-concurrency=1 functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs functions/scripts/test-rival-health-emulator.mjs functions/scripts/test-desktop-items-emulator.mjs" exited with code 1

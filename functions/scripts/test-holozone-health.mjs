@@ -58,15 +58,15 @@ test('issue with the flag: playerCombatants carry currentHealth, the ledger writ
   const rec = i.doc.runs[i.doc.runs.length - 1];
   assert.equal(rec.healthSchema, FLAG); assert.deepEqual(rec.issuedVitals, p.holobotVitals);
   assert.deepEqual(Z.readHoloZoneRuns(i.doc)[i.doc.runs.length - 1].issuedVitals, rec.issuedVitals, 'stored records with the new fields still read');
-  // A ledger value is served and clamped to the current max; the host's recovery at zero (40 %) is the rival issue's policy, unchanged here.
-  const q = profile({ holobotVitals: { ace: { currentHealth: 30, maxHealth: 100 }, kuma: { currentHealth: 0, maxHealth: 300 } } });
-  const j = issue(q, true);
-  assert.deepEqual(j.reply.playerCombatants.map(c => c.currentHealth), [30, KUMA_MAX * 0.4]);
-  assert.deepEqual(j.reply.playerCombatants.map(c => c.currentHealth), [H.issueVitals(profile({ holobotVitals: { ace: { currentHealth: 30, maxHealth: 100 } } }), [{ holobotId: 'ace', maxHealth: ACE_MAX }]).ace.currentHealth, H.issueVitals(profile({ holobotVitals: { kuma: { currentHealth: 0, maxHealth: 300 } } }), [{ holobotId: 'kuma', maxHealth: KUMA_MAX }]).kuma.currentHealth]);
-  // A tampered ledger fails closed on a flagged issue (unavailable) and is ignored by a plain one.
+  // Zones carry positive HP and clamp to the current max; zero is refused before the city recovery helper runs.
+  const q = profile({ holobotVitals: { ace: { currentHealth: 30, maxHealth: 100 }, kuma: { currentHealth: 1, maxHealth: 300 } } });
+  assert.deepEqual(issue(q, true).reply.playerCombatants.map(c => c.currentHealth), [30, 1]);
+  const ko = profile({ holobotVitals: { kuma: { currentHealth: 0, maxHealth: 300 } } });
+  assert.throws(() => issue(ko, true), /holobot_ko/);
+  assert.throws(() => Z.issueHoloZoneRun([], 'neonforest', ['kuma'], uuid(), T0, {profile:ko,includeHealth:false}), /holobot_ko/);
+  assert.equal(H.issueVitals(ko, [{holobotId:'kuma',maxHealth:KUMA_MAX}]).kuma.currentHealth, KUMA_MAX*.4, 'city recovery unchanged');
   const t = profile({ holobotVitals: { ace: { currentHealth: 9999, maxHealth: 192 } } });
   assert.throws(() => issue(t, true), /unavailable/);
-  assert.deepEqual(Object.keys(issue(t, false).reply), V1_ISSUE_KEYS);
   // The v2 projection carries the combatants through and adds population; a v1 projection is the identity.
   const v2 = W.holoZoneIssueReplyForVersion(i.reply, 'holozone-run-2');
   assert.deepEqual(Object.keys(v2), [...V1_ISSUE_KEYS, 'playerCombatants', 'population']); assert.equal(W.holoZoneIssueReplyForVersion(i.reply, 'holozone-run-1'), i.reply);

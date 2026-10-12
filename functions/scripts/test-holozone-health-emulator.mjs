@@ -77,7 +77,7 @@ test('zone: inflated / foreign reports, reports on an unflagged run, and a tampe
   const uid3 = await setup({ holobotVitals: { ace: { currentHealth: 9999, maxHealth: ACE_MAX } } });
   await assert.rejects(() => holoZoneHost.run({ auth: { uid: uid3 }, data: { operation: 'issue', zoneId: 'neonforest', healthSchema: FLAG } }), e => e.code === 'unavailable' && e.details.rejectionCode === 'unavailable');
   assert.equal((await runsDoc(uid3)), undefined, 'the refused issue stored no run');
-  assert.match((await holoZoneHost.run({ auth: { uid: uid3 }, data: { operation: 'issue', zoneId: 'neonforest' } })).runId, Z.HOLOZONE_RUN_ID, 'a plain issue ignores the ledger');
+  await assert.rejects(() => holoZoneHost.run({ auth: { uid: uid3 }, data: { operation: 'issue', zoneId: 'neonforest' } }), e => e.code === 'unavailable', 'legacy issue also validates the admission ledger');
 });
 
 test('one ledger: the rival host\'s settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open', async () => {
