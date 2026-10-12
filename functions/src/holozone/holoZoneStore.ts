@@ -1,3 +1,4 @@
+import {duelOpen,arenaOpen} from "../lib/healingGuards";
 import { randomUUID } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
@@ -30,6 +31,8 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
     const runs = readHoloZoneRuns((await tx.get(runsRef)).data());
     if (command.operation === 'status') return holoZoneStatusReplyForVersion(holoZoneStatus(runs, nowMs), command.schemaVersion);
     if (command.operation === 'issue') {
+      const duel=await tx.get(db.doc(`duelHealingRuns/${uid}`)),arena=await tx.get(db.doc(`arenaMatches/${uid}`));
+      if(duelOpen(duel.data())||arenaOpen(arena.data()))throw new HoloZoneError("unavailable");
       let squadIds: string[];
       try {
         squadIds = readTravelSquad(profile).holobotIds;

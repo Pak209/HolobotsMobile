@@ -4,14 +4,15 @@ import { buildEnergyRefillUpdates, buildExpBoosterActivationRaw } from "./mintin
 import {repairStock,repairGrant,repairUse,RepairError,REPAIR_ITEM,healingItem,healingPurchase} from "./repairItems";
 export const ITEMS_SCHEMA = "desktop-items-2";
 export class ItemError extends Error { constructor(public code:string){super(code);} }
-export type ItemCommand={schemaVersion:string;operation:"read"|"favorite"|"buy"|"use";itemId?:string;requestId?:string;packId?:string;holobotId?:string};
+export type ItemCommand={schemaVersion:string;operation:"read"|"favorite"|"buy"|"use";itemId?:string;requestId?:string;packId?:string;holobotId?:string;currentHealth?:number};
 export function validateItemCommand(raw:unknown):ItemCommand {
  const c=raw as ItemCommand;
- if(!c||Object.keys(c).some(k=>!["schemaVersion","operation","itemId","requestId","packId","holobotId"].includes(k))||c.schemaVersion!==ITEMS_SCHEMA||!["read","favorite","buy","use"].includes(c.operation))throw new ItemError("invalid_request");
+ if(!c||Object.keys(c).some(k=>!["schemaVersion","operation","itemId","requestId","packId","holobotId","currentHealth"].includes(k))||c.schemaVersion!==ITEMS_SCHEMA||!["read","favorite","buy","use"].includes(c.operation))throw new ItemError("invalid_request");
  if(c.operation!=="read"&&(typeof c.itemId!=="string"||c.itemId.length>80||typeof c.requestId!=="string"||!/^[a-zA-Z0-9_-]{1,128}$/.test(c.requestId)))throw new ItemError("invalid_request");
  if(c.packId!==undefined&&(typeof c.packId!=="string"||c.packId.length>60))throw new ItemError("invalid_request");
  if(c.holobotId!==undefined&&(typeof c.holobotId!=="string"||!/^([a-z]{2,12})$/.test(c.holobotId)))throw new ItemError("invalid_request");
- return {schemaVersion:ITEMS_SCHEMA,operation:c.operation,itemId:c.itemId,requestId:c.requestId,packId:c.packId,holobotId:c.holobotId};
+ if(c.currentHealth!==undefined&&(c.operation!=="use"||!healingItem(c.itemId!)||typeof c.currentHealth!=="number"||!Number.isFinite(c.currentHealth)||c.currentHealth<0))throw new ItemError("invalid_request");
+ return {schemaVersion:ITEMS_SCHEMA,currentHealth:c.currentHealth,operation:c.operation,itemId:c.itemId,requestId:c.requestId,packId:c.packId,holobotId:c.holobotId};
 }
 function checked(profile:Record<string,unknown>){for(const key of [...Object.values(ITEM_INVENTORY_FIELD),"holosTokens","dailyEnergy","maxDailyEnergy","expBoosterActiveUntil"]){const v=profile[key];if(v!==undefined&&(typeof v!=="number"||!Number.isFinite(v)||v<0))throw new ItemError("unavailable");}}
 export function itemSnapshot(profile:Record<string,unknown>,favoriteId:string|null,now:number){
@@ -19,7 +20,7 @@ export function itemSnapshot(profile:Record<string,unknown>,favoriteId:string|nu
  const viewListings=[...catalog.listings];viewListings.push({listingId:"buddy.light",kind:"buddy_unit",displayName:"Light Buddy Unit",price:0,currency:"holos",quantity:1,owned:catalog.inventory.buddyUnits.light,affordable:false,available:false,availableAtMs:0,details:{tierId:"buddy_light"},purchase:{callable:"",request:{}}});
  const items=viewListings.filter(l=>l.kind==="item"||l.kind==="buddy_unit").map(l=>({...l,
  useMode:healingItem(l.listingId)?"repair":l.listingId==="item.energy_refill"?"energy":l.listingId==="item.exp_booster"?"boost":l.listingId==="item.gacha_ticket"?"cache":l.kind==="buddy_unit"?"capture":"context",
- canUse:l.owned>0&&(healingItem(l.listingId)?l.listingId===REPAIR_ITEM:l.listingId==="item.energy_refill"?Number(profile.dailyEnergy||0)<Number(profile.maxDailyEnergy||100):l.listingId==="item.exp_booster"?Number(profile.expBoosterActiveUntil||0)<=now:l.listingId==="item.gacha_ticket"),
+ canUse:l.owned>0&&(healingItem(l.listingId)?true:l.listingId==="item.energy_refill"?Number(profile.dailyEnergy||0)<Number(profile.maxDailyEnergy||100):l.listingId==="item.exp_booster"?Number(profile.expBoosterActiveUntil||0)<=now:l.listingId==="item.gacha_ticket"),
  description:healingItem(l.listingId)?"Host-owned healing item. Choose a squad Holobot.":l.listingId==="item.energy_refill"?"Refills account training energy. Does not heal a Holobot.":l.listingId==="item.exp_booster"?"Activates the host's arena experience boost.":l.listingId==="item.gacha_ticket"?"Open a Cache Check. The host rolls and grants the contents.":l.kind==="buddy_unit"?"Equip in the wild capture overlay.":"Used by its matching account activity."}));
  const concepts=[
  ["market_booster","Market Booster","A limited-use boost that improves rewards from eligible activities."],
@@ -50,7 +51,7 @@ export function applyItemCommand(profile:Record<string,unknown>,favoriteId:strin
   else {const purchase=buildItemPurchaseUpdatesRaw(profile,item.displayName,new Date(now));if(!purchase)throw new ItemError("unavailable");updates=purchase.updates;}
  } else if(c.operation==="use"){
   if(!item.canUse)throw new ItemError(item.owned<=0?"no_item":"unavailable");
-  if(item.useMode==="repair"){try{const r=repairUse(profile,c.holobotId);updates=r.updates;result=r.result;}catch(e){if(e instanceof RepairError)throw new ItemError(e.code);throw e;}}
+  if(item.useMode==="repair"){try{const r=repairUse(profile,c.holobotId,c.itemId);updates=r.updates;result=r.result;}catch(e){if(e instanceof RepairError)throw new ItemError(e.code);throw e;}}
   else if(item.useMode==="energy")updates=buildEnergyRefillUpdates(profile)!;
   else if(item.useMode==="boost"){const boost=buildExpBoosterActivationRaw(profile,now);if(boost.refusal!==null)throw new ItemError(boost.refusal);updates=boost.updates;}
   else if(item.useMode==="cache"){
