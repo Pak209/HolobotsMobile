@@ -55,3 +55,5 @@ export {desktopItemsHost} from "./vendors/desktopItemsHost";
 export { presenceHost } from "./presence/presenceHost";
 
 export {duelHealingHost} from "./duels/duelHealingHost";
+
+export {workshopHealHost} from "./workshop/workshopHealHost";
