@@ -53,3 +53,5 @@ export { wardrobeHost } from "./vendors/wardrobeHost";
 export {desktopItemsHost} from "./vendors/desktopItemsHost";
 
 export { presenceHost } from "./presence/presenceHost";
+
+export {workshopCraftHost} from "./workshop/workshopCraftHost";
