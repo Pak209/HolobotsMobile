@@ -1,0 +1,4 @@
+# Step 1 — healing catalog
+Known-bad first: baseline-build.log + known-bad.log, missing Emergency Patch/Kit/Full listings. Candidate emulator.log passes the complete purchase ladder and replay/no-spend refusal. build.log checks shared mirrors + TypeScript. domain.log retained the old exact catalog enumeration failure; domain-02.log updates its approved expectations and passes.
+
+Patch 25%, Kit 50%, Full 100%; 100/250/600 Holos, quantity 1. Full has no reward grant (vendor or approved next-step craft only). All three sold in Marketplace, not Workshop. Existing emergencyPatches retained; new stocks live in already-protected itemStocks.repair_kit/full_restore. Purchase receipt retries spend once. Kit/Full use intentionally remains unavailable until step 2; buying cannot accidentally consume a Patch. No deploy, production calls, shared dirty changes or city 40% recovery change.

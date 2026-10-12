@@ -1,7 +1,30 @@
 /** Server-owned repair stock and health. No client-supplied amount/health is accepted. */
 export const REPAIR_FIELD = "emergencyPatches";
 export const REPAIR_ITEM = "item.emergency_patch";
-export const REPAIR_FRACTION = 0.25; // Local producer default; Pak's amount call pending.
+export const REPAIR_FRACTION = 0.25; // DECISIONS #57: 25 percent.
+export const HEALING_ITEMS = [
+ {id:REPAIR_ITEM,name:"Emergency Patch",fraction:0.25,price:100,stockKey:"emergency_patch"},
+ {id:"item.repair_kit",name:"Repair Kit",fraction:0.5,price:250,stockKey:"repair_kit"},
+ {id:"item.full_restore",name:"Full Restore",fraction:1,price:600,stockKey:"full_restore"},
+] as const;
+export function healingItem(id:string){return HEALING_ITEMS.find(i=>i.id===id);}
+export function healingStock(profile:Record<string,unknown>,id:string):number{
+ if(id===REPAIR_ITEM)return repairStock(profile);
+ const item=healingItem(id);if(!item)throw new RepairError("unknown_item");
+ const stocks=profile.itemStocks;if(stocks!==undefined&&(!stocks||typeof stocks!=="object"||Array.isArray(stocks)))throw new RepairError("unavailable");
+ const n=(stocks as Record<string,unknown>|undefined)?.[item.stockKey]??0;
+ if(typeof n!=="number"||!Number.isSafeInteger(n)||n<0)throw new RepairError("unavailable");return n;
+}
+export function healingDelta(profile:Record<string,unknown>,id:string,delta:number):Record<string,unknown>{
+ const item=healingItem(id);if(!item)throw new RepairError("unknown_item");const n=healingStock(profile,id)+delta;
+ if(!Number.isSafeInteger(delta)||!Number.isSafeInteger(n)||n<0)throw new RepairError("no_item");
+ return id===REPAIR_ITEM?{[REPAIR_FIELD]:n}:{itemStocks:{...(profile.itemStocks as Record<string,unknown>??{}),[item.stockKey]:n}};
+}
+export function healingPurchase(profile:Record<string,unknown>,id:string){
+ const item=healingItem(id);if(!item)throw new RepairError("unknown_item");const balance=profile.holosTokens??0;
+ if(typeof balance!=="number"||!Number.isFinite(balance)||balance<0)throw new RepairError("unavailable");
+ if(balance<item.price)throw new RepairError("not_enough_holos");return {...healingDelta(profile,id,1),holosTokens:balance-item.price};
+}
 export class RepairError extends Error { constructor(public code:string){super(code);} }
 export function repairStock(profile:Record<string,unknown>):number {
  const n=profile[REPAIR_FIELD]??0;
