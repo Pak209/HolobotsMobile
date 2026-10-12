@@ -57,6 +57,7 @@ export const settleArenaBattle = onCall(async (request): Promise<SettleArenaBatt
 
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(userRef);
+    const matchRef=db.doc(`arenaMatches/${uid}`),match=await transaction.get(matchRef);
     if (!snapshot.exists) {
       throw new HttpsError("not-found", "User profile not found.");
     }
@@ -67,6 +68,7 @@ export const settleArenaBattle = onCall(async (request): Promise<SettleArenaBatt
       return { alreadyProcessed: true, settlement: null };
     }
 
+    if(!match.exists||match.data()!.open!==true||match.data()!.matchId!==data.matchId||match.data()!.tierId!==tierId)throw new HttpsError("failed-precondition","arena_match_required",{rejectionCode:"arena_match_required"});
     const result = buildArenaSettlementUpdatesRaw(userData, holobotName, input);
     if (!result) {
       throw new HttpsError("invalid-argument", "Unknown arena tier.");
@@ -81,6 +83,7 @@ export const settleArenaBattle = onCall(async (request): Promise<SettleArenaBatt
       { merge: true },
     );
 
+    transaction.update(matchRef,{open:false,settledAtMs:Date.now(),battleId});
     return { alreadyProcessed: false, settlement: result.settlement };
   });
 });

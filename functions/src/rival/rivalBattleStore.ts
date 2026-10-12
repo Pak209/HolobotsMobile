@@ -1,4 +1,5 @@
 import {withRankHealingReward} from "../lib/rankHealingReward";
+import {duelOpen,arenaOpen} from "../lib/healingGuards";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
 import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
 import { randomBytes, randomInt } from 'node:crypto';
@@ -55,6 +56,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       return withStory(rivalReplyForVersion(r.reply, command.schemaVersion));
     }
     if (command.operation === 'issue') {
+      const duel=await tx.get(db.doc(`duelHealingRuns/${uid}`)),arena=await tx.get(db.doc(`arenaMatches/${uid}`));
+      if(duelOpen(duel.data())||arenaOpen(arena.data()))throw new RivalError("too_many_open");
       const open = readOpenBattles((await tx.get(ledgerRef)).data(), nowMs);
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).

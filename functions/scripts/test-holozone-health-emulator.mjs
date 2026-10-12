@@ -80,7 +80,7 @@ test('zone: inflated / foreign reports, reports on an unflagged run, and a tampe
   await assert.rejects(() => holoZoneHost.run({ auth: { uid: uid3 }, data: { operation: 'issue', zoneId: 'neonforest' } }), e => e.code === 'unavailable', 'legacy issue also validates the admission ledger');
 });
 
-test('one ledger: the rival host\'s settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open', async () => {
+test('one ledger: the rival host\'s settle is what the zone issue serves; the zone settle is what the rival issue serves; a paid repair works while the zone run is open', async () => {
   const uid = await setup();
   const r = await rival(uid, { operation: 'issue', healthSchema: FLAG }, ISSUED);
   assert.deepEqual(r.playerCombatants.map(c => c.currentHealth), [ACE_MAX, KUMA_MAX]);
@@ -88,8 +88,9 @@ test('one ledger: the rival host\'s settle is what the zone issue serves; the zo
   assert.equal((await user(uid)).holobotVitals.ace.currentHealth, 30);
   const i = await zone(uid, { operation: 'issue', zoneId: 'neonforest', healthSchema: FLAG }, ISSUED + 1);
   assert.deepEqual(i.playerCombatants.map(c => c.currentHealth), [30, KUMA_MAX], 'the zone serves the rival host\'s value');
-  // The repair item (deployed) refuses while the zone run is open: the same run ledger both see.
-  await assert.rejects(() => transactDesktopItems(db, uid, { schemaVersion: 'desktop-items-2', operation: 'use', itemId: 'item.emergency_patch', requestId: 'patch_zone_1', holobotId: 'ace' }, T0), /between_battles_only/);
+  // #57: paid mid-zone repair updates the same ledger and issued health bound.
+  await transactDesktopItems(db, uid, { schemaVersion: 'desktop-items-2', operation: 'use', itemId: 'item.emergency_patch', requestId: 'patch_zone_1', holobotId: 'ace' }, T0);
+  assert.equal((await user(uid)).holobotVitals.ace.currentHealth,30+ACE_MAX*0.25);
   await zone(uid, { operation: 'settle', runId: i.runId, kills: 2, bossDefeated: true, fielded: ['ace', 'kuma'], healthSchema: FLAG, health: [{ holobotId: 'ace', currentHealth: 12 }] }, T0 + 1);
   assert.equal((await user(uid)).holobotVitals.ace.currentHealth, 12);
   const r2 = await rival(uid, { operation: 'issue', healthSchema: FLAG }, T0 + 2);
