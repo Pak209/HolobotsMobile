@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
@@ -43,7 +44,7 @@ export const claimTrainingSession = onCall(async (request): Promise<{ claimed: b
       throw new HttpsError("invalid-argument", "Unknown training course.");
     }
 
-    transaction.set(userRef, result.updates, { merge: true });
+    transaction.set(userRef, withRankHealingReward(userData,result.updates), { merge: true });
 
     return { claimed: true };
   });

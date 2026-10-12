@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
@@ -76,7 +77,7 @@ export const settleArenaBattle = onCall(async (request): Promise<SettleArenaBatt
     transaction.set(
       userRef,
       {
-        ...result.updates,
+        ...withRankHealingReward(userData,result.updates),
         lastArenaBattleId: battleId,
       },
       { merge: true },
