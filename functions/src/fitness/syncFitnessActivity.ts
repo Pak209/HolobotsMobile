@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { FieldValue as AdminFieldValue } from "firebase-admin/firestore";
@@ -136,7 +137,7 @@ export const syncFitnessActivity = onCall(async (request): Promise<SyncFitnessAc
     transaction.set(
       userRef,
       {
-        ...outcome.userUpdates,
+        ...withRankHealingReward(userData,outcome.userUpdates),
         ...welcomeUpdates,
         lastFitnessSyncAt: FieldValue.serverTimestamp(),
         lastStepSync: FieldValue.serverTimestamp(),

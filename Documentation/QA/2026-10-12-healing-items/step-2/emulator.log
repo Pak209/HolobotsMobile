@@ -1,0 +1,47 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-healing-use-emulator.mjs functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs
+✔ all three revive KO at 25/50/100 percent and replay spends once (690.651ms)
+✔ Arena open record refuses every heal without spend (53.255084ms)
+✔ bench heal costs one item, no immediate ledger write, recorded settle, three-second lockout (97.151292ms)
+✔ zone: a flagged issue serves playerCombatants with currentHealth and writes the ledger; the settle writes the reports with the ruling; replays and plain requests never touch it (4005.54525ms)
+✔ zone: inflated / foreign reports, reports on an unflagged run, and a tampered ledger refuse with nothing written (83.911375ms)
+✖ one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open (54.475584ms)
+✔ KO refusal: zero ledger HP cannot issue a zone run (all versions, health flag cannot bypass) (697.442791ms)
+✔ existing emergency patch repairs 25 percent and the zone then accepts the bot (52.6195ms)
+✔ city rival issue retains 40 percent recovery, unaffected by zone policy (18.401792ms)
+✔ positive HP, missing ledger and an unselected KO bot keep accepted reply shapes (57.805334ms)
+✔ refused reissue never closes an existing run; malformed ledger fails closed even without flag (45.992834ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4333.033583
+
+✖ failing tests:
+
+test at functions/scripts/test-holozone-health-emulator.mjs:83:1
+✖ one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open (54.475584ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///private/tmp/holobots-healing-items/functions/scripts/test-holozone-health-emulator.mjs:92:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /between_battles_only/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test functions/scripts/test-healing-use-emulator.mjs functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs" exited with code 1

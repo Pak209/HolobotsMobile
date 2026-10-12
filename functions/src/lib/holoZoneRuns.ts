@@ -33,6 +33,7 @@
  * Pure module: no firebase imports, safe to import from tests
  * (functions/scripts/test-holozone-runs.mjs, test-holozone-health.mjs).
  */
+import {healingDelta} from "./repairItems";
 import { MAX_PERFORMANCE_EVENTS, computeBattleSettlement } from "./battleSettlement";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, requireLivingVitals, settleVitals, Vitals } from "./rivalHealth";
@@ -305,6 +306,7 @@ export function settleHoloZoneRun(
   };
   const next = runs.map((r, i) => (i === index ? { ...r, settlement, progression: award.progression } : r));
   const userUpdates: Record<string, unknown> = award.expPerHolobot > 0 && award.progression.length ? { holobots: award.holobots } : {};
+  if (command.bossDefeated && !expWithheld) Object.assign(userUpdates, healingDelta(profile,"item.repair_kit",1));
   // rival-health-1: `health[]` reports settle the ledger with the ruling — only on a run issued with the flag, each
   // report at or below what that run issued (lib/rivalHealth.ts settleVitals; a violation refuses the whole settle).
   if (command.health !== undefined) {
