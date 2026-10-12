@@ -1,0 +1,25 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-healing-rank-routes-emulator.mjs functions/scripts/test-healing-grants-emulator.mjs
+FIRST boss inventory {"full_restore":2,"repair_kit":1}
+✔ boss defeat grants exactly one Kit, replays/concurrent retries cannot grant twice (4051.966291ms)
+✔ no boss / instant claimed boss do not grant Kit (54.6665ms)
+✔ mobile blueprint rank-tier up and Rank Skip grant one Kit per successful transition (26.005708ms)
+FIRST ascension Kit count true 4
+FIRST ascension Kit count false undefined
+✔ owned Legendary ascension grants one Kit per crossed rank, new mint excluded (520.00175ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4222.156333
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
