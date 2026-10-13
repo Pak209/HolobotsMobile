@@ -1,0 +1,53 @@
+{
+  "baseCommit": "dece8921e61d8673a6072454b85ba17e4c921fe8",
+  "checkedAtUtc": "2026-10-13T04:36:27Z",
+  "startedAtPdt": "2026-10-12T21:13:21-07:00",
+  "checkpointWallMinutes": 23.1,
+  "timeBoxMinutes": 480,
+  "maximumParallelWorkers": 4,
+  "conservativeWorkerMinuteUpperBound": 92.4,
+  "exactModelTokens": "not exposed by subagent/tool runtime; not estimated",
+  "generationCreditsSpent": 0,
+  "node": "22.23.1",
+  "firestoreEmulator": "127.0.0.1:18180",
+  "projects": [
+    "demo-holobots-r4",
+    "demo-holobots-r4-regression",
+    "demo-holobots-r4-rules"
+  ],
+  "checks": {
+    "typescriptAndSharedParity": "PASS",
+    "matrixRun1": {
+      "pass": 38,
+      "fail": 1,
+      "durationMs": 82735.745875
+    },
+    "matrixRun2": {
+      "pass": 39,
+      "fail": 0,
+      "durationMs": 77232.495875,
+      "exactEmulatorTransportRetries": 1
+    },
+    "recoveryFocusedAfterFinalChange": {
+      "pass": 6,
+      "fail": 0,
+      "durationMs": 3529.327416,
+      "exactEmulatorTransportRetries": 0
+    },
+    "rules": {
+      "pass": 3,
+      "fail": 0
+    },
+    "domainRegressions": {
+      "pass": 30,
+      "fail": 0
+    },
+    "hostRegressions": {
+      "pass": 29,
+      "fail": 0
+    }
+  },
+  "deploymentPerformed": false,
+  "unityEditorOrBuildUsed": false,
+  "assetWrites": 0
+}

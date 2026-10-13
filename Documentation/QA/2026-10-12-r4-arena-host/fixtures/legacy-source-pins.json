@@ -1,0 +1,14 @@
+[
+  {
+    "source": "functions/src/arena/chargeArenaEntry.ts",
+    "baselineCommit": "dece8921e61d8673a6072454b85ba17e4c921fe8",
+    "sha256": "01c8c67fc821e3a0f2f3a95bd06cb6f0a8130c73dc891123debb2cdbdca354d8",
+    "fixture": "fixtures/legacy-chargeArenaEntry.ts.txt"
+  },
+  {
+    "source": "functions/src/arena/settleArenaBattle.ts",
+    "baselineCommit": "dece8921e61d8673a6072454b85ba17e4c921fe8",
+    "sha256": "78fbe2405cbf3a2316bb32242bd11351ec4ba3ac3ed4c53ce1fcbfcd3d8e6a8b",
+    "fixture": "fixtures/legacy-settleArenaBattle.ts.txt"
+  }
+]

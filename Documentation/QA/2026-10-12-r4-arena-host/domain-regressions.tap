@@ -1,0 +1,190 @@
+TAP version 13
+# Subtest: beast kind: same table, zone tier, every listed bot, booster honoured
+ok 1 - beast kind: same table, zone tier, every listed bot, booster honoured
+  ---
+  duration_ms: 1.457083
+  type: 'test'
+  ...
+# Subtest: progression rows report the after-state; level-ups grant +1 point each
+ok 2 - progression rows report the after-state; level-ups grant +1 point each
+  ---
+  duration_ms: 0.157083
+  type: 'test'
+  ...
+# Subtest: fails closed on an unknown id or kind; withheld reports zeros and leaves holobots untouched
+ok 3 - fails closed on an unknown id or kind; withheld reports zeros and leaves holobots untouched
+  ---
+  duration_ms: 0.108875
+  type: 'test'
+  ...
+# Subtest: requests: healthSchema absent / "rival-health-1" / anything else; health[] needs the flag; the rival host's row rule (lib/rivalHealth.ts healthRows)
+ok 4 - requests: healthSchema absent / "rival-health-1" / anything else; health[] needs the flag; the rival host's row rule (lib/rivalHealth.ts healthRows)
+  ---
+  duration_ms: 1.363375
+  type: 'test'
+  ...
+# Subtest: issue with the flag: playerCombatants carry currentHealth, the ledger write is exactly the rival issue's (issueVitals), the record keeps the issued values; without the flag nothing changes
+ok 5 - issue with the flag: playerCombatants carry currentHealth, the ledger write is exactly the rival issue's (issueVitals), the record keeps the issued values; without the flag nothing changes
+  ---
+  duration_ms: 1.160083
+  type: 'test'
+  ...
+# Subtest: settle with reports: kept at or below the issued value with the ruling; inflated / foreign / unflagged-run reports refuse the whole settle and write nothing; replays never write
+ok 6 - settle with reports: kept at or below the issued value with the ruling; inflated / foreign / unflagged-run reports refuse the whole settle and write nothing; replays never write
+  ---
+  duration_ms: 1.094542
+  type: 'test'
+  ...
+# Subtest: carry across hosts through the one ledger: the rival host's settle is what the zone issue serves, and the zone settle is what the rival issue serves
+ok 7 - carry across hosts through the one ledger: the rival host's settle is what the zone issue serves, and the zone settle is what the rival issue serves
+  ---
+  duration_ms: 0.20125
+  type: 'test'
+  ...
+# Subtest: without the flag, every zone reply is byte-identical to the deployed holozone-run-1 shape (pinned strings), and nothing health-related is stored
+ok 8 - without the flag, every zone reply is byte-identical to the deployed holozone-run-1 shape (pinned strings), and nothing health-related is stored
+  ---
+  duration_ms: 0.204375
+  type: 'test'
+  ...
+# Subtest: requests: status / issue{zoneId} / settle{runId, kills, bossDefeated, fielded}; everything else invalid_request
+ok 9 - requests: status / issue{zoneId} / settle{runId, kills, bossDefeated, fielded}; everything else invalid_request
+  ---
+  duration_ms: 2.455416
+  type: 'test'
+  ...
+# Subtest: zone → tier table is server data: neonforest = 0; an unlisted zone is unknown_zone
+ok 10 - zone → tier table is server data: neonforest = 0; an unlisted zone is unknown_zone
+  ---
+  duration_ms: 0.476125
+  type: 'test'
+  ...
+# Subtest: mappings: didWin = kills >= 1 || boss; combos = min(kills, 25); perfectDefenses = boss ? 5 : 0; the one battle table
+ok 11 - mappings: didWin = kills >= 1 || boss; combos = min(kills, 25); perfectDefenses = boss ? 5 : 0; the one battle table
+  ---
+  duration_ms: 0.560584
+  type: 'test'
+  ...
+# Subtest: issue → settle → replay: every fielded bot gets the table EXP once; the replay returns the stored ruling and writes nothing
+ok 12 - issue → settle → replay: every fielded bot gets the table EXP once; the replay returns the stored ruling and writes nothing
+  ---
+  duration_ms: 1.279625
+  type: 'test'
+  ...
+# Subtest: zero kills, no boss = the loss amount; a boss kill wins with 5 perfect defenses
+ok 13 - zero kills, no boss = the loss amount; a boss kill wins with 5 perfect defenses
+  ---
+  duration_ms: 0.244334
+  type: 'test'
+  ...
+# Subtest: anti-farm: a run settled < 20 s after issue settles but earns 0; EXP Booster doubles otherwise
+ok 14 - anti-farm: a run settled < 20 s after issue settles but earns 0; EXP Booster doubles otherwise
+  ---
+  duration_ms: 0.288834
+  type: 'test'
+  ...
+# Subtest: refusals write nothing: unknown run, expired, superseded, fielded outside the squad, fielded bot no longer owned
+ok 15 - refusals write nothing: unknown run, expired, superseded, fielded outside the squad, fielded bot no longer owned
+  ---
+  duration_ms: 0.326875
+  type: 'test'
+  ...
+# Subtest: storage keeps the last 10 runs; a malformed stored doc fails closed
+ok 16 - storage keeps the last 10 runs; a malformed stored doc fails closed
+  ---
+  duration_ms: 0.776458
+  type: 'test'
+  ...
+# Subtest: data table: constants, rival count by tier, monotone difficulty, real roster ids
+ok 17 - data table: constants, rival count by tier, monotone difficulty, real roster ids
+  ---
+  duration_ms: 2.466417
+  type: 'test'
+  ...
+# Subtest: lineup uses the Unity CombatantSnapshot / NpcPilotSnapshot shape and scales per tier
+ok 18 - lineup uses the Unity CombatantSnapshot / NpcPilotSnapshot shape and scales per tier
+  ---
+  duration_ms: 0.13575
+  type: 'test'
+  ...
+# Subtest: tier boundaries 9→10 and 19→20; status counts wins to next tier
+ok 19 - tier boundaries 9→10 and 19→20; status counts wins to next tier
+  ---
+  duration_ms: 3.123333
+  type: 'test'
+  ...
+# Subtest: first win of the UTC day grants one Unit, the second does not, next UTC day grants again
+ok 20 - first win of the UTC day grants one Unit, the second does not, next UTC day grants again
+  ---
+  duration_ms: 1.036917
+  type: 'test'
+  ...
+# Subtest: a loss grants nothing, does not count toward the tier, and keeps the daily reward available
+ok 21 - a loss grants nothing, does not count toward the tier, and keeps the daily reward available
+  ---
+  duration_ms: 1.051125
+  type: 'test'
+  ...
+# Subtest: duplicate settle is a no-op that replays the original ruling
+ok 22 - duplicate settle is a no-op that replays the original ruling
+  ---
+  duration_ms: 0.65075
+  type: 'test'
+  ...
+# Subtest: unknown, foreign, mismatched and expired battle ids are rejected without writes
+ok 23 - unknown, foreign, mismatched and expired battle ids are rejected without writes
+  ---
+  duration_ms: 0.606584
+  type: 'test'
+  ...
+# Subtest: starting Unit (Light) is granted once: missing field grants, an integer migrates without a starter, a tier map never re-grants
+ok 24 - starting Unit (Light) is granted once: missing field grants, an integer migrates without a starter, a tier map never re-grants
+  ---
+  duration_ms: 0.358083
+  type: 'test'
+  ...
+# Subtest: daily reward is Light and only Light; Medium / Heavy are kept and reported per tier
+ok 25 - daily reward is Light and only Light; Medium / Heavy are kept and reported per tier
+  ---
+  duration_ms: 0.269208
+  type: 'test'
+  ...
+# Subtest: TTL cleanup: expireAt = expiry + 7-day grace; expiresAtMs and the 2 h settle window are unchanged
+ok 26 - TTL cleanup: expireAt = expiry + 7-day grace; expiresAtMs and the 2 h settle window are unchanged
+  ---
+  duration_ms: 0.315083
+  type: 'test'
+  ...
+# Subtest: too_fast: a win settled under 20 s after issue is rejected and writes nothing; a loss is never too fast
+ok 27 - too_fast: a win settled under 20 s after issue is rejected and writes nothing; a loss is never too fast
+  ---
+  duration_ms: 0.167417
+  type: 'test'
+  ...
+# Subtest: open-battle ledger: at most 3 open; expired and settled entries free a slot; malformed ledger fails closed
+ok 28 - open-battle ledger: at most 3 open; expired and settled entries free a slot; malformed ledger fails closed
+  ---
+  duration_ms: 0.24775
+  type: 'test'
+  ...
+# Subtest: wire versions: requests default to rival-battle-1; v1 replies carry the total int and no buddyUnitTierGranted; v2 is the tier object
+ok 29 - wire versions: requests default to rival-battle-1; v1 replies carry the total int and no buddyUnitTierGranted; v2 is the tier object
+  ---
+  duration_ms: 0.179042
+  type: 'test'
+  ...
+# Subtest: wins grant one Emergency Patch, loss and duplicate grant none
+ok 30 - wins grant one Emergency Patch, loss and duplicate grant none
+  ---
+  duration_ms: 0.053959
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 103.031375

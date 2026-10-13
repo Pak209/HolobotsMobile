@@ -1,0 +1,47 @@
+TAP version 13
+# Subtest: settlement requires started server match, owner, minimum elapsed time and original binding
+ok 1 - settlement requires started server match, owner, minimum elapsed time and original binding
+  ---
+  duration_ms: 1051.808125
+  type: 'test'
+  ...
+# Subtest: lost issue/start replies recover one paid match; repeated resume is read-only
+ok 2 - lost issue/start replies recover one paid match; repeated resume is read-only
+  ---
+  duration_ms: 104.492042
+  type: 'test'
+  ...
+# Subtest: operation arrays, objects, null and missing schema cannot coerce into a lifecycle operation
+ok 3 - operation arrays, objects, null and missing schema cannot coerce into a lifecycle operation
+  ---
+  duration_ms: 393.744375
+  type: 'test'
+  ...
+# Subtest: Arena callable authenticates every lifecycle entrypoint and closes both old anonymous bypasses
+ok 4 - Arena callable authenticates every lifecycle entrypoint and closes both old anonymous bypasses
+  ---
+  duration_ms: 39.897083
+  type: 'test'
+  ...
+# Subtest: altered valid-shaped terminal report replays the original ruling without touching a newer lease
+ok 5 - altered valid-shaped terminal report replays the original ruling without touching a newer lease
+  ---
+  duration_ms: 117.884833
+  type: 'test'
+  ...
+# R4 measured bounded emulator transport retries: 0
+# Subtest: fresh-client resume without IDs discovers absent, open, expired and latest terminal match read-only
+ok 6 - fresh-client resume without IDs discovers absent, open, expired and latest terminal match read-only
+  ---
+  duration_ms: 678.167125
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3529.327416

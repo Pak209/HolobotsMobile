@@ -1,0 +1,184 @@
+TAP version 13
+# Subtest: issue → settle → replay: server uuid, travel squad snapshot, XP written once; duplicates and parallel settles replay
+ok 1 - issue → settle → replay: server uuid, travel squad snapshot, XP written once; duplicates and parallel settles replay
+  ---
+  duration_ms: 3690.352542
+  type: 'test'
+  ...
+# Subtest: expired run: run_expired (failed-precondition), nothing written
+ok 2 - expired run: run_expired (failed-precondition), nothing written
+  ---
+  duration_ms: 32.318958
+  type: 'test'
+  ...
+# Subtest: wrong owner: another pilot settling the run id reads unknown_run (not-found); both pilots unchanged
+ok 3 - wrong owner: another pilot settling the run id reads unknown_run (not-found); both pilots unchanged
+  ---
+  duration_ms: 37.818791
+  type: 'test'
+  ...
+# Subtest: fielded outside the run squad is invalid_request (nothing written), even when the bot is owned or joined the squad later
+ok 4 - fielded outside the run squad is invalid_request (nothing written), even when the bot is owned or joined the squad later
+  ---
+  duration_ms: 42.317458
+  type: 'test'
+  ...
+# Subtest: zero-kill loss earns the loss amount; a settle < 20 s after issue earns 0; a re-issue supersedes the open run
+ok 5 - zero-kill loss earns the loss amount; a settle < 20 s after issue earns 0; a re-issue supersedes the open run
+  ---
+  duration_ms: 81.244792
+  type: 'test'
+  ...
+# Subtest: holozone-run-2: issue / status carry the population by zone and tier; v1 replies and the stored run are untouched
+ok 6 - holozone-run-2: issue / status carry the population by zone and tier; v1 replies and the stored run are untouched
+  ---
+  duration_ms: 58.446416
+  type: 'test'
+  ...
+# Subtest: zone: a flagged issue serves playerCombatants with currentHealth and writes the ledger; the settle writes the reports with the ruling; replays and plain requests never touch it
+ok 7 - zone: a flagged issue serves playerCombatants with currentHealth and writes the ledger; the settle writes the reports with the ruling; replays and plain requests never touch it
+  ---
+  duration_ms: 3687.271
+  type: 'test'
+  ...
+# Subtest: zone: inflated / foreign reports, reports on an unflagged run, and a tampered ledger refuse with nothing written
+ok 8 - zone: inflated / foreign reports, reports on an unflagged run, and a tampered ledger refuse with nothing written
+  ---
+  duration_ms: 68.63525
+  type: 'test'
+  ...
+# Subtest: one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open
+ok 9 - one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a repair is refused while the zone run is open
+  ---
+  duration_ms: 73.515625
+  type: 'test'
+  ...
+# Subtest: issue returns a server lineup and persists the battle outside user-writable paths
+ok 10 - issue returns a server lineup and persists the battle outside user-writable paths
+  ---
+  duration_ms: 217.826209
+  type: 'test'
+  ...
+# Subtest: first win of the day grants a Unit; the second does not; next UTC day does; loss counts nothing
+ok 11 - first win of the day grants a Unit; the second does not; next UTC day does; loss counts nothing
+  ---
+  duration_ms: 110.364333
+  type: 'test'
+  ...
+# Subtest: parallel duplicate settles grant once and count one win
+ok 12 - parallel duplicate settles grant once and count one win
+  ---
+  duration_ms: 3412.452333
+  type: 'test'
+  ...
+# Subtest: foreign, unknown and expired battle ids are rejected with nothing written
+ok 13 - foreign, unknown and expired battle ids are rejected with nothing written
+  ---
+  duration_ms: 37.282125
+  type: 'test'
+  ...
+# Subtest: callable maps rejections to typed codes and requires auth
+ok 14 - callable maps rejections to typed codes and requires auth
+  ---
+  duration_ms: 12.482791
+  type: 'test'
+  ...
+# Subtest: starter Unit exactly once: createGenesisProfile, then desktop snapshot, wild refresh and rival status never re-grant
+ok 15 - starter Unit exactly once: createGenesisProfile, then desktop snapshot, wild refresh and rival status never re-grant
+  ---
+  duration_ms: 41.557083
+  type: 'test'
+  ...
+# Subtest: starter Unit exactly once for a mobile-created profile reached first by parallel desktop/rival reads
+ok 16 - starter Unit exactly once for a mobile-created profile reached first by parallel desktop/rival reads
+  ---
+  duration_ms: 3412.570709
+  type: 'test'
+  ...
+# Subtest: TTL field: every issued battle carries expireAt (Timestamp) = expiry + grace; settle keeps it; replay works inside the grace window
+ok 17 - TTL field: every issued battle carries expireAt (Timestamp) = expiry + grace; settle keeps it; replay works inside the grace window
+  ---
+  duration_ms: 61.943167
+  type: 'test'
+  ...
+# Subtest: parallel wins on different battles in one UTC day grant the daily Unit once and count every win
+ok 18 - parallel wins on different battles in one UTC day grant the daily Unit once and count every win
+  ---
+  duration_ms: 3029.020208
+  type: 'test'
+  ...
+# Subtest: max 3 open battles: a 4th issue is too_many_open (nothing written); settle or expiry frees a slot
+ok 19 - max 3 open battles: a 4th issue is too_many_open (nothing written); settle or expiry frees a slot
+  ---
+  duration_ms: 120.684792
+  type: 'test'
+  ...
+# Subtest: parallel issues never exceed 3 open battles
+ok 20 - parallel issues never exceed 3 open battles
+  ---
+  duration_ms: 3545.042458
+  type: 'test'
+  ...
+# Subtest: too_fast: a win under 20 s after issue is rejected with nothing written; it can settle once 20 s have passed
+ok 21 - too_fast: a win under 20 s after issue is rejected with nothing written; it can settle once 20 s have passed
+  ---
+  duration_ms: 73.829709
+  type: 'test'
+  ...
+# Subtest: \#44 per-tier inventory: status reports every tier, the daily win grants Light only, a \#43 integer migrates once
+ok 22 - \#44 per-tier inventory: status reports every tier, the daily win grants Light only, a \#43 integer migrates once
+  ---
+  duration_ms: 49.258667
+  type: 'test'
+  ...
+# Subtest: rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact deployed shape, buddyUnits = total int, same rulings
+ok 23 - rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact deployed shape, buddyUnits = total int, same rulings
+  ---
+  duration_ms: 46.677417
+  type: 'test'
+  ...
+# Subtest: desktop-account-1 (no data, as the shipped Unity build sends): exact deployed shape with buddyUnits = total int; desktop-account-2 on request
+ok 24 - desktop-account-1 (no data, as the shipped Unity build sends): exact deployed shape with buddyUnits = total int; desktop-account-2 on request
+  ---
+  duration_ms: 31.033667
+  type: 'test'
+  ...
+# Subtest: KO refusal: zero ledger HP cannot issue a zone run (all versions, health flag cannot bypass)
+ok 25 - KO refusal: zero ledger HP cannot issue a zone run (all versions, health flag cannot bypass)
+  ---
+  duration_ms: 331.711417
+  type: 'test'
+  ...
+# Subtest: existing emergency patch repairs 25 percent and the zone then accepts the bot
+ok 26 - existing emergency patch repairs 25 percent and the zone then accepts the bot
+  ---
+  duration_ms: 51.717458
+  type: 'test'
+  ...
+# Subtest: city rival issue retains 40 percent recovery, unaffected by zone policy
+ok 27 - city rival issue retains 40 percent recovery, unaffected by zone policy
+  ---
+  duration_ms: 13.4595
+  type: 'test'
+  ...
+# Subtest: positive HP, missing ledger and an unselected KO bot keep accepted reply shapes
+ok 28 - positive HP, missing ledger and an unselected KO bot keep accepted reply shapes
+  ---
+  duration_ms: 47.540792
+  type: 'test'
+  ...
+# Subtest: refused reissue never closes an existing run; malformed ledger fails closed even without flag
+ok 29 - refused reissue never closes an existing run; malformed ledger fails closed even without flag
+  ---
+  duration_ms: 37.967083
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14322.374666

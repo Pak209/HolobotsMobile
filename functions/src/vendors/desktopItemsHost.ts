@@ -1,3 +1,4 @@
+import {ActivityError,arenaOpen} from "../lib/arenaActivity";
 import {readHoloZoneRuns,HoloZoneError} from "../lib/holoZoneRuns";
 import {readOpenBattles} from "../lib/rivalLadder";
 import {REPAIR_ITEM,RepairError} from "../lib/repairItems";
@@ -17,7 +18,16 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
   if(receipt?.exists){const saved=receipt.data()!;if(saved.identity!==identity)throw new ItemError("sequence_conflict");return {...saved.reply,alreadyProcessed:true};}
   const favorite=typeof state.data()?.favoriteId==="string"?state.data()!.favoriteId:null;
   if(c.operation==="read")return itemSnapshot(user.data()!,favorite,now);
-  if(c.operation==="use"&&c.itemId===REPAIR_ITEM){const open=await tx.get(firestore.doc(`rivalBattles/${uid}`));const zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));if(Object.keys(readOpenBattles(open.data(),now)).length||readHoloZoneRuns(zone.data()).some(r=>r.settlement===null&&r.closedAtMs===null&&now<=r.expiresAtMs))throw new ItemError("between_battles_only");}
+  if(c.operation==="use"&&c.itemId===REPAIR_ITEM){
+   // The Arena parent is read in the repair transaction, before any stock/HP/receipt write.
+   // Receipt replays above are read-only and remain available while another activity owns the lease.
+   const arena=await tx.get(firestore.doc(`arenaMatches/${uid}`));
+   try{if(arenaOpen(arena.data()))throw new ItemError("arena_no_heal");}
+   catch(e){if(e instanceof ActivityError)throw new ItemError("unavailable");throw e;}
+   const open=await tx.get(firestore.doc(`rivalBattles/${uid}`));
+   const zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
+   if(Object.keys(readOpenBattles(open.data(),now)).length||readHoloZoneRuns(zone.data()).some(r=>r.settlement===null&&r.closedAtMs===null&&now<=r.expiresAtMs))throw new ItemError("between_battles_only");
+  }
   let i=0;const r=applyItemCommand(user.data()!,favorite,c,now,()=>draws[i++%draws.length]);
   if(Object.keys(r.updates).length)tx.update(userRef,r.updates);
   tx.set(stateRef,{schemaVersion:"desktop-items-2",favoriteId:r.favoriteId},{merge:true});

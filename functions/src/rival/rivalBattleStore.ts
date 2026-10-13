@@ -1,3 +1,4 @@
+import { ActivityError, arenaOpen } from '../lib/arenaActivity';
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
 import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
 import { randomBytes, randomInt } from 'node:crypto';
@@ -28,6 +29,17 @@ function squadIdsOf(profile: Record<string, unknown>): string[] {
     return [];
   }
 }
+/** Arena owns the shared health/activity lease until its host closes it, even past its deadline. */
+function requireArenaClosed(raw: unknown): void {
+  let open: boolean;
+  try {
+    open = arenaOpen(raw);
+  } catch (error) {
+    if (error instanceof ActivityError) throw new RivalError('unavailable');
+    throw error;
+  }
+  if (open) throw new RivalError('activity_conflict');
+}
 export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean } = {}) {
   const command = validateRivalCommand(raw);
   const story = storyRequest(raw);
@@ -54,6 +66,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       return withStory(rivalReplyForVersion(r.reply, command.schemaVersion));
     }
     if (command.operation === 'issue') {
+      // Read the same parent the Arena issue creates, so either transaction retries on a race.
+      // This applies to legacy wire versions and flag-off issues too: they still open activity.
+      requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
       const open = readOpenBattles((await tx.get(ledgerRef)).data(), nowMs);
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
@@ -78,6 +93,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     const isStoryBattle = issued?.storySchema === ZELL_STORY_SCHEMA && issued.storyRivalId === 'zell';
     if (isStoryBattle && !storyState) storyState = readZellStory((await tx.get(storyRef)).data());
     const r = settleRivalBattle(profile, battle.exists ? (battle.data() as RivalBattleRecord) : undefined, command.battleId, command.didWin, nowMs, command.fielded, squadIdsOf(profile));
+    // A stored ruling replays without migrations, grants, HP writes, or lease changes.
+    if (r.reply.alreadyProcessed) return withStory(rivalReplyForVersion(r.reply, command.schemaVersion));
+    // A delayed pre-Arena battle must not settle rewards/HP into the current Arena activity.
+    requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
     if(r.battleUpdates&&command.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,command.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
     if (r.battleUpdates?.settlement?.didWin && isStoryBattle) {
       const nextStory = allyAfterZellVictory(storyState!, { ...issued!, ...r.battleUpdates }, nowMs);

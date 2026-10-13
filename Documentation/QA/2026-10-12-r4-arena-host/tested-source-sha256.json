@@ -1,0 +1,112 @@
+[
+  {
+    "path": "Documentation/QA/2026-10-12-r4-arena-host/fixtures/legacy-chargeArenaEntry.ts.txt",
+    "bytes": 1926,
+    "sha256": "01c8c67fc821e3a0f2f3a95bd06cb6f0a8130c73dc891123debb2cdbdca354d8"
+  },
+  {
+    "path": "Documentation/QA/2026-10-12-r4-arena-host/fixtures/legacy-settleArenaBattle.ts.txt",
+    "bytes": 2849,
+    "sha256": "78fbe2405cbf3a2316bb32242bd11351ec4ba3ac3ed4c53ce1fcbfcd3d8e6a8b"
+  },
+  {
+    "path": "Documentation/QA/2026-10-12-r4-arena-host/fixtures/legacy-source-pins.json",
+    "bytes": 547,
+    "sha256": "4eba08eaf296f3326d4b1ca9e1f814ebc9a2eec3a49cf2cb8ff8a8240ae4a197"
+  },
+  {
+    "path": "Documentation/QA/2026-10-12-r4-arena-host/fixtures/load-legacy-callables.mjs",
+    "bytes": 1862,
+    "sha256": "84201ccc41c3521af49202c2a018b0eba665b877c3623fbf03a11822454a2a95"
+  },
+  {
+    "path": "firestore.rules",
+    "bytes": 17371,
+    "sha256": "06002f82b0785e70d4f615e087edab498950e7b76bc2855ede179503a5a33330"
+  },
+  {
+    "path": "functions/scripts/test-arena-match-emulator.mjs",
+    "bytes": 43668,
+    "sha256": "54ab5054a62f72c7ca0e51da425ffe3cb86496647b2aec7d03b10d20da205c01"
+  },
+  {
+    "path": "functions/scripts/test-delete-user-data-emulator.mjs",
+    "bytes": 3886,
+    "sha256": "e39cf6a7e18b26651c7db31defe9425f59789245163197e1e80cd7e10a2309be"
+  },
+  {
+    "path": "functions/src/account/deleteUserAccount.ts",
+    "bytes": 2582,
+    "sha256": "8ed2f70ea6ef630b0ae61d9f3e99515a80c1475596f61ca2aed1430e1f9e861a"
+  },
+  {
+    "path": "functions/src/arena/arenaMatchHost.ts",
+    "bytes": 669,
+    "sha256": "1e357b49183428029f827399d7f13cb08f6c4ec743ec53ff86d7a6202abcb15b"
+  },
+  {
+    "path": "functions/src/arena/arenaMatchStore.ts",
+    "bytes": 23928,
+    "sha256": "ade900c3faf30c823046642e2517193fb4fb9bbe0f5a95be96ca1a29c2630fd9"
+  },
+  {
+    "path": "functions/src/arena/chargeArenaEntry.ts",
+    "bytes": 427,
+    "sha256": "1b78fe6668657bb396dd6c7b52dd0d1d88a1655e2c8789370248a582901b5597"
+  },
+  {
+    "path": "functions/src/arena/settleArenaBattle.ts",
+    "bytes": 416,
+    "sha256": "8310edfd6dd9175bbffaddd9d369b90c75868c0dd41f757e78ec02e6bd910b45"
+  },
+  {
+    "path": "functions/src/holozone/holoZoneHost.ts",
+    "bytes": 1560,
+    "sha256": "aa4f782fe64765a8cabe8b3860eb2b7f159790568fcea6ff40a417e956d24254"
+  },
+  {
+    "path": "functions/src/holozone/holoZoneStore.ts",
+    "bytes": 4139,
+    "sha256": "872a9493ef830182ffda66d25066ecbbd35a3161b2bec6d715982d63b30ab28e"
+  },
+  {
+    "path": "functions/src/index.ts",
+    "bytes": 3190,
+    "sha256": "6cd40920107a93862471b068128719ec4bbb45f95f48c2c192337d352840a8db"
+  },
+  {
+    "path": "functions/src/lib/arenaActivity.ts",
+    "bytes": 592,
+    "sha256": "569d264b3fd95ad74f5a898fc15c119e32ee3eebc54a50669ba666e8ce9042e8"
+  },
+  {
+    "path": "functions/src/lib/holoZoneRuns.ts",
+    "bytes": 19714,
+    "sha256": "b3a32b2048a55586a7c2a6cf0467ab908bd986b416d6107bd87bc38cdb150d12"
+  },
+  {
+    "path": "functions/src/lib/rivalLadder.ts",
+    "bytes": 33361,
+    "sha256": "1ddae204ffa9fcf67374ed446ad33271ac9bf37de185a44f745dfaafe5c01a02"
+  },
+  {
+    "path": "functions/src/rival/rivalBattleHost.ts",
+    "bytes": 1270,
+    "sha256": "c89de1ebe211ff490edf93bc71e8ef46424f37817e78c7c32895d5a5441bce4b"
+  },
+  {
+    "path": "functions/src/rival/rivalBattleStore.ts",
+    "bytes": 8406,
+    "sha256": "a98ea4e3dbb70c101b4ec5dffe535140d64f5cd55670f17df7800d08c6c63245"
+  },
+  {
+    "path": "functions/src/vendors/desktopItemsHost.ts",
+    "bytes": 3051,
+    "sha256": "bd8c01f5c11cedc4bf3b8fb569e3492ac76c05e3fa6f0485bbac52366b9ac313"
+  },
+  {
+    "path": "rules-tests/tests/arena-matches.test.ts",
+    "bytes": 1845,
+    "sha256": "ded3587ffb0713e50e8e19caa13b1f49f9c5146be0aa3e0761d720904b5929e5"
+  }
+]

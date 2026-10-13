@@ -1,0 +1,261 @@
+TAP version 13
+# Subtest: KNOWN-BAD exact old callable: unpaid settlement mints 100 Holos and a win
+ok 1 - KNOWN-BAD exact old callable: unpaid settlement mints 100 Holos and a win
+  ---
+  duration_ms: 774.362875
+  type: 'test'
+  ...
+# Subtest: KNOWN-BAD exact old callable: client IDs A → B → A pay all three times
+ok 2 - KNOWN-BAD exact old callable: client IDs A → B → A pay all three times
+  ---
+  duration_ms: 43.518458
+  type: 'test'
+  ...
+# Subtest: KNOWN-BAD exact old callable: lost entry reply and retry charge twice
+ok 3 - KNOWN-BAD exact old callable: lost entry reply and retry charge twice
+  ---
+  duration_ms: 28.790042
+  type: 'test'
+  ...
+# Subtest: candidate legacy entry and unissued payout requests fail closed without partial writes
+ok 4 - candidate legacy entry and unissued payout requests fail closed without partial writes
+  ---
+  duration_ms: 227.222625
+  type: 'test'
+  ...
+# Subtest: five concurrent duplicate issue requests create one server match and debit once
+ok 5 - five concurrent duplicate issue requests create one server match and debit once
+  ---
+  duration_ms: 3761.9985
+  type: 'test'
+  ...
+# Subtest: pass entry debits one pass and cannot substitute a different payment under the same request key
+ok 6 - pass entry debits one pass and cannot substitute a different payment under the same request key
+  ---
+  duration_ms: 129.175959
+  type: 'test'
+  ...
+# Subtest: invalid issue identities, affordability, KO and malformed vitals never debit or create a lease
+ok 7 - invalid issue identities, affordability, KO and malformed vitals never debit or create a lease
+  ---
+  duration_ms: 635.509625
+  type: 'test'
+  ...
+# Subtest: Arena lease blocks every Rival issue version with health flag on and off
+ok 8 - Arena lease blocks every Rival issue version with health flag on and off
+  ---
+  duration_ms: 403.941875
+  type: 'test'
+  ...
+# Subtest: Arena lease blocks every Zone issue version with health flag on and off
+ok 9 - Arena lease blocks every Zone issue version with health flag on and off
+  ---
+  duration_ms: 294.03625
+  type: 'test'
+  ...
+# Subtest: preexisting Rival and Zone records block Arena before debit, regardless of health flag
+ok 10 - preexisting Rival and Zone records block Arena before debit, regardless of health flag
+  ---
+  duration_ms: 246.268583
+  type: 'test'
+  ...
+# Subtest: repair during open Arena never consumes inventory, heals, or writes a receipt
+ok 11 - repair during open Arena never consumes inventory, heals, or writes a receipt
+  ---
+  duration_ms: 67.02525
+  type: 'test'
+  ...
+# Subtest: valid issue binds cost, entrant and opponent; start/settle writes stable receipt and downward HP
+ok 12 - valid issue binds cost, entrant and opponent; start/settle writes stable receipt and downward HP
+  ---
+  duration_ms: 53.494583
+  type: 'test'
+  ...
+# Subtest: five concurrent settlements award once and every retry returns the durable receipt
+ok 13 - five concurrent settlements award once and every retry returns the durable receipt
+  ---
+  duration_ms: 3632.112792
+  type: 'test'
+  ...
+# Subtest: paid A → paid B → A replay cannot repay A, overwrite B lease, or erase A receipt
+ok 14 - paid A → paid B → A replay cannot repay A, overwrite B lease, or erase A receipt
+  ---
+  duration_ms: 280.706083
+  type: 'test'
+  ...
+# Subtest: settlement requires started server match, owner, minimum elapsed time and original binding
+ok 15 - settlement requires started server match, owner, minimum elapsed time and original binding
+  ---
+  duration_ms: 1083.283875
+  type: 'test'
+  ...
+# Subtest: negative, inflated, nonfinite, ambiguous terminal and overbound performance reports write nothing
+ok 16 - negative, inflated, nonfinite, ambiguous terminal and overbound performance reports write nothing
+  ---
+  duration_ms: 1717.404667
+  type: 'test'
+  ...
+# Subtest: settlement preserves lower persistent HP and never duplicates XP onto another owned species
+ok 17 - settlement preserves lower persistent HP and never duplicates XP onto another owned species
+  ---
+  duration_ms: 82.465042
+  type: 'test'
+  ...
+# Subtest: loss persists KO without Arena recovery; next issue refuses until an explicit repair
+ok 18 - loss persists KO without Arena recovery; next issue refuses until an explicit repair
+  ---
+  duration_ms: 223.961125
+  type: 'test'
+  ...
+# Subtest: lost issue/start replies recover one paid match; repeated resume is read-only
+ok 19 - lost issue/start replies recover one paid match; repeated resume is read-only
+  ---
+  duration_ms: 161.017416
+  type: 'test'
+  ...
+# Subtest: unstarted cancellation refunds the original token/pass once and receipt survives retries
+ok 20 - unstarted cancellation refunds the original token/pass once and receipt survives retries
+  ---
+  duration_ms: 7222.174792
+  type: 'test'
+  ...
+# Subtest: started cancellation requires downward HP, gives no refund/reward, and closes once
+ok 21 - started cancellation requires downward HP, gives no refund/reward, and closes once
+  ---
+  duration_ms: 296.726125
+  type: 'test'
+  ...
+# Subtest: expired unresolved match remains leased until explicit cancellation, with no timeout healing
+ok 22 - expired unresolved match remains leased until explicit cancellation, with no timeout healing
+  ---
+  duration_ms: 1398.254167
+  type: 'test'
+  ...
+# Subtest: distinct Arena request IDs racing cannot double-debit or create overlapping matches
+ok 23 - distinct Arena request IDs racing cannot double-debit or create overlapping matches
+  ---
+  duration_ms: 3327.646375
+  type: 'test'
+  ...
+# Subtest: Arena issue races against Rival and Zone admit exactly one activity for both health modes
+not ok 24 - Arena issue races against Rival and Zone admit exactly one activity for both health modes
+  ---
+  duration_ms: 11538.751666
+  type: 'test'
+  location: '/private/tmp/holobots-r4-arena-host-20261012/functions/scripts/test-arena-match-emulator.mjs:364:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /activity_conflict/. Input:
+
+    '3 INVALID_ARGUMENT: Transaction is invalid or closed.'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: '3 INVALID_ARGUMENT: Transaction is invalid or closed.'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/holobots-r4-arena-host-20261012/functions/scripts/test-arena-match-emulator.mjs:370:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Arena issue versus repair is serializable: repaired snapshot or untouched stock on refusal
+ok 25 - Arena issue versus repair is serializable: repaired snapshot or untouched stock on refusal
+  ---
+  duration_ms: 13633.999083
+  type: 'test'
+  ...
+# Subtest: cancel versus start cannot both refund and begin a playable match
+ok 26 - cancel versus start cannot both refund and begin a playable match
+  ---
+  duration_ms: 15819.562875
+  type: 'test'
+  ...
+# Subtest: settle versus cancel commits one terminal ruling, payout and HP result
+ok 27 - settle versus cancel commits one terminal ruling, payout and HP result
+  ---
+  duration_ms: 9776.322541
+  type: 'test'
+  ...
+# Subtest: late first Rival/Zone settlement cannot mutate health or rewards during an Arena lease
+ok 28 - late first Rival/Zone settlement cannot mutate health or rewards during an Arena lease
+  ---
+  duration_ms: 410.215959
+  type: 'test'
+  ...
+# Subtest: previously settled Rival/Zone and consumed-item receipt replays stay read-only during Arena
+ok 29 - previously settled Rival/Zone and consumed-item receipt replays stay read-only during Arena
+  ---
+  duration_ms: 280.858625
+  type: 'test'
+  ...
+# Subtest: malformed Arena lease fails closed across Arena, Rival, Zone and repair
+ok 30 - malformed Arena lease fails closed across Arena, Rival, Zone and repair
+  ---
+  duration_ms: 673.322125
+  type: 'test'
+  ...
+# Subtest: operation arrays, objects, null and missing schema cannot coerce into a lifecycle operation
+ok 31 - operation arrays, objects, null and missing schema cannot coerce into a lifecycle operation
+  ---
+  duration_ms: 421.872667
+  type: 'test'
+  ...
+# Subtest: Arena callable authenticates every lifecycle entrypoint and closes both old anonymous bypasses
+ok 32 - Arena callable authenticates every lifecycle entrypoint and closes both old anonymous bypasses
+  ---
+  duration_ms: 40.592833
+  type: 'test'
+  ...
+# Subtest: admission numeric quote remains binding after a later tier fee/reward table change
+ok 33 - admission numeric quote remains binding after a later tier fee/reward table change
+  ---
+  duration_ms: 32.947875
+  type: 'test'
+  ...
+# Subtest: minimum elapsed and performance upper bounds accept their exact legal boundary
+ok 34 - minimum elapsed and performance upper bounds accept their exact legal boundary
+  ---
+  duration_ms: 73.853708
+  type: 'test'
+  ...
+# Subtest: corrupted persisted quote, charge binding, entrant, opponent or timestamps fail closed before writes
+ok 35 - corrupted persisted quote, charge binding, entrant, opponent or timestamps fail closed before writes
+  ---
+  duration_ms: 2677.881708
+  type: 'test'
+  ...
+# Subtest: malformed current entrant progression fails before the XP loop or any settlement write
+ok 36 - malformed current entrant progression fails before the XP loop or any settlement write
+  ---
+  duration_ms: 849.734458
+  type: 'test'
+  ...
+# Subtest: altered valid-shaped terminal report replays the original ruling without touching a newer lease
+ok 37 - altered valid-shaped terminal report replays the original ruling without touching a newer lease
+  ---
+  duration_ms: 111.026875
+  type: 'test'
+  ...
+# Subtest: deleteUserData removes pilot trees including Arena leases, matches and receipts; other pilots untouched
+ok 38 - deleteUserData removes pilot trees including Arena leases, matches and receipts; other pilots untouched
+  ---
+  duration_ms: 1065.443166
+  type: 'test'
+  ...
+# Subtest: deleteUserData removes orphaned Arena receipt and match subcollections
+ok 39 - deleteUserData removes orphaned Arena receipt and match subcollections
+  ---
+  duration_ms: 57.305916
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 38
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 82735.745875
