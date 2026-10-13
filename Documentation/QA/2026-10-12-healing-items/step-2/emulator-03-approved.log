@@ -1,0 +1,84 @@
+User approved one fixture correction and one additional retry. Timeout 300 seconds; loopback demo only.
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test --test-concurrency=1 functions/scripts/test-healing-use-emulator.mjs functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs functions/scripts/test-desktop-items-emulator.mjs
+✔ same purchase retry spends exactly once (672.255334ms)
+✔ parallel consumes cannot spend one item twice (3468.058292ms)
+✔ favorite survives reconnect and belongs only to its account (35.174166ms)
+✔ cache retry returns the same reveal and consumes once (35.31525ms)
+✔ account deletion removes favorites and receipts (94.888583ms)
+✖ rules deny client inventory, favorites and receipt writes (0.522042ms)
+✔ repair retry restores only the chosen bot and spends once (57.667333ms)
+✔ repair refuses during a host-issued battle without spending (31.714292ms)
+✖ rules deny repair stock and health spoofing (0.29375ms)
+✔ legacy zone without health bound refuses repair without spending (29.758125ms)
+✔ all three revive KO at 25/50/100 percent and replay spends once (308.614334ms)
+✔ Arena open record refuses every heal without spend (50.339ms)
+✔ bench heal costs one item, no immediate ledger write, recorded settle, three-second lockout (83.775875ms)
+✔ live zone KO observation, paid revival and bounded settlement (56.200542ms)
+✔ Arena charge opens marker, no city recovery, bound settlement closes it (58.185417ms)
+✔ zone: a flagged issue serves playerCombatants with currentHealth and writes the ledger; the settle writes the reports with the ruling; replays and plain requests never touch it (3487.152708ms)
+✔ zone: inflated / foreign reports, reports on an unflagged run, and a tampered ledger refuse with nothing written (105.099417ms)
+✔ one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a paid repair works while the zone run is open (103.100875ms)
+✔ KO refusal: zero ledger HP cannot issue a zone run (all versions, health flag cannot bypass) (204.749541ms)
+✔ existing emergency patch repairs 25 percent and the zone then accepts the bot (59.890417ms)
+✔ city rival issue retains 40 percent recovery, unaffected by zone policy (25.700333ms)
+✔ positive HP, missing ledger and an unselected KO bot keep accepted reply shapes (79.94ms)
+✔ refused reissue never closes an existing run; malformed ledger fails closed even without flag (48.927917ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 21
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12101.400208
+
+✖ failing tests:
+
+test at functions/scripts/test-desktop-items-emulator.mjs:11:1
+✖ rules deny client inventory, favorites and receipt writes (0.522042ms)
+  Error: Cannot find module '@firebase/rules-unit-testing'
+  Require stack:
+  - /private/tmp/holobots-healing-grants/rules-tests/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+      at Module._load (node:internal/modules/cjs/loader:1346:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+      at Module.require (node:internal/modules/cjs/loader:1679:12)
+      at require (node:internal/modules/helpers:196:16)
+      at TestContext.<anonymous> (file:///private/tmp/holobots-healing-grants/functions/scripts/test-desktop-items-emulator.mjs:11:214)
+      at Test.runInAsyncScope (node:async_hooks:226:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/private/tmp/holobots-healing-grants/rules-tests/package.json' ]
+  }
+
+test at functions/scripts/test-desktop-items-emulator.mjs:15:1
+✖ rules deny repair stock and health spoofing (0.29375ms)
+  Error: Cannot find module '@firebase/rules-unit-testing'
+  Require stack:
+  - /private/tmp/holobots-healing-grants/rules-tests/package.json
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+      at Module._load (node:internal/modules/cjs/loader:1346:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+      at Module.require (node:internal/modules/cjs/loader:1679:12)
+      at require (node:internal/modules/helpers:196:16)
+      at TestContext.<anonymous> (file:///private/tmp/holobots-healing-grants/functions/scripts/test-desktop-items-emulator.mjs:15:204)
+      at Test.runInAsyncScope (node:async_hooks:226:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/private/tmp/holobots-healing-grants/rules-tests/package.json' ]
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test --test-concurrency=1 functions/scripts/test-healing-use-emulator.mjs functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs functions/scripts/test-desktop-items-emulator.mjs" exited with code 1

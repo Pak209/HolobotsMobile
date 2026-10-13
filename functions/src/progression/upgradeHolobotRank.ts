@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
@@ -38,7 +39,7 @@ export const upgradeHolobotRank = onCall(async (request): Promise<{ startLevel: 
       throw new HttpsError("failed-precondition", REFUSAL_MESSAGES[result.reason]);
     }
 
-    transaction.set(userRef, result.updates, { merge: true });
+    transaction.set(userRef, withRankHealingReward(snapshot.data() ?? {},result.updates), { merge: true });
     return { startLevel: result.tierStartLevel };
   });
 });

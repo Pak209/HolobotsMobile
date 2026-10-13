@@ -12,9 +12,13 @@ import { removePresence } from "../presence/presenceStore";
  * #57 Arena activity lease, durable matches, and entry/settlement receipts).
  */
 export async function deleteUserData(firestore: Firestore, uid: string): Promise<void> {
-  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`, `arenaMatches/${uid}`]) {
+  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`, `arenaMatches/${uid}`, `duelHealingRuns/${uid}`, `workshopHeals/${uid}`, `workshopCrafts/${uid}`]) {
     await firestore.recursiveDelete(firestore.doc(path));
   }
+  // Grant verification checks profile existence; deletion fails closed even if cleanup retries.
+  await firestore.recursiveDelete(firestore.doc(`townGrantPilots/${uid}`));
+  const grants = await firestore.collection('townGrants').where('uid', '==', uid).get();
+  for (const grant of grants.docs) await grant.ref.delete();
   // Profile is gone first: a racing heartbeat must re-read the absent profile and cannot resurrect the row.
   await removePresence(firestore, uid);
 }

@@ -1,0 +1,66 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+⚠  hub: Error when trying to check port 19440 on 127.0.0.1: Error: listen EPERM: operation not permitted 127.0.0.1:19440
+⚠  logging: Error when trying to check port 19450 on 127.0.0.1: Error: listen EPERM: operation not permitted 127.0.0.1:19450
+⚠  firestore: Error when trying to check port 18080 on 127.0.0.1: Error: listen EPERM: operation not permitted 127.0.0.1:18080
+⚠  firestore: Port 18080 is not open on 127.0.0.1, could not start Firestore Emulator.
+⚠  firestore: To select a different host/port, specify that host/port in a firebase.json config file:
+      {
+        // ...
+        "emulators": {
+          "firestore": {
+            "host": "HOST",
+            "port": "PORT"
+          }
+        }
+      }
+⚠  firestore.websocket: Error when trying to check port 9150 on 127.0.0.1: Error: listen EPERM: operation not permitted 127.0.0.1:9150
+⚠  firestore: Port 9150 is not open on 127.0.0.1, could not start websocket server for firestore.
+⚠  firestore: To select a different port, specify that port in a firebase.json config file:
+      {
+        // ...
+        "emulators": {
+          "firestore": {
+            "host": "HOST",
+            ...
+            "websocketPort": "WEBSOCKET_PORT"
+          }
+        }
+      }
+⚠  hub: Error when trying to check port 19440 on ::1: Error: listen EPERM: operation not permitted ::1:19440
+⚠  hub: Port 19440 is not open on localhost (127.0.0.1,::1), could not start emulator hub.
+⚠  hub: To select a different host/port, specify that host/port in a firebase.json config file:
+      {
+        // ...
+        "emulators": {
+          "hub": {
+            "host": "HOST",
+            "port": "PORT"
+          }
+        }
+      }
+⚠  logging: Error when trying to check port 19450 on ::1: Error: listen EPERM: operation not permitted ::1:19450
+⚠  logging: Port 19450 is not open on localhost (127.0.0.1,::1), could not start Logging Emulator.
+⚠  logging: To select a different host/port, specify that host/port in a firebase.json config file:
+      {
+        // ...
+        "emulators": {
+          "logging": {
+            "host": "HOST",
+            "port": "PORT"
+          }
+        }
+      }
+i  emulators: Shutting down emulators.
+
+Error: Could not start Firestore Emulator, port taken.
+┌────────────────────────────────────────────────────────┐
+│           firebase-tools update check failed           │
+│          Try running with sudo or get access           │
+│          to the local update config store via          │
+│ sudo chown -R $USER:$(id -gn $USER) /Users/pak/.config │
+└────────────────────────────────────────────────────────┘
+
+Error: An unexpected error has occurred.
+
+BOUNDED_EXIT=2 ELAPSED_SECONDS=1.847

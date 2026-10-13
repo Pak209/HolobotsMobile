@@ -1,0 +1,12 @@
+# Step 6 — published contract and client parity
+Known-bad.log first: absent healing-items-1 contract fixture. Candidate emulator.log 1/1 passes fixture vs real catalog and free Workshop/craft transactions; does not rerun step 2's held fixture. client-parity.log: six Vitest keys pass against host pure modules. build.log shared mirrors/TypeScript pass. Integration imports retained both session guards and rank grants; index exports retain both Workshop callables and duel accounting. Account cleanup includes all new state/receipt trees.
+
+Contract notes cover all prices/fractions, owned-squad free full heal, Arena matchId migration/no recovery, session observations and paid bench settlement/3-second lockout, boss/rank grants, 3/5 fragment recipes, source exceptions, refusal keys and limits. Recipes were extracted unchanged into a pure module for client parity tests. Runtime values remain host-owned.
+
+Keys: healingCatalogServerParity, healingUseServerParity, healingWorkshopServerParity, healingGrantServerParity, healingCraftServerParity, healingCityRecoveryParity. Mobile tests import host pure rules, not new client-authoritative economy logic. No client UI/Unity live-session integration or real account acceptance claimed. Arena matchId forwarding and local-duel client lifecycle are rollout gates. No held headless sim/server-token/multiplayer arc is opened.
+
+PR depends on steps 1–5; step 2 remains held after 22/23 at its second emulator attempt (other squad member erroneously remains KO in new fixture). All draft/dependency holds remain; no deploy or third step-2 attempt. No Pak account or shared dirty writes. Fitness/Watch hook source is reviewed/compiled; no actual workout claim tested.
+
+Final merge graph: 71 -> 74 -> 75 -> 72 -> 73 -> 76. final-build.log is the last integrated compile/shared receipt after ordering-only import/export merges. merge-conflict-build.log retains the premature compile while merge markers were present; markers removed and compile passed. No policy change or extra step-2 emulator attempt. See ../README.md for current draft/dependency status.
+
+Approved step-2 fixture/retry is now included on this branch: new healing cases5/5, batch21/23 (two unchanged rules cases fail to load a missing worktree dependency). Link repaired and preflight confirms module loading; no further emulator run. See index latest checkpoint; earlier KUMA KO hold is historical. No runtime policy change.

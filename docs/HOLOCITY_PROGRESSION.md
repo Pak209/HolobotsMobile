@@ -466,7 +466,7 @@ Pak (2026-10-08): each Holobot carries its host-confirmed remaining health acros
 needs host-approved recovery. **The rival half is deployed** (2026-10-10, `lib/rivalHealth.ts`, `rival/rivalBattleStore.ts`;
 `Documentation/QA/2026-10-10-items-health/`): a `rival-battle-3` request carrying `healthSchema: "rival-health-1"` gets
 `currentHealth` on every player combatant on issue, the issue writes the ledger, and `settle{health[]}` writes the
-reports; the Emergency Patch (`desktopItemsHost`, `lib/repairItems.ts`) repairs from the same ledger between battles.
+reports; the Emergency Patch (`desktopItemsHost`, `lib/repairItems.ts`) repairs from the same ledger; DECISIONS #57 below adds paid mid-zone and bench-duel use.
 This section is the **zone half**: the same flag, the same ledger, the same rules on `holoZoneHost`, so health carries
 town → zone → town without a second store.
 
@@ -487,7 +487,7 @@ remain eligible as fresh bots; positive HP carries as before; KO bots outside th
 Malformed ledger data fails closed as `unavailable`. Status and settle behavior and accepted reply shapes are unchanged.
 The rule covers every zone the host enables, not only Neon Forest; unknown/unshipped zones remain `unknown_zone`.
 
-Use the existing `item.emergency_patch` between battles (+25% of max health); the repaired bot may then enter. The city
+Use a healing item (Patch +25%, Kit +50%, Full +100%) or the free full-squad Workshop heal; the repaired bot may then enter. The city
 rival host retains its 40% issue recovery. No client flag or submitted health field can waive zone admission.
 
 ### issue + flag → `playerCombatants[]` with `currentHealth`
@@ -515,7 +515,7 @@ record and the user doc are exactly as before on an accepted issue; eligibility 
 - `settleVitals` lands in `users/{uid}.holobotVitals` in the same transaction as the XP (`holobots`) and the ruling.
 - **Nothing health-related goes on the settle reply or the settlement** (the rival host's rule); a duplicate settle
   replays the ruling and writes nothing. A flagged settle with no `health` rules as before and touches no ledger.
-- The repair item already refuses while a zone run is open (`between_battles_only`, `desktopItemsHost`); unchanged.
+- DECISIONS #57 supersedes the old mid-zone refusal: a paid healing item updates the ledger and issued bound atomically on a flagged live run. Legacy runs without a health bound refuse `health_unavailable`.
 
 ### Deploy (Pak)
 
@@ -532,3 +532,48 @@ unflagged-run refusals writing nothing, replays, carry rival → zone → rival 
 `test-holozone-health-emulator` (through the store and the callable on the Firestore emulator: the user doc's ledger,
 parallel settles, refusals writing nothing, a tampered ledger failing closed, the rival host's values served by the zone
 and back, the repair item refused while the run is open).
+
+## Healing ladder — DECISIONS #57 (PR-only; no deploy)
+
+`docs/contracts/healing-items-1.json` is the reviewed contract fixture for client parity; runtime prices/fractions remain host data, never client decisions. Each step is a separate PR against main. Steps 2 and its dependents remain held at the two-attempt checkpoint; Pak merges, then separately says "deploy". Nothing here announces rollout.
+
+| Item | Fraction of current host max added, capped at full | Price Holos | Stock |
+|---|---|---|---|
+| item.emergency_patch | 25% | 100 | emergencyPatches |
+| item.repair_kit | 50% | 250 | itemStocks.repair_kit |
+| item.full_restore | 100% | 600 | itemStocks.full_restore |
+
+Marketplace listings use vendor-3 and purchase via desktopItemsHost desktop-items-2 buy; one purchase grants one item. Full has no reward/drop source: vendor only except the explicitly approved Workshop craft. Any item revives zero HP outside Arena. Requests never specify heal amounts or prices; host-defined fractions add to current health, capped at max.
+
+### Item use and active sessions
+
+`{schemaVersion:"desktop-items-2",operation:"use",itemId,holobotId,requestId,currentHealth?}`. Receipt identity includes the optional observation. Outside an active health-enabled session currentHealth is refused. Within a flagged zone it may only lower the current run/ledger bound first; the paid heal then updates ledger, issuedVitals and a host healingItems entry atomically. Legacy zone runs without issued health refuse health_unavailable. Replays consume nothing further. Open city rival refuses between_battles_only; city issue recovery itself stays 40%.
+
+Arena charge now creates host-owned `arenaMatches/{uid}`, returns `matchId` + `currentVitals` without recovery. Every healing item refuses `arena_no_heal` while open, including zero-HP revive and between-round bench healing. Arena settle must forward charge.matchId with matching tier; no-marker/mismatched legacy settles refuse arena_match_required. Client wiring/migration is a deployment gate; there is no automatic expiry or free between-round recovery.
+
+`duelHealingHost` is local-duel accounting at the existing client-observed combat trust boundary, NOT the held headless sim or server-token implementation. Wire `duel-healing-1`: issue{fielded}; deploy{runId,fielded}; observe{runId,health}; settle{runId,health}. Captures the owned travel squad (max three) and vitals; fielded members must be positive, reports only downward. An item may heal only a benched squad member, costs one item, updates session HP only and records requestId/itemId/bot/before/after/time. It sets switchLockedUntilMs = hostNow + 3000 (three seconds); deploy and another heal during that window refuse switch_lockout. Result kind duel_repair contains session currentHealth/runId/lockout; the inventory's ledger remains unchanged until settle. Settle requires one bounded final report for each squad member and commits final ledger plus heal history once. Existing rival/zone issue refuses while duel/Arena accounting is open; active city rival is not this new local duel path. No multiplayer/principal/anti-cheat authority is claimed.
+
+### Workshop
+
+`workshopHealHost {schemaVersion:"healing-workshop-1",operation:"heal",requestId}` instantly heals the whole owned travel squad to current host maxima for zero Holos/items. KO and missing entries are eligible; malformed ledger, empty or foreign squad refuse. Open rival/zone/duel refuses battle_open; Arena refuses arena_no_heal. Receipt replay changes nothing. NPC proximity remains presentation context, not host-verified movement.
+
+`workshopCraftHost {schemaVersion:"healing-workshop-1",operation:"craft",itemId,requestId}`: three blueprint_fragment + one Patch -> one Kit; five fragments + one Kit -> one Full, zero Holos. Host fixes recipe quantities (producer pick 3/5, Pak tunes). Insufficient fragments/lower stock, malformed stock or supplied amount/recipe refuse before writing. Output, ingredients and receipt are atomic; receipt reuse for another output refuses sequence_conflict.
+
+### Grants and persistence
+
+One eligible zone boss defeat grants one Kit, once per settled run; the existing 20000 ms minimum also gates the drop. Each crossed mobile Holobot rank tier (levels 1/11/21/31/41) grants one Kit through server rank upgrades/Rank Skip/battle XP/training/quest/fitness/Watch claims and owned Legendary ascension; mint/new ownership and replay do not. Full never drops. Outcomes retain the existing client-observed boss/report trust boundary.
+
+All new stocks live under already-protected itemStocks; top-level arenaMatches, duelHealingRuns, workshopHeals and workshopCrafts are default-denied and deleted on account cleanup. Workshop receipts and item receipts sit outside client-writable user trees. No deployment or production/profile testing occurred.
+
+### Client parity test keys
+
+The mobile Vitest suite `healingServerParity.test.ts` exports/exercises these six keys against host pure modules and the shared fixture. Emulator `test-healing-contract-emulator.mjs` compares the fixture to real catalog/Workshop/craft transactions; it does not rerun step 2's held fixture.
+
+- healingCatalogServerParity
+- healingUseServerParity
+- healingWorkshopServerParity
+- healingGrantServerParity
+- healingCraftServerParity
+- healingCityRecoveryParity
+
+For client rollout, forward Arena matchId, refresh items after receipts, use duel_repair session health rather than the unchanged ledger, observe downward session HP before bench use, present arena_no_heal / holobot_ko / switch_lockout / battle_open / health_unavailable without inventing recovery. Unity wiring and live headless simulation remain separate held lanes.

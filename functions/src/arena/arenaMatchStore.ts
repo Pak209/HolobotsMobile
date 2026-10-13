@@ -4,7 +4,8 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
-import { ActivityError, arenaOpen } from '../lib/arenaActivity';
+import { ActivityError, arenaOpen, duelOpen } from '../lib/arenaActivity';
+import { withRankHealingReward } from '../lib/rankHealingReward';
 import { getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, incrementArenaBattlesToday, ArenaTierId } from '../lib/arenaEconomy';
 import { BATTLE_COMBO_BONUS, BATTLE_PERFECT_DEFENSE_BONUS, BATTLE_LOSS_EXP_FRACTION, BATTLE_LOSS_SYNC_FRACTION, MAX_PERFORMANCE_EVENTS, EXP_BOOSTER_MULTIPLIER } from '../lib/battleSettlement';
 import { buildPlayerCombatants, playerCombatant, readOpenBattles, RivalError } from '../lib/rivalLadder';
@@ -155,10 +156,7 @@ function reply(m: Match, alreadyProcessed = false) {
 }
 function guardOtherActivities(rival: Data|undefined, zone: Data|undefined, duel: Data|undefined, now: number) {
   if (Object.keys(readOpenBattles(rival, now)).length || readHoloZoneRuns(zone).some(r => r.settlement === null && r.closedAtMs === null && now <= r.expiresAtMs)) fail('activity_conflict');
-  if (duel !== undefined) {
-    if (!object(duel) || duel.schemaVersion !== 'duel-healing-1' || typeof duel.runId !== 'string' || typeof duel.open !== 'boolean') fail('unavailable');
-    if (duel.open) fail('activity_conflict');
-  }
+  if (duelOpen(duel)) fail('activity_conflict'); // Shared guard; malformed -> ActivityError -> unavailable.
 }
 function assertFiniteTree(value: unknown): void {
   if (typeof value === 'number' && (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER)) fail('unavailable');
@@ -291,7 +289,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           if (nowMs - m.startedAtMs < ARENA_MIN_SETTLE_MS) return fail('too_fast');
           if (c.combosCompleted > m.rules.maxPerformanceEvents || c.perfectDefenses > m.rules.maxPerformanceEvents || c.opponentFinalHealth > m.opponent.maxHealth || (c.playerFinalHealth === 0) === (c.opponentFinalHealth === 0)) return fail('invalid_request');
           const result = rewards(profile,m,c,nowMs);
-          updates = result.updates;
+          updates = withRankHealingReward(profile, result.updates); // #72 rank-tier Kit, moved off the closed legacy settle.
           receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:c.playerFinalHealth,opponentFinalHealth:c.opponentFinalHealth,combosCompleted:c.combosCompleted,perfectDefenses:c.perfectDefenses},closedAtMs:nowMs};
           nextState = 'settled';
         } else {
