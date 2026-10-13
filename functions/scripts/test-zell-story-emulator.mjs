@@ -41,14 +41,16 @@ test('Zell issue is an existing ladder battle with a host-owned placeholder and 
   assert.deepEqual(await story(uid), { schemaVersion: S, phase: 'rival', metAtMs: T, allyAtMs: null, victoryBattleId: null });
   const b = (await db.doc(`rivalBattles/${uid}/battles/${i.battleId}`).get()).data(); assert.equal(b.storyRivalId, 'zell'); assert.equal(b.storySchema, S);
 });
+/** DECISIONS #58 am. 1: Zell is one rival id — a rematch waits out the 5-min cooldown after each settle. */
+const CD = 5 * 60000;
 test('loss keeps the story rival, validated win turns ally; repeated issues do not reset ally', async () => {
   const uid = await setup(), i = await issue(uid);
   const l = await command(uid, { operation: 'settle', battleId: i.battleId, didWin: false }, T + 21000); assert.equal(l.story.phase, 'rival');
-  const j = await command(uid, { operation: 'issue', rivalId: 'zell' }, T + 22000);
-  const w = await command(uid, { operation: 'settle', battleId: j.battleId, didWin: true }, T + 42000);
+  const j = await command(uid, { operation: 'issue', rivalId: 'zell' }, T + 22000 + CD);
+  const w = await command(uid, { operation: 'settle', battleId: j.battleId, didWin: true }, T + 42000 + CD);
   assert.equal(w.story.turnedAlly, true); assert.equal(w.buddyUnitsGranted, 1); assert.equal(w.status.rivalWins, 1);
   assert.equal((await story(uid)).victoryBattleId, j.battleId);
-  const snapshot = await story(uid); await command(uid, { operation: 'issue', rivalId: 'zell' }, T + 43000); assert.deepEqual(await story(uid), snapshot);
+  const snapshot = await story(uid); await command(uid, { operation: 'issue', rivalId: 'zell' }, T + 43000 + 2 * CD); assert.deepEqual(await story(uid), snapshot);
 });
 test('too-fast, foreign, invented and expired wins cannot advance the flag or pay', async () => {
   const uid = await setup(), foreign = await setup(), i = await issue(uid), before = await story(uid), profile = await user(uid);
@@ -115,12 +117,12 @@ test('only the first accepted Zell win turns him: forged request fields and a la
   const uid = await setup(), a = await issue(uid);
   const forged = { phase: 'ally', turnedAlly: true, story: { phase: 'ally', turnedAlly: true }, storyRivalId: 'zell', victoryBattleId: a.battleId, allyAtMs: T };
   assert.equal((await command(uid, { operation: 'settle', battleId: a.battleId, didWin: false, ...forged }, T + 21000)).story.phase, 'rival');
-  const b = await command(uid, { operation: 'issue', rivalId: 'zell', ...forged }, T + 22000); assert.equal(b.story.phase, 'rival');
+  const b = await command(uid, { operation: 'issue', rivalId: 'zell', ...forged }, T + 22000 + CD); assert.equal(b.story.phase, 'rival');
   assert.equal((await story(uid)).phase, 'rival');
-  assert.equal((await command(uid, { operation: 'settle', battleId: b.battleId, didWin: true, ...forged }, T + 42000)).story.turnedAlly, true);
-  const turned = await story(uid); assert.deepEqual(turned, { schemaVersion: S, phase: 'ally', metAtMs: T, allyAtMs: T + 42000, victoryBattleId: b.battleId });
-  const c = await command(uid, { operation: 'issue', rivalId: 'zell' }, T + 43000);
-  const again = await command(uid, { operation: 'settle', battleId: c.battleId, didWin: true }, T + 63000);
+  assert.equal((await command(uid, { operation: 'settle', battleId: b.battleId, didWin: true, ...forged }, T + 42000 + CD)).story.turnedAlly, true);
+  const turned = await story(uid); assert.deepEqual(turned, { schemaVersion: S, phase: 'ally', metAtMs: T, allyAtMs: T + 42000 + CD, victoryBattleId: b.battleId });
+  const c = await command(uid, { operation: 'issue', rivalId: 'zell' }, T + 43000 + 2 * CD);
+  const again = await command(uid, { operation: 'settle', battleId: c.battleId, didWin: true }, T + 63000 + 2 * CD);
   assert.equal(again.alreadyProcessed, false); assert.equal(again.status.rivalWins, 2); assert.equal(again.story.turnedAlly, true);
   assert.deepEqual(await story(uid), turned);
 });

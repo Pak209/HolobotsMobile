@@ -37,10 +37,10 @@ test('first win of the day grants a Unit; the second does not; next UTC day does
   const uid = await setup({ buddyUnits: light(0) });
   const play = async (didWin, now) => { const i = await rival(uid, { operation: 'issue' }, now - L.RIVAL_MIN_WIN_MS); return rival(uid, { operation: 'settle', battleId: i.battleId, didWin }, now); };
   let s = await play(true, T0); assert.equal(s.buddyUnitsGranted, 1); assert.equal(s.buddyUnitTierGranted, 'buddy_light'); assert.deepEqual(s.status.buddyUnits, light(1)); assert.equal(s.status.dailyRewardAvailable, false);
-  s = await play(true, T0 + 60000); assert.equal(s.buddyUnitsGranted, 0); assert.deepEqual(s.status.buddyUnits, light(1));
-  s = await play(false, T0 + 120000); assert.equal(s.buddyUnitsGranted, 0); assert.equal(s.status.rivalWins, 2);
+  s = await play(true, T0 + 10 * 60000); // spaced past the 5-min rival cooldown (DECISIONS #58 am. 1) assert.equal(s.buddyUnitsGranted, 0); assert.deepEqual(s.status.buddyUnits, light(1));
+  s = await play(false, T0 + 20 * 60000); assert.equal(s.buddyUnitsGranted, 0); assert.equal(s.status.rivalWins, 2);
   s = await play(true, T0 + 86400000); assert.equal(s.buddyUnitsGranted, 1);
-  const p = await user(uid); assert.deepEqual(p.buddyUnits, light(2)); assert.equal(p.rivalWins, 3); assert.equal(p.rivalRewardDay, '2026-10-01'); assert.equal(p.holosTokens, 7);
+  const p = await user(uid); assert.deepEqual(p.buddyUnits, light(2)); assert.equal(p.rivalWins, 3); assert.equal(p.rivalRewardDay, '2026-10-01'); assert.equal(p.holosTokens, 7 + 3 * 100 + 25, 'DECISIONS #58: 3 wins + 1 loss (main: 7)');
   const st = await rival(uid, { operation: 'status' }, T0 + 86400000); assert.deepEqual(st.status, { tier: 0, tierLabel: 'rookie', rivalWins: 3, winsToNextTier: 7, rivalsThisTier: 1, dailyRewardAvailable: false, buddyUnits: light(2) });
 });
 
@@ -119,8 +119,9 @@ test('TTL field: every issued battle carries expireAt (Timestamp) = expiry + gra
   assert.equal(dup.alreadyProcessed, true); assert.equal(dup.didWin, true); assert.equal(dup.buddyUnitsGranted, 1);
   assert.deepEqual(await user(uid), userAfterSettle); assert.deepEqual((await ref.get()).data(), stored);
   // An unsettled battle past expiresAtMs is still battle_expired, even though its record has not been cleaned up yet.
-  const j = await rival(uid, { operation: 'issue' });
-  await assert.rejects(() => rival(uid, { operation: 'settle', battleId: j.battleId, didWin: true }, T0 + L.RIVAL_BATTLE_TTL_MS + 1), /battle_expired/);
+  const jAt = T0 + 60000 + L.RIVAL_COOLDOWN_MS; // the first issue after the settle waits out the rival cooldown
+  const j = await rival(uid, { operation: 'issue' }, jAt);
+  await assert.rejects(() => rival(uid, { operation: 'settle', battleId: j.battleId, didWin: true }, jAt + L.RIVAL_BATTLE_TTL_MS + 1), /battle_expired/);
   // Simulate the TTL delete: a later duplicate settle is unknown_battle and still grants nothing.
   await ref.delete();
   await assert.rejects(() => rival(uid, { operation: 'settle', battleId: i.battleId, didWin: true }, T0 + 8 * 86400000), /unknown_battle/);
@@ -144,10 +145,13 @@ test('max 3 open battles: a 4th issue is too_many_open (nothing written); settle
   assert.deepEqual(Object.keys((await db.doc(`rivalBattles/${uid}`).get()).data().openBattles).sort(), [...ids].sort());
   // A loss settles immediately and frees a slot.
   await rival(uid, { operation: 'settle', battleId: ids[0], didWin: false }, T0 + 2);
-  await rival(uid, { operation: 'issue' }, T0 + 3);
-  await assert.rejects(() => rival(uid, { operation: 'issue' }, T0 + 4), /too_many_open/);
+  // DECISIONS #58 am. 1: the settle starts the same rival's 5-min cooldown; the freed slot is usable once it ends.
+  await assert.rejects(() => rival(uid, { operation: 'issue' }, T0 + 3), /rival_cooldown/);
+  const after = T0 + 2 + L.RIVAL_COOLDOWN_MS;
+  await rival(uid, { operation: 'issue' }, after);
+  await assert.rejects(() => rival(uid, { operation: 'issue' }, after + 1), /too_many_open/);
   // Expiry frees every slot (the last of the three expires at T0 + 3 + TTL); expired entries are pruned from the ledger.
-  const fresh = await rival(uid, { operation: 'issue' }, T0 + 3 + L.RIVAL_BATTLE_TTL_MS + 1);
+  const fresh = await rival(uid, { operation: 'issue' }, after + L.RIVAL_BATTLE_TTL_MS + 1);
   assert.deepEqual(Object.keys((await db.doc(`rivalBattles/${uid}`).get()).data().openBattles), [fresh.battleId]);
   // The callable maps it to failed-precondition / too_many_open.
   const live = await setup({ buddyUnits: light(0) });

@@ -62,7 +62,7 @@ test('issue → settle → replay: every fielded bot gets the table EXP once; th
   assert.deepEqual(Z.holoZoneStatus(i.doc.runs, T0).run, { runId: i.reply.runId, zoneId: 'neonforest', tier: 0, squad: ['ace', 'kuma'], issuedAtMs: i.reply.issuedAtMs, expiresAtMs: i.reply.expiresAtMs });
   const s = settle(p, i.doc.runs, i.reply.runId, 3, false, ['ace', 'kuma']);
   assert.equal(s.reply.alreadyProcessed, false);
-  assert.deepEqual(Object.keys(s.reply).sort(), ['alreadyProcessed', 'progression', 'runId', 'schemaVersion', 'settlement']);
+  assert.deepEqual(Object.keys(s.reply).sort(), ['alreadyProcessed', 'blueprintFragmentsGranted', 'holosGranted', 'progression', 'runId', 'schemaVersion', 'settlement']); // DECISIONS #58 grants (stripped from the v1 wire)
   assert.deepEqual(Object.keys(s.reply.settlement).sort(), SETTLEMENT_KEYS);
   assert.deepEqual(s.reply.settlement, { kind: 'beast', zoneId: 'neonforest', tier: 0, kills: 3, bossDefeated: false, fielded: ['ace', 'kuma'], didWin: true, combosCompleted: 3, perfectDefenses: 0, tableExp: 123, expPerHolobot: 123, expWithheld: false, settledAtMs: T0 });
   assert.deepEqual(s.reply.progression, [

@@ -22,6 +22,81 @@
       "quantity": 1,
       "available": true,
       "availableAtMs": 0,
+      "listingId": "item.emergency_patch",
+      "kind": "item",
+      "displayName": "Emergency Patch",
+      "price": 100,
+      "owned": 0,
+      "details": {
+        "healFraction": "0.25",
+        "source": "vendor_or_reward_or_craft"
+      },
+      "purchase": {
+        "callable": "desktopItemsHost",
+        "request": {
+          "schemaVersion": "desktop-items-2",
+          "operation": "buy",
+          "itemId": "item.emergency_patch",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.repair_kit",
+      "kind": "item",
+      "displayName": "Repair Kit",
+      "price": 250,
+      "owned": 0,
+      "details": {
+        "healFraction": "0.5",
+        "source": "vendor_or_reward_or_craft"
+      },
+      "purchase": {
+        "callable": "desktopItemsHost",
+        "request": {
+          "schemaVersion": "desktop-items-2",
+          "operation": "buy",
+          "itemId": "item.repair_kit",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": true
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
+      "listingId": "item.full_restore",
+      "kind": "item",
+      "displayName": "Full Restore",
+      "price": 600,
+      "owned": 0,
+      "details": {
+        "healFraction": "1",
+        "source": "vendor_or_craft"
+      },
+      "purchase": {
+        "callable": "desktopItemsHost",
+        "request": {
+          "schemaVersion": "desktop-items-2",
+          "operation": "buy",
+          "itemId": "item.full_restore",
+          "requestId": "<client-generated>"
+        }
+      },
+      "affordable": false
+    },
+    {
+      "currency": "holos",
+      "quantity": 1,
+      "available": true,
+      "availableAtMs": 0,
       "listingId": "item.arena_pass",
       "kind": "item",
       "displayName": "Arena Pass",

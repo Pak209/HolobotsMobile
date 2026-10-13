@@ -110,7 +110,9 @@ service cloud.firestore {
         // DECISIONS #43/#44: Buddy Unit inventory (#44: the {light, medium, heavy}
         // tier map; a nested change is an affected top-level key) + rival ladder
         // are server-only.
-        'buddyUnits', 'rivalWins', 'rivalRewardDay'
+        'buddyUnits', 'rivalWins', 'rivalRewardDay',
+        // DECISIONS #58 (3): the once-per-bot-per-tier rank Kit record.
+        'rankKitTiers'
       ]);
     }
 
@@ -144,6 +146,7 @@ service cloud.firestore {
         && !('buddyUnits' in data)
         && !('rivalWins' in data)
         && !('rivalRewardDay' in data)
+        && !('rankKitTiers' in data)
         && !('expBoosterActiveUntil' in data)
         && !('lastWildcardPackAt' in data)
         && frozenEmptyOnCreate(data, 'parts')

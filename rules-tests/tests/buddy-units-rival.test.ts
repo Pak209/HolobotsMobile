@@ -10,7 +10,7 @@ describe('server-owned Buddy Units and rival ladder', () => {
   beforeAll(async () => { env = await initTestEnv(); });
   afterAll(async () => { await env.cleanup(); });
   beforeEach(async () => { await env.clearFirestore(); });
-  const fields: Record<string, unknown> = { buddyUnits: 1, rivalWins: 3, rivalRewardDay: '2026-09-30' };
+  const fields: Record<string, unknown> = { buddyUnits: 1, rivalWins: 3, rivalRewardDay: '2026-09-30', rankKitTiers: { ace: 2 } };
 
   it('denies a client create that carries any of the fields (even zero / starter values)', async () => {
     for (const [k, v] of Object.entries({ ...fields, buddyUnits: 1 })) await assertFails(setDoc(doc(authedDb(env, 'alice'), 'users/alice'), { ...buildUserDoc(), [k]: v }));
@@ -26,6 +26,7 @@ describe('server-owned Buddy Units and rival ladder', () => {
     await assertFails(updateDoc(ref, { buddyUnits: 99 }));
     await assertFails(updateDoc(ref, { rivalWins: 100 }));
     await assertFails(updateDoc(ref, { rivalRewardDay: '1999-01-01' }));
+    await assertFails(updateDoc(ref, { rankKitTiers: { ace: 0 } })); // DECISIONS #58: the rank Kit record is server-only
     for (const k of Object.keys(fields)) await assertFails(updateDoc(ref, { [k]: deleteField() }));
     await assertSucceeds(updateDoc(ref, { ...fields, dailyEnergy: 42 }));
     await assertSucceeds(getDoc(ref));

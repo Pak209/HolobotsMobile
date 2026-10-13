@@ -26,6 +26,24 @@ export const DAILY_RIVAL_REWARD_BUDDY_UNITS = 1;
 /** Tier of the daily rival reward (#44: Light). */
 export const DAILY_RIVAL_REWARD_TIER: BuddyTierKey = "light";
 
+// ---- Repeat battle Holos (DECISIONS #58 (3) + amendment 1 (3)) -------------
+
+/**
+ * Every settled rival battle and every settled HoloZone run pays Holos (producer picks, Pak tunes after
+ * telemetry): a win pays BATTLE_WIN_HOLOS, a loss BATTLE_LOSS_HOLOS. A settle inside the anti-farm window
+ * (RIVAL_MIN_XP_MS for a rival loss, HOLOZONE_MIN_XP_MS for a zone run) pays 0. Paid once per battle / run id:
+ * a replayed settle reports the stored amount and writes nothing. The intro chain's 600 is separate.
+ */
+export const BATTLE_WIN_HOLOS = 100;
+export const BATTLE_LOSS_HOLOS = 25;
+/** holosTokens after adding `amount`; missing = 0, malformed stored balance fails closed (null). */
+export function holosAfterGrant(profile: Record<string, unknown>, amount: number): number | null {
+  const v = profile.holosTokens ?? 0;
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0) return null;
+  const next = v + amount;
+  return next <= Number.MAX_SAFE_INTEGER ? next : null;
+}
+
 // ---- Rival ladder ----------------------------------------------------------
 
 /**
@@ -338,11 +356,47 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "unavailable";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "unavailable";
 export class RivalError extends Error {
-  constructor(public code: RivalErrorCode) {
+  /** rival_cooldown only: ms until the same rival can be issued again. */
+  public retryAfterMs?: number;
+  constructor(public code: RivalErrorCode, retryAfterMs?: number) {
     super(code);
+    if (retryAfterMs !== undefined) this.retryAfterMs = retryAfterMs;
   }
+}
+
+// ---- Per-rival cooldown (DECISIONS #58 amendment 1 (3)) ----------------------
+
+/** A rival NPC (opponentPilot.pilotId) cannot be issued again within this long of the previous settle against it. */
+export const RIVAL_COOLDOWN_MS = 5 * 60 * 1000;
+/** Field on the open-battle ledger rivalBattles/{uid} (server-only): pilotId → last first-time settle (epoch ms). */
+export const RIVAL_LAST_SETTLED_FIELD = "rivalLastSettledAtMs";
+/** The stored map; missing = {}; malformed = unavailable (fail closed). */
+export function readRivalLastSettled(ledger: Record<string, unknown> | undefined): Record<string, number> {
+  const raw = ledger?.[RIVAL_LAST_SETTLED_FIELD];
+  if (raw === undefined) return {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new RivalError("unavailable");
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v !== "number" || !Number.isFinite(v)) throw new RivalError("unavailable");
+    out[k] = v;
+  }
+  return out;
+}
+/** Throws rival_cooldown {retryAfterMs} when `pilotId` was settled less than RIVAL_COOLDOWN_MS ago. */
+export function requireRivalOffCooldown(lastSettled: Record<string, number>, pilotId: string, nowMs: number): void {
+  const at = lastSettled[pilotId];
+  if (at === undefined) return;
+  const retryAfterMs = at + RIVAL_COOLDOWN_MS - nowMs;
+  if (retryAfterMs > 0) throw new RivalError("rival_cooldown", retryAfterMs);
+}
+/** The map after a first-time settle against `pilotId` at nowMs; entries already off cooldown are pruned. */
+export function rivalLastSettledAfterSettle(lastSettled: Record<string, number>, pilotId: string, nowMs: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(lastSettled)) if (v + RIVAL_COOLDOWN_MS > nowMs) out[k] = v;
+  out[pilotId] = nowMs;
+  return out;
 }
 
 export type RivalStatus = {
@@ -362,6 +416,8 @@ export type RivalSettlement = {
   /** DECISIONS #53 (records settled from 2026-10-06): the fielded ids the settle named, and the XP ruling replayed by duplicates. */
   fielded?: string[];
   progression?: HolobotProgressionEntry[];
+  /** DECISIONS #58 (records settled from economy-host-1): Holos paid by this settle; absent on older records = 0. */
+  holosGranted?: number;
 };
 
 /** Stored at rivalBattles/{uid}/battles/{battleId}; server-only path. */
@@ -528,6 +584,8 @@ export type SettleReply = {
   status: RivalStatus;
   /** rival-battle-3 (DECISIONS #53): one row per fielded Holobot; [] when `fielded` was not sent. Duplicates replay it. */
   progression: HolobotProgressionEntry[];
+  /** DECISIONS #58: Holos this battle paid (win 100 / loss 25 / 0 inside the anti-farm window); duplicates replay it. v3 only. */
+  holosGranted: number;
 };
 
 /**
@@ -552,7 +610,7 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     return {
       userUpdates: starterUpdates(l),
       battleUpdates: null,
-      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })) },
+      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })), holosGranted: s.holosGranted ?? 0 },
     };
   }
   if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
@@ -575,6 +633,14 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
       userUpdates[RIVAL_REWARD_DAY_FIELD] = today;
     }
   }
+  // DECISIONS #58: every settled battle pays Holos; a loss inside the anti-farm window pays 0 (wins there are too_fast).
+  const farmWindow = !didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_XP_MS);
+  const holosGranted = farmWindow ? 0 : didWin ? BATTLE_WIN_HOLOS : BATTLE_LOSS_HOLOS;
+  if (holosGranted > 0) {
+    const next = holosAfterGrant(profile, holosGranted);
+    if (next === null) throw new RivalError("unavailable");
+    userUpdates.holosTokens = next;
+  }
   const tierGranted: BuddyTierId | "" = granted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : "";
   let progression: HolobotProgressionEntry[] = [];
   if (fielded && fielded.length) {
@@ -586,11 +652,11 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     progression = award.progression;
     if (award.expPerHolobot > 0) userUpdates.holobots = award.holobots;
   }
-  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: [...(fielded ?? [])], progression };
+  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: [...(fielded ?? [])], progression, holosGranted };
   return {
     userUpdates,
     battleUpdates: { settlement },
-    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs), progression: progression.map((row) => ({ ...row })) },
+    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs), progression: progression.map((row) => ({ ...row })), holosGranted },
   };
 }
 
@@ -600,12 +666,12 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
 export type RivalStatusV1 = Omit<RivalStatus, "buddyUnits"> & { buddyUnits: number };
 
 /** The fields rival-battle-3 adds; a v2 projection removes exactly these (and nothing else). */
-export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression"] as const;
+export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression", "holosGranted"] as const;
 export const RIVAL_V3_COMBATANT_FIELDS = ["speed", "intelligence", "commandRules"] as const;
 
 /** The rival-battle-2 shape of a v3 reply: identical to the 2026-10-01 deployment (#44). */
 function toV2(reply: { schemaVersion: string; status: RivalStatus }): Record<string, unknown> & { status: RivalStatus } {
-  const { playerCombatants: _p, progression: _g, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown };
+  const { playerCombatants: _p, progression: _g, holosGranted: _h, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown; holosGranted?: unknown };
   const out: Record<string, unknown> & { status: RivalStatus } = { ...rest, schemaVersion: RIVAL_SCHEMA_V2 };
   const encounter = (reply as { encounter?: { opponentSquad?: CombatantSnapshot[] } }).encounter;
   if (encounter && Array.isArray(encounter.opponentSquad)) {

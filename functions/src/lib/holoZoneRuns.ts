@@ -12,9 +12,11 @@
  *   perfectDefenses  = bossDefeated ? 5 : 0
  *   tier             = HOLOZONE_ZONE_TIERS[zoneId] at issue
  * A run with kills = 0 and no boss is a loss (30 % EXP). Any run settled
- * sooner than HOLOZONE_MIN_XP_MS after issue settles but earns 0 EXP. EXP only:
- * no items, Holos, Sync Points or Buddy Units here (those stay on their own
- * paths).
+ * sooner than HOLOZONE_MIN_XP_MS after issue settles but earns 0 EXP.
+ * DECISIONS #58: every settled run also pays Holos (win 100 / loss 25, 0 under
+ * HOLOZONE_MIN_XP_MS) and a non-boss clear with >= 1 kill pays 1
+ * itemStocks.blueprint_fragment (a boss clear pays the #72 Kit instead). No Sync
+ * Points or Buddy Units here.
  *
  * Storage: holoZoneRuns/{uid} (server-only, default-denied by the rules; NOT a
  * field on users/{uid}, which is client-writable outside its protected list —
@@ -37,7 +39,7 @@ import {healingDelta} from "./repairItems";
 import { MAX_PERFORMANCE_EVENTS, computeBattleSettlement } from "./battleSettlement";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, requireLivingVitals, settleVitals, Vitals } from "./rivalHealth";
-import { buildPlayerCombatants, PlayerCombatantSnapshot } from "./rivalLadder";
+import { BATTLE_LOSS_HOLOS, BATTLE_WIN_HOLOS, buildPlayerCombatants, holosAfterGrant, PlayerCombatantSnapshot } from "./rivalLadder";
 
 /** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
 export const HOLOZONE_SCHEMA = "holozone-run-1";
@@ -69,6 +71,10 @@ export const HOLOZONE_MIN_XP_MS = 20 * 1000;
 /** Runs kept on holoZoneRuns/{uid} (newest last). An older settled run's duplicate settle reads as unknown_run. */
 export const HOLOZONE_MAX_STORED_RUNS = 10;
 export const HOLOZONE_MAX_FIELDED = 3;
+/** DECISIONS #58 (3): blueprint fragments per settled non-boss zone clear with >= 1 kill (producer pick, Pak tunes). */
+export const HOLOZONE_CLEAR_BLUEPRINT_FRAGMENTS = 1;
+/** users/{uid}.itemStocks key the Workshop crafts from (workshop/workshopCraftHost.ts). */
+export const BLUEPRINT_FRAGMENT_STOCK = "blueprint_fragment";
 /** perfectDefenses credited for a defeated boss. */
 export const HOLOZONE_BOSS_PERFECT_DEFENSES = 5;
 
@@ -121,6 +127,9 @@ export type HoloZoneRunRecord = HoloZoneRunView & {
   settlement: HoloZoneSettlement | null;
   /** Stored with the settlement; duplicates replay it. */
   progression: HolobotProgressionEntry[] | null;
+  /** DECISIONS #58 (runs settled from economy-host-1): Holos / blueprint fragments this settle paid; absent = 0. */
+  holosGranted?: number;
+  blueprintFragmentsGranted?: number;
   /** rival-health-1: set on a run issued with the flag (the rival record's field names); absent = issued without it. */
   healthSchema?: typeof RIVAL_HEALTH_SCHEMA;
   /** rival-health-1: the {currentHealth, maxHealth} each player combatant was issued with — the settle's bound. */
@@ -228,7 +237,10 @@ export type HoloZoneSettleReply = {
   alreadyProcessed: boolean;
   settlement: HoloZoneSettlement;
   /** One row per fielded Holobot (the rival-battle-3 shape); [] when nothing was fielded. */
-  progression: HolobotProgressionEntry[];
+  progression: HolobotProgressionEntry[];  /** DECISIONS #58: Holos this run paid (win 100 / loss 25 / 0 under HOLOZONE_MIN_XP_MS). holozone-run-2 only (lib/holoZoneWire.ts). */
+  holosGranted: number;
+  /** DECISIONS #58: blueprint_fragment paid (1 for a non-boss clear with >= 1 kill, else 0). holozone-run-2 only. */
+  blueprintFragmentsGranted: number;
 };
 
 /** status → the open run (issued, unsettled, not superseded, not past expiresAtMs) or null. */
@@ -287,7 +299,7 @@ export function settleHoloZoneRun(
   if (index < 0) throw new HoloZoneError("unknown_run");
   const run = runs[index];
   if (run.settlement) {
-    return { userUpdates: {}, doc: null, reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: true, settlement: structuredClone(run.settlement), progression: (run.progression ?? []).map((row) => ({ ...row })) } };
+    return { userUpdates: {}, doc: null, reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: true, settlement: structuredClone(run.settlement), progression: (run.progression ?? []).map((row) => ({ ...row })), holosGranted: run.holosGranted ?? 0, blueprintFragmentsGranted: run.blueprintFragmentsGranted ?? 0 } };
   }
   if (run.closedAtMs !== null) throw new HoloZoneError("run_closed");
   if (nowMs > run.expiresAtMs) throw new HoloZoneError("run_expired");
@@ -304,8 +316,25 @@ export function settleHoloZoneRun(
     didWin: input.didWin, combosCompleted: input.combosCompleted, perfectDefenses: input.perfectDefenses,
     tableExp: table.exp, expPerHolobot: command.fielded.length ? award.expPerHolobot : 0, expWithheld, settledAtMs: nowMs,
   };
-  const next = runs.map((r, i) => (i === index ? { ...r, settlement, progression: award.progression } : r));
   const userUpdates: Record<string, unknown> = award.expPerHolobot > 0 && award.progression.length ? { holobots: award.holobots } : {};
+  // DECISIONS #58: every settled run pays Holos (win = kills >= 1 || boss); the < HOLOZONE_MIN_XP_MS rule pays 0.
+  const holosGranted = expWithheld ? 0 : input.didWin ? BATTLE_WIN_HOLOS : BATTLE_LOSS_HOLOS;
+  if (holosGranted > 0) {
+    const nextHolos = holosAfterGrant(profile, holosGranted);
+    if (nextHolos === null) throw new HoloZoneError("unavailable");
+    userUpdates.holosTokens = nextHolos;
+  }
+  // DECISIONS #58 (3): one blueprint_fragment per NON-boss clear with >= 1 kill (a boss clear keeps its Kit, #72);
+  // the < HOLOZONE_MIN_XP_MS rule pays none; once per run (the stored amount replays).
+  const blueprintFragmentsGranted = !command.bossDefeated && command.kills >= 1 && !expWithheld ? HOLOZONE_CLEAR_BLUEPRINT_FRAGMENTS : 0;
+  if (blueprintFragmentsGranted > 0) {
+    const stocks = profile.itemStocks;
+    if (stocks !== undefined && (!stocks || typeof stocks !== "object" || Array.isArray(stocks))) throw new HoloZoneError("unavailable");
+    const have = (stocks as Record<string, unknown> | undefined)?.[BLUEPRINT_FRAGMENT_STOCK] ?? 0;
+    if (typeof have !== "number" || !Number.isSafeInteger(have) || have < 0 || !Number.isSafeInteger(have + blueprintFragmentsGranted)) throw new HoloZoneError("unavailable");
+    userUpdates.itemStocks = { ...(stocks as Record<string, unknown> | undefined ?? {}), [BLUEPRINT_FRAGMENT_STOCK]: have + blueprintFragmentsGranted };
+  }
+  const next = runs.map((r, i) => (i === index ? { ...r, settlement, progression: award.progression, holosGranted, blueprintFragmentsGranted } : r));
   if (command.bossDefeated && !expWithheld) Object.assign(userUpdates, healingDelta(profile,"item.repair_kit",1));
   // rival-health-1: `health[]` reports settle the ledger with the ruling — only on a run issued with the flag, each
   // report at or below what that run issued (lib/rivalHealth.ts settleVitals; a violation refuses the whole settle).
@@ -317,6 +346,6 @@ export function settleHoloZoneRun(
   return {
     userUpdates,
     doc: { schemaVersion: HOLOZONE_RECORD_SCHEMA, runs: next },
-    reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: false, settlement: structuredClone(settlement), progression: award.progression.map((row) => ({ ...row })) },
+    reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: false, settlement: structuredClone(settlement), progression: award.progression.map((row) => ({ ...row })), holosGranted, blueprintFragmentsGranted },
   };
 }

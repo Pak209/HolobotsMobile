@@ -37,7 +37,7 @@
   "duelSwitchLockoutMs": 3000,
   "cityRecoveryFraction": 0.4,
   "bossKitGrant": 1,
-  "rankKitGrant": 1,
+  "rankKitGrant": 2,
   "zoneRewardMinMs": 20000,
   "parityKeys": [
     "healingCatalogServerParity",

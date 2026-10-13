@@ -58,8 +58,9 @@ test('full chain through the real capture and rival flows pays exactly 600 Holos
   assert.equal(done.status.complete, true); assert.equal(done.status.currentStepId, '');
   const p = await user(uid);
   // The rival win also paid the #43 daily Light Unit; the Heavy capture spent the Heavy.
-  assert.equal(p.holosTokens, 625); assert.equal(p.gachaTickets, 4); assert.deepEqual(p.buddyUnits, inv(2, 0, 0));
-  assert.deepEqual(done.balances, { holosTokens: 625, gachaTickets: 4, buddyUnits: inv(2, 0, 0) });
+  // DECISIONS #58: the chain's rival win also pays the repeat-battle 100 Holos (main: 625 = 25 + 600).
+  assert.equal(p.holosTokens, 725); assert.equal(p.gachaTickets, 4); assert.deepEqual(p.buddyUnits, inv(2, 0, 0));
+  assert.deepEqual(done.balances, { holosTokens: 725, gachaTickets: 4, buddyUnits: inv(2, 0, 0) });
   await exportFixture('intro-quest-1_claim_chain_complete', done);
 });
 
@@ -116,7 +117,7 @@ test('rival verification uses a baseline: wins from before the step became curre
   await captureHare(uid); await claim(uid, 'capture_buddy');
   assert.equal((await questDoc(uid)).rivalWinsAtStepStart, 1);
   await assert.rejects(() => claim(uid, 'win_rival_battle'), /not_met/);
-  await winRival(uid, T0 + 60000);
+  await winRival(uid, T0 + 6 * 60000); // past the 5-min rival cooldown (DECISIONS #58 am. 1)
   assert.equal((await claim(uid, 'win_rival_battle')).reward.holos, 100);
 });
 
@@ -138,7 +139,9 @@ test('vendorCatalogHost: catalog prices match the economy module; Holos and inve
   const before = await user(uid);
   const m = await vendorCatalogHost.run({ auth: { uid }, data: { operation: 'catalog', vendorId: 'marketplace' } });
   assert.equal(m.schemaVersion, 'vendor-3'); assert.equal(m.holosTokens, 420);
-  for (const l of m.listings.filter(l => l.kind === 'item')) assert.equal(l.price, E.getMarketplacePrice(l.displayName));
+  // Host-priced healing items (#57 catalog, lib/repairItems.ts) carry their own price; the rest use the economy module.
+  const HEAL = require('../lib/lib/repairItems.js').HEALING_ITEMS;
+  for (const l of m.listings.filter(l => l.kind === 'item')) assert.equal(l.price, HEAL.find(h => h.id === l.listingId)?.price ?? E.getMarketplacePrice(l.displayName));
   for (const l of m.listings.filter(l => l.kind === 'booster')) assert.equal(l.price, E.MARKETPLACE_BOOSTER_PRICES[l.details.packId]);
   assert.deepEqual(m.listings.filter(l => l.kind === 'buddy_unit').map(l => [l.details.tierId, l.price, l.affordable]), [['buddy_medium', 300, true], ['buddy_heavy', 1500, false]]);
   assert.equal(m.inventory.arenaPasses, 3); assert.deepEqual(m.inventory.buddyUnits, inv(2));

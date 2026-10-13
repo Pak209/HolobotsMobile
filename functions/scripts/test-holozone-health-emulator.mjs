@@ -93,7 +93,7 @@ test('one ledger: the rival host\'s settle is what the zone issue serves; the zo
   assert.equal((await user(uid)).holobotVitals.ace.currentHealth,30+ACE_MAX*0.25);
   await zone(uid, { operation: 'settle', runId: i.runId, kills: 2, bossDefeated: true, fielded: ['ace', 'kuma'], healthSchema: FLAG, health: [{ holobotId: 'ace', currentHealth: 12 }] }, T0 + 1);
   assert.equal((await user(uid)).holobotVitals.ace.currentHealth, 12);
-  const r2 = await rival(uid, { operation: 'issue', healthSchema: FLAG }, T0 + 2);
+  const r2 = await rival(uid, { operation: 'issue', healthSchema: FLAG }, T0 + 5 * 60000); // DECISIONS #58 am. 1: past the 5-min rival cooldown
   assert.deepEqual(r2.playerCombatants.map(c => c.currentHealth), [12, KUMA_MAX], 'the rival host serves the zone\'s value');
-  await assert.rejects(() => rival(uid, { operation: 'settle', battleId: r2.battleId, didWin: false, fielded: ['ace'], healthSchema: FLAG, health: [{ holobotId: 'ace', currentHealth: 13 }] }, T0 + 3), /invalid_request/, 'the rival host refuses a report above what it issued');
+  await assert.rejects(() => rival(uid, { operation: 'settle', battleId: r2.battleId, didWin: false, fielded: ['ace'], healthSchema: FLAG, health: [{ holobotId: 'ace', currentHealth: 13 }] }, T0 + 5 * 60000 + 3), /invalid_request/, 'the rival host refuses a report above what it issued');
 });

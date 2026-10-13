@@ -33,6 +33,19 @@ export function calculateExperience(level: number): number {
   return Math.floor(100 * Math.pow(Math.max(1, level), 2));
 }
 
+/**
+ * The mobile Holobot rank table (getHolobotRank's boundaries) as data: every promotion boundary.
+ * DECISIONS #58 (3): a Repair Kit at every promotion, Rookie -> Starter included (lib/rankHealingReward.ts).
+ */
+export const HOLOBOT_RANK_TIERS = [
+  { rank: "Rookie", startLevel: 1 },
+  { rank: "Starter", startLevel: 2 },
+  { rank: "Champion", startLevel: 11 },
+  { rank: "Rare", startLevel: 21 },
+  { rank: "Elite", startLevel: 31 },
+  { rank: "Legendary", startLevel: 41 },
+] as const;
+
 export function getHolobotRank(level: number): string {
   if (level >= 41) return "Legendary";
   if (level >= 31) return "Elite";
