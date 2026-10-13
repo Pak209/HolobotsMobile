@@ -692,3 +692,33 @@ test('fresh-client resume without IDs discovers absent, open, expired and latest
   }
 
 });
+
+// PR #78 merge (rule 2): #72's rank-tier Repair Kit now rides the durable settle, not the closed legacy callable.
+const { calculateExperience } = require('../lib/lib/progression.js');
+async function settledKits(level) {
+  const exp = calculateExperience(level + 1);
+  const uid = await setup({ holobots: [{ name: 'ACE', level, experience: exp - 1, nextLevelExp: exp, rank: 'Starter', attributePoints: 0 }], itemStocks: { repair_kit: 1 } });
+  const { matchId } = await issue(uid, `rank_kit_${level}`);
+  await call(uid, { operation: 'start', matchId }, T0 + 1);
+  await call(uid, { operation: 'settle', matchId, playerFinalHealth: 10, opponentFinalHealth: 0, combosCompleted: 0, perfectDefenses: 0 }, T0 + 5000);
+  const after = await user(uid);
+  return { level: after.holobots[0].level, kits: after.itemStocks.repair_kit };
+}
+test('durable settle crossing a rank tier (10 -> 11) grants exactly one Repair Kit', async () => {
+  const r = await settledKits(10);
+  assert.ok(r.level >= 11 && r.level < 21);
+  assert.equal(r.kits, 2);
+});
+test('KNOWN-BAD control: durable settle levelling inside one tier (12 -> 13+) grants no Kit', async () => {
+  const r = await settledKits(12);
+  assert.ok(r.level > 12 && r.level < 21);
+  assert.equal(r.kits, 1);
+});
+// PR #78 merge (rule 1): the shared lease refuses rival / zone issue while a duel-healing run is open.
+test('open duel-healing run refuses rival and zone issue with no write', async () => {
+  const uid = await setup();
+  await db.doc(`duelHealingRuns/${uid}`).set({ schemaVersion: 'duel-healing-1', runId: 'duel', open: true });
+  await refused(uid, () => rival(uid, { operation: 'issue' }, T0 + 1), /too_many_open/);
+  await refused(uid, () => zone(uid, { operation: 'issue', zoneId: 'neonforest' }, T0 + 1), /unavailable/);
+  await refused(uid, () => call(uid, issueData('duel_blocks_arena'), T0 + 1), /activity_conflict/);
+});
