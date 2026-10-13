@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
@@ -56,7 +57,7 @@ export const claimQuestRun = onCall(async (request): Promise<ClaimQuestResponse>
       throw new HttpsError("invalid-argument", "Unknown quest.");
     }
 
-    transaction.set(userRef, result.updates, { merge: true });
+    transaction.set(userRef, withRankHealingReward(userData,result.updates), { merge: true });
 
     return { rewards: result.rewards, succeeded: result.succeeded };
   });

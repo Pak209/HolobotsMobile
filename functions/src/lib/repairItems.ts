@@ -36,16 +36,17 @@ export function repairGrant(profile:Record<string,unknown>,amount=1):Record<stri
  if(!Number.isSafeInteger(amount)||amount<0||!Number.isSafeInteger(next))throw new RepairError("unavailable");
  return {[REPAIR_FIELD]:next};
 }
-export function repairUse(profile:Record<string,unknown>,botId:string|undefined){
+export function repairUse(profile:Record<string,unknown>,botId:string|undefined,itemId:string=REPAIR_ITEM){
  if(!botId)throw new RepairError("choose_holobot");
  const squad=profile.travelSquad as {holobotIds?:unknown[]}|undefined;
  if(!squad?.holobotIds?.includes(botId))throw new RepairError("not_in_squad");
- if(repairStock(profile)<1)throw new RepairError("no_item");
+ const item=healingItem(itemId);if(!item)throw new RepairError("unknown_item");
+ if(healingStock(profile,itemId)<1)throw new RepairError("no_item");
  // Existing practice health is session-local. Missing server health fails closed; never infer a wounded bot.
  const ledger=profile.holobotVitals as Record<string,{currentHealth:number;maxHealth:number}>|undefined;
  const v=ledger?.[botId];
  if(!v||!Number.isFinite(v.currentHealth)||!Number.isFinite(v.maxHealth)||v.maxHealth<=0||v.currentHealth<0||v.currentHealth>v.maxHealth)throw new RepairError("health_unavailable");
  if(v.currentHealth>=v.maxHealth)throw new RepairError("already_full");
- const health=Math.min(v.maxHealth,v.currentHealth+v.maxHealth*REPAIR_FRACTION);
- return {updates:{[REPAIR_FIELD]:repairStock(profile)-1,holobotVitals:{...ledger,[botId]:{...v,currentHealth:health}}},result:{kind:"repair",itemId:REPAIR_ITEM,holobotId:botId,currentHealth:health,maxHealth:v.maxHealth}};
+ const health=Math.min(v.maxHealth,v.currentHealth+v.maxHealth*item.fraction);
+ return {updates:{...healingDelta(profile,itemId,-1),holobotVitals:{...ledger,[botId]:{...v,currentHealth:health}}},result:{kind:"repair",itemId,holobotId:botId,currentHealth:health,maxHealth:v.maxHealth}};
 }

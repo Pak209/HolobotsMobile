@@ -1,0 +1,70 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test --test-concurrency=1 functions/scripts/test-healing-use-emulator.mjs functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs functions/scripts/test-desktop-items-emulator.mjs
+✔ same purchase retry spends exactly once (614.777166ms)
+✔ parallel consumes cannot spend one item twice (3233.370125ms)
+✔ favorite survives reconnect and belongs only to its account (44.62ms)
+✔ cache retry returns the same reveal and consumes once (35.96825ms)
+✔ account deletion removes favorites and receipts (87.86075ms)
+[2026-10-12T21:11:30.780Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x69925940 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+[2026-10-12T21:11:30.786Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x69925941 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+✔ rules deny client inventory, favorites and receipt writes (373.847292ms)
+✔ repair retry restores only the chosen bot and spends once (47.3985ms)
+✔ repair refuses during a host-issued battle without spending (22.869417ms)
+[2026-10-12T21:11:30.973Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x69925942 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'update' @ L202, false for 'update' @ L350
+[2026-10-12T21:11:30.983Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x69925943 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'update' @ L202, false for 'update' @ L350
+[2026-10-12T21:11:30.998Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x69925944 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L190, false for 'create' @ L350, evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'create' @ L190, false for 'create' @ L350
+✔ rules deny repair stock and health spoofing (141.085ms)
+✔ legacy zone without health bound refuses repair without spending (25.0315ms)
+✔ all three revive KO at 25/50/100 percent and replay spends once (241.290958ms)
+✔ Arena open record refuses every heal without spend (44.517333ms)
+✔ bench heal costs one item, no immediate ledger write, recorded settle, three-second lockout (84.532209ms)
+✖ live zone KO observation, paid revival and bounded settlement (13.93175ms)
+✔ Arena charge opens marker, no city recovery, bound settlement closes it (59.264208ms)
+✔ zone: a flagged issue serves playerCombatants with currentHealth and writes the ledger; the settle writes the reports with the ruling; replays and plain requests never touch it (3467.134833ms)
+✔ zone: inflated / foreign reports, reports on an unflagged run, and a tampered ledger refuse with nothing written (80.087292ms)
+✔ one ledger: the rival host's settle is what the zone issue serves; the zone settle is what the rival issue serves; a paid repair works while the zone run is open (86.110459ms)
+✔ KO refusal: zero ledger HP cannot issue a zone run (all versions, health flag cannot bypass) (187.61025ms)
+✔ existing emergency patch repairs 25 percent and the zone then accepts the bot (42.872917ms)
+✔ city rival issue retains 40 percent recovery, unaffected by zone policy (14.956042ms)
+✔ positive HP, missing ledger and an unselected KO bot keep accepted reply shapes (49.783833ms)
+✔ refused reissue never closes an existing run; malformed ledger fails closed even without flag (41.524708ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 22
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12087.586417
+
+✖ failing tests:
+
+test at functions/scripts/test-healing-use-emulator.mjs:8:1
+✖ live zone KO observation, paid revival and bounded settlement (13.93175ms)
+  Error: holobot_ko
+      at asZone (/private/tmp/holobots-healing-items/functions/lib/lib/holoZoneRuns.js:100:19)
+      at issueHoloZoneRun (/private/tmp/holobots-healing-items/functions/lib/lib/holoZoneRuns.js:206:9)
+      at /private/tmp/holobots-healing-items/functions/lib/holozone/holoZoneStore.js:47:59
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Transaction.runTransactionOnce (/Users/pak/Projects/HolobotsMobile/functions/node_modules/@google-cloud/firestore/build/src/transaction.js:440:28)
+      at async /Users/pak/Projects/HolobotsMobile/functions/node_modules/@google-cloud/firestore/build/src/transaction.js:412:28
+      at async TestContext.<anonymous> (file:///private/tmp/holobots-healing-items/functions/scripts/test-healing-use-emulator.mjs:8:264)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    code: 'holobot_ko'
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test --test-concurrency=1 functions/scripts/test-healing-use-emulator.mjs functions/scripts/test-zone-ko-refusal-emulator.mjs functions/scripts/test-holozone-health-emulator.mjs functions/scripts/test-desktop-items-emulator.mjs" exited with code 1

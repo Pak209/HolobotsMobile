@@ -1,0 +1,33 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-healing-grants-emulator.mjs functions/scripts/test-holozone-emulator.mjs functions/scripts/test-rival-progression-emulator.mjs
+FIRST boss inventory {"full_restore":2,"repair_kit":1}
+✔ boss defeat grants exactly one Kit, replays/concurrent retries cannot grant twice (4365.978167ms)
+✔ no boss / instant claimed boss do not grant Kit (44.773792ms)
+✔ mobile blueprint rank-tier up and Rank Skip grant one Kit per successful transition (27.217458ms)
+✔ issue → settle → replay: server uuid, travel squad snapshot, XP written once; duplicates and parallel settles replay (4473.882417ms)
+✔ expired run: run_expired (failed-precondition), nothing written (31.880542ms)
+✔ wrong owner: another pilot settling the run id reads unknown_run (not-found); both pilots unchanged (42.496583ms)
+✔ fielded outside the run squad is invalid_request (nothing written), even when the bot is owned or joined the squad later (44.121583ms)
+✔ zero-kill loss earns the loss amount; a settle < 20 s after issue earns 0; a re-issue supersedes the open run (108.72175ms)
+✔ holozone-run-2: issue / status carry the population by zone and tier; v1 replies and the stored run are untouched (70.569459ms)
+✔ v3 issue serves the travel squad as playerCombatants and snapshots it into the record (981.3535ms)
+✔ v3 settle{fielded} writes Holobot XP once; duplicates replay the progression and write nothing (64.555209ms)
+✔ parallel first settles award XP exactly once (3538.787333ms)
+✔ fielded outside the travel squad is invalid_request (nothing written); v2 callers see the #44 shapes (69.743458ms)
+✔ a malformed travel squad never breaks issue/settle: playerCombatants [] and fielded refused (32.034208ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4976.884417
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
