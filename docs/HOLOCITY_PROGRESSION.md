@@ -561,7 +561,7 @@ Arena charge now creates host-owned `arenaMatches/{uid}`, returns `matchId` + `c
 
 ### Grants and persistence
 
-One eligible zone boss defeat grants one Kit, once per settled run; the existing 20000 ms minimum also gates the drop. Each crossed mobile Holobot rank tier (levels 1/11/21/31/41) grants one Kit through server rank upgrades/Rank Skip/battle XP/training/quest/fitness/Watch claims and owned Legendary ascension; mint/new ownership and replay do not. Full never drops. Outcomes retain the existing client-observed boss/report trust boundary.
+One eligible zone boss defeat grants one Kit, once per settled run; the existing 20000 ms minimum also gates the drop. Each crossed mobile Holobot rank tier grants one Kit (superseded by economy-host-1 below: every promotion 2/11/21/31/41, once per bot per tier) through server rank upgrades/Rank Skip/battle XP/training/quest/fitness/Watch claims and owned Legendary ascension; mint/new ownership and replay do not. Full never drops. Outcomes retain the existing client-observed boss/report trust boundary.
 
 All new stocks live under already-protected itemStocks; top-level arenaMatches, duelHealingRuns, workshopHeals and workshopCrafts are default-denied and deleted on account cleanup. Workshop receipts and item receipts sit outside client-writable user trees. No deployment or production/profile testing occurred.
 
@@ -577,3 +577,39 @@ The mobile Vitest suite `healingServerParity.test.ts` exports/exercises these si
 - healingCityRecoveryParity
 
 For client rollout, forward Arena matchId, refresh items after receipts, use duel_repair session health rather than the unchanged ledger, observe downward session HP before bench use, present arena_no_heal / holobot_ko / switch_lockout / battle_open / health_unavailable without inventing recovery. Unity wiring and live headless simulation remain separate held lanes.
+
+## Economy host — `economy-host-1` (DECISIONS #58 (3) + amendment 1 (3); PR-only, no deploy)
+
+Producer picks; Pak tunes after telemetry. All amounts are host constants; Unity / mobile only display replies. Shared fixture: `docs/contracts/economy-host-1.json`.
+
+### Repeat battle Holos
+
+- Every first-time **rival settle** pays `holosTokens`: **win 100 / loss 25** (`BATTLE_WIN_HOLOS` / `BATTLE_LOSS_HOLOS`, `lib/rivalLadder.ts`). A loss settled < 20000 ms after issue (`RIVAL_MIN_XP_MS`) pays 0; a win that fast is still `too_fast`.
+- Every first-time **HoloZone settle** pays the same: win (`kills >= 1 || bossDefeated`) 100, zero-kill loss 25; a run settled < `HOLOZONE_MIN_XP_MS` (20000 ms) pays 0.
+- Replays (sequential or parallel) report the stored amount and write nothing. A malformed stored `holosTokens` fails closed (`unavailable`). The intro chain's 600 is unchanged and separate (its rival-win step now also pays the battle's 100).
+- **New reply field `holosGranted`** (number): on `rival-battle-3` settle replies and `holozone-run-2` settle replies. `rival-battle-1` / `-2` and `holozone-run-1` replies keep the deployed shape (field stripped); the Holos are paid regardless of wire version. Stored on the rival settlement / zone run record.
+
+### Rival cooldown
+
+- A rival NPC (`encounter.opponentPilot.pilotId`: `rival_tier_<t>` or `zell`) cannot be **issued** again within **300000 ms (5 min)** of the previous first-time settle against the same id (`RIVAL_COOLDOWN_MS`). Different rivals are independent. A win and a loss both start it.
+- Refusal: `rival_cooldown` → `HttpsError('failed-precondition', 'rival_cooldown', { rejectionCode: 'rival_cooldown', retryAfterMs })`; nothing written. `retryAfterMs` = ms until the same rival can be issued.
+- A cooldown never blocks a replayed settle, nor the settle of a battle issued before it. Zone runs keep their own issue rules (no cooldown).
+- Storage: `rivalBattles/{uid}.rivalLastSettledAtMs {pilotId: epochMs}` (server-only ledger doc, pruned on write); malformed = `unavailable`.
+
+### Blueprint fragment per non-boss zone clear
+
+- A first-time zone settle with `bossDefeated: false` and `kills >= 1` (and not under the 20000 ms rule) adds **1** `itemStocks.blueprint_fragment` (`HOLOZONE_CLEAR_BLUEPRINT_FRAGMENTS`). Boss clears keep the #72 Kit and get no fragment. Once per run.
+- **New reply field `blueprintFragmentsGranted`** (0 / 1) on `holozone-run-2` settle replies only.
+
+### Kit at every rank-tier promotion
+
+- `withRankHealingReward` now counts crossings of `HOLOBOT_RANK_TIERS` (`lib/progression.ts`, the mobile rank table: Rookie 1, Starter 2, Champion 11, Rare 21, Elite 31, Legendary 41), so **Rookie → Starter grants a Kit**. A jump spanning tiers grants one per tier (Legendary blueprint 1 → 41 = 5).
+- Once per bot per tier: `users/{uid}.rankKitTiers {botKey: highest tier index granted}` (server-only in `firestore.rules`), written with the grant in each caller's transaction. No retroactive grant: a bot with no record starts from its tier before the update.
+
+### Client parity test keys
+
+`mobile/src/lib/__tests__/economyHostServerParity.test.ts` (against the host pure modules and `docs/contracts/economy-host-1.json`): `economyBattleHolosParity`, `economyRivalCooldownParity`, `economyZoneFragmentParity`, `economyRankTierKitParity`. `healing-items-1.json` `rankKitGrant` (1 → 11) is now 2. The mobile client does not call the rival / zone hosts today; Unity reads `holosGranted` / `rival_cooldown` when it moves to the v3 / v2 wires.
+
+### Tests
+
+`functions/scripts/test-economy-host-emulator.mjs` (in `test:emulator`): 18 tests, known-bad = origin/main for each step.
