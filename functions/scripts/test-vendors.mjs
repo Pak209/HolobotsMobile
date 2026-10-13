@@ -13,7 +13,9 @@ const profile = (extra = {}) => ({ holosTokens: 1000, arenaPassses: 2, gachaTick
 test('marketplace catalog: every item, booster and Buddy Unit at the economy / data-module price, with its purchase call', () => {
   const c = V.buildCatalog(profile(), 'marketplace', NOW);
   assert.equal(c.schemaVersion, 'vendor-3'); assert.equal(c.vendorId, 'marketplace'); assert.equal(c.holosTokens, 1000);
-  const items = c.listings.filter(l => l.kind === 'item');
+  const healing = c.listings.filter(l => l.details.healFraction);
+  assert.deepEqual(healing.map(l=>[l.listingId,l.price,l.details.healFraction]), [['item.emergency_patch',100,'0.25'],['item.repair_kit',250,'0.5'],['item.full_restore',600,'1']]);
+  const items = c.listings.filter(l => l.kind === 'item' && !l.details.healFraction);
   assert.deepEqual(items.map(l => l.displayName), E.MARKETPLACE_ITEM_NAMES);
   for (const l of items) { assert.equal(l.price, E.getMarketplacePrice(l.displayName)); assert.deepEqual(l.purchase, { callable: 'purchaseMarketplaceItem', request: { itemName: l.displayName } }); }
   assert.deepEqual(items.map(l => l.price), [50, 100, 200, 750, 5000, 300]);

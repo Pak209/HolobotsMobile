@@ -1,0 +1,27 @@
+✔ catalog uses actual host counts and rates (0.813708ms)
+✔ favorites never grant an item (0.504542ms)
+✔ energy use consumes once and returns confirmed energy (0.189417ms)
+✔ no inventory and full energy refuse without write (0.223667ms)
+✔ booster window comes from existing economy (0.146333ms)
+✔ purchase charges canonical price (0.667167ms)
+✔ cache consumes tickets and server grants rewards (0.415ms)
+✔ malformed counts, unknown items and schema fail closed (0.116125ms)
+✔ cache grants one repair alongside existing rewards (0.14375ms)
+✔ repair uses owned squad target and server health, never supplied health (0.210792ms)
+✔ repair refuses missing/full/foreign health without consumption (0.173666ms)
+✔ marketplace catalog: every item, booster and Buddy Unit at the economy / data-module price, with its purchase call (1.125083ms)
+✔ workshop catalog: every MARKETPLACE_PART_CATALOG part at its price with owned copies (0.140209ms)
+✔ weekly Wildcard pack: unavailable with its reopen time inside the cooldown, available after; quantity 5 (0.165959ms)
+✔ catalog is a pure read: missing / integer buddyUnits are reported as they will be stored; malformed fails closed; bad vendors rejected (0.287167ms)
+✔ Buddy Unit purchase: Medium 300 / Heavy 1500 spend Holos and add one of that tier in the same update (0.165375ms)
+✔ Buddy Unit purchase refusals: not enough Holos, Light not for sale, bad ids, malformed data (0.182292ms)
+✔ boutique catalog (vendor-3): every sold wardrobe item at MARKETPLACE_PART_PRICES[rarity], owned flags, wardrobeHost purchase descriptor (0.478875ms)
+✔ legacy marketplace refusals: additive details.rejectionCode; HTTPS status and English message byte-identical to before (72.9975ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 116.136375

@@ -1,0 +1,57 @@
+✔ catalog uses actual host counts and rates (0.799833ms)
+✔ favorites never grant an item (0.5135ms)
+✔ energy use consumes once and returns confirmed energy (0.197334ms)
+✔ no inventory and full energy refuse without write (0.232ms)
+✔ booster window comes from existing economy (0.1575ms)
+✔ purchase charges canonical price (0.608625ms)
+✔ cache consumes tickets and server grants rewards (0.435709ms)
+✔ malformed counts, unknown items and schema fail closed (0.117708ms)
+✔ cache grants one repair alongside existing rewards (0.137292ms)
+✔ repair uses owned squad target and server health, never supplied health (0.20825ms)
+✔ repair refuses missing/full/foreign health without consumption (0.154625ms)
+✖ marketplace catalog: every item, booster and Buddy Unit at the economy / data-module price, with its purchase call (1.344375ms)
+✔ workshop catalog: every MARKETPLACE_PART_CATALOG part at its price with owned copies (0.24875ms)
+✔ weekly Wildcard pack: unavailable with its reopen time inside the cooldown, available after; quantity 5 (0.179792ms)
+✔ catalog is a pure read: missing / integer buddyUnits are reported as they will be stored; malformed fails closed; bad vendors rejected (0.288042ms)
+✔ Buddy Unit purchase: Medium 300 / Heavy 1500 spend Holos and add one of that tier in the same update (0.169541ms)
+✔ Buddy Unit purchase refusals: not enough Holos, Light not for sale, bad ids, malformed data (0.18125ms)
+✔ boutique catalog (vendor-3): every sold wardrobe item at MARKETPLACE_PART_PRICES[rarity], owned flags, wardrobeHost purchase descriptor (0.578625ms)
+✔ legacy marketplace refusals: additive details.rejectionCode; HTTPS status and English message byte-identical to before (60.121708ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.063166
+
+✖ failing tests:
+
+test at functions/scripts/test-vendors.mjs:13:1
+✖ marketplace catalog: every item, booster and Buddy Unit at the economy / data-module price, with its purchase call (1.344375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'Emergency Patch',
+  +   'Repair Kit',
+  +   'Full Restore',
+      'Arena Pass',
+      'Gacha Ticket',
+      'Energy Refill',
+      'EXP Booster',
+      'Rank Skip',
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobots-healing-items/functions/scripts/test-vendors.mjs:17:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.start (node:internal/test_runner/test:1257:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'Emergency Patch', 'Repair Kit', 'Full Restore', 'Arena Pass', 'Gacha Ticket', 'Energy Refill', 'EXP Booster', 'Rank Skip', 'Wildcard Blueprints' ],
+    expected: [ 'Arena Pass', 'Gacha Ticket', 'Energy Refill', 'EXP Booster', 'Rank Skip', 'Wildcard Blueprints' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

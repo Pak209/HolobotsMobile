@@ -16,6 +16,7 @@ import {
   type MarketplaceBoosterId,
 } from "./economy";
 import { BUDDY_UNIT_PRICES_HOLOS, BUDDY_UNIT_TIERS, BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, readBuddyInventory, tierById, withTierDelta } from "./buddyUnits";
+import {HEALING_ITEMS,healingStock} from "./repairItems";
 import { WARDROBE_ITEMS } from "./wardrobeCatalog";
 import { WARDROBE_SCHEMA } from "./wardrobe";
 
@@ -110,6 +111,7 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
   });
   const listings: Listing[] = [];
   if (vendorId === "marketplace") {
+    for(const item of HEALING_ITEMS) listings.push(listing({listingId:item.id,kind:"item",displayName:item.name,price:item.price,owned:healingStock(profile,item.id),details:{healFraction:String(item.fraction),source:item.id==="item.full_restore"?"vendor_or_craft":"vendor_or_reward_or_craft"},purchase:{callable:"desktopItemsHost",request:{schemaVersion:"desktop-items-2",operation:"buy",itemId:item.id,requestId:"<client-generated>"}}}));
     for (const itemName of MARKETPLACE_ITEM_NAMES) {
       const wildcard = itemName === "Wildcard Blueprints";
       const reopensAt = wildcard ? num(profile.lastWildcardPackAt) + WILDCARD_PACK_COOLDOWN_MS : 0;

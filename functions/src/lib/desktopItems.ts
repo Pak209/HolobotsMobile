@@ -1,7 +1,7 @@
 import { buildCatalog, ITEM_INVENTORY_FIELD, buildBuddyUnitPurchase, validateBuddyPurchase } from "./vendors";
 import { buildItemPurchaseUpdatesRaw, buildPackGrantUpdatesRaw, buildPackRewards, GACHA_PACKS, incrementBoosterPacksToday } from "./economy";
 import { buildEnergyRefillUpdates, buildExpBoosterActivationRaw } from "./mintingEconomy";
-import {repairStock,repairGrant,repairUse,RepairError,REPAIR_ITEM} from "./repairItems";
+import {repairStock,repairGrant,repairUse,RepairError,REPAIR_ITEM,healingItem,healingPurchase} from "./repairItems";
 export const ITEMS_SCHEMA = "desktop-items-2";
 export class ItemError extends Error { constructor(public code:string){super(code);} }
 export type ItemCommand={schemaVersion:string;operation:"read"|"favorite"|"buy"|"use";itemId?:string;requestId?:string;packId?:string;holobotId?:string};
@@ -18,9 +18,9 @@ export function itemSnapshot(profile:Record<string,unknown>,favoriteId:string|nu
  checked(profile);const catalog=buildCatalog(profile,"marketplace",now);
  const viewListings=[...catalog.listings];viewListings.push({listingId:"buddy.light",kind:"buddy_unit",displayName:"Light Buddy Unit",price:0,currency:"holos",quantity:1,owned:catalog.inventory.buddyUnits.light,affordable:false,available:false,availableAtMs:0,details:{tierId:"buddy_light"},purchase:{callable:"",request:{}}});
  const items=viewListings.filter(l=>l.kind==="item"||l.kind==="buddy_unit").map(l=>({...l,
- useMode:l.listingId==="item.energy_refill"?"energy":l.listingId==="item.exp_booster"?"boost":l.listingId==="item.gacha_ticket"?"cache":l.kind==="buddy_unit"?"capture":"context",
- canUse:l.owned>0&&(l.listingId==="item.energy_refill"?Number(profile.dailyEnergy||0)<Number(profile.maxDailyEnergy||100):l.listingId==="item.exp_booster"?Number(profile.expBoosterActiveUntil||0)<=now:l.listingId==="item.gacha_ticket"),
- description:l.listingId==="item.energy_refill"?"Refills account training energy. Does not heal a Holobot.":l.listingId==="item.exp_booster"?"Activates the host's arena experience boost.":l.listingId==="item.gacha_ticket"?"Open a Cache Check. The host rolls and grants the contents.":l.kind==="buddy_unit"?"Equip in the wild capture overlay.":"Used by its matching account activity."}));
+ useMode:healingItem(l.listingId)?"repair":l.listingId==="item.energy_refill"?"energy":l.listingId==="item.exp_booster"?"boost":l.listingId==="item.gacha_ticket"?"cache":l.kind==="buddy_unit"?"capture":"context",
+ canUse:l.owned>0&&(healingItem(l.listingId)?l.listingId===REPAIR_ITEM:l.listingId==="item.energy_refill"?Number(profile.dailyEnergy||0)<Number(profile.maxDailyEnergy||100):l.listingId==="item.exp_booster"?Number(profile.expBoosterActiveUntil||0)<=now:l.listingId==="item.gacha_ticket"),
+ description:healingItem(l.listingId)?"Host-owned healing item. Choose a squad Holobot.":l.listingId==="item.energy_refill"?"Refills account training energy. Does not heal a Holobot.":l.listingId==="item.exp_booster"?"Activates the host's arena experience boost.":l.listingId==="item.gacha_ticket"?"Open a Cache Check. The host rolls and grants the contents.":l.kind==="buddy_unit"?"Equip in the wild capture overlay.":"Used by its matching account activity."}));
  const concepts=[
  ["market_booster","Market Booster","A limited-use boost that improves rewards from eligible activities."],
  ["holo_pack","Holo Pack","A sealed reward pack containing Parts, materials, currency, or other useful items."],
@@ -35,7 +35,7 @@ export function itemSnapshot(profile:Record<string,unknown>,favoriteId:string|nu
  ["focus_module","Focus Module","Improves Special generation, accuracy, or ability efficiency."]];
  const stocks=profile.itemStocks as Record<string,unknown>|undefined;
  for(const [key,name,description] of concepts){const count=stocks?.[key]??0;if(typeof count!=="number"||!Number.isSafeInteger(count)||count<0)throw new ItemError("unavailable");items.push({listingId:"item."+key,kind:"item",displayName:name,price:0,currency:"holos",quantity:1,owned:count,affordable:false,available:false,availableAtMs:0,details:{},purchase:{callable:"",request:{}},useMode:"context",canUse:false,description:description+" Effect and reward source not connected yet."});}
- items.push({listingId:REPAIR_ITEM,kind:"item",displayName:"Emergency Patch",price:0,currency:"holos",quantity:1,owned:repairStock(profile),affordable:false,available:false,availableAtMs:0,details:{},purchase:{callable:"",request:{}},useMode:"repair",canUse:repairStock(profile)>0,description:"Repairs a deployed Holobot between battles. Consecutive uses cycle through deployed teammates. Awarded by Cache Checks and battle wins."});
+
  const vitals=profile.holobotVitals as Record<string,{currentHealth:number;maxHealth:number}>|undefined;const repairTargets=Object.entries(vitals??{}).filter(([,v])=>v&&Number.isFinite(v.currentHealth)&&Number.isFinite(v.maxHealth)&&v.currentHealth>=0&&v.currentHealth<v.maxHealth).map(([id])=>id);
  return {schemaVersion:ITEMS_SCHEMA,repairTargets,vitals:vitals??{},favoriteId:items.some(i=>i.listingId===favoriteId)?favoriteId:null,holosTokens:catalog.holosTokens,items,cachePacks:GACHA_PACKS.map(p=>({id:p.id,name:p.id,price:p.price})),result:null as unknown};
 }
@@ -45,7 +45,8 @@ export function applyItemCommand(profile:Record<string,unknown>,favoriteId:strin
  if(c.operation==="favorite")favorite=c.itemId!;
  else if(c.operation==="buy"){
   if(!item.available||!item.affordable)throw new ItemError(!item.available?"unavailable":"not_enough_holos");
-  if(item.kind==="buddy_unit")updates=buildBuddyUnitPurchase(profile,validateBuddyPurchase({...item.purchase.request,requestId:c.requestId})).updates;
+  if(healingItem(item.listingId))updates=healingPurchase(profile,item.listingId);
+  else if(item.kind==="buddy_unit")updates=buildBuddyUnitPurchase(profile,validateBuddyPurchase({...item.purchase.request,requestId:c.requestId})).updates;
   else {const purchase=buildItemPurchaseUpdatesRaw(profile,item.displayName,new Date(now));if(!purchase)throw new ItemError("unavailable");updates=purchase.updates;}
  } else if(c.operation==="use"){
   if(!item.canUse)throw new ItemError(item.owned<=0?"no_item":"unavailable");
