@@ -1,0 +1,32 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-town-grant", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-town-grant-emulator.mjs
+✔ KNOWN-BADS: foreign uid/instance and expired grant cannot consume (596.405208ms)
+✔ single-use admission rejects replay and concurrent duplicate (7434.635291ms)
+✔ revoke, replacement, disabled instance and deleted profile fail closed (87.653458ms)
+✔ player wrappers refuse anonymous/server token and malformed grants; verifier not publicly exported (43.129916ms)
+[2026-10-13T01:56:06.298Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2f662e58 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+[2026-10-13T01:56:06.309Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2f662e59 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+[2026-10-13T01:56:06.317Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2f662e5a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+✔ client rules deny grant and instance read/write (353.726542ms)
+✔ malformed instance fails closed and account cleanup removes grant records (108.976792ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8786.758958
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+EXIT=0 elapsed=11.684s
