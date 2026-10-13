@@ -3,7 +3,7 @@
 | Step | PR | Own verification | Status |
 |---|---|---|---|
 | 1 catalog | https://github.com/Pak209/HolobotsMobile/pull/71 | known-bad first; emulator 1/1, domain 19/19, build/shared | review ready |
-| 2 item use / Arena / duel settle | https://github.com/Pak209/HolobotsMobile/pull/74 | known-bad first; second emulator 22/23; build/shared | HELD / draft, two failed attempts |
+| 2 item use / Arena / duel settle | https://github.com/Pak209/HolobotsMobile/pull/74 | known-bad first; approved extra emulator 21/23; healing cases5/5; build/shared | HELD / draft, two missing-dependency loads in approved extra run |
 | 3 Workshop free heal | https://github.com/Pak209/HolobotsMobile/pull/75 | known-bad first; second emulator 4/4, build/shared | draft behind 2 |
 | 4 boss / rank grants | https://github.com/Pak209/HolobotsMobile/pull/72 | known-bad first; emulator 14/14 plus route expansion 4/4, build/shared | draft behind 3 |
 | 5 Workshop craft | https://github.com/Pak209/HolobotsMobile/pull/73 | known-bad first; emulator 2/2, build/shared | draft behind 4 |
@@ -18,3 +18,6 @@ All numbers are in PR bodies: 25/50/100%, 100/250/600 Holos; item count 1, squad
 Arena matchId forwarding and local-duel client accounting hookup remain rollout gates; headless sim/server-token/multiplayer and unrelated holds remain closed. No deploy, production calls, real workout, Pak account or Unity editor operation. Work occurred only in isolated worktrees; shared Mobile dirty paths remain the original board/four fixtures/handoff. Symlinked dependency directories were never staged. Media/generated binaries are absent from commits.
 
 Final source review resolved import/export integration without changing runtime policy; merge-conflict-build.log retains the failed compile before marker removal, final-build.log confirms clean shared/TypeScript compile. No second or third step-2 emulator rerun was hidden in contract validation.
+
+## Latest approved retry checkpoint
+Pak approved the minimal host lifecycle and the KUMA fixture correction plus one additional bounded retry. Correction committed on step2 (efadc63) and propagated to dependent branches. All five new healing cases pass, including the previously blocked live-zone test. Selected batch 21/23: two unchanged rules tests could not load dependencies because the second worktree lacked rules-tests/node_modules. This agent setup omission is fixed; dependency-preflight.log confirms both modules load. Those cases passed previously, but latest full batch is not green. No second extra run. Earlier 22/23 and spent-limit notes above are historical. Current action: Authorize healing rules dependency retry [high], 652ea618-fc08-4084-bff8-8c831d4ea5dd; one targeted rules-only run, two cases, 300-second limit proposed. Previous fixture-retry action completed. Draft/deploy/client rollout holds preserved.

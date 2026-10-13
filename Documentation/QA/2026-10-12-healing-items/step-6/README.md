@@ -8,3 +8,5 @@ Keys: healingCatalogServerParity, healingUseServerParity, healingWorkshopServerP
 PR depends on steps 1–5; step 2 remains held after 22/23 at its second emulator attempt (other squad member erroneously remains KO in new fixture). All draft/dependency holds remain; no deploy or third step-2 attempt. No Pak account or shared dirty writes. Fitness/Watch hook source is reviewed/compiled; no actual workout claim tested.
 
 Final merge graph: 71 -> 74 -> 75 -> 72 -> 73 -> 76. final-build.log is the last integrated compile/shared receipt after ordering-only import/export merges. merge-conflict-build.log retains the premature compile while merge markers were present; markers removed and compile passed. No policy change or extra step-2 emulator attempt. See ../README.md for current draft/dependency status.
+
+Approved step-2 fixture/retry is now included on this branch: new healing cases5/5, batch21/23 (two unchanged rules cases fail to load a missing worktree dependency). Link repaired and preflight confirms module loading; no further emulator run. See index latest checkpoint; earlier KUMA KO hold is historical. No runtime policy change.
