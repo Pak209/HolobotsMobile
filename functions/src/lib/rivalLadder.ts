@@ -356,11 +356,47 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "unavailable";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "unavailable";
 export class RivalError extends Error {
-  constructor(public code: RivalErrorCode) {
+  /** rival_cooldown only: ms until the same rival can be issued again. */
+  public retryAfterMs?: number;
+  constructor(public code: RivalErrorCode, retryAfterMs?: number) {
     super(code);
+    if (retryAfterMs !== undefined) this.retryAfterMs = retryAfterMs;
   }
+}
+
+// ---- Per-rival cooldown (DECISIONS #58 amendment 1 (3)) ----------------------
+
+/** A rival NPC (opponentPilot.pilotId) cannot be issued again within this long of the previous settle against it. */
+export const RIVAL_COOLDOWN_MS = 5 * 60 * 1000;
+/** Field on the open-battle ledger rivalBattles/{uid} (server-only): pilotId → last first-time settle (epoch ms). */
+export const RIVAL_LAST_SETTLED_FIELD = "rivalLastSettledAtMs";
+/** The stored map; missing = {}; malformed = unavailable (fail closed). */
+export function readRivalLastSettled(ledger: Record<string, unknown> | undefined): Record<string, number> {
+  const raw = ledger?.[RIVAL_LAST_SETTLED_FIELD];
+  if (raw === undefined) return {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new RivalError("unavailable");
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v !== "number" || !Number.isFinite(v)) throw new RivalError("unavailable");
+    out[k] = v;
+  }
+  return out;
+}
+/** Throws rival_cooldown {retryAfterMs} when `pilotId` was settled less than RIVAL_COOLDOWN_MS ago. */
+export function requireRivalOffCooldown(lastSettled: Record<string, number>, pilotId: string, nowMs: number): void {
+  const at = lastSettled[pilotId];
+  if (at === undefined) return;
+  const retryAfterMs = at + RIVAL_COOLDOWN_MS - nowMs;
+  if (retryAfterMs > 0) throw new RivalError("rival_cooldown", retryAfterMs);
+}
+/** The map after a first-time settle against `pilotId` at nowMs; entries already off cooldown are pruned. */
+export function rivalLastSettledAfterSettle(lastSettled: Record<string, number>, pilotId: string, nowMs: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(lastSettled)) if (v + RIVAL_COOLDOWN_MS > nowMs) out[k] = v;
+  out[pilotId] = nowMs;
+  return out;
 }
 
 export type RivalStatus = {

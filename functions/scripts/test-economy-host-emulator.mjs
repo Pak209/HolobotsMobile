@@ -91,3 +91,65 @@ test('step 1 zone: a holozone-run-1 settle reply keeps the deployed shape; the H
   assert.deepEqual(Object.keys(s), ['schemaVersion', 'runId', 'alreadyProcessed', 'settlement', 'progression']);
   assert.equal((await user(uid)).holosTokens, 700);
 });
+
+// ---- Step 2: per-rival cooldown --------------------------------------------
+
+const { rivalBattleHost } = require('../lib/rival/rivalBattleHost.js');
+const rejectsCooldown = async (p, retryAfterMs) => { await assert.rejects(p, e => { assert.equal(e.code, 'rival_cooldown'); assert.equal(e.retryAfterMs, retryAfterMs); return true; }); };
+
+test('step 2: the same rival cannot be re-issued within 5 min of its last settle; retryAfterMs counts down; at 5 min it can (known-bad main: issued immediately)', async () => {
+  const uid = await setup();
+  const s = await fight(uid, true, T0); // settled at T0 + 20 s
+  const settledAt = T0 + L.RIVAL_MIN_WIN_MS;
+  assert.equal(L.RIVAL_COOLDOWN_MS, 5 * MIN);
+  const before = await user(uid);
+  await rejectsCooldown(rival(uid, { operation: 'issue' }, settledAt + 1000), 5 * MIN - 1000);
+  await rejectsCooldown(rival(uid, { operation: 'issue' }, settledAt + 4 * MIN), MIN);
+  assert.deepEqual(await user(uid), before, 'a refused issue writes nothing');
+  assert.deepEqual(Object.keys((await db.doc(`rivalBattles/${uid}`).get()).data().openBattles ?? {}), [], 'no battle opened');
+  const ok = await rival(uid, { operation: 'issue' }, settledAt + 5 * MIN);
+  assert.match(ok.battleId, /^rb_/);
+  assert.equal(s.holosGranted, 100);
+});
+
+test('step 2: a loss starts the cooldown too; the callable carries details.retryAfterMs', async () => {
+  const uid = await setup();
+  const settledAt = Date.now(); // the callable rules at the wall clock
+  await fight(uid, false, settledAt - L.RIVAL_MIN_XP_MS, L.RIVAL_MIN_XP_MS);
+  await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { schemaVersion: 'rival-battle-3', operation: 'issue' }, rawRequest: {} }), e => {
+    assert.equal(e.code, 'failed-precondition'); assert.equal(e.message, 'rival_cooldown');
+    assert.equal(e.details.rejectionCode, 'rival_cooldown'); assert.ok(e.details.retryAfterMs > 0 && e.details.retryAfterMs <= 5 * MIN); return true;
+  });
+  assert.ok(settledAt);
+});
+
+test('step 2: different rivals are independent (tier-0 rival settled; the tier-1 rival issues at once)', async () => {
+  const uid = await setup({ rivalWins: 9 });
+  const s = await fight(uid, true, T0); // tier 0 → tier 1 (rival_tier_0 settled)
+  assert.equal(s.tierAfter, 1);
+  const i = await rival(uid, { operation: 'issue' }, T0 + L.RIVAL_MIN_WIN_MS + 1000);
+  assert.equal(i.encounter.opponentPilot.pilotId, 'rival_tier_1');
+  // and the cooldown map is keyed by rival id
+  const ledger = (await db.doc(`rivalBattles/${uid}`).get()).data();
+  assert.deepEqual(Object.keys(ledger.rivalLastSettledAtMs), ['rival_tier_0']);
+});
+
+test('step 2: a cooldown never blocks a replay of an existing settle, nor the settle of a battle issued before it', async () => {
+  const uid = await setup();
+  const a = await rival(uid, { operation: 'issue' }, T0);
+  const b = await rival(uid, { operation: 'issue' }, T0 + 1000);
+  const sa = await rival(uid, { operation: 'settle', battleId: a.battleId, didWin: true }, T0 + L.RIVAL_MIN_WIN_MS);
+  const replay = await rival(uid, { operation: 'settle', battleId: a.battleId, didWin: true }, T0 + MIN);
+  assert.equal(replay.alreadyProcessed, true); assert.equal(replay.holosGranted, sa.holosGranted);
+  const sb = await rival(uid, { operation: 'settle', battleId: b.battleId, didWin: false }, T0 + MIN);
+  assert.equal(sb.alreadyProcessed, false);
+  await rejectsCooldown(rival(uid, { operation: 'issue' }, T0 + 2 * MIN), 4 * MIN, 'the clock restarted at the last first-time settle');
+  const ledger = (await db.doc(`rivalBattles/${uid}`).get()).data();
+  assert.equal(ledger.rivalLastSettledAtMs.rival_tier_0, T0 + MIN);
+});
+
+test('step 2: a malformed cooldown map fails closed (unavailable), nothing issued', async () => {
+  const uid = await setup();
+  await db.doc(`rivalBattles/${uid}`).set({ openBattles: {}, rivalLastSettledAtMs: { rival_tier_0: 'soon' } });
+  await assert.rejects(() => rival(uid, { operation: 'issue' }, T0), /unavailable/);
+});

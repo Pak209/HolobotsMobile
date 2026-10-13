@@ -117,7 +117,7 @@ test('rival verification uses a baseline: wins from before the step became curre
   await captureHare(uid); await claim(uid, 'capture_buddy');
   assert.equal((await questDoc(uid)).rivalWinsAtStepStart, 1);
   await assert.rejects(() => claim(uid, 'win_rival_battle'), /not_met/);
-  await winRival(uid, T0 + 60000);
+  await winRival(uid, T0 + 6 * 60000); // past the 5-min rival cooldown (DECISIONS #58 am. 1)
   assert.equal((await claim(uid, 'win_rival_battle')).reward.holos, 100);
 });
 

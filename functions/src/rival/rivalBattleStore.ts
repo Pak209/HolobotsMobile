@@ -5,7 +5,7 @@ import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from ".
 import { randomBytes, randomInt } from 'node:crypto';
 import { Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
-import { issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
+import { issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
@@ -83,7 +83,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // Read the same parent the Arena issue creates, so either transaction retries on a race.
       // This applies to legacy wire versions and flag-off issues too: they still open activity.
       await requireLeaseFree(tx, db, uid);
-      const open = readOpenBattles((await tx.get(ledgerRef)).data(), nowMs);
+      const ledgerData = (await tx.get(ledgerRef)).data();
+      const open = readOpenBattles(ledgerData, nowMs);
+      const lastSettled = readRivalLastSettled(ledgerData);
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
       const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion));
@@ -94,9 +96,11 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         if (nextStory !== storyState) tx.set(storyRef, nextStory);
         storyState = nextStory;
       }
+      // DECISIONS #58 am. 1 (3): the SAME rival (pilotId, after the story binding) is refused within RIVAL_COOLDOWN_MS of its last settle.
+      requireRivalOffCooldown(lastSettled, r.battle.lineup.opponentPilot.pilotId, nowMs);
       const nextOpen = openBattlesAfterIssue(open, r.battle);
       if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
-      tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen });
+      tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen, [RIVAL_LAST_SETTLED_FIELD]: lastSettled });
       // expireAt drives the Firestore TTL policy (functions/README.md); settle never changes it.
       tx.create(battleRef, { ...r.battle, [RIVAL_BATTLE_CLEANUP_FIELD]: Timestamp.fromMillis(rivalBattleCleanupAtMs(r.battle)) });
       return withStory(rivalReplyForVersion(r.reply, command.schemaVersion));
@@ -120,7 +124,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
     if (r.battleUpdates) {
       tx.update(battleRef, r.battleUpdates);
-      tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId) });
+      // The cooldown clock starts at the first-time settle; a replay (returned above) never moves it.
+      const pilotId = (battle.data() as RivalBattleRecord).lineup.opponentPilot.pilotId;
+      tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId), [RIVAL_LAST_SETTLED_FIELD]: rivalLastSettledAfterSettle(readRivalLastSettled(ledger.data()), pilotId, nowMs) });
     }
     return withStory(rivalReplyForVersion(r.reply, command.schemaVersion));
   });
