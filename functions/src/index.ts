@@ -54,6 +54,7 @@ export {desktopItemsHost} from "./vendors/desktopItemsHost";
 
 export { presenceHost } from "./presence/presenceHost";
 
+export { arenaMatchHost } from "./arena/arenaMatchHost";
 export { townGrantIssue, townGrantRevoke } from "./town/townGrantHost";
 export {duelHealingHost} from "./duels/duelHealingHost";
 

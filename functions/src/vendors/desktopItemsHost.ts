@@ -1,4 +1,4 @@
-import {arenaOpen,duelOpen} from "../lib/healingGuards";
+import {ActivityError,arenaOpen,duelOpen} from "../lib/arenaActivity";
 import {DUEL_SWITCH_LOCKOUT_MS} from "../duels/duelHealingHost";
 import {readHoloZoneRuns,HoloZoneError} from "../lib/holoZoneRuns";
 import {readOpenBattles} from "../lib/rivalLadder";
@@ -22,7 +22,12 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
   let useProfile=user.data()!;
   let duel:FirebaseFirestore.DocumentSnapshot|undefined,zone:FirebaseFirestore.DocumentSnapshot|undefined;
   if(c.operation==="use"&&healingItem(c.itemId!)){
-   const arena=await tx.get(firestore.doc(`arenaMatches/${uid}`));if(arenaOpen(arena.data()))throw new ItemError("arena_no_heal");
+   // #78: the Arena parent is read in the repair transaction, before any stock/HP/receipt write.
+    // Receipt replays above are read-only and remain available while another activity owns the lease.
+    const arena=await tx.get(firestore.doc(`arenaMatches/${uid}`));
+    try{if(arenaOpen(arena.data()))throw new ItemError("arena_no_heal");}
+    catch(e){if(e instanceof ActivityError)throw new ItemError("unavailable");throw e;}
+   
    duel=await tx.get(firestore.doc(`duelHealingRuns/${uid}`));zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
    const open=await tx.get(firestore.doc(`rivalBattles/${uid}`));if(Object.keys(readOpenBattles(open.data(),now)).length)throw new ItemError("between_battles_only");
    if(duelOpen(duel.data())){

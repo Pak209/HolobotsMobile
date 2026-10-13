@@ -1,0 +1,44 @@
+[
+  {
+    "path": "build.txt",
+    "rawSha256": "36e9655df0f80c1caa4fc810e345618d56581180c174981ceb37b49d7a95a6b0",
+    "committedSha256": "36e9655df0f80c1caa4fc810e345618d56581180c174981ceb37b49d7a95a6b0",
+    "normalization": "trailing whitespace and trailing blank lines only"
+  },
+  {
+    "path": "domain-regressions.tap",
+    "rawSha256": "2553e31a7557d9336d26463229e877892cfa0b45b9da7f0528db772320a8719c",
+    "committedSha256": "2553e31a7557d9336d26463229e877892cfa0b45b9da7f0528db772320a8719c",
+    "normalization": "trailing whitespace and trailing blank lines only"
+  },
+  {
+    "path": "emulator-run1.tap",
+    "rawSha256": "62f001cb86df7d7fc2abe1cf4ef7454df5c935fc0cb4297d17462bfdcf6abf21",
+    "committedSha256": "5d0383b680d898f5c35426585a1c60917676253745720c6902981d9726c8d94c",
+    "normalization": "trailing whitespace and trailing blank lines only"
+  },
+  {
+    "path": "emulator-run2.tap",
+    "rawSha256": "e604704a2d7c189a51f71b59a65148a5f072bb459a7d71b9bac6801b94ff9938",
+    "committedSha256": "e604704a2d7c189a51f71b59a65148a5f072bb459a7d71b9bac6801b94ff9938",
+    "normalization": "trailing whitespace and trailing blank lines only"
+  },
+  {
+    "path": "host-regressions.tap",
+    "rawSha256": "19f8141100fff8cfddc538d215726c693adbc1caba376ce25bc008caf0a163d7",
+    "committedSha256": "19f8141100fff8cfddc538d215726c693adbc1caba376ce25bc008caf0a163d7",
+    "normalization": "trailing whitespace and trailing blank lines only"
+  },
+  {
+    "path": "resume-focused.tap",
+    "rawSha256": "e6a7f7f1cbb8b0e652cacea9068c094e94c6eb1ecc7a21868813a956ed01b3bc",
+    "committedSha256": "e6a7f7f1cbb8b0e652cacea9068c094e94c6eb1ecc7a21868813a956ed01b3bc",
+    "normalization": "trailing whitespace and trailing blank lines only"
+  },
+  {
+    "path": "rules.txt",
+    "rawSha256": "eeeb070dc88c3c1e41e496e6e9f4bb99d35d7f1c6171f473e08985961b78ba55",
+    "committedSha256": "d87c7a5de3238f0940b3fc606699c5347a29139a8abe0e98ebf0bfed44ed4e8e",
+    "normalization": "trailing whitespace and trailing blank lines only"
+  }
+]

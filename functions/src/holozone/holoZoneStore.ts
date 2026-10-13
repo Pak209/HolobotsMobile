@@ -1,7 +1,7 @@
-import {duelOpen,arenaOpen} from "../lib/healingGuards";
+import { ActivityError, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { randomUUID } from 'node:crypto';
-import { Firestore } from 'firebase-admin/firestore';
+import { Firestore, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { HoloZoneError, holoZoneStatus, issueHoloZoneRun, readHoloZoneRuns, settleHoloZoneRun, validateHoloZoneCommand } from '../lib/holoZoneRuns';
 import { holoZoneIssueReplyForVersion, holoZoneSettleReplyForVersion, holoZoneStatusReplyForVersion } from '../lib/holoZoneWire';
@@ -19,6 +19,30 @@ import { holoZoneIssueReplyForVersion, holoZoneSettleReplyForVersion, holoZoneSt
  * flag the ledger is read for KO admission but never written. Zone issue refuses ledger-zero travel-squad members
  * with holobot_ko before writing or closing any run (DECISIONS #56 amendment 5).
  */
+/** Existing malformed Arena state fails closed; elapsed time alone never releases its lease. */
+function requireArenaClosed(raw: unknown): void {
+  let open: boolean;
+  try {
+    open = leaseHolder(raw, undefined) !== null;
+  } catch (error) {
+    if (error instanceof ActivityError) throw new HoloZoneError('unavailable');
+    throw error;
+  }
+  if (open) throw new HoloZoneError('activity_conflict');
+}
+/** The single account-parent lease read (Arena match OR duel-healing run), inside the issue transaction. */
+async function requireLeaseFree(tx: Transaction, db: Firestore, uid: string): Promise<void> {
+  const arena = (await tx.get(db.doc(`arenaMatches/${uid}`))).data(), duel = (await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
+  let holder: 'arena' | 'duel' | null;
+  try {
+    holder = leaseHolder(arena, duel);
+  } catch (error) {
+    if (error instanceof ActivityError) throw new HoloZoneError('unavailable');
+    throw error;
+  }
+  if (holder === 'arena') throw new HoloZoneError('activity_conflict');
+  if (holder === 'duel') throw new HoloZoneError('unavailable');
+}
 export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), newRunId: () => string = randomUUID) {
   const command = validateHoloZoneCommand(raw);
   // Pin the run id outside the transaction so retries rule identically.
@@ -32,8 +56,8 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
     const runs = readHoloZoneRuns((await tx.get(runsRef)).data());
     if (command.operation === 'status') return holoZoneStatusReplyForVersion(holoZoneStatus(runs, nowMs), command.schemaVersion);
     if (command.operation === 'issue') {
-      const duel=await tx.get(db.doc(`duelHealingRuns/${uid}`)),arena=await tx.get(db.doc(`arenaMatches/${uid}`));
-      if(duelOpen(duel.data())||arenaOpen(arena.data()))throw new HoloZoneError("unavailable");
+      // Arena and every zone issue (including health flag-off clients) share this transaction read.
+      await requireLeaseFree(tx, db, uid);
       let squadIds: string[];
       try {
         squadIds = readTravelSquad(profile).holobotIds;
@@ -46,7 +70,10 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
       return holoZoneIssueReplyForVersion(r.reply, command.schemaVersion);
     }
     const r = settleHoloZoneRun(profile, runs, command, nowMs);
-    if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
+    if (r.reply.alreadyProcessed) return holoZoneSettleReplyForVersion(r.reply, command.schemaVersion);
+    // Preserve receipt replay, but refuse all first-time reward/HP writes during an Arena match.
+    requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
+    if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile, r.userUpdates));
     if (r.doc) tx.set(runsRef, r.doc);
     return holoZoneSettleReplyForVersion(r.reply, command.schemaVersion);
   });

@@ -1,0 +1,166 @@
+
+ RUN  v3.2.7 /private/tmp/holobots-r4-arena-host-20261012/rules-tests
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.224Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382c9 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.243Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382ca error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.250Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382cb error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.262Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382cc error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.313Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382cf error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.320Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382d0 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.327Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382d1 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.337Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382d2 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.383Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382d5 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.394Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382d6 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.415Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382d7 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.437Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382d8 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice
+[2026-10-13T04:29:57.508Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382da error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.572Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382dd error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.583Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382de error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.595Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382df error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.603Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382e0 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.636Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382e3 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.642Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382e4 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.646Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382e5 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.658Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382e6 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.696Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382e9 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.704Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382ea error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.710Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382eb error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.718Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382ec error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for bob
+[2026-10-13T04:29:57.741Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382ee error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.800Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382f1 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.809Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382f2 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.814Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382f3 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.822Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382f4 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.862Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382f7 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.871Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382f8 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.878Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382f9 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.888Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382fa error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.935Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382fd error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.939Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382fe error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.945Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x167382ff error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L345, false for 'delete' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.952Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x16738300 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+stderr | tests/arena-matches.test.ts > Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for anonymous
+[2026-10-13T04:29:57.971Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x16738302 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L345, false for 'create' @ L355, false for 'update' @ L345, false for 'update' @ L355
+
+ ✓ tests/arena-matches.test.ts (3 tests) 1462ms
+   ✓ Arena leases and immutable receipts remain callable-only > denies parent/record/request reads and mutation for alice  612ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  21:29:56
+   Duration  1.88s (transform 31ms, setup 0ms, collect 193ms, tests 1.46s, environment 0ms, prepare 57ms)
