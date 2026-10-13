@@ -1,3 +1,5 @@
+import {duelOpen,arenaOpen} from "../lib/healingGuards";
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
 import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
 import { randomBytes, randomInt } from 'node:crypto';
@@ -50,10 +52,12 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     const withStory = (reply: object) => story.requested ? { ...reply, story: zellStoryView(storyState!, zellEnabled) } : reply;
     if (command.operation === 'status') {
       const r = rivalStatus(profile, nowMs);
-      if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
+      if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
       return withStory(rivalReplyForVersion(r.reply, command.schemaVersion));
     }
     if (command.operation === 'issue') {
+      const duel=await tx.get(db.doc(`duelHealingRuns/${uid}`)),arena=await tx.get(db.doc(`arenaMatches/${uid}`));
+      if(duelOpen(duel.data())||arenaOpen(arena.data()))throw new RivalError("too_many_open");
       const open = readOpenBattles((await tx.get(ledgerRef)).data(), nowMs);
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
@@ -66,7 +70,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         storyState = nextStory;
       }
       const nextOpen = openBattlesAfterIssue(open, r.battle);
-      if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
+      if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen });
       // expireAt drives the Firestore TTL policy (functions/README.md); settle never changes it.
       tx.create(battleRef, { ...r.battle, [RIVAL_BATTLE_CLEANUP_FIELD]: Timestamp.fromMillis(rivalBattleCleanupAtMs(r.battle)) });
@@ -84,7 +88,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (nextStory !== storyState) tx.set(storyRef, nextStory);
       storyState = nextStory;
     }
-    if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
+    if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
     if (r.battleUpdates) {
       tx.update(battleRef, r.battleUpdates);
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId) });

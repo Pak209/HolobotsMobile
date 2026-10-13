@@ -1,3 +1,4 @@
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { DocumentData, FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
@@ -165,6 +166,7 @@ async function persistWatchWorkoutReward(
     }, { merge: true });
 
     transaction.set(userRef, {
+      ...withRankHealingReward(userData,{holobots:nextHolobots}),
       fitnessSource: "watch",
       holobots: nextHolobots,
       holosTokens: nextHolosTokens,

@@ -1,0 +1,32 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test --test-name-pattern='rules deny' functions/scripts/test-desktop-items-emulator.mjs
+[2026-10-13T01:52:45.026Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x68080008 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+[2026-10-13T01:52:45.033Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x68080009 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L350, false for 'update' @ L350
+✔ rules deny client inventory, favorites and receipt writes (860.844959ms)
+[2026-10-13T01:52:45.365Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6808000a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'update' @ L202, false for 'update' @ L350
+[2026-10-13T01:52:45.377Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6808000b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'update' @ L202, false for 'update' @ L350
+[2026-10-13T01:52:45.395Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x6808000c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L190, false for 'create' @ L350, evaluation error at L202:24 for 'update' @ L202, false for 'update' @ L350, false for 'create' @ L190, false for 'create' @ L350
+✔ rules deny repair stock and health spoofing (360.451875ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4328.153458
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+BOUNDED_EXIT=0 ELAPSED_SECONDS=7.263

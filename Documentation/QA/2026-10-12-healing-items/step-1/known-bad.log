@@ -1,0 +1,39 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-healing-catalog-emulator.mjs
+FIRST catalog repair listings []
+✖ catalog repair ladder, authoritative purchase, replay and no alternate Full grant (524.97ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3306.304167
+
+✖ failing tests:
+
+test at functions/scripts/test-healing-catalog-emulator.mjs:5:1
+✖ catalog repair ladder, authoritative purchase, replay and no alternate Full grant (524.97ms)
+  AssertionError [ERR_ASSERTION]: missing item.emergency_patch
+      at TestContext.<anonymous> (file:///private/tmp/holobots-healing-items/functions/scripts/test-healing-catalog-emulator.mjs:9:194)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test functions/scripts/test-healing-catalog-emulator.mjs" exited with code 1

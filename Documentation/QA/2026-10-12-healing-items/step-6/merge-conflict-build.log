@@ -1,0 +1,18 @@
+
+> build
+> npm run check:shared && tsc
+
+
+> check:shared
+> node scripts/check-shared-parity.mjs
+
+check:shared — 3 shared file(s) in sync.
+src/holozone/holoZoneStore.ts(1,1): error TS1185: Merge conflict marker encountered.
+src/holozone/holoZoneStore.ts(4,1): error TS1185: Merge conflict marker encountered.
+src/holozone/holoZoneStore.ts(7,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(57,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(62,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(67,1): error TS1185: Merge conflict marker encountered.
+src/rival/rivalBattleStore.ts(1,1): error TS1185: Merge conflict marker encountered.
+src/rival/rivalBattleStore.ts(4,1): error TS1185: Merge conflict marker encountered.
+src/rival/rivalBattleStore.ts(7,1): error TS1185: Merge conflict marker encountered.

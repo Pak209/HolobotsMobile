@@ -1,0 +1,42 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-healing-items", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-healing-rank-routes-emulator.mjs
+FIRST ascension Kit count true undefined
+✖ owned Legendary ascension grants one Kit per crossed rank, new mint excluded (576.78075ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3253.256792
+
+✖ failing tests:
+
+test at functions/scripts/test-healing-rank-routes-emulator.mjs:4:1
+✖ owned Legendary ascension grants one Kit per crossed rank, new mint excluded (576.78075ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 4
+  
+      at TestContext.<anonymous> (file:///private/tmp/holobots-healing-grants/functions/scripts/test-healing-rank-routes-emulator.mjs:4:508)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test functions/scripts/test-healing-rank-routes-emulator.mjs" exited with code 1

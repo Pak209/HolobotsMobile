@@ -1,3 +1,5 @@
+import {duelOpen,arenaOpen} from "../lib/healingGuards";
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { randomUUID } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
@@ -30,6 +32,8 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
     const runs = readHoloZoneRuns((await tx.get(runsRef)).data());
     if (command.operation === 'status') return holoZoneStatusReplyForVersion(holoZoneStatus(runs, nowMs), command.schemaVersion);
     if (command.operation === 'issue') {
+      const duel=await tx.get(db.doc(`duelHealingRuns/${uid}`)),arena=await tx.get(db.doc(`arenaMatches/${uid}`));
+      if(duelOpen(duel.data())||arenaOpen(arena.data()))throw new HoloZoneError("unavailable");
       let squadIds: string[];
       try {
         squadIds = readTravelSquad(profile).holobotIds;
@@ -37,12 +41,12 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
         throw new HoloZoneError('unavailable');
       }
       const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, { profile, includeHealth: command.healthSchema !== undefined });
-      if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
+      if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
       tx.set(runsRef, r.doc);
       return holoZoneIssueReplyForVersion(r.reply, command.schemaVersion);
     }
     const r = settleHoloZoneRun(profile, runs, command, nowMs);
-    if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
+    if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
     if (r.doc) tx.set(runsRef, r.doc);
     return holoZoneSettleReplyForVersion(r.reply, command.schemaVersion);
   });
