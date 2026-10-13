@@ -1,0 +1,44 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-town-grant", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-town-grant-emulator.mjs
+✖ KNOWN-BAD first: main has no town grant host seam (0.352ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 263.204959
+
+✖ failing tests:
+
+test at functions/scripts/test-town-grant-emulator.mjs:4:1
+✖ KNOWN-BAD first: main has no town grant host seam (0.352ms)
+  Error: Cannot find module '../lib/town/townGrantHost.js'
+  Require stack:
+  - /private/tmp/holobots-town-grant/functions/scripts/test-town-grant-emulator.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1569:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1123:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1147:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1174:12)
+      at Module._load (node:internal/modules/cjs/loader:1346:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+      at Module.require (node:internal/modules/cjs/loader:1679:12)
+      at require (node:internal/modules/helpers:196:16)
+      at TestContext.<anonymous> (file:///private/tmp/holobots-town-grant/functions/scripts/test-town-grant-emulator.mjs:4:73)
+      at Test.runInAsyncScope (node:async_hooks:226:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/private/tmp/holobots-town-grant/functions/scripts/test-town-grant-emulator.mjs' ]
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test functions/scripts/test-town-grant-emulator.mjs" exited with code 1
+
+EXIT=1 elapsed=4.569s
