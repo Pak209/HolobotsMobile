@@ -153,3 +153,40 @@ test('step 2: a malformed cooldown map fails closed (unavailable), nothing issue
   await db.doc(`rivalBattles/${uid}`).set({ openBattles: {}, rivalLastSettledAtMs: { rival_tier_0: 'soon' } });
   await assert.rejects(() => rival(uid, { operation: 'issue' }, T0), /unavailable/);
 });
+
+// ---- Step 3: blueprint fragment per non-boss zone clear ---------------------
+
+const stocks = async uid => (await user(uid)).itemStocks ?? {};
+test('step 3: a non-boss clear with >= 1 kill pays 1 blueprint_fragment (known-bad main: none)', async () => {
+  const uid = await setup({ itemStocks: { blueprint_fragment: 2, emergency_patch: 1 } });
+  const s = await run(uid, 4, false, T0);
+  assert.equal(s.blueprintFragmentsGranted, 1);
+  assert.deepEqual(await stocks(uid), { blueprint_fragment: 3, emergency_patch: 1 }, 'other stocks untouched');
+  const fresh = await setup();
+  await run(fresh, 1, false, T0);
+  assert.equal((await stocks(fresh)).blueprint_fragment, 1, 'missing stock starts at 0');
+});
+
+test('step 3: boss clear pays the Kit and no fragment; zero kills, < 20 s and replays pay none', async () => {
+  const uid = await setup();
+  const boss = await run(uid, 6, true, T0);
+  assert.equal(boss.blueprintFragmentsGranted, 0);
+  assert.deepEqual(await stocks(uid), { repair_kit: 1 });
+  const none = await run(uid, 0, false, T0 + 10 * MIN);
+  assert.equal(none.blueprintFragmentsGranted, 0);
+  const fast = await run(uid, 3, false, T0 + 20 * MIN, Z.HOLOZONE_MIN_XP_MS - 1);
+  assert.equal(fast.blueprintFragmentsGranted, 0);
+  assert.equal((await stocks(uid)).blueprint_fragment, undefined);
+  const i = await zone(uid, { operation: 'issue', zoneId: 'neonforest' }, T0 + 30 * MIN);
+  const cmd = { operation: 'settle', runId: i.runId, kills: 2, bossDefeated: false, fielded: ['ace'] };
+  const rs = await Promise.all(Array.from({ length: 5 }, () => zone(uid, cmd, T0 + 31 * MIN)));
+  for (const r of rs) assert.equal(r.blueprintFragmentsGranted, 1);
+  assert.equal((await stocks(uid)).blueprint_fragment, 1, 'once per run');
+});
+
+test('step 3: a malformed fragment stock fails closed (unavailable), nothing written', async () => {
+  const uid = await setup({ itemStocks: { blueprint_fragment: -1 } });
+  const i = await zone(uid, { operation: 'issue', zoneId: 'neonforest' }, T0);
+  await assert.rejects(() => zone(uid, { operation: 'settle', runId: i.runId, kills: 2, bossDefeated: false, fielded: ['ace'] }, T0 + Z.HOLOZONE_MIN_XP_MS), /unavailable/);
+  assert.equal((await user(uid)).holosTokens, 600);
+});
