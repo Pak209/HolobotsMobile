@@ -40,7 +40,7 @@ test('first win of the day grants a Unit; the second does not; next UTC day does
   s = await play(true, T0 + 60000); assert.equal(s.buddyUnitsGranted, 0); assert.deepEqual(s.status.buddyUnits, light(1));
   s = await play(false, T0 + 120000); assert.equal(s.buddyUnitsGranted, 0); assert.equal(s.status.rivalWins, 2);
   s = await play(true, T0 + 86400000); assert.equal(s.buddyUnitsGranted, 1);
-  const p = await user(uid); assert.deepEqual(p.buddyUnits, light(2)); assert.equal(p.rivalWins, 3); assert.equal(p.rivalRewardDay, '2026-10-01'); assert.equal(p.holosTokens, 7);
+  const p = await user(uid); assert.deepEqual(p.buddyUnits, light(2)); assert.equal(p.rivalWins, 3); assert.equal(p.rivalRewardDay, '2026-10-01'); assert.equal(p.holosTokens, 7 + 3 * 100 + 25, 'DECISIONS #58: 3 wins + 1 loss (main: 7)');
   const st = await rival(uid, { operation: 'status' }, T0 + 86400000); assert.deepEqual(st.status, { tier: 0, tierLabel: 'rookie', rivalWins: 3, winsToNextTier: 7, rivalsThisTier: 1, dailyRewardAvailable: false, buddyUnits: light(2) });
 });
 

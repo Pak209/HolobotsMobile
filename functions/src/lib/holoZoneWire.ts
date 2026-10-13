@@ -4,7 +4,7 @@
  * v2: the shipped Unity build). A request carrying `schemaVersion: "holozone-run-2"` gets the v1 reply plus:
  *   issue  → `population` (lib/holoZonePopulation.ts for the issued run's zone and tier; null when the table has no row)
  *   status → `population` (the open run's, or null when there is no open run / no row)
- *   settle → the v1 reply under the v2 version (nothing added)
+ *   settle → the v1 reply under the v2 version plus the DECISIONS #58 grants (holosGranted, blueprintFragmentsGranted)
  * Rulings are identical in both versions; `population` is presentation data (what Unity places), never a ruling.
  *
  * Pure module: no firebase imports, safe to import from tests (functions/scripts/test-holozone-population.mjs).
@@ -34,8 +34,13 @@ export function holoZoneIssueReplyForVersion(reply: HoloZoneIssueReply, version:
   return { ...reply, schemaVersion: HOLOZONE_SCHEMA_V2, population: holoZonePopulation(reply.zoneId, reply.tier) };
 }
 
-/** settle: v1 unchanged; v2 is the same reply under the v2 version. */
-export function holoZoneSettleReplyForVersion(reply: HoloZoneSettleReply, version: HoloZoneWireVersion): HoloZoneSettleReply | HoloZoneSettleReplyV2 {
-  if (version !== HOLOZONE_SCHEMA_V2) return reply;
+/** The settle fields holozone-run-2 adds (DECISIONS #58 grants); a v1 settle reply never carries them. */
+export const HOLOZONE_V2_SETTLE_FIELDS = ["holosGranted", "blueprintFragmentsGranted"] as const;
+/** settle: v1 is the deployed shape (the #58 grant fields stripped; the grants still happen); v2 carries them. */
+export function holoZoneSettleReplyForVersion(reply: HoloZoneSettleReply, version: HoloZoneWireVersion): Omit<HoloZoneSettleReply, "holosGranted" | "blueprintFragmentsGranted"> | HoloZoneSettleReplyV2 {
+  if (version !== HOLOZONE_SCHEMA_V2) {
+    const { holosGranted: _h, blueprintFragmentsGranted: _f, ...v1 } = reply;
+    return v1;
+  }
   return { ...reply, schemaVersion: HOLOZONE_SCHEMA_V2 };
 }

@@ -67,7 +67,7 @@ test('first win of the UTC day grants one Unit, the second does not, next UTC da
 test('a loss grants nothing, does not count toward the tier, and keeps the daily reward available', () => {
   const p = { buddyUnits: 2, rivalWins: 9 };
   const r = play(p, false); assert.equal(r.reply.buddyUnitsGranted, 0); assert.equal(r.reply.tierAfter, 0); assert.equal(p.rivalWins, 9); assert.deepEqual(p.buddyUnits, light(2));
-  assert.equal(p.rivalRewardDay, undefined); assert.equal(r.reply.status.dailyRewardAvailable, true); assert.deepEqual(r.userUpdates, {});
+  assert.equal(p.rivalRewardDay, undefined); assert.equal(r.reply.status.dailyRewardAvailable, true); assert.deepEqual(r.userUpdates, { holosTokens: 25 }); // DECISIONS #58: a loss pays 25 Holos (main: {})
   assert.equal(play(p, true).reply.buddyUnitsGranted, 1); // retry the same day after a loss
 });
 
@@ -189,7 +189,7 @@ test('wire versions: requests default to rival-battle-1; v1 replies carry the to
   assert.equal(v1.schemaVersion, 'rival-battle-1'); assert.equal(v1.status.buddyUnits, 7); assert.equal('buddyUnitTierGranted' in v1, false);
   assert.equal(v1.buddyUnitsGranted, 1); assert.equal(v1.didWin, true); assert.equal(v1.tierAfter, w.reply.tierAfter);
   assert.deepEqual(L.rivalReplyForVersion(w.reply, 'rival-battle-3'), w.reply);
-  const { progression: _progression, ...v2Fields } = w.reply;
+  const { progression: _progression, holosGranted: _holos, ...v2Fields } = w.reply;
   assert.deepEqual(L.rivalReplyForVersion(w.reply, 'rival-battle-2'), { ...v2Fields, schemaVersion: 'rival-battle-2' });
   assert.equal(w.battle.schemaVersion, 'rival-battle-1', 'stored records keep the deployed record format');
   assert.equal(L.RIVAL_RECORD_SCHEMA, 'rival-battle-1');

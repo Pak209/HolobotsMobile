@@ -73,7 +73,7 @@ test('v2 / v1 projections of issue and settle are the pre-#53 shapes exactly', (
   const s = settle(p, i, true, ['ace']);
   assert.deepEqual(Object.keys(L.rivalReplyForVersion(s.reply, 'rival-battle-2')).sort(), V2_SETTLE_KEYS);
   assert.deepEqual(Object.keys(L.rivalReplyForVersion(s.reply, 'rival-battle-1')).sort(), V2_SETTLE_KEYS.filter(k => k !== 'buddyUnitTierGranted'));
-  assert.deepEqual(Object.keys(L.rivalReplyForVersion(s.reply, 'rival-battle-3')).sort(), [...V2_SETTLE_KEYS, 'progression'].sort());
+  assert.deepEqual(Object.keys(L.rivalReplyForVersion(s.reply, 'rival-battle-3')).sort(), [...V2_SETTLE_KEYS, 'holosGranted', 'progression'].sort());
 });
 
 test('settle win: every fielded bot gets the one-table EXP of the issued tier; bench and unfielded bots get none', () => {

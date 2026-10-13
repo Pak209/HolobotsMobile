@@ -85,7 +85,7 @@ test('settle with reports: kept at or below the issued value with the ruling; in
   assert.deepEqual(s.userUpdates.holobotVitals, { ace: { currentHealth: 12, maxHealth: ACE_MAX }, kuma: { currentHealth: 160, maxHealth: KUMA_MAX } });
   assert.equal(s.userUpdates.holobots.length, 2, 'XP and health land in the same update');
   assert.equal(s.reply.settlement.expPerHolobot, 123, 'the ruling is unchanged');
-  assert.deepEqual(Object.keys(s.reply).sort(), ['alreadyProcessed', 'progression', 'runId', 'schemaVersion', 'settlement'], 'nothing health-related on the reply (the rival host\'s rule)');
+  assert.deepEqual(Object.keys(s.reply).sort(), ['alreadyProcessed', 'blueprintFragmentsGranted', 'holosGranted', 'progression', 'runId', 'schemaVersion', 'settlement'], 'nothing health-related on the reply (the rival host\'s rule)');
   assert.equal(JSON.stringify(s.doc.runs[0].settlement).includes('health'), false, 'nothing health-related on the settlement');
   // A replay (any body, with or without reports) writes nothing.
   const d = settle(p, s.doc.runs, runId, 0, false, [], [{ holobotId: 'ace', currentHealth: 0 }], T0 + 1);
@@ -129,8 +129,8 @@ test('without the flag, every zone reply is byte-identical to the deployed holoz
   assert.equal(JSON.stringify(i.reply), '{"schemaVersion":"holozone-run-1","runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","zoneId":"neonforest","tier":0,"squad":["ace","kuma"],"issuedAtMs":1791309580000,"expiresAtMs":1791316780000}');
   assert.equal(JSON.stringify(Z.holoZoneStatus(i.doc.runs, T0)), '{"schemaVersion":"holozone-run-1","run":{"runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","zoneId":"neonforest","tier":0,"squad":["ace","kuma"],"issuedAtMs":1791309580000,"expiresAtMs":1791316780000}}');
   const s = Z.settleHoloZoneRun(p, i.doc.runs, { runId: i.reply.runId, kills: 3, bossDefeated: false, fielded: ['ace', 'kuma'] }, T0);
-  assert.equal(JSON.stringify(s.reply), '{"schemaVersion":"holozone-run-1","runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","alreadyProcessed":false,"settlement":{"kind":"beast","zoneId":"neonforest","tier":0,"kills":3,"bossDefeated":false,"fielded":["ace","kuma"],"didWin":true,"combosCompleted":3,"perfectDefenses":0,"tableExp":123,"expPerHolobot":123,"expWithheld":false,"settledAtMs":1791309600000},"progression":[{"holobotId":"ace","expGained":123,"levelBefore":4,"levelAfter":4,"attributePoints":1,"experience":1823,"nextLevelExp":2500,"rank":"Starter"},{"holobotId":"kuma","expGained":123,"levelBefore":1,"levelAfter":2,"attributePoints":1,"experience":473,"nextLevelExp":900,"rank":"Starter"}]}');
-  assert.deepEqual(Object.keys(s.userUpdates), ['holobots']);
+  assert.equal(JSON.stringify(W.holoZoneSettleReplyForVersion(s.reply, 'holozone-run-1')), '{"schemaVersion":"holozone-run-1","runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","alreadyProcessed":false,"settlement":{"kind":"beast","zoneId":"neonforest","tier":0,"kills":3,"bossDefeated":false,"fielded":["ace","kuma"],"didWin":true,"combosCompleted":3,"perfectDefenses":0,"tableExp":123,"expPerHolobot":123,"expWithheld":false,"settledAtMs":1791309600000},"progression":[{"holobotId":"ace","expGained":123,"levelBefore":4,"levelAfter":4,"attributePoints":1,"experience":1823,"nextLevelExp":2500,"rank":"Starter"},{"holobotId":"kuma","expGained":123,"levelBefore":1,"levelAfter":2,"attributePoints":1,"experience":473,"nextLevelExp":900,"rank":"Starter"}]}');
+  assert.deepEqual(Object.keys(s.userUpdates), ['holobots', 'holosTokens']); // DECISIONS #58 win pays 100 Holos
   assert.equal(JSON.stringify(s.doc).toLowerCase().includes('health'), false); assert.equal(JSON.stringify(s.doc).includes('Vitals'), false);
   // Known-bad: a key-order-only change trips the pin.
   const r = i.reply; const reordered = { runId: r.runId, schemaVersion: r.schemaVersion, zoneId: r.zoneId, tier: r.tier, squad: r.squad, issuedAtMs: r.issuedAtMs, expiresAtMs: r.expiresAtMs };
