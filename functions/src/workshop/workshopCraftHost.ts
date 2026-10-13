@@ -2,10 +2,8 @@ import {Firestore} from 'firebase-admin/firestore';
 import {HttpsError,onCall} from 'firebase-functions/v2/https';
 import {db} from '../admin';
 import {healingDelta,RepairError} from '../lib/repairItems';
-export const HEALING_RECIPES = {
- 'item.repair_kit':{lower:'item.emergency_patch',fragments:3},
- 'item.full_restore':{lower:'item.repair_kit',fragments:5},
-} as const;
+import {HEALING_RECIPES} from "../lib/healingRecipes";
+export {HEALING_RECIPES} from "../lib/healingRecipes";
 export async function transactWorkshopCraft(firestore:Firestore,uid:string,raw:unknown,now=Date.now()){
  const c=raw as Record<string,unknown>;
  if(!c||typeof c!=='object'||Object.keys(c).some(k=>!['schemaVersion','operation','itemId','requestId'].includes(k))||c.schemaVersion!=='healing-workshop-1'||c.operation!=='craft'||typeof c.itemId!=='string'||!Object.hasOwn(HEALING_RECIPES,c.itemId)||typeof c.requestId!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(c.requestId))throw new RepairError('invalid_request');

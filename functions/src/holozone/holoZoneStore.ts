@@ -1,5 +1,5 @@
-import {withRankHealingReward} from "../lib/rankHealingReward";
 import {duelOpen,arenaOpen} from "../lib/healingGuards";
+import {withRankHealingReward} from "../lib/rankHealingReward";
 import { randomUUID } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';

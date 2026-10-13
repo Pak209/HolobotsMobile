@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "healing-items-1",
+  "items": [
+    {
+      "itemId": "item.emergency_patch",
+      "price": 100,
+      "fraction": 0.25
+    },
+    {
+      "itemId": "item.repair_kit",
+      "price": 250,
+      "fraction": 0.5
+    },
+    {
+      "itemId": "item.full_restore",
+      "price": 600,
+      "fraction": 1
+    }
+  ],
+  "workshop": {
+    "cost": 0,
+    "fraction": 1,
+    "maxSquad": 3
+  },
+  "recipes": [
+    {
+      "output": "item.repair_kit",
+      "lower": "item.emergency_patch",
+      "fragments": 3
+    },
+    {
+      "output": "item.full_restore",
+      "lower": "item.repair_kit",
+      "fragments": 5
+    }
+  ],
+  "duelSwitchLockoutMs": 3000,
+  "cityRecoveryFraction": 0.4,
+  "bossKitGrant": 1,
+  "rankKitGrant": 1,
+  "zoneRewardMinMs": 20000,
+  "parityKeys": [
+    "healingCatalogServerParity",
+    "healingUseServerParity",
+    "healingWorkshopServerParity",
+    "healingGrantServerParity",
+    "healingCraftServerParity",
+    "healingCityRecoveryParity"
+  ]
+}
