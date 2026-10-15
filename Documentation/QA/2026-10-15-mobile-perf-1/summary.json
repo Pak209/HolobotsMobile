@@ -1,0 +1,90 @@
+{
+  "launchToFirstDrawMs": 4194,
+  "contextToFirstDrawMs": 2371,
+  "jsEntryToFirstDrawMs": 2740,
+  "activeSamples": 24,
+  "activeFpsMedian": 6.85,
+  "activeFpsMin": 6.6,
+  "activeFpsMax": 7.9,
+  "rounds": [
+    {
+      "round": 1,
+      "samples": 3,
+      "fpsMedian": 7,
+      "fpsMin": 6.8,
+      "fpsMax": 7.3
+    },
+    {
+      "round": 2,
+      "samples": 3,
+      "fpsMedian": 6.8,
+      "fpsMin": 6.8,
+      "fpsMax": 7.5
+    },
+    {
+      "round": 3,
+      "samples": 3,
+      "fpsMedian": 6.7,
+      "fpsMin": 6.6,
+      "fpsMax": 6.7
+    },
+    {
+      "round": 4,
+      "samples": 3,
+      "fpsMedian": 6.9,
+      "fpsMin": 6.8,
+      "fpsMax": 7
+    },
+    {
+      "round": 5,
+      "samples": 3,
+      "fpsMedian": 6.9,
+      "fpsMin": 6.7,
+      "fpsMax": 7.9
+    },
+    {
+      "round": 6,
+      "samples": 3,
+      "fpsMedian": 6.8,
+      "fpsMin": 6.8,
+      "fpsMax": 6.9
+    },
+    {
+      "round": 7,
+      "samples": 3,
+      "fpsMedian": 6.9,
+      "fpsMin": 6.8,
+      "fpsMax": 7
+    },
+    {
+      "round": 8,
+      "samples": 3,
+      "fpsMedian": 7,
+      "fpsMin": 6.8,
+      "fpsMax": 7.6
+    }
+  ],
+  "lastElapsedMs": 51200,
+  "firstDraw": {
+    "botId": "ace+wolf",
+    "loadMs": 2371,
+    "fps": 0,
+    "frames": 0,
+    "assetBytes": 1787952,
+    "platform": "ios",
+    "drawWidth": 402,
+    "drawHeight": 874,
+    "contextId": 1,
+    "materialQuality": "balanced",
+    "renderScale": 0.3333333333333333,
+    "round": 1,
+    "elapsedMs": 0,
+    "synthetic": true,
+    "wallMs": 1792048630892
+  },
+  "rssKiBMin": 419040,
+  "rssKiBMax": 550480,
+  "rssKiBLast": 429520,
+  "cpuMedian": 100.95,
+  "memorySamples": 32
+}
