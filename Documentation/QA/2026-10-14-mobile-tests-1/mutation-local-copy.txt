@@ -1,0 +1,65 @@
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-1/mobile
+
+ ❯ src/lib/story/__tests__/storyFlags.test.ts (30 tests | 1 failed | 29 skipped) 8ms
+   ↓ local boolean story cache (not the host account storyFlags contract) > starts empty without I/O and derives the Guide objective
+   ↓ local boolean story cache (not the host account storyFlags contract) > uses separate persisted keys for separate pilots
+   ↓ local boolean story cache (not the host account storyFlags contract) > round-trips flags and checkpoint together through a fresh store
+   ↓ local boolean story cache (not the host account storyFlags contract) > keeps true and false flags while dropping nonboolean persisted values
+   ↓ local boolean story cache (not the host account storyFlags contract) > tolerates absent or malformed persisted root null
+   ↓ local boolean story cache (not the host account storyFlags contract) > tolerates absent or malformed persisted root
+   ↓ local boolean story cache (not the host account storyFlags contract) > tolerates absent or malformed persisted root {broken
+   ↓ local boolean story cache (not the host account storyFlags contract) > tolerates absent or malformed persisted root null
+   ↓ local boolean story cache (not the host account storyFlags contract) > tolerates absent or malformed persisted root 17
+   ↓ local boolean story cache (not the host account storyFlags contract) > tolerates absent or malformed persisted root "text"
+   ↓ local boolean story cache (not the host account storyFlags contract) > tolerates absent or malformed persisted root []
+   ↓ local boolean story cache (not the host account storyFlags contract) > ignores non-object flag maps null
+   ↓ local boolean story cache (not the host account storyFlags contract) > ignores non-object flag maps false
+   ↓ local boolean story cache (not the host account storyFlags contract) > ignores non-object flag maps 2
+   ↓ local boolean story cache (not the host account storyFlags contract) > ignores non-object flag maps true
+   ↓ local boolean story cache (not the host account storyFlags contract) > drops a malformed checkpoint while retaining valid flags: null
+   ↓ local boolean story cache (not the host account storyFlags contract) > drops a malformed checkpoint while retaining valid flags: %j
+   ↓ local boolean story cache (not the host account storyFlags contract) > drops a malformed checkpoint while retaining valid flags: "checkpoint"
+   ↓ local boolean story cache (not the host account storyFlags contract) > drops a malformed checkpoint while retaining valid flags: {}
+   ↓ local boolean story cache (not the host account storyFlags contract) > drops a malformed checkpoint while retaining valid flags: {"mapId":"hangar-town","x":1.5,"y":2,"facing":"up"}
+   ↓ local boolean story cache (not the host account storyFlags contract) > drops a malformed checkpoint while retaining valid flags: {"mapId":"hangar-town","x":1,"y":"2","facing":"up"}
+   ↓ local boolean story cache (not the host account storyFlags contract) > drops a malformed checkpoint while retaining valid flags: {"mapId":"hangar-town","x":1,"y":2,"facing":"diagonal"}
+   ↓ local boolean story cache (not the host account storyFlags contract) > sequential load is idempotent and does not overwrite newer in-memory changes
+   ↓ local boolean story cache (not the host account storyFlags contract) > notifies after load state is visible and suppresses repeated same-value flags
+   ↓ local boolean story cache (not the host account storyFlags contract) > deduplicates listener identity and supports independent, repeated unsubscribe
+   × local boolean story cache (not the host account storyFlags contract) > getFlags returns a defensive copy that cannot alter later persistence 7ms
+     → expected { known: false, injected: true } to deeply equal { known: true }
+   ↓ local boolean story cache (not the host account storyFlags contract) > clones the checkpoint on both set and get
+   ↓ local boolean story cache (not the host account storyFlags contract) > load errors warn and leave a usable empty cache
+   ↓ local boolean story cache (not the host account storyFlags contract) > persist errors warn without discarding visible state, and a later change can persist it
+   ↓ local boolean story cache (not the host account storyFlags contract) > uses AsyncStorage by default without requiring a native runtime in this suite
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/story/__tests__/storyFlags.test.ts > local boolean story cache (not the host account storyFlags contract) > getFlags returns a defensive copy that cannot alter later persistence
+AssertionError: expected { known: false, injected: true } to deeply equal { known: true }
+
+- Expected
++ Received
+
+  {
+-   "known": true,
++   "injected": true,
++   "known": false,
+  }
+
+ ❯ src/lib/story/__tests__/storyFlags.test.ts:157:30
+    155|     await store.setFlag('known', true);
+    156|     const flags = store.getFlags(); flags.known = false; flags.injecte…
+    157|     expect(store.getFlags()).toEqual({ known: true });
+       |                              ^
+    158|     await store.setCheckpoint(checkpoint);
+    159|     expect(JSON.parse(storage.values.get('story:v1:throwaway-a')!).fla…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 29 skipped (30)
+   Start at  22:30:43
+   Duration  624ms (transform 83ms, setup 0ms, collect 98ms, tests 8ms, environment 0ms, prepare 104ms)

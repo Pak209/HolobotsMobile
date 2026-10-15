@@ -1,0 +1,61 @@
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-1/mobile
+
+ ❯ src/lib/__tests__/rivalCooldownContract.test.ts (18 tests | 4 failed | 14 skipped) 13ms
+   ↓ rival cooldown contract available to mobile > pins the five-minute duration and refusal vocabulary to the published fixture
+   × rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 0 ms 10ms
+     → expected error to match asymmetric matcher
+   × rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 1 ms 1ms
+     → expected error to match asymmetric matcher
+   × rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 120000 ms 1ms
+     → expected error to match asymmetric matcher
+   × rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 299999 ms 1ms
+     → expected error to match asymmetric matcher
+   ↓ rival cooldown contract available to mobile > accepts the exact deadline and later times without changing the ledger: 300000
+   ↓ rival cooldown contract available to mobile > accepts the exact deadline and later times without changing the ledger: 300001
+   ↓ rival cooldown contract available to mobile > accepts the exact deadline and later times without changing the ledger: 86400000
+   ↓ rival cooldown contract available to mobile > does not block a different citizen or a pilot with no cooldown history
+   ↓ rival cooldown contract available to mobile > keeps future host timestamps locked with their full remaining time
+   ↓ rival cooldown contract available to mobile > defaults an absent ledger and copies valid history without exposing the persisted map
+   ↓ rival cooldown contract available to mobile > refuses malformed persisted history: null
+   ↓ rival cooldown contract available to mobile > refuses malformed persisted history: %j
+   ↓ rival cooldown contract available to mobile > refuses malformed persisted history: "history"
+   ↓ rival cooldown contract available to mobile > refuses malformed persisted history: {"citizen_mina":"1000"}
+   ↓ rival cooldown contract available to mobile > refuses malformed persisted history: {"citizen_mina":null}
+   ↓ rival cooldown contract available to mobile > refuses malformed persisted history: {"citizen_mina":null}
+   ↓ rival cooldown contract available to mobile > starts only the settled rival, preserves live rivals, and prunes exactly expired entries
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/rivalCooldownContract.test.ts > rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 0 ms
+ FAIL  src/lib/__tests__/rivalCooldownContract.test.ts > rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 1 ms
+ FAIL  src/lib/__tests__/rivalCooldownContract.test.ts > rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 120000 ms
+ FAIL  src/lib/__tests__/rivalCooldownContract.test.ts > rival cooldown contract available to mobile > reports the exact positive retryAfterMs at elapsed 299999 ms
+AssertionError: expected error to match asymmetric matcher
+
+- Expected
++ Received
+
+- ObjectContaining {
++ RivalError {
++   "message": "rival_cooldown",
+    "code": "rival_cooldown",
+-   "retryAfterMs": 300000,
++   "retryAfterMs": 300001,
+  }
+
+ ❯ src/lib/__tests__/rivalCooldownContract.test.ts:23:77
+     21|     vi.useFakeTimers(); vi.setSystemTime(settledAt + elapsed);
+     22|     const lastSettled = { [rivalId]: settledAt };
+     23|     expect(() => requireRivalOffCooldown(lastSettled, rivalId, Date.no…
+       |                                                                             ^
+     24|       expect.objectContaining({ code: 'rival_cooldown', retryAfterMs: …
+     25|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 14 skipped (18)
+   Start at  22:30:44
+   Duration  675ms (transform 138ms, setup 0ms, collect 176ms, tests 13ms, environment 0ms, prepare 59ms)
