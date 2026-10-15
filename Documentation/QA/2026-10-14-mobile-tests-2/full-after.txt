@@ -1,0 +1,7 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run --maxWorkers=1 --reporter=json --outputFile=/private/tmp/w12-full-after.json
+
+JSON report written to /private/tmp/w12-full-after.json
+
+WALL_SECONDS=48.95

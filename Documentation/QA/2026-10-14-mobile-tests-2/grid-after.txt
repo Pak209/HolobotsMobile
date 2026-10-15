@@ -1,0 +1,7 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run src/lib/__tests__/battleSettlementParity.test.ts --maxWorkers=1 --reporter=json --outputFile=/private/tmp/w12-grid-after.json
+
+JSON report written to /private/tmp/w12-grid-after.json
+
+WALL_SECONDS=36.6
