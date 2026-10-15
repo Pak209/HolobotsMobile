@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-if(!/^127\.0\.0\.1:18086$/.test(process.env.FIRESTORE_EMULATOR_HOST??''))throw Error('Dedicated loopback emulator required');
+if(!/^127\.0\.0\.1:(?:18086|18087)$/.test(process.env.FIRESTORE_EMULATOR_HOST??''))throw Error('Dedicated loopback emulator required');
 process.env.GCLOUD_PROJECT='demo-holobots-duel-resolver';
 const {db}=require('../lib/admin.js');
 const {transactRivalBattle:host}=require('../lib/rival/rivalBattleStore.js');
@@ -44,6 +44,7 @@ test('host winner ignores forged outcome/damage/HP/fielded; only actual particip
  const stored=await record(uid,issue.battleId),profile=await user(uid);
  assert.deepEqual(stored.settlement.fielded,['ace']);assert.deepEqual(stored.duelReceipt,expected);
  assert.equal(profile.holobotVitals.ace.currentHealth,expected.playerFinal[0].currentHealth);
+ assert.equal(profile.pilotRank,1,'the host-resolved win grants one pilot rank');
  assert.equal(profile.holobots.find(x=>x.name==='KUMA').experience,0);
 });
 test('host loss pays25 despite claimed win; pinned issue stats survive later profile/stat changes',async()=>{
@@ -51,7 +52,7 @@ test('host loss pays25 despite claimed win; pinned issue stats survive later pro
  const intents=['defend'];const expected=D.resolveDuel({...b.duel.input,playerIntents:intents});assert.equal(expected.winner,'opponent');
  const profile=await user(uid);profile.holobots[0].level=99;await db.doc(`users/${uid}`).update({holobots:profile.holobots});
  const result=await call(uid,{operation:'settle',battleId:issue.battleId,playerIntents:intents,didWin:true,damage:1e12},now+20000);
- assert.equal(result.didWin,false);assert.equal(result.holosGranted,25);assert.deepEqual(result.duelReceipt,expected);assert.equal((await user(uid)).rivalWins,90);
+ assert.equal(result.didWin,false);assert.equal(result.holosGranted,25);assert.deepEqual(result.duelReceipt,expected);assert.equal((await user(uid)).rivalWins,90);assert.equal((await user(uid)).pilotRank,undefined,'a host loss never increments pilot rank');
 });
 test('missing/empty/invalid/oversized intents refuse with no settlement or reward writes',async()=>{
  const uid=await setup();const issue=await call(uid,{operation:'issue'}),before=await user(uid);
@@ -69,7 +70,7 @@ test('duplicate/concurrent settles replay exact receipt and rewards despite chan
   const replay=await call(uid,{operation:'settle',battleId:issue.battleId,playerIntents,didWin:false},now+30000,{issueLegacy:true,allowLegacySettlement:true});
   assert.equal(replay.alreadyProcessed,true);assert.deepEqual(replay.duelReceipt,stored.duelReceipt);
  }
- assert.deepEqual(await user(uid),before);assert.deepEqual(await record(uid,issue.battleId),stored);assert.equal(before.holosTokens,100);
+ assert.deepEqual(await user(uid),before);assert.deepEqual(await record(uid,issue.battleId),stored);assert.equal(before.holosTokens,100);assert.equal(before.pilotRank,1,'concurrent settles and replays increment pilot rank once');
 });
 test('legacy records require server migration flag; old missing-mode records survive its deliberate enable',async()=>{
  const uid=await setup();const issue=await call(uid,{operation:'issue'},now,{issueLegacy:true,allowLegacySettlement:true});
