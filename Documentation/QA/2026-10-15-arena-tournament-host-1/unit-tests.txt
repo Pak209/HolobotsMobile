@@ -1,0 +1,28 @@
+Worst-case persisted bracket JSON: 401910 bytes; Firestore limit1048576; guard900000
+✔ one advance must resolve four real receipts, never merely mark player winner (2.404292ms)
+✔ complete eight-slot single elimination has 4/2/1 matches, one survivor and seven reproducible receipts (13.083375ms)
+✔ survivors carry only resolved HP into their next duel, with no between-round heal (0.322458ms)
+✔ a player knockout refuses further advance; no fabricated winner progression (0.23975ms)
+✔ persisted flags, winners, HP, round numbers and combat receipts cannot be changed independently (4.106833ms)
+✔ seed identity is stable and bound to account and match (0.085958ms)
+✔ invalid eight-slot identities and stats fail closed (0.183291ms)
+✔ all nine entrants survive seeding: CPU play-in plus seven byes produces the eight-slot main draw (1.512416ms)
+✔ player can be seeded into the play-in and either advances or is eliminated (0.534833ms)
+✔ worst-case nine-entrant bracket with eight120-turn bouts stays below Firestore1MiB (16.266792ms)
+TIER_PAIR_PLAYER_WINS_PER_1000=[[461,5,1,0,0,0,0,0,0,0],[997,459,15,1,0,0,0,0,0,0],[1000,982,462,23,1,0,0,0,0,0],[1000,1000,963,461,44,1,1,0,0,0],[1000,1000,1000,938,459,62,1,1,0,0],[1000,1000,1000,999,915,461,81,4,1,1],[1000,1000,1000,1000,998,895,461,101,6,1],[1000,1000,1000,1000,1000,996,874,461,116,14],[1000,1000,1000,1000,1000,1000,993,847,464,128],[1000,1000,1000,1000,1000,1000,1000,982,826,464]]
+✔ issued level/tier/move scales and command STA are pinned into chronological receipt rows (1.550792ms)
+✔ same host snapshot, seed and intents produce byte-identical receipts without mutation (0.501333ms)
+✔ validation rejects malformed seeds, teams, stats and every non-intent input (0.411917ms)
+✔ insufficient stamina and uncharged finishers never underflow or deal invented damage (0.121917ms)
+✔ defend restores bounded STA, attacks build SYNC and charged finisher spends exactly 4/100 (0.339625ms)
+✔ round limit has a deterministic winner and short intents repeat without autoplay (0.580333ms)
+✔ every issued squad fighter participates and carryover health is not reset (0.096459ms)
+✔ 1000 seeds for each of 100 tier pairs: reproducible bounds and stronger-tier sanity (331.453959ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 371.91575

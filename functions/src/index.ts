@@ -64,3 +64,5 @@ export {workshopCraftHost} from "./workshop/workshopCraftHost";
 
 export { arenaGatheringHost } from "./story/arenaGatheringHost";
 export { tournamentResultHost } from "./story/tournamentResultHost";
+
+export { tournamentBracketHost } from "./story/tournamentBracketHost";

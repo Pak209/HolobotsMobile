@@ -78,6 +78,8 @@ function match(raw: unknown, id: string): Match {
     try { if (t.requiredLevel !== tournamentLevel(t.tournamentId)) return fail('unavailable'); }
     catch { return fail('unavailable'); }
   }
+  if (raw.bracket !== undefined && (!object(raw.bracket) || raw.bracket.schemaVersion !== 'arena-bracket-1'
+    || raw.bracket.matchId !== id || !whole(raw.bracket.boundAtMs) || raw.bracket.boundAtMs < raw.issuedAtMs)) return fail('unavailable');
   assertFiniteTree(raw);
   const entrant = raw.entrant, opponent = raw.opponent, entry = raw.entryReceipt, rules = raw.rules;
   const health = (n: unknown, max: number) => finite(n) && n >= 0 && n <= max;
@@ -89,7 +91,7 @@ function match(raw: unknown, id: string): Match {
     || typeof entrant.name !== 'string' || !entrant.name || toHolobotKey(entrant.name) !== entrant.holobotId
     || !Object.hasOwn(HOLOBOT_BASE_STATS,entrant.holobotId.toUpperCase())
     || !finite(entrant.maxHealth) || entrant.maxHealth <= 0 || !health(entrant.currentHealth,entrant.maxHealth) || entrant.currentHealth === 0
-    || typeof opponent.name !== 'string' || !pool.includes(opponent.name) || opponent.holobotId !== toHolobotKey(opponent.name)
+    || typeof opponent.name !== 'string' || !(raw.bracket ? Object.hasOwn(HOLOBOT_BASE_STATS,opponent.name) : pool.includes(opponent.name)) || opponent.holobotId !== toHolobotKey(opponent.name)
     || !finite(opponent.maxHealth) || opponent.maxHealth <= 0
     || rules.version !== 'arena-economy-legacy-1'
     || !boundedQuote(rules.entryFeeHolos) || rules.entryFeeHolos === 0
@@ -130,8 +132,12 @@ function match(raw: unknown, id: string): Match {
   }
   const settlement = receipt.settlement;
   if (raw.state !== 'settled' || !['win','loss'].includes(receipt.outcome) || !object(settlement)
-    || !health(report.opponentFinalHealth,opponent.maxHealth) || (report.playerFinalHealth === 0) === (report.opponentFinalHealth === 0)
-    || (receipt.outcome === 'win') !== (report.opponentFinalHealth === 0)
+    || !health(report.opponentFinalHealth,opponent.maxHealth)
+    || (raw.bracket ? !['player','opponent'].includes(report.bracketWinner)
+      || (receipt.outcome === 'win') !== (report.bracketWinner === 'player')
+      || (report.bracketWinner === 'player' ? report.playerFinalHealth <= 0 : report.opponentFinalHealth <= 0)
+      : (report.playerFinalHealth === 0) === (report.opponentFinalHealth === 0)
+        || (receipt.outcome === 'win') !== (report.opponentFinalHealth === 0))
     || !whole(report.combosCompleted) || report.combosCompleted > rules.maxPerformanceEvents
     || !whole(report.perfectDefenses) || report.perfectDefenses > rules.maxPerformanceEvents) return fail('unavailable');
   const won = receipt.outcome === 'win';
@@ -178,8 +184,8 @@ function assertFiniteTree(value: unknown): void {
   else if (object(value)) Object.values(value).forEach(assertFiniteTree);
 }
 /** Use the admission's numeric quote, so a later price/table release cannot change an outstanding match. */
-function rewards(profile: Data, m: Match, c: Command, now: number) {
-  const r = m.rules, won = c.opponentFinalHealth === 0;
+function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:boolean) {
+  const r = m.rules, won = bracketWon ?? c.opponentFinalHealth === 0;
   const bonus = 1 + r.comboBonus * c.combosCompleted + r.perfectDefenseBonus * c.perfectDefenses;
   const exp = Math.floor(r.exp * (won ? bonus : r.lossExpFraction));
   const syncPoints = Math.floor(r.syncPoints * (won ? bonus : r.lossSyncFraction));
@@ -277,6 +283,9 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       if (discoveredOpen !== undefined && discoveredOpen === terminal(m)) return fail('unavailable');
       if (c.operation === 'resume') return reply(m,true);
       if (terminal(m)) return reply(m,true); // Durable replay does not inspect/release a newer match's lease.
+      if (m.bracket && ['start','settle','cancel'].includes(c.operation)) return fail('bracket_bound');
+      // Every new tournament outcome must use the host bracket, including old active admissions.
+      if (m.tournament && (c.operation === 'start' || c.operation === 'settle')) return fail('bracket_required');
       const parent = (await tx.get(parentRef)).data();
       if (!arenaOpen(parent) || parent?.matchId !== m.matchId || parent?.recordSchemaVersion !== ARENA_MATCH_SCHEMA) return fail('unavailable');
       if (c.operation === 'start') {
@@ -333,3 +342,38 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
 
 /** Validates the immutable admission and terminal receipt before story progression trusts them. */
 export { match as readArenaMatchRecord };
+
+/** Trusted bracket transaction seam. Clients cannot call this helper or provide its report.
+ * Reuses the admission's existing quote once; intermediate bracket bouts grant no rewards. */
+export function settleArenaBracketRecord(profile:Data, raw:unknown, opponent:Data, playerFinalHealth:number, opponentFinalHealth:number, won:boolean, nowMs:number) {
+  const m=match(raw,(raw as Match).matchId);
+  if (!m.bracket || m.state!=='active') return fail('not_admitted');
+  if (nowMs>m.expiresAtMs) return fail('match_expired');
+  const resolved:Match={...m,opponent};
+  match(resolved,m.matchId);
+  const c:Command={operation:'settle',playerFinalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0};
+  if (!finite(playerFinalHealth) || playerFinalHealth<0 || playerFinalHealth>m.entrant.currentHealth
+    || !finite(opponentFinalHealth) || opponentFinalHealth<0 || opponentFinalHealth>opponent.maxHealth
+    || (won ? playerFinalHealth<=0 : opponentFinalHealth<=0)) return fail('unavailable');
+  const result=rewards(profile,resolved,c,nowMs,won);
+  const updates=withRankHealingReward(profile,result.updates);
+  const issued:Vitals={[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
+  const finalVitals=settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:playerFinalHealth}]);
+  updates.holobotVitals=finalVitals;
+  const next:Match={...resolved,state:'settled',closedAtMs:nowMs,settlementReceipt:{matchId:m.matchId,outcome:result.outcome,refunded:false,
+    settlement:result.settlement,report:{playerFinalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,bracketWinner:won?'player':'opponent'},closedAtMs:nowMs,
+    finalVitals:{[m.entrant.holobotId]:finalVitals[m.entrant.holobotId]}}};
+  assertFiniteTree(updates);match(next,m.matchId);
+  return {updates,match:next};
+}
+
+/** A bound bracket can be abandoned using host-observed HP, including after expiry. */
+export function cancelArenaBracketRecord(profile:Data,raw:unknown,playerFinalHealth:number,nowMs:number) {
+  const m=match(raw,(raw as Match).matchId);
+  if (!m.bracket || m.state!=='active') return fail('not_admitted');
+  const issued:Vitals={[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
+  const holobotVitals=settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:playerFinalHealth}]);
+  const next:Match={...m,state:nowMs>m.expiresAtMs?'expired':'cancelled',closedAtMs:nowMs,settlementReceipt:{matchId:m.matchId,outcome:'forfeit',refunded:false,
+    settlement:null,report:{playerFinalHealth},closedAtMs:nowMs,finalVitals:{[m.entrant.holobotId]:holobotVitals[m.entrant.holobotId]}}};
+  match(next,m.matchId);return {updates:{holobotVitals},match:next};
+}

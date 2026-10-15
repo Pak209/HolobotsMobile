@@ -350,6 +350,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Tournament bracket state and resolver receipts are callable-only.
+    match /arenaBrackets/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
     // DECISIONS #54-1: Zell's story phase is host-owned; clients use rivalBattleHost.
     match /storyProgress/{uid}/{document=**} {
       allow read, write: if false;

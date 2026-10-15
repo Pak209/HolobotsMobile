@@ -1,0 +1,37 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-bracket-20261015", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 19187.
+i  Running script: node --test --test-name-pattern=unbound scripts/test-arena-bracket-emulator.mjs
+✖ unbound tournament admission cannot bypass the bracket with public start or claimed-HP settle (704.821333ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3369.011167
+
+✖ failing tests:
+
+test at scripts/test-arena-bracket-emulator.mjs:36:1
+✖ unbound tournament admission cannot bypass the bracket with public start or claimed-HP settle (704.821333ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async refused (file:///private/tmp/holobots-arena-tournament-host-1/functions/scripts/test-arena-bracket-emulator.mjs:25:77)
+      at async TestContext.<anonymous> (file:///private/tmp/holobots-arena-tournament-host-1/functions/scripts/test-arena-bracket-emulator.mjs:38:2)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test --test-name-pattern=unbound scripts/test-arena-bracket-emulator.mjs" exited with code 1

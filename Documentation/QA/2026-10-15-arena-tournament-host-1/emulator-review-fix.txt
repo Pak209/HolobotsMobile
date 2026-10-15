@@ -1,0 +1,180 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-bracket-20261015", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 19187.
+i  Running script: node --test --test-concurrency=1 scripts/test-arena-bracket-emulator.mjs scripts/test-arena-gathering-emulator.mjs scripts/test-delete-user-data-emulator.mjs scripts/test-arena-match-emulator.mjs
+✔ known-bad claimed victory and final HP cannot bypass the host bracket or mint rewards (871.146209ms)
+✔ unbound tournament admission cannot bypass the bracket with public start or claimed-HP settle (189.140875ms)
+✔ callable requires auth, rejects foreign fields, and returns machine-readable refusal (135.788875ms)
+✔ missing, foreign, untagged, ungathered and already-started practice admissions refuse not_admitted (178.226541ms)
+✔ Holobot level gates remain exactly2/11/21, unrelated pilotRank does not replace them (132.368208ms)
+✔ start is concurrent and restart-idempotent, charges only the existing admission and includes all8citizens plus player (3363.83425ms)
+✔ concurrent/replayed advance resolves exactly one play-in and never double-advances (2814.410666ms)
+✔ complete play-in and8-slot run settles once, feeds existing result, and refuses bracket_done (126.490917ms)
+✔ three complete tournament brackets feed unchanged progression and flip only the third Arena gate (238.702292ms)
+✔ resume recovers progression after final receipt persisted, without duplicating Arena rewards (95.0365ms)
+✔ player elimination closes lease with host damage, loss once, and refuses player_eliminated (70.140625ms)
+✔ cancel after expiry keeps host-observed HP and releases the lease without reward or refund (98.624ms)
+✔ corrupt persisted resolver receipts fail closed without partial writes (53.762958ms)
+[2026-10-15T06:34:58.185Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f87 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.192Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f88 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.197Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f89 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+[2026-10-15T06:34:58.204Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f8a error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.207Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f8b error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.211Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f8c error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+[2026-10-15T06:34:58.225Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f8e error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.230Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f8f error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.233Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f90 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+[2026-10-15T06:34:58.239Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f91 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.243Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f92 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:34:58.247Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x7fb31f93 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+✔ rules deny owner and foreign bracket reads/writes at parent and child paths (393.704292ms)
+✔ known-bad input first: arbitrary client victory, rank, or count cannot flip story gates (141.205125ms)
+✔ desktop versions lazily backfill defaults and return the identical four story fields (20.19325ms)
+✔ gathering yields eight stable CV1 pilots from all twelve bots and the exact ring palette; concurrent and later calls are idempotent (3440.467875ms)
+✔ callable auth and strict gathering/tournament input refusals (57.420958ms)
+✔ malformed story state fails closed; partial absent fields default without resetting existing progress (156.073667ms)
+✔ all eight roster citizens issue their assigned bot, retain 100/25 rewards and settle replay, and use the same 5-minute cooldown (372.569583ms)
+✔ citizen rival refuses before gathering, a non-roster citizen, foreign ids, wrong schemas and operations (80.330834ms)
+✔ rank thresholds 2/11/21 are enforced at admission without spending an entry; sequence cannot be skipped (79.738916ms)
+✔ three historical tagged terminal wins at exact boundaries flip only Arena; duplicate and concurrent results never advance twice (10247.130875ms)
+✔ foreign, ordinary practice, wrong tournament and unfinished receipts cannot qualify (97.057083ms)
+✔ loss and malformed host receipts fail closed; low admission level and corrupted tags refuse (76.269833ms)
+✔ admission request replay preserves its tag and rejects changing a practice request into a tournament (36.885541ms)
+[2026-10-15T06:35:13.391Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b0 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.412Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b1 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L194, false for 'create' @ L364, evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'create' @ L194, false for 'create' @ L364
+[2026-10-15T06:35:13.431Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b2 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.440Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b3 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.448Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b4 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.453Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b5 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.460Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b6 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.467Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b7 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.476Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b8 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L194, false for 'create' @ L364, evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L364, false for 'update' @ L206, false for 'update' @ L364
+[2026-10-15T06:35:13.479Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24b9 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L216, false for 'delete' @ L364
+[2026-10-15T06:35:13.519Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x272c24ba error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L349, false for 'create' @ L364, false for 'update' @ L349, false for 'update' @ L364
+✔ rules deny client story creation, nested edits, replacement, deletion, foreign reads and forged match receipts; unchanged merges work (268.3965ms)
+✔ KNOWN-BAD exact old callable: unpaid settlement mints 100 Holos and a win (143.932417ms)
+✔ KNOWN-BAD exact old callable: client IDs A → B → A pay all three times (20.549917ms)
+✔ KNOWN-BAD exact old callable: lost entry reply and retry charge twice (14.267125ms)
+✔ candidate legacy entry and unissued payout requests fail closed without partial writes (143.984625ms)
+✔ five concurrent duplicate issue requests create one server match and debit once (3639.937167ms)
+✔ pass entry debits one pass and cannot substitute a different payment under the same request key (77.66575ms)
+✔ invalid issue identities, affordability, KO and malformed vitals never debit or create a lease (546.745542ms)
+✔ Arena lease blocks every Rival issue version with health flag on and off (363.895458ms)
+✔ Arena lease blocks every Zone issue version with health flag on and off (274.701167ms)
+✔ preexisting Rival and Zone records block Arena before debit, regardless of health flag (227.409417ms)
+✔ repair during open Arena never consumes inventory, heals, or writes a receipt (65.841667ms)
+✔ valid issue binds cost, entrant and opponent; start/settle writes stable receipt and downward HP (42.619125ms)
+✔ five concurrent settlements award once and every retry returns the durable receipt (3600.514166ms)
+✔ paid A → paid B → A replay cannot repay A, overwrite B lease, or erase A receipt (125.550417ms)
+✔ settlement requires started server match, owner, minimum elapsed time and original binding (486.526125ms)
+✔ negative, inflated, nonfinite, ambiguous terminal and overbound performance reports write nothing (732.2265ms)
+✔ settlement preserves lower persistent HP and never duplicates XP onto another owned species (40.056917ms)
+✔ loss persists KO without Arena recovery; next issue refuses until an explicit repair (116.1025ms)
+✔ lost issue/start replies recover one paid match; repeated resume is read-only (90.336125ms)
+✔ unstarted cancellation refunds the original token/pass once and receipt survives retries (7182.769209ms)
+✔ started cancellation requires downward HP, gives no refund/reward, and closes once (121.989875ms)
+✔ expired unresolved match remains leased until explicit cancellation, with no timeout healing (674.026042ms)
+✔ distinct Arena request IDs racing cannot double-debit or create overlapping matches (3244.018708ms)
+R4 emulator transport retry 1: zone, health=true, losing=Arena; same uid/body/time; activity_conflict and zero writes verified
+✔ Arena issue races against Rival and Zone admit exactly one activity for both health modes (15645.537292ms)
+✔ Arena issue versus repair is serializable: repaired snapshot or untouched stock on refusal (13269.842375ms)
+✔ cancel versus start cannot both refund and begin a playable match (9864.320417ms)
+✔ settle versus cancel commits one terminal ruling, payout and HP result (15557.425417ms)
+✖ late first Rival/Zone settlement cannot mutate health or rewards during an Arena lease (76.375ms)
+✖ previously settled Rival/Zone and consumed-item receipt replays stay read-only during Arena (20.354208ms)
+✔ malformed Arena lease fails closed across Arena, Rival, Zone and repair (669.183917ms)
+✔ operation arrays, objects, null and missing schema cannot coerce into a lifecycle operation (409.740584ms)
+✔ Arena callable authenticates every lifecycle entrypoint and closes both old anonymous bypasses (35.8305ms)
+✔ admission numeric quote remains binding after a later tier fee/reward table change (36.958167ms)
+✔ minimum elapsed and performance upper bounds accept their exact legal boundary (79.707209ms)
+✔ corrupted persisted quote, charge binding, entrant, opponent or timestamps fail closed before writes (2590.239125ms)
+✔ malformed current entrant progression fails before the XP loop or any settlement write (928.765875ms)
+✔ altered valid-shaped terminal report replays the original ruling without touching a newer lease (118.833167ms)
+✔ fresh-client resume without IDs discovers absent, open, expired and latest terminal match read-only (716.304584ms)
+✔ durable settle crossing a rank tier (10 -> 11) grants exactly one Repair Kit (34.15725ms)
+✔ KNOWN-BAD control: durable settle levelling inside one tier (12 -> 13+) grants no Kit (33.355667ms)
+R4 measured bounded emulator transport retries: 1
+✔ open duel-healing run refuses rival and zone issue with no write (123.0955ms)
+✔ deleteUserData removes pilot trees including Arena leases, matches and receipts; other pilots untouched (313.342583ms)
+✔ deleteUserData removes orphaned Arena receipt and match subcollections (56.69525ms)
+ℹ tests 70
+ℹ suites 0
+ℹ pass 68
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110022.13375
+
+✖ failing tests:
+
+test at scripts/test-arena-match-emulator.mjs:468:1
+✖ late first Rival/Zone settlement cannot mutate health or rewards during an Arena lease (76.375ms)
+  AssertionError [ERR_ASSERTION]: rejection
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async refused (file:///private/tmp/holobots-arena-tournament-host-1/functions/scripts/test-arena-match-emulator.mjs:56:3)
+      at async TestContext.<anonymous> (file:///private/tmp/holobots-arena-tournament-host-1/functions/scripts/test-arena-match-emulator.mjs:480:7)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: invalid_request
+        at /private/tmp/holobots-arena-tournament-host-1/functions/lib/rival/rivalBattleStore.js:192:23
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async Transaction.runTransactionOnce (/Users/pak/Projects/HolobotsMobile/functions/node_modules/@google-cloud/firestore/build/src/transaction.js:440:28)
+        at async /Users/pak/Projects/HolobotsMobile/functions/node_modules/@google-cloud/firestore/build/src/transaction.js:412:28
+        at async waitForActual (node:assert:615:5)
+        at async strict.rejects (node:assert:738:25)
+        at async refused (file:///private/tmp/holobots-arena-tournament-host-1/functions/scripts/test-arena-match-emulator.mjs:56:3)
+        at async TestContext.<anonymous> (file:///private/tmp/holobots-arena-tournament-host-1/functions/scripts/test-arena-match-emulator.mjs:480:7)
+        at async Test.run (node:internal/test_runner/test:1404:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:969:7),
+    expected: /activity_conflict/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/test-arena-match-emulator.mjs:487:1
+✖ previously settled Rival/Zone and consumed-item receipt replays stay read-only during Arena (20.354208ms)
+  Error: invalid_request
+      at /private/tmp/holobots-arena-tournament-host-1/functions/lib/rival/rivalBattleStore.js:192:23
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Transaction.runTransactionOnce (/Users/pak/Projects/HolobotsMobile/functions/node_modules/@google-cloud/firestore/build/src/transaction.js:440:28)
+      at async /Users/pak/Projects/HolobotsMobile/functions/node_modules/@google-cloud/firestore/build/src/transaction.js:412:28
+      at async TestContext.<anonymous> (file:///private/tmp/holobots-arena-tournament-host-1/functions/scripts/test-arena-match-emulator.mjs:493:7)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    code: 'invalid_request',
+    retryAfterMs: undefined
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test --test-concurrency=1 scripts/test-arena-bracket-emulator.mjs scripts/test-arena-gathering-emulator.mjs scripts/test-delete-user-data-emulator.mjs scripts/test-arena-match-emulator.mjs" exited with code 1
