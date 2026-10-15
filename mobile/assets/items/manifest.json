@@ -1,0 +1,641 @@
+{
+  "sourceRepository": "https://github.com/Pak209/Holocity.git",
+  "sourceCommit": "99a1b23fb5d335c8317a2740f02f1a75c9a299b5",
+  "sourcePath": "Assets/UI/Resources/HoloUI/Items",
+  "requestedCount": 92,
+  "actualCount": 105,
+  "totalBytes": 18938563,
+  "note": "The current tracked Unity source contains 105 distinct item, part and clothing filenames; all are preserved, including additions beyond the requested 92.",
+  "icons": [
+    {
+      "id": "clothing.bottom_basichakma",
+      "file": "clothing.bottom_basichakma.png",
+      "bytes": 31533,
+      "sha256": "e2f6822973d8e0dbc2fe25f6ad9b86b916ff80fe945f6122f4e95ff8477e279c"
+    },
+    {
+      "id": "clothing.bottom_beltedpants",
+      "file": "clothing.bottom_beltedpants.png",
+      "bytes": 39890,
+      "sha256": "1d03a47b007e26bccec1470d46cfe5fdabe255723b0456f37ec1456b92cc9943"
+    },
+    {
+      "id": "clothing.bottom_beltedshorts",
+      "file": "clothing.bottom_beltedshorts.png",
+      "bytes": 21813,
+      "sha256": "b70b4e833fad4852f569132e5d54211b84288c71bb8f950af68d80554c378815"
+    },
+    {
+      "id": "clothing.bottom_beltedskort",
+      "file": "clothing.bottom_beltedskort.png",
+      "bytes": 34705,
+      "sha256": "831257c81cd5af212d6b30f42bead4b7dab0ca5fb285ab9acb8f7ad24be7e03b"
+    },
+    {
+      "id": "clothing.bottom_cuffedshorts",
+      "file": "clothing.bottom_cuffedshorts.png",
+      "bytes": 25427,
+      "sha256": "7f4bef5e7f553732e1175e07d167288194dd4a08d65afdbd9c83ea48db8093a0"
+    },
+    {
+      "id": "clothing.bottom_dolphinshorts",
+      "file": "clothing.bottom_dolphinshorts.png",
+      "bytes": 23511,
+      "sha256": "1fafcab09e1d71f945c708f9a83f796287ae90bea8ee53251bce4377b4def072"
+    },
+    {
+      "id": "clothing.bottom_longsimpleskirt",
+      "file": "clothing.bottom_longsimpleskirt.png",
+      "bytes": 14704,
+      "sha256": "8f9d9990a3f91d6921ebe89c9d71b095e40afd2269d94fc6ae6d5c6d007cb8bf"
+    },
+    {
+      "id": "clothing.bottom_pleatedskirt",
+      "file": "clothing.bottom_pleatedskirt.png",
+      "bytes": 30942,
+      "sha256": "fb1d960419bbc184a3d577ada3ae0980ae12bd63bd14be67afbaed4cf1d8318e"
+    },
+    {
+      "id": "clothing.bottom_rippedcapris",
+      "file": "clothing.bottom_rippedcapris.png",
+      "bytes": 30153,
+      "sha256": "223a4ecdf6b11f8ecf547dc33e97ed0c4b71cf8e84c87d0d0f3f1143cfd5eac8"
+    },
+    {
+      "id": "clothing.bottom_shortsimpleskirt",
+      "file": "clothing.bottom_shortsimpleskirt.png",
+      "bytes": 16043,
+      "sha256": "6a7df1dc644d3dfd4190595fba11c7a278bc9c846e301e85842f35f3c832db67"
+    },
+    {
+      "id": "clothing.bottom_simplekhakies",
+      "file": "clothing.bottom_simplekhakies.png",
+      "bytes": 24288,
+      "sha256": "4d8f5a7ebd69475d367ad1f83b37e54bc4cf5de3c917b8d02e98720f6f60e821"
+    },
+    {
+      "id": "clothing.bottom_simpleskirt",
+      "file": "clothing.bottom_simpleskirt.png",
+      "bytes": 14999,
+      "sha256": "e8ad3058a35c61947ab77273a14f9eea279ea63c2686e3080c2fac73bd3ff726"
+    },
+    {
+      "id": "clothing.bottom_tightdresspants",
+      "file": "clothing.bottom_tightdresspants.png",
+      "bytes": 29522,
+      "sha256": "ad7c670c6a3029064c7fbc8566607175fe68b60d23603b39a16965eba271f272"
+    },
+    {
+      "id": "clothing.feet_balletflats",
+      "file": "clothing.feet_balletflats.png",
+      "bytes": 33361,
+      "sha256": "ee9ff2ac88bda911f185305c3a70b955d8425e850526f2568fa33963dfeec6c7"
+    },
+    {
+      "id": "clothing.feet_classyloafers",
+      "file": "clothing.feet_classyloafers.png",
+      "bytes": 35832,
+      "sha256": "8bfec566daec4191b23a78720fb732ee48a510210b2bdb1aa2983c376e7ec771"
+    },
+    {
+      "id": "clothing.feet_flowerflipflops",
+      "file": "clothing.feet_flowerflipflops.png",
+      "bytes": 24921,
+      "sha256": "b520c7728b4b383e3374868591fd3d8fc0d76bfea8359d81e3808313a297e02c"
+    },
+    {
+      "id": "clothing.feet_highlaceshoe",
+      "file": "clothing.feet_highlaceshoe.png",
+      "bytes": 52571,
+      "sha256": "6297efe59f56ec1f647fa5b56418804073b7fa928d2d3119fd052db75f23b61f"
+    },
+    {
+      "id": "clothing.feet_officeheels",
+      "file": "clothing.feet_officeheels.png",
+      "bytes": 27363,
+      "sha256": "e93edbba6f61b776f3630a13722c25f72a2a88b73691be002cfb7d9dc0b5e558"
+    },
+    {
+      "id": "clothing.feet_officeloafer",
+      "file": "clothing.feet_officeloafer.png",
+      "bytes": 36211,
+      "sha256": "1980db7bc14bbf387e4d9fb09e10d343a2eaf5e23a5e2b2713f3580f425e9001"
+    },
+    {
+      "id": "clothing.feet_simpleflipflops",
+      "file": "clothing.feet_simpleflipflops.png",
+      "bytes": 23732,
+      "sha256": "7d73f3c5bcc5a3377433c7ff490a8d0fe968b09f531e365dbcf0d277faab2e31"
+    },
+    {
+      "id": "clothing.feet_sockedballetflats",
+      "file": "clothing.feet_sockedballetflats.png",
+      "bytes": 58161,
+      "sha256": "19165846f8e6a6c97ba8ae849188254f7d16dd5e1db94997a2dbd71cbf7c3ae4"
+    },
+    {
+      "id": "clothing.feet_strappedsandals",
+      "file": "clothing.feet_strappedsandals.png",
+      "bytes": 30083,
+      "sha256": "77fd1fd218794d34bc8a60c9aa5e525c37b43c0ab943e7c445f2188700ea50a7"
+    },
+    {
+      "id": "clothing.feet_tobisandles",
+      "file": "clothing.feet_tobisandles.png",
+      "bytes": 32713,
+      "sha256": "f08dc4befec181c62b8c68c12db95c4825c5ffabb0507fb472a9b1208d627625"
+    },
+    {
+      "id": "clothing.feet_workboots",
+      "file": "clothing.feet_workboots.png",
+      "bytes": 43473,
+      "sha256": "a4faddfb70223232fad2aadfa7c3f64859b56315bd9669d538c25fbe408c51b1"
+    },
+    {
+      "id": "clothing.gloves_armbands",
+      "file": "clothing.gloves_armbands.png",
+      "bytes": 12632,
+      "sha256": "ef043aa90d5171b96d02b93426e24a6e8421a0efe035e40307c5c9ad03e44271"
+    },
+    {
+      "id": "clothing.gloves_armwarmers",
+      "file": "clothing.gloves_armwarmers.png",
+      "bytes": 26664,
+      "sha256": "7e1a526f6d4cd7762f2e089db66641b7793abf0e61177c44b7259da101fa6e1c"
+    },
+    {
+      "id": "clothing.gloves_fingerlessgloves",
+      "file": "clothing.gloves_fingerlessgloves.png",
+      "bytes": 20139,
+      "sha256": "e3720c4d98dc08dcce9dcf70250b71733adc17b28244e8a309dc5d7e958966f9"
+    },
+    {
+      "id": "clothing.gloves_loosebracelets",
+      "file": "clothing.gloves_loosebracelets.png",
+      "bytes": 16520,
+      "sha256": "f5c6cba626e336958dc159d730efd4e5b9eae12e541641afea119aa625f311f1"
+    },
+    {
+      "id": "clothing.gloves_ringedgloves",
+      "file": "clothing.gloves_ringedgloves.png",
+      "bytes": 14322,
+      "sha256": "0282c8f73124cf6774436cede66bbadbeb928145e37d73e80d59c0d9359a6356"
+    },
+    {
+      "id": "clothing.gloves_simplegloves",
+      "file": "clothing.gloves_simplegloves.png",
+      "bytes": 20331,
+      "sha256": "0207770c50559553f8e85b74727a948935a31b73ba58fff00aaafe74d2e199bf"
+    },
+    {
+      "id": "clothing.gloves_simplering",
+      "file": "clothing.gloves_simplering.png",
+      "bytes": 8203,
+      "sha256": "ffc7057277e828ead990a66e84b501015330070f85632d1c8666b3902d093384"
+    },
+    {
+      "id": "clothing.gloves_sweatbands",
+      "file": "clothing.gloves_sweatbands.png",
+      "bytes": 12306,
+      "sha256": "d2934a988148fa0fc81b87a4f4970bb197493fb3e474bc217eb889817a4569c6"
+    },
+    {
+      "id": "clothing.hat_ballcap",
+      "file": "clothing.hat_ballcap.png",
+      "bytes": 25300,
+      "sha256": "3bbc1afd75cb467747009b3ab0b2685e0ea24d2dd182d2134964e0183cce2956"
+    },
+    {
+      "id": "clothing.hat_beanie",
+      "file": "clothing.hat_beanie.png",
+      "bytes": 24857,
+      "sha256": "42fa6722a6344a8a811b353956e85d049885198b0008da5dba3a7e9993258655"
+    },
+    {
+      "id": "clothing.hat_buckethat",
+      "file": "clothing.hat_buckethat.png",
+      "bytes": 31508,
+      "sha256": "25e9818118a58e1c24d02e2d8519578e0436a724003ccf482f3c4ddde3395a4a"
+    },
+    {
+      "id": "clothing.hat_fedora",
+      "file": "clothing.hat_fedora.png",
+      "bytes": 26035,
+      "sha256": "94fd97649258bb692a42ddf1fff37407b41d4b0bff1ee3321396a0fd5d610f87"
+    },
+    {
+      "id": "clothing.hat_kittywoolie",
+      "file": "clothing.hat_kittywoolie.png",
+      "bytes": 42603,
+      "sha256": "edbdfa3630b725f7c9e5c01708db014df9392fb7864f6a91514006832bf428e6"
+    },
+    {
+      "id": "clothing.hat_militaryhat",
+      "file": "clothing.hat_militaryhat.png",
+      "bytes": 32838,
+      "sha256": "b9b0bc77e531b35366644ce1d19cf2e3927b4799146e7c0e2e5d4e948c601fed"
+    },
+    {
+      "id": "clothing.hat_newsboycap",
+      "file": "clothing.hat_newsboycap.png",
+      "bytes": 27905,
+      "sha256": "26f1868e667c5151dfb3a1fb82cc633a6cb43eaaf7f9a87e0b62263c035bf847"
+    },
+    {
+      "id": "clothing.hat_summercap",
+      "file": "clothing.hat_summercap.png",
+      "bytes": 33808,
+      "sha256": "227e1ccabc3b9c876eb0013516387327dfe5285eebcb081e0486a3cf2042a928"
+    },
+    {
+      "id": "clothing.hat_sunhat",
+      "file": "clothing.hat_sunhat.png",
+      "bytes": 53731,
+      "sha256": "21c490e590b42e5e911a80389f7a47ada4a3cd4c7f265ddde8413efb28463ac7"
+    },
+    {
+      "id": "clothing.headacc_alienattena",
+      "file": "clothing.headacc_alienattena.png",
+      "bytes": 17096,
+      "sha256": "e7540e4df74b48e1546993cc4725f39578151c0e0206e1f7439fd7b90992f058"
+    },
+    {
+      "id": "clothing.headacc_devilhorns",
+      "file": "clothing.headacc_devilhorns.png",
+      "bytes": 17405,
+      "sha256": "8b3bce0827939e1be9ede609555bc0259ea87e1bb49f8faa4d36d0b1d425c915"
+    },
+    {
+      "id": "clothing.headacc_flufflesskittyears",
+      "file": "clothing.headacc_flufflesskittyears.png",
+      "bytes": 20129,
+      "sha256": "ed00222dd89fc9c71d3071531263836560efb360914be18991acfc6d1d0205b9"
+    },
+    {
+      "id": "clothing.headacc_kittyears",
+      "file": "clothing.headacc_kittyears.png",
+      "bytes": 21486,
+      "sha256": "26caad89930116d940d8be88691b658bfdafc5a2ac1a0b5f5d3bbad11f2136d3"
+    },
+    {
+      "id": "clothing.leggings_stocking",
+      "file": "clothing.leggings_stocking.png",
+      "bytes": 28563,
+      "sha256": "fa54db64b8f5c11ae581e8c8e60b7f240d801a68f8ea47ebc160b8faf8d04150"
+    },
+    {
+      "id": "clothing.lowerface_sharpbeard",
+      "file": "clothing.lowerface_sharpbeard.png",
+      "bytes": 17384,
+      "sha256": "be92e584dae35629156e14d36afe25387a86e65d71f88a04c494e0b36750d003"
+    },
+    {
+      "id": "clothing.lowerface_sharpchin",
+      "file": "clothing.lowerface_sharpchin.png",
+      "bytes": 16063,
+      "sha256": "c977cc1d6346e59e5fe258851fc9bae761776b7904cbb1ac05dd5736c71f543c"
+    },
+    {
+      "id": "clothing.lowerface_sharpgoatee",
+      "file": "clothing.lowerface_sharpgoatee.png",
+      "bytes": 16361,
+      "sha256": "8414da36e3d440c9f9f03fe32a66948d39ccc9331399688a7a18db2a6f9d472e"
+    },
+    {
+      "id": "clothing.neck_ribbonbow",
+      "file": "clothing.neck_ribbonbow.png",
+      "bytes": 28790,
+      "sha256": "11cf70871275008fed7b113112606363206982a56f463459843b26c76fd6212d"
+    },
+    {
+      "id": "clothing.socks_anklesocks",
+      "file": "clothing.socks_anklesocks.png",
+      "bytes": 17674,
+      "sha256": "0f1599f4d629c863ec592fb859c84be0aec535eb10c9cc9929e569ccf0ce2af7"
+    },
+    {
+      "id": "clothing.socks_kneehighs",
+      "file": "clothing.socks_kneehighs.png",
+      "bytes": 10874,
+      "sha256": "19ab55e8ef0ebbb9473002f39024065934c848f971b4900d9f5cfa5b4bd4dffe"
+    },
+    {
+      "id": "clothing.socks_stripedkneehighs",
+      "file": "clothing.socks_stripedkneehighs.png",
+      "bytes": 10874,
+      "sha256": "19ab55e8ef0ebbb9473002f39024065934c848f971b4900d9f5cfa5b4bd4dffe"
+    },
+    {
+      "id": "clothing.socks_thighhigh",
+      "file": "clothing.socks_thighhigh.png",
+      "bytes": 12944,
+      "sha256": "f12754a033914a5d14e39a620b469f9edd80ed07c7335915eba5cd279ff846f5"
+    },
+    {
+      "id": "clothing.socks_thighhighsturrips",
+      "file": "clothing.socks_thighhighsturrips.png",
+      "bytes": 13848,
+      "sha256": "d0f14518882ef0caed3cc7535b5d7d3e94c008a6cc246d1ad5732783e9e1bcd1"
+    },
+    {
+      "id": "clothing.top_comfycartagan",
+      "file": "clothing.top_comfycartagan.png",
+      "bytes": 47483,
+      "sha256": "e208afc02112fd75e9d919bdf8d2c55dc8881d16c31b81053550f6f87d85859f"
+    },
+    {
+      "id": "clothing.top_dressshirt",
+      "file": "clothing.top_dressshirt.png",
+      "bytes": 38782,
+      "sha256": "c5b5a8e9e0ce5c91a35fb7ff176efc55b687125cd609b3cb773648552fa724f7"
+    },
+    {
+      "id": "clothing.top_fullsuit",
+      "file": "clothing.top_fullsuit.png",
+      "bytes": 46588,
+      "sha256": "9024dd211e36a30667ba6e3c330a4a48b64808fab8a2d64e81b53af6a56078e9"
+    },
+    {
+      "id": "clothing.top_hardjacket",
+      "file": "clothing.top_hardjacket.png",
+      "bytes": 53295,
+      "sha256": "46b6ad6499402f794008e3638503eca72d4549c2941b1e08dbbca9f5ca4cf1fe"
+    },
+    {
+      "id": "clothing.top_nagagi",
+      "file": "clothing.top_nagagi.png",
+      "bytes": 43646,
+      "sha256": "a8475af83079051d9083ca94406286d4221a74b627f281e61fc6aa2905ae5825"
+    },
+    {
+      "id": "clothing.top_openhoodie",
+      "file": "clothing.top_openhoodie.png",
+      "bytes": 51745,
+      "sha256": "3fc2df5b42094b3f46bf6168397fb8c367d43950efe36ef9efdad5423b8e79a7"
+    },
+    {
+      "id": "clothing.top_overall",
+      "file": "clothing.top_overall.png",
+      "bytes": 61201,
+      "sha256": "3efe4d59ffc21ad9309305f6cbb154a211fbc6b0b653ef37bec6e1a2ff4bfda6"
+    },
+    {
+      "id": "clothing.top_schoolboyjacket",
+      "file": "clothing.top_schoolboyjacket.png",
+      "bytes": 42169,
+      "sha256": "f5f6a31588c3c1d32d772b90888e63ec7dc09c3f46287c4f45b31f0df2b08837"
+    },
+    {
+      "id": "clothing.top_sefuku",
+      "file": "clothing.top_sefuku.png",
+      "bytes": 42621,
+      "sha256": "ef5c910809502569030cd126c2777e98d452996ac5ee070ebf2ccd6f4f14fb2b"
+    },
+    {
+      "id": "clothing.top_shortsleevedressshirt",
+      "file": "clothing.top_shortsleevedressshirt.png",
+      "bytes": 38616,
+      "sha256": "45b9e9663ac9c7b5bb1cda51177ad7450be551a6bf81175e7dfc224350e82934"
+    },
+    {
+      "id": "clothing.top_shortsleevesefuku",
+      "file": "clothing.top_shortsleevesefuku.png",
+      "bytes": 42423,
+      "sha256": "2a3965a366e217ccaaae3a7f6a4faea623edeb48a43be779a643d22a7d10462e"
+    },
+    {
+      "id": "clothing.top_shortsleevesweatervest",
+      "file": "clothing.top_shortsleevesweatervest.png",
+      "bytes": 34200,
+      "sha256": "905511b0daed40d86931ac4c87af55a677f641d1d4634e0136105cf865ccc5bf"
+    },
+    {
+      "id": "clothing.top_simplebandeau",
+      "file": "clothing.top_simplebandeau.png",
+      "bytes": 25772,
+      "sha256": "ec2d4bcb47cf74376312f07f848bb13216f4320c097ec6558226ef3ea60a4e60"
+    },
+    {
+      "id": "clothing.top_simplekimono",
+      "file": "clothing.top_simplekimono.png",
+      "bytes": 46174,
+      "sha256": "eb6c6d6fc9111d5cf388c5dd20e3c7c7cbe9f98533c79eead50dc63bdd7827b3"
+    },
+    {
+      "id": "clothing.top_simplesweater",
+      "file": "clothing.top_simplesweater.png",
+      "bytes": 42273,
+      "sha256": "5edb526ce1f756cf3d7e92da285c7018ffae0d0a7e9465e0cccb3c6d325965a4"
+    },
+    {
+      "id": "clothing.top_simplesweatervest",
+      "file": "clothing.top_simplesweatervest.png",
+      "bytes": 35075,
+      "sha256": "5259fe9caa33b392f373752c65058687522ffc259ec5f09dc50ce6adda065b64"
+    },
+    {
+      "id": "clothing.top_sleevelessdressshirt",
+      "file": "clothing.top_sleevelessdressshirt.png",
+      "bytes": 41127,
+      "sha256": "1312eeac72606f10e5140687f2152b3e11881a65b5a28a384cb8c3432721867a"
+    },
+    {
+      "id": "clothing.top_smartdress",
+      "file": "clothing.top_smartdress.png",
+      "bytes": 40887,
+      "sha256": "e926fc142f2c1aa5c407f6bcfe04db10875d709c6a6c4f80ec026db4294147d7"
+    },
+    {
+      "id": "clothing.top_straplesstubetop",
+      "file": "clothing.top_straplesstubetop.png",
+      "bytes": 31199,
+      "sha256": "34aa33d24828ff8695300f63a10a3f486d9072bb0c5b3a0f94c82528d62871e1"
+    },
+    {
+      "id": "clothing.top_sundress",
+      "file": "clothing.top_sundress.png",
+      "bytes": 27884,
+      "sha256": "1ef9c4f0a6c2bacf5c0aa9726b95ac27ee2bb62b7818e030e0617730c60410a1"
+    },
+    {
+      "id": "clothing.top_thickhenslay",
+      "file": "clothing.top_thickhenslay.png",
+      "bytes": 40382,
+      "sha256": "2e96d4f701209f3c807e00de7ef207acbd76c9e3e9351645486b2a2e82857db4"
+    },
+    {
+      "id": "clothing.upperface_medicaleyepatch",
+      "file": "clothing.upperface_medicaleyepatch.png",
+      "bytes": 16722,
+      "sha256": "abdc9d15cb552e74358bc2c283584e9cf664181f34d6060081dfaa163842ac1c"
+    },
+    {
+      "id": "clothing.upperface_roundglasses",
+      "file": "clothing.upperface_roundglasses.png",
+      "bytes": 20555,
+      "sha256": "f9ef42af9318ca8d8bb5fb0b1d5a1f70db7bb197415594ecc8c48d3710c97e1f"
+    },
+    {
+      "id": "clothing.upperface_roundglasseslens",
+      "file": "clothing.upperface_roundglasseslens.png",
+      "bytes": 26284,
+      "sha256": "099787bdebe0f1c946c00cf21d97f4ed49bf23fc51f07cd32517fe8bfe20db50"
+    },
+    {
+      "id": "clothing.upperface_simpleglasses",
+      "file": "clothing.upperface_simpleglasses.png",
+      "bytes": 19327,
+      "sha256": "12b40decf5e286ac31d3995b101527f73d4d3cc0f161c77023487f1de09d8430"
+    },
+    {
+      "id": "clothing.upperface_simplehalfmoon",
+      "file": "clothing.upperface_simplehalfmoon.png",
+      "bytes": 15536,
+      "sha256": "0a6fdd3fff85f60e474978fe48a452f29350f07ad73966ee30459f71e677ee33"
+    },
+    {
+      "id": "item.arena_pass",
+      "file": "item.arena_pass.png",
+      "bytes": 73786,
+      "sha256": "9159b0603a4fde87dd62f6e00cddeadca0e4e20114cfce799377a0036f445f27"
+    },
+    {
+      "id": "item.rank_skip",
+      "file": "item.rank_skip.png",
+      "bytes": 67399,
+      "sha256": "667edbbcc24c856b7d1a87adac15b523c3f1452646d152f684ef382c697c1726"
+    },
+    {
+      "id": "item_blueprint_fragment",
+      "file": "item_blueprint_fragment.png",
+      "bytes": 1067712,
+      "sha256": "ee93a3eb51867e17ac835d1c59d2664f76f7d186e9662e58dbaac098008e9d18"
+    },
+    {
+      "id": "item_bond_catalyst",
+      "file": "item_bond_catalyst.png",
+      "bytes": 1167037,
+      "sha256": "5c45cce6008b569b1cc58129f3e17ed293c9a0ff4364ad01f73034aa7ae2c745"
+    },
+    {
+      "id": "item_emergency_patch",
+      "file": "item_emergency_patch.png",
+      "bytes": 1759711,
+      "sha256": "e4d452b39ac744bdf8ecf89a53fc74f31ed9829033c68eb5034647537271b5db"
+    },
+    {
+      "id": "item_energy_refill",
+      "file": "item_energy_refill.png",
+      "bytes": 1354869,
+      "sha256": "f50d7f87c9c37e13cd6ad6500bd6626a79969e23aaa3fd0a2ad90417d40a2055"
+    },
+    {
+      "id": "item_focus_module",
+      "file": "item_focus_module.png",
+      "bytes": 932452,
+      "sha256": "670c2c4aaacfa75882cab48233a8303d238a7f157d5b39024e46c251efbbdb36"
+    },
+    {
+      "id": "item_guard_module",
+      "file": "item_guard_module.png",
+      "bytes": 877912,
+      "sha256": "407cf87265e76c795511500c2ac5900f64a95bd61e9f619df8cebedb76c9c10e"
+    },
+    {
+      "id": "item_holo_pack",
+      "file": "item_holo_pack.png",
+      "bytes": 1333673,
+      "sha256": "32fbf76722a4571c06f2a8ba43e98e201d7e385078d48b0a74da2c12a63448d3"
+    },
+    {
+      "id": "item_holos_chip",
+      "file": "item_holos_chip.png",
+      "bytes": 1601536,
+      "sha256": "161d9f40b19a9ca7a6240883b0ff34c7c6ff03df540db0b9407733460a604d98"
+    },
+    {
+      "id": "item_market_booster",
+      "file": "item_market_booster.png",
+      "bytes": 1089975,
+      "sha256": "51c9e108aabee39fe577a092301a2f53b7e539fafccaddd7ac448ff4aa7c853b"
+    },
+    {
+      "id": "item_power_module",
+      "file": "item_power_module.png",
+      "bytes": 1333347,
+      "sha256": "297e8cf52f6b35d0d501bf12657f4586f5b3b58e2878aa02d905380fcb1780a5"
+    },
+    {
+      "id": "item_speed_module",
+      "file": "item_speed_module.png",
+      "bytes": 845223,
+      "sha256": "5b95b9243f6d4fd38911b51507a554fe2286468d74d862d439503db51afaf2e1"
+    },
+    {
+      "id": "item_sync_shard",
+      "file": "item_sync_shard.png",
+      "bytes": 1026244,
+      "sha256": "cf015f5a946d929d41f567d383cba8f1078c10ce8b8677f46dc4567c0e5e38b5"
+    },
+    {
+      "id": "item_training_booster",
+      "file": "item_training_booster.png",
+      "bytes": 1369408,
+      "sha256": "f2a2c226135e85506a172f271629e498739645a40fca36604704c4cbd407480c"
+    },
+    {
+      "id": "part.alloyChassis",
+      "file": "part.alloyChassis.png",
+      "bytes": 78685,
+      "sha256": "750c07e2861ac15b7097c8379e12e6e7cb2815e72e48306a4267dbf93396f777"
+    },
+    {
+      "id": "part.boxerGloves",
+      "file": "part.boxerGloves.png",
+      "bytes": 76632,
+      "sha256": "1fff2c2bc6f3bb67c2bdf90d0fde36ada9210e13b4a28f2f53228bf8a52ba2fa"
+    },
+    {
+      "id": "part.combatMask",
+      "file": "part.combatMask.png",
+      "bytes": 76680,
+      "sha256": "bedff78857be998dbf9c33671c545595ce61e5d048bce602a4af091dcc46b90a"
+    },
+    {
+      "id": "part.energyCore",
+      "file": "part.energyCore.png",
+      "bytes": 61988,
+      "sha256": "ad12102ca1e055ac0c99636b040434a8de6697cb98ed5d0975b388abef881e43"
+    },
+    {
+      "id": "part.infernoClaws",
+      "file": "part.infernoClaws.png",
+      "bytes": 58743,
+      "sha256": "1059daacb1bf32d0b8165058702321839b3301c7e95b5bc4a015e858c99e814b"
+    },
+    {
+      "id": "part.plasmaCannon",
+      "file": "part.plasmaCannon.png",
+      "bytes": 63793,
+      "sha256": "adcc908dcdb78cea228556c090ed9c7dd31312fc5484a8524c641f18442ccf60"
+    },
+    {
+      "id": "part.quantumCore",
+      "file": "part.quantumCore.png",
+      "bytes": 89232,
+      "sha256": "6cc786de26e8ec9a27cf61aea775a5f2cc967e8be7737673b3b6365358d28ed1"
+    },
+    {
+      "id": "part.reinforcedChassis",
+      "file": "part.reinforcedChassis.png",
+      "bytes": 70081,
+      "sha256": "2056f2025fdf57dedda3e3d7d243c1b8db8a90783a0ba3331657e838bea259db"
+    },
+    {
+      "id": "part.voidMask",
+      "file": "part.voidMask.png",
+      "bytes": 75335,
+      "sha256": "2f6a478f84341ca295f32b0a5f2e94683bbe2216eee72a6fc71c0d584cbc3af5"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+wolf: 0.799 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+kuma: 0.944 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+ken: 0.991 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+tsuin: 0.852 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+hare: 1.681 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+shadow: 0.906 MB, 8 clips, 38 native-decoded buffers, skin+textures OK
+wake: 0.904 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+tora: 1.017 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+gama: 1.144 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+kurai: 0.822 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+era: 1.054 MB, 7 clips, 10 native-decoded buffers, skin+textures OK
+ace: 0.989 MB, 8 clips, 10 native-decoded buffers, skin+textures OK
+PASS: 12 bots, 148 identical pure-JS/WASM buffers, 12.102 MB total

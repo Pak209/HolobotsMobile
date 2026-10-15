@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -70,7 +71,7 @@ export function Minimap({ map, player }: MinimapProps) {
             <Circle cx={CENTER} cy={CENTER} r={RING_R - 2} />
           </ClipPath>
         </Defs>
-        <Circle cx={CENTER} cy={CENTER} fill="rgba(5,6,6,0.55)" r={RING_R} stroke="#17d9ff" strokeWidth={1.5} />
+        <Circle cx={CENTER} cy={CENTER} fill="rgba(5,6,6,0.55)" r={RING_R} stroke={theme.colors.accent} strokeWidth={1.5} />
         {view && map ? (
           <G clipPath="url(#minimap-clip)">
             {view.rects.map((rect) => (
@@ -84,15 +85,15 @@ export function Minimap({ map, player }: MinimapProps) {
               />
             ))}
             {map.pois.map((poi) => (
-              <Circle cx={view.toX(poi.x)} cy={view.toY(poi.y)} fill="#17d9ff" key={poi.id} r={2.2} />
+              <Circle cx={view.toX(poi.x)} cy={view.toY(poi.y)} fill={theme.colors.accent} key={poi.id} r={2.2} />
             ))}
             {player ? (
               <Polygon
-                fill="#f0bf14"
+                fill={theme.colors.accent}
                 origin={`${view.toX(player.x)}, ${view.toY(player.y)}`}
                 points={arrowPoints(view.toX(player.x), view.toY(player.y))}
                 rotation={FACING_DEG[player.facing]}
-                stroke="#050606"
+                stroke={theme.colors.carbon}
                 strokeWidth={0.6}
               />
             ) : null}

@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -587,7 +588,7 @@ export function ArenaScreen() {
 
       {isStartingBattle ? (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#f0bf14" />
+          <ActivityIndicator size="large" color={theme.colors.accent} />
         </View>
       ) : null}
 
@@ -605,8 +606,8 @@ const styles = StyleSheet.create({
   // column — the old top-right spot covered the CPU's name and HP.
   pauseButton: {
     alignItems: "center",
-    backgroundColor: "#0b0d13",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.accent,
     borderRadius: 20,
     borderWidth: 2,
     height: 40,
@@ -619,18 +620,20 @@ const styles = StyleSheet.create({
     zIndex: 40,
   },
   pauseButtonGlyph: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
     fontSize: 18,
   },
   pauseCard: {
-    backgroundColor: "#0b0d13",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.accent,
     borderWidth: 2,
     padding: 22,
     width: "80%",
   },
   pauseEyebrow: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 2,
@@ -648,32 +651,35 @@ const styles = StyleSheet.create({
   },
   pausePrimaryButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     marginTop: 18,
     paddingVertical: 13,
   },
   pausePrimaryText: {
-    color: "#07080d",
-    fontSize: 14,
+    color: theme.plates.navy,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
   pauseSecondaryButton: {
     alignItems: "center",
-    borderColor: "#3a3f4b",
+    borderColor: theme.colors.border,
     borderWidth: 1,
     marginTop: 10,
     paddingVertical: 13,
   },
   pauseSecondaryText: {
-    color: "#b7bdc9",
-    fontSize: 14,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
   pauseTitle: {
-    color: "#ffffff",
-    fontSize: 22,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.header.fontSize,
     fontWeight: "900",
     marginTop: 4,
   },
@@ -688,7 +694,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   page: {
-    backgroundColor: "#050606",
+    backgroundColor: theme.colors.carbon,
     flex: 1,
   },
 });
