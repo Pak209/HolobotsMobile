@@ -1,5 +1,7 @@
 # W7 — mobile-city-hub-1
 
+Shared draft PR: [#87 — HoloCity lite](https://github.com/Pak209/HolobotsMobile/pull/87), `mobile-holocity-lite` → `main`. Left unmerged; CI results are attached to that PR.
+
 The native City hub presents six districts, eight host-served citizen pilots, story gates, workshop healing/crafting, and a playable citizen duel followed by a 3D replay. It shares the Carbon/cyan HUD tokens and the six slot-ring colors with W5.
 
 ## Source and navigation
