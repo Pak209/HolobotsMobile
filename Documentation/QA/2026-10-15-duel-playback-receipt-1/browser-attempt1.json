@@ -1,0 +1,17 @@
+{
+  "logs": [
+    {
+      "type": "warning",
+      "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+    },
+    {
+      "type": "pageerror",
+      "text": "_Image.default.resolveAssetSource is not a function"
+    },
+    {
+      "type": "warning",
+      "text": "%s\n\n%s\n An error occurred in the <FighterHud> component. Consider adding an error boundary to your tree to customize error handling behavior.\nVisit https://react.dev/link/error-boundaries to learn more about error boundaries."
+    }
+  ],
+  "blockedNetwork": []
+}

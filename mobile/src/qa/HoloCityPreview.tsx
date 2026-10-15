@@ -29,6 +29,7 @@ import { BOT_ASSETS } from "../../assets/bots";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { previewProfile, previewLeaderboard } from "./previewProfile";
 import { DUEL_PREVIEW_RECEIPT } from "./duelFixture";
+import hostDuelFixture from "./fixtures/duel-receipt-1.json";
 
 const Tab = createBottomTabNavigator();
 const noop = () => {};
@@ -48,6 +49,10 @@ function HomePreview() {
   return <HomeScreen rivalPreview={rivalPreview} />;
 }
 function DuelPreview() { return <DuelPlaybackScreen fixture receipt={DUEL_PREVIEW_RECEIPT} onClose={noop} showMetrics />; }
+function HostDuelPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelFixture.receipt} onClose={noop} />; }
+const hostDuelCaptureScreens = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [
+  `HostDuelRound${i + 1}`, function HostRoundPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelFixture.receipt} onClose={noop} captureRound={i + 1} />; },
+]));
 function ReceiptPreview() { return <DuelPlaybackScreen fixture receipt={{ issue: { battleId: "offline-result-only", playerCombatants: [{ holobotId: "ace" }], encounter: { opponentSquad: [{ holobotId: "wolf" }] } }, settlement: DUEL_PREVIEW_RECEIPT.settlement }} onClose={noop} />; }
 const duelCaptureScreens = Object.fromEntries([1, 2, 3].map(round => [`DuelRound${round}`, function RoundPreview() {
   return <DuelPlaybackScreen fixture receipt={DUEL_PREVIEW_RECEIPT} onClose={noop} showMetrics captureRound={round} />;
@@ -78,6 +83,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ...botScreens,
   CityHub: CityPreview,
   ...cityScreens,
+  HostDuel: HostDuelPreview, ...hostDuelCaptureScreens,
   Duel: DuelPreview, DuelReceipt: ReceiptPreview, ...duelCaptureScreens,
   CityBattle: CityBattlePreview, RivalEntry: RivalEntryPreview,
 };

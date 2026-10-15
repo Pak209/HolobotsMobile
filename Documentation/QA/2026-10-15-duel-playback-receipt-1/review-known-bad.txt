@@ -1,0 +1,64 @@
+
+ RUN  v3.2.7 /private/tmp/holobots-duel-playback-receipt-1/mobile
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts (17 tests | 2 failed | 15 skipped) 3ms
+   ↓ W10 duel-receipt-1 playback > known-bad first: uses all16 host actions/8 rounds and winner instead of contrary didWin/client trace
+   ↓ W10 duel-receipt-1 playback > accepts direct receipt, callable data envelope and nested settle
+   ↓ W10 duel-receipt-1 playback > copies recorded resources without inventing regen or reconstructing initial HP
+   ↓ W10 duel-receipt-1 playback > uses host move aliases, no attacking or hit reaction for refused actions
+   ↓ W10 duel-receipt-1 playback > does not mutate host data or allow final HP to determine winner
+   ↓ W10 duel-receipt-1 playback > fails closed for invalid damage, never falls back to didWin
+   ↓ W10 duel-receipt-1 playback > fails closed for invalid staAfter, never falls back to didWin
+   ↓ W10 duel-receipt-1 playback > fails closed for invalid defenderHpAfter, never falls back to didWin
+   ↓ W10 duel-receipt-1 playback > fails closed for invalid syncAfter, never falls back to didWin
+   ↓ W10 duel-receipt-1 playback > fails closed for malformed winner
+   ↓ W10 duel-receipt-1 playback > fails closed for malformed schemaVersion
+   ↓ W10 duel-receipt-1 playback > fails closed for malformed playerFinal
+   ↓ W10 duel-receipt-1 playback > fails closed for malformed rounds
+   ↓ W10 duel-receipt-1 playback > rejects out-of-order and duplicate side rows, foreign fighters, and damaging waits
+   ↓ W10 duel-receipt-1 playback > does not truncate the120-turn/240-action host contract at the old200-row client bound
+   × review: explicit null host receipt cannot use client rounds, rewards or didWin 3ms
+     → expected undefined to be truthy
+   × review: every host turn needs both sides, including a knocked-out wait 0ms
+     → expected undefined to be truthy
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > review: explicit null host receipt cannot use client rounds, rewards or didWin
+AssertionError: expected undefined to be truthy
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:52:104
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > review: every host turn needs both sides, including a knocked-out wait
+AssertionError: expected undefined to be truthy
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:55:183
+     53| });
+     54| it('review: every host turn needs both sides, including a knocked-out …
+     55|  for(const rounds of [fixture.receipt.rounds.slice(0,-1),fixture.recei…
+       |                                                                                                                                                                                       ^
+     56| });
+     57|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 skipped (17)
+   Start at  23:57:50
+   Duration  199ms (transform 24ms, setup 0ms, collect 25ms, tests 3ms, environment 0ms, prepare 29ms)
