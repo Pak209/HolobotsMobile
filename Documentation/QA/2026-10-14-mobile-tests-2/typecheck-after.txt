@@ -1,0 +1,6 @@
+
+> holobots-mobile@0.1.0 typecheck
+> tsc --noEmit
+
+
+WALL_SECONDS=51.175

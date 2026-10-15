@@ -4,7 +4,7 @@ PR #83 follow-up, 2026-10-14. No runtime code or timeout change.
 
 ## Known bad first
 
-The unchanged Arena full-grid parity test reproduced the existing 5000 ms timeout at **13642 ms**, with 7 other tests passing. Command: `cd mobile && npm test -- src/lib/__tests__/battleSettlementParity.test.ts --maxWorkers=1 --reporter=verbose`. Process wall time 47.406 s; 180 s cap. See `grid-before.log`.
+The unchanged Arena full-grid parity test reproduced the existing 5000 ms timeout at **13642 ms**, with 7 other tests passing. Command: `cd mobile && npm test -- src/lib/__tests__/battleSettlementParity.test.ts --maxWorkers=1 --reporter=verbose`. Process wall time 47.406 s; 180 s cap. See `grid-before.txt`.
 
 ## Cause and correction
 

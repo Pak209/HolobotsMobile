@@ -1,0 +1,41 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run src/lib/__tests__/battleSettlementParity.test.ts --maxWorkers=1 --reporter=verbose
+
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-1/mobile
+
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts > battleSettlement byte-identical pair > mobile and functions copies are byte-identical 1ms
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts > battleSettlement byte-identical pair > client and server agree for every kind, tier, outcome and count 3043ms
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts > one table for every battle kind (DECISIONS #53-1) > published numbers: win 95/137/180/223, loss 28/41/54/66 at tiers 0-3 97ms
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts > one table for every battle kind (DECISIONS #53-1) > kind never changes the numbers 254ms
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts > one table for every battle kind (DECISIONS #53-1) > unknown kinds are refused; bad tiers read as tier 0 0ms
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts > one table for every battle kind (DECISIONS #53-1) > EXP Booster doubles only while the window is open 0ms
+ × src/lib/__tests__/battleSettlementParity.test.ts > arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid 13642ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts > arena settlement unchanged by the extraction > base rewards equal the pre-extraction formula for every tier and an unknown tier 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/battleSettlementParity.test.ts > arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/lib/__tests__/battleSettlementParity.test.ts:171:3
+    169| 
+    170| describe("arena settlement unchanged by the extraction", () => {
+    171|   it("client and server computeArenaSettlement equal the pre-extractio…
+       |   ^
+    172|     const grid = arenaGrid();
+    173|     expect(grid.length).toBeGreaterThan(5000);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  23:06:34
+   Duration  24.69s (transform 1.95s, setup 0ms, collect 2.45s, tests 17.31s, environment 0ms, prepare 1.75s)
+
+
+WALL_SECONDS=47.404
