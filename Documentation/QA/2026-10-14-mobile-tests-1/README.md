@@ -53,3 +53,7 @@ Commands: `npm --prefix mobile test` and `npm --prefix mobile run typecheck`. Th
 5. Host-backed parity tests are not full callable/emulator tests and do not validate an absent mobile transport/error-mapping layer. They preserve existing 5-minute rival cooldown values; W1's zone cooldown/CPU retune is outside this branch.
 
 All unrelated holds remain in place. No production account was read or written.
+
+## W12 follow-up
+
+The Arena timeout hold is resolved by the bounded exhaustive grid in [mobile-tests-2](../2026-10-14-mobile-tests-2/README.md): 575 passed, 0 failed, 1 existing skip; typecheck green. Historical failure logs above remain intact. Missing production consumers move to a separate W12 PR.
