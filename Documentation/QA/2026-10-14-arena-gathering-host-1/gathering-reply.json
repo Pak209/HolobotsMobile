@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "arena-gathering-1",
+  "roster": [
+    {
+      "citizenId": "CV1_HB_CITIZEN3_StallLinen_13",
+      "pilotName": "Stall Linen",
+      "holobotId": "tsuin",
+      "rank": "Rookie",
+      "ringColor": "#2FE6FF"
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+      "pilotName": "Campus Magenta",
+      "holobotId": "shadow",
+      "rank": "Rookie",
+      "ringColor": "#7CFF4F"
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN3_MarketMagenta_03",
+      "pilotName": "Market Magenta",
+      "holobotId": "wake",
+      "rank": "Rookie",
+      "ringColor": "#B07CFF"
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN1_HarbourSlate_11",
+      "pilotName": "Harbour Slate",
+      "holobotId": "shadow",
+      "rank": "Rookie",
+      "ringColor": "#FF7A1A"
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN4_HiVisAmber_12",
+      "pilotName": "Hi Vis Amber",
+      "holobotId": "gama",
+      "rank": "Rookie",
+      "ringColor": "#FF3D8B"
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN5_MarketAmber_05",
+      "pilotName": "Market Amber",
+      "holobotId": "kuma",
+      "rank": "Rookie",
+      "ringColor": "#FFD21A"
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN2_CampusAmber_04",
+      "pilotName": "Campus Amber",
+      "holobotId": "ken",
+      "rank": "Rookie",
+      "ringColor": "#2FE6FF"
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN1_LineCyan_06",
+      "pilotName": "Line Cyan",
+      "holobotId": "ace",
+      "rank": "Rookie",
+      "ringColor": "#7CFF4F"
+    }
+  ],
+  "storyFlags": {
+    "arenaGatheringSeen": true,
+    "tournamentsWon": 0,
+    "arenaArcBuilt": false,
+    "holoZonesArcBuilt": false
+  }
+}

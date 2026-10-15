@@ -1,3 +1,5 @@
+import { tournamentAdmission, tournamentIndex, tournamentLevel, ARENA_TOURNAMENT_SCHEMA } from '../story/arenaTournament';
+import { StoryError } from '../story/storyFlags';
 /** Durable economy/HP receipts for the client-observed CPU practice sim (#56/#58).
  * This binds admission and settlement; it does NOT prove the simulated combat happened.
  * The account parent is a transactionally shared lease; child receipts never use TTL cleanup.
@@ -29,7 +31,7 @@ const fail = (code: string): never => { throw new ArenaError(code); };
 function command(raw: unknown): Command {
   if (!object(raw) || raw.schemaVersion !== ARENA_MATCH_SCHEMA) return fail('invalid_request');
   const fields: Record<string, string[]> = {
-    issue: ['requestId','tierId','paymentMethod','holobotId','opponentName'],
+    issue: ['requestId','tierId','paymentMethod','holobotId','opponentName','tournamentId'],
     start: ['matchId'], resume: ['matchId'], cancel: ['matchId','playerFinalHealth'],
     settle: ['matchId','playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses'],
   };
@@ -39,6 +41,9 @@ function command(raw: unknown): Command {
       || typeof raw.holobotId !== 'string' || !/^[a-z][a-z0-9_]{0,39}$/.test(raw.holobotId)
       || typeof raw.tierId !== 'string' || !getArenaTier(raw.tierId)
       || !['pass','tokens'].includes(raw.paymentMethod) || typeof raw.opponentName !== 'string') return fail('invalid_request');
+    if (raw.tournamentId !== undefined) {
+      try { tournamentIndex(raw.tournamentId); } catch { return fail('invalid_request'); }
+    }
     const tier = getArenaTier(raw.tierId)!;
     const pool = tier.id === 'rookie' ? [...tier.opponentPool,'KUMA','SHADOW'] : [...tier.opponentPool];
     if (!pool.includes(raw.opponentName)) return fail('invalid_request');
@@ -64,6 +69,12 @@ function match(raw: unknown, id: string): Match {
     || !whole(raw.issuedAtMs) || !whole(raw.expiresAtMs) || raw.expiresAtMs <= raw.issuedAtMs
     || typeof raw.tierId !== 'string' || !getArenaTier(raw.tierId)
     || !object(raw.entrant) || !object(raw.opponent) || !object(raw.entryReceipt) || !object(raw.rules)) return fail('unavailable');
+  if (raw.tournament !== undefined) {
+    const t = raw.tournament;
+    if (!object(t) || t.schemaVersion !== ARENA_TOURNAMENT_SCHEMA || !whole(raw.entrant.level) || raw.entrant.level < 1) return fail('unavailable');
+    try { if (t.requiredLevel !== tournamentLevel(t.tournamentId)) return fail('unavailable'); }
+    catch { return fail('unavailable'); }
+  }
   assertFiniteTree(raw);
   const entrant = raw.entrant, opponent = raw.opponent, entry = raw.entryReceipt, rules = raw.rules;
   const health = (n: unknown, max: number) => finite(n) && n >= 0 && n <= max;
@@ -193,7 +204,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
   if (!whole(nowMs)) return fail('invalid_request');
   const generatedId = `am_${randomBytes(16).toString('hex')}`; // Stable across transaction retries.
   const parentRef = firestore.doc(`arenaMatches/${uid}`), userRef = firestore.doc(`users/${uid}`);
-  const identity = c.operation === 'issue' ? createHash('sha256').update(JSON.stringify([c.tierId,c.paymentMethod,c.holobotId,c.opponentName])).digest('hex') : '';
+  const identity = c.operation === 'issue' ? createHash('sha256').update(JSON.stringify([c.tierId,c.paymentMethod,c.holobotId,c.opponentName,...(c.tournamentId === undefined ? [] : [c.tournamentId])])).digest('hex') : '';
   try {
     return await firestore.runTransaction(async tx => {
       const userSnap = await tx.get(userRef);
@@ -219,6 +230,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const owned = uniqueEntrant(profile,c.holobotId);
         requireLivingVitals(profile,[c.holobotId]); // Validates the whole ledger; NEVER invoke city 40% revival.
         const player = buildPlayerCombatants(profile,[c.holobotId])[0];
+        const tournament = c.tournamentId === undefined ? undefined : tournamentAdmission(profile.storyFlags,c.tournamentId,player?.level);
         if (!player || !finite(player.maxHealth) || player.maxHealth <= 0) return fail('unavailable');
         const current = profile.holobotVitals?.[c.holobotId];
         const hp = current ? Math.min(current.currentHealth,player.maxHealth) : player.maxHealth;
@@ -236,7 +248,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           entrant:{...player,name:owned.name,currentHealth:hp},opponent:{...opponentStats,name:c.opponentName},
           entryReceipt:{matchId:generatedId,method:c.paymentMethod,amount,balanceBefore:before,balanceAfter:before-amount,chargedAtMs:nowMs},
           rules:{version:'arena-economy-legacy-1',entryFeeHolos:tier.entryFeeHolos,...getArenaBaseRewards(tier),blueprints:getArenaBlueprintAmount(tier),comboBonus:BATTLE_COMBO_BONUS,perfectDefenseBonus:BATTLE_PERFECT_DEFENSE_BONUS,lossExpFraction:BATTLE_LOSS_EXP_FRACTION,lossSyncFraction:BATTLE_LOSS_SYNC_FRACTION,maxPerformanceEvents:MAX_PERFORMANCE_EVENTS,expBoosterMultiplier:EXP_BOOSTER_MULTIPLIER},
-          settlementReceipt:null,
+          settlementReceipt:null,...(tournament ? {tournament} : {}),
         };
         match(m,generatedId);
         tx.update(userRef,{[field]:before-amount,holobotVitals:vitals});
@@ -308,8 +320,12 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       return reply(next);
     });
   } catch (e) {
+    if (e instanceof StoryError) throw new ArenaError(e.code);
     if (e instanceof HealthError) throw new ArenaError(e.message === 'holobot_ko' ? 'holobot_ko' : e.message === 'invalid_request' ? 'invalid_request' : 'unavailable');
     if (e instanceof ActivityError || e instanceof RivalError || e instanceof HoloZoneError) throw new ArenaError('unavailable');
     throw e;
   }
 }
+
+/** Validates the immutable admission and terminal receipt before story progression trusts them. */
+export { match as readArenaMatchRecord };

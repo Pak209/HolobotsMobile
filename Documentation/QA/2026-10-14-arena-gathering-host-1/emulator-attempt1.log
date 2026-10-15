@@ -1,0 +1,147 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-arena-gathering", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: downloading cloud-firestore-emulator-v1.19.8.jar...
+
+i  firestore: Removing outdated emulator files: cloud-firestore-emulator-v1.21.0.jar
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test functions/scripts/test-arena-gathering-emulator.mjs functions/scripts/test-desktop-account-emulator.mjs functions/scripts/test-arena-match-emulator.mjs functions/scripts/test-rival-battle-emulator.mjs
+✔ known-bad input first: arbitrary client victory, rank, or count cannot flip story gates (582.87075ms)
+✔ desktop versions lazily backfill defaults and return the identical four story fields (29.997916ms)
+✔ gathering yields eight stable CV1 pilots from all twelve bots and the exact ring palette; concurrent and later calls are idempotent (3395.228875ms)
+✔ callable auth and strict gathering/tournament input refusals (64.2075ms)
+✔ malformed story state fails closed; partial absent fields default without resetting existing progress (171.825208ms)
+✔ all eight roster citizens issue their assigned bot, retain 100/25 rewards and settle replay, and use the same 5-minute cooldown (402.98875ms)
+✔ citizen rival refuses before gathering, a non-roster citizen, foreign ids, wrong schemas and operations (81.665833ms)
+✔ rank thresholds 2/11/21 are enforced at admission without spending an entry; sequence cannot be skipped (136.899083ms)
+✔ three distinct tagged wins at exact boundaries flip only Arena; duplicate and concurrent results never advance twice (9659.438833ms)
+✔ foreign, ordinary practice, wrong tournament and unfinished receipts cannot qualify (89.671125ms)
+✔ loss and malformed host receipts fail closed; low admission level and corrupted tags refuse (70.626333ms)
+✔ admission request replay preserves its tag and rejects changing a practice request into a tournament (41.562708ms)
+[2026-10-15T03:51:15.779Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c80 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.798Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c81 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L194, false for 'create' @ L359, evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'create' @ L194, false for 'create' @ L359
+[2026-10-15T03:51:15.816Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c82 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.824Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c83 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.832Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c84 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.839Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c85 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.846Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c86 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.851Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c87 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.858Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c88 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L194, false for 'create' @ L359, evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T03:51:15.862Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c89 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L216, false for 'delete' @ L359
+[2026-10-15T03:51:15.905Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x2ba43c8a error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L349, false for 'create' @ L359, false for 'update' @ L349, false for 'update' @ L359
+✔ rules deny client story creation, nested edits, replacement, deletion, foreign reads and forged match receipts; unchanged merges work (428.342125ms)
+✔ KNOWN-BAD exact old callable: unpaid settlement mints 100 Holos and a win (632.071833ms)
+✔ KNOWN-BAD exact old callable: client IDs A → B → A pay all three times (38.520833ms)
+✔ KNOWN-BAD exact old callable: lost entry reply and retry charge twice (19.248ms)
+✔ candidate legacy entry and unissued payout requests fail closed without partial writes (157.044833ms)
+✔ five concurrent duplicate issue requests create one server match and debit once (3615.841458ms)
+✔ pass entry debits one pass and cannot substitute a different payment under the same request key (88.858833ms)
+✔ invalid issue identities, affordability, KO and malformed vitals never debit or create a lease (601.871083ms)
+✔ Arena lease blocks every Rival issue version with health flag on and off (794.997792ms)
+✔ Arena lease blocks every Zone issue version with health flag on and off (303.123291ms)
+✔ preexisting Rival and Zone records block Arena before debit, regardless of health flag (226.169125ms)
+✔ repair during open Arena never consumes inventory, heals, or writes a receipt (58.470458ms)
+✔ valid issue binds cost, entrant and opponent; start/settle writes stable receipt and downward HP (46.80225ms)
+✔ five concurrent settlements award once and every retry returns the durable receipt (3097.741709ms)
+✔ paid A → paid B → A replay cannot repay A, overwrite B lease, or erase A receipt (131.230791ms)
+✔ settlement requires started server match, owner, minimum elapsed time and original binding (462.818542ms)
+✔ negative, inflated, nonfinite, ambiguous terminal and overbound performance reports write nothing (741.461542ms)
+✔ settlement preserves lower persistent HP and never duplicates XP onto another owned species (37.141708ms)
+✔ loss persists KO without Arena recovery; next issue refuses until an explicit repair (113.755083ms)
+✔ lost issue/start replies recover one paid match; repeated resume is read-only (85.69975ms)
+✔ unstarted cancellation refunds the original token/pass once and receipt survives retries (7032.497541ms)
+✔ started cancellation requires downward HP, gives no refund/reward, and closes once (349.526083ms)
+✔ expired unresolved match remains leased until explicit cancellation, with no timeout healing (1357.716ms)
+✔ distinct Arena request IDs racing cannot double-debit or create overlapping matches (3190.396583ms)
+R4 emulator transport retry 1: zone, health=true, losing=Arena; same uid/body/time; activity_conflict and zero writes verified
+✔ Arena issue races against Rival and Zone admit exactly one activity for both health modes (14946.761083ms)
+✔ Arena issue versus repair is serializable: repaired snapshot or untouched stock on refusal (12335.50325ms)
+✔ cancel versus start cannot both refund and begin a playable match (8914.675958ms)
+✔ settle versus cancel commits one terminal ruling, payout and HP result (9530.673584ms)
+✔ late first Rival/Zone settlement cannot mutate health or rewards during an Arena lease (330.361959ms)
+✔ previously settled Rival/Zone and consumed-item receipt replays stay read-only during Arena (217.583875ms)
+✔ malformed Arena lease fails closed across Arena, Rival, Zone and repair (700.219166ms)
+✔ operation arrays, objects, null and missing schema cannot coerce into a lifecycle operation (417.238083ms)
+✔ Arena callable authenticates every lifecycle entrypoint and closes both old anonymous bypasses (34.529167ms)
+✔ admission numeric quote remains binding after a later tier fee/reward table change (32.99825ms)
+✔ minimum elapsed and performance upper bounds accept their exact legal boundary (70.5915ms)
+✔ corrupted persisted quote, charge binding, entrant, opponent or timestamps fail closed before writes (2341.824ms)
+✔ malformed current entrant progression fails before the XP loop or any settlement write (914.311542ms)
+✔ altered valid-shaped terminal report replays the original ruling without touching a newer lease (105.36425ms)
+✔ fresh-client resume without IDs discovers absent, open, expired and latest terminal match read-only (659.024167ms)
+✔ durable settle crossing a rank tier (10 -> 11) grants exactly one Repair Kit (34.095958ms)
+✔ KNOWN-BAD control: durable settle levelling inside one tier (12 -> 13+) grants no Kit (36.310917ms)
+R4 measured bounded emulator transport retries: 1
+✔ open duel-healing run refuses rival and zone issue with no write (125.37625ms)
+✔ v3: normalised holobots + battleStats / displayStats; the starter Buddy Unit is granted once; the stored records are not rewritten (665.243792ms)
+✔ v1 / v2 keep the stored records verbatim; an unknown version is invalid-argument (23.415667ms)
+✔ issue returns a server lineup and persists the battle outside user-writable paths (677.86725ms)
+✔ first win of the day grants a Unit; the second does not; next UTC day does; loss counts nothing (127.233ms)
+✔ parallel duplicate settles grant once and count one win (3560.519ms)
+✔ foreign, unknown and expired battle ids are rejected with nothing written (40.737334ms)
+✔ callable maps rejections to typed codes and requires auth (16.026292ms)
+✔ starter Unit exactly once: createGenesisProfile, then desktop snapshot, wild refresh and rival status never re-grant (29.732167ms)
+✔ starter Unit exactly once for a mobile-created profile reached first by parallel desktop/rival reads (3422.06825ms)
+✔ TTL field: every issued battle carries expireAt (Timestamp) = expiry + grace; settle keeps it; replay works inside the grace window (87.042791ms)
+✔ parallel wins on different battles in one UTC day grant the daily Unit once and count every win (2796.626917ms)
+✔ max 3 open battles: a 4th issue is too_many_open (nothing written); settle or expiry frees a slot (136.195916ms)
+✔ parallel issues never exceed 3 open battles (3536.788416ms)
+✔ too_fast: a win under 20 s after issue is rejected with nothing written; it can settle once 20 s have passed (71.137625ms)
+✔ #44 per-tier inventory: status reports every tier, the daily win grants Light only, a #43 integer migrates once (47.532792ms)
+✔ rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact deployed shape, buddyUnits = total int, same rulings (44.3625ms)
+✖ desktop-account-1 (no data, as the shipped Unity build sends): exact deployed shape with buddyUnits = total int; desktop-account-2 on request (5.452917ms)
+ℹ tests 71
+ℹ suites 0
+ℹ pass 70
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 75202.0705
+
+✖ failing tests:
+
+test at functions/scripts/test-rival-battle-emulator.mjs:234:1
+✖ desktop-account-1 (no data, as the shipped Unity build sends): exact deployed shape with buddyUnits = total int; desktop-account-2 on request (5.452917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      'blueprintTiers',
+      'blueprints',
+      'buddyUnits',
+      'holobots',
+      'schemaVersion',
+  +   'storyFlags',
+      'travelSquad',
+      'uid'
+    ]
+
+      at TestContext.<anonymous> (file:///private/tmp/holobots-arena-gathering-host-1/functions/scripts/test-rival-battle-emulator.mjs:239:12)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'blueprintTiers', 'blueprints', 'buddyUnits', 'holobots', 'schemaVersion', 'storyFlags', 'travelSquad', 'uid' ],
+    expected: [ 'blueprintTiers', 'blueprints', 'buddyUnits', 'holobots', 'schemaVersion', 'travelSquad', 'uid' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test functions/scripts/test-arena-gathering-emulator.mjs functions/scripts/test-desktop-account-emulator.mjs functions/scripts/test-arena-match-emulator.mjs functions/scripts/test-rival-battle-emulator.mjs" exited with code 1

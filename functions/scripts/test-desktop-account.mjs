@@ -39,12 +39,14 @@ test('version negotiation: missing / v1 → v1, v2, v3; anything else refused', 
   for (const bad of ['desktop-account-4', 3, null, '']) assert.equal(S.desktopAccountVersionOf({ schemaVersion: bad }), null, String(bad));
 });
 
-test('v1 / v2 replies are the deployed literal byte for byte (key order included); holobots verbatim', () => {
+test('v1 / v2 retain deployed fields byte for byte after the additive storyFlags field is removed', () => {
   let n = 0;
   for (const profile of profiles()) {
     const inv = readBuddyInventory(profile);
     for (const version of ['desktop-account-1', 'desktop-account-2']) {
       const a = S.buildDesktopAccountReply(structuredClone(profile), 'uid-1', version, inv.units);
+      assert.deepEqual(a.storyFlags, {arenaGatheringSeen:false,tournamentsWon:0,arenaArcBuilt:false,holoZonesArcBuilt:false});
+      delete a.storyFlags;
       const b = deployed(structuredClone(profile), 'uid-1', version, inv);
       assert.equal(JSON.stringify(a), JSON.stringify(b), `${version} ${JSON.stringify(profile)}`);
       n++;
@@ -61,7 +63,7 @@ test('v3: every holobot normalised (mobile defaults) with battleStats = getPlaye
   const profile = profiles()[3];
   const inv = readBuddyInventory(profile);
   const r = S.buildDesktopAccountReply(structuredClone(profile), 'uid-1', 'desktop-account-3', inv.units);
-  assert.deepEqual(Object.keys(r), ['schemaVersion', 'uid', 'holobots', 'blueprints', 'travelSquad', 'blueprintTiers', 'buddyUnits']);
+  assert.deepEqual(Object.keys(r), ['schemaVersion', 'uid', 'storyFlags', 'holobots', 'blueprints', 'travelSquad', 'blueprintTiers', 'buddyUnits']);
   assert.equal(r.schemaVersion, 'desktop-account-3'); assert.deepEqual(r.buddyUnits, { light: 4, medium: 0, heavy: 0 }, 'tier map like v2');
   assert.deepEqual(r.travelSquad, profile.travelSquad);
   const [a, k, w] = r.holobots;

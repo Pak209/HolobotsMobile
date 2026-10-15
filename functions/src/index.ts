@@ -61,3 +61,6 @@ export {duelHealingHost} from "./duels/duelHealingHost";
 export {workshopHealHost} from "./workshop/workshopHealHost";
 export {workshopCraftHost} from "./workshop/workshopCraftHost";
 
+
+export { arenaGatheringHost } from "./story/arenaGatheringHost";
+export { tournamentResultHost } from "./story/tournamentResultHost";

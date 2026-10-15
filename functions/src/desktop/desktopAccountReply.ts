@@ -2,7 +2,7 @@
  * desktopAccountSnapshot reply builder (pure: no firebase imports, safe to import from tests —
  * functions/scripts/test-desktop-account.mjs, mobile/src/lib/__tests__/desktopAccountParity.test.ts).
  *
- * desktop-account-1 / -2: exactly the deployed shapes (holobots verbatim).
+ * desktop-account-1 / -2: deployed fields (holobots verbatim), plus additive storyFlags (#59).
  * desktop-account-3 (DECISIONS #53 amendment 1 + 2): every holobot is normalised with the mobile defaults
  * (normalizeUserHolobot: level, experience, nextLevelExp, attributePoints, rank; boostedAttributes {}) and
  * carries
@@ -13,6 +13,7 @@
  *                 (TrainingScreen): floor(base x levelBonus) + boost, no x10, no sync, no parts.
  * buddyUnits is the {light, medium, heavy} map from v2 on.
  */
+import { readStoryFlags } from '../story/storyFlags';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { BuddyInventory, totalBuddyUnits } from '../lib/buddyUnits';
 import { BLUEPRINT_TIERS } from '../lib/mintingEconomy';
@@ -56,7 +57,7 @@ export function desktopHolobotV3(raw: Record<string, unknown>): Record<string, u
 
 /**
  * The reply for `version`. `units` is the read Buddy Unit inventory (readBuddyInventory; the callable persists
- * its starter / migration updates). v1 / v2 are the deployed shapes byte for byte (key order included).
+ * its starter / migration updates). All versions add the host-owned storyFlags object (DECISIONS #59).
  * v3 maps only object entries with a string name (anything else cannot be shown or battled).
  */
 export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: string, version: DesktopAccountVersion, units: BuddyInventory): Record<string, unknown> {
@@ -67,6 +68,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
   return {
     schemaVersion: version,
     uid,
+    storyFlags: readStoryFlags(profile.storyFlags),
     holobots,
     blueprints: profile.blueprints ?? {},
     travelSquad: readTravelSquad(profile),
