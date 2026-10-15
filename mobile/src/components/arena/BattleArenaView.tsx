@@ -1,14 +1,11 @@
+import { slotAccent, theme } from "@/theme";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import type { ImageStyle } from "react-native";
+import { AccessibilityInfo, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Ellipse, Path } from "react-native-svg";
 
 import type { ActionCard, ArmedDefenseTrap, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
-import {
-      SPECIAL_METER_SEGMENTS,
-} from "../../features/arena/moveKits";
 import { GameSurfaceFrame } from "../ui/GameSurfaceFrame";
 import { HolobotAnimatedCharacter } from "../character/HolobotAnimatedCharacter";
 import {
@@ -20,23 +17,12 @@ import { getActionSides, getCompletedVisualStates, type FighterVisualStates } fr
 import { ArenaCombatEngine } from "../../features/arena/combatEngine";
 import { FINISHER_POLICY, type FinisherPower } from "../../features/arena/finisherPolicy";
 const CARD_SLOTS = 4;
-const battlefieldImage = require("../../../assets/game/BattleField.png");
 const arenaMoveIcons: Record<CardType, number> = {
   strike: require("../../../assets/game/arena-moves/strike.png"),
   defense: require("../../../assets/game/arena-moves/defend.png"),
   combo: require("../../../assets/game/arena-moves/combo.png"),
   finisher: require("../../../assets/game/arena-moves/finisher.png"),
 };
-// Optical centering inside the corner-cut frame (reference: the arena-cards
-// prototype spacing) — the frame's art window sits a hair right of true
-// center, so the icons shift LEFT to compensate.
-const arenaMoveIconOffsets: Record<CardType, Pick<ImageStyle, "transform">> = {
-  strike: { transform: [{ translateX: -3 }] },
-  defense: { transform: [{ translateX: -2 }] },
-  combo: { transform: [{ translateX: -2 }] },
-  finisher: { transform: [{ translateX: -2 }, { translateY: 2 }] },
-};
-
 export type TeamHudChip = {
   index: number;
   name: string;
@@ -73,18 +59,20 @@ type BattleArenaViewProps = {
   onSignaturePlay: (power?: FinisherPower) => void;
   /** 3v3 Showdown HUD: bench chips, switching, and the send-in overlay. */
   team?: TeamHudProps | null;
+  /** Parent already supplies safe-area padding (for example, the city rival flow). */
+  embedded?: boolean;
 };
 
 function getCardColors(type: CardType) {
   switch (type) {
     case "combo":
-      return { accent: "#2fd6ff", glow: "rgba(47, 214, 255, 0.18)" };
+      return { accent: theme.colors.accent };
     case "strike":
-      return { accent: "#ff4d39", glow: "rgba(255, 77, 57, 0.18)" };
+      return { accent: theme.colors.danger };
     case "defense":
-      return { accent: "#2d8fff", glow: "rgba(45, 143, 255, 0.18)" };
+      return { accent: theme.colors.blue };
     case "finisher":
-      return { accent: "#f0bf14", glow: "rgba(240, 191, 20, 0.18)" };
+      return { accent: theme.colors.warning };
   }
 }
 
@@ -226,83 +214,29 @@ function ArenaCard({
 
   const colors = getCardColors(card.type);
 
+  const effect = card.type === "finisher" ? "SIGNATURE" : card.baseDamage > 0 ? `${card.baseDamage} DMG` : card.type === "defense" ? "BLOCK" : "UTILITY";
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${card.name}, ${card.staminaCost} stamina, ${effect}${reasonLabel ? `, ${reasonLabel}` : ""}`}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[
-        styles.cardSlot,
-        {
-          opacity: isPlayable ? 1 : 0.78,
-        },
-      ]}
+      style={[styles.cardSlot, { opacity: isPlayable ? 1 : 0.65 }]}
     >
-      <Svg
-        height="100%"
-        pointerEvents="none"
-        preserveAspectRatio="none"
-        style={styles.cardFrame}
-        viewBox="0 0 100 146"
-        width="100%"
-      >
-        <Path
-          d="M16 1 H86 L99 14 V132 L86 145 H14 L1 132 V22 L16 7 Z"
-          fill={colors.glow}
-          stroke={colors.accent}
-          strokeLinejoin="miter"
-          strokeWidth="3"
-        />
-        <Path
-          d="M17 7 H82 L93 18 V127 L82 138 H18 L7 127 V29 L17 19 Z"
-          fill="rgba(5, 6, 6, 0.86)"
-          stroke={colors.accent}
-          strokeOpacity="0.42"
-          strokeWidth="1"
-        />
-        <Path
-          d="M7 36 H28 L37 27 V7 M29 36 L37 28"
-          fill="none"
-          stroke={colors.accent}
-          strokeOpacity="0.8"
-          strokeWidth="1.5"
-        />
-        <Path
-          d="M14 141 H39 M61 141 H84 M91 21 V48 M4 95 V125"
-          fill="none"
-          stroke={colors.accent}
-          strokeOpacity="0.65"
-          strokeWidth="1.2"
-        />
-      </Svg>
-      <View style={styles.cardCostBadge}>
-        <Text style={[styles.cardCostText, { color: colors.accent }]}>{`${card.type === "defense" ? "NEED " : ""}${card.staminaCost} STA`}</Text>
+      <GameSurfaceFrame accent={colors.accent} fill={theme.plates.keycap} />
+      <View style={styles.cardHeading}>
+        <Text numberOfLines={1} style={[styles.cardTypeLabel, { color: colors.accent }]}>{getCardLabel(card.type)}</Text>
+        <Text style={styles.cardCostText}>{card.type === "defense" ? "NEED " : ""}{card.staminaCost} STA</Text>
       </View>
-      <Text numberOfLines={1} style={[styles.cardTypeLabel, { color: colors.accent }]}>
-        {getCardLabel(card.type)}
-      </Text>
-      <View style={styles.cardArtPlaceholder}>
-        <Image
-          accessibilityIgnoresInvertColors
-          resizeMode="contain"
-          source={arenaMoveIcons[card.type]}
-          style={[styles.cardMoveIcon, arenaMoveIconOffsets[card.type], { tintColor: colors.accent }]}
-        />
+      <View style={styles.cardBody}>
+        <Image accessibilityIgnoresInvertColors resizeMode="contain" source={arenaMoveIcons[card.type]} style={[styles.cardMoveIcon, { tintColor: colors.accent }]} />
+        <View style={styles.cardCopy}>
+          <Text numberOfLines={1} style={styles.cardName}>{card.name}</Text>
+          <Text style={[styles.cardDamage, { color: colors.accent }]}>{effect}</Text>
+        </View>
       </View>
-      <Text numberOfLines={2} style={styles.cardName}>
-        {card.name}
-      </Text>
-      <Text style={[styles.cardDamage, { color: colors.accent }]}>
-        {card.type === "finisher" ? "SIGNATURE" : card.baseDamage > 0 ? `${card.baseDamage} DMG` : card.type === "defense" ? "BLOCK" : "UTILITY"}
-      </Text>
-      {reasonLabel ? (
-        <View style={styles.cardReasonBadge}>
-          <Text style={styles.cardReasonText}>{reasonLabel}</Text>
-        </View>
-      ) : bonusLabel ? (
-        <View style={styles.cardBonusBadge}>
-          <Text style={styles.cardBonusText}>{bonusLabel}</Text>
-        </View>
-      ) : null}
+      <Text numberOfLines={1} style={[styles.cardReasonText, bonusLabel ? { color: theme.colors.warning } : null]}>{reasonLabel ?? bonusLabel ?? (isPlayable ? "READY" : "WAITING")}</Text>
     </Pressable>
   );
 }
@@ -319,9 +253,10 @@ function BenchChips({ chips, align }: { chips: TeamHudChip[]; align: "left" | "r
             styles.benchChip,
             chip.isActive ? styles.benchChipActive : null,
             chip.isKnockedOut ? styles.benchChipKo : null,
+            { borderColor: slotAccent(align === "right", chip.index) },
           ]}
         >
-          <Text numberOfLines={1} style={styles.benchChipName}>
+          <Text numberOfLines={1} style={[styles.benchChipName, { color: slotAccent(align === "right", chip.index) }]}>
             {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
           </Text>
           <View style={styles.benchBarTrack}>
@@ -347,13 +282,13 @@ export function BattleArenaView({
   onCardPlay,
   onSignaturePlay,
   team,
+  embedded = false,
 }: BattleArenaViewProps) {
   const [transientVisualStates, setTransientVisualStates] = useState<FighterVisualStates>({
     player: "idle",
     opponent: "idle",
   });
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
   const [passiveDetail, setPassiveDetail] = useState<"player" | "opponent" | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -447,7 +382,7 @@ export function BattleArenaView({
   const lastActionDamage = lastAction ? (lastAction.actualDamage ?? lastAction.damageDealt) : 0;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.screenContent, { paddingTop: embedded ? 0 : insets.top, paddingBottom: embedded ? 0 : insets.bottom }]} bounces={false}>
       <View style={styles.backgroundAngles}>
         <View style={styles.angleOne} />
         <View style={styles.angleTwo} />
@@ -459,13 +394,13 @@ export function BattleArenaView({
           <View style={styles.hudInfoStack}>
             <Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text>
             <HudBar
-              color="#4bd060"
+              color={theme.colors.success}
               label="HP"
               percent={playerHealthPercent}
               value={`${battle.player.currentHP} / ${battle.player.maxHP}`}
             />
             <HudBar
-              color="#2db8ff"
+              color={theme.colors.accent}
               label="STAMINA"
               percent={playerStaminaPercent}
               value={`${battle.player.stamina} / ${battle.player.maxStamina}`}
@@ -506,14 +441,14 @@ export function BattleArenaView({
             <Text numberOfLines={1} style={[styles.hudName, styles.hudNameRight]}>{battle.opponent.name}</Text>
             <HudBar
               align="right"
-              color="#ff4538"
+              color={theme.colors.danger}
               label="HP"
               percent={opponentHealthPercent}
               value={`${battle.opponent.currentHP} / ${battle.opponent.maxHP}`}
             />
             <HudBar
               align="right"
-              color="#2db8ff"
+              color={theme.colors.accent}
               label="STAMINA"
               percent={opponentStaminaPercent}
               value={`${battle.opponent.stamina} / ${battle.opponent.maxStamina}`}
@@ -545,18 +480,19 @@ export function BattleArenaView({
       </View>
 
       <View style={styles.battleStageWrap}>
-        <View style={[styles.battleStage, { height: Math.max(140, Math.min(240, windowHeight - insets.top - insets.bottom - (team ? 510 : 460))) }]}>
+        <View style={styles.battleStage}>
           <View style={styles.battleFloor}>
-            <Image source={battlefieldImage} style={styles.battlefieldImage} resizeMode="contain" />
+            <Svg pointerEvents="none" width="100%" height="100%" viewBox="0 0 360 180" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+              <Path d="M18 124 L180 65 L342 124 L180 177 Z" fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={1} />
+              <Path d="M58 138 L220 79 M99 151 L261 94 M139 164 L301 109 M58 109 L220 164 M99 94 L261 151 M139 79 L301 138" fill="none" stroke={theme.colors.border} strokeOpacity={0.5} strokeWidth={0.7} />
+              <Path d="M18 124 L180 177 L342 124 M18 130 L180 183 L342 130" fill="none" stroke={theme.colors.accent} strokeOpacity={0.5} strokeWidth={1} />
+              <Ellipse cx={100} cy={126} rx={42} ry={15} fill="none" stroke={slotAccent(false, team?.playerChips.find(chip => chip.isActive)?.index ?? 0)} strokeWidth={2} />
+              <Ellipse cx={260} cy={126} rx={42} ry={15} fill="none" stroke={slotAccent(true, team?.opponentChips.find(chip => chip.isActive)?.index ?? 0)} strokeWidth={2} />
+            </Svg>
             <View pointerEvents="none" style={styles.fighterOverlay}>
               <Animated.View
                 style={[styles.stageFighter, styles.stageFighterLeft, { transform: [{ translateX: playerLunge }] }]}
               >
-                <Image
-                  source={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
-                  style={styles.stageFighterImage}
-                  resizeMode="contain"
-                />
                 {hasHolobotAnimation(battle.player.name, "arena") ? (
                   <HolobotAnimatedCharacter
                     animationState={resolveHolobotAnimationState(battle.player.name, "arena", visualStates.player)}
@@ -565,24 +501,25 @@ export function BattleArenaView({
                     staticFallback={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
                     style={StyleSheet.absoluteFill}
                   />
-                ) : null}
+                ) : (
+                  <Image
+                    source={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
+                    style={styles.stageFighterImage}
+                    resizeMode="contain"
+                  />
+                )}
                 <Animated.Image
                   resizeMode="contain"
                   source={typeof battle.player.avatar === "string" ? { uri: battle.player.avatar } : battle.player.avatar}
                   style={[
                     StyleSheet.absoluteFill,
-                    { opacity: playerFlash, tintColor: "#ff4d39" },
+                    { opacity: playerFlash, tintColor: theme.colors.danger },
                   ]}
                 />
               </Animated.View>
               <Animated.View
                 style={[styles.stageFighter, styles.stageFighterRight, { transform: [{ translateX: opponentLunge }] }]}
               >
-                <Image
-                  source={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
-                  style={[styles.stageFighterImage, styles.stageFighterImageMirrored]}
-                  resizeMode="contain"
-                />
                 {hasHolobotAnimation(battle.opponent.name, "arena") ? (
                   <HolobotAnimatedCharacter
                     animationState={resolveHolobotAnimationState(battle.opponent.name, "arena", visualStates.opponent)}
@@ -591,14 +528,20 @@ export function BattleArenaView({
                     staticFallback={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
                     style={[StyleSheet.absoluteFill, styles.stageFighterImageMirrored]}
                   />
-                ) : null}
+                ) : (
+                  <Image
+                    source={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
+                    style={[styles.stageFighterImage, styles.stageFighterImageMirrored]}
+                    resizeMode="contain"
+                  />
+                )}
                 <Animated.Image
                   resizeMode="contain"
                   source={typeof battle.opponent.avatar === "string" ? { uri: battle.opponent.avatar } : battle.opponent.avatar}
                   style={[
                     StyleSheet.absoluteFill,
                     styles.stageFighterImageMirrored,
-                    { opacity: opponentFlash, tintColor: "#ff4d39" },
+                    { opacity: opponentFlash, tintColor: theme.colors.danger },
                   ]}
                 />
               </Animated.View>
@@ -612,7 +555,7 @@ export function BattleArenaView({
 
       {lastAction ? (
         <View style={styles.actionTicker}>
-          <GameSurfaceFrame accent="#f0bf14" />
+          <GameSurfaceFrame accent={theme.colors.accent} />
           <Text numberOfLines={1} style={styles.actionTickerText}>
             {`${lastAction.card.name} ${lastActionDamage > 0 ? `• ${lastActionDamage} DMG` : ""}${getOutcomeLabel(
               lastAction,
@@ -648,7 +591,7 @@ export function BattleArenaView({
       ) : null}
 
       <View style={styles.cardBay}>
-        <GameSurfaceFrame accent="#f0bf14" strong />
+        <GameSurfaceFrame accent={theme.colors.accent} strong />
         {team ? (
           <View style={styles.switchDock}>
             {team.playerChips.map((chip) => {
@@ -663,9 +606,10 @@ export function BattleArenaView({
                     chip.isActive ? styles.switchChipActive : null,
                     chip.isKnockedOut ? styles.switchChipKo : null,
                     pressable ? styles.switchChipReady : null,
+                    { borderColor: slotAccent(false, chip.index) },
                   ]}
                 >
-                  <Text numberOfLines={1} style={styles.switchChipName}>
+                  <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
                     {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
                   </Text>
                   <View style={styles.benchBarTrack}>
@@ -686,6 +630,8 @@ export function BattleArenaView({
           </View>
         ) : null}
         <View style={styles.cardBayTopBar}>
+          <View style={styles.specialGaugeGroup}>
+            <Text style={styles.meterLabel}>{Math.round(battle.player.specialMeter)}% SYNC</Text>
           <View style={styles.specialGaugeTrack}>
             <View style={[styles.specialGaugeFill, { width: `${playerSpecialPercent * 100}%` }]} />
             <View
@@ -694,6 +640,7 @@ export function BattleArenaView({
                 { left: `${FINISHER_POLICY.half.sync}%` },
               ]}
             />
+          </View>
           </View>
           <View style={styles.specialCluster}>
             {(["half", "full"] as const).map(power => (
@@ -706,11 +653,13 @@ export function BattleArenaView({
           </View>
         </View>
         <View style={styles.cardBayHeader}>
-          <Text style={styles.deckHint}>
+          <Text numberOfLines={1} style={styles.deckHint}>
             {team?.entryLocked
               ? "ENTERING THE ARENA…"
-              : battle.player.armedDefenseTrap
-              ? "DEFENSE TRAP ARMED"
+              : isAnimating
+                ? "RESOLVING MOVE…"
+                : battle.player.armedDefenseTrap
+                  ? "DEFENSE TRAP ARMED"
               : finisherReady
                 ? "FINISHER READY — TAP THE GOLD COMMAND"
                 : playableFinisher && chainLength >= 1
@@ -752,7 +701,7 @@ export function BattleArenaView({
           {(["player", "opponent"] as const).map(side => (
             <Pressable key={side} accessibilityRole="button" accessibilityLabel={`${battle[side].name} passive details`}
               onPress={() => setPassiveDetail(side)} style={styles.abilityPanel}>
-              <GameSurfaceFrame accent={side === "player" ? "#17d9ff" : "#596273"} />
+              <GameSurfaceFrame accent={side === "player" ? theme.colors.accent : theme.colors.border} />
               <Text numberOfLines={1} style={styles.abilityPanelName}>{battle[side].name} · {battle[side].ability?.name ?? "Combat routine"}</Text>
             </Pressable>
           ))}
@@ -766,26 +715,25 @@ export function BattleArenaView({
           </View></View>
         </Modal>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  screenContent: { flexGrow: 1 },
+  cardHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 4 },
+  cardBody: { flexDirection: "row", alignItems: "center", gap: 6 },
+  cardCopy: { flex: 1, minWidth: 0 },
+  specialGaugeGroup: { flex: 1, gap: 5 },
+  meterLabel: { ...theme.type.micro, color: theme.colors.warning },
   detailBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.75)" },
-  detailPanel: { padding: 20, backgroundColor: "#10161c", borderWidth: 1, borderColor: "#17d9ff" },
-  detailCopy: { color: "#fef1e0", fontSize: 14, lineHeight: 20, marginVertical: 10 },
-  actionTicker: {
-    alignItems: "center",
-    marginHorizontal: 18,
-    marginTop: -4,
-    minHeight: 34,
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    position: "relative",
-  },
+  detailPanel: { padding: 20, backgroundColor: theme.plates.navy, borderWidth: 1, borderColor: theme.colors.accent },
+  detailCopy: { color: theme.colors.text, fontFamily: "HoloBody", fontSize: theme.type.body.fontSize, lineHeight: 20, marginVertical: 10 },
+  actionTicker: { alignItems: "center", marginHorizontal: 12, marginBottom: 6, minHeight: 28, justifyContent: "center", paddingHorizontal: 8, position: "relative", },
   actionTickerText: {
-    color: "#fef1e0",
-    fontSize: 12,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
     letterSpacing: 0.4,
     textAlign: "center",
@@ -820,10 +768,6 @@ const styles = StyleSheet.create({
   backgroundAngles: {
     ...StyleSheet.absoluteFillObject,
   },
-  battlefieldImage: {
-    height: "100%",
-    width: "100%",
-  },
   battleFloor: {
     alignItems: "center",
     flex: 1,
@@ -831,33 +775,10 @@ const styles = StyleSheet.create({
     position: "relative",
     width: "100%",
   },
-  fighterOverlay: {
-    bottom: 40,
-    left: 0,
-    position: "absolute",
-    right: 0,
-    top: -8,
-    zIndex: 2,
-  },
-  battleStage: {
-    alignItems: "center",
-    height: 306,
-    position: "relative",
-    width: "100%",
-  },
-  battleStageWrap: {
-    marginHorizontal: 18,
-    marginTop: 6,
-    marginBottom: 0,
-  },
-  stageFighter: {
-    alignItems: "center",
-    bottom: 0,
-    height: 142,
-    justifyContent: "flex-end",
-    position: "absolute",
-    width: "34%",
-  },
+  fighterOverlay: { bottom: "22%", left: 0, position: "absolute", right: 0, top: 0, zIndex: 2, },
+  battleStage: { flex: 1, alignItems: "center", minHeight: 104, position: "relative", width: "100%", },
+  battleStageWrap: { flex: 1, minHeight: 104, maxHeight: 240, marginHorizontal: 12, marginBottom: 6, },
+  stageFighter: { alignItems: "center", bottom: 0, height: "100%", maxHeight: 160, justifyContent: "flex-end", position: "absolute", width: "34%", },
   stageFighterImage: {
     height: "100%",
     width: "100%",
@@ -871,107 +792,34 @@ const styles = StyleSheet.create({
   stageFighterRight: {
     right: "9%",
   },
-  cardArtPlaceholder: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-    marginBottom: 5,
-    marginTop: 3,
-    width: "100%",
-  },
-  cardMoveIcon: {
-    height: 28,
-    width: 54,
-  },
-  benchBarTrack: {
-    backgroundColor: "#1a1d26",
-    height: 4,
-    marginTop: 3,
-    overflow: "hidden",
-  },
-  benchChip: {
-    backgroundColor: "#0b0d13",
-    borderColor: "#3a3f4b",
-    borderWidth: 1.5,
-    minWidth: 64,
-    padding: 5,
-  },
+  cardMoveIcon: { height: 28, width: 28, },
+  benchBarTrack: { backgroundColor: theme.plates.keycap, height: 3, marginTop: 3, overflow: "hidden", },
+  benchChip: { backgroundColor: theme.plates.navy, borderColor: theme.colors.border, borderWidth: 1, minWidth: 0, flex: 1, padding: 3, },
   benchChipActive: {
-    borderColor: "#f0bf14",
+    borderColor: theme.colors.accent,
   },
   benchChipKo: {
     opacity: 0.35,
   },
   benchChipName: {
-    color: "#ffffff",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
-  benchHpFill: {
-    backgroundColor: "#4bd060",
-    height: "100%",
-  },
-  abilityDock: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 10,
-  },
-  abilityPanel: {
-    flex: 1,
-    minHeight: 44,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    position: "relative",
-  },
-  abilityPanelEyebrow: {
-    color: "#6b7280",
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  abilityPanelName: {
-    color: "#2fd9e9",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-    marginTop: 3,
-  },
-  abilityPanelCopy: {
-    color: "#9aa1ad",
-    fontSize: 9,
-    lineHeight: 13,
-    marginTop: 3,
-  },
-  abilityPanelTrapName: {
-    color: "#f0bf14",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-    marginTop: 6,
-  },
-  cardBonusBadge: {
-    backgroundColor: "#f0bf14",
-    borderRadius: 4,
-    bottom: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    position: "absolute",
-  },
-  cardBonusText: {
-    color: "#050606",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.4,
-  },
+  benchHpFill: { backgroundColor: theme.colors.success, height: "100%", },
+  abilityDock: { flexDirection: "row", gap: 8, marginTop: 8, },
+  abilityPanel: { flex: 1, minHeight: 44, paddingHorizontal: 8, paddingVertical: 6, justifyContent: "center", position: "relative", },
+  abilityPanelName: { color: theme.colors.accent, fontFamily: "HoloBody", fontSize: 10, },
   switchDock: {
     flexDirection: "row",
     gap: 8,
     marginBottom: 8,
   },
   switchChip: {
-    backgroundColor: "#0b0d13",
-    borderColor: "#3a3f4b",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.border,
     borderWidth: 1.5,
     flex: 1,
     gap: 3,
@@ -979,31 +827,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   switchChipActive: {
-    borderColor: "#f0bf14",
+    borderColor: theme.colors.accent,
   },
   switchChipKo: {
     opacity: 0.35,
   },
   switchChipReady: {
-    borderColor: "#17d9ff",
+    borderColor: theme.colors.accent,
   },
   switchChipName: {
-    color: "#ffffff",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
-  switchChipMeta: {
-    color: "#5a5f6b",
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
+  switchChipMeta: { color: theme.colors.muted, fontFamily: "HoloBody", fontSize: 9, letterSpacing: 0.4, },
   switchChipMetaReady: {
-    color: "#17d9ff",
+    color: theme.colors.accent,
   },
   benchMeterFill: {
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     height: "100%",
   },
   benchRow: {
@@ -1016,45 +860,49 @@ const styles = StyleSheet.create({
   },
   sendInBanner: {
     alignItems: "center",
-    backgroundColor: "#0b0d13",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.accent,
     borderWidth: 1.5,
     marginHorizontal: 14,
     marginTop: 8,
     paddingVertical: 8,
   },
   sendInBannerText: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 1,
   },
   sendInCard: {
-    backgroundColor: "#0b0d13",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.accent,
     borderWidth: 2,
     padding: 18,
     width: "86%",
   },
   sendInEyebrow: {
-    color: "#ff4538",
+    color: theme.colors.danger,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 2,
   },
   sendInMeta: {
-    color: "#8b93a1",
-    fontSize: 10,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "700",
     marginTop: 4,
   },
   sendInName: {
-    color: "#ffffff",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
   },
   sendInOption: {
-    borderColor: "#17d9ff",
+    borderColor: theme.colors.accent,
     borderWidth: 1.5,
     flex: 1,
     padding: 10,
@@ -1076,49 +924,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   sendInTitle: {
-    color: "#ffffff",
-    fontSize: 16,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
     marginTop: 4,
   },
-  cardBay: {
-    marginHorizontal: 18,
-    marginTop: 0,
-    marginBottom: 14,
-    paddingBottom: 13,
-    paddingHorizontal: 12,
-    paddingTop: 13,
-    position: "relative",
-  },
-  cardBayHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  cardBayTopBar: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 8,
-  },
-  cardCostBadge: {
-    alignItems: "center",
-    borderColor: "currentcolor",
-    borderRadius: 12,
-    borderWidth: 0,
-    height: 22,
-    justifyContent: "center",
-    left: 6,
-    position: "absolute",
-    top: 6,
-    width: 65,
-  },
+  cardBay: { flexShrink: 0, marginHorizontal: 12, marginBottom: 8, padding: 10, position: "relative", },
+  cardBayHeader: { alignItems: "center", flexDirection: "row", marginBottom: 6, minHeight: 14, },
+  cardBayTopBar: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 4, },
   abilityBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#0b0d13",
+    backgroundColor: theme.plates.navy,
     borderRadius: 4,
-    color: "#2fd9e9",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.5,
@@ -1145,19 +965,19 @@ const styles = StyleSheet.create({
   },
   trapChipText: {
     color: "#9cd0ff",
-    fontSize: 12,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
-  // The HUD stack can overflow the black band onto the yellow page, where
-  // the old gold-on-yellow active state disappeared — the counter sits on
-  // its own dark chip so it reads on any background.
+  // Combo state retains its own plate beside the HP/stamina telemetry.
   comboCounter: {
     alignSelf: "flex-start",
-    backgroundColor: "#0b0d13",
+    backgroundColor: theme.plates.navy,
     borderRadius: 4,
-    color: "#8f8f86",
-    fontSize: 10,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
     marginTop: 3,
@@ -1166,93 +986,28 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   comboCounterActive: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
   },
   comboCounterRight: {
     alignSelf: "flex-end",
     textAlign: "right",
   },
-  cardCostText: {
-    fontSize: 10,
-    fontWeight: "900",
-  },
-  cardDamage: {
-    fontSize: 10,
-    fontWeight: "900",
-    marginBottom: 2,
-  },
-  cardName: {
-    color: "#fef1e0",
-    fontSize: 9,
-    fontWeight: "800",
-    lineHeight: 11,
-    minHeight: 22,
-    textAlign: "center",
-  },
-  cardDiamond: {
-    borderColor: "#ffffff",
-    borderWidth: 2,
-    height: 34,
-    transform: [{ rotate: "45deg" }],
-    width: 34,
-  },
-  cardReasonBadge: {
-    backgroundColor: "rgba(5, 6, 6, 0.85)",
-    borderColor: "rgba(255,255,255,0.16)",
-    borderRadius: 4,
-    borderWidth: 1,
-    bottom: 4,
-    left: 4,
-    paddingVertical: 2,
-    position: "absolute",
-    right: 4,
-  },
-  cardReasonText: {
-    color: "#d1d5db",
-    fontSize: 8,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  powerChoice: { minHeight: 44, minWidth: 88, paddingHorizontal: 6, justifyContent: "center", opacity: 0.55 },
-  powerChoiceSelected: { opacity: 1, borderBottomWidth: 2, borderBottomColor: "#f0bf14" },
-  cardRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  cardSlot: {
-    alignItems: "center",
-    flexBasis: "48%",
-    flexGrow: 1,
-    height: 112,
-    justifyContent: "flex-start",
-    overflow: "hidden",
-    paddingHorizontal: 6,
-    paddingTop: 12,
-  },
-  cardFrame: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  cardCostText: { fontFamily: "HoloBody", fontSize: 10, color: theme.colors.muted, },
+  cardDamage: { fontFamily: "HoloBody", fontSize: 10, lineHeight: 14, },
+  cardName: { color: theme.colors.text, fontFamily: "HoloDisplay", fontSize: 16, lineHeight: 19, },
+  cardReasonText: { color: theme.colors.muted, fontFamily: "HoloBody", fontSize: 9, lineHeight: 12, letterSpacing: 0.3, },
+  powerChoice: { minHeight: 44, minWidth: 78, paddingHorizontal: 4, justifyContent: "center", opacity: 0.55, },
+  powerChoiceSelected: { opacity: 1, borderBottomWidth: 2, borderBottomColor: theme.colors.accent },
+  cardRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, },
+  cardSlot: { flexBasis: "48%", flexGrow: 1, minWidth: 0, minHeight: 88, paddingHorizontal: 9, paddingVertical: 7, gap: 3, },
   cardSlotEmpty: {
-    backgroundColor: "#101010",
-    borderColor: "#2b2b2b",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.carbon,
   },
-  cardTypeLabel: {
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-    marginTop: 8,
-  },
-  deckHint: {
-    color: "#9d9580",
-    flex: 1,
-    fontSize: 9,
-    fontWeight: "800",
-    paddingLeft: 12,
-    textAlign: "right",
-  },
+  cardTypeLabel: { fontFamily: "HoloBody", fontSize: 10, fontWeight: "900", letterSpacing: 0.7, },
+  deckHint: { color: theme.colors.muted, flex: 1, fontFamily: "HoloBody", fontSize: 9, letterSpacing: 0.2, },
   emptyCardCore: {
-    backgroundColor: "#171717",
+    backgroundColor: theme.colors.carbon,
     borderColor: "#282828",
     borderRadius: 10,
     borderWidth: 2,
@@ -1260,57 +1015,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: "72%",
   },
-  signatureButton: {
-    backgroundColor: "#f0bf14",
-    borderColor: "#07080d",
-    borderWidth: 2,
-    maxWidth: 190,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  signatureButtonDisabled: {
-    opacity: 0.55,
-  },
-  signatureButtonText: {
-    color: "#07080d",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  specialCluster: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  specialGaugeFill: {
-    backgroundColor: "#f0bf14",
-    height: "100%",
-  },
-  specialGaugeTrack: {
-    backgroundColor: "#342d1a",
-    flex: 1,
-    height: 12,
-    overflow: "hidden",
-  },
+  specialCluster: { alignItems: "center", flexDirection: "row", gap: 4, },
+  specialGaugeFill: { backgroundColor: theme.colors.warning, height: "100%", },
+  specialGaugeTrack: { backgroundColor: theme.plates.keycap, height: 8, overflow: "hidden", },
   specialGaugeUnlockTick: {
-    backgroundColor: "#07080d",
+    backgroundColor: theme.plates.navy,
     bottom: 0,
     position: "absolute",
     top: 0,
     width: 2,
   },
-  specialIcon: {
-    color: "#f0bf14",
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  specialText: {
-    color: "#f0bf14",
-    fontSize: 15,
-    fontWeight: "900",
-    minWidth: 52,
-    textAlign: "right",
-  },
+  specialText: { color: theme.colors.warning, fontFamily: "HoloBody", fontSize: 11, fontWeight: "900", textAlign: "right", },
   hudBarBlock: {
     gap: 2,
     width: "100%",
@@ -1328,21 +1043,8 @@ const styles = StyleSheet.create({
     gap: 4,
     minHeight: 11,
   },
-  hudBarTrack: {
-    backgroundColor: "#1c1c1c",
-    borderColor: "#0f0f0f",
-    borderWidth: 1,
-    height: 15,
-    overflow: "hidden",
-    width: "100%",
-  },
-  hudName: {
-    color: "#fef1e0",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.3,
-    marginBottom: 1,
-  },
+  hudBarTrack: { backgroundColor: theme.plates.keycap, height: 8, overflow: "hidden", width: "100%", },
+  hudName: { color: theme.colors.text, fontFamily: "HoloDisplay", fontSize: 17, letterSpacing: 0.4, marginBottom: 2, },
   hudNameRight: {
     textAlign: "right",
   },
@@ -1355,74 +1057,26 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  hudStatLabel: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 0.35,
-  },
-  hudStatValue: {
-    color: "#fef1e0",
-    flex: 1,
-    fontSize: 8,
-    fontWeight: "900",
-  },
-  roundCore: {
-    alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#f0bf14",
-    borderWidth: 2,
-    height: 62,
-    justifyContent: "center",
-    marginHorizontal: 4,
-    width: 58,
-  },
+  hudStatLabel: { fontFamily: "HoloBody", fontSize: 9, letterSpacing: 0.35, },
+  hudStatValue: { color: theme.colors.text, flex: 1, fontFamily: "HoloBody", fontSize: 9, },
+  roundCore: { alignItems: "center", backgroundColor: theme.plates.navy, borderColor: theme.colors.border, borderWidth: 1, height: 60, justifyContent: "center", marginHorizontal: 8, width: 54, },
   roundLabel: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1,
   },
-  roundSubtext: {
-    color: "#9d9580",
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
+  roundSubtext: { color: theme.colors.muted, fontFamily: "HoloBody", fontSize: 8, letterSpacing: 0.8, },
   roundValue: {
-    color: "#fef1e0",
-    fontSize: 22,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.header.fontSize,
     fontWeight: "900",
     marginTop: 0,
   },
-  screen: {
-    backgroundColor: "#10161c",
-    flex: 1,
-    paddingTop: 40,
-  },
-  topHud: {
-    alignItems: "flex-start",
-    backgroundColor: "#050606",
-    flexDirection: "row",
-    marginHorizontal: 0,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-  vsBadge: {
-    alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#f0bf14",
-    borderWidth: 3,
-    height: 78,
-    justifyContent: "center",
-    position: "absolute",
-    top: "50%",
-    transform: [{ translateY: -39 }],
-    width: 74,
-    zIndex: 3,
-  },
-  vsText: {
-    color: "#f0bf14",
-    fontSize: 24,
-    fontWeight: "900",
-  },
+  screen: { backgroundColor: theme.colors.carbon, flex: 1, },
+  topHud: { alignItems: "flex-start", flexDirection: "row", paddingHorizontal: 12, paddingVertical: 8, },
+  vsBadge: { alignItems: "center", backgroundColor: theme.plates.keycap, borderColor: theme.colors.border, borderWidth: 1, height: 30, justifyContent: "center", position: "absolute", top: "48%", width: 34, zIndex: 3, },
+  vsText: { color: theme.colors.subtle, fontFamily: "HoloDisplay", fontSize: 14, },
 });

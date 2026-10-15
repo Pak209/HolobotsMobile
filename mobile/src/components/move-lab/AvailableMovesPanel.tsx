@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import {
   Image,
   Pressable,
@@ -17,8 +18,8 @@ import { getMoveIcon } from "@/components/move-lab/moveIconRegistry";
 
 const MOVE_ACCENTS: Record<CardType, string> = {
   combo: "#2ce8ef",
-  defense: "#3296ff",
-  finisher: "#ffc51b",
+  defense: theme.colors.blue,
+  finisher: theme.colors.warning,
   strike: "#ff453f",
 };
 
@@ -143,7 +144,7 @@ export function AvailableMovesPanel({
                   pressed ? styles.controlPressed : null,
                 ]}
               >
-                <MoveActionFrame accent="#ffc51b" variant="equip" />
+                <MoveActionFrame accent={theme.colors.warning} variant="equip" />
                 <Text style={styles.equipText}>
                   {item.pending ? "…" : item.equipped ? "EQUIPPED" : "EQUIP"}
                 </Text>
@@ -176,6 +177,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   countText: {
+    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.6,
@@ -186,7 +188,8 @@ const styles = StyleSheet.create({
     paddingVertical: 22,
   },
   emptyText: {
-    color: "#8e939d",
+    color: theme.colors.subtle,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "800",
   },
@@ -204,8 +207,9 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   equipText: {
-    color: "#ffc51b",
-    fontSize: 10,
+    color: theme.colors.warning,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "900",
     letterSpacing: 0.6,
     zIndex: 1,
@@ -239,7 +243,7 @@ const styles = StyleSheet.create({
   },
   iconFrame: {
     alignItems: "center",
-    backgroundColor: "#020304",
+    backgroundColor: theme.colors.carbon,
     borderWidth: 1,
     height: 50,
     justifyContent: "center",
@@ -279,7 +283,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   moveName: {
-    color: "#ffffff",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.35,
@@ -293,6 +298,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   rowIndex: {
+    fontFamily: "HoloBody",
     fontSize: 7,
     fontWeight: "900",
     left: 3,
@@ -327,6 +333,7 @@ const styles = StyleSheet.create({
   },
   telemetryKey: {
     color: "#777e8b",
+    fontFamily: "HoloBody",
     fontSize: 7,
     fontWeight: "900",
     letterSpacing: 0.55,
@@ -339,14 +346,16 @@ const styles = StyleSheet.create({
     minHeight: 14,
   },
   telemetryValue: {
-    color: "#ffffff",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.25,
   },
   title: {
     flex: 1,
-    fontSize: 14,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 0.8,
     textShadowColor: "rgba(255,255,255,0.12)",

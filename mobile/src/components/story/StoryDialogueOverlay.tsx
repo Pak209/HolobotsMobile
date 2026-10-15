@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { useEffect, useRef, useState } from "react";
 import {
   Image,
@@ -108,7 +109,7 @@ export function StoryDialogueOverlay({
           onPress={advance}
           style={styles.box}
         >
-          <GameDialogFrame accent="#17d9ff" fill="rgba(5,6,6,0.78)" />
+          <GameDialogFrame accent={theme.colors.accent} fill="rgba(5,6,6,0.78)" />
           <View style={styles.row}>
             <View style={[styles.portraitSlot, { height: portraitSize, width: portraitSize }]}>
               <Image resizeMode="cover" source={portrait} style={styles.portrait} />
@@ -139,9 +140,10 @@ export function StoryDialogueOverlay({
 
 const styles = StyleSheet.create({
   body: {
-    color: "#fef1e0",
+    color: theme.colors.text,
     flexShrink: 1,
-    fontSize: 16,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     lineHeight: 22,
     marginTop: 6,
     minHeight: 66,
@@ -155,7 +157,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   counter: {
-    color: "#ddd2b5",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 11,
     letterSpacing: 1,
   },
@@ -166,13 +169,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   hint: {
-    color: "#17d9ff",
-    fontSize: 14,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "700",
     letterSpacing: 1.5,
   },
   hintHidden: {
-    fontSize: 14,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
   },
   layer: {
     left: 0,
@@ -181,10 +186,11 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   nameplate: {
-    borderBottomColor: "#f0bf14",
+    borderBottomColor: theme.colors.accent,
     borderBottomWidth: 1,
-    color: "#f0bf14",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
     letterSpacing: 2.5,
     paddingBottom: 4,
@@ -194,8 +200,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   portraitSlot: {
-    backgroundColor: "#050606",
-    borderColor: "#17d9ff",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.accent,
     borderWidth: 1,
     overflow: "hidden",
   },

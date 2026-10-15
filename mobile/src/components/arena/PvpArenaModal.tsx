@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import type { FinisherPower } from "../../features/arena/finisherPolicy";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -307,7 +308,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
       <Modal animationType="fade" presentationStyle="overFullScreen" transparent visible={visible} onRequestClose={handleClose}>
         <View style={styles.backdrop}>
           <View style={[styles.card, room && styles.battleShell]}>
-            <GameDialogFrame accent={room ? "#17d9ff" : "#f0bf14"} fill="#07080a" />
+            <GameDialogFrame accent={room ? theme.colors.accent : theme.colors.accent} fill={theme.plates.navy} />
             <View style={styles.topRow}>
               <View>
                 <Text style={styles.eyebrow}>PVP ARENA</Text>
@@ -332,7 +333,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                         candidate === "3v3" && !canField3v3 ? styles.modeButtonDisabled : null,
                       ]}
                     >
-                      <ArenaControlFrame accent={candidate === "1v1" ? "#f0bf14" : "#17d9ff"} selected={mode === candidate} />
+                      <ArenaControlFrame accent={candidate === "1v1" ? theme.colors.accent : theme.colors.accent} selected={mode === candidate} />
                       <Text style={[styles.modeButtonText, mode === candidate ? styles.modeButtonTextActive : null]}>
                         {candidate === "1v1" ? "1V1 DUEL" : "3V3 SHOWDOWN"}
                       </Text>
@@ -350,7 +351,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                           onPress={() => setPickerTarget(index as 0 | 1 | 2)}
                           style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}
                         >
-                          <GameSurfaceFrame accent={name ? "#17d9ff" : "#596273"} />
+                          <GameSurfaceFrame accent={name ? theme.colors.accent : theme.colors.border} />
                           <Text style={styles.teamSlotLabel}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
                           {entry ? (
                             <>
@@ -366,7 +367,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                   </View>
                 ) : selectedHolobot ? (
                   <Pressable onPress={() => setPickerTarget("main")} style={styles.holobotBar}>
-                    <GameSurfaceFrame accent="#f0bf14" strong />
+                    <GameSurfaceFrame accent={theme.colors.accent} strong />
                     <Image source={selectedHolobot.imageSource} style={styles.holobotArt} resizeMode="contain" />
                     <View style={styles.holobotBody}>
                       <Text style={styles.holobotName}>{selectedHolobot.name}</Text>
@@ -382,7 +383,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
                 <View style={styles.optionColumn}>
                   <Pressable disabled={!lineupReady || loading || matchmakingStatus === "searching"} onPress={handleQuickMatch} style={[styles.optionCard, (!lineupReady || loading) && styles.optionCardDisabled]}>
-                    <GameSurfaceFrame accent="#17d9ff" />
+                    <GameSurfaceFrame accent={theme.colors.accent} />
                     <Text style={styles.optionTitle}>Quick Match</Text>
                     <Text style={styles.optionCopy}>
                       {matchmakingStatus === "searching" ? "Searching for another pilot..." : "Sync with the next pilot looking for a live battle."}
@@ -396,7 +397,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                   ) : null}
 
                   <View style={styles.optionCard}>
-                    <GameSurfaceFrame accent="#f0bf14" />
+                    <GameSurfaceFrame accent={theme.colors.accent} />
                     <Text style={styles.optionTitle}>Join Room</Text>
                     <Text style={styles.optionCopy}>Use a room code from another pilot to jump straight into a private battle.</Text>
                     <View style={styles.joinRow}>
@@ -410,19 +411,19 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                         value={joinCode}
                       />
                       <Pressable disabled={!lineupReady || loading} onPress={handleJoinRoom} style={[styles.inlineButton, (!lineupReady || loading) && styles.optionCardDisabled]}>
-                        <ArenaControlFrame accent="#f0bf14" selected />
+                        <ArenaControlFrame accent={theme.colors.accent} selected />
                         <Text style={styles.inlineButtonText}>JOIN</Text>
                       </Pressable>
                     </View>
                   </View>
 
                   <View style={styles.optionCard}>
-                    <GameSurfaceFrame accent="#ef4444" />
+                    <GameSurfaceFrame accent={theme.colors.danger} />
                     <Text style={styles.optionTitle}>Friend Battle</Text>
                     <Text style={styles.optionCopy}>Create a synced room code and send it to a friend for a direct challenge.</Text>
                     <Pressable disabled={!lineupReady || loading} onPress={handleCreateRoom} style={[styles.createButton, (!lineupReady || loading) && styles.optionCardDisabled]}>
-                      <ArenaControlFrame accent="#f0bf14" selected />
-                      {loading ? <ActivityIndicator color="#050606" /> : <Text style={styles.inlineButtonText}>CREATE ROOM</Text>}
+                      <ArenaControlFrame accent={theme.colors.accent} selected />
+                      {loading ? <ActivityIndicator color={theme.colors.carbon} /> : <Text style={styles.inlineButtonText}>CREATE ROOM</Text>}
                     </Pressable>
                   </View>
                 </View>
@@ -444,7 +445,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 
                 {isWaiting ? (
                   <View style={styles.waitingPanel}>
-                    <ActivityIndicator color="#17d9ff" />
+                    <ActivityIndicator color={theme.colors.accent} />
                     <Text style={styles.waitingText}>Share code {room.roomCode} with your friend.</Text>
                   </View>
                 ) : null}
@@ -483,8 +484,9 @@ const styles = StyleSheet.create({
     paddingTop: 54,
   },
   battleTopText: {
-    color: "#f0bf14",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
@@ -494,21 +496,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modeButton: {
-    borderColor: "#3a3f4b",
+    borderColor: theme.colors.border,
     borderWidth: 1.5,
     flex: 1,
     paddingVertical: 9,
   },
   modeButtonActive: {
-    backgroundColor: "#f0bf14",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
   modeButtonDisabled: {
     opacity: 0.4,
   },
   modeButtonText: {
     color: "#eef2f7",
-    fontSize: 12,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
     position: "relative",
@@ -525,8 +528,8 @@ const styles = StyleSheet.create({
   },
   teamSlot: {
     alignItems: "center",
-    backgroundColor: "#0b0d13",
-    borderColor: "#3a3f4b",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.border,
     borderWidth: 1.5,
     flex: 1,
     minHeight: 92,
@@ -534,10 +537,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   teamSlotFilled: {
-    borderColor: "#17d9ff",
+    borderColor: theme.colors.accent,
   },
   teamSlotLabel: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1,
@@ -548,8 +552,9 @@ const styles = StyleSheet.create({
     width: 40,
   },
   teamSlotName: {
-    color: "#ffffff",
-    fontSize: 10,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "800",
     marginTop: 4,
     textAlign: "center",
@@ -566,18 +571,19 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     alignItems: "center",
-    borderColor: "#ef4444",
+    borderColor: theme.colors.danger,
     borderWidth: 1,
     padding: 12,
   },
   cancelButtonText: {
     color: "#fca5a5",
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
   },
   card: {
-    backgroundColor: "#111111",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.accent,
     borderWidth: 3,
     maxWidth: 430,
     padding: 18,
@@ -585,25 +591,27 @@ const styles = StyleSheet.create({
   },
   closeChip: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#2a2a2a",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.plates.raised,
     borderWidth: 1,
     height: 34,
     justifyContent: "center",
     width: 34,
   },
   closeChipText: {
-    color: "#f0bf14",
-    fontSize: 16,
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
   },
   codeInput: {
-    backgroundColor: "#050606",
-    borderColor: "#4f4220",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.border,
     borderWidth: 1,
-    color: "#fef1e0",
+    color: theme.colors.text,
     flex: 1,
-    fontSize: 14,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "800",
     height: 46,
     letterSpacing: 1.2,
@@ -613,44 +621,47 @@ const styles = StyleSheet.create({
   },
   createButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     justifyContent: "center",
     marginTop: 12,
     minHeight: 46,
   },
   emptyCopy: {
     color: "#b6a98a",
+    fontFamily: "HoloBody",
     fontSize: 13,
     lineHeight: 19,
     marginTop: 6,
   },
   emptyState: {
-    backgroundColor: "#050606",
-    borderColor: "#2a2a2a",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.plates.raised,
     borderWidth: 1,
     marginTop: 18,
     padding: 16,
   },
   emptyTitle: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "900",
   },
   eyebrow: {
-    color: "#f0bf14",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
     letterSpacing: 1.6,
   },
   holobotArt: {
-    backgroundColor: "#050606",
+    backgroundColor: theme.colors.carbon,
     height: 68,
     width: 68,
   },
   holobotBar: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.accent,
     borderWidth: 2,
     flexDirection: "row",
     gap: 12,
@@ -662,24 +673,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   holobotMeta: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     marginTop: 4,
   },
   holobotName: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 20,
     fontWeight: "900",
   },
   inlineButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     justifyContent: "center",
     minWidth: 92,
     paddingHorizontal: 14,
   },
   inlineButtonText: {
     color: "#fff2bd",
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.8,
@@ -695,8 +709,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   optionCard: {
-    backgroundColor: "#090909",
-    borderColor: "#2a2a2a",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.plates.raised,
     borderWidth: 1,
     padding: 14,
   },
@@ -709,6 +723,7 @@ const styles = StyleSheet.create({
   },
   optionCopy: {
     color: "#ddd5c4",
+    fontFamily: "HoloBody",
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,
@@ -716,7 +731,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   optionTitle: {
-    color: "#ffffff",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "900",
     position: "relative",
@@ -726,25 +742,28 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   roomBanner: {
-    backgroundColor: "#050606",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.accent,
     borderWidth: 1,
     marginTop: 14,
     padding: 10,
   },
   roomBannerSub: {
     color: "#c3bba6",
-    fontSize: 12,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     marginTop: 2,
   },
   roomBannerText: {
-    color: "#f0bf14",
-    fontSize: 16,
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
     letterSpacing: 1.4,
   },
   title: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 28,
     fontWeight: "900",
     marginTop: 6,
@@ -761,7 +780,8 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   waitingText: {
-    color: "#d5cbb2",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "800",
   },

@@ -1,6 +1,7 @@
+import { theme } from "@/theme";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View, Image } from "react-native";
-import Svg, { Circle } from "react-native-svg";
+import { itemIcons } from "@/config/itemIcons";
 
 import { GameFeedbackModal } from "@/components/GameFeedbackModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
@@ -56,12 +57,7 @@ function getMoveDisplayName(templateId: string): string {
 }
 
 function HolosMark() {
-  return (
-    <Svg width={34} height={34} viewBox="0 0 34 34">
-      <Circle cx={17} cy={17} r={13} stroke="#00e3ff" strokeWidth={3.5} fill="none" />
-      <Circle cx={17} cy={17} r={6} fill="#07080d" />
-    </Svg>
-  );
+  return <Image source={itemIcons.item_holos_chip} style={{ width: 28, height: 28 }} resizeMode="contain" />;
 }
 
 const marketplaceBoosterPacks = [
@@ -178,7 +174,7 @@ export function MarketplaceScreen() {
       setPendingPurchaseId(partId);
       const part = await purchaseMarketplacePartAuthoritative(profile, updateProfile, partId);
       setFeedback({
-        accent: "#17d9ff",
+        accent: theme.colors.accent,
         message: `${part.name} has been added to your parts inventory. Equip it from a holobot's loadout.`,
         title: "Part Acquired",
       });
@@ -205,7 +201,7 @@ export function MarketplaceScreen() {
       setPendingPurchaseId(itemName);
       await purchaseMarketplaceItemAuthoritative(profile, updateProfile, itemName);
       setFeedback({
-        accent: "#17d9ff",
+        accent: theme.colors.accent,
         message: `${itemName} has been added to your account.`,
         title: "Purchase Complete",
       });
@@ -238,7 +234,7 @@ export function MarketplaceScreen() {
       setFeedback(
         granted.godPack
           ? {
-              accent: "#f0bf14",
+              accent: theme.colors.accent,
               lines: [
                 ...granted.parts.map((part) => `Part: ${part.name}`),
                 `Item: ${granted.itemName} ×${granted.itemQuantity}`,
@@ -289,7 +285,7 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
       const { referrerUsername } = await applyReferralCodeAuthoritative(code);
       setReferralCodeInput("");
       setFeedback({
-        accent: "#17d9ff",
+        accent: theme.colors.accent,
         message: `You're linked to ${referrerUsername}. Complete your first workout to unlock the welcome bonus: 5 Wildcard Blueprints + 200 Holos.`,
         title: "Invite Accepted",
       });
@@ -305,7 +301,7 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
       setPendingPurchaseId("claim_genesis");
       const { granted, converted } = await claimGenesisSquadAuthoritative();
       setFeedback({
-        accent: "#f0bf14",
+        accent: theme.colors.accent,
         lines: [
           ...granted.map((name) => `${name} joined your roster!`),
           ...converted.map((entry) => `${entry.name} owned — +${entry.blueprints} blueprints instead`),
@@ -337,7 +333,7 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
         const disabled = !affordable || onCooldown || pendingPurchaseId === item.name;
         return (
           <View key={item.name} style={styles.itemCard}>
-            <GameSurfaceFrame accent="#00e3ff" />
+            <GameSurfaceFrame accent={theme.colors.accent} />
             <View style={styles.itemIconFrame}>
               <Image source={getMarketplaceItemImageSource(item.name)} style={styles.itemIcon} resizeMode="contain" />
             </View>
@@ -393,7 +389,7 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
 
               return (
                 <View key={offer.id} style={styles.itemCard}>
-                  <GameSurfaceFrame accent="#00e3ff" />
+                  <GameSurfaceFrame accent={theme.colors.accent} />
                   <View style={styles.itemIconFrame}>
                     {image ? <Image source={image} style={styles.itemIcon} resizeMode="contain" /> : null}
                   </View>
@@ -593,7 +589,7 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
   return (
     <>
       <View style={styles.page}>
-        <HomeCogButton showSettings={false} topOffset={160} />
+        <HomeCogButton showSettings={false} />
         <CompactSectionHeader
           eyebrow="SHOP"
           meta={`Holos ${profile?.holosTokens || 0} • Tickets ${profile?.gachaTickets || 0} • Parts ${totalOwnedParts}`}
@@ -624,33 +620,36 @@ Use my invite code ${myReferralCode} when you sign up — complete your first wo
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: "#050606",
-    borderBottomColor: "#f0bf14",
+    backgroundColor: theme.colors.carbon,
+    borderBottomColor: theme.colors.accent,
     borderBottomWidth: 3,
     paddingBottom: 18,
     paddingHorizontal: 24,
     paddingTop: 94,
   },
   headerEyebrow: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 1.4,
   },
   headerTitle: {
-    color: "#fef1e0",
-    fontSize: 34,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.display.fontSize,
     fontWeight: "900",
     marginTop: 6,
   },
   headerMeta: {
-    color: "#ddd2b5",
-    fontSize: 14,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     lineHeight: 20,
     marginTop: 8,
   },
   page: {
-    backgroundColor: "#f5c40d",
+    backgroundColor: theme.colors.carbon,
     flex: 1,
   },
   itemActions: {
@@ -677,13 +676,14 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   itemCopy: {
-    color: "#aeb6c3",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 13,
     lineHeight: 18,
     marginTop: 8,
   },
   itemDivider: {
-    backgroundColor: "#344057",
+    backgroundColor: theme.plates.raised,
     height: 4,
     marginTop: 8,
     width: "96%",
@@ -694,15 +694,16 @@ const styles = StyleSheet.create({
   },
   itemIconFrame: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#7b6312",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.border,
     borderWidth: 1,
     height: 84,
     justifyContent: "center",
     width: 84,
   },
   itemTitle: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 15,
     fontWeight: "900",
     lineHeight: 18,
@@ -715,7 +716,7 @@ const styles = StyleSheet.create({
   },
   packBuyButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     borderRadius: 8,
     justifyContent: "center",
     minHeight: 30,
@@ -723,8 +724,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   packBuyText: {
-    color: "#050606",
-    fontSize: 10,
+    color: theme.colors.carbon,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
@@ -738,12 +740,14 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   packDescription: {
-    color: "#8e98aa",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 9,
     lineHeight: 12,
   },
   packGuaranteed: {
-    fontSize: 10,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
@@ -758,8 +762,9 @@ const styles = StyleSheet.create({
     width: 88,
   },
   packPrice: {
-    color: "#ffffff",
-    fontSize: 14,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
   },
   packPriceBox: {
@@ -784,44 +789,50 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   packsSubtitle: {
-    color: "#8e98aa",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 11,
     lineHeight: 15,
     marginBottom: 2,
   },
   packSubtitleLine: {
-    color: "#aeb6c3",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.6,
   },
   packsTitle: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "900",
     letterSpacing: 1,
   },
   packTitle: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     lineHeight: 16,
   },
   price: {
-    color: "#f0bf14",
-    fontSize: 16,
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
   },
   qtyBox: {
     alignItems: "center",
-    borderColor: "#00d9ff",
+    borderColor: theme.colors.accent,
     borderWidth: 2,
     minWidth: 78,
     paddingHorizontal: 6,
     paddingVertical: 7,
   },
   partOwned: {
-    color: "#17d9ff",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1,
@@ -829,10 +840,12 @@ const styles = StyleSheet.create({
   },
   partPrice: {
     flexShrink: 1,
+    fontFamily: "HoloBody",
     fontSize: 13,
   },
   partSectionLabel: {
-    color: "#07080d",
+    color: theme.plates.navy,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 2,
@@ -841,13 +854,15 @@ const styles = StyleSheet.create({
   },
   qtyLabel: {
     color: "#9ca4b0",
-    fontSize: 10,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "700",
     marginBottom: 2,
   },
   qtyValue: {
-    color: "#ffffff",
-    fontSize: 16,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
   },
   priceRow: {
@@ -863,8 +878,8 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   simpleCard: {
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.accent,
     borderWidth: 2,
     gap: 18,
     padding: 18,
@@ -875,23 +890,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   tabButton: {
-    borderColor: "#7a6412",
+    borderColor: theme.colors.border,
     borderWidth: 1,
     flex: 1,
     paddingVertical: 12,
   },
   tabButtonActive: {
-    backgroundColor: "#050606",
-    borderColor: "#050606",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.carbon,
   },
   tabButtonText: {
-    color: "#3f3104",
-    fontSize: 14,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "800",
     textAlign: "center",
   },
   tabButtonTextActive: {
-    color: "#fef1e0",
+    color: theme.colors.text,
   },
   tabRow: {
     flexDirection: "row",
@@ -901,7 +917,7 @@ const styles = StyleSheet.create({
   },
   useButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     borderRadius: 8,
     justifyContent: "center",
     marginTop: 8,
@@ -910,80 +926,88 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   useButtonDisabled: {
-    backgroundColor: "#8c7612",
+    backgroundColor: theme.colors.disabled,
   },
   useButtonText: {
-    color: "#050606",
+    color: theme.colors.carbon,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   useButtonTextDisabled: {
-    color: "#1c1805",
+    color: theme.colors.muted,
   },
   genesisHero: {
-    backgroundColor: "#07080d",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.accent,
     borderRadius: 12,
     borderWidth: 4,
     marginBottom: 14,
     padding: 18,
   },
   genesisEyebrow: {
-    color: "#f0bf14",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
     letterSpacing: 1.6,
   },
   genesisTitle: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 28,
     fontWeight: "900",
     marginTop: 4,
   },
   genesisCopy: {
-    color: "#ddd2b5",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 13,
     lineHeight: 19,
     marginTop: 8,
   },
   genesisBadge: {
-    color: "#f0bf14",
-    fontSize: 14,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 1.2,
     marginTop: 12,
   },
   genesisCard: {
-    backgroundColor: "#07080d",
-    borderColor: "#2a2b33",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.plates.raised,
     borderRadius: 12,
     borderWidth: 2,
     marginBottom: 14,
     padding: 16,
   },
   genesisCardTitle: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 1.2,
   },
   genesisCode: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 32,
     fontWeight: "900",
     letterSpacing: 6,
     marginTop: 8,
   },
   genesisMeta: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     lineHeight: 18,
     marginTop: 8,
   },
   genesisButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     borderRadius: 8,
     justifyContent: "center",
     marginTop: 12,
@@ -991,28 +1015,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   genesisClaimButton: {
-    backgroundColor: "#17d9ff",
+    backgroundColor: theme.colors.accent,
   },
   genesisButtonText: {
-    color: "#050606",
+    color: theme.colors.carbon,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1,
   },
   genesisClaimed: {
-    color: "#38e08c",
-    fontSize: 14,
+    color: theme.colors.success,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
     marginTop: 14,
     textAlign: "center",
   },
   genesisInput: {
-    backgroundColor: "#101218",
-    borderColor: "#2a2b33",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.plates.raised,
     borderRadius: 8,
     borderWidth: 1,
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "800",
     letterSpacing: 3,
@@ -1021,7 +1048,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   genesisWildcardCount: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 30,
     fontWeight: "900",
     marginTop: 6,

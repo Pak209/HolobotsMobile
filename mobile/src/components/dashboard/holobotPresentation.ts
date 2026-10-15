@@ -110,3 +110,8 @@ export function getRarityShortLabel(rarity?: string) {
   if (normalized.includes("champion")) return "CHMP";
   return "CMN";
 }
+
+/** Unity HolobotStatsPage.TierText: host rank verbatim; missing rank has no badge. */
+export function hostTierLabel(hostRank?: string | null): string | null {
+  return typeof hostRank === "string" && hostRank.length > 0 ? `TIER · ${hostRank}` : null;
+}

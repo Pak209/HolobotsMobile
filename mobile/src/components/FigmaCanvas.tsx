@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { ReactNode } from "react";
 import { View, useWindowDimensions, StyleSheet } from "react-native";
 
@@ -21,12 +22,12 @@ export function FigmaCanvas({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#f5c40d",
+    backgroundColor: theme.colors.carbon,
     alignItems: "center",
     justifyContent: "center",
   },
   canvas: {
     overflow: "hidden",
-    backgroundColor: "#f5c40d",
+    backgroundColor: theme.colors.carbon,
   },
 });

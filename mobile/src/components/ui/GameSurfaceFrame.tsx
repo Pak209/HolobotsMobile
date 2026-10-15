@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -9,8 +10,8 @@ type GameSurfaceFrameProps = {
 };
 
 export const GameSurfaceFrame = memo(function GameSurfaceFrame({
-  accent = "#f0bf14",
-  fill = "#07080a",
+  accent = theme.colors.accent,
+  fill = theme.plates.navy,
   strong = false,
 }: GameSurfaceFrameProps) {
   return (
@@ -25,7 +26,8 @@ export const GameSurfaceFrame = memo(function GameSurfaceFrame({
           fill="none"
           stroke={accent}
           strokeLinejoin="miter"
-          strokeWidth={strong ? 3 : 2}
+          vectorEffect="non-scaling-stroke"
+          strokeWidth={strong ? 1.5 : theme.plates.borderWidth}
         />
         <Path
           d="M13 7 H48 L41 13 H20 L8 25 V43 M312 7 H342 L352 17 V39 M8 101 V122 L18 132 H52 M308 132 H342 L352 122 V101"
@@ -39,7 +41,7 @@ export const GameSurfaceFrame = memo(function GameSurfaceFrame({
           fill="none"
           stroke={accent}
           strokeOpacity={0.88}
-          strokeWidth={strong ? 3 : 2}
+          strokeWidth={strong ? 1.5 : theme.plates.borderWidth}
         />
       </Svg>
     </View>
@@ -47,8 +49,8 @@ export const GameSurfaceFrame = memo(function GameSurfaceFrame({
 });
 
 export const GameDialogFrame = memo(function GameDialogFrame({
-  accent = "#f0bf14",
-  fill = "#0b0c0e",
+  accent = theme.colors.accent,
+  fill = theme.plates.navy,
 }: Pick<GameSurfaceFrameProps, "accent" | "fill">) {
   return (
     <View pointerEvents="none" style={styles.fill}>
@@ -62,7 +64,8 @@ export const GameDialogFrame = memo(function GameDialogFrame({
           fill="none"
           stroke={accent}
           strokeLinejoin="miter"
-          strokeWidth={2.5}
+          vectorEffect="non-scaling-stroke"
+          strokeWidth={theme.plates.borderWidth}
         />
         <Path
           d="M16 8 H54 L46 15 H22 L9 28 V65 M304 8 H340 L351 19 V62 M9 548 V598 L21 610 H58 M302 610 H339 L351 598 V548"
@@ -87,14 +90,14 @@ export function GameSectionLabel({ label }: { label: string }) {
   return (
     <View style={styles.sectionLabel}>
       <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 160 28" width="100%">
-        <Path d="M1 1 H141 L159 14 L141 27 H1 Z" fill="#050606" />
+        <Path d="M1 1 H141 L159 14 L141 27 H1 Z" fill={theme.colors.carbon} />
         <Path
           d="M1 1 H54 M68 1 H141 L159 14 L151 20 M142 27 H88 M74 27 H1 V19 M1 10 V1 Z"
           fill="none"
-          stroke="#f0bf14"
+          stroke={theme.colors.accent}
           strokeWidth={1.5}
         />
-        <Path d="M8 5 H32 M132 23 H144" fill="none" stroke="#f0bf14" strokeOpacity={0.55} />
+        <Path d="M8 5 H32 M132 23 H144" fill="none" stroke={theme.colors.accent} strokeOpacity={0.55} />
       </Svg>
       <Text style={styles.sectionLabelText}>{label.toUpperCase()}</Text>
     </View>
@@ -113,8 +116,9 @@ const styles = StyleSheet.create({
     width: 160,
   },
   sectionLabelText: {
-    color: "#f0bf14",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     left: 12,
     letterSpacing: 0.9,

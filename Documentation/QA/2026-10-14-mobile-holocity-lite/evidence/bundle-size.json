@@ -1,0 +1,10 @@
+{
+  "platform": "ios",
+  "mode": "production Expo export / Hermes",
+  "bundleFile": "_expo/static/js/ios/AppEntry-5c8707179ee3f52bca986671ac5a1ce9.hbc",
+  "hermesBytes": 7452173,
+  "gzipBytes": 3119148,
+  "exportFiles": 197,
+  "exportBytes": 107763524,
+  "note": "Export bundle plus assets, not an IPA/App Store download or native installed size."
+}

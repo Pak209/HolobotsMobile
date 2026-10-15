@@ -1,3 +1,4 @@
+import { slotAccent, theme } from "@/theme";
 import { useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -210,7 +211,7 @@ export function ArenaPrebattleMenu({
               onPress={() => setMode("1v1")}
               style={[styles.modeButton, mode === "1v1" && styles.modeButtonActive]}
             >
-              <ArenaControlFrame accent="#f0bf14" selected={mode === "1v1"} />
+              <ArenaControlFrame accent={theme.colors.accent} selected={mode === "1v1"} />
               <Text style={[styles.modeButtonText, mode === "1v1" && styles.modeButtonTextActive]}>1V1 RUN</Text>
             </Pressable>
             <Pressable
@@ -218,7 +219,7 @@ export function ArenaPrebattleMenu({
               onPress={() => setMode("3v3")}
               style={[styles.modeButton, mode === "3v3" && styles.modeButtonActive, !canField3v3 && styles.modeButtonDisabled]}
             >
-              <ArenaControlFrame accent="#20dff2" selected={mode === "3v3"} />
+              <ArenaControlFrame accent={theme.colors.accent} selected={mode === "3v3"} />
               <Text style={[styles.modeButtonText, mode === "3v3" && styles.modeButtonTextActive]}>3V3 SHOWDOWN</Text>
             </Pressable>
           </View>
@@ -232,8 +233,8 @@ export function ArenaPrebattleMenu({
                     onPress={() => setPickerTarget(index as 0 | 1 | 2)}
                     style={[styles.teamSlot, name ? styles.teamSlotFilled : null]}
                   >
-                    <GameSurfaceFrame accent={name ? "#17d9ff" : "#f0bf14"} />
-                    <Text style={styles.teamSlotLabel}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
+                    <GameSurfaceFrame accent={name ? slotAccent(false, index) : theme.colors.border} />
+                    <Text style={[styles.teamSlotLabel, { color: slotAccent(false, index) }]}>{index === 0 ? "LEAD" : `BENCH ${index}`}</Text>
                     {entry ? (
                       <>
                         <Image source={entry.imageSource} style={styles.teamSlotArt} resizeMode="contain" />
@@ -282,7 +283,7 @@ export function ArenaPrebattleMenu({
               onPress={() => startPressed("tokens")}
               style={[styles.actionButton, (!canUseTokens || !teamReady) && styles.actionButtonDisabled]}
             >
-              <ArenaControlFrame accent="#f0bf14" selected={canUseTokens && teamReady} />
+              <ArenaControlFrame accent={theme.colors.accent} selected={canUseTokens && teamReady} />
               <View style={[styles.paymentMark, styles.paymentMarkHolos]}>
                 <Text style={styles.paymentMarkText}>H</Text>
               </View>
@@ -297,7 +298,7 @@ export function ArenaPrebattleMenu({
               onPress={() => startPressed("pass")}
               style={[styles.actionButton, (!canUsePass || !teamReady) && styles.actionButtonDisabled]}
             >
-              <ArenaControlFrame accent="#20dff2" selected={canUsePass && teamReady} />
+              <ArenaControlFrame accent={theme.colors.accent} selected={canUsePass && teamReady} />
               <View style={[styles.paymentMark, styles.paymentMarkPass]}>
                 <Text style={styles.paymentMarkText}>P</Text>
               </View>
@@ -355,13 +356,15 @@ const styles = StyleSheet.create({
   },
   actionButtonMeta: {
     color: "#9aa1ad",
+    fontFamily: "HoloBody",
     fontSize: 8,
     fontWeight: "800",
     marginTop: 2,
     zIndex: 1,
   },
   actionButtonTitle: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     zIndex: 1,
@@ -371,7 +374,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   changeHolobotArt: {
-    backgroundColor: "#111111",
+    backgroundColor: theme.colors.carbon,
     height: 68,
     width: 68,
   },
@@ -389,17 +392,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   changeHolobotMeta: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     marginTop: 4,
   },
   changeHolobotName: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 20,
     fontWeight: "900",
   },
   emptyCopy: {
-    color: "#ddd2b5",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
@@ -407,34 +413,36 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: "center",
-    backgroundColor: "#050606",
+    backgroundColor: theme.colors.carbon,
     flex: 1,
     justifyContent: "center",
     padding: 32,
   },
   emptyTitle: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 28,
     fontWeight: "900",
   },
   eyebrow: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 1.4,
   },
   header: {
-    backgroundColor: "#050606",
-    borderBottomColor: "#f0bf14",
-    borderBottomWidth: 3,
+    backgroundColor: theme.colors.carbon,
+    borderBottomColor: theme.colors.accent,
+    borderBottomWidth: 1,
     paddingBottom: 6,
     paddingHorizontal: 22,
     paddingTop: 64,
   },
   lineupChip: {
     alignItems: "center",
-    backgroundColor: "#101010",
-    borderColor: "#a68311",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.border,
     borderWidth: 1,
     flex: 1,
     minHeight: 86,
@@ -442,7 +450,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   lineupName: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "800",
     marginTop: 4,
@@ -453,8 +462,9 @@ const styles = StyleSheet.create({
     width: 42,
   },
   lineupRound: {
-    color: "#f0bf14",
-    fontSize: 10,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "800",
     marginTop: 4,
   },
@@ -478,23 +488,25 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   modeButtonText: {
-    color: "#fef1e0",
-    fontSize: 12,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
     textAlign: "center",
     zIndex: 1,
   },
   modeButtonTextActive: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
   },
   modeRow: {
     flexDirection: "row",
     gap: 8,
   },
   teamHint: {
-    color: "#8b93a1",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     marginTop: 8,
   },
   teamRow: {
@@ -523,34 +535,38 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   teamSlotFilled: {
-    borderColor: "#17d9ff",
+    borderColor: theme.colors.accent,
   },
   teamSlotLabel: {
-    color: "#f0bf14",
-    fontSize: 10,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
   teamSlotMeta: {
-    color: "#8b93a1",
-    fontSize: 10,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "700",
     marginTop: 2,
   },
   teamSlotName: {
-    color: "#ffffff",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "800",
     marginTop: 4,
     textAlign: "center",
   },
   teamSlotPlus: {
-    color: "#17d9ff",
-    fontSize: 22,
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.header.fontSize,
     fontWeight: "900",
   },
   page: {
-    backgroundColor: "#f5c40d",
+    backgroundColor: theme.colors.carbon,
     flex: 1,
   },
   passButton: {
@@ -566,13 +582,14 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   paymentMarkHolos: {
-    borderColor: "#f0bf14",
+    borderColor: theme.colors.accent,
   },
   paymentMarkPass: {
-    borderColor: "#20dff2",
+    borderColor: theme.colors.accent,
   },
   paymentMarkText: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     transform: [{ rotate: "-45deg" }],
@@ -589,8 +606,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   previewEyebrow: {
-    color: "#fef1e0",
-    fontSize: 16,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
   },
   previewHeader: {
@@ -599,12 +617,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   previewHeroArt: {
-    backgroundColor: "#111111",
+    backgroundColor: theme.colors.carbon,
     height: 64,
     width: 64,
   },
   previewHeroLevel: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "700",
     marginTop: 4,
@@ -613,8 +632,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   previewHeroName: {
-    color: "#fef1e0",
-    fontSize: 22,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.header.fontSize,
     fontWeight: "900",
   },
   previewHeroRow: {
@@ -623,12 +643,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   previewHint: {
-    color: "#9ca3af",
-    fontSize: 10,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "700",
   },
   progressFill: {
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     height: "100%",
   },
   progressTrack: {
@@ -644,19 +665,22 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   rewardLine: {
-    color: "#fef1e0",
-    fontSize: 16,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "800",
   },
   rewardSubcopy: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     lineHeight: 17,
     marginTop: 6,
   },
   roundsTitle: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
     marginTop: 10,
   },
@@ -670,13 +694,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    color: "#050606",
-    fontSize: 16,
+    color: theme.colors.carbon,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
   },
   tierCard: {
-    backgroundColor: "#090909",
-    borderColor: "#a68311",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.border,
     borderWidth: 2,
     gap: 4,
     minHeight: 64,
@@ -685,11 +710,12 @@ const styles = StyleSheet.create({
     width: "48%",
   },
   tierCardSelected: {
-    borderColor: "#f0bf14",
+    borderColor: theme.colors.accent,
   },
   tierFee: {
-    color: "#f0bf14",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
   },
   tierMetaRow: {
@@ -705,12 +731,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   tierLevel: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
   },
   tierName: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 15,
     fontWeight: "900",
   },

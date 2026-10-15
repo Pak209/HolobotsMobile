@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Asset } from "expo-asset";
+import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -11,6 +10,7 @@ import { ArenaScreen } from "./src/screens/ArenaScreen";
 import { AppLoadingScreen } from "./src/components/AppLoadingScreen";
 import { WatchRewardsSyncModal } from "./src/components/WatchRewardsSyncModal";
 import { HomeScreen } from "./src/screens/HomeScreen";
+import { CityHubScreen } from "./src/screens/CityHubScreen";
 import { FitnessScreen } from "./src/screens/FitnessScreen";
 import { InventoryScreen } from "./src/screens/InventoryScreen";
 import { LeaderboardScreen } from "./src/screens/LeaderboardScreen";
@@ -20,10 +20,11 @@ import { GachaScreen } from "./src/screens/GachaScreen";
 import { OverworldScreen } from "./src/screens/OverworldScreen";
 import { QuestsScreen } from "./src/screens/QuestsScreen";
 import { TrainingScreen } from "./src/screens/TrainingScreen";
-import { fitnessAssetList } from "./src/config/figmaAssets";
 import { useWatchBridge } from "./src/hooks/useWatchBridge";
+import { theme } from "./src/theme";
 
 export type RootTabs = {
+  CityHub: undefined;
   Arena: undefined;
   Home: undefined;
   Fitness: undefined;
@@ -39,25 +40,25 @@ export type RootTabs = {
 const Tab = createBottomTabNavigator<RootTabs>();
 
 const navTheme = {
-  ...DefaultTheme,
+  ...DarkTheme,
   colors: {
-    ...DefaultTheme.colors,
-    background: "#f5c40d",
-    card: "#050606",
-    text: "#fef1e0",
-    border: "#d9a300",
-    primary: "#f5c40d",
+    ...DarkTheme.colors,
+    background: theme.colors.carbon,
+    card: theme.plates.navy,
+    text: theme.colors.text,
+    border: theme.colors.border,
+    primary: theme.colors.accent,
   },
 };
 
-function AuthedApp({ fitnessAssetsReady }: { fitnessAssetsReady: boolean }) {
+function AuthedApp() {
   const { bootLoading, profile, profileLoading, sessionLocked, user } = useAuth();
   const watchRewardsSync = useWatchBridge(
     user?.uid,
     (profile?.holobots || []).map((holobot) => holobot.name),
   );
 
-  if (!fitnessAssetsReady || bootLoading || (user && profileLoading && !profile)) {
+  if (bootLoading || (user && profileLoading && !profile)) {
     return <AppLoadingScreen />;
   }
 
@@ -68,7 +69,7 @@ function AuthedApp({ fitnessAssetsReady }: { fitnessAssetsReady: boolean }) {
   return (
     <>
       <NavigationContainer theme={navTheme}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <Tab.Navigator
           initialRouteName="Home"
           screenOptions={{
@@ -76,11 +77,12 @@ function AuthedApp({ fitnessAssetsReady }: { fitnessAssetsReady: boolean }) {
             tabBarStyle: {
               display: "none",
             },
-            tabBarActiveTintColor: "#f5c40d",
-            tabBarInactiveTintColor: "#d7d0bd",
+            tabBarActiveTintColor: theme.colors.accent,
+            tabBarInactiveTintColor: theme.colors.muted,
           }}
         >
           <Tab.Screen name="Home" component={HomeScreen} />
+          <Tab.Screen name="CityHub" component={CityHubScreen} />
           <Tab.Screen name="Fitness" component={FitnessScreen} />
           <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
           <Tab.Screen name="Inventory" component={InventoryScreen} />
@@ -106,31 +108,27 @@ function AuthedApp({ fitnessAssetsReady }: { fitnessAssetsReady: boolean }) {
 }
 
 export default function App() {
-  const [fitnessAssetsReady, setFitnessAssetsReady] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    void Asset.loadAsync(fitnessAssetList)
-      .catch((error) => {
-        console.warn("[App] Fitness asset preload failed; native requires will retry.", error);
-      })
-      .finally(() => {
-        if (mounted) {
-          setFitnessAssetsReady(true);
-        }
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const [fontsReady, fontError] = useFonts({
+    HoloDisplay: require("./assets/fonts/Rajdhani-Medium.ttf"),
+    HoloBody: require("./assets/fonts/Saira-Regular.ttf"),
+  });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <AuthedApp fitnessAssetsReady={fitnessAssetsReady} />
-        </AuthProvider>
+        {!fontsReady && !fontError ? <AppLoadingScreen /> : __DEV__ && process.env.EXPO_PUBLIC_HOLOCITY_PREVIEW === "1" ? (
+          <OfflinePreview />
+        ) : (
+          <AuthProvider>
+            <AuthedApp />
+          </AuthProvider>
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+function OfflinePreview() {
+  const Preview = require("./src/qa/HoloCityPreview").HoloCityPreviewApp;
+  return <Preview />;
 }

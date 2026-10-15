@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -35,18 +36,18 @@ function TabFrame({ active }: { active: boolean }) {
       <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 100 42" width="100%">
         <Path
           d="M8 1 H92 L99 8 V34 L92 41 H8 L1 34 V8 Z"
-          fill={active ? "#050606" : "#e6b90f"}
-          stroke={active ? "#fff0a0" : "#8b6d07"}
+          fill={active ? theme.plates.raised : theme.plates.navy}
+          stroke={active ? theme.colors.accent : theme.colors.border}
           strokeWidth={active ? 1.5 : 1}
         />
         <Path
           d="M12 5 H35 M65 37 H88 M3 13 V25 M97 17 V29"
           fill="none"
-          stroke={active ? "#f5c40d" : "#5f4904"}
+          stroke={active ? theme.colors.accent : theme.colors.subtle}
           strokeOpacity={active ? 0.9 : 0.5}
           strokeWidth={1}
         />
-        {active ? <Path d="M42 1 H58 L50 8 Z" fill="#f5c40d" /> : null}
+        {active ? <Path d="M42 1 H58 L50 8 Z" fill={theme.colors.accent} /> : null}
       </Svg>
     </View>
   );
@@ -90,15 +91,16 @@ export function AngularPageTabs<T extends string>({
 
 const styles = StyleSheet.create({
   eyebrow: {
-    color: "#f5c40d",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 1.5,
   },
   header: {
-    backgroundColor: "#050606",
-    borderBottomColor: "#f5c40d",
-    borderBottomWidth: 3,
+    backgroundColor: theme.colors.carbon,
+    borderBottomColor: theme.colors.accent,
+    borderBottomWidth: 1,
     paddingBottom: 9,
     paddingHorizontal: 22,
     paddingTop: 62,
@@ -111,9 +113,10 @@ const styles = StyleSheet.create({
     paddingRight: 84,
   },
   meta: {
-    color: "#bdb59f",
+    color: theme.colors.muted,
     flex: 1,
-    fontSize: 10,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "700",
   },
   tab: {
@@ -129,8 +132,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   tabText: {
-    color: "#4a3802",
-    fontSize: 10,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.micro.fontSize,
     fontWeight: "900",
     letterSpacing: 0.15,
     paddingHorizontal: 5,
@@ -138,7 +142,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   tabTextActive: {
-    color: "#fff4d9",
+    color: theme.colors.text,
   },
   tabs: {
     flexDirection: "row",
@@ -147,7 +151,8 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   title: {
-    color: "#fff1df",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 24,
     fontWeight: "900",
     letterSpacing: -0.35,

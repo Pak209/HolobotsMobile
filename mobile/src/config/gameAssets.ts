@@ -1,20 +1,21 @@
+import { itemIcons, getItemIcon } from "@/config/itemIcons";
 import { Image } from "react-native";
 
 export const gameAssets = {
-  arenaPass: require("../../assets/game/ArenaPass.png"),
-  blueprint: require("../../assets/game/Blueprint.png"),
-  corePart: require("../../assets/game/CorePart.png"),
-  expBoost: require("../../assets/game/EXPBoost.png"),
-  energyRefill: require("../../assets/game/Energyrefill.png"),
-  gachaTicket: require("../../assets/game/GachaTicket.png"),
+  arenaPass: itemIcons["item.arena_pass"],
+  blueprint: itemIcons["item_blueprint_fragment"],
+  corePart: itemIcons["part.energyCore"],
+  expBoost: itemIcons["item_training_booster"],
+  energyRefill: itemIcons["item_energy_refill"],
+  gachaTicket: itemIcons["item_holo_pack"],
   legPart: require("../../assets/game/LegPart.png"),
-  rankSkip: require("../../assets/game/RankSKIP.png"),
-  armPartPlasmaCannon: require("../../assets/game/ArmPartPlasmaCannon.png"),
-  armsPartBoxer: require("../../assets/game/ArmsPartBoxer.png"),
-  armsPartInfernoClaws: require("../../assets/game/ArmsPartInfernoClaws.png"),
-  headPartCombatMask: require("../../assets/game/HeadPartCombatMask.png"),
-  headPartVoidMask: require("../../assets/game/HeadPartVoidMask.png"),
-  torsoPart: require("../../assets/game/TorsoPart.png"),
+  rankSkip: itemIcons["item.rank_skip"],
+  armPartPlasmaCannon: itemIcons["part.plasmaCannon"],
+  armsPartBoxer: itemIcons["part.boxerGloves"],
+  armsPartInfernoClaws: itemIcons["part.infernoClaws"],
+  headPartCombatMask: itemIcons["part.combatMask"],
+  headPartVoidMask: itemIcons["part.voidMask"],
+  torsoPart: itemIcons["part.alloyChassis"],
 } as const;
 
 function normalizePartName(name: string) {
@@ -56,6 +57,8 @@ const slotFallbackImageMap: Record<string, number> = {
 
 export function getPartImageSource(partName?: string | null, slot?: string | null) {
   if (partName) {
+    const exactIcon = getItemIcon(partName);
+    if (exactIcon) return exactIcon;
     const mapped = partNameImageMap[normalizePartName(partName)];
     if (mapped) {
       return mapped;
@@ -82,6 +85,8 @@ export function resolveBundledAssetUri(source?: number | string | null) {
 }
 
 export function getMarketplaceItemImageSource(itemName: string) {
+  const exactIcon = getItemIcon(itemName);
+  if (exactIcon) return exactIcon;
   const normalized = itemName.trim().toLowerCase();
 
   if (normalized.includes("arena pass")) return gameAssets.arenaPass;
