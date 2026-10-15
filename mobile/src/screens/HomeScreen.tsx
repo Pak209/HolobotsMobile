@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View, type DimensionValue, type ImageSourcePropType } from "react-native";
 import { Defs, Filter, FeColorMatrix, Image as SvgImage } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 import { DashboardSettingsModal } from "@/components/DashboardSettingsModal";
@@ -211,6 +212,7 @@ function ArtImage({
 
 export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } = {}) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
+  const insets = useSafeAreaInsets();
   const { profile, updateProfile, user } = useAuth();
   const rival = useRivalStatus(user?.uid, rivalPreview);
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
@@ -270,11 +272,11 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
     SPEED: Math.min(100, selectedHolobot.stats.speed + partBoosts.speed),
   };
   return (
-    <FigmaCanvas>
+    <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12, backgroundColor: theme.colors.carbon }}>
+    <FigmaCanvas fillHeight>
       <View style={StyleSheet.absoluteFill}>
         <ArtImage tintColor={theme.colors.carbon} source={homeAssets.backgroundBase} x={0} y={0} width={1800} height={3200} />
         <ArtImage tintColor={theme.plates.navy} source={homeAssets.backgroundDetail} x={0} y={0} width={1800} height={3200} />
-        <ArtImage source={homeAssets.topBackground} x={0} y={100} width={1800} height={409} />
         <ArtImage source={homeAssets.attributeChartBase} x={0} y={628} width={825} height={971} zIndex={2} />
         {abilitySlots.map(({ part, x }, index) => (
           <ArtImage
@@ -287,16 +289,24 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
             zIndex={2}
           />
         ))}
-        <ArtImage source={homeAssets.bottomBackground} x={0} y={2375} width={1800} height={857} zIndex={2} />
-        <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
+        <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
           <G fill="none" stroke={theme.colors.accent} strokeWidth={5}>
-            <Path d="M0 100 H140 L165 125 H990 L1040 170 H1800 M0 450 H130 L180 410 H1400 L1510 300 H1800" />
+
             <Path d="M20 910 L280 650 H810 V1350 L580 1570 H20 M40 925 L295 675 H790 V1340 L570 1545 H40" />
             <Path d={`M110 ${HOME_INFO_CARD_Y + 50} L155 ${HOME_INFO_CARD_Y} H814 V${HOME_INFO_CARD_Y + 260} L720 ${HOME_INFO_CARD_Y + 347} H110 Z`} />
             <Path d={`M815 ${HOME_CHANGE_BAR_Y + 112} L940 ${HOME_CHANGE_BAR_Y - 15} H1645 L1695 ${HOME_CHANGE_BAR_Y + 30} V${HOME_CHANGE_BAR_Y + 112} Z`} />
-            <Path d="M0 2580 H1400 L1550 2440 H1800 M20 2610 V3100 L100 3170 H1710 L1780 3100 V2610" />
+
           </G>
-          <Text x={126} y={228} fill={theme.colors.text} fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
+          {/* Layered header plate follows the original silhouette. */}
+          <Path d="M0 100 H145 L168 124 H995 L1045 170 H1800 V300 H1530 L1410 425 H260 L230 450 H0 Z" fill={theme.plates.navy} fillOpacity={0.88} />
+          <G fill="none" stroke={theme.colors.accent}>
+            <Path d="M0 100 H145 L168 124 H995 L1045 170 H1800 M0 450 H230 L260 425 H1410 L1530 300 H1800" strokeWidth={5} />
+            <Path d="M0 118 H140 L165 142 H986 L1035 188 H1470 M0 468 H237 L268 443 H1120 M1450 400 L1550 282 H1740" strokeWidth={2} opacity={0.55} />
+            <Path d="M22 125 H135 M195 135 H930 L972 135 M1060 170 H1210 M480 425 H740 M35 450 H125 M1550 300 H1715" strokeWidth={12} />
+            <Path d="M0 360 H36 L75 400 H205 L235 425 M1250 170 L1320 105 H1720" strokeWidth={2} opacity={0.45} />
+          </G>
+          {[1185,1206,1227,1248].map(x => <Rect key={`header-dot-${x}`} x={x} y={145} width={8} height={8} fill={theme.colors.accent} opacity={0.7} />)}
+          <Text x={126} y={268} fill={theme.colors.text} fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
 
           {/* Hologram glow centered under the Holobot (portrait is zIndex 20,
               this vector layer is zIndex 10, so the bot stands on it). */}
@@ -393,7 +403,15 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
           <G transform={`translate(1510 ${HOME_CHANGE_BAR_Y - 70})`} fill="none" stroke={theme.colors.accent} strokeWidth={22} strokeLinecap="round" strokeLinejoin="round">
             <Path d="M155 60 A70 70 0 0 0 30 45 M30 15 V60 H75 M25 105 A70 70 0 0 0 150 120 M150 150 V105 H105" />
           </G>
-          <Rect x={0} y={2942} width={1800} height={258} fill={theme.colors.carbon} />
+          {/* A complete plate behind BOTH icons and labels; no opaque label strip clipping its rim. */}
+          <Path d="M0 2600 L60 2540 H410 L438 2565 H1740 L1800 2510 V3070 L1700 3170 H96 L0 3074 Z" fill={theme.plates.navy} fillOpacity={0.92} />
+          <G fill="none" stroke={theme.colors.accent}>
+            <Path d="M0 2600 L60 2540 H410 L438 2565 H1740 L1800 2510 M1800 3070 L1700 3170 H96 L0 3074" strokeWidth={6} />
+            <Path d="M36 2650 V3060 L112 3140 H1685 L1762 3060 V2620 M8 2615 L70 2558 H340 M500 2582 H1520 M115 3154 H370 M1420 3154 H1687 L1740 3100" strokeWidth={2} opacity={0.7} />
+            <Path d="M0 3088 L89 3178 H220 M230 3170 H530 M1510 3170 H1680 M45 2550 H155 M1380 2565 H1660" strokeWidth={11} />
+          </G>
+          {[2680,2702,2724,2746].map(y => <Rect key={`footer-dot-${y}`} x={34} y={y} width={7} height={7} fill={theme.colors.accent} opacity={0.6} />)}
+          {[575,597,619,641].map(x => <Rect key={`footer-dot-${x}`} x={x} y={3186} width={7} height={7} fill={theme.colors.accent} opacity={0.6} />)}
           <Text x={210} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">ARENA</Text>
           <Text x={622} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">INVENTORY</Text>
           <Text x={1008} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">SYNC</Text>
@@ -546,7 +564,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
             <RNText style={styles.cityText}>CITY › {rival.countdown || "RIVALS"}</RNText>
           </Pressable>
         </View>
-        <UnityLaunchButton />
+        <View style={styles.nativeCityEntry}><UnityLaunchButton inline compact /></View>
         <TravelSquadPanel uid={user?.uid} roster={roster} />
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
@@ -648,13 +666,15 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
         </Modal>
       </View>
     </FigmaCanvas>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  statusStrip: { position: "absolute", left: "7%", right: "7%", top: "8%", flexDirection: "row", justifyContent: "space-between", alignItems: "center", zIndex: 30 },
+  nativeCityEntry: { position: "absolute", left: "69%", right: "5%", top: "4.5%", height: 32, zIndex: 35 },
+  statusStrip: { position: "absolute", left: "7%", right: "7%", top: "9.5%", flexDirection: "row", justifyContent: "space-between", alignItems: "center", zIndex: 30 },
   statusText: { color: theme.colors.muted, fontSize: 10, fontWeight: "700" },
-  cityText: { color: theme.colors.accent, fontSize: 10, fontWeight: "800", paddingVertical: 12 },
+  cityText: { color: theme.colors.accent, fontSize: 10, fontWeight: "800", paddingVertical: 4 },
   artImageFrame: {
     position: "absolute",
   },
@@ -706,7 +726,7 @@ const styles = StyleSheet.create({
     gap: 10,
     position: "absolute",
     right: 18,
-    top: "12%",
+    top: "14.5%",
     zIndex: 25,
   },
   statsButton: {

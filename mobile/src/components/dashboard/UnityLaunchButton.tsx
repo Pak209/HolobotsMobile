@@ -5,7 +5,7 @@ import { GameDialogFrame, GameSurfaceFrame } from '@/components/ui/GameSurfaceFr
 import { closeNativeUnity, openNativeUnity } from '@/lib/unity/nativeUnitySession';
 
 /** Manual entry only. An absent native module/framework shows an error, never an imitation runtime. */
-export function UnityLaunchButton({ inline = false }: { inline?: boolean }) {
+export function UnityLaunchButton({ inline = false, compact = false }: { inline?: boolean; compact?: boolean }) {
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const mounted=useRef(true),starting=useRef(false),close=useRef<(()=>Promise<void>)|null>(null);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;if(starting.current)void closeNativeUnity().catch(()=>{});else void close.current?.().catch(()=>{});};},[]);
@@ -16,8 +16,8 @@ export function UnityLaunchButton({ inline = false }: { inline?: boolean }) {
     finally{starting.current=false;if(mounted.current)setBusy(false);}
   };
   return <>
-    <Pressable style={inline ? styles.inlineEntry : styles.entry} disabled={busy} onPress={()=>void launch()} accessibilityRole="button" accessibilityLabel="Open native HoloCity" accessibilityState={{busy,disabled:busy}}>
-      <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy}/><Text style={styles.label}>{busy?'OPENING…':'NATIVE CITY'}</Text>
+    <Pressable style={[inline ? styles.inlineEntry : styles.entry, compact && { minHeight: 32 }]} disabled={busy} onPress={()=>void launch()} accessibilityRole="button" accessibilityLabel="Open native HoloCity" accessibilityState={{busy,disabled:busy}}>
+      <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy}/><Text style={[styles.label, compact && { fontSize: 9 }]}>{busy?'OPENING…':'NATIVE CITY'}</Text>
     </Pressable>
     <Modal visible={!!error} transparent animationType="fade" onRequestClose={()=>setError('')}>
       <View style={styles.backdrop}><View style={styles.dialog}><GameDialogFrame accent={theme.colors.accent} fill={theme.plates.navy}/>
