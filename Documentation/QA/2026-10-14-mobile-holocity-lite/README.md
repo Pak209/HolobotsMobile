@@ -1,5 +1,7 @@
 # HoloCity mobile lite — simulator QA
 
+Shared draft PR: [#87 — HoloCity lite](https://github.com/Pak209/HolobotsMobile/pull/87), `mobile-holocity-lite` → `main`. Left unmerged; CI results are attached to that PR.
+
 Work is isolated in `HolobotsMobile-lite`, branch `mobile-holocity-lite`, based on `5d57afa` on main. W5, W6 and W7 share one integration PR because they share the requested branch. Nothing is merged or deployed. No production game account is used.
 
 ## Worker deliveries
