@@ -17,7 +17,7 @@ import { BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, BuddyTierKey, readBuddy
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { getHolobotRank, normalizeUserHolobot } from "./progression";
 import { getPlayerBattleStats } from "./progressionEconomy";
-import { RIVAL_LINEUP_SCALE_WOLF, rivalTierBattleStats } from "./rivalTierStats";
+import { RIVAL_LINEUP_SCALE_WOLF, rivalTierBattleStats, rivalTierDamageScale } from "./rivalTierStats";
 
 // ---- Daily rival reward (Buddy Unit inventory: lib/buddyUnits.ts, #44) ---------
 
@@ -136,7 +136,7 @@ export const RIVAL_TIER_EXTRAPOLATION = { levelPerTier: 5, statScalePerTier: 0.1
 /**
  * Scale-1.0 rival (the wolf in Unity's pilot-battle sample payload). #43: health / attack / defense
  * scale by statScale — the rival-battle-1 / -2 opponents. maxStamina / staminaRegen / deployment /
- * moves are fixed for every version and every combatant (rival and player). rival-battle-3 opponents
+ * moves are baseline values (rival and player). rival-battle-3 CPU move damageScale is tuned by tier; opponents
  * take level / health / attack / defense / speed / intelligence from rivalTierStats.ts instead.
  */
 export const RIVAL_BASELINE = {
@@ -247,7 +247,8 @@ export function rivalCombatant(holobotId: string, row: RivalTierRow): CombatantS
 
 /**
  * DECISIONS #53 amendment 1 combatant in the #43 record format: level / maxHealth / attack / defense =
- * WOLF's battle stats at level 1 + 4t (rivalTierStats.ts); stamina / deployment / moves = RIVAL_BASELINE.
+ * WOLF's battle stats at level 1 + 4t (rivalTierStats.ts); stamina / deployment = RIVAL_BASELINE.
+ * CPU move damageScale = baseline x rivalTierDamageScale(tier) (economy-host-2).
  * speed / intelligence are NOT stored (the record keeps the #43 format); the rival-battle-3 issue reply
  * adds them (rivalScaledCombatantStats).
  */
@@ -263,7 +264,7 @@ export function rivalScaledCombatant(holobotId: string, tier: number): Combatant
     maxStamina: b.maxStamina,
     staminaRegen: b.staminaRegen,
     deployment: { ...b.deployment },
-    moves: b.moves.map((m) => ({ ...m })),
+    moves: b.moves.map((m) => ({ ...m, damageScale: m.damageScale * rivalTierDamageScale(tier) })),
   };
 }
 

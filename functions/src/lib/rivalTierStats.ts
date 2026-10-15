@@ -69,3 +69,22 @@ export function rivalTierBattleStats(tier: number): RivalTierBattleStats {
     intelligence: stats.intelligence,
   };
 }
+
+/**
+ * economy-host-2, using Unity QA/2026-10-13-feel-4: cut swings changed CPU damage/min
+ * 2098 -> 1957 (player 1319 -> 538). Target CPU retained output is 45% at tier 0,
+ * rising linearly to 80% at tier 9; higher tiers retain the tier-9 adjustment.
+ * Divide by the measured CPU retention so we do not apply its existing loss twice.
+ * These are modeled targets, not a fresh gameplay-duration measurement.
+ * Only rival-battle-3 CPU move damageScale changes; player and legacy snapshots stay intact.
+ */
+export const RIVAL_CUT_SWING_CPU_RETENTION = 1957 / 2098;
+export const RIVAL_DAMAGE_TOP_TIER = 9;
+export const RIVAL_DAMAGE_RETAINED_ROOKIE = 0.45;
+export const RIVAL_DAMAGE_RETAINED_TOP = 0.8;
+export function rivalTierDamageScale(tier: number): number {
+  if (!Number.isSafeInteger(tier) || tier < 0) throw new RangeError("tier");
+  const progress = Math.min(tier, RIVAL_DAMAGE_TOP_TIER) / RIVAL_DAMAGE_TOP_TIER;
+  const target = RIVAL_DAMAGE_RETAINED_ROOKIE + (RIVAL_DAMAGE_RETAINED_TOP - RIVAL_DAMAGE_RETAINED_ROOKIE) * progress;
+  return target / RIVAL_CUT_SWING_CPU_RETENTION;
+}
