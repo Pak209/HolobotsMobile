@@ -115,3 +115,5 @@ The footer marks offline fixture data. Each thumbnail links to its original nati
 | **BotKEN**<br>![BotKEN](screenshots/BotKEN.png) | **BotTSUIN**<br>![BotTSUIN](screenshots/BotTSUIN.png) | **BotHARE**<br>![BotHARE](screenshots/BotHARE.png) |
 | **BotSHADOW**<br>![BotSHADOW](screenshots/BotSHADOW.png) | **BotWAKE**<br>![BotWAKE](screenshots/BotWAKE.png) | **BotTORA**<br>![BotTORA](screenshots/BotTORA.png) |
 | **BotGAMA**<br>![BotGAMA](screenshots/BotGAMA.png) | **BotKURAI**<br>![BotKURAI](screenshots/BotKURAI.png) | **BotERA**<br>![BotERA](screenshots/BotERA.png) |
+
+Production iOS export after the dashboard revision: **7,480,288 bytes** Hermes, **3,130,677 bytes** gzip; full export **110,116,552 bytes** in 230 files. [Measurement](evidence/dashboard-bundle-size.json). This supersedes the earlier bundle measurement for the current branch.
