@@ -1,0 +1,355 @@
+{
+  "sourceCommit": "970cc690e4fa9ce370ebf30da4d513b08c67297f",
+  "maxBotBytes": 2000000,
+  "maxTextureDimension": 1024,
+  "bots": [
+    {
+      "id": "wolf",
+      "sourceBytes": 6517316,
+      "bytes": 799012,
+      "sha256": "e431692f656fa17c29b6779111e32d5a1df3e0348d174a2a17a9af94ae0bd974",
+      "clips": [
+        "Evade",
+        "HoverIdle",
+        "LowRoundhouse",
+        "Run",
+        "StepCross",
+        "SupermanPunch",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "kuma",
+      "sourceBytes": 6909784,
+      "bytes": 943788,
+      "sha256": "2580b0511975706de982c9f12bada5817329cdace5f854bbbc9f645c286cd72a",
+      "clips": [
+        "DoubleHammer",
+        "Evade",
+        "Idle",
+        "PawSwipe",
+        "Run",
+        "ShoulderCheck",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "ken",
+      "sourceBytes": 7245868,
+      "bytes": 990696,
+      "sha256": "c5ddd7b09d8478fb5928d676148947e8adf76330d6ce1457d7113001c6206cf2",
+      "clips": [
+        "CrossElbow",
+        "CrownDrop",
+        "Evade",
+        "Idle",
+        "PalmBreaker",
+        "Run",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "tsuin",
+      "sourceBytes": 6536380,
+      "bytes": 851688,
+      "sha256": "eed27edd2f75583e167984a9eebf56a8376fc52bba08959e0a3f4b2e5c2e5a75",
+      "clips": [
+        "Evade",
+        "Idle",
+        "LeapCleave",
+        "Run",
+        "TurningEdge",
+        "TwinCut",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "hare",
+      "sourceBytes": 13931624,
+      "bytes": 1681480,
+      "sha256": "d42b1e56204a55aad593bf063a4d617262ea6bedd211fd91897e47ef73833bc4",
+      "clips": [
+        "DoubleHeel",
+        "Evade",
+        "HopKnee",
+        "Idle",
+        "Run",
+        "SnapKick",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "format": "png"
+        },
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 2,
+      "identicalToW6": true
+    },
+    {
+      "id": "shadow",
+      "sourceBytes": 5929768,
+      "bytes": 905576,
+      "sha256": "c1267257f2b7083b0c9dff7336899ec9cbc897e28a3c9344d49f7a0541f1087d",
+      "clips": [
+        "DiagonalCut",
+        "DrawCut",
+        "Evade",
+        "Idle",
+        "JumpSlash",
+        "PassingThrust",
+        "Run",
+        "Walk"
+      ],
+      "decodedBufferViews": 38,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 3,
+      "identicalToW6": true
+    },
+    {
+      "id": "wake",
+      "sourceBytes": 7041076,
+      "bytes": 903940,
+      "sha256": "8011bec69f0b58eadaa40edbba3f7e8acd5b445706b593d900422adc7b9562ff",
+      "clips": [
+        "AnchorSlam",
+        "DrivePunch",
+        "Evade",
+        "ForearmCounter",
+        "Idle",
+        "Run",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        },
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "tora",
+      "sourceBytes": 6973896,
+      "bytes": 1017052,
+      "sha256": "70ddcf41bde134d9d53c7720094942f810fedd830f2461fe375700ee212aaa3a",
+      "clips": [
+        "Evade",
+        "Idle",
+        "PounceCrush",
+        "RakeCombo",
+        "Run",
+        "TigerPalm",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "gama",
+      "sourceBytes": 12379092,
+      "bytes": 1143744,
+      "sha256": "79775c3aeec773a27fa65f57800780def3b5e1383bf176339de68120aba310cc",
+      "clips": [
+        "DiveKick",
+        "Evade",
+        "Idle",
+        "PalmFlick",
+        "Run",
+        "Walk",
+        "WhipKick"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "format": "png"
+        },
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 2,
+      "identicalToW6": true
+    },
+    {
+      "id": "kurai",
+      "sourceBytes": 6859560,
+      "bytes": 822012,
+      "sha256": "d1a82e6bc7a2aac26a1e3669d0758086257106ed16919c0a709d2c03c41ab1e4",
+      "clips": [
+        "CrossSlash",
+        "Evade",
+        "Idle",
+        "LowPass",
+        "RisingEdge",
+        "Run",
+        "Walk"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "era",
+      "sourceBytes": 7003344,
+      "bytes": 1054132,
+      "sha256": "45220e280b467910b994903d01db5666f1f241e1881bbd9f10a96472c93025b7",
+      "clips": [
+        "DivingEdge",
+        "Evade",
+        "Idle",
+        "Run",
+        "TalonKick",
+        "Walk",
+        "WingShear"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        },
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    },
+    {
+      "id": "ace",
+      "sourceBytes": 9721328,
+      "bytes": 988940,
+      "sha256": "5760acb630750a0b9039e1cfafa0569b9363dd536547b791a972860759e8d88b",
+      "clips": [
+        "CometCross",
+        "Evade",
+        "FableHover",
+        "JabCross",
+        "LeadHook",
+        "MeteorHammer",
+        "RearUppercut",
+        "Skybreaker"
+      ],
+      "decodedBufferViews": 10,
+      "textures": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "jpeg"
+        }
+      ],
+      "errors": 0,
+      "warnings": 1,
+      "identicalToW6": true
+    }
+  ],
+  "totalBytes": 12102060,
+  "sourceBytes": 97049036,
+  "totalClips": 86,
+  "totalDecodedBufferViews": 148
+}

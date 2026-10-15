@@ -1,0 +1,69 @@
+{
+  "gate": "<= 2000000 bytes per GLB before compression",
+  "passed": 0,
+  "failed": 12,
+  "sourceCommit": "970cc690e4fa9ce370ebf30da4d513b08c67297f",
+  "totalBytes": 97049036,
+  "bots": [
+    {
+      "id": "wolf",
+      "bytes": 6517316,
+      "passes": false
+    },
+    {
+      "id": "kuma",
+      "bytes": 6909784,
+      "passes": false
+    },
+    {
+      "id": "ken",
+      "bytes": 7245868,
+      "passes": false
+    },
+    {
+      "id": "tsuin",
+      "bytes": 6536380,
+      "passes": false
+    },
+    {
+      "id": "hare",
+      "bytes": 13931624,
+      "passes": false
+    },
+    {
+      "id": "shadow",
+      "bytes": 5929768,
+      "passes": false
+    },
+    {
+      "id": "wake",
+      "bytes": 7041076,
+      "passes": false
+    },
+    {
+      "id": "tora",
+      "bytes": 6973896,
+      "passes": false
+    },
+    {
+      "id": "gama",
+      "bytes": 12379092,
+      "passes": false
+    },
+    {
+      "id": "kurai",
+      "bytes": 6859560,
+      "passes": false
+    },
+    {
+      "id": "era",
+      "bytes": 7003344,
+      "passes": false
+    },
+    {
+      "id": "ace",
+      "bytes": 9721328,
+      "passes": false
+    }
+  ]
+}

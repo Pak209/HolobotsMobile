@@ -4,12 +4,14 @@ W6 uses all 12 rigs from https://github.com/Pak209/holocity-promo-glb at commit 
 
 ## Rebuild inside this clone
 
+Pinned source hashes, original animation key ranges, and the extended verifier are documented in [bot-asset-pack.md](bot-asset-pack.md).
+
 ```sh
-mkdir -p .work/asset-tools .cache/npm
+mkdir -p .work
 git clone https://github.com/Pak209/holocity-promo-glb .work/holocity-promo-glb
 git -C .work/holocity-promo-glb checkout 970cc690e4fa9ce370ebf30da4d513b08c67297f
-npm install --prefix .work/asset-tools --cache .cache/npm @gltf-transform/core@4.2.1 @gltf-transform/functions@4.2.1 @gltf-transform/extensions@4.2.1 meshoptimizer@0.22.0 sharp@0.34.5 gltf-validator@2.0.0-dev.3.10
-node mobile/scripts/prepare-bots.mjs
+npm ci --prefix mobile/tools/bot-assets
+node mobile/scripts/prepare-bots.mjs --source-dir .work/holocity-promo-glb
 node mobile/scripts/validate-bots.mjs
 ```
 
