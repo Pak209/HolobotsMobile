@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, AppState, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getHolobotFullImageSource, getHolobotHeadshotImageSource } from "@/config/holobots";
-import { BattleArenaView } from "@/components/arena/BattleArenaView";
+import { CityLiveBattleView } from "./CityLiveBattleView";
 import { ArenaCombatEngine } from "@/features/arena/combatEngine";
 import { getAbility } from "@/features/arena/abilities";
 import { getSignatureFinisher, resolveCombatKit } from "@/features/arena/moveKits";
@@ -158,10 +158,7 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
   const replayRounds = useMemo(() => cityBattleRounds(battle?.actionHistory ?? []), [battle?.actionHistory]);
   if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={replayReceipt} rounds={replayRounds} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
 
-  if (battle?.status === "active") return <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-    <View style={styles.bar}><Text style={styles.label}>{preview ? "OFFLINE PREVIEW / NO REWARDS" : `RIVAL / ${rival.pilotName.toUpperCase()}`}</Text><Pressable accessibilityRole="button" onPress={forfeit} disabled={pending} style={styles.leave}><Text style={styles.leaveText}>LEAVE</Text></Pressable></View>
-    <BattleArenaView embedded battle={battle} playerCards={moves} playableCardIds={ArenaCombatEngine.getPlayableCards(battle, "player", moves).map((move) => move.id)} cardAvailability={Object.fromEntries(moves.map((move) => [move.id, ArenaCombatEngine.getCardAvailability(battle, "player", move)]))} lastAction={battle.actionHistory.at(-1) ?? null} isAnimating={Date.now() < actionLockedUntil.current} onCardPlay={play} onSignaturePlay={signature} />
-  </View>;
+  if (battle?.status === "active") return <CityLiveBattleView battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
 
   return <View style={[styles.screen, styles.center, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
     <Text style={styles.label}>CITY RIVAL CHALLENGE</Text>

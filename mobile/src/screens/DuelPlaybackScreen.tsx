@@ -11,7 +11,7 @@ export type { DuelRound } from '../lib/bots/duelPlayback';
 export type DuelPlaybackScreenProps = { receipt: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
 
 type FighterSnapshot = { hp: number; maxHp: number; stamina: number; maxStamina: number };
-function FighterHud({ name, state, rival = false }: { name: string; state?: FighterSnapshot; rival?: boolean }) {
+export function FighterHud({ name, state, rival = false }: { name: string; state?: FighterSnapshot; rival?: boolean }) {
   const accent = rival ? theme.rings.rival[0] : theme.rings.player[0];
   const ratio = state && state.maxHp > 0 ? Math.max(0, Math.min(1, state.hp / state.maxHp)) : 0;
   return <View style={[styles.fighter, { borderColor: accent }]}>
