@@ -1,0 +1,97 @@
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-1/mobile
+
+ ❯ src/lib/__tests__/desktopStoryFlagsParity.test.ts (20 tests | 3 failed | 17 skipped) 12ms
+   × desktop account host storyFlags contract available to mobile > desktop-account-1 defaults all four fields without mutating the source profile 9ms
+     → expected { …(8) } to match object { …(3) }
+(9 matching properties omitted from actual)
+   × desktop account host storyFlags contract available to mobile > desktop-account-2 defaults all four fields without mutating the source profile 1ms
+     → expected { …(8) } to match object { …(3) }
+(12 matching properties omitted from actual)
+   × desktop account host storyFlags contract available to mobile > desktop-account-3 defaults all four fields without mutating the source profile 1ms
+     → expected { …(8) } to match object { …(3) }
+(12 matching properties omitted from actual)
+   ↓ desktop account host storyFlags contract available to mobile > desktop-account-1 preserves boolean gates and numeric tournament counts at every stage
+   ↓ desktop account host storyFlags contract available to mobile > desktop-account-2 preserves boolean gates and numeric tournament counts at every stage
+   ↓ desktop account host storyFlags contract available to mobile > desktop-account-3 preserves boolean gates and numeric tournament counts at every stage
+   ↓ desktop account host storyFlags contract available to mobile > fills missing fields while preserving gathered progress instead of resetting the account
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: null
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: %j
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: "flags"
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"tournamentsWon":-1}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"tournamentsWon":4}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"tournamentsWon":1.5}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"tournamentsWon":"2"}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"tournamentsWon":true}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"tournamentsWon":null}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"arenaGatheringSeen":1}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"arenaArcBuilt":true}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"tournamentsWon":3,"arenaArcBuilt":false}
+   ↓ desktop account host storyFlags contract available to mobile > refuses malformed host state rather than coercing it into mobile defaults: {"holoZonesArcBuilt":"false"}
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/desktopStoryFlagsParity.test.ts > desktop account host storyFlags contract available to mobile > desktop-account-1 defaults all four fields without mutating the source profile
+AssertionError: expected { …(8) } to match object { …(3) }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -2,9 +2,9 @@
+    "schemaVersion": "desktop-account-1",
+    "storyFlags": {
+      "arenaArcBuilt": false,
+      "arenaGatheringSeen": false,
+      "holoZonesArcBuilt": false,
+-     "tournamentsWon": 0,
++     "tournamentsWon": 1,
+    },
+    "uid": "throwaway-desktop",
+  }
+
+ ❯ src/lib/__tests__/desktopStoryFlagsParity.test.ts:14:19
+     12|     const before = structuredClone(profile);
+     13|     const reply = buildDesktopAccountReply(profile, 'throwaway-desktop…
+     14|     expect(reply).toMatchObject({ schemaVersion: version, uid: 'throwa…
+       |                   ^
+     15|     expect(reply.buddyUnits).toEqual(version === 'desktop-account-1' ?…
+     16|     expect(profile).toEqual(before);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/lib/__tests__/desktopStoryFlagsParity.test.ts > desktop account host storyFlags contract available to mobile > desktop-account-2 defaults all four fields without mutating the source profile
+ FAIL  src/lib/__tests__/desktopStoryFlagsParity.test.ts > desktop account host storyFlags contract available to mobile > desktop-account-3 defaults all four fields without mutating the source profile
+AssertionError: expected { …(8) } to match object { …(3) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -2,9 +2,9 @@
+    "schemaVersion": "desktop-account-2",
+    "storyFlags": {
+      "arenaArcBuilt": false,
+      "arenaGatheringSeen": false,
+      "holoZonesArcBuilt": false,
+-     "tournamentsWon": 0,
++     "tournamentsWon": 1,
+    },
+    "uid": "throwaway-desktop",
+  }
+
+ ❯ src/lib/__tests__/desktopStoryFlagsParity.test.ts:14:19
+     12|     const before = structuredClone(profile);
+     13|     const reply = buildDesktopAccountReply(profile, 'throwaway-desktop…
+     14|     expect(reply).toMatchObject({ schemaVersion: version, uid: 'throwa…
+       |                   ^
+     15|     expect(reply.buddyUnits).toEqual(version === 'desktop-account-1' ?…
+     16|     expect(profile).toEqual(before);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 17 skipped (20)
+   Start at  22:30:45
+   Duration  620ms (transform 105ms, setup 0ms, collect 110ms, tests 12ms, environment 0ms, prepare 118ms)
