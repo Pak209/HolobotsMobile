@@ -1,0 +1,901 @@
+{
+  "repository": "https://github.com/Pak209/holocity-promo-glb",
+  "commit": "970cc690e4fa9ce370ebf30da4d513b08c67297f",
+  "manifestSha256": "8e585de617dc3f0084f3ef82aac8813fe037a3ef45d9fdc2e4c9f19ceaf2d67e",
+  "bots": {
+    "wolf": {
+      "file": "wolf.glb",
+      "bytes": 6517316,
+      "sha256": "ffef348befe15960645eb6d328bff32fa3f09b18d3f4899afa2e1ac5e3ff6879",
+      "heightM": 1.52,
+      "clips": [
+        {
+          "name": "Evade",
+          "seconds": 1.9583,
+          "unityClip": "HB_WOLF_Mixar_Evade"
+        },
+        {
+          "name": "HoverIdle",
+          "seconds": 2.9583,
+          "unityClip": "HB_WOLF_Mixar_HoverIdle"
+        },
+        {
+          "name": "LowRoundhouse",
+          "seconds": 2.7917,
+          "unityClip": "HB_WOLF_Mixar_LowRoundhouse"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.7917,
+          "unityClip": "HB_WOLF_Mixar_Run"
+        },
+        {
+          "name": "StepCross",
+          "seconds": 2.2917,
+          "unityClip": "HB_WOLF_Mixar_StepCross"
+        },
+        {
+          "name": "SupermanPunch",
+          "seconds": 2.375,
+          "unityClip": "HB_WOLF_Mixar_SupermanPunch"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.2917,
+          "unityClip": "HB_WOLF_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2
+        },
+        "HoverIdle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 3
+        },
+        "LowRoundhouse": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.8333332538604736
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.8333333134651184
+        },
+        "StepCross": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.3333332538604736
+        },
+        "SupermanPunch": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.4166667461395264
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.3333333730697632
+        }
+      }
+    },
+    "kuma": {
+      "file": "kuma.glb",
+      "bytes": 6909784,
+      "sha256": "4029db638ffd6212766cb388b929b27c39ecce1ff8e86ef81838e96a65dccce1",
+      "heightM": 1.65,
+      "clips": [
+        {
+          "name": "DoubleHammer",
+          "seconds": 2.6667,
+          "unityClip": "HB_KUMA_Mixar_DoubleHammer"
+        },
+        {
+          "name": "Evade",
+          "seconds": 2.3333,
+          "unityClip": "HB_KUMA_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 3,
+          "unityClip": "HB_KUMA_Mixar_Idle"
+        },
+        {
+          "name": "PawSwipe",
+          "seconds": 2.3333,
+          "unityClip": "HB_KUMA_Mixar_PawSwipe"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.8333,
+          "unityClip": "HB_KUMA_Mixar_Run"
+        },
+        {
+          "name": "ShoulderCheck",
+          "seconds": 2.3333,
+          "unityClip": "HB_KUMA_Mixar_ShoulderCheck"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.3333,
+          "unityClip": "HB_KUMA_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "DoubleHammer": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.7083332538604736
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.375
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 3.0416667461395264
+        },
+        "PawSwipe": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.375
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.875
+        },
+        "ShoulderCheck": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.375
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.375
+        }
+      }
+    },
+    "ken": {
+      "file": "ken.glb",
+      "bytes": 7245868,
+      "sha256": "c3ace630150ad3500fcb3f6472a583d9a5cc75c50b8ab647e9536a648b414139",
+      "heightM": 1.52,
+      "clips": [
+        {
+          "name": "CrossElbow",
+          "seconds": 2.2917,
+          "unityClip": "HB_KEN_Mixar_CrossElbow"
+        },
+        {
+          "name": "CrownDrop",
+          "seconds": 2.875,
+          "unityClip": "HB_KEN_Mixar_CrownDrop"
+        },
+        {
+          "name": "Evade",
+          "seconds": 2.4583,
+          "unityClip": "HB_KEN_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 2.9583,
+          "unityClip": "HB_KEN_Mixar_Idle"
+        },
+        {
+          "name": "PalmBreaker",
+          "seconds": 2.2917,
+          "unityClip": "HB_KEN_Mixar_PalmBreaker"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.7917,
+          "unityClip": "HB_KEN_Mixar_Run"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.2917,
+          "unityClip": "HB_KEN_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "CrossElbow": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.3333332538604736
+        },
+        "CrownDrop": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.9166667461395264
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.5
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 3
+        },
+        "PalmBreaker": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.3333332538604736
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.8333333134651184
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.3333333730697632
+        }
+      }
+    },
+    "tsuin": {
+      "file": "tsuin.glb",
+      "bytes": 6536380,
+      "sha256": "1d1d8f5cfdd69f8386c1067dbca6ccc4f371dee515ef44420db9c5c719542222",
+      "heightM": 1.52,
+      "clips": [
+        {
+          "name": "Evade",
+          "seconds": 1.1667,
+          "unityClip": "HB_TSUIN_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 2,
+          "unityClip": "HB_TSUIN_Mixar_Idle"
+        },
+        {
+          "name": "LeapCleave",
+          "seconds": 2,
+          "unityClip": "HB_TSUIN_Mixar_LeapCleave"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.8333,
+          "unityClip": "HB_TSUIN_Mixar_Run"
+        },
+        {
+          "name": "TurningEdge",
+          "seconds": 1.8333,
+          "unityClip": "HB_TSUIN_Mixar_TurningEdge"
+        },
+        {
+          "name": "TwinCut",
+          "seconds": 1.6667,
+          "unityClip": "HB_TSUIN_Mixar_TwinCut"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.3333,
+          "unityClip": "HB_TSUIN_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.2083333730697632
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.0416667461395264
+        },
+        "LeapCleave": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.0416667461395264
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.875
+        },
+        "TurningEdge": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.875
+        },
+        "TwinCut": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.7083333730697632
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.375
+        }
+      }
+    },
+    "hare": {
+      "file": "hare.glb",
+      "bytes": 13931624,
+      "sha256": "ac87eab1991be006f746be54d4a34b0b6374f94b92dd358dde7006bfc387841b",
+      "heightM": 1.52,
+      "clips": [
+        {
+          "name": "DoubleHeel",
+          "seconds": 2.875,
+          "unityClip": "HB_HARE_Mixar_DoubleHeel"
+        },
+        {
+          "name": "Evade",
+          "seconds": 1.1667,
+          "unityClip": "HB_HARE_Mixar_Evade"
+        },
+        {
+          "name": "HopKnee",
+          "seconds": 1.7917,
+          "unityClip": "HB_HARE_Mixar_HopKnee"
+        },
+        {
+          "name": "Idle",
+          "seconds": 2,
+          "unityClip": "HB_HARE_Mixar_Idle"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.8333,
+          "unityClip": "HB_HARE_Mixar_Run"
+        },
+        {
+          "name": "SnapKick",
+          "seconds": 1.625,
+          "unityClip": "HB_HARE_Mixar_SnapKick"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.3333,
+          "unityClip": "HB_HARE_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "DoubleHeel": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.9166667461395264
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.2083333730697632
+        },
+        "HopKnee": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.8333333730697632
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.0416667461395264
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.875
+        },
+        "SnapKick": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.6666666269302368
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.375
+        }
+      }
+    },
+    "shadow": {
+      "file": "shadow.glb",
+      "bytes": 5929768,
+      "sha256": "3534a80e332de84208e43988ff3fb8ba4cd54accb6790dad9c5a856e8b1f1161",
+      "heightM": 1.52,
+      "clips": [
+        {
+          "name": "DiagonalCut",
+          "seconds": 2.2917,
+          "unityClip": "HB_SHADOW_Mixar_DiagonalCut"
+        },
+        {
+          "name": "DrawCut",
+          "seconds": 2.125,
+          "unityClip": "HB_SHADOW_Mixar_DrawCut"
+        },
+        {
+          "name": "Evade",
+          "seconds": 2.4583,
+          "unityClip": "HB_SHADOW_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 2.9583,
+          "unityClip": "HB_SHADOW_Mixar_Idle"
+        },
+        {
+          "name": "JumpSlash",
+          "seconds": 2.875,
+          "unityClip": "HB_SHADOW_Mixar_JumpSlash"
+        },
+        {
+          "name": "PassingThrust",
+          "seconds": 2.4583,
+          "unityClip": "HB_SHADOW_Mixar_PassingThrust"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.7917,
+          "unityClip": "HB_SHADOW_Mixar_Run"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.2917,
+          "unityClip": "HB_SHADOW_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "DiagonalCut": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.3333332538604736
+        },
+        "DrawCut": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.1666667461395264
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.5
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 3
+        },
+        "JumpSlash": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.9166667461395264
+        },
+        "PassingThrust": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.5
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.8333333134651184
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.3333333730697632
+        }
+      }
+    },
+    "wake": {
+      "file": "wake.glb",
+      "bytes": 7041076,
+      "sha256": "ead02bfbf7493808a4111e1e306def5cabdc52c9eaf4725f1e984c3f875a2a75",
+      "heightM": 1.52,
+      "clips": [
+        {
+          "name": "AnchorSlam",
+          "seconds": 2.6667,
+          "unityClip": "HB_WAKE_Mixar_AnchorSlam"
+        },
+        {
+          "name": "DrivePunch",
+          "seconds": 2.1667,
+          "unityClip": "HB_WAKE_Mixar_DrivePunch"
+        },
+        {
+          "name": "Evade",
+          "seconds": 1.5,
+          "unityClip": "HB_WAKE_Mixar_Evade"
+        },
+        {
+          "name": "ForearmCounter",
+          "seconds": 2,
+          "unityClip": "HB_WAKE_Mixar_ForearmCounter"
+        },
+        {
+          "name": "Idle",
+          "seconds": 2,
+          "unityClip": "HB_WAKE_Mixar_Idle"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.8333,
+          "unityClip": "HB_WAKE_Mixar_Run"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.3333,
+          "unityClip": "HB_WAKE_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "AnchorSlam": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.7083332538604736
+        },
+        "DrivePunch": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.2083332538604736
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.5416666269302368
+        },
+        "ForearmCounter": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.0416667461395264
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.0416667461395264
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.875
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.375
+        }
+      }
+    },
+    "tora": {
+      "file": "tora.glb",
+      "bytes": 6973896,
+      "sha256": "70a1fdbe584ef7b37e9d53304c7704fa4f4e733ef3cd407ce81d9d3fca17b0c6",
+      "heightM": 1.65,
+      "clips": [
+        {
+          "name": "Evade",
+          "seconds": 1.4583,
+          "unityClip": "HB_TORA_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 1.9583,
+          "unityClip": "HB_TORA_Mixar_Idle"
+        },
+        {
+          "name": "PounceCrush",
+          "seconds": 2.9583,
+          "unityClip": "HB_TORA_Mixar_PounceCrush"
+        },
+        {
+          "name": "RakeCombo",
+          "seconds": 2.625,
+          "unityClip": "HB_TORA_Mixar_RakeCombo"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.7917,
+          "unityClip": "HB_TORA_Mixar_Run"
+        },
+        {
+          "name": "TigerPalm",
+          "seconds": 2.125,
+          "unityClip": "HB_TORA_Mixar_TigerPalm"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.2917,
+          "unityClip": "HB_TORA_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.5
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2
+        },
+        "PounceCrush": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 3
+        },
+        "RakeCombo": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.6666667461395264
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.8333333134651184
+        },
+        "TigerPalm": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.1666667461395264
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.3333333730697632
+        }
+      }
+    },
+    "gama": {
+      "file": "gama.glb",
+      "bytes": 12379092,
+      "sha256": "c6ffe8c6aab1495363143f14f63ac3d017ee5cb145b4bfd8d0d56c550e909fdd",
+      "heightM": 1.16,
+      "clips": [
+        {
+          "name": "DiveKick",
+          "seconds": 2.4583,
+          "unityClip": "HB_GAMA_Mixar_DiveKick"
+        },
+        {
+          "name": "Evade",
+          "seconds": 1.9583,
+          "unityClip": "HB_GAMA_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 2.9583,
+          "unityClip": "HB_GAMA_Mixar_Idle"
+        },
+        {
+          "name": "PalmFlick",
+          "seconds": 2.0417,
+          "unityClip": "HB_GAMA_Mixar_PalmFlick"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.625,
+          "unityClip": "HB_GAMA_Mixar_Run"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.2917,
+          "unityClip": "HB_GAMA_Mixar_Walk"
+        },
+        {
+          "name": "WhipKick",
+          "seconds": 2.25,
+          "unityClip": "HB_GAMA_Mixar_WhipKick"
+        }
+      ],
+      "animationTimelines": {
+        "DiveKick": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.5
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 3
+        },
+        "PalmFlick": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.0833332538604736
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.6666666865348816
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.3333333730697632
+        },
+        "WhipKick": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.2916667461395264
+        }
+      }
+    },
+    "kurai": {
+      "file": "kurai.glb",
+      "bytes": 6859560,
+      "sha256": "7c23f6cde9868698cf879b3ad77565e1bda4cce457bc131dcd38c097c0014e49",
+      "heightM": 1.4,
+      "clips": [
+        {
+          "name": "CrossSlash",
+          "seconds": 2.3333,
+          "unityClip": "HB_KURAI_Mixar_CrossSlash"
+        },
+        {
+          "name": "Evade",
+          "seconds": 2.3333,
+          "unityClip": "HB_KURAI_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 3,
+          "unityClip": "HB_KURAI_Mixar_Idle"
+        },
+        {
+          "name": "LowPass",
+          "seconds": 2.6667,
+          "unityClip": "HB_KURAI_Mixar_LowPass"
+        },
+        {
+          "name": "RisingEdge",
+          "seconds": 2.6667,
+          "unityClip": "HB_KURAI_Mixar_RisingEdge"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.8333,
+          "unityClip": "HB_KURAI_Mixar_Run"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.3333,
+          "unityClip": "HB_KURAI_Mixar_Walk"
+        }
+      ],
+      "animationTimelines": {
+        "CrossSlash": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.375
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.375
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 3.0416667461395264
+        },
+        "LowPass": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.7083332538604736
+        },
+        "RisingEdge": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.7083332538604736
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.875
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.375
+        }
+      }
+    },
+    "era": {
+      "file": "era.glb",
+      "bytes": 7003344,
+      "sha256": "3fe1f364159b97c80a9128225f82ebde52c8644a0d8cbd22050c1eb58e0e283f",
+      "heightM": 1.08,
+      "clips": [
+        {
+          "name": "DivingEdge",
+          "seconds": 2.6667,
+          "unityClip": "HB_ERA_Mixar_DivingEdge"
+        },
+        {
+          "name": "Evade",
+          "seconds": 1.25,
+          "unityClip": "HB_ERA_Mixar_Evade"
+        },
+        {
+          "name": "Idle",
+          "seconds": 2,
+          "unityClip": "HB_ERA_Mixar_Idle"
+        },
+        {
+          "name": "Run",
+          "seconds": 0.8333,
+          "unityClip": "HB_ERA_Mixar_Run"
+        },
+        {
+          "name": "TalonKick",
+          "seconds": 2.3333,
+          "unityClip": "HB_ERA_Mixar_TalonKick"
+        },
+        {
+          "name": "Walk",
+          "seconds": 1.3333,
+          "unityClip": "HB_ERA_Mixar_Walk"
+        },
+        {
+          "name": "WingShear",
+          "seconds": 2.1667,
+          "unityClip": "HB_ERA_Mixar_WingShear"
+        }
+      ],
+      "animationTimelines": {
+        "DivingEdge": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.7083332538604736
+        },
+        "Evade": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.2916666269302368
+        },
+        "Idle": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.0416667461395264
+        },
+        "Run": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 0.875
+        },
+        "TalonKick": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.375
+        },
+        "Walk": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 1.375
+        },
+        "WingShear": {
+          "firstKeySeconds": 0.0416666679084301,
+          "lastKeySeconds": 2.2083332538604736
+        }
+      }
+    },
+    "ace": {
+      "file": "ace.glb",
+      "bytes": 9721328,
+      "sha256": "3c11212045c659786a1d28ae7420fd374a37c4de52eef5137bf035afd90759d5",
+      "heightM": 0.78,
+      "clips": [
+        {
+          "name": "CometCross",
+          "seconds": 1.9667,
+          "unityClip": "HB_ACE_Mixar_CometCross"
+        },
+        {
+          "name": "Evade",
+          "seconds": 1.9667,
+          "unityClip": "HB_ACE_Mixar_Evade"
+        },
+        {
+          "name": "FableHover",
+          "seconds": 2.9667,
+          "unityClip": "HB_ACE_Mixar_FableHover"
+        },
+        {
+          "name": "JabCross",
+          "seconds": 1.7667,
+          "unityClip": "HB_ACE_Mixar_JabCross"
+        },
+        {
+          "name": "LeadHook",
+          "seconds": 1.8333,
+          "unityClip": "HB_ACE_Mixar_LeadHook"
+        },
+        {
+          "name": "MeteorHammer",
+          "seconds": 2.3667,
+          "unityClip": "HB_ACE_Mixar_MeteorHammer"
+        },
+        {
+          "name": "RearUppercut",
+          "seconds": 1.8333,
+          "unityClip": "HB_ACE_Mixar_RearUppercut"
+        },
+        {
+          "name": "Skybreaker",
+          "seconds": 1.9667,
+          "unityClip": "HB_ACE_Mixar_Skybreaker"
+        }
+      ],
+      "animationTimelines": {
+        "CometCross": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 2
+        },
+        "Evade": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 2
+        },
+        "FableHover": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 3
+        },
+        "JabCross": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 1.7999999523162842
+        },
+        "LeadHook": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 1.8666666746139526
+        },
+        "MeteorHammer": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 2.4000000953674316
+        },
+        "RearUppercut": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 1.8666666746139526
+        },
+        "Skybreaker": {
+          "firstKeySeconds": 0.03333333507180214,
+          "lastKeySeconds": 2
+        }
+      }
+    }
+  }
+}
