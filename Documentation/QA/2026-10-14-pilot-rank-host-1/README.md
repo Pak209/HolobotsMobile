@@ -1,6 +1,6 @@
 # pilot-rank-host-1
 
-2026-10-14. W2 host contract change, stacked on arena-gathering-host-1 PR #80 (`6379b765abb20452690a61c97408197d53395982`). #80 is still open; this PR targets its branch for a W2-only review. Merge #80 first, then retarget/rebase this PR onto main and confirm integration checks. No deploy, production credentials, Pak account, editor operation, or Unity asset write was used.
+2026-10-14. W2 host contract change, originally stacked on arena-gathering-host-1 PR #80 (`6379b765abb20452690a61c97408197d53395982`). #80 merged as `694be3483625b8e6fb74e63a683b61a27e857579`. PR #82 is now rebased onto that `main` head and targets `main`; the #80 dependency is satisfied. Replaying only W2's commit was conflict-free and `git range-diff` confirmed the implementation patch was identical (`675c2d0` to `ec82577`). No deploy, production credentials, Pak account, editor operation, or Unity asset write was used.
 
 ## Contract
 
@@ -58,6 +58,16 @@ node --test --test-concurrency=1 scripts/test-pilot-rank-emulator.mjs scripts/te
 ```
 
 `npm run test:pilot-rank` is the focused entrypoint; it refuses non-loopback or non-`demo-` environments before loading Firebase Admin. Existing regression fixture exporters write into this isolated worktree only. Their incidental historical-fixture rewrites are excluded from the commit.
+
+## Main integration recheck
+
+After #80 merged, PR #82 was rebased onto `origin/main` at `694be3483625b8e6fb74e63a683b61a27e857579`. The single W2 implementation commit replayed with no conflicts; `rebase-range-diff.txt` records the identical patch. No integration source changes were needed.
+
+- `npm run build` and `npm run check:shared`: passed; **3** shared files in sync (`rebase-build.txt`).
+- `npm test`: **145 total, 144 passed, 1 existing skip, 0 failed**, **1.71 s** (`rebase-unit-tests.txt`).
+- Rebase emulator attempt **1**: **84/84 passed**, **0 failed / 0 skipped**, **120.31 s** inside the **300-second** bound (`rebase-emulator-run1.txt`). The existing R4 race fixture used its one bounded transport retry with the same identity/body/time and verified the `activity_conflict` refusal made zero writes. No additional suite attempt was needed.
+- Same loopback-only demo project and throwaway profiles. Emulator shut down successfully and dedicated Firestore/websocket ports were confirmed closed. Historical regression fixture exports were restored only in this lane's initially clean isolated worktree.
+- HELD: none. The #80 merge dependency is satisfied; no deploy or production account use was performed by this lane.
 
 ## Review and limits
 
