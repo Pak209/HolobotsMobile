@@ -42,6 +42,7 @@ export const createGenesisProfile = onCall(async (request): Promise<CreateGenesi
     const profile = buildGenesisSignupUserDoc(valid.starter, valid.username, FieldValue.serverTimestamp());
     transaction.create(userRef, {
       ...profile,
+      pilotRank: 0,
       ...projectFirstTravelHolobot(profile).updates,
       [BUDDY_UNITS_FIELD]: starterInventory(),
     });

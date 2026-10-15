@@ -231,12 +231,13 @@ test('rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact
   assert.equal(lv1.status.buddyUnits, 3); assert.deepEqual((await user(legacy)).buddyUnits, light(3));
 });
 
-test('desktop-account-1 (no data, as the shipped Unity build sends): deployed fields plus storyFlags, buddyUnits = total int; desktop-account-2 on request', async () => {
+test('desktop-account-1 (no data, as the shipped Unity build sends): deployed fields plus storyFlags/pilotRank, buddyUnits = total int; desktop-account-2 on request', async () => {
   const uid = await setup({ buddyUnits: light(1, 2, 3), holobots: [{ name: 'ACE', level: 3 }] });
   for (const data of [undefined, {}, { schemaVersion: 'desktop-account-1' }]) {
     const v1 = await desktopAccountSnapshot.run({ auth: { uid }, data });
     assert.equal(v1.schemaVersion, 'desktop-account-1'); assert.equal(v1.buddyUnits, 6);
-    assert.deepEqual(Object.keys(v1).sort(), ['blueprintTiers', 'blueprints', 'buddyUnits', 'holobots', 'schemaVersion', 'storyFlags', 'travelSquad', 'uid']);
+    assert.equal(v1.pilotRank, 0);
+    assert.deepEqual(Object.keys(v1).sort(), ['blueprintTiers', 'blueprints', 'buddyUnits', 'holobots', 'pilotRank', 'schemaVersion', 'storyFlags', 'travelSquad', 'uid']);
   }
   const v2 = await desktopAccountSnapshot.run({ auth: { uid }, data: V2 });
   assert.equal(v2.schemaVersion, 'desktop-account-2'); assert.deepEqual(v2.buddyUnits, light(1, 2, 3));
