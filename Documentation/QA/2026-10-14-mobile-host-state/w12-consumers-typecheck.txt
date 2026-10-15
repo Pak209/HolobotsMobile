@@ -1,0 +1,16 @@
+
+> holobots-mobile@0.1.0 typecheck
+> tsc --noEmit
+
+src/lib/hostState/__tests__/hooks.test.ts(36,27): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(callback: () => Promise<VoidOrUndefinedOnly>): Promise<undefined>', gave the following error.
+    Type 'Promise<VitestUtils>' is not assignable to type 'Promise<VoidOrUndefinedOnly>'.
+      Type 'VitestUtils' is not assignable to type 'VoidOrUndefinedOnly'.
+  Overload 2 of 2, '(callback: () => VoidOrUndefinedOnly): DebugPromiseLike', gave the following error.
+    Type 'Promise<VitestUtils>' is not assignable to type 'VoidOrUndefinedOnly'.
+src/lib/hostState/__tests__/hooks.test.ts(37,27): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(callback: () => Promise<VoidOrUndefinedOnly>): Promise<undefined>', gave the following error.
+    Type 'Promise<VitestUtils>' is not assignable to type 'Promise<VoidOrUndefinedOnly>'.
+      Type 'VitestUtils' is not assignable to type 'VoidOrUndefinedOnly'.
+  Overload 2 of 2, '(callback: () => VoidOrUndefinedOnly): DebugPromiseLike', gave the following error.
+    Type 'Promise<VitestUtils>' is not assignable to type 'VoidOrUndefinedOnly'.

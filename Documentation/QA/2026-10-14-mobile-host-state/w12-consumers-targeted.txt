@@ -1,0 +1,29 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run src/lib/hostState/__tests__ --maxWorkers=1
+
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-2/mobile
+
+ ✓ src/lib/hostState/__tests__/stores.test.ts (10 tests) 6ms
+ ✓ src/lib/hostState/__tests__/readers.test.ts (42 tests) 3ms
+ ✓ src/lib/hostState/__tests__/hooks.test.ts (4 tests) 8ms
+ ✓ src/lib/hostState/__tests__/firebase.test.ts (5 tests) 2ms
+
+ Test Files  4 passed (4)
+      Tests  61 passed (61)
+   Start at  23:19:54
+   Duration  443ms (transform 67ms, setup 0ms, collect 102ms, tests 19ms, environment 0ms, prepare 86ms)
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > survives StrictMode effect cleanup/setup and loads host progress
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > switches account without exposing the previous pilot progress
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > renders the exact countdown, expires and cleans its timer on unmount
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > rival session remains usable after StrictMode cleanup
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
