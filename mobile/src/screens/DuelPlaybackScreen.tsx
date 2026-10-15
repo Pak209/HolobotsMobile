@@ -6,22 +6,22 @@ import { resolveBotId } from '../../assets/bots';
 import { getHolobotHeadshotImageSource } from '../config/holobots';
 import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../components/HoloCityCommandBar';
 import { BotStage, type BotMetrics, type BotStageHandle } from '../components/bots/BotStage';
-import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound } from '../lib/bots/duelPlayback';
+import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound, type ObservedDuelState, type ObservedFighterState } from '../lib/bots/duelPlayback';
 export type { DuelRound } from '../lib/bots/duelPlayback';
 export type DuelPlaybackScreenProps = { receipt: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
 
-type FighterSnapshot = { hp: number; maxHp: number; stamina: number; maxStamina: number };
+type FighterSnapshot = ObservedFighterState;
 export function FighterHud({ name, state, rival = false }: { name: string; state?: FighterSnapshot; rival?: boolean }) {
   const accent = rival ? theme.rings.rival[0] : theme.rings.player[0];
-  const ratio = state && state.maxHp > 0 ? Math.max(0, Math.min(1, state.hp / state.maxHp)) : 0;
+  const ratio = state && state.hp !== undefined && state.maxHp > 0 ? Math.max(0, Math.min(1, state.hp / state.maxHp)) : 0;
   return <View style={[styles.fighter, { borderColor: accent }]}>
     <View style={[styles.identity, rival && styles.reverse]}>
       {resolveBotId(name) ? <Image source={getHolobotHeadshotImageSource(name)} resizeMode="contain" style={[styles.portrait, { borderColor: accent }]} /> : <View style={[styles.portrait, { borderColor: accent, alignItems: 'center', justifyContent: 'center' }]}><Text style={styles.statLabel}>?</Text></View>}
       <Text numberOfLines={1} style={[styles.name, { color: accent }]}>{name.toUpperCase()}</Text>
     </View>
-    <View style={styles.statLine}><Text style={styles.statLabel}>HP</Text><Text style={styles.statValue}>{state ? `${state.hp}/${state.maxHp}` : '—'}</Text></View>
+    <View style={styles.statLine}><Text style={styles.statLabel}>HP</Text><Text style={styles.statValue}>{state?.hp !== undefined ? `${state.hp}/${state.maxHp}` : '—'}</Text></View>
     <View style={styles.hpTrack}><View style={[styles.hpFill, { width: `${ratio * 100}%`, backgroundColor: rival ? theme.colors.danger : theme.colors.success }]} /></View>
-    <View style={styles.stamina}><Text style={styles.statLabel}>STA</Text>{state ? Array.from({ length: Math.min(12, state.maxStamina) }, (_, i) => <View key={i} style={[styles.pip, { backgroundColor: i < state.stamina ? accent : theme.plates.keycap, borderColor: accent }]} />) : <Text style={styles.statValue}>—</Text>}</View>
+    <View style={styles.stamina}><Text style={styles.statLabel}>STA</Text>{state?.stamina !== undefined ? Array.from({ length: Math.min(12, state.maxStamina) }, (_, i) => <View key={i} style={[styles.pip, { backgroundColor: i < state.stamina! ? accent : theme.plates.keycap, borderColor: accent }]} />) : <Text style={styles.statValue}>—</Text>}</View>
   </View>;
 }
 
@@ -29,8 +29,9 @@ export function FighterHud({ name, state, rival = false }: { name: string; state
 export function DuelPlaybackScreen({ receipt, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
   const insets = useSafeAreaInsets();
   const normalized = useMemo(() => normalizeDuelReceipt(receipt, rounds), [receipt, rounds]);
-  const player = resolveBotId(attackerBotId ?? normalized.attackerBotId ?? '');
-  const rival = resolveBotId(defenderBotId ?? normalized.defenderBotId ?? '');
+  const [actors, setActors] = useState({ player: normalized.attackerBotId, rival: normalized.defenderBotId });
+  const player = resolveBotId(actors.player ?? attackerBotId ?? '');
+  const rival = resolveBotId(actors.rival ?? defenderBotId ?? '');
   const cues = useMemo(() => buildPlaybackCues(normalized.rounds), [normalized]);
   const duration = normalized.rounds.length * ROUND_DURATION_MS;
   const [elapsed, setElapsed] = useState(0);
@@ -38,7 +39,7 @@ export function DuelPlaybackScreen({ receipt, rounds, attackerBotId, defenderBot
   const [paused, setPaused] = useState(false);
   const [replay, setReplay] = useState(0);
   const [stageError, setStageError] = useState(false);
-  const [snapshot, setSnapshot] = useState(normalized.initialState);
+  const [snapshot, setSnapshot] = useState<ObservedDuelState | null>(normalized.initialState);
   const stage = useRef<BotStageHandle>(null);
   const elapsedRef = useRef(0);
   const nextCue = useRef(0);
@@ -47,30 +48,36 @@ export function DuelPlaybackScreen({ receipt, rounds, attackerBotId, defenderBot
   const round = normalized.rounds[currentRound];
   const isSynthetic = fixture || normalized.synthetic;
   useEffect(() => { setReady(false); setStageError(false); }, [player, rival]);
-  useEffect(() => { elapsedRef.current = 0; nextCue.current = 0; setElapsed(0); setSnapshot(normalized.initialState); setPaused(false); }, [normalized, replay]);
+  useEffect(() => { elapsedRef.current = 0; nextCue.current = 0; setElapsed(0); setSnapshot(normalized.initialState); setActors({ player: normalized.attackerBotId, rival: normalized.defenderBotId }); setPaused(false); }, [normalized, replay]);
   useEffect(() => {
     if ((!ready && player && rival) || paused || complete || duration === 0) return;
     let appActive = AppState.currentState === 'active';
     let previous = performance.now();
     const subscription = AppState.addEventListener('change', state => { appActive = state === 'active'; previous = performance.now(); });
-    const captureAt = __DEV__ && isSynthetic && captureRound ? (captureRound - 1) * ROUND_DURATION_MS + 1100 : Infinity;
+    const captureAt = __DEV__ && isSynthetic && captureRound ? (normalized.rounds.findLastIndex(row => row.roundNumber === captureRound) + 0) * ROUND_DURATION_MS + 1100 : Infinity;
     const timer = setInterval(() => {
       const now = performance.now();
       if (!appActive) { previous = now; return; }
       elapsedRef.current = Math.min(duration, captureAt, elapsedRef.current + Math.min(now - previous, 1000)); previous = now;
       while (nextCue.current < cues.length && cues[nextCue.current].atMs <= elapsedRef.current) {
         const cue = cues[nextCue.current++];
-        if (cue.kind === 'state') { if (cue.snapshot) setSnapshot(cue.snapshot); }
+        if (cue.kind === 'actors') {
+          if (cue.actors && (cue.actors.player !== actors.player || cue.actors.rival !== actors.rival)) {
+            setActors(cue.actors); setSnapshot(null); setReady(false); setElapsed(elapsedRef.current); return;
+          }
+        }
+        else if (cue.kind === 'state') { if (cue.snapshot) setSnapshot(cue.snapshot); }
         else if (cue.kind === 'hit') stage.current?.hit(cue.side);
         else if (cue.kind === 'guard') stage.current?.guard(cue.side);
         else if (cue.kind === 'miss') stage.current?.play(cue.side, 'Evade');
         else { stage.current?.play(cue.side, cue.clip); if (cue.kind === 'attack') stage.current?.strike(cue.side); }
       }
       setElapsed(elapsedRef.current);
+      if (elapsedRef.current >= duration && normalized.finalState) setSnapshot(normalized.finalState);
       if (elapsedRef.current >= captureAt) setPaused(true);
     }, 32);
     return () => { clearInterval(timer); subscription.remove(); };
-  }, [ready, paused, complete, duration, cues, player, rival, replay, isSynthetic, captureRound]);
+  }, [ready, paused, complete, duration, cues, player, rival, replay, isSynthetic, captureRound, actors, normalized]);
   const result = normalized.didWin === null ? 'AWAITING RESULT' : normalized.didWin ? 'VICTORY' : 'DEFEAT';
   const traceLabel = normalized.synthetic ? 'SYNTHETIC RECEIPT · NO REWARDS' : fixture ? normalized.traceSource === 'client' ? 'OFFLINE CLIENT TRACE · NO REWARDS' : 'OFFLINE FIXTURE · NO REWARDS' : normalized.traceSource === 'client' ? 'CLIENT TRACE · HOST SETTLEMENT' : normalized.traceSource === 'host' ? 'RECORDED RECEIPT' : 'HOST SETTLEMENT · NO ROUND TRACE';
   const commands = HOLOCITY_COMMANDS.map(command => {
@@ -93,7 +100,7 @@ export function DuelPlaybackScreen({ receipt, rounds, attackerBotId, defenderBot
         <FighterHud name={rival ?? defenderBotId ?? 'RIVAL'} state={snapshot?.rival} rival />
       </View>
     </View>
-    {(stageError || !player || !rival) && <View style={styles.warning}><Text style={styles.notice}>3D presentation unavailable. The recorded result is preserved.</Text></View>}
+    {(normalized.receiptError || stageError || !player || !rival) && <View style={styles.warning}><Text style={styles.notice}>{normalized.receiptError ?? '3D presentation unavailable. The recorded result is preserved.'}</Text></View>}
     {complete && <View style={styles.result} testID="duel-result-card"><Text style={styles.resultEyebrow}>RECORDED RESULT</Text><Text style={[styles.resultTitle, normalized.didWin === false && { color: theme.colors.danger }]}>{result}</Text>{!isSynthetic && normalized.holosGranted !== null && <Text style={styles.reward}>+{normalized.holosGranted} HOLOS</Text>}{!normalized.rounds.length && <Text style={styles.notice}>This host reply contains no round trace.</Text>}<Pressable style={styles.returnButton} accessibilityRole="button" onPress={onClose}><Text style={styles.returnLabel}>RETURN TO CITY</Text></Pressable></View>}
     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
       <View style={styles.actionLog}><View style={styles.logAccent} /><Text numberOfLines={1} style={styles.logText}>{!ready && player && rival ? 'LOADING ARENA' : actionLog}</Text></View>
