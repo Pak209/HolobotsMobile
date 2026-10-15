@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const D=require('../lib/lib/duelResolver.js');
 const {rivalTierBattleStats}=require('../lib/lib/rivalTierStats.js');
-const fighter=(tier=0,id='wolf')=>D.duelFighterFromCombatant({holobotId:id,...rivalTierBattleStats(tier)});
+const fighter=(tier=0,id='wolf')=>D.duelFighterFromCombatant({holobotId:id,tier,...rivalTierBattleStats(tier)});
 const input=(seed=17)=>({seed,player:[fighter()],opponent:[fighter()],playerIntents:['strike','heavy','defend']});
 
 test('issued level/tier/move scales and command STA are pinned into chronological receipt rows',()=>{

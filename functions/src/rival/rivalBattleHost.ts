@@ -3,7 +3,7 @@ import { db } from '../admin';
 import { RivalError } from '../lib/rivalLadder';
 import { transactRivalBattle } from './rivalBattleStore';
 
-/** DECISIONS #43. Operations: status | issue | settle{battleId,didWin,fielded?}. Client claims the win; the server owns tier, lineup, grant and once-per-battleId settlement. rival-battle-3 (#53): issue adds playerCombatants, settle{fielded} awards Holobot XP (progression[]). */
+/** Host resolves pinned stats/seed and playerIntents. Legacy didWin requires the server migration flag; rewards and receipt settle once. */
 export const rivalBattleHost = onCall(async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in to battle rivals.');
@@ -11,7 +11,7 @@ export const rivalBattleHost = onCall(async request => {
     return await transactRivalBattle(db, uid, request.data, undefined, undefined, { zellEnabled: process.env.HOLOCITY_ZELL_STORY === '1' });
   } catch (error) {
     if (error instanceof RivalError) {
-      const code = error.code === 'invalid_request' ? 'invalid-argument' : error.code === 'unknown_battle' ? 'not-found' : error.code === 'battle_expired' || error.code === 'too_many_open' || error.code === 'too_fast' || error.code === 'activity_conflict' || error.code === 'rival_cooldown' ? 'failed-precondition' : 'unavailable';
+      const code = error.code === 'invalid_request' ? 'invalid-argument' : error.code === 'unknown_battle' ? 'not-found' : error.code === 'battle_expired' || error.code === 'too_many_open' || error.code === 'too_fast' || error.code === 'activity_conflict' || error.code === 'rival_cooldown' || error.code === 'legacy_settlement_disabled' || error.code === 'squad_required' ? 'failed-precondition' : 'unavailable';
       throw new HttpsError(code, error.code, error.retryAfterMs !== undefined ? { rejectionCode: error.code, retryAfterMs: error.retryAfterMs } : { rejectionCode: error.code });
     }
     throw error;
