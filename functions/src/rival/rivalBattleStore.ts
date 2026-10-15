@@ -1,3 +1,4 @@
+import { bindGatheringRival, gatheringRivalRequest } from '../story/gatheringRival';
 import { ActivityError, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
@@ -56,7 +57,8 @@ async function requireLeaseFree(tx: Transaction, db: Firestore, uid: string): Pr
 }
 export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean } = {}) {
   const command = validateRivalCommand(raw);
-  const story = storyRequest(raw);
+  const citizenId = gatheringRivalRequest(raw);
+  const story = citizenId === undefined ? storyRequest(raw) : {requested:false,issueZell:false};
   const zellEnabled = options.zellEnabled === true;
   if (story.issueZell && !zellEnabled) throw new RivalError('unavailable');
   const healthEnabled=(raw as {healthSchema?:unknown})?.healthSchema===RIVAL_HEALTH_SCHEMA;
@@ -96,6 +98,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         if (nextStory !== storyState) tx.set(storyRef, nextStory);
         storyState = nextStory;
       }
+      if (citizenId !== undefined) bindGatheringRival(uid,profile,citizenId,r);
       // DECISIONS #58 am. 1 (3): the SAME rival (pilotId, after the story binding) is refused within RIVAL_COOLDOWN_MS of its last settle.
       requireRivalOffCooldown(lastSettled, r.battle.lineup.opponentPilot.pilotId, nowMs);
       const nextOpen = openBattlesAfterIssue(open, r.battle);

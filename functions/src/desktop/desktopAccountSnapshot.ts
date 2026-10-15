@@ -1,3 +1,4 @@
+import { readStoryFlags, StoryError } from '../story/storyFlags';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db } from '../admin';
 import { projectFirstTravelHolobot } from '../acquisition/captureOwnership';
@@ -32,7 +33,14 @@ export const desktopAccountSnapshot = onCall(async request => {
     const inv = readBuddyInventory(profile);
     if (!inv) throw new HttpsError('unavailable', 'unavailable', { rejectionCode: 'unavailable' });
     const squad = projectFirstTravelHolobot(profile);
-    const updates = { ...inv.updates, ...squad.updates };
+    let storyFlags;
+    try { storyFlags = readStoryFlags(profile.storyFlags); }
+    catch (e) {
+      if (e instanceof StoryError) throw new HttpsError('unavailable','unavailable',{rejectionCode:'unavailable'});
+      throw e;
+    }
+    const updates = { ...inv.updates, ...squad.updates,
+      ...(JSON.stringify(profile.storyFlags) !== JSON.stringify(storyFlags) ? {storyFlags} : {}) };
     if (Object.keys(updates).length) tx.update(userRef, updates);
     return buildDesktopAccountReply({ ...profile, ...updates }, uid, version, inv.units);
   });

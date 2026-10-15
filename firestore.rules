@@ -112,7 +112,7 @@ service cloud.firestore {
         // are server-only.
         'buddyUnits', 'rivalWins', 'rivalRewardDay',
         // DECISIONS #58 (3): the once-per-bot-per-tier rank Kit record.
-        'rankKitTiers'
+        'rankKitTiers', 'storyFlags'
       ]);
     }
 
@@ -147,6 +147,7 @@ service cloud.firestore {
         && !('rivalWins' in data)
         && !('rivalRewardDay' in data)
         && !('rankKitTiers' in data)
+        && !('storyFlags' in data)
         && !('expBoosterActiveUntil' in data)
         && !('lastWildcardPackAt' in data)
         && frozenEmptyOnCreate(data, 'parts')
