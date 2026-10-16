@@ -97,7 +97,7 @@ async function runChain(store, options, chain) {
     const req = typeof step.req === 'function' ? step.req(ids) : step.req;
     pinned = createHash('sha256').update(`${chain.key}#${n}`).digest().subarray(0, 12);
     try {
-      const reply = await store(db, UID, req, T + (step.at ?? 0), draws(chain.seed ?? 0), options);
+      const reply = await store(db, UID, req, T + (step.at ?? 0), draws(chain.seed ?? 0), { ...options, issueLegacy: true });
       if (req?.operation === 'issue') ids.push(reply.battleId);
       replies.push(JSON.stringify(reply));
     } catch (e) {
@@ -129,6 +129,8 @@ async function compare(reference, candidates, list, { keepPairs = false, onRefer
   return r;
 }
 
+// The historical compatibility fixture deliberately selects the server legacy-issue migration path.
+// Resolver authority and mandatory intents are covered separately by W10.
 // Controls use only successful replies (status, every issue variant and draw, one settle chain with replays) so
 // every perturbed reply must be flagged. Reference: the base build when given, else this build unperturbed.
 const controlChains = () => chains().filter(c => (c.key.startsWith('ladder-35/') && (c.key.includes('/status/') || c.key.includes('/issue/'))) || c.key === 'ladder-35/settle/v3+health/win+fielded/rows');

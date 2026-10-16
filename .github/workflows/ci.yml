@@ -38,7 +38,7 @@ jobs:
         run: npx vitest run
 
   functions:
-    name: Functions build (tsc + shared parity)
+    name: Functions build + unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +53,9 @@ jobs:
       - name: Build (runs check-shared-parity)
         working-directory: functions
         run: npm run build
+      - name: Host unit tests (includes deterministic duel resolver)
+        working-directory: functions
+        run: npm test
 
   rules:
     name: Firestore rules (emulator)

@@ -1,3 +1,4 @@
+import type { DuelInput, DuelReceipt } from './duelResolver';
 import {healthRows,RIVAL_HEALTH_SCHEMA,HealthRow,HealthError} from "./rivalHealth";
 import {repairGrant} from "./repairItems";
 import { desktopPracticeCommands } from "./desktopPracticeCommands";
@@ -357,7 +358,7 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "unavailable";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable";
 export class RivalError extends Error {
   /** rival_cooldown only: ms until the same rival can be issued again. */
   public retryAfterMs?: number;
@@ -435,6 +436,10 @@ export type RivalBattleRecord = {
   playerSquadIds?: string[];
   /** DECISIONS #53 amendment 1: the stat scale of `lineup` (records issued from 2026-10-06 ~14:07; absent = the #43 baseline). */
   lineupScale?: RivalLineupScale;
+  /** W10: issue-time host mode/stats/seed; no client override. */
+  duel?: {mode:"legacy"} | {mode:"resolver";schemaVersion:"duel-receipt-1";input:Pick<DuelInput,"seed"|"player"|"opponent">};
+  /** Persisted once with the reward settlement. */
+  duelReceipt?: DuelReceipt;
 };
 
 /** When the TTL policy may delete an issued battle (epoch ms). */

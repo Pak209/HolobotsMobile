@@ -24,7 +24,7 @@ async function setup(extra={},level=21) {
 }
 const profile = async uid => (await db.doc(`users/${uid}`).get()).data();
 const snapshot = (uid,schemaVersion='desktop-account-3') => desktopAccountSnapshot.run({auth:{uid},data:{schemaVersion}});
-const rival = (uid,fields,now=T0) => transactRivalBattle(db,uid,{schemaVersion:'rival-battle-3',...fields},now,()=>0);
+const rival = (uid,fields,now=T0) => transactRivalBattle(db,uid,{schemaVersion:'rival-battle-3',...fields},now,()=>0,{issueLegacy:true});
 const arena = (uid,operation,fields={},now=T0) => transactArenaMatch(db,uid,{schemaVersion:'arena-match-1',operation,...fields},now);
 const admission = (tournamentId='starter',extra={}) => ({requestId:`pilot_rank_request_${serial++}`,tierId:'rookie',paymentMethod:'pass',holobotId:'ace',opponentName:'HARE',tournamentId,...extra});
 const code = expected => e => e.code===expected;
