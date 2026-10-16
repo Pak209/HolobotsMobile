@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 const project = process.env.GCLOUD_PROJECT;
 const emulator = process.env.FIRESTORE_EMULATOR_HOST;
@@ -19,7 +20,7 @@ process.env.FIREBASE_CONFIG = JSON.stringify({ projectId: project });
 delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 const root = process.env.DUEL_FLIP_HOST_ROOT
   ? resolve(process.env.DUEL_FLIP_HOST_ROOT)
-  : resolve(new URL('..', import.meta.url).pathname);
+  : fileURLToPath(new URL('..', import.meta.url));
 const require = createRequire(resolve(root, 'package.json'));
 const { db } = require(resolve(root, 'lib/admin.js'));
 const { rivalBattleHost } = require(resolve(root, 'lib/rival/rivalBattleHost.js'));
