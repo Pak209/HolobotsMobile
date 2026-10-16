@@ -82,3 +82,31 @@ describe("city authenticated host actions", () => {
     expect(fixture.call).toHaveBeenLastCalledWith({ schemaVersion: "rival-battle-3", operation: "settle", battleId: "rb_123", didWin: true, fielded: ["ace"] });
   });
 });
+
+import { settleCityResolver } from '../cityHubClient';
+import receiptFixture from '../../qa/fixtures/duel-receipt-1.json';
+const resolverIssue = { schemaVersion: 'rival-battle-3', battleId: 'rb_0123456789abcdef01234567', duel: { mode: 'resolver', schemaVersion: 'duel-receipt-1', maxRounds: 120, player: receiptFixture.input.player, opponent: receiptFixture.input.opponent } };
+const resolverReply = { schemaVersion: 'rival-battle-3', battleId: resolverIssue.battleId, didWin: true, alreadyProcessed: false, holosGranted: 100, status: { tier: 0, tierLabel: 'Rookie', rivalWins: 1, winsToNextTier: 9 }, duelReceipt: receiptFixture.receipt };
+describe('live resolver settlement transport', () => {
+  beforeEach(() => { vi.clearAllMocks(); fixture.auth.currentUser = { uid: 'pilot-a' }; });
+  it('sends only pinned battle and intent plan, preserves receipt for playback/replay', async () => {
+    fixture.call.mockResolvedValue({ data: resolverReply });
+    const result = await settleCityResolver('pilot-a', resolverIssue, ['strike', 'defend']);
+    expect(result.duelReceipt).toEqual(receiptFixture.receipt);
+    expect(fixture.call).toHaveBeenLastCalledWith({ schemaVersion: 'rival-battle-3', operation: 'settle', battleId: resolverIssue.battleId, playerIntents: ['strike', 'defend'] });
+    await settleCityResolver('pilot-a', resolverIssue, ['strike', 'defend']);
+    expect(fixture.call.mock.calls[1]).toEqual(fixture.call.mock.calls[0]);
+  });
+  it('rejects legacy/unknown mode and empty/invalid/overlong plans before network', async () => {
+    for (const duel of [{ mode: 'legacy' }, { mode: 'future' }]) await expect(settleCityResolver('pilot-a', { ...resolverIssue, duel }, ['strike'])).rejects.toThrow();
+    for (const plan of [[], ['tampered'], Array(121).fill('strike')]) await expect(settleCityResolver('pilot-a', resolverIssue, plan as ['strike'])).rejects.toThrow();
+    expect(fixture.call).not.toHaveBeenCalled();
+  });
+  it('rejects missing receipt, foreign session and delayed response after account change', async () => {
+    fixture.call.mockResolvedValueOnce({ data: { ...resolverReply, duelReceipt: undefined } });
+    await expect(settleCityResolver('pilot-a', resolverIssue, ['strike'])).rejects.toThrow();
+    await expect(settleCityResolver('pilot-b', resolverIssue, ['strike'])).rejects.toEqual({ code: 'unauthenticated' });
+    fixture.call.mockImplementationOnce(async () => { fixture.auth.currentUser = { uid: 'pilot-b' }; return { data: resolverReply }; });
+    await expect(settleCityResolver('pilot-a', resolverIssue, ['strike'])).rejects.toEqual({ code: 'unauthenticated' });
+  });
+});

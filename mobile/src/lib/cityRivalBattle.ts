@@ -13,7 +13,7 @@ export function readCityRivalSettlement(reply: unknown, battleId: string) {
   const data = record(reply), status = record(data?.status);
   if (data?.schemaVersion !== "rival-battle-3" || data.battleId !== battleId || typeof data.didWin !== "boolean" || typeof data.alreadyProcessed !== "boolean" ||
       !status || typeof status.tierLabel !== "string" || !["tier", "rivalWins", "winsToNextTier"].every((key) => typeof status[key] === "number" && Number.isSafeInteger(status[key]) && Number(status[key]) >= 0)) throw new Error("The host settlement could not be verified. Retry the same battle.");
-  return { ...data, alreadyProcessed: data.alreadyProcessed, didWin: data.didWin, battleId: data.battleId, status: { tier: Number(status.tier), tierLabel: status.tierLabel, rivalWins: Number(status.rivalWins), winsToNextTier: Number(status.winsToNextTier) } };
+  return { ...data, holosGranted: data.holosGranted, duelReceipt: data.duelReceipt, alreadyProcessed: data.alreadyProcessed, didWin: data.didWin, battleId: data.battleId, status: { tier: Number(status.tier), tierLabel: status.tierLabel, rivalWins: Number(status.rivalWins), winsToNextTier: Number(status.winsToNextTier) } };
 }
 function combatant(value: unknown): CityCombatant {
   const row = record(value), rules = record(row?.commandRules);

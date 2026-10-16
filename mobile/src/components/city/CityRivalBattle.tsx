@@ -156,7 +156,7 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
   }
   const replayReceipt = useMemo(() => ({ issue: issue?.raw, settlement: receipt }), [issue, receipt]);
   const replayRounds = useMemo(() => cityBattleRounds(battle?.actionHistory ?? []), [battle?.actionHistory]);
-  if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={replayReceipt} rounds={replayRounds} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
+  if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
 
   if (battle?.status === "active") return <CityLiveBattleView battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
 

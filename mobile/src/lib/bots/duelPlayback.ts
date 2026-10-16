@@ -1,10 +1,16 @@
+import { readHostDuelReceipt } from './hostDuelReceipt';
 export type DuelSide = 'player' | 'rival';
 export type DuelAction = 'Strike' | 'Heavy' | 'Defend' | 'Finisher';
 export type DuelOutcome = 'hit' | 'miss' | 'evade' | 'guard';
 export type DuelFighterState = { hp: number; maxHp: number; stamina: number; maxStamina: number };
+export type ObservedFighterState = { hp?: number; maxHp: number; stamina?: number; maxStamina: number };
+export type ObservedDuelState = { player: ObservedFighterState; rival: ObservedFighterState };
 export type DuelState = { player: DuelFighterState; rival: DuelFighterState };
 export type DuelRound = {
   attacker: DuelSide;
+  actors?: { player: string; rival: string };
+  wait?: boolean;
+  observedState?: ObservedDuelState;
   action?: DuelAction;
   roundNumber?: number;
   attackClip?: string;
@@ -17,6 +23,8 @@ export type DuelRound = {
   after?: DuelState;
 };
 export type DuelReceipt = {
+  receiptError?: string;
+  finalState?: DuelState;
   battleId: string | null;
   didWin: boolean | null;
   holosGranted: number | null;
@@ -72,7 +80,7 @@ export function normalizeDuelRounds(value: unknown): DuelRound[] {
     }];
   });
 }
-/** Actual rival-battle-1/-2/-3 replies have admission/settlement, never turns.
+/** Resolver replies carry a versioned host trace; legacy replies remain result-only.
  * This adapter only copies recorded values. HP, stamina, hits and the winner are never resolved here.
  * holocity-duel-preview-1 is our explicitly synthetic QA format, not a deployed host contract.
  */
@@ -86,7 +94,7 @@ export function normalizeDuelReceipt(raw: unknown, clientRounds?: readonly DuelR
   const embedded = normalizeDuelRounds(reply.rounds);
   const rounds = clientRounds ? normalizeDuelRounds(clientRounds) : embedded;
   const combatants = synthetic ? record(reply.combatants) : {};
-  return {
+  const base: DuelReceipt = {
     battleId: text(reply.battleId) ?? text(issue.battleId),
     didWin: typeof settlement.didWin === 'boolean' ? settlement.didWin : null,
     holosGranted: synthetic ? null : nonnegative(settlement.holosGranted) ? settlement.holosGranted : null,
@@ -99,17 +107,21 @@ export function normalizeDuelReceipt(raw: unknown, clientRounds?: readonly DuelR
     synthetic,
     traceSource: rounds.length ? clientRounds ? 'client' : 'host' : 'none',
   };
+  if (Object.hasOwn(settlement, 'duelReceipt')) return readHostDuelReceipt(settlement.duelReceipt, issue, base);
+  if (Object.hasOwn(reply, 'duelReceipt')) return readHostDuelReceipt(reply.duelReceipt, issue, base);
+  return reply.schemaVersion === 'duel-receipt-1' ? readHostDuelReceipt(reply, issue, base) : base;
 }
 export type PlaybackCue = {
   atMs: number;
   side: DuelSide;
   clip: string;
-  kind: 'attack' | 'evade' | 'hit' | 'guard' | 'miss' | 'idle' | 'state';
+  kind: 'attack' | 'evade' | 'hit' | 'guard' | 'miss' | 'idle' | 'state' | 'actors';
   roundIndex: number;
   roundNumber: number;
   action?: DuelAction;
   outcome?: DuelOutcome;
-  snapshot?: DuelState;
+  snapshot?: ObservedDuelState;
+  actors?: { player: string; rival: string };
 };
 export const ROUND_DURATION_MS = 3200;
 export const ROUND_IMPACT_MS = 900;
@@ -129,11 +141,13 @@ export function buildPlaybackCues(rounds: readonly DuelRound[]): PlaybackCue[] {
     const outcome = recordedOutcome(round);
     const shared = { roundIndex, roundNumber: round.roundNumber ?? roundIndex + 1, action: round.action, outcome };
     const cues: PlaybackCue[] = [];
+    if (round.actors) cues.push({ ...shared, atMs: start, side: round.attacker, clip: 'Idle', kind: 'actors', actors: round.actors });
     if (round.before) cues.push({ ...shared, atMs: start, side: round.attacker, clip: 'Idle', kind: 'state', snapshot: round.before });
-    cues.push({ ...shared, atMs: start, side: round.attacker, clip: round.attackClip ?? (round.action ? ACTION_CLIPS[round.action] : 'AttackBasic'), kind: round.action === 'Defend' ? 'guard' : 'attack' });
+    cues.push({ ...shared, atMs: start, side: round.attacker, clip: round.wait ? 'Idle' : round.attackClip ?? (round.action ? ACTION_CLIPS[round.action] : 'AttackBasic'), kind: round.wait ? 'idle' : round.action === 'Defend' ? 'guard' : 'attack' });
     if (round.action !== 'Defend' && outcome) {
       cues.push({ ...shared, atMs: start + ROUND_IMPACT_MS, side: defender, clip: outcome === 'evade' ? 'Evade' : outcome === 'hit' ? 'HitLight' : outcome === 'guard' ? 'Guard' : 'Evade', kind: outcome });
     }
+    if (round.observedState) cues.push({ ...shared, atMs: start + ROUND_IMPACT_MS, side: round.attacker, clip: 'Idle', kind: 'state', snapshot: round.observedState });
     if (round.after) cues.push({ ...shared, atMs: start + ROUND_IMPACT_MS, side: round.attacker, clip: 'Idle', kind: 'state', snapshot: round.after });
     cues.push({ ...shared, atMs: start + 3000, side: round.attacker, clip: 'Idle', kind: 'idle' }, { ...shared, atMs: start + 3000, side: defender, clip: 'Idle', kind: 'idle' });
     return cues;
