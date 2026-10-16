@@ -125,7 +125,11 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen, [RIVAL_LAST_SETTLED_FIELD]: lastSettled });
       // expireAt drives the Firestore TTL policy (functions/README.md); settle never changes it.
       tx.create(battleRef, { ...r.battle, [RIVAL_BATTLE_CLEANUP_FIELD]: Timestamp.fromMillis(rivalBattleCleanupAtMs(r.battle)) });
-      return withStory({...rivalReplyForVersion(r.reply, command.schemaVersion),duel:r.battle.duel.mode === 'resolver'
+      // Gathering Unity keeps its existing player presentation payload. Omit only
+      // the optional wire snapshot, after vitals and resolver fighters are pinned.
+      const issueReply = rivalReplyForVersion(r.reply, command.schemaVersion);
+      if (citizenId !== undefined) delete (issueReply as {playerCombatants?: unknown}).playerCombatants;
+      return withStory({...issueReply,duel:r.battle.duel.mode === 'resolver'
         ? {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,maxRounds:DUEL_MAX_ROUNDS,
           player:r.battle.duel.input.player,opponent:r.battle.duel.input.opponent} : {mode:'legacy'}});
     }

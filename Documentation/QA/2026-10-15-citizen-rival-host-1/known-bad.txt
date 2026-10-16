@@ -1,0 +1,80 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-citizen-rival", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+⚠  firestore: Cloud Firestore Emulator does not support multiple databases yet.
+⚠  firestore: Did not find a Cloud Firestore rules file specified in a firebase.json config file.
+⚠  firestore: The emulator will default to allowing all reads and writes. Learn more about this option: https://firebase.google.com/docs/emulator-suite/install_and_configure#security_rules_configuration.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test scripts/test-citizen-rival-emulator.mjs
+✖ known-bad first: real callable gathering issue matches Unity projection, settles once and refuses cooldown (658.766625ms)
+✖ all roster pilots retain assigned opponent and ordinary rivals retain playerCombatants (46.882334ms)
+✔ callable refuses missing gathering, outside roster, wrong story schema and unauthenticated issue without writes (78.469875ms)
+✖ explicit resolver flip preserves internal fighters and host receipt despite citizen projection omission (40.084417ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3411.718291
+
+✖ failing tests:
+
+test at scripts/test-citizen-rival-emulator.mjs:26:1
+✖ known-bad first: real callable gathering issue matches Unity projection, settles once and refuses cooldown (658.766625ms)
+  AssertionError [ERR_ASSERTION]: Unity citizen projection must omit playerCombatants
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///private/tmp/holobots-w19-citizen-rival/functions/scripts/test-citizen-rival-emulator.mjs:30:9)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/test-citizen-rival-emulator.mjs:46:1
+✖ all roster pilots retain assigned opponent and ordinary rivals retain playerCombatants (46.882334ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///private/tmp/holobots-w19-citizen-rival/functions/scripts/test-citizen-rival-emulator.mjs:51:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/test-citizen-rival-emulator.mjs:76:1
+✖ explicit resolver flip preserves internal fighters and host receipt despite citizen projection omission (40.084417ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///private/tmp/holobots-w19-citizen-rival/functions/scripts/test-citizen-rival-emulator.mjs:80:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+⚠  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node --test scripts/test-citizen-rival-emulator.mjs" exited with code 1
