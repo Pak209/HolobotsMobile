@@ -1,4 +1,5 @@
 import { bindGatheringRival, gatheringRivalRequest } from '../story/gatheringRival';
+import { pilotRankAfterWin, PilotRankError } from '../account/pilotRank';
 import { ActivityError, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
@@ -116,6 +117,12 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     const r = settleRivalBattle(profile, battle.exists ? (battle.data() as RivalBattleRecord) : undefined, command.battleId, command.didWin, nowMs, command.fielded, squadIdsOf(profile));
     // A stored ruling replays without migrations, grants, HP writes, or lease changes.
     if (r.reply.alreadyProcessed) return withStory(rivalReplyForVersion(r.reply, command.schemaVersion));
+    // Apply to the authoritative ruling, once in the same transaction as its receipt.
+    // All rival versions (including gathering/Zell) count; losses and replays never do.
+    if (r.battleUpdates?.settlement?.didWin) {
+      try { r.userUpdates.pilotRank = pilotRankAfterWin(profile.pilotRank); }
+      catch (e) { if (e instanceof PilotRankError) throw new RivalError('unavailable'); throw e; }
+    }
     // A delayed pre-Arena battle must not settle rewards/HP into the current Arena activity.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
     if(r.battleUpdates&&command.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,command.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}

@@ -1,5 +1,6 @@
 import { tournamentAdmission, tournamentIndex, tournamentLevel, ARENA_TOURNAMENT_SCHEMA } from '../story/arenaTournament';
 import { StoryError } from '../story/storyFlags';
+import { PilotRankError } from '../account/pilotRank';
 /** Durable economy/HP receipts for the client-observed CPU practice sim (#56/#58).
  * This binds admission and settlement; it does NOT prove the simulated combat happened.
  * The account parent is a transactionally shared lease; child receipts never use TTL cleanup.
@@ -72,6 +73,8 @@ function match(raw: unknown, id: string): Match {
   if (raw.tournament !== undefined) {
     const t = raw.tournament;
     if (!object(t) || t.schemaVersion !== ARENA_TOURNAMENT_SCHEMA || !whole(raw.entrant.level) || raw.entrant.level < 1) return fail('unavailable');
+    // Pre-pilot-rank #80 admissions remain valid; a present snapshot must be well formed.
+    if (t.pilotRankAtAdmission !== undefined && !whole(t.pilotRankAtAdmission)) return fail('unavailable');
     try { if (t.requiredLevel !== tournamentLevel(t.tournamentId)) return fail('unavailable'); }
     catch { return fail('unavailable'); }
   }
@@ -230,7 +233,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const owned = uniqueEntrant(profile,c.holobotId);
         requireLivingVitals(profile,[c.holobotId]); // Validates the whole ledger; NEVER invoke city 40% revival.
         const player = buildPlayerCombatants(profile,[c.holobotId])[0];
-        const tournament = c.tournamentId === undefined ? undefined : tournamentAdmission(profile.storyFlags,c.tournamentId,player?.level);
+        const tournament = c.tournamentId === undefined ? undefined : tournamentAdmission(profile.storyFlags,c.tournamentId,player?.level,profile.pilotRank);
         if (!player || !finite(player.maxHealth) || player.maxHealth <= 0) return fail('unavailable');
         const current = profile.holobotVitals?.[c.holobotId];
         const hp = current ? Math.min(current.currentHealth,player.maxHealth) : player.maxHealth;
@@ -251,7 +254,8 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           settlementReceipt:null,...(tournament ? {tournament} : {}),
         };
         match(m,generatedId);
-        tx.update(userRef,{[field]:before-amount,holobotVitals:vitals});
+        tx.update(userRef,{[field]:before-amount,holobotVitals:vitals,
+          ...(tournament && profile.pilotRank === undefined ? {pilotRank:tournament.pilotRankAtAdmission} : {})});
         tx.create(parentRef.collection('matches').doc(generatedId),m);
         tx.create(requestRef,{schemaVersion:ARENA_MATCH_SCHEMA,identity,matchId:generatedId,createdAtMs:nowMs});
         tx.set(parentRef,{schemaVersion:'arena-healing-1',recordSchemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,open:true,issuedAtMs:nowMs,expiresAtMs:m.expiresAtMs});
@@ -322,7 +326,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
   } catch (e) {
     if (e instanceof StoryError) throw new ArenaError(e.code);
     if (e instanceof HealthError) throw new ArenaError(e.message === 'holobot_ko' ? 'holobot_ko' : e.message === 'invalid_request' ? 'invalid_request' : 'unavailable');
-    if (e instanceof ActivityError || e instanceof RivalError || e instanceof HoloZoneError) throw new ArenaError('unavailable');
+    if (e instanceof ActivityError || e instanceof RivalError || e instanceof HoloZoneError || e instanceof PilotRankError) throw new ArenaError('unavailable');
     throw e;
   }
 }

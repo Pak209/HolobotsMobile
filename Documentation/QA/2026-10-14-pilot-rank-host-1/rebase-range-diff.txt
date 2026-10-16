@@ -1,0 +1,1 @@
+1:  675c2d0 = 1:  ec82577 Contract-Change: add host-owned pilot rank and tournament admission snapshots
