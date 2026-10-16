@@ -3,7 +3,7 @@ import {withRankHealingReward} from "../lib/rankHealingReward";
 import { randomUUID } from 'node:crypto';
 import { Firestore, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
-import { HoloZoneError, holoZoneStatus, issueHoloZoneRun, readHoloZoneRuns, settleHoloZoneRun, validateHoloZoneCommand } from '../lib/holoZoneRuns';
+import { HOLOZONE_LAST_SETTLED_FIELD, holoZoneLastSettledAfterSettle, readHoloZoneLastSettled, requireHoloZoneOffCooldown, HoloZoneError, holoZoneStatus, issueHoloZoneRun, readHoloZoneRuns, settleHoloZoneRun, validateHoloZoneCommand } from '../lib/holoZoneRuns';
 import { holoZoneIssueReplyForVersion, holoZoneSettleReplyForVersion, holoZoneStatusReplyForVersion } from '../lib/holoZoneWire';
 
 /**
@@ -53,11 +53,14 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
     const user = await tx.get(userRef);
     if (!user.exists) throw new HoloZoneError('unavailable');
     const profile = user.data()!;
-    const runs = readHoloZoneRuns((await tx.get(runsRef)).data());
+    const ledger = (await tx.get(runsRef)).data();
+    const runs = readHoloZoneRuns(ledger);
     if (command.operation === 'status') return holoZoneStatusReplyForVersion(holoZoneStatus(runs, nowMs), command.schemaVersion);
     if (command.operation === 'issue') {
       // Arena and every zone issue (including health flag-off clients) share this transaction read.
       await requireLeaseFree(tx, db, uid);
+      const lastSettled = readHoloZoneLastSettled(ledger, runs);
+      requireHoloZoneOffCooldown(lastSettled, command.zoneId, nowMs);
       let squadIds: string[];
       try {
         squadIds = readTravelSquad(profile).holobotIds;
@@ -66,7 +69,7 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
       }
       const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, { profile, includeHealth: command.healthSchema !== undefined });
       if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
-      tx.set(runsRef, r.doc);
+      tx.set(runsRef, { ...r.doc, [HOLOZONE_LAST_SETTLED_FIELD]: lastSettled });
       return holoZoneIssueReplyForVersion(r.reply, command.schemaVersion);
     }
     const r = settleHoloZoneRun(profile, runs, command, nowMs);
@@ -74,7 +77,7 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
     // Preserve receipt replay, but refuse all first-time reward/HP writes during an Arena match.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
     if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile, r.userUpdates));
-    if (r.doc) tx.set(runsRef, r.doc);
+    if (r.doc) tx.set(runsRef, { ...r.doc, [HOLOZONE_LAST_SETTLED_FIELD]: holoZoneLastSettledAfterSettle(readHoloZoneLastSettled(ledger, runs), r.reply.settlement.zoneId, nowMs) });
     return holoZoneSettleReplyForVersion(r.reply, command.schemaVersion);
   });
 }

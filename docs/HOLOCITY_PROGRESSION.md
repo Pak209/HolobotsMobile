@@ -593,7 +593,7 @@ Producer picks; Pak tunes after telemetry. All amounts are host constants; Unity
 
 - A rival NPC (`encounter.opponentPilot.pilotId`: `rival_tier_<t>` or `zell`) cannot be **issued** again within **300000 ms (5 min)** of the previous first-time settle against the same id (`RIVAL_COOLDOWN_MS`). Different rivals are independent. A win and a loss both start it.
 - Refusal: `rival_cooldown` → `HttpsError('failed-precondition', 'rival_cooldown', { rejectionCode: 'rival_cooldown', retryAfterMs })`; nothing written. `retryAfterMs` = ms until the same rival can be issued.
-- A cooldown never blocks a replayed settle, nor the settle of a battle issued before it. Zone runs keep their own issue rules (no cooldown).
+- A cooldown never blocks a replayed settle, nor the settle of a battle issued before it. Zone runs use the three-minute per-zone ISSUE cooldown documented below (economy-host-2).
 - Storage: `rivalBattles/{uid}.rivalLastSettledAtMs {pilotId: epochMs}` (server-only ledger doc, pruned on write); malformed = `unavailable`.
 
 ### Blueprint fragment per non-boss zone clear
@@ -613,3 +613,12 @@ Producer picks; Pak tunes after telemetry. All amounts are host constants; Unity
 ### Tests
 
 `functions/scripts/test-economy-host-emulator.mjs` (in `test:emulator`): 18 tests, known-bad = origin/main for each step.
+
+
+## Economy host 2 — zone admission and rival CPU moves (2026-10-14)
+
+`holoZoneHost` now gates **ISSUE** of the same zone for **180,000 ms / 3 minutes** after its last first-time settle (win, loss or reward withheld). At the boundary it is eligible. Other zones are independent. Status and receipt replay remain available; replay never resets the clock. Refusal is `failed-precondition`, message `zone_cooldown`, details `{ rejectionCode: "zone_cooldown", retryAfterMs }`; it writes nothing and preserves any open run. The error uses the existing cooldown envelope; successful `holozone-run-1` / `-2` reply shapes and version strings are unchanged. The server-only `holoZoneRuns/{uid}.zoneLastSettledAtMs` map retains clocks independently of the last-10-run history and reads existing settlements for migration.
+
+New `rival-battle-3` CPU move `damageScale` values are multiplied by `(0.45 + 0.35 * min(tier,9)/9) / (1957/2098)`, in the byte-identical `rivalTierStats.ts` pair. Tiers 0–9 taper the modeled pre-cut output reduction from 55% to 20%; tier 10+ stays at the top multiplier. Player moves, legacy v1/v2 rival moves, issued snapshots, WOLF stat curves and reward numbers stay unchanged. No successful reply field is added. The full per-tier before/after table and validation are in `Documentation/QA/2026-10-14-economy-host-2/README.md`.
+
+**Aggregate CPU output / duel-duration acceptance is HELD:** Unity autonomous `attack_light` still takes local `lightDamageScale=0.55`, bypassing the host move table. The named-move target is modeled; the whole-CPU target needs a scoped consumer follow-up and a fresh gameplay witness.

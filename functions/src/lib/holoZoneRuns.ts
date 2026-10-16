@@ -84,11 +84,44 @@ export const HOLOZONE_RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9
 /** A fielded Holobot id: the travel-squad id rule. */
 export const HOLOZONE_FIELDED_ID = /^[a-z][a-z0-9_]{0,127}$/;
 
-export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "holobot_ko" | "activity_conflict" | "unavailable";
+export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "holobot_ko" | "activity_conflict" | "zone_cooldown" | "unavailable";
 export class HoloZoneError extends Error {
-  constructor(public code: HoloZoneErrorCode) {
+  constructor(public code: HoloZoneErrorCode, public retryAfterMs?: number) {
     super(code);
   }
+}
+
+/** economy-host-2: a zone may be re-issued 3 minutes after its last first-time settle. */
+export const HOLOZONE_COOLDOWN_MS = 3 * 60 * 1000;
+/** Server-only parent ledger map; separate from bounded run history so pruning cannot bypass admission. */
+export const HOLOZONE_LAST_SETTLED_FIELD = "zoneLastSettledAtMs";
+export function readHoloZoneLastSettled(doc: Record<string, unknown> | undefined, runs: readonly HoloZoneRunRecord[]): Record<string, number> {
+  const raw = doc?.[HOLOZONE_LAST_SETTLED_FIELD];
+  if (raw !== undefined && (!raw || typeof raw !== "object" || Array.isArray(raw))) throw new HoloZoneError("unavailable");
+  const out: Record<string, number> = {};
+  for (const [zoneId, at] of Object.entries(raw ?? {})) {
+    if (!HOLOZONE_ZONE_ID.test(zoneId) || typeof at !== "number" || !Number.isFinite(at)) throw new HoloZoneError("unavailable");
+    out[zoneId] = at;
+  }
+  // Existing ledgers predate the map: honor their recorded settles immediately after deployment.
+  for (const run of runs) if (run.settlement) {
+    const at = run.settlement.settledAtMs;
+    if (!Number.isFinite(at)) throw new HoloZoneError("unavailable");
+    out[run.zoneId] = Math.max(out[run.zoneId] ?? -Infinity, at);
+  }
+  return out;
+}
+export function requireHoloZoneOffCooldown(lastSettled: Record<string, number>, zoneId: string, nowMs: number): void {
+  const at = lastSettled[zoneId];
+  if (at === undefined) return;
+  const retryAfterMs = at + HOLOZONE_COOLDOWN_MS - nowMs;
+  if (retryAfterMs > 0) throw new HoloZoneError("zone_cooldown", retryAfterMs);
+}
+export function holoZoneLastSettledAfterSettle(lastSettled: Record<string, number>, zoneId: string, nowMs: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [id, at] of Object.entries(lastSettled)) if (at + HOLOZONE_COOLDOWN_MS > nowMs) out[id] = at;
+  out[zoneId] = nowMs;
+  return out;
 }
 
 /** The run as Unity sees it (issue reply, status.run). */
