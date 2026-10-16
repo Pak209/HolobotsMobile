@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "duel-inputs-1",
+  "title": "Assembled deterministic duel input log",
+  "description": "Core InputLog from HolobotsMobile #103, not an append/settle callable envelope. No client damage or outcome. Structural limits here are global ceilings; host sim validation additionally requires seq equal to array index, nondecreasing ticks, at most four commands per tick, tick < rules.maxTicks, a non-CPU actor in the snapshot, and target team membership (deploy same side, other targeted actions opposing side). Signed zero and JSON integer numeric spelling are not distinguished by JSON Schema; canonical runtime validation remains authoritative.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "events"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "duel-inputs-1"
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 8192,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seq",
+              "tick",
+              "actor",
+              "action",
+              "x",
+              "z"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 8191
+              },
+              "tick": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7199
+              },
+              "actor": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,64}(?![\\s\\S])"
+              },
+              "action": {
+                "enum": [
+                  "move"
+                ]
+              },
+              "x": {
+                "type": "integer",
+                "minimum": -127,
+                "maximum": 127
+              },
+              "z": {
+                "type": "integer",
+                "minimum": -127,
+                "maximum": 127
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seq",
+              "tick",
+              "actor",
+              "action",
+              "target"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 8191
+              },
+              "tick": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7199
+              },
+              "actor": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,64}(?![\\s\\S])"
+              },
+              "action": {
+                "enum": [
+                  "strike",
+                  "heavy",
+                  "finisher",
+                  "select_target",
+                  "deploy"
+                ]
+              },
+              "target": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,64}(?![\\s\\S])"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seq",
+              "tick",
+              "actor",
+              "action"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 8191
+              },
+              "tick": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7199
+              },
+              "actor": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,64}(?![\\s\\S])"
+              },
+              "action": {
+                "enum": [
+                  "guard_down",
+                  "guard_up",
+                  "disengage"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "examples": [
+    {
+      "schemaVersion": "duel-inputs-1",
+      "events": []
+    },
+    {
+      "schemaVersion": "duel-inputs-1",
+      "events": [
+        {
+          "seq": 0,
+          "tick": 0,
+          "actor": "ace",
+          "action": "move",
+          "x": 127,
+          "z": 0
+        },
+        {
+          "seq": 1,
+          "tick": 1,
+          "actor": "ace",
+          "action": "strike",
+          "target": "wolf"
+        }
+      ]
+    }
+  ]
+}
