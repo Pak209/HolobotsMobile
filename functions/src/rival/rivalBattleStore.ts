@@ -59,7 +59,7 @@ async function requireLeaseFree(tx: Transaction, db: Firestore, uid: string): Pr
 }
 export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean } = {}) {
   // One-release server flag. Requests cannot select or downgrade a stored mode.
-  const legacyMode = options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_LEGACY === '1';
+  const legacyMode = options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER !== '1';
   const allowLegacySettlement = options.allowLegacySettlement ?? process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN !== '0';
   const request = raw as Record<string, unknown>;
   // Read the routing envelope before loading the pinned mode. Resolver mode ignores

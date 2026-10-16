@@ -22,7 +22,7 @@ async function setup({level=1,bench=false,...extra}={}){
   travelSquad:{schemaVersion:'travel-squad-1',revision:1,holobotIds:bench?['ace','kuma']:['ace']},...extra});
  return uid;
 }
-test('default issue pins resolver mode, host stats, seed and HP; caller cannot select legacy or stats',async()=>{
+test('explicit resolver issue pins resolver mode, host stats, seed and HP; caller cannot select legacy or stats',async()=>{
  const uid=await setup();
  const issue=await call(uid,{operation:'issue',legacyDidWin:true,duel:{mode:'legacy'},seed:999,player:[{attack:1e9}]});
  const b=await record(uid,issue.battleId);
@@ -94,9 +94,9 @@ test('missing owned squad refuses resolver admission and callable exposes typed 
  const uid=await setup({holobots:[],travelSquad:{schemaVersion:'travel-squad-1',revision:1,holobotIds:[]}});
  await assert.rejects(()=>call(uid,{operation:'issue'}),/squad_required/);
  await assert.rejects(()=>rivalBattleHost.run({data:{operation:'issue'}}),e=>e.code==='unauthenticated');
- const prior=process.env.HOLOCITY_RIVAL_ISSUE_LEGACY;delete process.env.HOLOCITY_RIVAL_ISSUE_LEGACY;
+ const prior=process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER;process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER='1';
  try {await assert.rejects(()=>rivalBattleHost.run({auth:{uid},data:{...base,operation:'issue'}}),e=>e.code==='failed-precondition'&&e.details.rejectionCode==='squad_required');}
- finally{if(prior===undefined)delete process.env.HOLOCITY_RIVAL_ISSUE_LEGACY;else process.env.HOLOCITY_RIVAL_ISSUE_LEGACY=prior;}
+ finally{if(prior===undefined)delete process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER;else process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER=prior;}
 });
 test('existing 40% KO issue recovery remains and stored malformed resolver fails closed',async()=>{
  const uid=await setup({holobotVitals:{ace:{currentHealth:0,maxHealth:500}}});const i=await call(uid,{operation:'issue'});
@@ -106,16 +106,37 @@ test('existing 40% KO issue recovery remains and stored malformed resolver fails
  await assert.rejects(()=>call(uid,{operation:'settle',battleId:i.battleId,playerIntents:['strike']},now+20000),/unavailable/);
 });
 
-test('migration defaults accept already-issued legacy while new issues remain resolver-on',async()=>{
+test('default environment issues legacy and accepts didWin without playerIntents',async()=>{
  const uid=await setup();const i=await call(uid,{operation:'issue'},now,{issueLegacy:true});
- const oldIssue=process.env.HOLOCITY_RIVAL_ISSUE_LEGACY,oldAllow=process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN;
- delete process.env.HOLOCITY_RIVAL_ISSUE_LEGACY;delete process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN;
+ const oldIssue=process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER,oldAllow=process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN;
+ delete process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER;delete process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN;
  try{
   const result=await host(db,uid,{...base,operation:'settle',battleId:i.battleId,didWin:false},now+20000,seed);
   assert.equal(result.holosGranted,25);
-  const fresh=await setup();const issued=await host(db,fresh,{...base,operation:'issue'},now,seed);assert.equal(issued.duel.mode,'resolver');
+  const fresh=await setup();const issued=await host(db,fresh,{...base,operation:'issue'},now,seed);assert.equal(issued.duel.mode,'legacy');
+  const settled=await host(db,fresh,{...base,operation:'settle',battleId:issued.battleId,didWin:true},now+20000,seed);
+  assert.equal(settled.holosGranted,100);assert.equal(settled.duelReceipt,undefined);
  }finally{
-  if(oldIssue!==undefined)process.env.HOLOCITY_RIVAL_ISSUE_LEGACY=oldIssue;
+  if(oldIssue!==undefined)process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER=oldIssue;
   if(oldAllow!==undefined)process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN=oldAllow;
+ }
+});
+
+test('resolver environment flag produces a complete pinned receipt after flag rollback',async()=>{
+ const prior=process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER;
+ process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER='1';
+ try{
+  const uid=await setup({level:99});
+  const issued=await host(db,uid,{...base,operation:'issue'},now,seed);
+  assert.equal(issued.duel.mode,'resolver');
+  delete process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER;
+  await assert.rejects(()=>host(db,uid,{...base,operation:'settle',battleId:issued.battleId,didWin:true},now+20000,seed),/invalid_request/);
+  const result=await host(db,uid,{...base,operation:'settle',battleId:issued.battleId,playerIntents:['strike'],didWin:false},now+20000,seed);
+  assert.equal(result.duelReceipt.schemaVersion,'duel-receipt-1');
+  assert.equal(result.duelReceipt.winner,'player');assert.equal(result.holosGranted,100);
+  const replay=await host(db,uid,{...base,operation:'settle',battleId:issued.battleId},now+30000,seed);
+  assert.equal(replay.alreadyProcessed,true);assert.deepEqual(replay.duelReceipt,result.duelReceipt);
+ }finally{
+  if(prior===undefined)delete process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER;else process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER=prior;
  }
 });

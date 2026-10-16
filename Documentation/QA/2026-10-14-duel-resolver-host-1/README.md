@@ -30,9 +30,9 @@ Economy unchanged: win100 Holos, loss25, existing20-second anti-farm threshold, 
 
 ## One-release migration
 
-- New issues default resolver ON. `HOLOCITY_RIVAL_ISSUE_LEGACY=1` is a separate, explicit server-only emergency compatibility override. Clients cannot set it.
+- New issues default to legacy until Pak says “flip”. Only `HOLOCITY_RIVAL_ISSUE_RESOLVER=1` in `functions/.env` enables resolver issues. Clients cannot set it.
 - Old untagged or explicitly legacy records remain settleable for one release using their old `didWin` path by default. Set `HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN=0` to close that path; refusal is `legacy_settlement_disabled` (failed-precondition). Already settled receipts remain replayable.
-- Remove this migration path in the next release after the existing2-hour open-battle TTL drains and the client sends intents/plays receipts. No caller can downgrade a stored resolver record. Existing old clients without intents cannot settle a new resolver battle; deployment remains held for coordinated rollout.
+- Remove this migration path in the next release after the existing2-hour open-battle TTL drains and the client sends intents/plays receipts. No caller can downgrade a stored resolver record. Existing old clients without intents cannot settle a new resolver battle; the resolver flip remains held for coordinated rollout.
 
 New `squad_required` and `legacy_settlement_disabled` refusals map to failed-precondition. Existing invalid_request/unknown_battle/battle_expired/too_fast/activity_conflict/cooldown behavior remains. The historical pre-Zell comparison fixture deliberately selects legacy issue mode; the optional historical compiled-build comparison is skipped when no baseline is supplied.
 
@@ -46,3 +46,15 @@ New `squad_required` and `legacy_settlement_disabled` refusals map to failed-pre
 - Emulator attempt2:46/46passed (all10new resolver cases plus36regressions),40.13s test duration. Dedicated loopback Firestore18086, websocket19186, hub14401, logging14501; 1GB JVM and300-second process-group timeout with SIGTERM/SIGKILL cleanup. Only demo/throwaway pilots.
 
 Held: deployment, production use, and client receipt playback/real-time presentation parity. All unrelated holds remain. The broader Unity autonomous-damage and measured duel-duration acceptance in PR #2 is not claimed resolved by this source-only host delivery.
+
+## Producer migration correction — 2026-10-15
+
+Rebased on main `1d6744ee76c574a2868eb2f8d34613525e577a30`. PR #82 merged into the already-merged economy branch, so its two rank commits remain included as dependencies here; no economy ancestor is duplicated.
+
+Default environment now issues legacy and settles without intents. `HOLOCITY_RIVAL_ISSUE_RESOLVER=1` is the sole production opt-in for new resolver issues. `HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN` is unchanged. Existing resolver issues stay pinned through rollback; receipt replay remains exact.
+
+- `npm --prefix functions run build`: passed, including `check:shared` (3 files).
+- `npm --prefix functions test`: 156 passed, 0 failed, 1 historical baseline skip.
+- Dedicated demo emulator: `test-duel-resolver-emulator.mjs`, `test-pilot-rank-emulator.mjs`, `test-economy-host-2-emulator.mjs`: 31/31 passed, 18.450 s test duration / 22.831 s wall, 300 s cap, 1 GB JVM. First correction validation attempt passed.
+- New coverage: absent env issues legacy and settles both old/new records; explicit resolver env issues and settles a full receipt, refuses missing intents after rollback and replays exactly.
+- No deploy, production accounts, editor activity or rollout flip. The Unity migration and explicit Pak “flip” remain held.
