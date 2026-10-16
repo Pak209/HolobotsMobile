@@ -95,7 +95,8 @@ async function issue(uid, requestId = 'arena_issue_1', overrides = {}, now = T0)
   assert.equal(newIds.length, 1, 'one durable match must be created');
   return { reply, matchId: newIds[0], record: matches[newIds[0]] };
 }
-const rival = (uid, data, now = T0) => transactRivalBattle(db, uid, { schemaVersion: 'rival-battle-3', ...data }, now);
+// Historical R4 client-observed settlement fixtures deliberately exercise the legacy path.
+const rival = (uid, data, now = T0) => transactRivalBattle(db, uid, { schemaVersion: 'rival-battle-3', ...data }, now, undefined, {issueLegacy:true});
 const zone = (uid, data, now = T0) => transactHoloZoneRun(db, uid, { schemaVersion: 'holozone-run-2', ...data }, now);
 const patch = (uid, requestId = 'patch_1', now = T0) => transactDesktopItems(db, uid, { schemaVersion: 'desktop-items-2', operation: 'use', itemId: 'item.emergency_patch', requestId, holobotId: 'ace' }, now);
 
