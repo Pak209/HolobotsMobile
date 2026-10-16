@@ -65,3 +65,18 @@ export function useRivalStatus(uid?: string, preview?: RivalHudPreview) {
   const cooldown = nextRivalCooldown(observed, now);
   return { status, error, refresh, cooldown, countdown: cooldown ? formatRivalCountdown(cooldown.endsAtMs, now) : null };
 }
+
+/** A read-only city subscription: no status call, no fabricated expiry, no fixture network. */
+export function useCityRivalCooldowns(uid?: string, preview = false) {
+  const [now, setNow] = useState(Date.now());
+  const [, setRevision] = useState(0);
+  useEffect(() => {
+    const update = () => { setNow(Date.now()); setRevision(value => value + 1); };
+    listeners.add(update);
+    const timer = setInterval(update, 1000);
+    return () => { listeners.delete(update); clearInterval(timer); };
+  }, []);
+  return Object.fromEntries(preview ? [] : [...(observations.get(uid || "") ?? [])]
+    .filter(([, end]) => end > now)
+    .map(([id, end]) => [id, formatRivalCountdown(end, now)]));
+}
