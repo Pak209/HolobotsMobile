@@ -99,7 +99,7 @@ export function cityActionMessage(error: unknown): string {
     "functions/unavailable": "The city host is offline. Check your connection and retry.",
     "functions/unauthenticated": "Sign in again to meet the city pilots.",
     "unauthenticated": "Sign in again to meet the city pilots.",
-    "rival_cooldown": "This pilot is recovering. Their five-minute cooldown must finish before a rematch.",
+    "rival_cooldown": "This pilot is recovering. Check their countdown before a rematch.",
     "battle_open": "Finish your current battle before healing at the workshop.",
     "arena_no_heal": "Workshop healing is unavailable during an Arena match.",
     "no_squad": "Choose a travel squad on your dashboard first.",
@@ -113,4 +113,12 @@ export function cityActionMessage(error: unknown): string {
     "too_fast": "The host is still confirming this battle. Wait a moment and retry.",
   };
   return messages[code] ?? (error instanceof Error && !code ? error.message : "The city could not complete that action. Please retry.");
+}
+
+/** Host relative refusal clock; unrelated errors must never disable a rival pin. */
+export function cityRivalCooldownEnd(error: unknown, receivedAtMs: number): number | null {
+  const details = record(record(error)?.details);
+  if (details?.rejectionCode !== "rival_cooldown" || typeof details.retryAfterMs !== "number" ||
+      !Number.isFinite(details.retryAfterMs) || details.retryAfterMs < 0) return null;
+  return receivedAtMs + details.retryAfterMs;
 }

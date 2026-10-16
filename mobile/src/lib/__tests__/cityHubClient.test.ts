@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as { uid: string } | null }, call: vi.fn(), callable: vi.fn() }));
 vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
-import { meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad } from "../cityHubClient";
+import { loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad } from "../cityHubClient";
 import { CITY_GATHERING_FIXTURE } from "../cityHubFixtures";
 describe("city authenticated host actions", () => {
   beforeEach(() => { vi.clearAllMocks(); fixture.auth.currentUser = { uid: "pilot-a" }; });
@@ -11,9 +11,38 @@ describe("city authenticated host actions", () => {
     expect((await meetCityPilots("pilot-a")).roster).toHaveLength(8);
     expect(fixture.callable).toHaveBeenLastCalledWith({}, "arenaGatheringHost");
     expect(fixture.call).toHaveBeenLastCalledWith({ schemaVersion: "arena-gathering-1" });
-    fixture.call.mockResolvedValueOnce({ data: { battleId: "test" } });
-    await issueCityRival("pilot-a", CITY_GATHERING_FIXTURE.roster[0]);
-    expect(fixture.call).toHaveBeenLastCalledWith({ schemaVersion: "rival-battle-3", operation: "issue", storySchema: "arena-gathering-1", rivalId: "CV1_HB_CITIZEN3_StallLinen_13" });
+    fixture.call.mockClear();
+    await expect(issueCityRival("pilot-a", CITY_GATHERING_FIXTURE.roster[0])).rejects.toThrow("aren’t available");
+    expect(fixture.call).not.toHaveBeenCalled();
+  });
+  it("loads host snapshot and dynamic roster, without sending a uid", async () => {
+    const roster = CITY_GATHERING_FIXTURE.roster.map((row, i) => ({ ...row, pilotName: `Host pilot ${i}` }));
+    fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "desktop-account-3", uid: "pilot-a", storyFlags: CITY_GATHERING_FIXTURE.storyFlags } })
+      .mockResolvedValueOnce({ data: { ...CITY_GATHERING_FIXTURE, roster } });
+    expect((await loadCityHub("pilot-a")).roster).toEqual(roster);
+    expect(fixture.callable.mock.calls.map(c => c[1])).toEqual(["desktopAccountSnapshot", "arenaGatheringHost"]);
+    expect(fixture.call.mock.calls.map(c => c[0])).toEqual([{ schemaVersion: "desktop-account-3" }, { schemaVersion: "arena-gathering-1" }]);
+  });
+  it("does not implicitly join an unseen gathering", async () => {
+    fixture.call.mockResolvedValue({ data: { schemaVersion: "desktop-account-3", uid: "pilot-a", storyFlags: { ...CITY_GATHERING_FIXTURE.storyFlags, arenaGatheringSeen: false } } });
+    const result = await loadCityHub("pilot-a");
+    expect(result.storyFlags.arenaGatheringSeen).toBe(false);
+    expect(result.roster).toEqual([]);
+    expect(fixture.call).toHaveBeenCalledTimes(1);
+  });
+  it("keeps missing flags closed and rejects foreign/malformed snapshots", async () => {
+    fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "desktop-account-3", uid: "pilot-a" } });
+    expect((await loadCityHub("pilot-a")).storyFlags.arenaArcBuilt).toBe(false);
+    for (const reply of [{ schemaVersion: "desktop-account-2", uid: "pilot-a" }, { schemaVersion: "desktop-account-3", uid: "pilot-b" }]) {
+      fixture.call.mockResolvedValueOnce({ data: reply });
+      await expect(loadCityHub("pilot-a")).rejects.toThrow("could not be verified");
+    }
+  });
+  it("offline fixtures never authenticate or call the host", async () => {
+    fixture.auth.currentUser = null;
+    expect(await loadCityHub("offline", CITY_GATHERING_FIXTURE)).toEqual({ roster: CITY_GATHERING_FIXTURE.roster, storyFlags: CITY_GATHERING_FIXTURE.storyFlags });
+    expect(fixture.callable).not.toHaveBeenCalled();
+    expect(fixture.call).not.toHaveBeenCalled();
   });
   it("rejects a foreign session before calling and after a delayed response", async () => {
     await expect(meetCityPilots("pilot-b")).rejects.toEqual({ code: "unauthenticated" });

@@ -1,5 +1,6 @@
+import { formatRivalCountdown } from "../rivalHud";
 import { describe, expect, it } from "vitest";
-import { CITY_DISTRICTS, CITY_RING_COLORS, EMPTY_CITY_FLAGS, cityDistrictAccess, cityMapPoint, cityTimeOfDay, readArenaGathering, readCityStoryFlags } from "../cityHub";
+import { cityRivalCooldownEnd, CITY_DISTRICTS, CITY_RING_COLORS, EMPTY_CITY_FLAGS, cityDistrictAccess, cityMapPoint, cityTimeOfDay, readArenaGathering, readCityStoryFlags } from "../cityHub";
 import { CITY_GATHERING_FIXTURE } from "../cityHubFixtures";
 import { theme } from "../../theme";
 
@@ -42,5 +43,18 @@ describe("city story gates and geography", () => {
   it("switches tint at device-local 06:00 and 19:00", () => {
     expect([0, 5, 19, 23].map(cityTimeOfDay)).toEqual(["night", "night", "night", "night"]);
     expect([6, 12, 18].map(cityTimeOfDay)).toEqual(["day", "day", "day"]);
+  });
+});
+
+describe("host cooldown clocks", () => {
+  it("uses retryAfterMs at receipt time and expires without a fabricated five-minute delay", () => {
+    const end = cityRivalCooldownEnd({ details: { rejectionCode: "rival_cooldown", retryAfterMs: 12_500 } }, 1000)!;
+    expect(end).toBe(13_500);
+    expect(formatRivalCountdown(end, 1000)).toBe("00:13");
+    expect(formatRivalCountdown(end, 13_500)).toBe("00:00");
+  });
+  it("ignores malformed or unrelated refusals", () => {
+    for (const retryAfterMs of [-1, NaN, Infinity, "3000", undefined]) expect(cityRivalCooldownEnd({ details: { rejectionCode: "rival_cooldown", retryAfterMs } }, 0)).toBeNull();
+    expect(cityRivalCooldownEnd({ details: { rejectionCode: "zone_cooldown", retryAfterMs: 100 } }, 0)).toBeNull();
   });
 });

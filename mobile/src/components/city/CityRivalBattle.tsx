@@ -7,9 +7,9 @@ import { ArenaCombatEngine } from "@/features/arena/combatEngine";
 import { getAbility } from "@/features/arena/abilities";
 import { getSignatureFinisher, resolveCombatKit } from "@/features/arena/moveKits";
 import { publishRivalCooldown, publishRivalStatus } from "@/hooks/useRivalStatus";
-import { cityActionMessage, record, type ArenaCitizen } from "@/lib/cityHub";
+import { cityActionMessage, cityRivalCooldownEnd, record, type ArenaCitizen } from "@/lib/cityHub";
 import { CITY_GATHERING_FIXTURE } from "@/lib/cityHubFixtures";
-import { issueCityRival, settleCityRival } from "@/lib/cityHubClient";
+import { CITY_LIVE_DUEL_HOLD, issueCityRival, settleCityRival } from "@/lib/cityHubClient";
 import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, type CityRivalIssue } from "@/lib/cityRivalBattle";
 import { DuelPlaybackScreen } from "@/screens/DuelPlaybackScreen";
 import type { BattleState } from "@/types/arena";
@@ -83,8 +83,8 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
       if (!alive.current) return;
       enterBattle(admitted);
     } catch (error) {
-      const details = record(record(error)?.details);
-      if (details?.rejectionCode === "rival_cooldown" && typeof details.retryAfterMs === "number" && Number.isFinite(details.retryAfterMs)) publishRivalCooldown(uid, rival.citizenId, Date.now() + Math.max(0, details.retryAfterMs));
+      const cooldownEnd = cityRivalCooldownEnd(error, Date.now());
+      if (cooldownEnd !== null) publishRivalCooldown(uid, rival.citizenId, cooldownEnd);
       // A verified issuance that cannot be played must be closed without a win/XP claim.
       const rawId = record(raw)?.battleId;
       if (typeof rawId === "string" && /^rb_[a-f0-9]{24}$/.test(rawId)) {
@@ -170,11 +170,11 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     <View style={[styles.ring, { borderColor: rival.ringColor }]}><Image source={getHolobotHeadshotImageSource(rival.holobotId)} style={styles.portrait} /></View>
     <Text style={styles.title}>{rival.pilotName}</Text>
     <Text style={styles.body}>{rival.holobotId.toUpperCase()} / {rival.rank.toUpperCase()}</Text>
-    {!issue ? <Text style={styles.body}>Your first travel-squad Holobot enters this duel. Play your four-move kit, then watch the replay with host-confirmed rewards.</Text> : <Text style={styles.title}>{battle?.status === "completed" ? "DUEL COMPLETE" : "DUEL ENDED"}</Text>}
+    {!issue ? <Text style={styles.body}>{preview ? "Your first travel-squad Holobot enters this offline duel." : CITY_LIVE_DUEL_HOLD}</Text> : <Text style={styles.title}>{battle?.status === "completed" ? "DUEL COMPLETE" : "DUEL ENDED"}</Text>}
     {pending ? <ActivityIndicator size="large" color={theme.colors.accent} /> : null}
     {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
     {__DEV__ && preview && !issue && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1" ? <Pressable accessibilityRole="button" accessibilityLabel="Play offline host receipt" onPress={() => setHostPreview(true)} style={styles.primary}><Text style={styles.primaryText}>OFFLINE ACE / WOLF RECEIPT · NO REWARDS</Text></Pressable> : null}
-    {!issue && !issueAttempted ? <Pressable accessibilityRole="button" onPress={() => void start()} style={styles.primary}><Text style={styles.primaryText}>START RIVAL DUEL</Text></Pressable> : null}
+    {preview && !issue && !issueAttempted ? <Pressable accessibilityRole="button" onPress={() => void start()} style={styles.primary}><Text style={styles.primaryText}>START RIVAL DUEL</Text></Pressable> : null}
     {issue && !pending && !receipt && battle?.status === "completed" && !settlementAttempted.current ? <Text style={styles.body}>Confirming the match · {waitSeconds}s</Text> : null}
     {issue && message && settlementAttempted.current && !pending ? <Pressable accessibilityRole="button" onPress={() => void settle(settlementOutcome.current === true)} style={styles.primary}><Text style={styles.primaryText}>RETRY HOST CONFIRMATION</Text></Pressable> : null}
     {(!issue || battle?.status === "abandoned") && !pending ? <Pressable accessibilityRole="button" onPress={onClose} style={styles.leave}><Text style={styles.leaveText}>RETURN TO CITY</Text></Pressable> : null}

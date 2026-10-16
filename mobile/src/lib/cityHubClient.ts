@@ -1,5 +1,6 @@
 import { auth, functions, httpsCallable } from "@/config/firebase";
-import { GATHERING_SCHEMA, readArenaGathering, record, type ArenaCitizen } from "./cityHub";
+import { GATHERING_SCHEMA, readArenaGathering, readCityStoryFlags, record, type ArenaCitizen } from "./cityHub";
+import type { CityHubFixture } from "./cityHubFixtures";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "./async";
 import { readCityRivalSettlement } from "./cityRivalBattle";
 
@@ -16,8 +17,10 @@ async function cityCall(uid: string, name: string, request: Record<string, unkno
 export async function meetCityPilots(uid: string) {
   return readArenaGathering(await cityCall(uid, "arenaGatheringHost", { schemaVersion: GATHERING_SCHEMA }));
 }
-export function issueCityRival(uid: string, rival: ArenaCitizen) {
-  return cityCall(uid, "rivalBattleHost", { schemaVersion: "rival-battle-3", operation: "issue", storySchema: GATHERING_SCHEMA, rivalId: rival.citizenId });
+export const CITY_LIVE_DUEL_HOLD = "Live citizen duels aren’t available in this build. You can still meet the pilots.";
+/** #94 omits playerCombatants. Never open a battle this legacy client would auto-forfeit. */
+export async function issueCityRival(_uid: string, _rival: ArenaCitizen): Promise<unknown> {
+  throw new Error(CITY_LIVE_DUEL_HOLD);
 }
 export async function settleCityRival(uid: string, battleId: string, didWin: boolean, fielded: string[]) {
   const reply = await cityCall(uid, "rivalBattleHost", { schemaVersion: "rival-battle-3", operation: "settle", battleId, didWin, fielded });
@@ -36,4 +39,15 @@ export async function craftCityItem(uid: string, itemId: WorkshopCraftItem, requ
 }
 export function cityRequestId(): string {
   return `mobile_city_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** Read the host account before fetching a seen gathering; opening the hub never joins it implicitly. */
+export async function loadCityHub(uid: string, fixture?: CityHubFixture) {
+  if (fixture) return { storyFlags: fixture.storyFlags, roster: fixture.roster };
+  const reply = record(await cityCall(uid, "desktopAccountSnapshot", { schemaVersion: "desktop-account-3" }));
+  if (reply?.schemaVersion !== "desktop-account-3" || reply.uid !== uid) throw new Error("The city account could not be verified. Refresh to retry.");
+  const storyFlags = readCityStoryFlags(reply.storyFlags);
+  if (!storyFlags.arenaGatheringSeen) return { storyFlags, roster: [] as ArenaCitizen[] };
+  const gathering = await meetCityPilots(uid);
+  return { storyFlags: gathering.storyFlags, roster: gathering.roster };
 }
