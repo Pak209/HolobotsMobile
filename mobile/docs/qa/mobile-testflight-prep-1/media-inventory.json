@@ -1,0 +1,32 @@
+[
+  {
+    "file": "/Users/pak/HolobotsVault/QA/2026-10-15-mobile-testflight-prep-1/city-rival-receipt-60s.mp4",
+    "bytes": 92595410,
+    "sha256": "06ee95e3881b5d6958de68343400eb9bfd69014538eef6b011057a8fe54aa5e7"
+  },
+  {
+    "file": "/Users/pak/HolobotsVault/QA/2026-10-15-mobile-testflight-prep-1/01-city.png",
+    "bytes": 729430,
+    "sha256": "597ae284c7eb282b2d1a6779eb5c23e4c8252816dbe18b114ced83be8b473cd1"
+  },
+  {
+    "file": "/Users/pak/HolobotsVault/QA/2026-10-15-mobile-testflight-prep-1/02-challenge.png",
+    "bytes": 561619,
+    "sha256": "8040c73c43ae12da4523aef69bb4b51d18081b68d209ed04b22e5feb0de7418c"
+  },
+  {
+    "file": "/Users/pak/HolobotsVault/QA/2026-10-15-mobile-testflight-prep-1/03-playback.png",
+    "bytes": 3285321,
+    "sha256": "d1b5822fb24e831d29470164a5996a0380e9aaccb868c185ae0d9a1a1646c753"
+  },
+  {
+    "file": "/Users/pak/HolobotsVault/QA/2026-10-15-mobile-testflight-prep-1/04-result.png",
+    "bytes": 3256749,
+    "sha256": "8d2b26b48176dc2795f9b9c010f6f133dfd34008a241556385b0f7f13204d147"
+  },
+  {
+    "file": "/Users/pak/HolobotsVault/QA/2026-10-15-mobile-testflight-prep-1/legacy-city-duel.jpg",
+    "bytes": 112103,
+    "sha256": "14c1fef2128342cc1961ac4bbd995b247fa280d34d53a74b7cc26297be70a8b2"
+  }
+]
