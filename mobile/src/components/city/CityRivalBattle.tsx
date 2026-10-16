@@ -30,6 +30,7 @@ export function CityRivalCombatPreview({ onClose }: { onClose: () => void }) {
 /** An isolated battle avoids leaking rival outcomes into ArenaScreen's settlement store. */
 export function CityRivalBattle({ uid, rival, onClose, preview = false, initialCombat = false }: { uid: string; rival: ArenaCitizen; onClose: () => void; preview?: boolean; initialCombat?: boolean }) {
   const insets = useSafeAreaInsets();
+  const [hostPreview, setHostPreview] = useState(false);
   const [issue, setIssue] = useState<CityRivalIssue | null>(null);
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [receipt, setReceipt] = useState<Record<string, unknown> | null>(null);
@@ -156,6 +157,10 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
   }
   const replayReceipt = useMemo(() => ({ issue: issue?.raw, settlement: receipt }), [issue, receipt]);
   const replayRounds = useMemo(() => cityBattleRounds(battle?.actionHistory ?? []), [battle?.actionHistory]);
+  if (__DEV__ && preview && hostPreview && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1") {
+    const fixture = require("@/qa/fixtures/duel-receipt-1.json");
+    return <DuelPlaybackScreen fixture receipt={fixture.receipt} onClose={onClose} />;
+  }
   if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={replayReceipt} rounds={replayRounds} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
 
   if (battle?.status === "active") return <CityLiveBattleView battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
@@ -168,6 +173,7 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     {!issue ? <Text style={styles.body}>Your first travel-squad Holobot enters this duel. Play your four-move kit, then watch the replay with host-confirmed rewards.</Text> : <Text style={styles.title}>{battle?.status === "completed" ? "DUEL COMPLETE" : "DUEL ENDED"}</Text>}
     {pending ? <ActivityIndicator size="large" color={theme.colors.accent} /> : null}
     {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
+    {__DEV__ && preview && !issue && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1" ? <Pressable accessibilityRole="button" accessibilityLabel="Play offline host receipt" onPress={() => setHostPreview(true)} style={styles.primary}><Text style={styles.primaryText}>OFFLINE ACE / WOLF RECEIPT · NO REWARDS</Text></Pressable> : null}
     {!issue && !issueAttempted ? <Pressable accessibilityRole="button" onPress={() => void start()} style={styles.primary}><Text style={styles.primaryText}>START RIVAL DUEL</Text></Pressable> : null}
     {issue && !pending && !receipt && battle?.status === "completed" && !settlementAttempted.current ? <Text style={styles.body}>Confirming the match · {waitSeconds}s</Text> : null}
     {issue && message && settlementAttempted.current && !pending ? <Pressable accessibilityRole="button" onPress={() => void settle(settlementOutcome.current === true)} style={styles.primary}><Text style={styles.primaryText}>RETRY HOST CONFIRMATION</Text></Pressable> : null}
