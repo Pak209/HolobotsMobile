@@ -1,3 +1,5 @@
+import { transactExpedition } from './expeditionStore';
+import { expeditionRejection } from './expeditionErrors';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { db } from '../admin';
 import { HoloZoneError } from '../lib/holoZoneRuns';
@@ -14,9 +16,12 @@ import { transactHoloZoneRun } from './holoZoneStore';
 export const holoZoneHost = onCall(async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in to enter a HoloZone.');
+  const expeditionRequest=['zone-run-3','zone-extract-1'].includes(request.data?.schemaVersion);
   try {
+    if(expeditionRequest)return await transactExpedition(db,uid,request.data);
     return await transactHoloZoneRun(db, uid, request.data);
   } catch (error) {
+    if(expeditionRequest){const rejection=expeditionRejection(error);if(rejection)throw rejection;}
     if (error instanceof HoloZoneError) {
       const code = error.code === 'invalid_request' || error.code === 'unknown_zone' ? 'invalid-argument' : error.code === 'unknown_run' ? 'not-found' : error.code === 'run_expired' || error.code === 'run_closed' || error.code === 'holobot_ko' || error.code === 'activity_conflict' || error.code === 'zone_cooldown' ? 'failed-precondition' : 'unavailable';
       throw new HttpsError(code, error.code, { rejectionCode: error.code, ...(error.retryAfterMs !== undefined ? { retryAfterMs: error.retryAfterMs } : {}) });

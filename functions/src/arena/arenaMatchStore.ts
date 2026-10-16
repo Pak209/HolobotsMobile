@@ -1,3 +1,4 @@
+import { expeditionOpen } from '../lib/arenaActivity';
 import { tournamentAdmission, tournamentIndex, tournamentLevel, ARENA_TOURNAMENT_SCHEMA } from '../story/arenaTournament';
 import { StoryError } from '../story/storyFlags';
 import { PilotRankError } from '../account/pilotRank';
@@ -235,6 +236,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const rival = await tx.get(firestore.doc(`rivalBattles/${uid}`));
         const zone = await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
         const duel = await tx.get(firestore.doc(`duelHealingRuns/${uid}`));
+        if(expeditionOpen(zone.data()))return fail('activity_conflict');
         guardOtherActivities(rival.data(),zone.data(),duel.data(),nowMs);
         const owned = uniqueEntrant(profile,c.holobotId);
         requireLivingVitals(profile,[c.holobotId]); // Validates the whole ledger; NEVER invoke city 40% revival.

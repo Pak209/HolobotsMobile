@@ -1,3 +1,4 @@
+import { expeditionOpen } from '../lib/arenaActivity';
 import {Firestore} from 'firebase-admin/firestore';
 import {HttpsError,onCall} from 'firebase-functions/v2/https';
 import {db} from '../admin';
@@ -16,7 +17,7 @@ export async function transactWorkshopHeal(firestore:Firestore,uid:string,raw:un
   if(!user.exists)throw new RepairError('unavailable');if(receipt.exists)return {...receipt.data()!.reply,alreadyProcessed:true};
   const arena=await tx.get(firestore.doc(`arenaMatches/${uid}`)),duel=await tx.get(firestore.doc(`duelHealingRuns/${uid}`)),rival=await tx.get(firestore.doc(`rivalBattles/${uid}`)),zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
   if(arenaOpen(arena.data()))throw new RepairError('arena_no_heal');
-  if(duelOpen(duel.data())||Object.keys(readOpenBattles(rival.data(),now)).length||readHoloZoneRuns(zone.data()).some(r=>r.settlement===null&&r.closedAtMs===null&&now<=r.expiresAtMs))throw new RepairError('battle_open');
+  if(expeditionOpen(zone.data())||duelOpen(duel.data())||Object.keys(readOpenBattles(rival.data(),now)).length||readHoloZoneRuns(zone.data()).some(r=>r.settlement===null&&r.closedAtMs===null&&now<=r.expiresAtMs))throw new RepairError('battle_open');
   const profile=user.data()!;requireLivingVitals(profile,[]);const squad=readTravelSquad(profile).holobotIds;if(!squad.length)throw new RepairError('no_squad');
   const combatants=buildPlayerCombatants(profile,squad);if(combatants.length!==squad.length)throw new RepairError('health_unavailable');
   const vitals={...profile.holobotVitals};for(const bot of combatants){if(!Number.isFinite(bot.maxHealth)||bot.maxHealth<=0)throw new RepairError('health_unavailable');vitals[bot.holobotId]={currentHealth:bot.maxHealth,maxHealth:bot.maxHealth};}

@@ -1,0 +1,35 @@
+{
+  "knownBad": "legacy parser refuses zone-run-3",
+  "build": "pass",
+  "checkShared": "3/3",
+  "unit": {
+    "passed": 169,
+    "skipped": 1,
+    "failed": 0,
+    "newExpeditionCases": 17
+  },
+  "emulator": {
+    "project": "demo-zone-expedition-w13",
+    "limitSeconds": 300,
+    "firstFunctional": {
+      "passed": 60,
+      "failed": 2,
+      "elapsedSeconds": 81.67,
+      "reason": "legacy Arena test helper used resolver issues with legacy settlement fixture"
+    },
+    "fullRetry": {
+      "passed": 64,
+      "failed": 0,
+      "elapsedSeconds": 80.3
+    },
+    "targetedReviewFinal": {
+      "passed": 14,
+      "failed": 0,
+      "elapsedSeconds": 21.74
+    }
+  },
+  "resolverDependency": "abd162c6925fd3a2e69abf29949ab87c45701805",
+  "productionConfiguration": null,
+  "deploy": false,
+  "realAccounts": false
+}

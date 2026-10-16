@@ -30,3 +30,12 @@ export function leaseHolder(arenaRaw: unknown, duelRaw: unknown): 'arena' | 'due
   if (duelOpen(duelRaw)) return 'duel';
   return null;
 }
+
+/** Shared zone parent lease: no timeout silently releases an expedition's HP or carried haul. */
+export function expeditionOpen(raw: unknown): boolean {
+  if(raw===undefined)return false;
+  const parent=record(raw);if(parent.expedition===undefined)return false;
+  const e=record(parent.expedition);
+  if(typeof e.runId!=='string'||!e.runId||typeof e.open!=='boolean')throw new ActivityError();
+  return e.open;
+}

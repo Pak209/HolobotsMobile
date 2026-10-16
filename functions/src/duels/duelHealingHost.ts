@@ -1,3 +1,4 @@
+import { expeditionOpen } from '../lib/arenaActivity';
 import {randomUUID} from 'node:crypto';
 import {Firestore} from 'firebase-admin/firestore';
 import {HttpsError,onCall} from 'firebase-functions/v2/https';
@@ -23,7 +24,7 @@ export async function transactDuelHealing(firestore:Firestore,uid:string,raw:unk
    if(c.runId!==undefined||c.health!==undefined)throw new RepairError('invalid_request');
    if(duelOpen(r))throw new RepairError('battle_open');
    const rival=await tx.get(firestore.doc(`rivalBattles/${uid}`)),zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
-   if(Object.keys(readOpenBattles(rival.data(),now)).length||readHoloZoneRuns(zone.data()).some(x=>x.settlement===null&&x.closedAtMs===null&&now<=x.expiresAtMs))throw new RepairError('battle_open');
+   if(expeditionOpen(zone.data())||Object.keys(readOpenBattles(rival.data(),now)).length||readHoloZoneRuns(zone.data()).some(x=>x.settlement===null&&x.closedAtMs===null&&now<=x.expiresAtMs))throw new RepairError('battle_open');
    const squad=readTravelSquad(profile).holobotIds,fielded=deployment(squad),vitals:Vitals={};
    for(const id of squad){const v=profile.holobotVitals?.[id];if(!v||!Number.isFinite(v.currentHealth)||!Number.isFinite(v.maxHealth)||v.maxHealth<=0||v.currentHealth<0||v.currentHealth>v.maxHealth)throw new RepairError('health_unavailable');if(fielded.includes(id)&&v.currentHealth===0)throw new RepairError("holobot_ko");vitals[id]={...v};}
    const record={schemaVersion:'duel-healing-1',runId:freshId,open:true,squad,fielded,vitals,heals:[],switchLockedUntilMs:0,issuedAtMs:now};tx.set(ref,record);return record;

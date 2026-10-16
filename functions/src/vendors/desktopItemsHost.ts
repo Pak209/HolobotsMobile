@@ -1,3 +1,4 @@
+import { expeditionOpen } from '../lib/arenaActivity';
 import {ActivityError,arenaOpen,duelOpen} from "../lib/arenaActivity";
 import {DUEL_SWITCH_LOCKOUT_MS} from "../duels/duelHealingHost";
 import {readHoloZoneRuns,HoloZoneError} from "../lib/holoZoneRuns";
@@ -19,6 +20,7 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
   if(receipt?.exists){const saved=receipt.data()!;if(saved.identity!==identity)throw new ItemError("sequence_conflict");return {...saved.reply,alreadyProcessed:true};}
   const favorite=typeof state.data()?.favoriteId==="string"?state.data()!.favoriteId:null;
   if(c.operation==="read")return itemSnapshot(user.data()!,favorite,now);
+  if(c.operation==='buy'&&healingItem(c.itemId!)){const zoneLease=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));if(expeditionOpen(zoneLease.data()))throw new ItemError('between_battles_only');}
   let useProfile=user.data()!;
   let duel:FirebaseFirestore.DocumentSnapshot|undefined,zone:FirebaseFirestore.DocumentSnapshot|undefined;
   if(c.operation==="use"&&healingItem(c.itemId!)){
@@ -29,6 +31,7 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
     catch(e){if(e instanceof ActivityError)throw new ItemError("unavailable");throw e;}
    
    duel=await tx.get(firestore.doc(`duelHealingRuns/${uid}`));zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
+   if(expeditionOpen(zone.data()))throw new ItemError('safe_room_required');
    const open=await tx.get(firestore.doc(`rivalBattles/${uid}`));if(Object.keys(readOpenBattles(open.data(),now)).length)throw new ItemError("between_battles_only");
    if(duelOpen(duel.data())){
     const d=duel.data()!;if(!c.holobotId||!d.squad.includes(c.holobotId))throw new ItemError("not_in_squad");if(d.fielded.includes(c.holobotId))throw new ItemError("bench_only");if(now<d.switchLockedUntilMs)throw new ItemError("switch_lockout");

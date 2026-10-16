@@ -1,3 +1,4 @@
+import { configuredExpedition, expeditionSupplies } from '../holozone/expedition';
 /**
  * Pak DECISIONS #47 (2026-10-03): vendor catalogs. Every listing and price is built from the
  * EXISTING economy module (lib/economy.ts) plus the Buddy Unit price table (lib/buddyUnits.ts),
@@ -111,6 +112,16 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
   });
   const listings: Listing[] = [];
   if (vendorId === "marketplace") {
+    const expedition=configuredExpedition();
+    if(expedition){
+      const supplies=expeditionSupplies(profile);
+      for(const offer of [
+        {id:'item.expedition_energy',name:'Expedition Energy',price:expedition.energyPackPrice,owned:supplies.energy,quantity:expedition.energyPackUnits},
+        {id:'item.extraction_charge',name:'Extraction Charge',price:expedition.extractionChargePrice,owned:supplies.extractionCharges,quantity:1},
+      ])listings.push(listing({listingId:offer.id,kind:'item',displayName:offer.name,price:offer.price,owned:offer.owned,quantity:offer.quantity,
+        details:{scope:'expedition',configVersion:expedition.version},purchase:{callable:'holoZoneHost',request:{schemaVersion:'zone-run-3',operation:'buy',itemId:offer.id,requestId:'<client-generated>'}}}));
+    }
+
     for(const item of HEALING_ITEMS) listings.push(listing({listingId:item.id,kind:"item",displayName:item.name,price:item.price,owned:healingStock(profile,item.id),details:{healFraction:String(item.fraction),source:item.id==="item.full_restore"?"vendor_or_craft":"vendor_or_reward_or_craft"},purchase:{callable:"desktopItemsHost",request:{schemaVersion:"desktop-items-2",operation:"buy",itemId:item.id,requestId:"<client-generated>"}}}));
     for (const itemName of MARKETPLACE_ITEM_NAMES) {
       const wildcard = itemName === "Wildcard Blueprints";
