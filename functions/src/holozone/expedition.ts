@@ -1,3 +1,4 @@
+import { ZoneExpeditionTuning, ZONE_EXPEDITION_DEFAULT_SELECTOR, ZONE_EXPEDITION_RULES, loadZoneExpeditionDefaults } from '../config/zoneExpedition';
 import { createHash } from 'node:crypto';
 import { DuelFighterStats, DuelReceipt, duelFighterFromCombatant, resolveDuel, validateDuelIntents } from '../lib/duelResolver';
 import { buildPlayerCombatants, playerCombatant } from '../lib/rivalLadder';
@@ -8,15 +9,13 @@ import { readStoryFlags } from '../story/storyFlags';
 
 export const ZONE_RUN_SCHEMA = 'zone-run-3';
 export const ZONE_EXTRACT_SCHEMA = 'zone-extract-1';
-export const EXTRACTION_CHANNEL_MS = 8000;
+export const EXTRACTION_CHANNEL_MS = ZONE_EXPEDITION_RULES.extraction.channelMs;
 export class ExpeditionError extends Error { constructor(public code:string, public details:Record<string,unknown>={}) { super(code); } }
 const fail=(code:string):never=>{throw new ExpeditionError(code);};
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const whole=(v:unknown,max=1_000_000):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0&&v<=max;
-export type ExpeditionConfig={version:string;energyCapacity:number;energyPackUnits:number;energyPackPrice:number;
-  sectorEnergyCost:number;fightEnergyCost:number;extractionChargePrice:number;bandLevels:[number,number,number];
-  cacheFragments:number;bulkySalvageUnits:number;rareBlueprintChanceBasisPoints:number};
-/** No production economy guesses. A reviewed server-owned config is required for new purchases/entries. */
+export type ExpeditionConfig = ZoneExpeditionTuning;
+/** A reviewed server-owned config is required for new purchases/entries; proposed defaults never auto-activate. */
 export function expeditionConfig(raw:unknown):ExpeditionConfig {
   if(!object(raw)||typeof raw.version!=='string'||!/^zone-config-[a-zA-Z0-9_-]{1,64}$/.test(raw.version))return fail('expedition_unavailable');
   const keys=['energyCapacity','energyPackUnits','energyPackPrice','sectorEnergyCost','fightEnergyCost','extractionChargePrice','cacheFragments','bulkySalvageUnits','rareBlueprintChanceBasisPoints'];
@@ -28,12 +27,13 @@ export function expeditionConfig(raw:unknown):ExpeditionConfig {
   return structuredClone(raw) as ExpeditionConfig;
 }
 export function configuredExpedition():ExpeditionConfig|null {
-  if(!process.env.HOLOCITY_ZONE_EXPEDITION_CONFIG)return null;
-  try{return expeditionConfig(JSON.parse(process.env.HOLOCITY_ZONE_EXPEDITION_CONFIG));}catch{return null;}
+  const selected=process.env.HOLOCITY_ZONE_EXPEDITION_CONFIG;
+  if(!selected)return null;
+  try{return expeditionConfig(selected===ZONE_EXPEDITION_DEFAULT_SELECTOR?loadZoneExpeditionDefaults():JSON.parse(selected));}catch{return null;}
 }
 export type Supplies={energy:number;extractionCharges:number};
 export function expeditionSupplies(profile:Record<string,unknown>):Supplies {
-  const r=profile.expeditionSupplies??{energy:0,extractionCharges:0};
+  const r=profile.expeditionSupplies??{energy:ZONE_EXPEDITION_RULES.initialEnergy,extractionCharges:0};
   if(!object(r)||!whole(r.energy)||!whole(r.extractionCharges)||Object.keys(r).some(k=>!['energy','extractionCharges'].includes(k)))return fail('unavailable');
   return {energy:r.energy,extractionCharges:r.extractionCharges};
 }
@@ -98,7 +98,7 @@ export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionComma
   const players=buildPlayerCombatants(profile,ids);if(players.length!==ids.length)return fail('unavailable');
   const vitals=issueVitals(profile,players),supplies=expeditionSupplies(profile);
   if(supplies.energy<config.sectorEnergyCost)return fail('no_energy');
-  const kits=c.repairKits!,charge=c.carryExtractionCharge?1:0;
+  const kits=c.repairKits!,charge=c.carryExtractionCharge?ZONE_EXPEDITION_RULES.extraction.carriedCharges:0;
   if(healingStock(profile,'item.repair_kit')<kits)return fail('no_kit');
   if(supplies.extractionCharges<charge)return fail('no_extraction_charge');
   const squad=players.map(p=>duelFighterFromCombatant({...p,currentHealth:vitals[p.holobotId].currentHealth}));
@@ -118,7 +118,7 @@ export function readExpedition(raw:unknown):ExpeditionRun{
     ||r.squad.length<1||r.squad.length>3||new Set(r.squad.map(b=>b.holobotId)).size!==r.squad.length
     ||r.squad.some(b=>!b||typeof b.holobotId!=='string'||!whole(b.maxHealth)||b.maxHealth<1||typeof b.currentHealth!=='number'||!Number.isFinite(b.currentHealth)||b.currentHealth<0||b.currentHealth>b.maxHealth)
     ||r.haul.length>9||r.haul.some(h=>!h||typeof h.id!=='string'||!['blueprint_fragment','rare_blueprint_fragment','bulky_salvage'].includes(h.kind)||!whole(h.amount)||h.amount<1||typeof h.protected!=='boolean')
-    ||r.haul.filter(h=>h.protected).length>1||new Set(r.haul.map(h=>h.id)).size!==r.haul.length
+    ||r.haul.filter(h=>h.protected).length>ZONE_EXPEDITION_RULES.protectedSlot.count||new Set(r.haul.map(h=>h.id)).size!==r.haul.length
     ||!Array.isArray(r.layout.sectors)||r.layout.sectors.length!==10||!r.layout.sectors.some(s=>s.id===r.sectorId)||!whole(r.layout.seed,0xffffffff)
     ||typeof r.layout.day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(r.layout.day)||!object(r.opponents)
     ||[r.visited,r.cleared,r.looted].some(a=>a.length>10||new Set(a).size!==a.length||a.some(id=>typeof id!=='string'||!r.layout.sectors.some(s=>s.id===id)))
@@ -187,6 +187,8 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
     case 'reorder': {if(!at.safe)return fail('safe_room_required');if(c.order!.length!==run.squad.length||c.order!.some(id=>!run.squad.some(b=>b.holobotId===id)))return fail('not_in_squad');run.squad=c.order!.map(id=>run.squad.find(b=>b.holobotId===id)!);break;}
     case 'utility': {if(!at.utility||at.utility!==c.utility)return fail('no_utility');if(!run.squad.some(b=>b.holobotId===c.utility&&(b.currentHealth??b.maxHealth)>0))return fail('companion_required');break;}
     case 'extract': if(!at.beacon)return fail('beacon_required');terminalOp('normal');break;
+    // Resolver fights settle atomically: uncleared host encounter is the conservative open-fight gate.
+    // Refuse before spending a charge; no live mid-fight escape lifecycle is introduced.
     case 'emergency_start': if(!at.safe&&!run.cleared.includes(at.id))return fail('encounter_pending');if(!run.charge)return fail('no_extraction_charge');run.charge--;run.extraction={startedAtMs:now};break;
     case 'emergency_finish': {
       if(!run.extraction)return fail('extraction_not_started');const retryAfterMs=run.extraction.startedAtMs+EXTRACTION_CHANNEL_MS-now;
