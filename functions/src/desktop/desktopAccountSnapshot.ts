@@ -1,4 +1,5 @@
 import { readStoryFlags, StoryError } from '../story/storyFlags';
+import { readPilotRank, PilotRankError } from '../account/pilotRank';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db } from '../admin';
 import { projectFirstTravelHolobot } from '../acquisition/captureOwnership';
@@ -33,13 +34,14 @@ export const desktopAccountSnapshot = onCall(async request => {
     const inv = readBuddyInventory(profile);
     if (!inv) throw new HttpsError('unavailable', 'unavailable', { rejectionCode: 'unavailable' });
     const squad = projectFirstTravelHolobot(profile);
-    let storyFlags;
-    try { storyFlags = readStoryFlags(profile.storyFlags); }
+    let storyFlags, pilotRank;
+    try { storyFlags = readStoryFlags(profile.storyFlags); pilotRank = readPilotRank(profile.pilotRank); }
     catch (e) {
-      if (e instanceof StoryError) throw new HttpsError('unavailable','unavailable',{rejectionCode:'unavailable'});
+      if (e instanceof StoryError || e instanceof PilotRankError) throw new HttpsError('unavailable','unavailable',{rejectionCode:'unavailable'});
       throw e;
     }
     const updates = { ...inv.updates, ...squad.updates,
+      ...(profile.pilotRank === undefined ? {pilotRank} : {}),
       ...(JSON.stringify(profile.storyFlags) !== JSON.stringify(storyFlags) ? {storyFlags} : {}) };
     if (Object.keys(updates).length) tx.update(userRef, updates);
     return buildDesktopAccountReply({ ...profile, ...updates }, uid, version, inv.units);

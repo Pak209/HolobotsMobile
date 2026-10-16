@@ -2,7 +2,7 @@
  * desktopAccountSnapshot reply builder (pure: no firebase imports, safe to import from tests —
  * functions/scripts/test-desktop-account.mjs, mobile/src/lib/__tests__/desktopAccountParity.test.ts).
  *
- * desktop-account-1 / -2: deployed fields (holobots verbatim), plus additive storyFlags (#59).
+ * desktop-account-1 / -2: deployed fields (holobots verbatim), plus additive storyFlags (#59) and host-owned pilotRank.
  * desktop-account-3 (DECISIONS #53 amendment 1 + 2): every holobot is normalised with the mobile defaults
  * (normalizeUserHolobot: level, experience, nextLevelExp, attributePoints, rank; boostedAttributes {}) and
  * carries
@@ -14,6 +14,7 @@
  * buddyUnits is the {light, medium, heavy} map from v2 on.
  */
 import { readStoryFlags } from '../story/storyFlags';
+import { readPilotRank } from '../account/pilotRank';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { BuddyInventory, totalBuddyUnits } from '../lib/buddyUnits';
 import { BLUEPRINT_TIERS } from '../lib/mintingEconomy';
@@ -57,7 +58,7 @@ export function desktopHolobotV3(raw: Record<string, unknown>): Record<string, u
 
 /**
  * The reply for `version`. `units` is the read Buddy Unit inventory (readBuddyInventory; the callable persists
- * its starter / migration updates). All versions add the host-owned storyFlags object (DECISIONS #59).
+ * its starter / migration updates). All versions add the host-owned storyFlags object (DECISIONS #59) and pilotRank (default 0).
  * v3 maps only object entries with a string name (anything else cannot be shown or battled).
  */
 export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: string, version: DesktopAccountVersion, units: BuddyInventory): Record<string, unknown> {
@@ -69,6 +70,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     schemaVersion: version,
     uid,
     storyFlags: readStoryFlags(profile.storyFlags),
+    pilotRank: readPilotRank(profile.pilotRank),
     holobots,
     blueprints: profile.blueprints ?? {},
     travelSquad: readTravelSquad(profile),
