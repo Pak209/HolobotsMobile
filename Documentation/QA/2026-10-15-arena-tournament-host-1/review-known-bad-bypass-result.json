@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/private/tmp/holobots-arena-tournament-host-1/rules-tests/node_modules/.bin/firebase",
+    "emulators:exec",
+    "--config",
+    "/private/tmp/arena-bracket-firebase.json",
+    "--project",
+    "demo-holobots-bracket-20261015",
+    "--only",
+    "firestore",
+    "node --test --test-name-pattern=unbound scripts/test-arena-bracket-emulator.mjs"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "wallSeconds": 6.555,
+  "limitSeconds": 300
+}

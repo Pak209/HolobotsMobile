@@ -142,8 +142,18 @@ test('admission snapshots rank once, replay and terminal result keep it after ac
   await db.doc(`users/${uid}`).update({pilotRank:12});
   const replay=await arena(uid,'issue',fields);
   assert.equal(replay.alreadyProcessed,true);assert.equal(replay.match.tournament.pilotRankAtAdmission,7);
+  await refused(uid,()=>arena(uid,'start',{matchId:issued.matchId}),'bracket_required');
+  // Historical terminal replay fixture: admin removes the tag while ordinary paid
+  // practice settles, then restores the exact admission snapshot. New tagged
+  // public outcomes remain refused above; host brackets are exercised separately.
+  const {FieldValue}=require('firebase-admin/firestore');
+  await ref.update({tournament:FieldValue.delete()});
   await arena(uid,'start',{matchId:issued.matchId});
-  const settled=await arena(uid,'settle',{matchId:issued.matchId,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},T0+1500);
+  const outcome={matchId:issued.matchId,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0};
+  await arena(uid,'settle',outcome,T0+1500);
+  await ref.update({tournament:issued.match.tournament});
+  const settled=await arena(uid,'settle',outcome,T0+2000);
+  assert.equal(settled.alreadyProcessed,true);
   assert.equal(settled.match.tournament.pilotRankAtAdmission,7);
   await transactTournamentResult(db,uid,{schemaVersion:'arena-tournament-1',tournamentId:'starter',matchId:issued.matchId});
   assert.equal((await profile(uid)).pilotRank,12);

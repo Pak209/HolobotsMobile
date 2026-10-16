@@ -1,7 +1,7 @@
 import { DUEL_RECEIPT_SCHEMA, DUEL_MAX_ROUNDS, duelFighterFromCombatant, resolveDuel, validateDuelIntents, DuelReceipt } from '../lib/duelResolver';
 import { bindGatheringRival, gatheringRivalRequest } from '../story/gatheringRival';
 import { pilotRankAfterWin, PilotRankError } from '../account/pilotRank';
-import { ActivityError, leaseHolder } from '../lib/arenaActivity';
+import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
 import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
@@ -46,6 +46,7 @@ function requireArenaClosed(raw: unknown): void {
 }
 /** The single account-parent lease read (Arena match OR duel-healing run), inside the issue transaction. */
 async function requireLeaseFree(tx: Transaction, db: Firestore, uid: string): Promise<void> {
+  if(expeditionOpen((await tx.get(db.doc(`holoZoneRuns/${uid}`))).data()))throw new RivalError('activity_conflict');
   const arena = (await tx.get(db.doc(`arenaMatches/${uid}`))).data(), duel = (await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
   let holder: 'arena' | 'duel' | null;
   try {
@@ -125,7 +126,11 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: nextOpen, [RIVAL_LAST_SETTLED_FIELD]: lastSettled });
       // expireAt drives the Firestore TTL policy (functions/README.md); settle never changes it.
       tx.create(battleRef, { ...r.battle, [RIVAL_BATTLE_CLEANUP_FIELD]: Timestamp.fromMillis(rivalBattleCleanupAtMs(r.battle)) });
-      return withStory({...rivalReplyForVersion(r.reply, command.schemaVersion),duel:r.battle.duel.mode === 'resolver'
+      // Gathering Unity keeps its existing player presentation payload. Omit only
+      // the optional wire snapshot, after vitals and resolver fighters are pinned.
+      const issueReply = rivalReplyForVersion(r.reply, command.schemaVersion);
+      if (citizenId !== undefined) delete (issueReply as {playerCombatants?: unknown}).playerCombatants;
+      return withStory({...issueReply,duel:r.battle.duel.mode === 'resolver'
         ? {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,maxRounds:DUEL_MAX_ROUNDS,
           player:r.battle.duel.input.player,opponent:r.battle.duel.input.opponent} : {mode:'legacy'}});
     }
@@ -168,6 +173,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     }
     // A delayed pre-Arena battle must not settle rewards/HP into the current Arena activity.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
+    if(expeditionOpen((await tx.get(db.doc(`holoZoneRuns/${uid}`))).data()))throw new RivalError('activity_conflict');
     if (r.battleUpdates && receipt) {
       r.battleUpdates.duelReceipt = receipt;
       const b = battle.data()!;

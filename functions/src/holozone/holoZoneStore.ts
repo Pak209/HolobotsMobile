@@ -1,4 +1,4 @@
-import { ActivityError, leaseHolder } from '../lib/arenaActivity';
+import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { randomUUID } from 'node:crypto';
 import { Firestore, Transaction } from 'firebase-admin/firestore';
@@ -55,6 +55,7 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
     const profile = user.data()!;
     const ledger = (await tx.get(runsRef)).data();
     const runs = readHoloZoneRuns(ledger);
+    if(command.operation!=='status'&&expeditionOpen(ledger))throw new HoloZoneError('activity_conflict');
     if (command.operation === 'status') return holoZoneStatusReplyForVersion(holoZoneStatus(runs, nowMs), command.schemaVersion);
     if (command.operation === 'issue') {
       // Arena and every zone issue (including health flag-off clients) share this transaction read.

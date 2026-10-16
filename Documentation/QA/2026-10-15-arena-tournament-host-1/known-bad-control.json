@@ -1,0 +1,7 @@
+{
+  "mutation": "omit resolved match receipts in compiled W11 reducer",
+  "exitCode": 1,
+  "beforeSha256": "994f8cab0b430efd1eb7b9317f3a3734e141ff91596fa09de2f7964649270245",
+  "afterSha256": "994f8cab0b430efd1eb7b9317f3a3734e141ff91596fa09de2f7964649270245",
+  "restored": true
+}

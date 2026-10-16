@@ -1,0 +1,4 @@
+npm --prefix functions run build
+check:shared — 3 shared file(s) in sync.
+src/arena/arenaMatchStore.ts(358,40): error TS18046: updates.holobotVitals is of type unknown.
+Exit 2. Fixed the new helper by retaining the typed settleVitals return value in a local; no cast or behavior change.

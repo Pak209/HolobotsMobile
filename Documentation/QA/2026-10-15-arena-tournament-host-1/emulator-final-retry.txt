@@ -1,0 +1,55 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-bracket-20261015", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 19187.
+i  Running script: node --test --test-concurrency=1 scripts/test-arena-bracket-emulator.mjs
+✔ known-bad claimed victory and final HP cannot bypass the host bracket or mint rewards (783.265625ms)
+✔ callable requires auth, rejects foreign fields, and returns machine-readable refusal (146.324291ms)
+✔ missing, foreign, untagged, ungathered and already-started practice admissions refuse not_admitted (170.969666ms)
+✔ Holobot level gates remain exactly2/11/21, unrelated pilotRank does not replace them (126.847125ms)
+✔ start is concurrent and restart-idempotent, charges only the existing admission and includes all8citizens plus player (2701.461708ms)
+✔ concurrent/replayed advance resolves exactly one play-in and never double-advances (2803.042083ms)
+✔ complete play-in and8-slot run settles once, feeds existing result, and refuses bracket_done (122.890334ms)
+✔ three complete tournament brackets feed unchanged progression and flip only the third Arena gate (245.089125ms)
+✔ resume recovers progression after final receipt persisted, without duplicating Arena rewards (88.844958ms)
+✔ player elimination closes lease with host damage, loss once, and refuses player_eliminated (70.11775ms)
+✔ cancel after expiry keeps host-observed HP and releases the lease without reward or refund (101.207625ms)
+✔ corrupt persisted resolver receipts fail closed without partial writes (51.589167ms)
+[2026-10-15T06:30:21.908Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e02 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.914Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e03 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.918Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e04 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+[2026-10-15T06:30:21.927Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e05 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.931Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e06 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.935Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e07 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+[2026-10-15T06:30:21.949Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e09 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.953Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e0a error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.957Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e0b error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+[2026-10-15T06:30:21.964Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e0c error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L354, false for 'create' @ L364, false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.967Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e0d error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'update' @ L354, false for 'update' @ L364
+[2026-10-15T06:30:21.969Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x5f1a9e0e error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L354, false for 'delete' @ L364
+✔ rules deny owner and foreign bracket reads/writes at parent and child paths (405.280375ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8078.440375
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

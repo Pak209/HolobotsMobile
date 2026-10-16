@@ -8,6 +8,7 @@ const { db } = require('../lib/admin.js');
 const { arenaGatheringHost } = require('../lib/story/arenaGatheringHost.js');
 const { tournamentResultHost } = require('../lib/story/tournamentResultHost.js');
 const { transactArenaGathering, gatheringRoster, CV1_CITIZENS, GATHERING_HOLOBOTS, GATHERING_RING_COLORS } = require('../lib/story/arenaGathering.js');
+const { tournamentAdmission } = require('../lib/story/arenaTournament.js');
 const { transactTournamentResult } = require('../lib/story/tournamentResultStore.js');
 const { transactArenaMatch } = require('../lib/arena/arenaMatchStore.js');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
@@ -31,9 +32,13 @@ async function issue(uid,tournamentId,now=T0) {
  return call(uid,'issue',{requestId:`request_${serial++}`,tierId:'rookie',paymentMethod:'pass',holobotId:'ace',opponentName:'HARE',...(tournamentId?{tournamentId}:{})},now);
 }
 async function win(uid,tournamentId,now=T0) {
- const issued=await issue(uid,tournamentId,now), id=issued.matchId;
+ // Historical terminal-receipt fixture: ordinary paid play is settled before admin tags
+ // the receipt as a pre-bracket tournament. New tagged public outcomes are blocked.
+ const issued=await issue(uid,undefined,now), id=issued.matchId;
  await call(uid,'start',{matchId:id},now);
  const settled=await call(uid,'settle',{matchId:id,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},now+1500);
+ if(tournamentId){const tournament=tournamentAdmission((await profile(uid)).storyFlags,tournamentId,issued.match.entrant.level);await db.doc(`arenaMatches/${uid}/matches/${id}`).update({tournament});
+  const before=await profile(uid),replay=await call(uid,'settle',{matchId:id,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},now+2000);assert.equal(replay.alreadyProcessed,true);assert.deepEqual(await profile(uid),before);return replay;}
  return settled;
 }
 const hasCode=code=>e=>e.code===code;
@@ -100,7 +105,7 @@ test('malformed story state fails closed; partial absent fields default without 
  assert.deepEqual((await gather(uid)).storyFlags,{...defaults,arenaGatheringSeen:true});
 });
 
-const rival=(uid,fields,now=T0)=>transactRivalBattle(db,uid,{schemaVersion:'rival-battle-3',...fields},now,()=>0);
+const rival=(uid,fields,now=T0)=>transactRivalBattle(db,uid,{schemaVersion:'rival-battle-3',...fields},now,()=>0,{issueLegacy:true}); // #80 historical didWin compatibility fixture.
 const rivalIssue=(uid,id,now=T0)=>rival(uid,{operation:'issue',storySchema:G,rivalId:id},now);
 test('all eight roster citizens issue their assigned bot, retain 100/25 rewards and settle replay, and use the same 5-minute cooldown',async()=>{
  const uid=await setup();const {roster}=await gather(uid);
@@ -144,7 +149,7 @@ test('rank thresholds 2/11/21 are enforced at admission without spending an entr
  await refused(uid,()=>issue(uid,'legend'),'invalid_request');
 });
 
-test('three distinct tagged wins at exact boundaries flip only Arena; duplicate and concurrent results never advance twice',async()=>{
+test('three historical tagged terminal wins at exact boundaries flip only Arena; duplicate and concurrent results never advance twice',async()=>{
  const uid=await setup(2); await gather(uid);
  for(const [index,id,level] of [[0,'starter',2],[1,'champion',11],[2,'rare',21]]) {
   await db.doc(`users/${uid}`).update({holobots:[bot(level)]});
@@ -179,8 +184,9 @@ test('foreign, ordinary practice, wrong tournament and unfinished receipts canno
 
 test('loss and malformed host receipts fail closed; low admission level and corrupted tags refuse',async()=>{
  const uid=await setup();
- const i=await issue(uid,'starter'); await call(uid,'start',{matchId:i.matchId});
+ const i=await issue(uid,undefined); await call(uid,'start',{matchId:i.matchId});
  await call(uid,'settle',{matchId:i.matchId,playerFinalHealth:0,opponentFinalHealth:i.match.opponent.maxHealth,combosCompleted:0,perfectDefenses:0},T0+1500);
+ await db.doc(`arenaMatches/${uid}/matches/${i.matchId}`).update({tournament:tournamentAdmission((await profile(uid)).storyFlags,'starter',i.match.entrant.level)});
  await refused(uid,()=>result(uid,'starter',i.matchId),'win_required');
  const ref=db.doc(`arenaMatches/${uid}/matches/${i.matchId}`), original=(await ref.get()).data();
  await ref.update({'settlementReceipt.settlement.holos':999});
