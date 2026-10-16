@@ -7,8 +7,9 @@ import { getHolobotHeadshotImageSource } from '../config/holobots';
 import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../components/HoloCityCommandBar';
 import { BotStage, type BotMetrics, type BotStageHandle } from '../components/bots/BotStage';
 import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound, type ObservedDuelState, type ObservedFighterState } from '../lib/bots/duelPlayback';
+import { readLiveRivalPlayback } from '../lib/bots/liveRivalPlayback';
 export type { DuelRound } from '../lib/bots/duelPlayback';
-export type DuelPlaybackScreenProps = { receipt: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
+export type DuelPlaybackScreenProps = { receipt: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
 
 type FighterSnapshot = ObservedFighterState;
 export function FighterHud({ name, state, rival = false }: { name: string; state?: FighterSnapshot; rival?: boolean }) {
@@ -26,9 +27,9 @@ export function FighterHud({ name, state, rival = false }: { name: string; state
 }
 
 /** Receipt-only presentation. It never calculates damage, stamina, misses, winners or rewards. */
-export function DuelPlaybackScreen({ receipt, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
+export function DuelPlaybackScreen({ receipt, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
   const insets = useSafeAreaInsets();
-  const normalized = useMemo(() => normalizeDuelReceipt(receipt, rounds), [receipt, rounds]);
+  const normalized = useMemo(() => liveIssue === undefined ? normalizeDuelReceipt(receipt, rounds) : readLiveRivalPlayback(liveIssue, receipt), [receipt, rounds, liveIssue]);
   const [actors, setActors] = useState({ player: normalized.attackerBotId, rival: normalized.defenderBotId });
   const player = resolveBotId(actors.player ?? attackerBotId ?? '');
   const rival = resolveBotId(actors.rival ?? defenderBotId ?? '');

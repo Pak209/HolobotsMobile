@@ -2,6 +2,7 @@ import { auth, functions, httpsCallable } from "@/config/firebase";
 import { GATHERING_SCHEMA, readArenaGathering, readCityStoryFlags, record, type ArenaCitizen } from "./cityHub";
 import type { CityHubFixture } from "./cityHubFixtures";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "./async";
+import { rivalIssueMode, readLiveRivalPlayback } from "./bots/liveRivalPlayback";
 import { readCityRivalSettlement } from "./cityRivalBattle";
 
 /** Captures the session across each call so a delayed response cannot cross accounts. */
@@ -24,6 +25,18 @@ export async function issueCityRival(_uid: string, _rival: ArenaCitizen): Promis
 }
 export async function settleCityRival(uid: string, battleId: string, didWin: boolean, fielded: string[]) {
   const reply = await cityCall(uid, "rivalBattleHost", { schemaVersion: "rival-battle-3", operation: "settle", battleId, didWin, fielded });
+  return readCityRivalSettlement(reply, battleId);
+}
+export type RivalIntent = "strike" | "heavy" | "defend" | "finisher";
+/** For an already-issued resolver battle only. Never sends didWin, damage, HP or a client seed. */
+export async function settleCityResolver(uid: string, issue: unknown, playerIntents: readonly RivalIntent[]) {
+  if (rivalIssueMode(issue) !== "resolver") throw new Error("This battle requires the legacy settlement flow.");
+  if (!Array.isArray(playerIntents) || playerIntents.length < 1 || playerIntents.length > 120 || !playerIntents.every(move => ["strike", "heavy", "defend", "finisher"].includes(move))) throw new Error("Choose 1–120 valid duel intents.");
+  const battleId = String(record(issue)!.battleId);
+  // Copy the selected plan now: pending retries must retain the same issued battle and command list.
+  const reply = await cityCall(uid, "rivalBattleHost", { schemaVersion: "rival-battle-3", operation: "settle", battleId, playerIntents: [...playerIntents] });
+  const playback = readLiveRivalPlayback(issue, reply);
+  if (playback.receiptError) throw new Error(playback.receiptError);
   return readCityRivalSettlement(reply, battleId);
 }
 export type WorkshopCraftItem = "item.repair_kit" | "item.full_restore";

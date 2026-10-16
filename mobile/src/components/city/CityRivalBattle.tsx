@@ -161,7 +161,7 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     const fixture = require("@/qa/fixtures/duel-receipt-1.json");
     return <DuelPlaybackScreen fixture receipt={fixture.receipt} onClose={onClose} />;
   }
-  if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={replayReceipt} rounds={replayRounds} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
+  if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
 
   if (battle?.status === "active") return <CityLiveBattleView battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
 
