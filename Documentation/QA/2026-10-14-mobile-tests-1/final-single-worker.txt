@@ -1,0 +1,92 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run --maxWorkers=1
+
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-1/mobile
+
+ ❯ src/lib/__tests__/battleSettlementParity.test.ts (8 tests | 1 failed) 8736ms
+   ✓ battleSettlement byte-identical pair > mobile and functions copies are byte-identical 1ms
+   ✓ battleSettlement byte-identical pair > client and server agree for every kind, tier, outcome and count  2860ms
+   ✓ one table for every battle kind (DECISIONS #53-1) > published numbers: win 95/137/180/223, loss 28/41/54/66 at tiers 0-3 0ms
+   ✓ one table for every battle kind (DECISIONS #53-1) > kind never changes the numbers 0ms
+   ✓ one table for every battle kind (DECISIONS #53-1) > unknown kinds are refused; bad tiers read as tier 0 0ms
+   ✓ one table for every battle kind (DECISIONS #53-1) > EXP Booster doubles only while the window is open 0ms
+   × arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid 5874ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ arena settlement unchanged by the extraction > base rewards equal the pre-extraction formula for every tier and an unknown tier 0ms
+ ✓ src/lib/__tests__/desktopAccountParity.test.ts (5 tests) 3791ms
+   ✓ getHolobotDisplayStats lives in the lib pair > client lib = server lib = the pre-move formula for every bot, level and boost set  723ms
+   ✓ desktop-account-3 holobots > battleStats = arenaConfig.buildPlayerFighter (no parts); displayStats = getHolobotDisplayStats  2771ms
+ ✓ src/lib/unity/__tests__/wildBridge.test.ts (10 tests) 641ms
+ ✓ src/lib/__tests__/playerCombatantParity.test.ts (5 tests) 1105ms
+   ✓ player combatant stats = arenaConfig.buildPlayerFighter (no parts) > maxHealth / attack / defense / speed / intelligence match for every bot, level, boost and sync set  929ms
+ ✓ src/features/arena/__tests__/moveProgression.test.ts (13 tests) 5ms
+ ✓ src/lib/__tests__/arenaServerParity.test.ts (8 tests) 10ms
+ ✓ src/lib/security/__tests__/workoutRewardLimits.test.ts (6 tests) 2ms
+ ✓ src/lib/__tests__/moveProgressionParity.test.ts (4 tests) 6ms
+ ✓ src/lib/unity/__tests__/nativeUnitySession.test.ts (14 tests) 9ms
+ ✓ src/lib/__tests__/progressionServerParity.test.ts (14 tests) 7ms
+ ✓ src/lib/__tests__/economyHostServerParity.test.ts (4 tests) 3ms
+ ✓ src/lib/__tests__/travelSquadFirebase.test.ts (5 tests) 3ms
+ ✓ src/lib/__tests__/fitnessSyncServerParity.test.ts (10 tests) 7ms
+ ✓ src/lib/__tests__/genesisParity.test.ts (16 tests) 8ms
+ ✓ src/lib/__tests__/rivalLadderScaleParity.test.ts (5 tests) 9ms
+ ✓ src/lib/__tests__/economyServerParity.test.ts (15 tests) 14ms
+ ✓ src/components/arena/__tests__/battleVisualStates.test.ts (3 tests) 1ms
+ ✓ src/features/arena/__tests__/moveKits.test.ts (9 tests) 3ms
+ ✓ src/lib/__tests__/progressionParity.test.ts (7 tests) 5ms
+ ✓ src/features/arena/__tests__/finisherPolicy.test.ts (3 tests) 3ms
+ ✓ src/lib/__tests__/desktopStoryFlagsParity.test.ts (20 tests) 8ms
+ ✓ src/lib/__tests__/rivalCooldownContract.test.ts (18 tests) 12ms
+ ✓ src/features/arena/__tests__/combatEngine.test.ts (71 tests) 22ms
+ ✓ src/lib/__tests__/genesisSignupParity.test.ts (5 tests | 1 skipped) 4ms
+ ✓ src/lib/__tests__/mintingServerParity.test.ts (11 tests) 5ms
+ ✓ src/lib/story/__tests__/storyFlags.test.ts (30 tests) 13ms
+ ✓ src/features/arena/__tests__/teamBattle.test.ts (15 tests) 11ms
+ ✓ src/lib/__tests__/gacha.test.ts (11 tests) 10ms
+ ✓ src/lib/__tests__/fitnessSync.test.ts (13 tests) 4ms
+ ✓ src/lib/story/__tests__/storyBridge.test.ts (14 tests) 4ms
+ ✓ src/components/character/__tests__/animationAssetResolver.test.ts (4 tests) 16ms
+ ✓ src/lib/__tests__/energy.test.ts (11 tests) 2ms
+ ✓ src/lib/__tests__/async.test.ts (4 tests) 3ms
+ ✓ src/config/__tests__/arenaConfigSync.test.ts (2 tests) 1ms
+ ✓ src/lib/__tests__/healingServerParity.test.ts (6 tests) 3ms
+ ✓ src/lib/security/__tests__/webAuthBridge.test.ts (4 tests) 2ms
+ ✓ src/lib/story/__tests__/dialogueSequencer.test.ts (4 tests) 2ms
+ ✓ src/stores/__tests__/arena-team-battle-store.test.ts (2 tests) 6ms
+ ✓ src/lib/__tests__/boostHolobotAttributeClient.test.ts (5 tests) 6ms
+ ✓ src/lib/__tests__/monetizationServerParity.test.ts (11 tests) 4ms
+ ✓ src/features/arena/__tests__/abilities.test.ts (10 tests) 5ms
+ ✓ src/lib/__tests__/partStats.test.ts (7 tests) 3ms
+ ✓ src/lib/__tests__/attributeBoostParity.test.ts (6 tests) 7ms
+ ✓ src/lib/__tests__/marketplace.test.ts (11 tests) 5ms
+ ✓ src/features/arena/__tests__/pvpBattle.test.ts (9 tests) 7ms
+ ✓ src/features/arena/__tests__/pvpPoolEntryScan.test.ts (1 test) 2ms
+ ✓ src/lib/story/__tests__/overlayVisibility.test.ts (6 tests) 4ms
+ ✓ src/lib/__tests__/travelSquadClient.test.ts (14 tests) 5ms
+ ✓ src/stores/__tests__/arena-battle-store.test.ts (3 tests) 6ms
+ ✓ src/lib/__tests__/monetization.test.ts (5 tests) 2ms
+ ✓ src/features/arena/__tests__/pvpTeamBattle.test.ts (11 tests) 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/battleSettlementParity.test.ts > arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/lib/__tests__/battleSettlementParity.test.ts:171:3
+    169|
+    170| describe("arena settlement unchanged by the extraction", () => {
+    171|   it("client and server computeArenaSettlement equal the pre-extractio…
+       |   ^
+    172|     const grid = arenaGrid();
+    173|     expect(grid.length).toBeGreaterThan(5000);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 50 passed (51)
+      Tests  1 failed | 506 passed | 1 skipped (508)
+   Start at  22:46:57
+   Duration  53.27s (transform 6.41s, setup 0ms, collect 10.51s, tests 14.56s, environment 5ms, prepare 5.32s)

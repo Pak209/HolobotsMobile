@@ -1,0 +1,67 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-1/mobile
+
+ ✓ src/lib/unity/__tests__/wildBridge.test.ts (10 tests) 111ms
+ ✓ src/lib/__tests__/gacha.test.ts (11 tests) 19ms
+ ✓ src/lib/story/__tests__/storyFlags.test.ts (30 tests) 39ms
+ ✓ src/features/arena/__tests__/combatEngine.test.ts (71 tests) 79ms
+ ✓ src/lib/__tests__/desktopStoryFlagsParity.test.ts (20 tests) 20ms
+ ✓ src/lib/__tests__/rivalCooldownContract.test.ts (18 tests) 17ms
+ ✓ src/lib/__tests__/energy.test.ts (11 tests) 3ms
+ ✓ src/lib/__tests__/marketplace.test.ts (11 tests) 29ms
+ ✓ src/lib/__tests__/playerCombatantParity.test.ts (5 tests) 792ms
+   ✓ player combatant stats = arenaConfig.buildPlayerFighter (no parts) > maxHealth / attack / defense / speed / intelligence match for every bot, level, boost and sync set  739ms
+ ✓ src/lib/__tests__/economyServerParity.test.ts (15 tests) 281ms
+ ✓ src/lib/__tests__/desktopAccountParity.test.ts (5 tests) 1238ms
+   ✓ desktop-account-3 holobots > battleStats = arenaConfig.buildPlayerFighter (no parts); displayStats = getHolobotDisplayStats  1052ms
+ ✓ src/lib/story/__tests__/storyBridge.test.ts (14 tests) 10ms
+ ✓ src/stores/__tests__/arena-battle-store.test.ts (3 tests) 13ms
+ ✓ src/lib/unity/__tests__/nativeUnitySession.test.ts (14 tests) 189ms
+ ✓ src/features/arena/__tests__/teamBattle.test.ts (15 tests) 72ms
+ ✓ src/features/arena/__tests__/pvpBattle.test.ts (9 tests) 31ms
+ ✓ src/lib/__tests__/genesisParity.test.ts (16 tests) 24ms
+ ✓ src/lib/__tests__/progressionServerParity.test.ts (14 tests) 11ms
+ ✓ src/lib/__tests__/rivalLadderScaleParity.test.ts (5 tests) 136ms
+ ✓ src/lib/__tests__/moveProgressionParity.test.ts (4 tests) 8ms
+ ✓ src/features/arena/__tests__/moveProgression.test.ts (13 tests) 96ms
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts (8 tests) 3712ms
+   ✓ battleSettlement byte-identical pair > client and server agree for every kind, tier, outcome and count  660ms
+   ✓ arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid  3029ms
+ ✓ src/lib/__tests__/arenaServerParity.test.ts (8 tests) 18ms
+ ✓ src/lib/story/__tests__/dialogueSequencer.test.ts (4 tests) 58ms
+ ✓ src/lib/__tests__/boostHolobotAttributeClient.test.ts (5 tests) 18ms
+ ✓ src/stores/__tests__/arena-team-battle-store.test.ts (2 tests) 26ms
+ ✓ src/lib/__tests__/attributeBoostParity.test.ts (6 tests) 10ms
+ ✓ src/lib/__tests__/progressionParity.test.ts (7 tests) 70ms
+ ✓ src/features/arena/__tests__/pvpTeamBattle.test.ts (11 tests) 12ms
+ ✓ src/lib/__tests__/travelSquadFirebase.test.ts (5 tests) 12ms
+ ✓ src/lib/__tests__/fitnessSync.test.ts (13 tests) 4ms
+ ✓ src/lib/__tests__/healingServerParity.test.ts (6 tests) 5ms
+ ✓ src/lib/__tests__/travelSquadClient.test.ts (14 tests) 29ms
+ ✓ src/features/arena/__tests__/abilities.test.ts (10 tests) 32ms
+ ✓ src/lib/__tests__/partStats.test.ts (7 tests) 2ms
+ ✓ src/lib/__tests__/genesisSignupParity.test.ts (5 tests | 1 skipped) 3ms
+ ✓ src/lib/__tests__/fitnessSyncServerParity.test.ts (10 tests) 7ms
+ ✓ src/lib/security/__tests__/workoutRewardLimits.test.ts (6 tests) 15ms
+ ✓ src/lib/__tests__/monetizationServerParity.test.ts (11 tests) 6ms
+ ✓ src/lib/__tests__/mintingServerParity.test.ts (11 tests) 52ms
+ ✓ src/lib/__tests__/async.test.ts (4 tests) 68ms
+ ✓ src/lib/__tests__/economyHostServerParity.test.ts (4 tests) 5ms
+ ✓ src/features/arena/__tests__/pvpPoolEntryScan.test.ts (1 test) 26ms
+ ✓ src/features/arena/__tests__/finisherPolicy.test.ts (3 tests) 25ms
+ ✓ src/features/arena/__tests__/moveKits.test.ts (9 tests) 3ms
+ ✓ src/components/character/__tests__/animationAssetResolver.test.ts (4 tests) 1ms
+ ✓ src/lib/__tests__/monetization.test.ts (5 tests) 8ms
+ ✓ src/lib/story/__tests__/overlayVisibility.test.ts (6 tests) 54ms
+ ✓ src/lib/security/__tests__/webAuthBridge.test.ts (4 tests) 34ms
+ ✓ src/config/__tests__/arenaConfigSync.test.ts (2 tests) 1ms
+ ✓ src/components/arena/__tests__/battleVisualStates.test.ts (3 tests) 1ms
+
+ Test Files  51 passed (51)
+      Tests  507 passed | 1 skipped (508)
+   Start at  22:31:06
+   Duration  12.48s (transform 13.10s, setup 0ms, collect 29.03s, tests 7.53s, environment 15ms, prepare 20.79s)

@@ -1,0 +1,10 @@
+{
+  "totalTests": 576,
+  "passed": 575,
+  "failed": 0,
+  "existingSkipped": 1,
+  "arenaBatches": 68,
+  "maxArenaBatchMs": 282.1712090000001,
+  "arenaInputCount": 18496,
+  "arenaDeepComparisons": 36992
+}

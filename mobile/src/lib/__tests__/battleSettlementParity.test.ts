@@ -78,16 +78,12 @@ function legacyComputeArenaSettlement(input: ArenaSettlementInput) {
 const COUNTS = [0, 1, 2, 3, 4.7, 7, 9, 12, 24, 25, 26, 40, 9999, -3, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
 const OPPONENTS = ["HARE", "WAKE", "GAMA", "KUMA", "SHADOW", "TSUIN", "TORA", "KEN", "KURAI", "ACE", "WOLF", "ERA", " hare ", "", "NOPE"];
 
-function arenaGrid(): ArenaSettlementInput[] {
+function arenaGrid(tierId: ArenaTierId, perfectDefenses: number): ArenaSettlementInput[] {
   const cases: ArenaSettlementInput[] = [];
-  for (const tier of ARENA_TIERS) {
-    for (const didWin of [true, false]) {
-      for (const perfectDefenses of COUNTS) {
-        for (const combosCompleted of COUNTS) {
-          for (const opponentName of didWin ? OPPONENTS : ["HARE"]) {
-            cases.push({ combosCompleted, didWin, opponentName, perfectDefenses, tierId: tier.id });
-          }
-        }
+  for (const didWin of [true, false]) {
+    for (const combosCompleted of COUNTS) {
+      for (const opponentName of didWin ? OPPONENTS : ["HARE"]) {
+        cases.push({ combosCompleted, didWin, opponentName, perfectDefenses, tierId });
       }
     }
   }
@@ -168,15 +164,23 @@ describe("one table for every battle kind (DECISIONS #53-1)", () => {
 });
 
 describe("arena settlement unchanged by the extraction", () => {
-  it("client and server computeArenaSettlement equal the pre-extraction formula on the whole grid", () => {
-    const grid = arenaGrid();
-    expect(grid.length).toBeGreaterThan(5000);
-    for (const input of grid) {
-      const legacy = legacyComputeArenaSettlement(input);
-      expect(computeArenaSettlement(input)).toEqual(legacy);
-      expect(serverArena.computeArenaSettlement(input)).toEqual(legacy);
-    }
-    const bogus = { ...grid[0], tierId: "bogus" as ArenaTierId };
+  // All 18,496 inputs remain covered, but each deadline contains only 272
+  // inputs (544 deep comparisons), not the entire grid's 36,992 comparisons.
+  it.each(ARENA_TIERS.flatMap(({ id }) => COUNTS.map((perfectDefenses) => ({ tierId: id, perfectDefenses }))))(
+    "matches the pre-extraction formula: tier=$tierId defenses=$perfectDefenses",
+    ({ tierId, perfectDefenses }) => {
+      const grid = arenaGrid(tierId, perfectDefenses);
+      expect(grid).toHaveLength(272);
+      for (const input of grid) {
+        const legacy = legacyComputeArenaSettlement(input);
+        expect(computeArenaSettlement(input)).toEqual(legacy);
+        expect(serverArena.computeArenaSettlement(input)).toEqual(legacy);
+      }
+    },
+  );
+
+  it("refuses unknown tiers on both sides", () => {
+    const bogus = { ...arenaGrid(ARENA_TIERS[0].id, 0)[0], tierId: "bogus" as ArenaTierId };
     expect(computeArenaSettlement(bogus)).toBeNull();
     expect(serverArena.computeArenaSettlement(bogus)).toBeNull();
   });

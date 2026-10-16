@@ -1,0 +1,44 @@
+[
+  {
+    "control": "local-copy",
+    "source": "mobile/src/lib/story/storyFlags.ts",
+    "mutation": {
+      "before": "return { ...state.flags };",
+      "after": "return state.flags;"
+    },
+    "test": "src/lib/story/__tests__/storyFlags.test.ts",
+    "testNamePattern": "getFlags returns a defensive copy",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "sourceSha256": "dced67d71921d91069ea55a4c928be990812180c1367655c0affa147cceba359",
+    "restoredSha256": "dced67d71921d91069ea55a4c928be990812180c1367655c0affa147cceba359"
+  },
+  {
+    "control": "rival-remaining-time",
+    "source": "functions/src/lib/rivalLadder.ts",
+    "mutation": {
+      "before": "const retryAfterMs = at + RIVAL_COOLDOWN_MS - nowMs;",
+      "after": "const retryAfterMs = at + RIVAL_COOLDOWN_MS - nowMs + 1;"
+    },
+    "test": "src/lib/__tests__/rivalCooldownContract.test.ts",
+    "testNamePattern": "reports the exact positive retryAfterMs",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "sourceSha256": "7157e467f589c98d332378086f1a55738478e6ce0e06d301de6607c16cca517b",
+    "restoredSha256": "7157e467f589c98d332378086f1a55738478e6ce0e06d301de6607c16cca517b"
+  },
+  {
+    "control": "desktop-default",
+    "source": "functions/src/story/storyFlags.ts",
+    "mutation": {
+      "before": "tournamentsWon: s?.tournamentsWon ?? 0,",
+      "after": "tournamentsWon: s?.tournamentsWon ?? 1,"
+    },
+    "test": "src/lib/__tests__/desktopStoryFlagsParity.test.ts",
+    "testNamePattern": "defaults all four fields",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "sourceSha256": "5f7eac5e83d5e985bca32058a88b394612bd5e3bdb25589353e9620fe5c4790b",
+    "restoredSha256": "5f7eac5e83d5e985bca32058a88b394612bd5e3bdb25589353e9620fe5c4790b"
+  }
+]
