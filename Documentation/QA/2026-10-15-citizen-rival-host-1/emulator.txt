@@ -1,0 +1,75 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-holobots-citizen-rival", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+⚠  firestore: Cloud Firestore Emulator does not support multiple databases yet.
+⚠  firestore: Did not find a Cloud Firestore rules file specified in a firebase.json config file.
+⚠  firestore: The emulator will default to allowing all reads and writes. Learn more about this option: https://firebase.google.com/docs/emulator-suite/install_and_configure#security_rules_configuration.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test scripts/test-citizen-rival-emulator.mjs scripts/test-arena-gathering-emulator.mjs scripts/test-rival-battle-emulator.mjs
+✔ known-bad input first: arbitrary client victory, rank, or count cannot flip story gates (520.237083ms)
+✔ desktop versions lazily backfill defaults and return the identical four story fields (63.26325ms)
+✔ gathering yields eight stable CV1 pilots from all twelve bots and the exact ring palette; concurrent and later calls are idempotent (3365.821791ms)
+✔ callable auth and strict gathering/tournament input refusals (105.435084ms)
+✔ malformed story state fails closed; partial absent fields default without resetting existing progress (258.295458ms)
+✔ all eight roster citizens issue their assigned bot, retain 100/25 rewards and settle replay, and use the same 5-minute cooldown (452.957542ms)
+✔ citizen rival refuses before gathering, a non-roster citizen, foreign ids, wrong schemas and operations (89.971583ms)
+✔ rank thresholds 2/11/21 are enforced at admission without spending an entry; sequence cannot be skipped (90.547666ms)
+✔ three distinct tagged wins at exact boundaries flip only Arena; duplicate and concurrent results never advance twice (10052.250584ms)
+✔ foreign, ordinary practice, wrong tournament and unfinished receipts cannot qualify (1857.284792ms)
+✔ loss and malformed host receipts fail closed; low admission level and corrupted tags refuse (466.77275ms)
+✔ admission request replay preserves its tag and rejects changing a practice request into a tournament (246.615666ms)
+[2026-10-16T02:22:05.023Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7bb error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.307Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7bc error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L195, false for 'create' @ L360, evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'create' @ L195, false for 'create' @ L360
+[2026-10-16T02:22:05.427Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7bd error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.456Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7be error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.530Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7bf error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.646Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7c0 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.667Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7c1 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.689Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7c2 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.708Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7c3 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L195, false for 'create' @ L360, evaluation error at L207:24 for 'update' @ L207, false for 'update' @ L360, false for 'update' @ L207, false for 'update' @ L360
+[2026-10-16T02:22:05.714Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7c4 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L217, false for 'delete' @ L360
+[2026-10-16T02:22:05.885Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x1c93e7c5 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L350, false for 'create' @ L360, false for 'update' @ L350, false for 'update' @ L360
+✔ rules deny client story creation, nested edits, replacement, deletion, foreign reads and forged match receipts; unchanged merges work (5762.427417ms)
+✔ known-bad first: real callable gathering issue matches Unity projection, settles once and refuses cooldown (777.779542ms)
+✔ all roster pilots retain assigned opponent and ordinary rivals retain playerCombatants (540.439167ms)
+✔ callable refuses missing gathering, outside roster, wrong story schema and unauthenticated issue without writes (78.783625ms)
+✔ explicit resolver flip preserves internal fighters and host receipt despite citizen projection omission (66.432458ms)
+✔ issue returns a server lineup and persists the battle outside user-writable paths (655.182625ms)
+✔ first win of the day grants a Unit; the second does not; next UTC day does; loss counts nothing (264.53325ms)
+✔ parallel duplicate settles grant once and count one win (3603.209709ms)
+✔ foreign, unknown and expired battle ids are rejected with nothing written (50.250791ms)
+✔ callable maps rejections to typed codes and requires auth (13.418208ms)
+✔ starter Unit exactly once: createGenesisProfile, then desktop snapshot, wild refresh and rival status never re-grant (34.925ms)
+✔ starter Unit exactly once for a mobile-created profile reached first by parallel desktop/rival reads (3323.907333ms)
+✔ TTL field: every issued battle carries expireAt (Timestamp) = expiry + grace; settle keeps it; replay works inside the grace window (79.241709ms)
+✔ parallel wins on different battles in one UTC day grant the daily Unit once and count every win (3528.313875ms)
+✔ max 3 open battles: a 4th issue is too_many_open (nothing written); settle or expiry frees a slot (291.593959ms)
+✔ parallel issues never exceed 3 open battles (7523.303458ms)
+✔ too_fast: a win under 20 s after issue is rejected with nothing written; it can settle once 20 s have passed (386.412625ms)
+✔ #44 per-tier inventory: status reports every tier, the daily win grants Light only, a #43 integer migrates once (226.785958ms)
+✔ rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact deployed shape, buddyUnits = total int, same rulings (249.104041ms)
+✔ desktop-account-1 (no data, as the shipped Unity build sends): deployed fields plus storyFlags/pilotRank, buddyUnits = total int; desktop-account-2 on request (187.015708ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23736.212917
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
