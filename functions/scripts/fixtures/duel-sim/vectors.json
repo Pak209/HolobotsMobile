@@ -1,0 +1,4463 @@
+{
+  "vectorVersion": "duel-sim-vectors-1",
+  "vectors": [
+    {
+      "name": "neutral",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000000",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": []
+      },
+      "expected": {
+        "initialHash": "559ea84232a76e0633141349998c0a544e7387756f8053c05f4015120cf032a0",
+        "finalHash": "31640feb88c545e5813db4d02b5f003f111a5b2858e645cb902db9f3e576b116",
+        "tickHashes": [
+          "7ccf40967ccf08a9e3876d1ed6289fe42e671e70affebb81753d6ff792304350",
+          "d78e1557232ac5270cefe09b4d72bb30c7a1a227352f3e12717f1e3eb4e40eff",
+          "777e3c04716a77ef7f1e507bba2cb0ba38e24f3eb3b6f2c1501c0a1d103a62f1",
+          "5373dc224fa51b117a6084b76e15ab87e97a0e2a778982a40fbe16b4afa86c84",
+          "adee9278f459a910750eda191c9c315dc3f5093a178b58284d56229cbe1d6ef2",
+          "cc7b4bb558724866b488035e17b86d7751d88466958e50726ae35159a333b4b9",
+          "98c1131c42fd04ba8169a7b6528a8d95e854ece8ef1f02ff9899a66443874f5a",
+          "098ca2be5155af556297e41cbcbb72d8fcbc82279659346827fe5d33b726fa85",
+          "ca0239b230bf0043a84072898fa913088f75a34b8d0654c5899aa87ab1afa4b1",
+          "83fd98c7df96093e5e5033e69e787e6586cb0c437b0131d650dc82d8aa5d41b6",
+          "bab1a99288ff47c1e706fc69a03142cc4a2c85a7cc0c4c6470f395133fb5ab9f",
+          "a1a7da0985d1772471812423c2c0787ba979e1397c9da586baaf967d59d524df",
+          "e96493dd5d81d49cc31ba7812f1475dd6596b06a0fa29b35e4b41c3978056f47",
+          "8b2e776888f5bd1b027b24b90755080d401fab571a496ac0c3fbd925fa7dd6cf",
+          "14c1e56faf22950ae23cec0239ed41e31456782b7f4e48ce7e6c24844287d70d",
+          "592a266a0305753227964b49b0cb432b7340b50241056edce6de5d55d6bd2927",
+          "1c85ed6431c4934fe62f17de3d0dbd2e2b4fe24bd1064df3aa01b865d9b5b64a",
+          "7becb99431c9be9d8966b78a8196516d3897b5d4e6508717111ccf6b89c0bd8e",
+          "ff838890d84fd207f371138803e0d9050bb92f135374de12cee988a04aab8d72",
+          "e9f3d11a6e225536690086d74b510b78be195b47dba99899badabaf20927b226",
+          "34a56ad2af9148d316d5403503754773b2ca03e36f0af1baa9ad67d8556b5a0d",
+          "133c4b32670e60a133a5ce887220b37cbca96034075d7d93192736cf0522ad69",
+          "d14b7389c8667a7500690f569c371152b1fa75b6631d191ec878c6c09f8fce99",
+          "31640feb88c545e5813db4d02b5f003f111a5b2858e645cb902db9f3e576b116"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "strike",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000001",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "69bfdd3484efa0b18b2f4dbf92af91abd1cc68b0715125c2f7eb04301fcf2938",
+        "finalHash": "7ae6e2771fc700c14e7324f1753e4497a2a4001682d91ee3de6b0b769dcc94bc",
+        "tickHashes": [
+          "1085ec24f620aa30613fe38a14bee92c5e573ac7c224460132bd5a9bb75e75e3",
+          "a486d5d2d4d937e3ff6dd278c527e3a4e7680573844c496f3f5824647ecae7d3",
+          "2672b7b858d83e5f398e0d08be559cf4558fac1af27243fcfe3145a92091130c",
+          "0cc0165134b6c62d9c32f0305421bd0e1ed5922b45b62f76a342cc17f9cfe9d8",
+          "92c0db2bc4eaf92d02778d8c235f55671fe12d4a9d5abd73677e3abb0c5fba78",
+          "306eaac720f555deedb475d1ac2fec6bda2dc9964b992dae44363734633098d5",
+          "b4df1cc83581a31663136a7571f424d0ba718508e24401044066d59171305cf9",
+          "872998c9ae3916a344ece8e5d1d6e78887b7c3c0cce17737372aacf96d80e59d",
+          "61990b11c892ad68f503cafbe99032602cd036be1d193cc87d9de111753c7af5",
+          "96ac5353bf2eb0f39277743692ae68cc4c2272c844c975412c6149ef329ca3e4",
+          "fad99f04db31446a347a095007a5bf128bf685f3f56b82f2014cdc9ae6cdfc49",
+          "98c07e20867124b7a5c918b7b75c9dab08d104bd1d834c2113fe6acc88ae6641",
+          "495b8991ce40b33e916682937c570b868aba686485c45785e7965d62be2a4385",
+          "4520ea1b2a730246e5ab0dc22eceb37791aef5f39f88cd4b1a2cc94cea387425",
+          "92e798c899bfa3fde4eb2fdd2bccf891812bb6bd3e7a4ae2f3c83baefac8355a",
+          "91173b5e5383c66dfa77a3ac7c300a0b7a6553a3db23953c249e2965e464531e",
+          "d857339e643dc3e0585318fef1457cea4f1e877f47d2973ab379be45ecc48074",
+          "dbadb2c305001e588310dd5821f09df75a9ba64eb6396bede6802fdbc7e02163",
+          "5e1abad0dc4851b53b1ecc94c124f3af5721da28be6f6e4f209e4a56d0c8fef0",
+          "c3aaaf5ed6ce8b54ae00fd7969c6f45febe670ba5e2d4723d9c2f0d8c94ab0c1",
+          "690de94eefd4f16f49ff9cf6ca6871baa01e29a50ff4d46531118a27c8a52161",
+          "47db603113f9e988e77d1b43a3a876d3ecc9a1f179c599fad40e8108da3f504c",
+          "fbcad0da9bdc704d6146414a6f45b0cec1f01e34814d676035be91b4b09f0c4a",
+          "7ae6e2771fc700c14e7324f1753e4497a2a4001682d91ee3de6b0b769dcc94bc"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "heavy",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000002",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "heavy",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "158932500df863be371ba8df4c148eab9ec710af3b9834b1c52bcd9a701ece4d",
+        "finalHash": "8ad7db5eb8d818135d92a3c131d481e98e41e552f747cc2546cc81cec199023b",
+        "tickHashes": [
+          "c92543962c42a3961e28b3a5eb133324b9746971dd9e5cf657d4ed37eb09f49d",
+          "9708aa6f6f66901ec9e31cab7fce388c6b975d5f3cfa967a7123c4e361d0d395",
+          "0852720fbe39072121262a37616c8e138ee4ae4556219838bdd6e8f292e89d03",
+          "9bce7776d6110e998c4e3aa393dbb818d697ecc98d4026d6bf99219183eac55e",
+          "0280725ee3119cf98a55362560278b8cb628fb971c52a68f6d66a79fe130e676",
+          "6b8b67326c79bece82eb167094266c66522726950a28728361fb4b85603f1fc5",
+          "0977a7833f9df5f200b837e2949f1fbcc68602813bfbcab8fc5a6875fab60703",
+          "c070f4908ba6b078537657fd354dcef457e15fe33c5573eb2d7fe74796d9ba93",
+          "7a3ba89714263d4b8c68d1c014b4b96f7cd9cf668831d38f5be6298e72cf2128",
+          "5db0e95cea6896dacd37c2ca9e5504a7ec12413242a88bd126332ff89f008e18",
+          "0c4a49f24eae7a93fcaa0bfec6432874309cb1657e386046b8eb67f986feb9f5",
+          "3995de851ca4ac609e55a75c1198a9e736ed03614aa486170c40e95eb0752dc0",
+          "1e550f335a09df06d15274e2978c068fd0597fedd4693c47f7e3e9ea55a3e416",
+          "be768d5301b5ae99793154574c6cee86a3c2d349f63aba9de04acb56ea29b5b3",
+          "095d6c719a19be2d1326955d389be6cf7194268820830e33e50fab0edb9f3de4",
+          "4dd2ebe8c040a8805100b558ae10b8e4d0d0059822e4c6744d08ab3faaa1dfd2",
+          "25121dfd99e5ec4254137cdaf8e672252d8059f8423ca26ad6222beb369a1b29",
+          "9f674927c4eece8b0f4d4247b0534da0022fdb61cc9a9b5dab78f2cb9e317954",
+          "f7fe29e6b48df0c9d16260c91875530747e07e1c031a0a7d47ba81e6d4730875",
+          "b70464856deb4570e8a9248d373c5ebc6cf1729fc8113b4104173f07fbadfa72",
+          "e7e074518159b03a4ceffc0b5d40f97a080cd7a22cecc72363ad2a73f74aac64",
+          "dcfa8e56dc7ee75c93ea9ca38a100c945e4a691c151b8316892207284df0ac85",
+          "69b8477661eaffa0ad774610c7afdaf82bdf1047827e2ea6560b437a98928e7f",
+          "8ad7db5eb8d818135d92a3c131d481e98e41e552f747cc2546cc81cec199023b"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "finisher",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 100,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000003",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "finisher",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "92c6a833b07b92f52cb2038ec64a89bbf277712ab20aada467462a9df7c479c4",
+        "finalHash": "959233471dcc1732e2b8039633ea12d7186fb3b3b1ddee45bb0094bdab711622",
+        "tickHashes": [
+          "7007f8b1787868f6a736d5c9834a0e2b8b515e7057dd1ed0709ae0341ca88f82",
+          "4597d066ae0a00735de22ab3eca083a48fd013cab0924ba5503d6ed41850427a",
+          "ab1de2650596115efa8903214f074d96196776d3ba28ff8abf9007406d7b5829",
+          "2bfb35128f9f20af31d7006afa7dccffc30c75727241c791f6b0d4286555f700",
+          "328f05a9e92be992a8302f867ae5f66f4e4ee17ac076b774e5b54ec885ba6e1f",
+          "0f9f0d5fc4e959282200d8be722c029c4a5c655a09f5245f0af86aa779b6f24a",
+          "ec568775f95161e398e4dab1e10ca238d0b131ac123a4620634c32eef01129bd",
+          "2a3f46b80520776f892a895720cf055adf7219b5039528afb2b7683a330661f5",
+          "649be84a2d3481320333b041f08fe28128a7ec5ba31c29196b4620c46300d5e4",
+          "e65409b6ae0c53ac21e52b7bf471a63b6f7345445aa5fe8b3953a53409ef5ffd",
+          "415673f553030a86aa12141766519cc5a640a9b748c9c5d04f2e3c46e474a051",
+          "a37c80eb17d9fb2c21383eefa82f76f4e7249a4758b8d3b83706ac053013a310",
+          "ee6dc5933db2663fb6e94481f9b5e5b8ca28b4c89e963036a518e2fabbb13ac0",
+          "83e8c9ad4482c1fd9bcf47f99a0cd3ddbef919b832aeee32c7c993dbf446170c",
+          "40275c8d56ad3af1a63a073f2f83739e257142500dcf89ea2cec6a61dd75e353",
+          "e83512489811e29b6f152a5232ba212e2b99b8b53a5020fc2e0e658787bfbbff",
+          "41a7dce59a0c9e412554c0f1c7816f596de40c85764b610cf87dae8048a69710",
+          "bee4bb8dbec2b38fbd87da76b3b6d4b21112bb7f20222c3e77bb5f36c173fcec",
+          "ba8d6c33dc6546d315b29a7a3a718faad2e4a024cb17e3fd8aed5e2d2e0be44b",
+          "21e35a7dd76ee2de42c5843b7f4c0877c17ebd95899cb4e12cfe51f5340c8457",
+          "4d34f73424f159335342dc47bc1548434a2d8be14263ea0ed186696abbbc1668",
+          "27ead09444b570499f2dcb91c826256dc7b03f58cb77a27fd8145e615b540376",
+          "6e597ee681a73b266a701df8cb8d14f3eae20081edb1ae27ffc3a8646b72af12",
+          "959233471dcc1732e2b8039633ea12d7186fb3b3b1ddee45bb0094bdab711622"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "insufficient-sync",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000004",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "finisher",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "fe025a2adcf214312e202763fbb6314fcd52e46ee7a9c03870dfd10769de5b09",
+        "finalHash": "730ed61c3a25abe705684de35f175a37c1a513d3d0a5fd69f2ed0bd0f5219345",
+        "tickHashes": [
+          "7e1594721e9448101f3e56f9c66cc30c7611b37094941cfee5e5058ddc726fd9",
+          "f5f4138f3497489bc385ea8b6d7a38ac3914d5a107c4544617467906e18beea5",
+          "cbd94eb03bc150554cb134a24c9c70d0d978e274852433d3ccc6c2fee93dc659",
+          "e101b924783ea535518d809a917c4afef40c72aa860d2edcdc2da820f67d48e7",
+          "e5a7a460554416b9722595fcb328609de867bd26ccf24a9c5b42db2153f533d2",
+          "7123071c4ebd6829fa1b39e6afd4e46c88b1a6c688527ff575cb9fad726944cd",
+          "38d4ac8eeeb54308679410cde09357a4d8be34606bf4701b8dc317d1bad95596",
+          "db7e843172a11d05c19f24839adb6aca7f8002a3ceff2f6b96f50466d5d4b9df",
+          "08a5b4bb99c762055e20bbf59bc53c51daa791e3ac18a240bb06a3936abe09c7",
+          "d880e12fe6f114c5ec6973ac4ae248b306aa951efa13ad2f3ce1f0d76dc9d6d5",
+          "d776cdad507adc1ad5be21ab23ca7e0c79b3460fa43d37dcc0ac78f77b4b9366",
+          "cfbe0f27dddfbb5083f6ac531b37c1fe0d41e380523925e558d61a958d37cb3a",
+          "aa077f2d14ad72bc930bfc8cb14a2e8b0106b15dbad9f22f59bfa8245b8af3d9",
+          "708d201dde433fe8959fcdc951f982ea34c9cbebdf84b55795176d422c2ff61e",
+          "0209488fc8e077463039d43315e157e5e3d4342968ae6b76fd166214e2780f7f",
+          "53a7492146a4b5d639bd43d62679e06be94d9af2ead05ada0dd91ce820565433",
+          "a74328d123ba8d32f1d75826eb2ea54ba4fa973acf5b2d2c71ac52aca87aa935",
+          "b3f0712e97540f2cef1d02186b34bfcd823a56ea1f432cabce3fd71d01dcb02a",
+          "3f070a1fc42d753e3fb70a24fce422ee4e44564c01b90a622d1b804331c724ad",
+          "51ac5bd26b80d10bf20b4c6cb4d29d323495983a475c5ff79c66f85d8d3675c4",
+          "e73bfbeb58d9ea63661efff1d2fa8f75a94e125575893812a4b08b4c7dc19d6c",
+          "4b4adb25202aa0ac712816c29daa13c4900db2046120e037650ef5cf392a4e7e",
+          "b2a2b50df95de93d3c06a6743b40929a5cc028b4d2b6665bb23251b4e2b36959",
+          "730ed61c3a25abe705684de35f175a37c1a513d3d0a5fd69f2ed0bd0f5219345"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "insufficient-sta",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 0,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000005",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "heavy",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "87593dc2a30ef7892eebefa1f90eed1d976c1ecf95580a1dc86a3bbd1329dd79",
+        "finalHash": "d596d28e77ebc9270f653d0d0ec359b08e9863eace86c16aed081f596dd6ff57",
+        "tickHashes": [
+          "5396fd13a2423cdda4b1d1a40d8343289b01df0d0f00b6ff4a1bb37ac86191f9",
+          "e90630d20d783c35665151eb54f128e46a11e4130b82b8b6530512c4f7d50f72",
+          "6df3ca2edf11df347303a13fd8359aad0ad197d37d0d9908c15beac9c71548d2",
+          "8a68eea0220829a6cc550bfc676327a3351b83214bccd3dc2c37783e66b5520a",
+          "20ec9fa95f32ce2b3611fcb9a5fc7a23664643ccebff24ce9ff6bb6c48e61557",
+          "9c98ef1c3f69fba2456155c7bcb51af4f2e8d4d7178f4fd91caf58fe64d9897c",
+          "2b861c106b8f9f3e875e826597371de602cd6d5858701e15202e709e82fe28da",
+          "fad2f71c36dd2dc1e4ff1553c717b0db327da73b5936fc53a7238eaace4e7ce4",
+          "93120cdfe87dcb8468cf28eff88a932a9a388b883cb732d6a16b80d25ac209f2",
+          "7702137a5657504d37f170805079b4d3e685a57cc385cbd73af48fa05e7b9e7c",
+          "18a7cc801da40790df47c18e9795cd5cecb9d8801fdd0b548d46d9f4852b4725",
+          "2a3a5baacf80dffac8dca1cf708bbc0adbc7717261062fa95f78da318fdcc16c",
+          "dd4da5f8e115fe83dbcac0a496992412003f68aaba9ebcafedcb12a486e08792",
+          "f6932edb5507a5846c93f64c0de89c21c2872d317e175df3b6007dd6d5d24137",
+          "a0cc78f33e67e1f486ff0eda64f0bc482906e8bb4ff4117aa94822bcd729dc47",
+          "3c0f16068e8507e314d6d9f59fbba23e691aae110031674b579b99ea354dbd93",
+          "8fe5aeb077b8146ff99db53b5c1ba3421417adc757e44630b2293e6af737d8fc",
+          "2a908cce6bb5644b852556e47f59e9fcd3cfb227d7415437d04b586ed8e0309e",
+          "156015d53117175873c6fd2aed1d48bef5ed4f3ca0c48d9278d66efc9c13f42a",
+          "2074ac5a892eb1ea8d10779b9d214d4c11b97531815d778c302922ec602d644e",
+          "1d650bf17f94992867107824e34bc7408a4f37f0f2fd1e71fdeb2ab90f03f87d",
+          "f067a97cbe60f177471b9dba3046872f00c1813111d627ce84d50361c07ad6a7",
+          "c1846155fc8ad2141fabfa3231413e7b68b90602bc67dd2417d79f44e97e7f55",
+          "d596d28e77ebc9270f653d0d0ec359b08e9863eace86c16aed081f596dd6ff57"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "guard",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000006",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          },
+          {
+            "seq": 1,
+            "tick": 0,
+            "actor": "b",
+            "action": "guard_down"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "c6467af937766761b9f3d6b68dc1c39228e8ea01806234103816822313b8af18",
+        "finalHash": "d50fca1b887661d35962187cb1026d6ef9a8b586105f612fda50b60906104a6a",
+        "tickHashes": [
+          "c7cf76e61f55ca8254297af9fb0143221ca3415419df414dd04373f2fd8af19e",
+          "c1e7282d4fcfd7b270a08f5e488efb3931530c5e5605e83ed205a7e1bf08f5e3",
+          "f47c7536cff5973868376102ed6c5f614d9024a2b9db319021ee53921e85fc26",
+          "4994d9567867cbf041a3a177355b6e3351aa296bb18547fcf930c49901d6e803",
+          "a613382f9917aa1d3199a5ff84db79ed324e58685d0b9de62bdfe20aa8992cc5",
+          "1c399c6b7f3921afef578ef6d608fe8227ee8dbeca124c55e5eefa89a4368254",
+          "7cb8635e0b187afa06f6c28f6080c5c132a9184b04d51a409e661030f58bee31",
+          "d8cbaf547b32ed1fb1486f6a421faaf54bc5fe68348f93843b51b9e011b26698",
+          "c9332b04d620ece466142b64c8319cf856ce0e2126f2b3dee489c8f0f348da23",
+          "cd6d262ffc91dc6827d7707645768270322ec4c43d89393d2d2dd2259a901229",
+          "a174e514347576b8fa259fbfe8d78e29ebde5deb98f749a61bf3c480abd51d83",
+          "0d05a945502c400ab37b2abba9134c7cb8cb81edfb359911b78e02f4a62ef70b",
+          "910ded9145d58b1e42e2ce826a6649abe087afec9d3de5f2294c105aa269d4fb",
+          "d0a5ab9886918a1197117300f1dd06e5e1d50c8416d472fd8b0002b5ef3e433b",
+          "9f31c91b056408a147c9c327c04ae841e24b04c2d0995ae7cabaec7dcd99a633",
+          "aa28d98b7016485682ecc31ecb76abfc3a31257ff5769c99a9e3d4e812576854",
+          "94f9084e1fbb899cbdd9aeddc734e2bbeac4aa8ac7b75034aaa16280c092fa1f",
+          "7d621fa063155d50a093b0b1357f2b0e22dc3be7ffb1c67f89d40e9e3955e971",
+          "8557f65cc629551de9567377640e274182cade2d044a0944a5b2f9aa335e72c4",
+          "86c32b59b8d3ed0e0da1f636dc1b58b6cfc888cef7572c3a46177ea12ddf4d8c",
+          "a556b4d5ef1a28f1c0eb6ce6e7e625dcfe6f726593fbc06678947c4138ac1583",
+          "a5def1bed877940c227d2b6b22b93d5a366b3159cebdcb03416e366ac38e695d",
+          "df8d71f480c5e52d60bb1455a8ebff1e637eaa40f35ffe41a286173af758451b",
+          "d50fca1b887661d35962187cb1026d6ef9a8b586105f612fda50b60906104a6a"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "guard-expired",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000007",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "b",
+            "action": "guard_down"
+          },
+          {
+            "seq": 1,
+            "tick": 8,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "6d8daf1c5fc4125d63a584466f4b2ca0c7f10fb211ab15eb4bfcd961d437361c",
+        "finalHash": "4aaba9c5952e43b30d99c1e2be1c67681f27e2df11961b32daf964dd54889c12",
+        "tickHashes": [
+          "e8914f194d0be8ee85adec45c6454bdda5b5f415b76366ce199eba85d7f8c2ea",
+          "5527ccc2f708750c5cbeeb886b06a46f16cbe0369c44dc76fdde6ca93eee529a",
+          "7780eb98edbe87f3e15889d29376add0f59658584bd4638b4e03a46cbe4b9bd1",
+          "7e809c72c02be2de4641194cdee183424f2e078e1e5cf7b244c4721c23b255e5",
+          "89d4c79c24f524ffc3dba44b34f54bab9834eb1645e610d323f331859468f692",
+          "c87a079c521f153574e26d3d74fd91eaa713358a83f3780c383bb7cbb59a882c",
+          "84453f8c1f6ba1e191960f3aef016f97a5c14c1e54f2abff3c475c70b723cd5f",
+          "9e1a94dd33c8a3d1921349b7bede332c9b0176c8c01af8283b51d41be7196a95",
+          "a8e7d431a2db5e6a91e77629db03418a928cd139f92b8ddcd27e8c8726b208bd",
+          "c682264ea9edc49ef4ef2b3a9a84871badba849ffe162cc8dda1373b7778f933",
+          "b78947bc8febde8a80197847c9a4ceb4060efc352e3b40ad6f98e5927ce007dd",
+          "ae1b4038dab64a654efca56f44293e764faf792e71fd2bb94a98171fd050d330",
+          "070e23c3fc7a449f10c4bcf5b1b3dc22bf257469670021f682a087577950a8fb",
+          "2dc2e41130e069ff588069b38bce53d50ab2b1239a0681cd33cf64e39187d0ab",
+          "511d541f545373f81cbc3598ffc73061086e3c1bf6e44bad554a1e4444822007",
+          "c71102871e5a1ebdb0b520773c88787be2870c0733f0fc8a56dc1cfa502cdf25",
+          "b48af9d87c66d4223842cf1985ce6ca41718e0d97a0abaf3120533c676cbad43",
+          "759e1d86dab87e263cd46b81ff0e7480c494a3879675e4bc72d03a39dcf31f08",
+          "1dff29a8bb05ef6ef6878977d10f6446b15bcd02a50510d821a9688e4e772e5a",
+          "43e1e962328a3536a5e727b9c8fd64189ae08ea7827dc9f372a960b6681f639a",
+          "ef1715927f1e5e94b63817fbae53b7f886eb881fa5057ed3ebbbd76ac43c0b29",
+          "4582a8bce99ea7765b7b3e680b807bab3dfaf529169be331dd2d580537aedc68",
+          "78190c5a5d66a1363fed535b074d2f5a89aa4898b8af4e4db874afabaa4fb5c1",
+          "4aaba9c5952e43b30d99c1e2be1c67681f27e2df11961b32daf964dd54889c12"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "guard-release",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000008",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "b",
+            "action": "guard_down"
+          },
+          {
+            "seq": 1,
+            "tick": 0,
+            "actor": "b",
+            "action": "guard_up"
+          },
+          {
+            "seq": 2,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "7b168fb39c1576d422f9f8901376bbf441f51178770701f95ac43439250fe1e8",
+        "finalHash": "da7720ac1fc80e681ec26a24919d01c164c794c9ea560fccd69e8f0a4dbfaf68",
+        "tickHashes": [
+          "bb338c29e203972ad9b0b8368bc6b64ea274ed45d9eae2a9106cfda19975a795",
+          "ccfb8c952a4244009b989f9ba3cf06225f07a084c889755e874a4a9f52953640",
+          "5aebaf6beaa1b3da6b60f8d02081ac0a871b8942145e1758d20cba8d90c95cdf",
+          "e42633fe537b3813ac725492f0dfddff4bb4144e9acb9174b81d4f985737926f",
+          "b6028f5a4ac13135ceb5e260a7101da8a74353c3035720d16da6a56232a3f915",
+          "a4b4930c8e66c4b6628c7e8cfa8d48187070ad89b83b8aefcbf7de00670b4812",
+          "ffc6c6a011c704d77b18ef488892cdbcb1d074def984514e085a471d747c0e98",
+          "a7de9c8e48a5ca618be5f7099e6d39aebc996bc2b4c57481cc831e54883869f6",
+          "5ea062865ee844ca754d14d4d637f27ed02319426ab82bffb9324da4405a1a17",
+          "b9e947c008fc71e8f6cdb8953cd53bf33b9c355b728eef51d2ac57ddefdf7f56",
+          "365e35350b3a3ed4cdb8042cb6a461136193b23e94be14988ea8f955fded6a33",
+          "2381702052cf8ec84ba972781a86554d0ac1206a62331320bdb94a24c9eb5553",
+          "544d341e6449d79b8e2301d1c54665bacc3e9c82b0c637921941f4caedf95b51",
+          "d4320fd397ead5233b2a0092e1144581285fc30b8bba12bffb0feeb21804aee7",
+          "2ed87df89a9d2c43a763115c03b28f87ffafbdaf427d61d78c7218d4b37d19d9",
+          "d513e6b6de2aebbe15dcf2ad08aa410011227676c3395a3e5494a8036d3d163a",
+          "b64341beda1a1e2494a28e398e6a9b4bcea271931c269b584d44daabc16c6c76",
+          "cf1caf8049109f611b75a047488152f626934f7a49c9fdf5223cd2b8674b5971",
+          "c6fcc2e4034093e342eb6f2a89afa8b88212ce21dbe349dc3e8477ae80dfaeaf",
+          "4cb78844a51d80d9988f3fe1ce3f82c384418b591c0fc17e2eec6c3079a6727c",
+          "4ebf07a2cdc65b5a2347ec88d4d7c20579f4f2db47b45b5acb2a4de73fde04f8",
+          "77fd9c82038693562126f8a17a0d6037b9a2e3a22b9cb950c9268b5a7c61548d",
+          "ca37074b6641e09af803c3902a1ce82670c039e00c8396acb048ba83553579a7",
+          "da7720ac1fc80e681ec26a24919d01c164c794c9ea560fccd69e8f0a4dbfaf68"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "miss",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 0,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000009",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "cda1bd4cbc78ccbfa9a7f6f36f2421768d5bbd52a89dee0b5ca451986bff50bc",
+        "finalHash": "ff0be293f5c71fec999fa44a892547b29611e3c2643f2249b477b76c0e43c3b9",
+        "tickHashes": [
+          "68ca5c7e457d498948acf7e09cac8e196d5eabda3dcb21ee0fc4bd35e9126f13",
+          "e926e1a97559b9cee933ed39de46573a61a80cf48ab5f10c92709fbf47612622",
+          "6b7b4bb861570bac7fdcf6d6a8191dba00551d81ae5695efb0fb431ac71ae33c",
+          "2dc7928f391d83a8254b24632b67fe76b9c27e42232e7405daffba1d1d7ec793",
+          "0ec36b681a353f2593f3b379d9e7ef7c950444d4dee75e1469dae62d112f1a97",
+          "26290ae8f856447dd7122f005c8f313f6350523cae37ba9a687a50de938be3cd",
+          "19085ec1b30539580170ee4fc96cf54915ad1aced3e5c7d3d0bdd9ef300fd4d7",
+          "2c9950993fdd0b7136c46dda173f729208840d3aeeab26c49fe4a653a0688dc2",
+          "450adc434560986ba90a50e393e8b131b4f9a48a4dacab35ec2cd302c3767bfa",
+          "8b893ee48a48b5834795688e5eafebc5a47dbeacb330effbafad95c31ecd82a0",
+          "8d10b95864bf718704f47e76d866279a568d29a74b916724dadf032be81384c7",
+          "778a9b909cf5e7793705e32e3e1cbf09b8b448b58f6b78547d801d94f331e003",
+          "c648fe586314159f820712b665107b9c950012049d71b234f8741d0bd4378e24",
+          "86a3f6c0377cea6c2d3eceb822c7f9ba3dcc0d05ac1c351770c9dc33ec69c639",
+          "c9b58895fa1b1d50858069c73494e21172ff604ee8f7b857d86c6f6e6b35a3d8",
+          "3ce00bc15b624eb3ee4d4a115fca7fb22c32165fcd64071ee9d883c7f2133a69",
+          "a0e15435afd08a4530ca047327ae917a7223ae1308b1f45d0722014eab4fe8bf",
+          "cd22bdf2482eac64af0239a1793d028280f631ffdfd852dc8743e666e5a59c9e",
+          "180263bb0b563738b7f210346b0e1575c3d05b3a5520e21535d2a0804ea720ee",
+          "4766fd8ce76cd460b41fe6613a0cc96580050def2a7b68f57d83c05fd4eb972f",
+          "4df19d77730bee3262d05c204fa9abe80b52c0fc0c8d549b350f310d0965f660",
+          "a76fc1550994e14e40ca47607aa810ccb911a1b6931aabb8220d00b5f19bf88f",
+          "093ac4489b08c9521f1850c5d56c6dbe99938506baeb66b4f4b276e585e805c0",
+          "ff0be293f5c71fec999fa44a892547b29611e3c2643f2249b477b76c0e43c3b9"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "out-of-range",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 8000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "000000000000000000000000000000000000000000000000000000000000000a",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "8e2b7fb705d252a4312a2775084700730958e43615a3e2cf6d062fd0ecb88ef3",
+        "finalHash": "e97e292a77df5ae8c86de329027b5617676705d1592e4de9f9aadf100c40facc",
+        "tickHashes": [
+          "abad90d2d479eae856a79049eecf7f7b7c93dac456001bf8901bc9ff3ae8c235",
+          "1fc1d6236c31ff0e188d7edfb493df20a4d0b02cd89b42b68bcc7dca743bceb3",
+          "25f43369839965bfc4e3a786f71cb215d5c64fb917cd693fcf162e3523227020",
+          "e4354e408781f84dc624fb0c4c66307cdd62f78726d59b6bb0a2043224df883c",
+          "3bc2c948119ef5a6674b371ac7888f9e5a1a461ece17455c71549bedc40cba2a",
+          "d465ef420e57c8ce6a36030ac5403bb7ee06cf870471f306291d7003e2280326",
+          "23e476c1a6dd92e0a6af5624d9a863df36db521baadfec6ac09f24426c7e77e4",
+          "1b632864b29d2cbc2f5e36f58c93479e6bb81346bcf2369730e8266c98a2ef67",
+          "b3ea55804159c6603191b9ca2e20cf162a4b3bb81b96ee04b48fbaf43fc0fac2",
+          "4b7bcb455501396cf9a69d35781486f5f8fb4ff3e1ccc0dc6ca89036e539e5fa",
+          "1c34f136fb43ed4f61c8e954aa60a63a8e48a6af57685570ff43728bf531a546",
+          "818dacb6fe00ce7f51d07d6411da9576b2eef904f0792b4131ed59ece37f0251",
+          "805fb754f292ee2c3aab9661391ce14e47257aaeae6818acad0e1fb79bd40bcd",
+          "729c16e672bdf62c69db10b48334192408da89dfc51b27be9c59572bc1384942",
+          "48da68d956c432d5dc5b2b4167f27965eb68fc1aac63f242de8fece0b1ae0157",
+          "e85ad37168978a5b25c8dc91e44bc4cf3450393b69600c7c90d019656bf2ffd3",
+          "c8b53be429821f13f82af99278b0d5ef9b91dd25ca84f190f5a3f3e82de363b2",
+          "22e29de14c1945c849f35ec4b38bd188a170f48d0b87381de0787b4461d79e2c",
+          "959b99ff9040cc1ecb796f4ebf5c7dae9d14957bf69f7f3a50f870f377c6f59e",
+          "740696b6fcd0d7ea14c4ebb25bca6eb827f90acf2c72ef2745d96d25bb4e953d",
+          "64626a05a0726da2d82b964ee5bd5d70e65384bc5af359766247f6aec388e981",
+          "620903a7d7769b554a46d8a81e87e6bf7a6df021ac1a76005dac01a57f6fbb74",
+          "079873b7c88177f0433a88cd442c930f5affc94bec70e26a2885c9cb79787330",
+          "e97e292a77df5ae8c86de329027b5617676705d1592e4de9f9aadf100c40facc"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "held-expiry",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "000000000000000000000000000000000000000000000000000000000000000b",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "move",
+            "x": -127,
+            "z": 0
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "4506e8554e6b48d81f585204f1fd3ac71d66ad9c4dae694a629c6613549c0bb0",
+        "finalHash": "fe8376087c968ef59d27101fea6b17f995f869a38eed921e3e05244e9351d3fb",
+        "tickHashes": [
+          "8a911c6acc58acf1e5ace85b2d668f457ff9c50e395283e6035f8330879869c7",
+          "ce47879a4598e2c60e01f33c804202c7535b7968fbb3542d5b7dd7875eb2ac5c",
+          "81e72207bd3b6940d6f5e71529648699357255583e909ccb2846eb1b67d35981",
+          "b509bc283cc1fc8fce241977ab96f3faa9f270582de2168add5161f58b7855b0",
+          "70b4b15965a2dca4a7e437c031e52291cf588352b5f5f3ad262b0e56af4259f8",
+          "681e70e6bc5f127e134b2abe06fc281ad6000314899b53a5d71f8fe57749ee30",
+          "62a4dc9538b4eaf9ce65147a5dac47d1faba7e42d58076dc1128af1fa381a4e9",
+          "d2f2f3175603d10ebb598e446852114c777699a12ce7e45da4efccc3f0d485b2",
+          "73aa376b586c63d070ee16cf57b4d612a3748af6f67defad4b43bf7c3dda80fb",
+          "f328fc70f8155b08be849689666cbe2d92f457d1337ce9899ea627cc9c851bef",
+          "2752ee257cb6779f120e0064eebd304d44373bd06bb168a27fdfde6c5483f593",
+          "01c1a2423f844c1e2c86eec5b9484617c2b4d92effb14fd682bfdda6ff6f3f16",
+          "8aa7d4d1bbfbc648397788dc4d1a27d6de91f38d5f748cea29dea0eee8d528ac",
+          "38303be96b2858d8a7c10c7ad93d69092750517c21e5b7c713bbf8ef35dfeadf",
+          "f854b0dd3292343d2ec25964247e9af9c28408e7940c3cb2786489a39c79ac52",
+          "7337dff37c4351777a48edb81ea99fa59ed68537a149f408333707bcceb3f4be",
+          "9a624b885f8252c48733a93f1530808d080e02f5414dcb7eb0d654cf424df9fc",
+          "2f485c5f10d925d232306cc9d5de9dcbb75eaaea302cc538862a8ad4c4331c77",
+          "6f6722d152f6d65c6a364ca585c678d69978b018068d64c31dbe6e3e31ffe25e",
+          "992a6f7a16aa7e7473d86646e12f2f784354ab38adb9fa98ed36c420d04fd31b",
+          "f2016321b056aa9d2666071fd0bdad4a9ce3a531694b2833c41c62d266dbfb6f",
+          "8a5b2056caf6a732d29b8f2237ea072782f6bef96c4fdddd034dd7222f073fd2",
+          "47bbb8e23032c7a77ae76879372e5cd5b41a0b45c87eb02dd773346d55736b17",
+          "fe8376087c968ef59d27101fea6b17f995f869a38eed921e3e05244e9351d3fb"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "diagonal",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "000000000000000000000000000000000000000000000000000000000000000c",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "move",
+            "x": -127,
+            "z": 127
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "8850eeb66a8870a4538b7b46647c58614cc8e9b29fa54bdc505a658ae1a72aab",
+        "finalHash": "ff7eb81d6f2783371f0a32437712e66725583efaee441b3c5babf682e698316b",
+        "tickHashes": [
+          "95f2b6ea68f6f9e6bc568edc6fc4f98dcfc25f424c2e264823f81429f320547e",
+          "e598fc42094563c1cca1052d6b67a17360368f3168f198a6adc045a7195fe001",
+          "863894a10684c1d98b056b6d0b75190a4f14a4adbc952eeec232bbd7559b8bcd",
+          "97dea4afd334139f697054cd8e517760f12af5e5df6213ce91a22296732589e6",
+          "9c5f8d49ac9a586329d006263176d811bbfb436451b9c29a679432d9d534e78f",
+          "8e1e3f6f9711e3e20e02607e3a51ba0629c10c58b99d6c2364cfb62e15222a2c",
+          "fac637b6c619576e6a049a774fe476aac2c2e92b19f0e5424ca341f01094d1bd",
+          "8fa0bed076b3047f8ed107bd58f901bd7eb5928c2a2bee108f615af97a00ba15",
+          "864585df6e6cdeb72298e3cdebbdd69d862bc5c1c6fd0009fc475ed1de986702",
+          "23cf3c7983f9e9b21f71f2dff23a18a99341dd113aafe41657e4397887a88d41",
+          "00c18d9e0bf0221ac58d91c7b718d8c77190fcc0edde3604513ae5b59d28dbd9",
+          "a6fe3e4a70a55b794b52b9682d97ed2801df4876a05f24753f50f6fa7ba15c48",
+          "78a2752732ae9358da24c83fabef8821f6620c23a7cdba407647aa9c42c8d252",
+          "c5998e34685e8783e4da2040138d5b239ecfb56b0dd0479b7ef4995dee1ba27e",
+          "930e9d06d7deddb02dc21aeb2c637dbbfa3f791238e6b908cc8a5fd17751c48a",
+          "1731b0de0c019316a96bbeab51f92c2d7f28f88e9722fa26197dcf5e13f6dec0",
+          "266d5377e48a2db77b3b6574c6655df04421245abc1a4100206f6ee0d59c1871",
+          "2808c6bdd01c60a215d4a76d4971088aeb261e89518aec0997292b15920cff72",
+          "f5fbd88c03e8e3db31cc4021158dcdd1c666a9950e9a206a6b8b1acf3a8f19a5",
+          "1c49c2ad8697e794d4fbb79412143bd8881e490093663499953bdc4d9d9bd44f",
+          "f800f64435681ea6eb8d749fadae825b7590c920ed157ffb7910832a53799fed",
+          "74a489449ad5d1cb9c043858a73ed0dc02dae443b3a0d84d069d35d86e18ab29",
+          "98a34481f0665a107f43ed1830d9bd2ebcfe2db650640d115be62727b278bfbe",
+          "ff7eb81d6f2783371f0a32437712e66725583efaee441b3c5babf682e698316b"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "collision",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "000000000000000000000000000000000000000000000000000000000000000d",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "move",
+            "x": 127,
+            "z": 0
+          },
+          {
+            "seq": 1,
+            "tick": 0,
+            "actor": "b",
+            "action": "move",
+            "x": -127,
+            "z": 0
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "0d979bdec0c80b54340a2d7ee79ce530f89f0e24917c29759cb55afd47f4271d",
+        "finalHash": "94883bfd92f662e856606de6364aea861b4a3181fbf3064e1e8ade811aaf1ef0",
+        "tickHashes": [
+          "5335e67023d967b9268dd97ae656cccf9252ce52d60014d9a3ddf64a3eee9f3d",
+          "8600ff05886123e219535a4256e847b90ffd00dd49e9f517acf4022780247453",
+          "e0f425b68bcefbdfc0de72ad75024660e1de8e59a244c1a853e42d47d7198871",
+          "390fc5b689e1108ca50446099bd293a25a365afed3adcd0f0dbbeb2503c7bb86",
+          "8874fc7d4facb9a208653042fe240f4f0c003cec40a8e9998b0c79afff824282",
+          "642d61a1e8c06e0d855760634ebf69b51245fb247e65be2842245faf29f7b55f",
+          "94d37f6254b9373049d24db299d3371e7097f4f10320805fa443111c74648713",
+          "a589393550c44bae382f2dcd24444c1833c80927b06fb330eb26d1e61608e360",
+          "33ff02b59f0e737051688fb21cf677b42029687a00c623dca7998e7449cbd7c5",
+          "f000f6fb97a57e06dd95f7f122353731a74343053166396f14c318e8a92054ff",
+          "1cb5117bafe008a85306ce233b9aa542badfd8b25c598e7c8fa46314a1d3fb89",
+          "36d77115622b334347f840ccf5bd5c1646c7668bef7d3e5d6c07cc3b869a80d8",
+          "643e2640a345c44af81d75b7ad0583a87a1b99a8d4e3deac699fb6e803d02fd8",
+          "0972eca819aee5128d53ff18cd77ef3873aff6c2d8b19727bda269b6abd3d840",
+          "6f9ed9c8175d264ea921bb6d526eea542bfc2bdb277e9a172cd2684bc4a60aa7",
+          "e320bb43d76f5163649ce4593a2f412f85aceefdf4ae9e7709b68693a3d72e63",
+          "71ece22eae8fb1e24ca2e1d2f71bc4f5b39a73631db0099b53d6813e64336c29",
+          "4611fb30ae0ea687456fe7cb22738eef729c7f4b4f93a12f04e17ce7a2b280de",
+          "21effb7b498265e761b81118ae2350a0ee7eff89f21074d49cf571f4ac2ce361",
+          "2d20afbb94357e3867a28022700a8144fc003e5544d76d62b04f369f58fa053b",
+          "ab3f87600258e5719d927e3b0ac919d79dd71ff1d7506a2684f766463c5ff8b7",
+          "4de629d0b222afa6b79c63579db26a27d825593d8791ef88b90e47de1f4641b0",
+          "eceb72e53b7b9cdf150603c95dc24ef88f27d79a8b1871f345004bb2fa23c165",
+          "94883bfd92f662e856606de6364aea861b4a3181fbf3064e1e8ade811aaf1ef0"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "cancel",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "000000000000000000000000000000000000000000000000000000000000000e",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "heavy",
+            "target": "b"
+          },
+          {
+            "seq": 1,
+            "tick": 1,
+            "actor": "a",
+            "action": "disengage"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "e8f5419b23dfbc7224908c1b88d6eae064ecc838abe2f78392fa5d6260db51ea",
+        "finalHash": "c00fe9337062ee84aa8ed1dddbfd96ddd82d0a77ca1e6d34a72fbafd07cfebdf",
+        "tickHashes": [
+          "ae2edb0496f9baa1ae2f33261c04697d105c8e2c6a31390883a8d4fec2c2d88b",
+          "8ecc5c05eb1ba6c6c161f5f0bc669a184726436c79d2101d7307879f1fa80185",
+          "c262421b1e73f47b567c9926b7df2fa14681070479c446b5536d8252ff9a7ec2",
+          "baa72449f5f23c68d2f6ef0bd2ab06b68e651ae672e1264615255bb4f24e1df0",
+          "670553b34a8df04878910fa0e2eb36be26b48f72c4adb3c9b009f47a048e8d0d",
+          "020a083c157d9929bcbe650c7f5c21881e957b87358c9c4bb845d74d375e443f",
+          "054e8a650456302a203d8768c6466805e5ed7ae666ea31faf1a96e5d1e49b0b4",
+          "04e3f8e6aeb2dbcada6ad6735df78fdbf51c760bbec3d062e2501247015a2a04",
+          "544280d169a281d44470b34973cdb1c83693fd2060d0cd583b030c87eedb2b63",
+          "326ce5edb55623d169e5fbbfeb64fed84a2f7b2bc8f9552306d1c114fc1beb80",
+          "4ef674d652f3967d6a752cfc6d6f3d4173bad690a34d289a2c1653533b6f6201",
+          "b262e598d740f08d23f883c23d36bff15b45fcaff8a16a36b9abfd778e4998b9",
+          "1eb72012a2079b933966057877ff45ebd4a2cd85e1b6fbdbb16e6e9d176a93df",
+          "966be49a0a06299b35c3de89023e8667a88b87aeac65bc4ec59697703f1290c2",
+          "d13cd25d4447811ce78795b6f83236a0371a7b0e8ef018a150928f3278ea3a29",
+          "d5851ab3b21f39ab98abc2556494c8bad184f58dabfe70d3fc47c5d5c51ccf4e",
+          "da10f67a9338591d80aebeecc48b64e4d2e50e895e908f7ff7c971b999ad8a1b",
+          "177fe7298f3c5352cd654ed49af9ea0578979f221f033abb160a32bb0b9c61f2",
+          "ae4c18403db5d11c7445b55b51dc509fd369cc63491bc63aabf500f9479789ca",
+          "608c88320d9e785b33e4bf7baa3fe99a62aa182e3698ed2a19129b1f8ffeaa96",
+          "9d90ca9a66030ef6db64f71a315a4b535987559f0217710a03f7dcac5fa59462",
+          "2faa18ab91e464552bd0bd77a024856ad16db56066502e1a72c2e028a4ed1aad",
+          "210cbb5b7164cf44d06645c432e8e7a9bc1a7252d87a0b3f8e4dfa4fcb57418e",
+          "c00fe9337062ee84aa8ed1dddbfd96ddd82d0a77ca1e6d34a72fbafd07cfebdf"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "cancel-denied",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "000000000000000000000000000000000000000000000000000000000000000f",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "heavy",
+            "target": "b"
+          },
+          {
+            "seq": 1,
+            "tick": 0,
+            "actor": "a",
+            "action": "disengage"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "a71fa15cc335b84bf178b6e27f4879d9f0404a15690fd0369c3f0ef20df6421c",
+        "finalHash": "987b072d7723e01a27677e2051f4e9a9ecce3be206ee18d1bc4c6000a335175e",
+        "tickHashes": [
+          "b7c782543fb630e1cfa28f73f3d2fbe44a26dad522422724b488b44a52d6a7f4",
+          "5b35eaab85d3e897dc7142928f84b28de7e0561fa61930d41807b19a9b987019",
+          "27d2afc1d68a2cf9730e1659bfe0e860188e87d50198b3b9e4f5ab39ef9784aa",
+          "5a890012dc79c5450fe0396d3541c20acf06fb2f2ee861d71a01993972b90197",
+          "e4be4e3897f5981a02f2dae508d9fe17663d3f2a63bcfb58fddd041b5b6562d2",
+          "98df4c1e1faec300488ada9c3bacfe7f8465323dee8ec2969366029be081151e",
+          "722c943e6e93f9d646b48fc5e1aa092ffd4845765957ee47fcdc72061a2a7bd8",
+          "f6478e33b5efe1ec857f33c8de2eae8048afda3179e309ab00ac7032c0852a53",
+          "804df64ac6739be2eb6a922623a7c0ee3b43b41d0cf2f3480cf31f9ace1a89c8",
+          "107657672b1479cf3c6b3b0892eef87071682d8abe69eee302b3a5cabca36068",
+          "6210cc1082cb196c2e5369567b91d4ba4ad5cb95ab0434ee6b66f1f3a14717be",
+          "641aa0e5ef9a9ff5b5ecd76ac428abfddff417ca9c09cc4341d6cbad32792cbc",
+          "28c43d52b496d8ff8fe36d73f6bb6ab7bc283334714a406f0a5f8357827526ca",
+          "0859e62deeff3c14dc92934789736f7575cc7e73753a01919ff1d23253b682c0",
+          "d526721f886a7b7df810525294894d9440f532fef3da417ed631c50b540eba61",
+          "d3d108bff6676589a74f19aaebbf6555f6e5efdc0be1703ee2b38636e9d6e6c9",
+          "30011f1914d91f2da37e60f7b721e8fb0d049ad7c319ba08c456aacb3188d4c7",
+          "354c2c0851e620278cb816b68216476a5ffa4f9b0cac33236374c5bc9e1c5823",
+          "a08153b985be4e1176d274d2f7431658572b5db8f96ed6eb2864248f71994770",
+          "4a103e8dbb01b17d5e0d375c0f03b2f49bfda8731c7052620dc001c75f7d8207",
+          "7f596dd734057fbe5b83fb268283f4fbf47c3c5100ab6f54b8cbf18ee04705b9",
+          "19c1773d00a734bb5901a0eb35a537b2e8873afdd7c6997c63cb3d71b788da56",
+          "48885f2321fa1e53564ee99aa593aadee81b0731e1e21e35c8253164d084c948",
+          "987b072d7723e01a27677e2051f4e9a9ecce3be206ee18d1bc4c6000a335175e"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "interrupt",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 3,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000010",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          },
+          {
+            "seq": 1,
+            "tick": 0,
+            "actor": "b",
+            "action": "heavy",
+            "target": "a"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "249673f6e1c7308fe8db398cea5b7de725e2029a1bca6316b3e053b1fbab0616",
+        "finalHash": "e841bca23141dfa7d7a4bc38504281cdbefa95f07cb7c0cb6ca37c8703048cd0",
+        "tickHashes": [
+          "360ebe142fff26fbe0c2862700b0fb6e38968ee24ea4b8e5d9ef8ab46da0c4d4",
+          "8c6f8d29e25298a6fade4d082cc289c6e4c80688cb6946db3ac69b00efee50a7",
+          "2349917756921950f04e6248f49c720322269320760f5e93ccf52c3bb6e8376f",
+          "cf7814c75ff69d79a9faabed84067b8688b6e551eb602e67a37000f4f7ac6a29",
+          "b5b15e46880e63c48b3f9c10f94230e87259e47826961b5701660be22efdee45",
+          "9629952f12a5cf4dbd3431f879f989897c35ce5f024511a44b3d02ebe214a383",
+          "e7732d1f3952bdf0c63e9cc30cd485598b85245b8429d67771816abe51a7f7d1",
+          "ff14a5f07ff4ae485f2f6d0c89040bc21ac3ba606976163bfd626e1cdeaee9f2",
+          "046a47c0dbc19508741f3416a93c008ee56fa37fa33954d058cde7ac04a9a1b4",
+          "fed9fb790bb2680d35a7c943f256e2ea31158265e3b09ed3a304b717c13cd4df",
+          "0edfcaefcbd36bd2546f46cd748c397479fd3a494423151be1bc4679e176c36c",
+          "8be3238c95a1a3c702afe3061b79dba726fb943a1fce4bc9e5142d8ef07f58c8",
+          "09896202fe168e267830305796e581f3a4d5c7f9efe3962e9155d647644c6c8d",
+          "8f23e3f85b8be26ab720432ebd30d1a93f5e601375ea6c5753f06180bcd3df83",
+          "96c7e58a66f2e17fee028dacacf9fdf5ea7dac1033cbfb574bf2257e3965d78d",
+          "602d732f0d0af0a8601bae1bfdcb344f4d6a9e4de6d2d4e75b20796637684cb9",
+          "acd548519ef316ffb7b369ed0cff3938c08004a247910865df889941e983e353",
+          "eb46fec65cbfa5ef345936692182742528618a414b4d75ff5ac4e2d1e49a1fb2",
+          "d9386c9bcf56a5f732f96fa0538d25216d6c8c0512d2f931a6cd7b08628413c8",
+          "16c9b6bb4dc48b9ff20cbbd9ee8eb27ad05d2643959fbe2b3e26772e81478778",
+          "6ffce8af921ad9347b3a357dad57962392d078112ce02378ebd39e7dfe53e8bb",
+          "23cacc85845b4eaf7b5e0665070128f8803b4617be7e6ff6b194b803144788af",
+          "a5768bc864acd1a018e8db6a303b5fda2264244db8ab340fb6204620bd61dd84",
+          "e841bca23141dfa7d7a4bc38504281cdbefa95f07cb7c0cb6ca37c8703048cd0"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "mutual-ko",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 50,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 50,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000011",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          },
+          {
+            "seq": 1,
+            "tick": 0,
+            "actor": "b",
+            "action": "strike",
+            "target": "a"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "60875097128adde25f13952488322393b0da46213808acd46f692ba3434fbb26",
+        "finalHash": "ffcd539f79d905e6e7a339a45d615e90fe2ecd0fea1162296536879e29e6c61e",
+        "tickHashes": [
+          "f273e4c37340690bca4c6c595fea29b54e29a857a0cb2ca516b7745b35001b95",
+          "c46f71813bd5270ac6bcc62f7d8ec2e580a35878581131f349508b545fc4492c",
+          "ffcd539f79d905e6e7a339a45d615e90fe2ecd0fea1162296536879e29e6c61e"
+        ],
+        "winner": null,
+        "reason": "ko"
+      }
+    },
+    {
+      "name": "cpu",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": true,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000012",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": []
+      },
+      "expected": {
+        "initialHash": "c1079819600ca22036658d2feb0e1ed1a020bddba06061bd8400f5bb18c3d878",
+        "finalHash": "73c9f6fe329b4ac5c852e5ee94dea74f6315a896e5653198aa5bf33f0d6df3c1",
+        "tickHashes": [
+          "26081ba0c4f18dbadd3eb26377d6fd5e0a40bf869a1e03cbf9f0bb094acadfc8",
+          "9fbc3e8cce88d0bed04f4ecd93247d64c5f317c6a6874b709fc711c54924e835",
+          "66744fb310f539b26005815389da126b6ea4956434c426b1722302e30954321e",
+          "a0aa17956e6968e8d59f367d1f6797777f1b2a41499d0b0285dfa2b5a31af4d7",
+          "a0c0117b07bb1c7677d9fe8c1e9d091e3a5311f43ee21df787678922f1edebe5",
+          "00204fb6096206cae1f20ad7dfc00fd365e0d0e63edd6172a8b2f8035bb86774",
+          "8f438c6be12428821b0b8bffe6b4854b506fd22fc6d44e89ee00d0cdf789765a",
+          "6fd30cebf120061ffc57634d4a82ea58782ec5e9fa04c4216bc77ffb0e0c6bf1",
+          "9f545e03fd0047037d049c2b89b0820ddf331a3e3426ac3fca49690d42a758b0",
+          "b003b42afa0013d4cdff6ffbfe476b49de7c6f704d3927304f65b9502b700693",
+          "b4000733137acca2f47d791b4028cb21d4c95c4f9a71fd18e45ce1ff5b4f4234",
+          "e141e27e6eefbdb85f1aae0018b79d588ea6d1972be2aeca630f668c74c93ec1",
+          "e318fcd4064628b56e6ef729bc51ce6853768f93c1e3a53e7dabfe12e6804eb0",
+          "f272a89ee8595080574f230b34ef7fdc3edf0348bf7804716caeeee7c54914b1",
+          "a79015c4545bdbeb4242882d2bfe5baf24fca7eb24d66759e4cd28c3ea7f2d3d",
+          "a10732fa0409534c9066bb5c54638df84c4558bc813fae83d941cf1c386fca9e",
+          "cbe712fe454bde082eb386febd4aa63b0a190394c49638231aa33163192693d7",
+          "530e1d6fb1df9d65e8e5fa7b25a2ba39868d5496afc1cb144c9fc44618514882",
+          "d4bcbb34ee993156e75c90be95a042b71d41df5ac1aaa5d6182dc9b7632985dd",
+          "8739c01f345053b73ca72586b4df75993a68bbecde119602d3dbb30b9cbef065",
+          "9e9268ca6ec87612120006c851deb262c5af43d42ef95088766bf5dc966a4627",
+          "018b413a983b8948a0e87e3e6837641c6ac601c7b347dbbe8082b45d21b651ec",
+          "6b4283a112b64ddec133551e178f5da67a3e3dd62525a8c66a1e21959819b207",
+          "73c9f6fe329b4ac5c852e5ee94dea74f6315a896e5653198aa5bf33f0d6df3c1"
+        ],
+        "winner": 1,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "variance",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 80,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000013",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          },
+          {
+            "seq": 1,
+            "tick": 6,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          },
+          {
+            "seq": 2,
+            "tick": 12,
+            "actor": "a",
+            "action": "strike",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "0cc8c3d30e39ba0ff665c4613f700bf5baec9ed1ddadd93026f1b3a87250dee8",
+        "finalHash": "5ddc7b349a2179ea89efcda35f9cca29d060a5682a42d35edf371dae9e796f15",
+        "tickHashes": [
+          "3f2843047fff0366b96a0fc0ef47dd3f3b8263a3db15d9db17471ef6a11da870",
+          "9dbf239f10172db5729e0e3ef58c6309a88ad9db5eb120482bf11ac7e9e01228",
+          "9cbde6c85ccd9c13a91331417018bcf6bcdc1cc98933581f8d18833d41e26971",
+          "dbbdb75370bddeed763e0bcf658c73d2fda66ffdc2aeffa52a748859dc5e00e0",
+          "0d313f1a2c0f4dfc5f082599f13c10eb746cb992975281763dbe5db5a94c84ae",
+          "e58dca7f44c9fb157932dd8047afb385b4d90b0f3a251d41987bed7b6c53593c",
+          "e6954e6a75fd02cb438053a9cee8f3adf47c231171e7bce88f5abc2df5ee73a5",
+          "759d4ba24666e8e14f03f36b35d4c150dfd9b19d08ccb3a58e3f6279d21ab7f2",
+          "67c761a4bfc4c50721671709d243b6b785a62e4952f7eb6b735abc82aeebd475",
+          "c4aac742ee506fd7e08c551a787c11c4217535313ca7985994071627dd4f0c83",
+          "c6b36020873f101c0257567b9188be524a5bc3192d76247fb16b047bf7a7cb4f",
+          "44e3d04bafe10ff17c5a968d4b058f5f92ae8ae6ec8cf8bfa8819617d20382d0",
+          "531180b2c8f7d63026b4cd5a5715fcd0965badaa8acccac543f7ce27c63aeca9",
+          "f11b7a1e9877c5a2ce0714d1a94091c6238b1e83fc8591fdaa0b4edcc9d08201",
+          "851a80122f65de044ddeb6233c0a8ae13cc68e4d48cd5c1dea7ade49562af0de",
+          "857ccc3a5d2e04caa0be8ab4de2fe14fb0d7f3b7eeb72d8ebaa256843a76d1d2",
+          "c0733a33a75c61e76b3d11f7721cc9869befeee09581feb4ad1763d25b9abba2",
+          "000333d6300348e180d6d671b34345176c83fd1ec33abae23aa0d564323d1d8c",
+          "e0fbc2147991c5930f6ae0af24d3e690dd22114395d39a7e05f914c2cddbb6b8",
+          "69af629cfc9ae28b81cb34a5b36aec5ef34e56ccad8b568de554b8b202369368",
+          "2a77e189101e6bb668700053dbc0134effeb762de174a378c97e11751b2b4126",
+          "d2fd94a78e59635b0693e69f252208efab49d4c1bda13f1cfe2863c2849a18c5",
+          "30f31d28513b97a25d3074d00ea55cc84c83ac6677d99918ece3897dd7cc6fef",
+          "5ddc7b349a2179ea89efcda35f9cca29d060a5682a42d35edf371dae9e796f15"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "deploy",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "c",
+            "side": 0,
+            "cpu": false,
+            "deployed": false,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 1000,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000014",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "deploy",
+            "target": "c"
+          },
+          {
+            "seq": 1,
+            "tick": 1,
+            "actor": "c",
+            "action": "strike",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "aebed52fcfddd2c06e6d6a9515f55b64daf2f08ad2a4a5de1c5b4ea8a3c66e0a",
+        "finalHash": "857441f239c6fa2941fb80b07601c1a8c4d4103de586fed776404fa64160c05c",
+        "tickHashes": [
+          "d533741762d6f9080060797766e14cf71f3abe6db3fee831e3c91d38e6285103",
+          "a2b52dc7839c8cf37782910b3ca3ed69bbf3af5c871e84f81f0536be086dca05",
+          "2636cfd80e60b0727217f19c7634e1203178031d142bfe7ed7ea32b33688dfc7",
+          "d8b7990bf8ea4a80d4b1d4e329f6d2fd51fd1d5d72c3fe2dc7093049239a9113",
+          "87fa9647140cfc749778121ae2585fbc9b0bc521ff0191868355f1279c7db204",
+          "ee8d6f20c3252c349d6a1d10a9d9f2aad5bc50a3a4e2eedfb92efa5fdf59d582",
+          "1b2097dd5786a828c28573e5928159aa9ae98edc9eb9715d3edef9b1515986fb",
+          "e0d770c230948bbff4ab133fadd83c8a5a0ea884641aa90746a7ca42dc4ff99b",
+          "de5f14320c4765866141e77e9c31d86e4f82c105ceb3814e68d400b17f8835cc",
+          "8239cbefa01e71b43122fcfa304561620495ec578349ce0e87161879e931cbeb",
+          "7efa25bd2308540ba73fc60460739ca669d294cfaa7f029c77cd0fcf1e7878bb",
+          "f48362083418b67f36f9d3e2f79407635371563429f6e0a9472831b79e5b21bf",
+          "73847d631084c79c9ad368f1a17e7b9e8708a1f5fcdeaaa34ace0bea6173afb8",
+          "63c3e07968eee5df223d9327fb3430634750db63f30951471b902ee9878cec4f",
+          "a0f669fccf8cd3d38c29a97fc35c5f781c68f55f9d69032eff03845009a662d4",
+          "4ff029651156faff6bc85bb5098ba38225906b458cab56c6324b76d8da35c9b7",
+          "a86766d7f450a7aa32e0f79280cc30fbe6679e13a711802156f56f1413b496f8",
+          "3d5ebd6b2eb8cb8c271f5cd3a8c1fe501cd60f903c601cea2f84e8c8da58ff67",
+          "fca14d5f64d91a558c9a8c865b70bd626cf88ce1fde05fb0ca72b72d322dafbb",
+          "22857cc36a4b416a277557efdb59e5387e3deb0afa9d60e6f79cef1436ccc5ba",
+          "78b9c396f5d03781b8892625329d218743f5b49528cc6049d8e633a932a310cc",
+          "c226f748ba4ff24ea5eb649e5b8c6e7f0f99371ee9c5c22e40f0f74d6272c725",
+          "fca6374f7e8a9296aae1bcb488d7188f36ce4f35c91570bfa17c019f0e8d3c19",
+          "857441f239c6fa2941fb80b07601c1a8c4d4103de586fed776404fa64160c05c"
+        ],
+        "winner": 0,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "auto-deploy",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 50,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "c",
+            "side": 0,
+            "cpu": false,
+            "deployed": false,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 1000,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000015",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "b",
+            "action": "strike",
+            "target": "a"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "dc0466060fe26c2f3648f3f105b49fbb57dcf762a57aa7f8418af4694a45d99f",
+        "finalHash": "44eea8461de5970134fca8ef33087a3c493a54af66bd231f0160acc1c817c343",
+        "tickHashes": [
+          "a07541c28289553341ca53c54eff972802d8a31f9afd008bcd067450c8678e9d",
+          "0719f0674c26a9a3c6ee0741808d6f6995502026a135f16ef6b36d2f199c7279",
+          "e036453e2140f8fb976ea73e3f97f2bd7bd2d6cf046513e9b9d29ed0a4c89365",
+          "946dc65a4def9dda9fd341698b6586106f815073910338b66771ef2170e6f7e9",
+          "c209b65bcc38950ac2039a66093defd7e86ec1a9fa6a2ccf3d1f36d842a25b48",
+          "47aff6e0f22f74cc07da5836d31df8ff8bf13d02cfd7e0e3421dcac77eec4e07",
+          "a5086958cb79c20fce6c2a6029de35652d8ffaf0d44cd9358610086041d55b94",
+          "5ca96f9ad30b7c073e3a6372887b431a9c6a97f72c426035df66ce4e8c075425",
+          "ea272ab8703fb04000c08001745a90b3710484291d6b8b0872a568eb03ff8b8d",
+          "5a9064c7b5088165946503da6bca872e7dcdb305544ee3c67f9e8da84cfa32b6",
+          "70383497fda0946e91143d8d99ac119ff6830d302b9dbf2908bee771e60efb7b",
+          "54b63c626b50824d4c58ac839051cb0997a8ee7138097c22bc1c38b5cb94c3db",
+          "5981ef9c5a049280616f4687c7f000353ee815ebf52cf9c51349c6604be5fb8f",
+          "767d07ebd883e3a9c6d0d613d6592dbed482212bfd5bc7b79cb7b6e809bd430c",
+          "c622e101e34b5cdb01d853c40e615e3049a1fce48372d23d682098a33c0f2ec6",
+          "c8757ba9be83c593a9147fdedc78776ad1a3b600606f435d7d31362992628106",
+          "933f64b645c1487e5261fcb2dca3b0d4d10bf8f7462c2cc224b86fd144db5a46",
+          "d31251448fd13b71d40e9c5e8fb4f37f4cfa14f6fa4d2ff5c8c5c09bfdf9dfa2",
+          "f97f4ac7e6a63d64e286a20aa0245a1adb96c3ac40639d47b7cba50eb1833531",
+          "2ef6f3e5b64f4d1eb4470e76a38258e9d86fa085773d3adde87abe7b2fcff2b3",
+          "11fc56b9818c1c000a7f515c37fa997b269da57363569e5c53cc0f56ead2814b",
+          "ad4f40caf649ee02dc69ac87f3c2447d24594fec7cf66b682c1046e29f38028e",
+          "0aae574365dc14918b4564f4a17593353ba39c36cce8ae75951ed89ee5e88130",
+          "44eea8461de5970134fca8ef33087a3c493a54af66bd231f0160acc1c817c343"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "target",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000016",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "select_target",
+            "target": "b"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "d20bf697488ef286474ccb9124b40c1140e91cddd3e5d11d4b852f33a756c9b7",
+        "finalHash": "52a4416d7768fb38731307b6f3bcfb6f946808e432d10d09ec3c3818a5b34c52",
+        "tickHashes": [
+          "7447101d955c76f74e84322c4712d4f66bab9eb516d95cc3cd83c264d5fc99bb",
+          "583ce1ee46c9b393b777c42827605446852ff8bd349b93bde6152b33b145055e",
+          "a6b04f5748b69a2e5c4461aabf962fa090bfb0d03e15bdff710c2f158a8c3fca",
+          "e252046b31ecf658c8d8fc7e597e35608070681683ae9b0c4bd75c80a7806adb",
+          "88295ad50a10885daf74c91d78c1e08ef78e05d27335b093fdf626d975b9ed8e",
+          "5e51ce45a71e5e0e81c566caf8d3a1f4a008661ee276a309fe76cb7b5f742b85",
+          "f1bc120aa41c8d4485d2b5aa608bad4f9b45e6849bb9e71fef59937e69ffa096",
+          "d63bbd5de3916eca684969cafd1d92d5bd7ccd47511bc0aa251a7986560f4a1b",
+          "9d5735ae5cfe01e424381b61223dc5522603b6485bf566a6a7d29a7e4e31f36e",
+          "21825be97d7951f5bb42db594c6b2ac56dc15ce3663d3f1f429f250d39c503fd",
+          "6026a3fbb73b4202de9856b84a759b0e111975f65f791d8b9cdc112b5fd3acd5",
+          "59a361ed7f5661f6405714bee3ff55c479aeef4153d1860f8690eedcbbfacee6",
+          "3fc45988d08a8cc90fe194c08d05f6ce19e02df02046226d8fc2f16ca78ed8e4",
+          "e9620e3a51d1a17e45e39c69517a8006061117ea9936f6b2e5ed837f741557eb",
+          "25e9ce27f6a1b48f26d9319ef768c391313260ab873b4ea5cd2919c9ed22726c",
+          "760d1a95e3b061fcd32fef1cdc2478c33dc847a9b88404971daa12a747d098e6",
+          "31849ddf9bd6bb3e4974b7cc83ce9bc92cb824e955442b1fa9f96da8b5cddb35",
+          "09d6eb01512950991ddbc34326af5145689e866683cc9d376d2b058d397b3687",
+          "ce00ef8d256a0f19c8439b2f2a65968a48b70cc80f7b2c5fb5d5dc25a05d37ab",
+          "29c138934e0331da810b6ba7d02f1cecc67c0e47e062137bf8c1dbfd9585b90a",
+          "ac5691e0d21bb94f0de86fc6aff2eea1aa8b1f8aa27728087a686283ae99d402",
+          "5e19b8b8a0fb27da532987cd28a9528afcca47d4fcf18be345f2780f9c65a1dc",
+          "547adf020d50c4eb42381a82e9ad04baf163caf963f368a1e6520c22f963a3f4",
+          "52a4416d7768fb38731307b6f3bcfb6f946808e432d10d09ec3c3818a5b34c52"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    },
+    {
+      "name": "regen",
+      "rules": {
+        "simVersion": "duel-sim-1",
+        "tickHz": 30,
+        "maxTicks": 24,
+        "arenaHalfSizeMm": 10000,
+        "heldTicks": 15,
+        "guardDamageBps": 2500,
+        "guardWindowTicks": 6,
+        "cpuEveryTicks": 6,
+        "timeout": "remaining_hp",
+        "fighters": [
+          {
+            "id": "a",
+            "side": 0,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 0,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": -1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          },
+          {
+            "id": "b",
+            "side": 1,
+            "cpu": false,
+            "deployed": true,
+            "hp": 1000,
+            "stamina": 100,
+            "sync": 0,
+            "maxHp": 1000,
+            "maxStamina": 100,
+            "maxSync": 100,
+            "x": 1000,
+            "z": 0,
+            "radiusMm": 200,
+            "speedMmPerTick": 100,
+            "regenPerTick": 0,
+            "disengageRegenPerTick": 5,
+            "moves": {
+              "strike": {
+                "damage": 100,
+                "staminaCost": 20,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "heavy": {
+                "damage": 200,
+                "staminaCost": 40,
+                "syncCost": 0,
+                "syncGain": 10,
+                "windupTicks": 4,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              },
+              "finisher": {
+                "damage": 400,
+                "staminaCost": 20,
+                "syncCost": 100,
+                "syncGain": 10,
+                "windupTicks": 2,
+                "recoveryTicks": 3,
+                "rangeMm": 2500,
+                "hitChanceBps": 10000,
+                "variance": 0,
+                "interruptTicks": 0,
+                "cancelAfterTicks": 1
+              }
+            }
+          }
+        ]
+      },
+      "seed": "0000000000000000000000000000000000000000000000000000000000000017",
+      "log": {
+        "schemaVersion": "duel-inputs-1",
+        "events": [
+          {
+            "seq": 0,
+            "tick": 0,
+            "actor": "a",
+            "action": "disengage"
+          }
+        ]
+      },
+      "expected": {
+        "initialHash": "b69a5f684666d467d74c26e81b643dab7b3f8f6d0b6441ca8f87f77891d5e81a",
+        "finalHash": "153a1210165406375a5c97350eae7f1d9dd05c4eafc0bf82f39fcef7691c79cb",
+        "tickHashes": [
+          "45c463ce52ea1504f5aa3a8511fc27cf58a513db5d71e7d12ea0fee5996da7ac",
+          "89d9b52ec90e32ba2a5ed3c64337c4a3c0e7870136b11fb267f42d97b9c93058",
+          "31b7a106f92b2ced92117ea0ceb001fe85eefce5fd11ca11994f9d97e9ffab27",
+          "f77c2cf04ff94af213954d55b597e8de7be1422657c7fba11f042fc17d7fa028",
+          "a9c0a98142aaeadc3bb57383e74d5d272852b478d2ab1de0cb1e0732414c6e75",
+          "4659b3064488f40c2312d76de595bf7387a6f18f8b69f148778ae41136bc7456",
+          "d6b5a627c413d6785ac54afadc32243d2a9b7cbf6bf53cfda349c10b0758b476",
+          "2e2929a871e0a74a7f8d938bcf371960819c9bd261d2b63052b4b9127fdf31b8",
+          "6022252176dfe5586cc54f5152c8bf1cd67eb31b85ee089690e9e2dfecb3346b",
+          "e4425e0f203cf129da9710e40ef0b56d7034b0b573d6a0f945d5157548f1f8f0",
+          "27361a308adc1b630769fb42669e13d2530ae08407344a422577dfa407ad4c95",
+          "01b84dcf3181e47593fd43bc2d84918970d821a8ea5a4d63632f860ae28320b7",
+          "964999d1317ec979cf1c8ec0cb19f049a6fcd26f8bf91ba020dfaa5508c70d94",
+          "71f4d1301e995ee940daf67d2d1c323d5967c81eb03f8671812c04023273f3a1",
+          "b11956c2691d172f67e933e9d323e5c729c086b53709403815aed783bb35e50a",
+          "b68962e0ab03849b5a1f5fbf747b97a44708f7ef9992c75b1488c1f976df1269",
+          "8faadf7ad5c568486024e401ec4be41662a70cc9a4aabec20411dc58cddcb73b",
+          "5f7cef37264952daaa5027b464b5a47a5afdf6c9c84d5251d3c756a3da9d3408",
+          "6b099a0153fd04cf3ee17d4106f13665b1aec28b1ec8bcd876fbeea8286e2896",
+          "d1c4fbd31e2cd1d02608c9f942af679d4b97f5b46c63119172583519da9df647",
+          "5bdaf16a182d52a5233afd8f15d8d65b89b948920dc0c4e65f5f4030839e183c",
+          "1fb987ccdeb5b897af7013f9943e4c605274a198965f552ccec8238498154035",
+          "fdd2c33968bfb6301df24820b92c9adcd9a8c0fd34f08e5dd0b600d11b400e57",
+          "153a1210165406375a5c97350eae7f1d9dd05c4eafc0bf82f39fcef7691c79cb"
+        ],
+        "winner": null,
+        "reason": "timeout"
+      }
+    }
+  ]
+}
