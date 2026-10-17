@@ -1,3 +1,4 @@
+import { arenaFighterSnapshot } from '../lib/arenaFighterSnapshot';
 import { createHash, randomBytes } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { ArenaError, readArenaMatchRecord, settleArenaBracketRecord, cancelArenaBracketRecord } from '../arena/arenaMatchStore';
@@ -39,7 +40,10 @@ function saved(raw:unknown) {
   if (s.schemaVersion!==ARENA_BRACKET_SCHEMA || typeof s.cancelled!=='boolean') throw new StoryError('unavailable');
   return {bracket:readArenaBracket(s.bracket),cancelled:s.cancelled};
 }
-const response=(bracket:ArenaBracket,cancelled:boolean,alreadyProcessed=false)=>({schemaVersion:ARENA_BRACKET_SCHEMA,matchId:bracket.matchId,alreadyProcessed,bracket,cancelled});
+export const arenaBracketReply=(bracket:ArenaBracket,cancelled:boolean,alreadyProcessed=false)=>({
+  schemaVersion:ARENA_BRACKET_SCHEMA,matchId:bracket.matchId,alreadyProcessed,
+  bracket:{...bracket,entrants:bracket.entrants.map(entrant=>({...entrant,
+    fighter:{...entrant.fighter,...arenaFighterSnapshot(entrant.fighter,entrant.fighter.tier)}}))},cancelled});
 
 /** Match admission is the existing paid Arena issue; no new prices or client outcomes. */
 export async function transactTournamentBracket(db:Firestore,uid:string,raw:unknown,nowMs=Date.now(),options:{createSeed?:()=>number}={}) {
@@ -67,13 +71,13 @@ export async function transactTournamentBracket(db:Firestore,uid:string,raw:unkn
         const bound={...m,state:'active',startedAtMs:nowMs,bracket:{schemaVersion:ARENA_BRACKET_SCHEMA,matchId:m.matchId,boundAtMs:nowMs}};
         readArenaMatchRecord(bound,m.matchId);
         tx.set(matchRef,bound);tx.create(bracketRef,{schemaVersion:ARENA_BRACKET_SCHEMA,bracket,cancelled:false});
-        return response(bracket,false);
+        return arenaBracketReply(bracket,false);
       }
       if (!bracketSnap.exists || !m.bracket) throw new StoryError('not_admitted');
       const state=saved(bracketSnap.data()),b=state.bracket;
       if (b.matchId!==m.matchId || b.tournamentId!==m.tournament.tournamentId) throw new StoryError('unavailable');
-      if (c.operation==='start' || c.operation==='resume') return response(b,state.cancelled,true);
-      if (c.operation==='advance' && c.expectedRound!<b.round) return response(b,state.cancelled,true);
+      if (c.operation==='start' || c.operation==='resume') return arenaBracketReply(b,state.cancelled,true);
+      if (c.operation==='advance' && c.expectedRound!<b.round) return arenaBracketReply(b,state.cancelled,true);
       if (state.cancelled) throw new StoryError('bracket_done');
       if (!b.playerAlive) throw new StoryError('player_eliminated');
       if (b.done) throw new StoryError('bracket_done');
@@ -84,7 +88,7 @@ export async function transactTournamentBracket(db:Firestore,uid:string,raw:unkn
         const closed=cancelArenaBracketRecord(profile,m,b.health[player.entrantId],nowMs);
         tx.update(userRef,closed.updates);tx.set(matchRef,closed.match);tx.set(leaseRef,{...lease,open:false,closedAtMs:nowMs});
         tx.set(bracketRef,{schemaVersion:ARENA_BRACKET_SCHEMA,bracket:b,cancelled:true});
-        return response(b,true);
+        return arenaBracketReply(b,true);
       }
       if (nowMs>m.expiresAtMs) throw new StoryError('match_expired');
       const next=advanceArenaBracket(b);
@@ -97,7 +101,7 @@ export async function transactTournamentBracket(db:Firestore,uid:string,raw:unkn
         tx.update(userRef,closed.updates);tx.set(matchRef,closed.match);tx.set(leaseRef,{...lease,open:false,closedAtMs:nowMs});
       }
       tx.set(bracketRef,{schemaVersion:ARENA_BRACKET_SCHEMA,bracket:next,cancelled:false});
-      return response(next,false);
+      return arenaBracketReply(next,false);
     });
   } catch(e) {
     if (e instanceof ArenaError) throw new StoryError(e.code);

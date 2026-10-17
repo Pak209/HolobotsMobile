@@ -1,3 +1,4 @@
+import { arenaFighterSnapshot } from '../lib/arenaFighterSnapshot';
 import { expeditionOpen } from '../lib/arenaActivity';
 import { tournamentAdmission, tournamentIndex, tournamentLevel, ARENA_TOURNAMENT_SCHEMA } from '../story/arenaTournament';
 import { StoryError } from '../story/storyFlags';
@@ -10,7 +11,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { ActivityError, arenaOpen, duelOpen } from '../lib/arenaActivity';
 import { withRankHealingReward } from '../lib/rankHealingReward';
-import { getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, incrementArenaBattlesToday, ArenaTierId } from '../lib/arenaEconomy';
+import { ARENA_TIERS, getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, incrementArenaBattlesToday, ArenaTierId } from '../lib/arenaEconomy';
 import { BATTLE_COMBO_BONUS, BATTLE_PERFECT_DEFENSE_BONUS, BATTLE_LOSS_EXP_FRACTION, BATTLE_LOSS_SYNC_FRACTION, MAX_PERFORMANCE_EVENTS, EXP_BOOSTER_MULTIPLIER } from '../lib/battleSettlement';
 import { buildPlayerCombatants, playerCombatant, readOpenBattles, RivalError } from '../lib/rivalLadder';
 import { readHoloZoneRuns, HoloZoneError } from '../lib/holoZoneRuns';
@@ -173,7 +174,11 @@ function uniqueEntrant(profile: Data, id: string): Data {
   return bot;
 }
 function reply(m: Match, alreadyProcessed = false) {
-  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, match: m };
+  const tier = ARENA_TIERS.findIndex(row => row.id === m.tierId);
+  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, match: {
+    ...m, entrant: { ...m.entrant, ...arenaFighterSnapshot({holobotId:m.entrant.holobotId,level:m.entrant.level}, tier) },
+    opponent: { ...m.opponent, ...arenaFighterSnapshot({holobotId:m.opponent.holobotId,level:m.opponent.level}, tier) },
+  } };
 }
 function guardOtherActivities(rival: Data|undefined, zone: Data|undefined, duel: Data|undefined, now: number) {
   if (Object.keys(readOpenBattles(rival, now)).length || readHoloZoneRuns(zone).some(r => r.settlement === null && r.closedAtMs === null && now <= r.expiresAtMs)) fail('activity_conflict');
@@ -337,7 +342,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
   } catch (e) {
     if (e instanceof StoryError) throw new ArenaError(e.code);
     if (e instanceof HealthError) throw new ArenaError(e.message === 'holobot_ko' ? 'holobot_ko' : e.message === 'invalid_request' ? 'invalid_request' : 'unavailable');
-    if (e instanceof ActivityError || e instanceof RivalError || e instanceof HoloZoneError || e instanceof PilotRankError) throw new ArenaError('unavailable');
+    if (e instanceof ActivityError || e instanceof RivalError || e instanceof HoloZoneError || e instanceof PilotRankError || e instanceof RangeError) throw new ArenaError('unavailable');
     throw e;
   }
 }
