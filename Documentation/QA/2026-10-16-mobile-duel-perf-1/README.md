@@ -38,7 +38,7 @@ Vault root: `/Users/pak/HolobotsVault/QA/2026-10-16-mobile-duel-perf-1/`.
 
 - `before-clean.mp4`, `before-clean-metrics.jsonl`, `before-clean-metro.log`: accepted baseline, complete playback.
 - `after-guard-retry.mp4`, `after-guard-retry-metrics.jsonl`, `after-guard-retry-metro.log`: accepted change, complete playback.
-- `GUARD_FIDELITY_VERIFIED.png`: four cells, top-left baseline normal (`before-50.png`), top-right accepted normal (`retry-50.png`), bottom-left baseline visible guard (`before-104.png`), bottom-right accepted visible guard (`retry-100.png`). Frame suffixes are tenths of a second in their respective videos.
+- `GUARD_FIDELITY_VERIFIED.png`: four horizontal cells, left to right: 1 baseline normal (`before-50.png`), 2 accepted normal (`retry-50.png`), 3 baseline visible guard (`before-104.png`), 4 accepted visible guard (`retry-100.png`). Frame suffixes are tenths of a second in their respective videos.
 - `LOD_FIDELITY_GATE.png`: original fixed-pose ACE (`ace-original-verified.png`, native count 26,500) beside rejected candidate (`ace-lod-idle.png`, native count 14,999). No animated fidelity acceptance inferred from this still.
 - `w65-before.sample.txt`: exploratory native CPU sample, excluded from matched FPS comparison.
 - `BotStage-final-profiling.tsx.txt`: temporary instrumentation used for accepted capture, not shipped. Frame preparation includes animation, camera and framebuffer binding; render submission and GL completion measured separately.
