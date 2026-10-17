@@ -1,0 +1,26 @@
+{
+  "width": 1500,
+  "height": 1100,
+  "cells": [
+    {
+      "cell": 1,
+      "title": "1  KNOWN-BAD: CURRENT DRIFT",
+      "content": "main cbc5e359 | lite 92def490\n49 main-only / 21 lite-only commits\n367 files | +16,503 / -2,433 lines\n2 conflicts: package.json + package-lock\nNo functions paths in lite merge-base diff"
+    },
+    {
+      "cell": 2,
+      "title": "2  PR STATE / CI",
+      "content": "#87 OPEN / DRAFT: no check rollup\n#117 + #119 MERGED to lite: 3/3 CI each\n#121 OPEN, not folded: 3/3 CI green\n#121: 562 pass / 4 skip (reported)\nNative/live/PvP holds remain"
+    },
+    {
+      "cell": 3,
+      "title": "3  RECOMMENDATION",
+      "content": "Default-OFF main integration, after gates\nCurrent CityHub tab is unconditional\nDev preview flags are NOT rollout gates\nResolve deps; protect old flows; fresh CI\nAvoid indefinite second product branch"
+    },
+    {
+      "cell": 4,
+      "title": "4  RELEASE HOLDS",
+      "content": "Latest simulator: 6.05 \u2192 6.70 FPS\n50 FPS gate HELD; rejected LOD restored\nExpo build 2 vs native 37\nBundle identity exists; signing unverified\nPak: store/signing/privacy/device/upload"
+    }
+  ]
+}
