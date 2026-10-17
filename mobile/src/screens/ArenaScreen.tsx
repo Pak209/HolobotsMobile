@@ -1,3 +1,4 @@
+import { readHostLevelAccount } from "@/lib/cityHubClient";
 import { theme } from "@/theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
@@ -37,6 +38,17 @@ type BattleSetup = {
 
 export function ArenaScreen() {
   const { profile, user } = useAuth();
+  const [levelAccount, setLevelAccount] = useState<{ uid: string; snapshot: unknown } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const uid = user?.uid;
+    setLevelAccount(null);
+    if (uid) void readHostLevelAccount(uid).then(snapshot => {
+      if (!cancelled) setLevelAccount({ uid, snapshot });
+    }).catch(() => { if (!cancelled) setLevelAccount(null); });
+    return () => { cancelled = true; };
+  }, [user?.uid]);
+  const hostLevelAccount = levelAccount?.uid === user?.uid ? levelAccount?.snapshot : undefined;
   const {
     battleResult,
     canUseMove,
@@ -519,6 +531,7 @@ export function ArenaScreen() {
 
       {phase === "battle" && !teamMode && currentBattle ? (
         <BattleArenaView
+          hostLevelAccount={hostLevelAccount}
           battle={currentBattle}
           roundProgress={roundProgress}
           playerCards={playerMoves}
@@ -537,6 +550,7 @@ export function ArenaScreen() {
 
       {phase === "battle" && teamMode && teamStore.team ? (
         <BattleArenaView
+          hostLevelAccount={hostLevelAccount}
           battle={teamStore.team.duel}
           roundProgress={null}
           playerCards={getActiveMoves(teamStore.team, "player")}

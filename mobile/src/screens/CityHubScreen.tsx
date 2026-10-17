@@ -31,7 +31,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [gathering, setGathering] = useState<(ArenaGathering & { uid: string }) | null>(null);
+  const [gathering, setGathering] = useState<(ArenaGathering & { uid: string; accountSnapshot?: unknown }) | null>(null);
   const [hour, setHour] = useState(new Date().getHours());
   const [mapWidth, setMapWidth] = useState(360);
   const [panel, setPanel] = useState<"rivals" | "workshop" | null>(fixture?.initialPanel ?? null);
@@ -78,7 +78,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
     const uid = user.uid; ++requestRevision.current; busy.current = true; setLoading(true); setMessage(null);
     try {
       const reply = await meetCityPilots(uid);
-      if (sessionUid.current === uid) { setGathering({ ...reply, uid }); setPanel("rivals"); }
+      if (sessionUid.current === uid) { setGathering(previous => ({ ...reply, uid, accountSnapshot: previous?.uid === uid ? previous.accountSnapshot : undefined })); setPanel("rivals"); }
     } catch (error) { if (sessionUid.current === uid) setMessage(cityActionMessage(error)); }
     finally { busy.current = false; setLoading(false); }
   }
@@ -153,7 +153,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
       </View>
     </ScrollView>
     <Modal animationType="slide" visible={panel !== null} onRequestClose={() => { if (!fighting) setPanel(null); }}>
-      {fighting ? <CityRivalBattle uid={user?.uid ?? "offline-city-preview"} rival={fighting} preview={!!fixture} onClose={() => setFighting(null)} /> : <View style={[styles.sheet, { paddingTop: insets.top }]}>
+      {fighting ? <CityRivalBattle accountSnapshot={currentGathering?.accountSnapshot} uid={user?.uid ?? "offline-city-preview"} rival={fighting} preview={!!fixture} onClose={() => setFighting(null)} /> : <View style={[styles.sheet, { paddingTop: insets.top }]}>
         <View style={styles.sheetHeader}><Text style={styles.cardTitle}>{panel === "workshop" ? "WORKSHOP" : "CITIZEN PILOTS"}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close city panel" onPress={() => setPanel(null)} style={styles.close}><Text style={styles.closeText}>✕</Text></Pressable></View>
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
           {panel === "workshop" ? <CityWorkshopPanel key={user?.uid ?? "anonymous"} uid={user?.uid} preview={!!fixture} onBrowse={browseSupplies} /> : <View style={styles.rivalList}>

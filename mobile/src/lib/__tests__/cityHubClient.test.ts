@@ -1,11 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as { uid: string } | null }, call: vi.fn(), callable: vi.fn() }));
 vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
-import { loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad } from "../cityHubClient";
+import { readHostLevelAccount, loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad } from "../cityHubClient";
 import { CITY_GATHERING_FIXTURE } from "../cityHubFixtures";
 describe("city authenticated host actions", () => {
   beforeEach(() => { vi.clearAllMocks(); fixture.auth.currentUser = { uid: "pilot-a" }; });
   afterEach(() => vi.useRealTimers());
+  it("reads only a verified host level account and rejects stale sessions", async () => {
+    const account = { schemaVersion: "desktop-account-3", uid: "pilot-a", holobots: [{ name: "ACE", level: 12 }] };
+    fixture.call.mockResolvedValueOnce({ data: account });
+    expect(await readHostLevelAccount("pilot-a")).toEqual(account);
+    expect(fixture.callable).toHaveBeenLastCalledWith({}, "desktopAccountSnapshot");
+    fixture.call.mockResolvedValueOnce({ data: { ...account, uid: "pilot-b" } });
+    await expect(readHostLevelAccount("pilot-a")).rejects.toThrow("could not be verified");
+    fixture.call.mockImplementationOnce(async () => { fixture.auth.currentUser = { uid: "pilot-b" }; return { data: account }; });
+    await expect(readHostLevelAccount("pilot-a")).rejects.toEqual({ code: "unauthenticated" });
+  });
   it("calls the exact #80 gathering and citizen admission contracts", async () => {
     fixture.call.mockResolvedValueOnce({ data: CITY_GATHERING_FIXTURE });
     expect((await meetCityPilots("pilot-a")).roster).toHaveLength(8);

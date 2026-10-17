@@ -57,10 +57,16 @@ export function cityRequestId(): string {
 /** Read the host account before fetching a seen gathering; opening the hub never joins it implicitly. */
 export async function loadCityHub(uid: string, fixture?: CityHubFixture) {
   if (fixture) return { storyFlags: fixture.storyFlags, roster: fixture.roster };
+  const reply = await readHostLevelAccount(uid);
+  const storyFlags = readCityStoryFlags(reply.storyFlags);
+  if (!storyFlags.arenaGatheringSeen) return { storyFlags, roster: [] as ArenaCitizen[], accountSnapshot: reply };
+  const gathering = await meetCityPilots(uid);
+  return { storyFlags: gathering.storyFlags, roster: gathering.roster, accountSnapshot: reply };
+}
+
+/** Read-only level source; session is checked before and after the request. */
+export async function readHostLevelAccount(uid: string) {
   const reply = record(await cityCall(uid, "desktopAccountSnapshot", { schemaVersion: "desktop-account-3" }));
   if (reply?.schemaVersion !== "desktop-account-3" || reply.uid !== uid) throw new Error("The city account could not be verified. Refresh to retry.");
-  const storyFlags = readCityStoryFlags(reply.storyFlags);
-  if (!storyFlags.arenaGatheringSeen) return { storyFlags, roster: [] as ArenaCitizen[] };
-  const gathering = await meetCityPilots(uid);
-  return { storyFlags: gathering.storyFlags, roster: gathering.roster };
+  return reply;
 }
