@@ -1,3 +1,4 @@
+import { ArenaAdmittedRoundPreview, ArenaAdmittedResultPreview, ArenaAdmittedKnownBadPreview } from "./ArenaAdmittedPreview";
 import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaHostLevelsPreview";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
@@ -87,7 +88,10 @@ const screens: Record<string, React.ComponentType<any>> = {
   ...cityScreens,
   HostDuel: HostDuelPreview, ...hostDuelCaptureScreens,
   Duel: DuelPreview, DuelReceipt: ReceiptPreview, ...duelCaptureScreens,
-  ArenaHostLevels: ArenaHostLevelsPreview, ArenaHostLevelsKnownBad: ArenaHostLevelsKnownBadPreview,
+  ArenaHostLevels: ArenaHostLevelsPreview,
+  ArenaAdmittedRound: ArenaAdmittedRoundPreview,
+  ArenaAdmittedKnownBad: ArenaAdmittedKnownBadPreview,
+  ArenaAdmittedResult: ArenaAdmittedResultPreview, ArenaHostLevelsKnownBad: ArenaHostLevelsKnownBadPreview,
   CityBattle: CityBattlePreview, RivalEntry: RivalEntryPreview,
 };
 
