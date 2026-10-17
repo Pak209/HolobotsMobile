@@ -1,0 +1,174 @@
+{
+  "host_main": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+  "unity_main": "694b75b8f94f39f148ee449140f5b6dc5b28dbe6",
+  "files": [
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/config/zoneExpedition.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "e441bdc625c71a8ce5de9a048bf28b070d5bd542d76db94e1454ae85d81d3dc3",
+      "line_count": 55
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/arenaEconomy.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "79f30ea7f4259559a6651887769503f0634f8b0f51f0b31536e38aa3afd902bd",
+      "line_count": 223
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/battleSettlement.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "2b6b5d6caf231b79a8ebc89bad3d1d8f10d1c5587e7f04c69d62c9d7628f649d",
+      "line_count": 134
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/buddyUnits.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "e0a72ec7b56323bd98282d41e8ca8651faa3b700f630984af61bec9f82e79fc4",
+      "line_count": 153
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/desktopPracticeCommands.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "c28989713c9e58ad8d4be106a6607ea36cb1402a7a2a28503cbeb623020e0c7b",
+      "line_count": 12
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/economy.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "200415452f9da8926fcd6789389d5c06ffc4e73b91d1eea65dd138560c181e88",
+      "line_count": 722
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/fitnessSyncOutcome.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "beb518fa7c6dbc67811f08f6d5d1aa0bb76fab5631fda9fb030e86a5f2134652",
+      "line_count": 289
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/healingRecipes.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "2677954e7566cc17c886cca675a3e59e30e94751d319752655e15c2b75e3337e",
+      "line_count": 5
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/holoZoneBeastStats.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "ed857b7bbd0ddc30276e770cf9f20d5e705c8ddb85440a3f963bfdbe94f2719c",
+      "line_count": 58
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/holoZoneRuns.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "0033911239cc60454ceca1b1cfcaf28b3bc8777dd42d9d701f4e0bd9148b0f24",
+      "line_count": 384
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/introQuests.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "55678ad79b585d4a9e0774eae0423f144b909953779e92c693bf0d07c2355151",
+      "line_count": 233
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/mintingEconomy.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "42a4739a9176355453eb8ff498c5b363da3f6d3c8d851241b031d5818efd7211",
+      "line_count": 342
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/moveProgression.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "faa55f122e35d16e5bee6764db556c8c58f872eaa7ae8e3cb4c9174a73cc0bf7",
+      "line_count": 204
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/progression.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "a0c34a212f61c0d34c856cd2451aebd1ca47556a3c55dc1df4386bcf8a3bdf5a",
+      "line_count": 320
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/progressionEconomy.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "774e7dbaa78f619bb7c0b86d4560f72048616fbc057dc3b85d75d9682e14bde0",
+      "line_count": 602
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/rankHealingReward.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "b44bdff8f1693c8991a89167dc2c03dddc6795a33194bea79f837bfb8d3b14a5",
+      "line_count": 27
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/repairItems.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "4febcb1ee2e67b4b0c843fec6effbfb6256c2f2f2dc1bde7e27dec71d522629b",
+      "line_count": 52
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/rivalLadder.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "10c70d55fd7d5cef5cf92d093e1b8d2281ac87384e0d325ba05b0f9183927b75",
+      "line_count": 712
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/lib/rivalTierStats.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "d8151f71c0266c7e33849d6d9fd620a5ba171ae51e59d4822dacc81e615608f6",
+      "line_count": 110
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/rival/rivalBattleStore.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "101a9beb64bd5062e6fd82f9dfd708429ef69f738d21653c94a6452e45274191",
+      "line_count": 202
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/story/arenaTournament.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "1ff0baf4b0547f284838feed13ef40eeb9f7f34b5fda1b2bb845909aca11ed2f",
+      "line_count": 30
+    },
+    {
+      "repo": "HolobotsMobile",
+      "path": "functions/src/workshop/workshopHealHost.ts",
+      "source_sha": "f50d0285057617d8dab3b53badfb5075bf0d7a7c",
+      "sha256": "1ab3b7abee49351622ef30320fb02aa342727524935cc59dd48c310579d5619f",
+      "line_count": 33
+    },
+    {
+      "repo": "Holocity",
+      "path": "Assets/Battle/Scripts/Combat/DuelSwitchRule.cs",
+      "source_sha": "694b75b8f94f39f148ee449140f5b6dc5b28dbe6",
+      "sha256": "9a1269885b1352aeaed1d2a277336d8a4aad765e336b9f24e83877e6c30e1aa2",
+      "line_count": 111
+    },
+    {
+      "repo": "Holocity",
+      "path": "Assets/Holobots/Shared/HolobotDeployConfig.asset",
+      "source_sha": "694b75b8f94f39f148ee449140f5b6dc5b28dbe6",
+      "sha256": "8b82af7679847add6c58e14448d2260e407380797547077dd0bc75d2ce60e3d9",
+      "line_count": 28
+    }
+  ]
+}
