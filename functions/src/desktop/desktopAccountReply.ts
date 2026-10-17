@@ -1,3 +1,4 @@
+import { tournamentUnlocks } from '../story/tournamentUnlocks';
 /**
  * desktopAccountSnapshot reply builder (pure: no firebase imports, safe to import from tests —
  * functions/scripts/test-desktop-account.mjs, mobile/src/lib/__tests__/desktopAccountParity.test.ts).
@@ -71,6 +72,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     uid,
     storyFlags: readStoryFlags(profile.storyFlags),
     pilotRank: readPilotRank(profile.pilotRank),
+    tournamentUnlocks: tournamentUnlocks(profile),
     holobots,
     blueprints: profile.blueprints ?? {},
     travelSquad: readTravelSquad(profile),
