@@ -35,7 +35,11 @@ Initial CI typecheck passed, but mobile reported4 failing files,5 failed/869 pas
 
 The explicitly approved exact cached tarball URLs restored react-test-renderer19.0.0 and its types without metadata resolution/network. Own `/private/tmp/astra-integration-deps` overlay reuses existing cached dependencies; app and renderer resolve the same React19.0.0 file and object. Existing HARE LFS asset hydrated locally (1,681,480 bytes; no fetch).
 
-**One approved run: TypeScript noEmit exit0 in3.652s; full mobile82 files passed/1 skipped,888 tests passed/4 existing skipped,0 failed, Vitest4.43s.** No repeat. Logs `typecheck.log`, `mobile-tests.log`, `results.json` accompany this README. Previous Functions/rules CI was green before these client-only corrections; no fresh local host/rules claim. No native build or live-account test.
+**One approved run: TypeScript noEmit exit0 in3.652s; full mobile82 files passed/1 skipped,888 tests passed/4 existing skipped,0 failed, Vitest4.43s.** No repeat. Logs `typecheck.txt`, `mobile-tests.txt`, `results.json` accompany this README. Previous Functions/rules CI was green before these client-only corrections; no fresh local host/rules claim. No native build or live-account test.
 
 
 Evidence: `/Users/pak/HolobotsVault/QA/2026-10-17-lite-main-integration-1/GATE_SHEET.png`,1500×1000, four inventoried diagnostic cells:1 original unconditional CityHub/global presentation;2 proposed isolated lazy gate;3 static preservation checks;4 approved mobile/typecheck results with native/live holds. No native screenshots or acceptance implied; only the recorded mobile/typecheck success is claimed. Root owns inbox and clean worktree handover.
+
+## Merge-path guidance
+
+#125 is the flagged integration candidate; the older ungated #87 remains draft and is a superseded integration path. Do not separately merge ungated #87 after #125. A normal merge of #125 preserves lite51abaa9 ancestry and may auto-close #87; a squash may not. No PR was merged or closed by this lane. Producer review still decides readiness, and the6.70FPS/native/live/authority holds remain despite888 passing tests.
