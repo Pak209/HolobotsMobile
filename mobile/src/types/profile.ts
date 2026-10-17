@@ -51,6 +51,8 @@ export type HolobotCareer = {
 };
 
 export type UserProfile = {
+  /** Server-owned #80 city progression; mobile never writes these fields. */
+  storyFlags?: import("@/lib/cityHub").CityStoryFlags;
   id: string;
   username: string;
   holobots: UserHolobot[];

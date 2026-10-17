@@ -1,0 +1,39 @@
+objc[42892]: Class GNotificationCenterDelegate is implemented in both /Users/pak/Projects/HolobotsMobile-lite/.work/asset-tools/node_modules/ndarray-pixels/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.18.7.dylib (0x13c255a50) and /Users/pak/Projects/HolobotsMobile-lite/.work/asset-tools/node_modules/@img/sharp-libvips-darwin-arm64/lib/libvips-cpp.8.17.3.dylib (0x13d3d1978). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+wolf   6.517 -> 0.799 MB | 29750 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+kuma   6.910 -> 0.944 MB | 29626 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+ken    7.246 -> 0.991 MB | 35736 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+tsuin  6.536 -> 0.852 MB | 29938 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+hare   13.932 -> 1.681 MB | 42982 triangles | 7 clips
+prune: Removed types... Accessor (7)
+prune: Removed types... Accessor (41)
+prune: Removed types... Skin (1), Accessor (26)
+shadow 5.930 -> 0.906 MB | 27540 triangles | 8 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+wake   7.041 -> 0.904 MB | 29586 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+tora   6.974 -> 1.017 MB | 40258 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+gama   12.379 -> 1.144 MB | 29878 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+kurai  6.860 -> 0.822 MB | 29848 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+era    7.003 -> 1.054 MB | 35122 triangles | 7 clips
+prune: Removed types... Accessor (6)
+prune: Removed types... Skin (1), Accessor (5)
+ace    9.721 -> 0.989 MB | 26500 triangles | 8 clips
+Total 12.102 MB

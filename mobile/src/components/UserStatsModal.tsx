@@ -1,10 +1,11 @@
+import { theme } from "@/theme";
 import { useState } from "react";
 import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Svg, Path } from "@/components/FigmaSvg";
 import { DailyMissionsModal } from "@/components/DailyMissionsModal";
 import { GameDialogFrame } from "@/components/ui/GameSurfaceFrame";
-import { fitnessAssets } from "@/config/figmaAssets";
+import { itemIcons } from "@/config/itemIcons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRefillAuthoritative } from "@/lib/progressionClient";
 import { getDailyMissionSummary } from "@/lib/dailyMissions";
@@ -191,7 +192,7 @@ export function UserStatsModal({
                       <Text style={styles.statLabel}>Daily Energy</Text>
                       <Pressable accessibilityLabel="Refill daily energy" onPress={() => void handleRefillEnergy()} style={styles.miniIconButton}>
                         <Svg width="18" height="18" viewBox="0 0 24 24">
-                          <Path d="M16 7h1a2 2 0 0 1 2 2v.5a.5.5 0 0 0 .5.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5a.5.5 0 0 0-.5.5v.5a2 2 0 0 1-2 2h-2M8 7H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1m5-9l-2 4h3l-2 4" stroke="#f0bf14" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          <Path d="M16 7h1a2 2 0 0 1 2 2v.5a.5.5 0 0 0 .5.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5a.5.5 0 0 0-.5.5v.5a2 2 0 0 1-2 2h-2M8 7H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1m5-9l-2 4h3l-2 4" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
                         </Svg>
                       </Pressable>
                     </View>
@@ -201,14 +202,14 @@ export function UserStatsModal({
                   <View style={styles.statTile}>
                     <Text style={styles.statLabel}>Sync Points</Text>
                     <View style={styles.valueRow}>
-                      <RNImage source={fitnessAssets.rewardSync} style={styles.currencyIcon} resizeMode="contain" />
+                      <RNImage source={itemIcons.item_sync_shard} style={styles.currencyIcon} resizeMode="contain" />
                       <Text style={styles.statValue}>{`${profile?.syncPoints || 0}`}</Text>
                     </View>
                   </View>
                   <View style={styles.statTile}>
                     <Text style={styles.statLabel}>Holos</Text>
                     <View style={styles.valueRow}>
-                      <RNImage source={fitnessAssets.rewardHolos} style={styles.currencyIcon} resizeMode="contain" />
+                      <RNImage source={itemIcons.item_holos_chip} style={styles.currencyIcon} resizeMode="contain" />
                       <Text style={styles.statValue}>{`${profile?.holosTokens || 0}`}</Text>
                     </View>
                   </View>
@@ -253,7 +254,7 @@ export function UserStatsModal({
 const styles = StyleSheet.create({
   actionButton: {
     alignItems: "center",
-    backgroundColor: "#f0bf14",
+    backgroundColor: theme.colors.accent,
     minHeight: 54,
     justifyContent: "center",
   },
@@ -262,8 +263,9 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   actionText: {
-    color: "#050606",
-    fontSize: 16,
+    color: theme.colors.carbon,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
@@ -284,16 +286,17 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#2a2a2a",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.plates.raised,
     borderWidth: 2,
     marginTop: 18,
     minHeight: 52,
     justifyContent: "center",
   },
   closeText: {
-    color: "#f0bf14",
-    fontSize: 16,
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
@@ -302,7 +305,8 @@ const styles = StyleSheet.create({
     width: 22,
   },
   eyebrow: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 1.6,
@@ -315,8 +319,8 @@ const styles = StyleSheet.create({
   },
   miniIconButton: {
     alignItems: "center",
-    backgroundColor: "#111111",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.accent,
     borderWidth: 1,
     height: 28,
     justifyContent: "center",
@@ -324,8 +328,8 @@ const styles = StyleSheet.create({
   },
   missionButton: {
     alignItems: "center",
-    backgroundColor: "#090909",
-    borderColor: "#f0bf14",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.accent,
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -333,25 +337,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   missionButtonMeta: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "700",
   },
   missionButtonTitle: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   legalBody: {
-    color: "#ddd2b5",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 13,
     lineHeight: 20,
   },
   legalButton: {
     alignItems: "center",
-    backgroundColor: "#050606",
-    borderColor: "#2a2a2a",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.plates.raised,
     borderWidth: 1,
     flex: 1,
     justifyContent: "center",
@@ -363,7 +370,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   legalButtonText: {
-    color: "#ddd2b5",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.5,
@@ -373,8 +381,9 @@ const styles = StyleSheet.create({
     maxHeight: "82%",
   },
   legalHeading: {
-    color: "#f0bf14",
-    fontSize: 14,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 0.4,
     marginBottom: 7,
@@ -387,51 +396,56 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   legalSection: {
-    borderBottomColor: "#242424",
+    borderBottomColor: theme.colors.carbon,
     borderBottomWidth: 1,
     paddingBottom: 14,
   },
   legalUpdated: {
-    color: "#8f866f",
-    fontSize: 12,
+    color: theme.colors.subtle,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "700",
     marginTop: 6,
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: "#fef1e0",
+    backgroundColor: theme.colors.text,
     minHeight: 50,
     justifyContent: "center",
   },
   secondaryText: {
-    color: "#050606",
+    color: theme.colors.carbon,
+    fontFamily: "HoloBody",
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   statLabel: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "700",
     marginBottom: 6,
   },
   statTile: {
-    backgroundColor: "#050606",
-    borderColor: "#2b2b2b",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.carbon,
     borderWidth: 1,
     minHeight: 82,
     padding: 12,
     width: "47%",
   },
   statMeta: {
-    color: "#8f866f",
+    color: theme.colors.subtle,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "700",
     marginTop: 6,
   },
   statValue: {
-    color: "#fef1e0",
-    fontSize: 22,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.header.fontSize,
     fontWeight: "900",
   },
   tileHeaderRow: {
@@ -441,7 +455,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   title: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 30,
     fontWeight: "900",
     marginTop: 8,

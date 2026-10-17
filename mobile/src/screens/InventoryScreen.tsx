@@ -1,3 +1,6 @@
+import { useIsFocused } from "@react-navigation/native";
+import { HolobotRosterCard } from "@/components/HolobotRosterCard";
+import { theme } from "@/theme";
 import { useMemo, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -34,6 +37,7 @@ const tabs = ["Holobots", "Parts", "Items", "Move Lab"] as const;
 type InventoryTab = (typeof tabs)[number];
 export function InventoryScreen() {
   const { profile, updateProfile } = useAuth();
+  const focused = useIsFocused();
   const [activeTab, setActiveTab] = useState<InventoryTab>("Holobots");
   const [selectedHolobotKey, setSelectedHolobotKey] = useState<string | null>(null);
   const roster = mergeHolobotRoster(profile?.holobots);
@@ -90,36 +94,16 @@ export function InventoryScreen() {
       rarity: "BLUEPRINT",
     }))
     .filter((entry) => entry.quantity > 0);
-  const renderHolobots = () =>
-    roster.map((holobot, index) => {
-      const blueprintCount = profile?.blueprints?.[holobot.key] || 0;
-      const progress = holobot.owned ? getExpProgress(holobot) : Math.min(1, blueprintCount / 5);
-
-      return (
-        <Pressable
-          key={`${holobot.key}:${index}`}
-          style={[styles.holobotCard, !holobot.owned ? styles.holobotCardLocked : null]}
-          onPress={() => setSelectedHolobotKey(holobot.key)}
-        >
-          <GameSurfaceFrame />
-          <Image source={holobot.imageSource} style={styles.holobotImage} resizeMode="contain" />
-          <View style={styles.holobotContent}>
-            <View style={styles.holobotHeaderRow}>
-              <Text style={styles.holobotName}>{holobot.name}</Text>
-              {!holobot.owned ? <Text style={styles.holobotStatus}>UNMINTED</Text> : null}
-            </View>
-            <Text style={styles.holobotMeta}>
-              {holobot.owned
-                ? `Level ${holobot.level} • EXP ${holobot.experience}/${holobot.nextLevelExp}`
-                : `${blueprintCount} blueprints collected`}
-            </Text>
-            <View style={styles.expTrack}>
-              <View style={[styles.expFill, { width: `${progress * 100}%` }]} />
-            </View>
-          </View>
-        </Pressable>
-      );
-    });
+  const renderHolobots = () => roster.map((holobot, index) => (
+    <HolobotRosterCard
+      key={holobot.key}
+      holobot={holobot}
+      slot={index}
+      live={focused && index === 0 && selectedHolobotKey === null}
+      blueprintCount={profile?.blueprints?.[holobot.key] || 0}
+      onPress={() => setSelectedHolobotKey(holobot.key)}
+    />
+  ));
 
   const handleUpgradeStat = async (attribute: "attack" | "defense" | "speed" | "health") => {
     if (!profile?.holobots || !selectedOwnedHolobot) {
@@ -306,10 +290,10 @@ export function InventoryScreen() {
   const renderList = (entries: Array<{ image?: number | null; name: string; quantity: number; rarity?: string }>) =>
     entries.map((entry, index) => (
       <View key={`${entry.name}:${index}`} style={styles.assetRow}>
-        <GameSurfaceFrame accent={entry.rarity?.includes("EPIC") ? "#9b4dff" : entry.rarity ? "#17d9ff" : "#f0bf14"} />
+        <GameSurfaceFrame accent={entry.rarity?.includes("EPIC") ? theme.colors.purple : entry.rarity ? theme.colors.accent : theme.colors.accent} />
         <View style={styles.assetLeft}>
           <View style={styles.assetImageFrame}>
-            <ArenaControlFrame accent={entry.rarity ? "#17d9ff" : "#f0bf14"} />
+            <ArenaControlFrame accent={entry.rarity ? theme.colors.accent : theme.colors.accent} />
             {entry.image ? <Image source={entry.image} style={styles.assetImage} resizeMode="contain" /> : null}
           </View>
           <View style={styles.assetBody}>
@@ -322,7 +306,7 @@ export function InventoryScreen() {
         </View>
         {entry.name === "EXP Booster" && !expBoosterActive ? (
           <Pressable onPress={() => void handleActivateExpBooster()} style={styles.useItemButton}>
-            <ArenaControlFrame accent="#f0bf14" selected />
+            <ArenaControlFrame accent={theme.colors.accent} selected />
             <Text style={styles.useItemButtonText}>ACTIVATE</Text>
           </Pressable>
         ) : null}
@@ -332,7 +316,7 @@ export function InventoryScreen() {
 
   return (
     <View style={styles.page}>
-      <HomeCogButton showStats={false} topOffset={160} />
+      <HomeCogButton showStats={false} />
       <CompactSectionHeader
         eyebrow="LOADOUT"
         meta={`Parts ${profile?.parts?.length || 0} • Items ${items.length} • Moves ${Object.keys(profile?.battle_cards || {}).length}`}
@@ -373,8 +357,9 @@ export function InventoryScreen() {
 
 const styles = StyleSheet.create({
   boosterActiveText: {
-    color: "#39d98a",
-    fontSize: 12,
+    color: theme.colors.success,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
     marginTop: 3,
   },
@@ -388,8 +373,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   useItemButtonText: {
-    color: "#050606",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 0.6,
   },
@@ -424,87 +410,8 @@ const styles = StyleSheet.create({
     padding: 14,
     position: "relative",
   },
-  expFill: {
-    backgroundColor: "#f0bf14",
-    height: "100%",
-    width: "62%",
-  },
-  expTrack: {
-    backgroundColor: "#413822",
-    height: 8,
-    marginTop: 12,
-    width: "100%",
-  },
-  header: {
-    backgroundColor: "#050606",
-    borderBottomColor: "#f0bf14",
-    borderBottomWidth: 3,
-    paddingBottom: 18,
-    paddingHorizontal: 24,
-    paddingTop: 94,
-  },
-  headerEyebrow: {
-    color: "#f0bf14",
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-  },
-  headerTitle: {
-    color: "#fef1e0",
-    fontSize: 34,
-    fontWeight: "900",
-    marginTop: 6,
-  },
-  headerMeta: {
-    color: "#ddd2b5",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  holobotCard: {
-    backgroundColor: "transparent",
-    flexDirection: "row",
-    gap: 14,
-    overflow: "hidden",
-    padding: 14,
-    position: "relative",
-  },
-  holobotCardLocked: {
-    opacity: 0.95,
-  },
-  holobotContent: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  holobotHeaderRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  holobotImage: {
-    backgroundColor: "#1a1a1a",
-    height: 98,
-    width: 98,
-  },
-  holobotMeta: {
-    color: "#ddd2b5",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 6,
-  },
-  holobotName: {
-    color: "#fef1e0",
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  holobotStatus: {
-    color: "#f0bf14",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
   page: {
-    backgroundColor: "#f5c40d",
+    backgroundColor: theme.colors.carbon,
     flex: 1,
   },
   scrollContent: {
@@ -513,43 +420,21 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   simpleMeta: {
-    color: "#ddd2b5",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 13,
     marginTop: 6,
   },
   simpleName: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 20,
     fontWeight: "800",
   },
   simpleQty: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
     fontSize: 24,
     fontWeight: "900",
-  },
-  tabButton: {
-    borderColor: "#7a6412",
-    borderWidth: 1,
-    flex: 1,
-    paddingVertical: 12,
-  },
-  tabButtonActive: {
-    backgroundColor: "#050606",
-    borderColor: "#050606",
-  },
-  tabButtonText: {
-    color: "#3f3104",
-    fontSize: 14,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  tabButtonTextActive: {
-    color: "#fef1e0",
-  },
-  tabRow: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingTop: 16,
   },
 });

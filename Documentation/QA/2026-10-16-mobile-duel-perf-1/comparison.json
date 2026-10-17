@@ -1,0 +1,43 @@
+[
+  {
+    "run": "before-clean",
+    "samples": 24,
+    "medianFps": 6.05,
+    "range": [
+      5.4,
+      6.9
+    ],
+    "drawCalls": [
+      4
+    ],
+    "triangles": [
+      56250
+    ],
+    "firstElapsedMs": 2123,
+    "lastElapsedMs": 49982,
+    "renderMs": 0.8038647182677922,
+    "barrierMs": 154.08001711729327,
+    "animationAndFramePrepMs": 0.3658289430957091
+  },
+  {
+    "run": "after-guard-prewarm",
+    "samples": 24,
+    "medianFps": 6.7,
+    "range": [
+      5.7,
+      7.8
+    ],
+    "drawCalls": [
+      2,
+      3
+    ],
+    "triangles": [
+      56250
+    ],
+    "firstElapsedMs": 2102,
+    "lastElapsedMs": 49856,
+    "renderMs": 0.6780536485289386,
+    "barrierMs": 139.58131014836763,
+    "animationAndFramePrepMs": 0.3806441893834554
+  }
+]

@@ -1,0 +1,98 @@
+{
+  "ace": {
+    "bytes": 988940,
+    "sha256": "5760acb630750a0b9039e1cfafa0569b9363dd536547b791a972860759e8d88b",
+    "meshes": 1,
+    "primitives": 1,
+    "materials": 1,
+    "textures": 1,
+    "animations": [
+      {
+        "name": "CometCross",
+        "channels": 90
+      },
+      {
+        "name": "Evade",
+        "channels": 90
+      },
+      {
+        "name": "FableHover",
+        "channels": 90
+      },
+      {
+        "name": "JabCross",
+        "channels": 90
+      },
+      {
+        "name": "LeadHook",
+        "channels": 90
+      },
+      {
+        "name": "MeteorHammer",
+        "channels": 90
+      },
+      {
+        "name": "RearUppercut",
+        "channels": 90
+      },
+      {
+        "name": "Skybreaker",
+        "channels": 90
+      }
+    ],
+    "textureImages": [
+      {
+        "name": "HB_ACE_Skin_Default",
+        "width": 1024,
+        "height": 1024,
+        "bytes": 288134
+      }
+    ]
+  },
+  "wolf": {
+    "bytes": 799012,
+    "sha256": "e431692f656fa17c29b6779111e32d5a1df3e0348d174a2a17a9af94ae0bd974",
+    "meshes": 1,
+    "primitives": 1,
+    "materials": 1,
+    "textures": 1,
+    "animations": [
+      {
+        "name": "Evade",
+        "channels": 81
+      },
+      {
+        "name": "HoverIdle",
+        "channels": 81
+      },
+      {
+        "name": "LowRoundhouse",
+        "channels": 81
+      },
+      {
+        "name": "Run",
+        "channels": 81
+      },
+      {
+        "name": "StepCross",
+        "channels": 81
+      },
+      {
+        "name": "SupermanPunch",
+        "channels": 81
+      },
+      {
+        "name": "Walk",
+        "channels": 81
+      }
+    ],
+    "textureImages": [
+      {
+        "name": "WOLF_FINAL_basecolor",
+        "width": 1024,
+        "height": 1024,
+        "bytes": 262227
+      }
+    ]
+  }
+}

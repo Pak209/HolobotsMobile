@@ -577,3 +577,41 @@ export function useAuth() {
 
   return context;
 }
+
+/** Development screenshot harness: no Firebase session, subscriptions or writes. */
+export function OfflinePreviewAuthProvider({
+  children,
+  profile,
+}: {
+  children: ReactNode;
+  profile: UserProfile;
+}) {
+  if (!__DEV__) throw new Error("Offline preview is only available in development builds.");
+  const unavailable = async (): Promise<never> => {
+    throw new Error("Offline preview: account actions are disabled.");
+  };
+  return (
+    <AuthContext.Provider value={{
+      user: null,
+      profile,
+      bootLoading: false,
+      loading: false,
+      rememberedEmail: "",
+      rememberMeEnabled: false,
+      faceIdEnabled: false,
+      faceIdAvailable: false,
+      sessionLocked: false,
+      profileLoading: false,
+      profileError: null,
+      login: unavailable,
+      signup: unavailable,
+      logout: unavailable,
+      deleteAccount: unavailable,
+      unlockWithFaceId: unavailable,
+      updateAuthPreferences: unavailable,
+      updateProfile: unavailable,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}

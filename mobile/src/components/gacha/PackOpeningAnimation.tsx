@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -27,7 +28,7 @@ type PackOpeningAnimationProps = {
 
 const rarityGlow = {
   common: "#7b8597",
-  rare: "#00d9ff",
+  rare: theme.colors.accent,
   epic: "#9d4edd",
   legendary: "#ff3366",
 } as const;
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
   },
   packFrame: {
     alignItems: "center",
-    backgroundColor: "#111111",
+    backgroundColor: theme.colors.carbon,
     borderWidth: 4,
     height: 170,
     justifyContent: "center",
@@ -163,18 +164,20 @@ const styles = StyleSheet.create({
     width: 170,
   },
   packSubtitle: {
-    color: "#ddd2b5",
-    fontSize: 14,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     marginTop: 10,
   },
   packTitle: {
-    fontSize: 22,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.header.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
     textAlign: "center",
   },
   collectButton: {
-    backgroundColor: "#050606",
+    backgroundColor: theme.colors.carbon,
     borderWidth: 2,
     marginTop: 18,
     minHeight: 52,
@@ -183,12 +186,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   collectText: {
+    fontFamily: "HoloDisplay",
     fontSize: 17,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
   revealCard: {
-    backgroundColor: "#111111",
+    backgroundColor: theme.colors.carbon,
     borderWidth: 2,
     padding: 14,
   },
@@ -204,18 +208,21 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   revealLabel: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "900",
     marginTop: 6,
   },
   revealRarity: {
-    fontSize: 12,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
   revealSubtitle: {
-    color: "#ddd2b5",
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 13,
     marginTop: 4,
   },

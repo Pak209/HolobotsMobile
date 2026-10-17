@@ -1,0 +1,43 @@
+✔ known-bad input first: arbitrary client victory, rank, or count cannot flip story gates (306.237833ms)
+✔ desktop versions lazily backfill defaults and return the identical four story fields (37.843042ms)
+✔ gathering yields eight stable CV1 pilots from all twelve bots and the exact ring palette; concurrent and later calls are idempotent (3137.710625ms)
+✔ callable auth and strict gathering/tournament input refusals (105.96875ms)
+✔ malformed story state fails closed; partial absent fields default without resetting existing progress (316.799334ms)
+✔ all eight roster citizens issue their assigned bot, retain 100/25 rewards and settle replay, and use the same 5-minute cooldown (674.941125ms)
+✔ citizen rival refuses before gathering, a non-roster citizen, foreign ids, wrong schemas and operations (127.738958ms)
+✔ rank thresholds 2/11/21 are enforced at admission without spending an entry; sequence cannot be skipped (141.108417ms)
+✔ three distinct tagged wins at exact boundaries flip only Arena; duplicate and concurrent results never advance twice (12161.161458ms)
+✔ foreign, ordinary practice, wrong tournament and unfinished receipts cannot qualify (1413.678ms)
+✔ loss and malformed host receipts fail closed; low admission level and corrupted tags refuse (1679.92325ms)
+✔ admission request replay preserves its tag and rejects changing a practice request into a tournament (590.515792ms)
+[2026-10-15T05:31:19.595Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7a9 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:19.942Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7aa error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L194, false for 'create' @ L359, evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'create' @ L194, false for 'create' @ L359
+[2026-10-15T05:31:20.162Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7ab error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:20.245Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7ac error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:20.319Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7ad error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:20.378Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7ae error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:20.425Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7af error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:20.515Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7b0 error. Code: 7 Message: 7 PERMISSION_DENIED:
+evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:20.579Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7b1 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L194, false for 'create' @ L359, evaluation error at L206:24 for 'update' @ L206, false for 'update' @ L359, false for 'update' @ L206, false for 'update' @ L359
+[2026-10-15T05:31:20.623Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7b2 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'delete' @ L216, false for 'delete' @ L359
+[2026-10-15T05:31:20.837Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x562fd7b3 error. Code: 7 Message: 7 PERMISSION_DENIED:
+false for 'create' @ L349, false for 'create' @ L359, false for 'update' @ L349, false for 'update' @ L359
+✔ rules deny client story creation, nested edits, replacement, deletion, foreign reads and forged match receipts; unchanged merges work (5112.892333ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26326.510875

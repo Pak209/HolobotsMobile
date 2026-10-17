@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -22,7 +23,7 @@ export const MoveDetailFrame = memo(function MoveDetailFrame({ accent }: FramePr
       <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 360 300" width="100%">
         <Path
           d="M14 2 H344 L358 16 V284 L344 298 H14 L2 286 V16 Z"
-          fill="#020304"
+          fill={theme.colors.carbon}
         />
         <Path
           d="M14 2 H126 M142 2 H344 L358 16 V78 M358 95 V214 M358 232 V284 L344 298 H280 M264 298 H96 M80 298 H14 L2 286 V226 M2 208 V92 M2 74 V16 Z"
@@ -96,7 +97,7 @@ export const MoveListFrame = memo(function MoveListFrame({ accent }: FrameProps)
       <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 360 420" width="100%">
         <Path
           d="M14 2 H344 L358 16 V404 L344 418 H14 L2 406 V16 Z"
-          fill="#020304"
+          fill={theme.colors.carbon}
         />
         <Path
           d="M14 2 H128 M144 2 H344 L358 16 V74 M358 92 V330 M358 348 V404 L344 418 H286 M270 418 H92 M76 418 H14 L2 406 V346 M2 328 V92 M2 74 V16 Z"
@@ -121,7 +122,7 @@ export const MoveListFrame = memo(function MoveListFrame({ accent }: FrameProps)
         <Path
           d="M18 408 H54 L62 400 H104 M254 408 H298 L306 400 H342"
           fill="none"
-          stroke="#ffc51b"
+          stroke={theme.colors.warning}
           strokeOpacity={0.72}
           strokeWidth={2}
         />
@@ -156,7 +157,7 @@ export const MoveRowFrame = memo(function MoveRowFrame({ accent }: FrameProps) {
         <Path
           d="M342 30 H359 M342 36 H359"
           fill="none"
-          stroke="#ffc51b"
+          stroke={theme.colors.warning}
           strokeOpacity={0.75}
           strokeWidth={1}
         />
@@ -182,7 +183,7 @@ export const MoveTabFrame = memo(function MoveTabFrame({
       <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 100 44" width="100%">
         <Path
           d={d}
-          fill={active ? "#ffc51b" : "#111008"}
+          fill={active ? theme.colors.warning : "#111008"}
           stroke={active ? "#ffe678" : "#514719"}
           strokeLinejoin="miter"
           strokeWidth={active ? 1.5 : 1}
@@ -200,7 +201,7 @@ export const MoveTabFrame = memo(function MoveTabFrame({
 });
 
 export const MoveActionFrame = memo(function MoveActionFrame({
-  accent = "#ffc51b",
+  accent = theme.colors.warning,
   variant,
 }: ActionFrameProps) {
   const primary = variant === "primary";
@@ -215,7 +216,7 @@ export const MoveActionFrame = memo(function MoveActionFrame({
       <Svg height="100%" preserveAspectRatio="none" viewBox={viewBox} width="100%">
         <Path
           d={d}
-          fill={primary ? "#ffc51b" : "#07080b"}
+          fill={primary ? theme.colors.warning : "#07080b"}
           stroke={primary ? "#ffe678" : equip ? accent : "#5b606b"}
           strokeLinejoin="miter"
           strokeWidth={primary ? 1.5 : 1.3}
@@ -252,27 +253,27 @@ export const BattleLoadoutFrame = memo(function BattleLoadoutFrame() {
         <Path
           d="M14 2 H84 M100 2 H346 L358 14 V58 M358 74 V246 M358 262 V296 L346 308 H284 M268 308 H88 M72 308 H14 L2 296 V262 M2 246 V75 M2 58 V14 Z"
           fill="none"
-          stroke="#f4c719"
+          stroke={theme.colors.accent}
           strokeLinejoin="miter"
           strokeWidth={2.5}
         />
         <Path
           d="M12 10 H108 L96 24 H19 L9 34 V66 M9 248 V289 L19 299 H68 M291 299 H341 L351 289 V252 M351 64 V19 L341 9 H298"
           fill="none"
-          stroke="#f4c719"
+          stroke={theme.colors.accent}
           strokeOpacity={0.42}
           strokeWidth={1}
         />
         <Path
           d="M16 2 H46 L39 9 H20 L8 21 V44 M315 2 H346 L358 14 V44"
           fill="none"
-          stroke="#f4c719"
+          stroke={theme.colors.accent}
           strokeWidth={4}
         />
         <Path
           d="M18 302 H51 L58 295 H104 M258 302 H304 L311 295 H342"
           fill="none"
-          stroke="#f4c719"
+          stroke={theme.colors.accent}
           strokeOpacity={0.82}
           strokeWidth={2}
         />
@@ -333,7 +334,7 @@ export const EquippedMoveFrame = memo(function EquippedMoveFrame({
           strokeWidth={1}
         />
         {active ? (
-          <Path d="M33 1 L41 9 L49 1 Z" fill="#f4c719" />
+          <Path d="M33 1 L41 9 L49 1 Z" fill={theme.colors.accent} />
         ) : null}
       </Svg>
     </View>

@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
@@ -66,7 +67,7 @@ export function WebSectionScreen({ uri }: WebSectionScreenProps) {
       <HomeCogButton />
       {loading ? (
         <View style={styles.overlay}>
-          <ActivityIndicator color="#f5c40d" size="large" />
+          <ActivityIndicator color={theme.colors.accent} size="large" />
           <Text style={styles.overlayText}>Connecting your Holobots session…</Text>
         </View>
       ) : null}
@@ -95,14 +96,16 @@ export function WebSectionScreen({ uri }: WebSectionScreenProps) {
 
 const styles = StyleSheet.create({
   errorCopy: {
-    color: "#f5e9ca",
-    fontSize: 14,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     lineHeight: 20,
     marginTop: 8,
     textAlign: "center",
   },
   errorTitle: {
     color: "#ff8269",
+    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "800",
     textAlign: "center",
@@ -110,19 +113,20 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
-    backgroundColor: "#050606",
+    backgroundColor: theme.colors.carbon,
     justifyContent: "center",
     paddingHorizontal: 24,
     zIndex: 5,
   },
   overlayText: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
     fontSize: 15,
     marginTop: 12,
   },
   page: {
     flex: 1,
-    backgroundColor: "#050606",
+    backgroundColor: theme.colors.carbon,
   },
   webview: {
     flex: 1,
