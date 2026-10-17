@@ -7,18 +7,20 @@ import { getHolobotHeadshotImageSource } from '../config/holobots';
 import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../components/HoloCityCommandBar';
 import { BotStage, type BotMetrics, type BotStageHandle } from '../components/bots/BotStage';
 import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound, type ObservedDuelState, type ObservedFighterState } from '../lib/bots/duelPlayback';
+import { hostFighterLevel, levelBadge, receiptIssue } from '../lib/bots/hostFighterLevel';
 import { readLiveRivalPlayback } from '../lib/bots/liveRivalPlayback';
 export type { DuelRound } from '../lib/bots/duelPlayback';
-export type DuelPlaybackScreenProps = { receipt: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
+export type DuelPlaybackScreenProps = { receipt: unknown; accountSnapshot?: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
 
 type FighterSnapshot = ObservedFighterState;
-export function FighterHud({ name, state, rival = false }: { name: string; state?: FighterSnapshot; rival?: boolean }) {
+export function FighterHud({ name, state, level, rival = false }: { name: string; state?: FighterSnapshot; level?: number; rival?: boolean }) {
+  const badge = levelBadge(level);
   const accent = rival ? theme.rings.rival[0] : theme.rings.player[0];
   const ratio = state && state.hp !== undefined && state.maxHp > 0 ? Math.max(0, Math.min(1, state.hp / state.maxHp)) : 0;
   return <View style={[styles.fighter, { borderColor: accent }]}>
     <View style={[styles.identity, rival && styles.reverse]}>
       {resolveBotId(name) ? <Image source={getHolobotHeadshotImageSource(name)} resizeMode="contain" style={[styles.portrait, { borderColor: accent }]} /> : <View style={[styles.portrait, { borderColor: accent, alignItems: 'center', justifyContent: 'center' }]}><Text style={styles.statLabel}>?</Text></View>}
-      <Text numberOfLines={1} style={[styles.name, { color: accent }]}>{name.toUpperCase()}</Text>
+      <View style={styles.nameRow}><Text numberOfLines={1} style={[styles.name, { color: accent }]}>{name.toUpperCase()}</Text>{badge && <Text testID={`fighter-level-${name.toLowerCase()}`} style={styles.levelBadge}>{badge}</Text>}</View>
     </View>
     <View style={styles.statLine}><Text style={styles.statLabel}>HP</Text><Text style={styles.statValue}>{state?.hp !== undefined ? `${state.hp}/${state.maxHp}` : '—'}</Text></View>
     <View style={styles.hpTrack}><View style={[styles.hpFill, { width: `${ratio * 100}%`, backgroundColor: rival ? theme.colors.danger : theme.colors.success }]} /></View>
@@ -27,7 +29,7 @@ export function FighterHud({ name, state, rival = false }: { name: string; state
 }
 
 /** Receipt-only presentation. It never calculates damage, stamina, misses, winners or rewards. */
-export function DuelPlaybackScreen({ receipt, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
+export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
   const insets = useSafeAreaInsets();
   const normalized = useMemo(() => liveIssue === undefined ? normalizeDuelReceipt(receipt, rounds) : readLiveRivalPlayback(liveIssue, receipt), [receipt, rounds, liveIssue]);
   const [actors, setActors] = useState({ player: normalized.attackerBotId, rival: normalized.defenderBotId });
@@ -96,9 +98,9 @@ export function DuelPlaybackScreen({ receipt, liveIssue, rounds, attackerBotId, 
     <View pointerEvents="box-none" style={[styles.top, { paddingTop: insets.top + 4 }]}>
       <View style={styles.toolbar}><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel="Return to city" onPress={onClose} hitSlop={4}><Text style={styles.utility}>‹ CITY</Text></Pressable><Text style={styles.arenaLabel}>HOLOCITY / PARK ARENA</Text><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel={complete ? "Replay battle" : paused ? "Resume battle replay" : "Pause battle replay"} onPress={() => complete ? setReplay(v => v + 1) : setPaused(v => !v)} hitSlop={12}><Text style={styles.utility}>{complete ? 'REPLAY ↻' : paused ? 'PLAY ▷' : 'PAUSE Ⅱ'}</Text></Pressable></View>
       <View style={styles.hud}>
-        <FighterHud name={player ?? attackerBotId ?? 'PLAYER'} state={snapshot?.player} />
+        <FighterHud name={player ?? attackerBotId ?? 'PLAYER'} state={snapshot?.player} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'player', actors.player, accountSnapshot)} />
         <View style={styles.roundPlate}><Text style={styles.roundLabel}>{complete && !round ? 'RESULT' : 'ROUND'}</Text><Text style={styles.roundNumber}>{round ? String(round.roundNumber ?? currentRound + 1).padStart(2, '0') : '—'}</Text><Text style={styles.roundLabel}>OF {normalized.roundCount || '—'}</Text></View>
-        <FighterHud name={rival ?? defenderBotId ?? 'RIVAL'} state={snapshot?.rival} rival />
+        <FighterHud name={rival ?? defenderBotId ?? 'RIVAL'} state={snapshot?.rival} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'rival', actors.rival)} rival />
       </View>
     </View>
     {(normalized.receiptError || stageError || !player || !rival) && <View style={styles.warning}><Text style={styles.notice}>{normalized.receiptError ?? '3D presentation unavailable. The recorded result is preserved.'}</Text></View>}
@@ -114,6 +116,7 @@ export default DuelPlaybackScreen;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.carbon }, stage: { ...StyleSheet.absoluteFillObject, borderRadius: 0 },
   top: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 12 }, toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#101318CC', paddingHorizontal: 10, marginBottom: 9, borderRadius: 4 }, utilityButton: { minWidth: 52, minHeight: 44, justifyContent: 'center' }, utility: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1 }, arenaLabel: { ...theme.type.micro, color: theme.colors.text, letterSpacing: 1, fontSize: 9 },
+  nameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }, levelBadge: { ...theme.type.micro, fontSize: 14, color: theme.colors.text, backgroundColor: theme.colors.carbon, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 2 },
   hud: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 }, fighter: { flex: 1, minWidth: 0, backgroundColor: '#081723EA', borderWidth: 1, borderRadius: 6, padding: 8 }, identity: { flexDirection: 'row', alignItems: 'center', gap: 7 }, reverse: { flexDirection: 'row-reverse' }, portrait: { width: 36, height: 36, borderWidth: 1, borderRadius: 18, backgroundColor: theme.plates.keycap }, name: { ...theme.type.label, fontSize: 18, flexShrink: 1 }, statLine: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }, statLabel: { ...theme.type.micro, color: theme.colors.muted, fontSize: 9 }, statValue: { ...theme.type.micro, color: theme.colors.text, fontSize: 11 }, hpTrack: { height: 5, backgroundColor: theme.plates.keycap, borderRadius: 2, overflow: 'hidden', marginTop: 3 }, hpFill: { height: '100%' }, stamina: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 7 }, pip: { flex: 1, height: 9, borderWidth: 0.5, borderRadius: 1 },
   roundPlate: { width: 52, backgroundColor: '#081723EF', borderColor: theme.colors.accent, borderWidth: 1, borderRadius: 4, alignItems: 'center', paddingVertical: 8 }, roundLabel: { ...theme.type.micro, color: theme.colors.accent, fontSize: 9, letterSpacing: 1 }, roundNumber: { ...theme.type.display, fontSize: 30, lineHeight: 34, color: theme.colors.text },
   bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, gap: 8 }, actionLog: { minHeight: 38, backgroundColor: '#101318F2', borderColor: theme.colors.accent, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, overflow: 'hidden' }, logAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: theme.colors.accent }, logText: { ...theme.type.label, color: theme.colors.text, fontSize: 16, letterSpacing: 0.5 }, source: { ...theme.type.micro, color: theme.colors.text, fontSize: 9, letterSpacing: 1, textAlign: 'center', backgroundColor: '#101318D9', padding: 3 },

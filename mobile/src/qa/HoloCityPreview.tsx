@@ -49,9 +49,10 @@ function HomePreview() {
   return <HomeScreen rivalPreview={rivalPreview} />;
 }
 function DuelPreview() { return <DuelPlaybackScreen fixture receipt={DUEL_PREVIEW_RECEIPT} onClose={noop} showMetrics />; }
-function HostDuelPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelFixture.receipt} onClose={noop} />; }
+const hostDuelEnvelope = { issue: { duel: { mode: "resolver", player: hostDuelFixture.input.player, opponent: hostDuelFixture.input.opponent } }, duelReceipt: hostDuelFixture.receipt };
+function HostDuelPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelEnvelope} onClose={noop} />; }
 const hostDuelCaptureScreens = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [
-  `HostDuelRound${i + 1}`, function HostRoundPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelFixture.receipt} onClose={noop} captureRound={i + 1} />; },
+  `HostDuelRound${i + 1}`, function HostRoundPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelEnvelope} onClose={noop} captureRound={i + 1} />; },
 ]));
 function ReceiptPreview() { return <DuelPlaybackScreen fixture receipt={{ issue: { battleId: "offline-result-only", playerCombatants: [{ holobotId: "ace" }], encounter: { opponentSquad: [{ holobotId: "wolf" }] } }, settlement: DUEL_PREVIEW_RECEIPT.settlement }} onClose={noop} />; }
 const duelCaptureScreens = Object.fromEntries([1, 2, 3].map(round => [`DuelRound${round}`, function RoundPreview() {

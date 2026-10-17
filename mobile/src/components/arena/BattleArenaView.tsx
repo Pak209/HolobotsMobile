@@ -1,3 +1,4 @@
+import { hostFighterLevel, levelBadge } from "@/lib/bots/hostFighterLevel";
 import { slotAccent, theme } from "@/theme";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -46,6 +47,8 @@ export type TeamHudProps = {
 
 type BattleArenaViewProps = {
   battle: BattleState;
+  /** Verified host account only; never local profile or rival samples. */
+  hostLevelAccount?: unknown;
   roundProgress?: {
     currentRound: number;
     totalRounds: number;
@@ -271,8 +274,14 @@ function BenchChips({ chips, align }: { chips: TeamHudChip[]; align: "left" | "r
   );
 }
 
+function HostLevelBadge({ account, name }: { account: unknown; name: string }) {
+  const label = levelBadge(hostFighterLevel(undefined, 'player', name, account));
+  return label ? <Text style={{ ...theme.type.micro, fontSize: 14, backgroundColor: theme.colors.carbon, color: theme.colors.text, paddingHorizontal: 4, paddingVertical: 2 }}>{label}</Text> : null;
+}
+
 export function BattleArenaView({
   battle,
+  hostLevelAccount,
   roundProgress,
   playerCards,
   playableCardIds,
@@ -392,7 +401,7 @@ export function BattleArenaView({
       <View style={styles.topHud}>
         <View style={styles.hudSide}>
           <View style={styles.hudInfoStack}>
-            <Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text><HostLevelBadge account={hostLevelAccount} name={battle.player.name} /></View>
             <HudBar
               color={theme.colors.success}
               label="HP"
@@ -572,7 +581,7 @@ export function BattleArenaView({
             <View style={styles.sendInRow}>
               {team.sendIn.options.map((chip) => (
                 <Pressable key={chip.index} onPress={() => team.onSendIn(chip.index)} style={styles.sendInOption}>
-                  <Text style={styles.sendInName}>{chip.name}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Text style={styles.sendInName}>{chip.name}</Text><HostLevelBadge account={hostLevelAccount} name={chip.name} /></View>
                   <View style={styles.benchBarTrack}>
                     <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
                   </View>
@@ -609,9 +618,9 @@ export function BattleArenaView({
                     { borderColor: slotAccent(false, chip.index) },
                   ]}
                 >
-                  <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>                  <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
                     {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
-                  </Text>
+                  </Text><HostLevelBadge account={hostLevelAccount} name={chip.name} /></View>
                   <View style={styles.benchBarTrack}>
                     <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
                   </View>

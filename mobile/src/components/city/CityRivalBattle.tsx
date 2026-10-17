@@ -28,7 +28,7 @@ export function CityRivalCombatPreview({ onClose }: { onClose: () => void }) {
 }
 
 /** An isolated battle avoids leaking rival outcomes into ArenaScreen's settlement store. */
-export function CityRivalBattle({ uid, rival, onClose, preview = false, initialCombat = false }: { uid: string; rival: ArenaCitizen; onClose: () => void; preview?: boolean; initialCombat?: boolean }) {
+export function CityRivalBattle({ uid, rival, onClose, preview = false, initialCombat = false, accountSnapshot }: { accountSnapshot?: unknown; uid: string; rival: ArenaCitizen; onClose: () => void; preview?: boolean; initialCombat?: boolean }) {
   const insets = useSafeAreaInsets();
   const [hostPreview, setHostPreview] = useState(false);
   const [issue, setIssue] = useState<CityRivalIssue | null>(null);
@@ -161,9 +161,9 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     const fixture = require("@/qa/fixtures/duel-receipt-1.json");
     return <DuelPlaybackScreen fixture receipt={fixture.receipt} onClose={onClose} />;
   }
-  if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
+  if (receipt && issue) return <DuelPlaybackScreen accountSnapshot={accountSnapshot} fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
 
-  if (battle?.status === "active") return <CityLiveBattleView battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
+  if (battle?.status === "active") return <CityLiveBattleView accountSnapshot={accountSnapshot} hostIssue={issue?.raw} battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
 
   return <View style={[styles.screen, styles.center, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
     <Text style={styles.label}>CITY RIVAL CHALLENGE</Text>

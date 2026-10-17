@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveBotId } from '../../../assets/bots';
 import { BotStage, type BotStageHandle } from '../bots/BotStage';
 import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../HoloCityCommandBar';
+import { hostFighterLevel } from '../../lib/bots/hostFighterLevel';
 import { FighterHud } from '../../screens/DuelPlaybackScreen';
 import { getActionSides } from '../arena/battleVisualStates';
 import { ArenaCombatEngine } from '../../features/arena/combatEngine';
@@ -12,8 +13,8 @@ import type { ActionCard, BattleState } from '../../types/arena';
 import { theme } from '../../theme';
 
 /** Presentation of the existing resolved battle state; no combat decisions here. */
-export function CityLiveBattleView({ battle, moves, onPlay, onSignature, onLeave, pending, preview }: {
-  battle: BattleState; moves: ActionCard[]; onPlay: (id: string) => void;
+export function CityLiveBattleView({ battle, moves, onPlay, onSignature, onLeave, pending, preview, hostIssue, accountSnapshot }: {
+  hostIssue?: unknown; accountSnapshot?: unknown; battle: BattleState; moves: ActionCard[]; onPlay: (id: string) => void;
   onSignature: (power?: FinisherPower) => void; onLeave: () => void; pending: boolean; preview: boolean;
 }) {
   const insets = useSafeAreaInsets();
@@ -51,7 +52,7 @@ export function CityLiveBattleView({ battle, moves, onPlay, onSignature, onLeave
     {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} />}
     <View style={[styles.top, { paddingTop: insets.top + 4 }]}>
       <View style={styles.toolbar}><Text style={styles.caption}>{preview ? 'OFFLINE PREVIEW · NO REWARDS' : 'HOLOCITY / PARK ARENA'}</Text><Pressable accessibilityRole="button" onPress={onLeave} disabled={pending} style={styles.button}><Text style={styles.caption}>LEAVE</Text></Pressable></View>
-      <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} /><View style={styles.round}><Text style={styles.caption}>TURN</Text><Text style={styles.number}>{String(action?.turnNumber ?? 1).padStart(2, '0')}</Text></View><FighterHud name={battle.opponent.name} state={state(battle.opponent)} rival /></View>
+      <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} level={hostFighterLevel(hostIssue, 'player', battle.player.name, accountSnapshot)} /><View style={styles.round}><Text style={styles.caption}>TURN</Text><Text style={styles.number}>{String(action?.turnNumber ?? 1).padStart(2, '0')}</Text></View><FighterHud name={battle.opponent.name} state={state(battle.opponent)} level={hostFighterLevel(hostIssue, 'rival', battle.opponent.name)} rival /></View>
     </View>
     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
       <Text style={styles.log}>{error || !player || !rival ? '3D unavailable · controls remain active' : !ready ? 'LOADING ARENA' : action ? `${action.card.name} · ${action.actualDamage ?? action.damageDealt} DMG` : 'SELECT YOUR COMMAND'}</Text>
