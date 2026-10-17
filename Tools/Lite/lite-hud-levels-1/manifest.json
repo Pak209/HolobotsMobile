@@ -1,0 +1,61 @@
+{
+  "base": "d5cc1dd012b0c8691e9f1c52f50794d4bddf5f82",
+  "patchSha256": "236362e52965addb6b5380f74a256094c8d9283504dd96ff1e3774484b250e39",
+  "files": [
+    {
+      "path": "mobile/src/components/arena/BattleArenaView.tsx",
+      "beforeSha256": "d634e607df21c191bacddecd44aeb490d7512aa135602caaeda3ae7335d1f127",
+      "afterSha256": "20f593f43159b0d872fbb4e98c4f6c999a8403df9e7899d26927c8b0079c409b"
+    },
+    {
+      "path": "mobile/src/components/city/CityLiveBattleView.tsx",
+      "beforeSha256": "0161754bd4481dea99760e295aab29c8cc6395932eb902d5a529deb33e2907fc",
+      "afterSha256": "cc9fc4dbf1336450c2cc1aae9c65380c9ea5fb5fbcf82b6cefba595827852898"
+    },
+    {
+      "path": "mobile/src/components/city/CityRivalBattle.tsx",
+      "beforeSha256": "e795b3c620f6bcdcbee125c2621cfefce6fb68859964d3f510cbfab2bb15468d",
+      "afterSha256": "bd4c6dac5fb554339afc09350d050cb84560f0bf0cdef52daf40ad8e41a886a0"
+    },
+    {
+      "path": "mobile/src/lib/__tests__/cityHubClient.test.ts",
+      "beforeSha256": "91dde6135700f32d0c8843fac43938185c684fe6386264329e948b47c5a66699",
+      "afterSha256": "b22e5df55550ef1a540eb30027fc8e50c6d9e586f23da8890dc2f96abaf25e46"
+    },
+    {
+      "path": "mobile/src/lib/__tests__/hostFighterLevel.test.ts",
+      "beforeSha256": null,
+      "afterSha256": "d2bb69d009dc46527cbb0cf2c41c87ae577def3d1fd363db43cc6fe16884406c"
+    },
+    {
+      "path": "mobile/src/lib/bots/hostFighterLevel.ts",
+      "beforeSha256": null,
+      "afterSha256": "286cf4ffe9e9e7a6ff8fe23db89a07357ad2c3689345742fd739c491f8cee8a5"
+    },
+    {
+      "path": "mobile/src/lib/cityHubClient.ts",
+      "beforeSha256": "7245631407b1f63741b036356ff632af4c87966fd158e1ee4a8f123e2b62feb9",
+      "afterSha256": "9b8231d21d449a021ec9f669c0bccb019be8cbdf7e5acee1b2be0b573762d9de"
+    },
+    {
+      "path": "mobile/src/qa/HoloCityPreview.tsx",
+      "beforeSha256": "94cfa7e5608a008cda11e0de767b330da42fd78464687c78621ef75298327c3b",
+      "afterSha256": "561cadf80488debbe1c4d25402b7fb0c8578afbd7ca144b0cbd3a73b3e828c96"
+    },
+    {
+      "path": "mobile/src/screens/ArenaScreen.tsx",
+      "beforeSha256": "11ba95e43faaa782f10ecd81add07fa80d48d22a802a8d56ce4f8dc8b36e9d88",
+      "afterSha256": "64d2160a7bd085ec890aef0021dd282edf7f6982f8a0004a828b7e17fcad4876"
+    },
+    {
+      "path": "mobile/src/screens/CityHubScreen.tsx",
+      "beforeSha256": "bce57937d8b3084f5860cba8a04f6f51024ef82b76ba2217a4a7b2ef2158ee63",
+      "afterSha256": "a395aa2cd9ffbeb09c004fc97c27722ef296dbb8d91228317e8f415b608cb6c3"
+    },
+    {
+      "path": "mobile/src/screens/DuelPlaybackScreen.tsx",
+      "beforeSha256": "5303291db77e32bf36ce6c67179a90717449ae1245a13fabc9ad7620cbc8fe16",
+      "afterSha256": "320e19efa9bf540cb377fc455c9337b67d13c794405439683e4e49e720f485e5"
+    }
+  ]
+}

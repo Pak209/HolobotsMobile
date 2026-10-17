@@ -1,0 +1,390 @@
+diff --git a/mobile/src/components/arena/BattleArenaView.tsx b/mobile/src/components/arena/BattleArenaView.tsx
+index 9f3eebbbe6a0d41ff2062f3e06aea4f7ebab3314..1c6e3c9591437839417e1159420448de76024ac8 100644
+--- a/mobile/src/components/arena/BattleArenaView.tsx
++++ b/mobile/src/components/arena/BattleArenaView.tsx
+@@ -1,3 +1,4 @@
++import { hostFighterLevel, levelBadge } from "@/lib/bots/hostFighterLevel";
+ import { slotAccent, theme } from "@/theme";
+ import React, { useEffect, useMemo, useRef, useState } from "react";
+ import { AccessibilityInfo, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+@@ -46,6 +47,8 @@ export type TeamHudProps = {
+ 
+ type BattleArenaViewProps = {
+   battle: BattleState;
++  /** Verified host account only; never local profile or rival samples. */
++  hostLevelAccount?: unknown;
+   roundProgress?: {
+     currentRound: number;
+     totalRounds: number;
+@@ -271,8 +274,14 @@ function BenchChips({ chips, align }: { chips: TeamHudChip[]; align: "left" | "r
+   );
+ }
+ 
++function HostLevelBadge({ account, name }: { account: unknown; name: string }) {
++  const label = levelBadge(hostFighterLevel(undefined, 'player', name, account));
++  return label ? <Text style={{ ...theme.type.micro, fontSize: 14, backgroundColor: theme.colors.carbon, color: theme.colors.text, paddingHorizontal: 4, paddingVertical: 2 }}>{label}</Text> : null;
++}
++
+ export function BattleArenaView({
+   battle,
++  hostLevelAccount,
+   roundProgress,
+   playerCards,
+   playableCardIds,
+@@ -392,7 +401,7 @@ export function BattleArenaView({
+       <View style={styles.topHud}>
+         <View style={styles.hudSide}>
+           <View style={styles.hudInfoStack}>
+-            <Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text>
++            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text><HostLevelBadge account={hostLevelAccount} name={battle.player.name} /></View>
+             <HudBar
+               color={theme.colors.success}
+               label="HP"
+@@ -572,7 +581,7 @@ export function BattleArenaView({
+             <View style={styles.sendInRow}>
+               {team.sendIn.options.map((chip) => (
+                 <Pressable key={chip.index} onPress={() => team.onSendIn(chip.index)} style={styles.sendInOption}>
+-                  <Text style={styles.sendInName}>{chip.name}</Text>
++                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Text style={styles.sendInName}>{chip.name}</Text><HostLevelBadge account={hostLevelAccount} name={chip.name} /></View>
+                   <View style={styles.benchBarTrack}>
+                     <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
+                   </View>
+@@ -609,9 +618,9 @@ export function BattleArenaView({
+                     { borderColor: slotAccent(false, chip.index) },
+                   ]}
+                 >
+-                  <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
++                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>                  <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
+                     {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
+-                  </Text>
++                  </Text><HostLevelBadge account={hostLevelAccount} name={chip.name} /></View>
+                   <View style={styles.benchBarTrack}>
+                     <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
+                   </View>
+diff --git a/mobile/src/components/city/CityLiveBattleView.tsx b/mobile/src/components/city/CityLiveBattleView.tsx
+index d7d1f676e031ed6a5e53d88dbcf962cb72847933..a1b95d618cc13b30944b2a21b5068d36d0c7f131 100644
+--- a/mobile/src/components/city/CityLiveBattleView.tsx
++++ b/mobile/src/components/city/CityLiveBattleView.tsx
+@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { resolveBotId } from '../../../assets/bots';
+ import { BotStage, type BotStageHandle } from '../bots/BotStage';
+ import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../HoloCityCommandBar';
++import { hostFighterLevel } from '../../lib/bots/hostFighterLevel';
+ import { FighterHud } from '../../screens/DuelPlaybackScreen';
+ import { getActionSides } from '../arena/battleVisualStates';
+ import { ArenaCombatEngine } from '../../features/arena/combatEngine';
+@@ -12,8 +13,8 @@ import type { ActionCard, BattleState } from '../../types/arena';
+ import { theme } from '../../theme';
+ 
+ /** Presentation of the existing resolved battle state; no combat decisions here. */
+-export function CityLiveBattleView({ battle, moves, onPlay, onSignature, onLeave, pending, preview }: {
+-  battle: BattleState; moves: ActionCard[]; onPlay: (id: string) => void;
++export function CityLiveBattleView({ battle, moves, onPlay, onSignature, onLeave, pending, preview, hostIssue, accountSnapshot }: {
++  hostIssue?: unknown; accountSnapshot?: unknown; battle: BattleState; moves: ActionCard[]; onPlay: (id: string) => void;
+   onSignature: (power?: FinisherPower) => void; onLeave: () => void; pending: boolean; preview: boolean;
+ }) {
+   const insets = useSafeAreaInsets();
+@@ -51,7 +52,7 @@ export function CityLiveBattleView({ battle, moves, onPlay, onSignature, onLeave
+     {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} />}
+     <View style={[styles.top, { paddingTop: insets.top + 4 }]}>
+       <View style={styles.toolbar}><Text style={styles.caption}>{preview ? 'OFFLINE PREVIEW · NO REWARDS' : 'HOLOCITY / PARK ARENA'}</Text><Pressable accessibilityRole="button" onPress={onLeave} disabled={pending} style={styles.button}><Text style={styles.caption}>LEAVE</Text></Pressable></View>
+-      <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} /><View style={styles.round}><Text style={styles.caption}>TURN</Text><Text style={styles.number}>{String(action?.turnNumber ?? 1).padStart(2, '0')}</Text></View><FighterHud name={battle.opponent.name} state={state(battle.opponent)} rival /></View>
++      <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} level={hostFighterLevel(hostIssue, 'player', battle.player.name, accountSnapshot)} /><View style={styles.round}><Text style={styles.caption}>TURN</Text><Text style={styles.number}>{String(action?.turnNumber ?? 1).padStart(2, '0')}</Text></View><FighterHud name={battle.opponent.name} state={state(battle.opponent)} level={hostFighterLevel(hostIssue, 'rival', battle.opponent.name)} rival /></View>
+     </View>
+     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
+       <Text style={styles.log}>{error || !player || !rival ? '3D unavailable · controls remain active' : !ready ? 'LOADING ARENA' : action ? `${action.card.name} · ${action.actualDamage ?? action.damageDealt} DMG` : 'SELECT YOUR COMMAND'}</Text>
+diff --git a/mobile/src/components/city/CityRivalBattle.tsx b/mobile/src/components/city/CityRivalBattle.tsx
+index 51d9188b7a0e15362ccad71ba2df050e19405e31..3d9454735f6f8e41bf462048bef855c857afc24a 100644
+--- a/mobile/src/components/city/CityRivalBattle.tsx
++++ b/mobile/src/components/city/CityRivalBattle.tsx
+@@ -28,7 +28,7 @@ export function CityRivalCombatPreview({ onClose }: { onClose: () => void }) {
+ }
+ 
+ /** An isolated battle avoids leaking rival outcomes into ArenaScreen's settlement store. */
+-export function CityRivalBattle({ uid, rival, onClose, preview = false, initialCombat = false }: { uid: string; rival: ArenaCitizen; onClose: () => void; preview?: boolean; initialCombat?: boolean }) {
++export function CityRivalBattle({ uid, rival, onClose, preview = false, initialCombat = false, accountSnapshot }: { accountSnapshot?: unknown; uid: string; rival: ArenaCitizen; onClose: () => void; preview?: boolean; initialCombat?: boolean }) {
+   const insets = useSafeAreaInsets();
+   const [hostPreview, setHostPreview] = useState(false);
+   const [issue, setIssue] = useState<CityRivalIssue | null>(null);
+@@ -161,9 +161,9 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
+     const fixture = require("@/qa/fixtures/duel-receipt-1.json");
+     return <DuelPlaybackScreen fixture receipt={fixture.receipt} onClose={onClose} />;
+   }
+-  if (receipt && issue) return <DuelPlaybackScreen fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
++  if (receipt && issue) return <DuelPlaybackScreen accountSnapshot={accountSnapshot} fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
+ 
+-  if (battle?.status === "active") return <CityLiveBattleView battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
++  if (battle?.status === "active") return <CityLiveBattleView accountSnapshot={accountSnapshot} hostIssue={issue?.raw} battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
+ 
+   return <View style={[styles.screen, styles.center, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
+     <Text style={styles.label}>CITY RIVAL CHALLENGE</Text>
+diff --git a/mobile/src/lib/__tests__/cityHubClient.test.ts b/mobile/src/lib/__tests__/cityHubClient.test.ts
+index 0eb382c5a1a792228e596d640e84251bba8da9e8..0be33b9da319610d0420935c11d1ee1029988e52 100644
+--- a/mobile/src/lib/__tests__/cityHubClient.test.ts
++++ b/mobile/src/lib/__tests__/cityHubClient.test.ts
+@@ -1,11 +1,21 @@
+ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as { uid: string } | null }, call: vi.fn(), callable: vi.fn() }));
+ vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
+-import { loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad } from "../cityHubClient";
++import { readHostLevelAccount, loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad } from "../cityHubClient";
+ import { CITY_GATHERING_FIXTURE } from "../cityHubFixtures";
+ describe("city authenticated host actions", () => {
+   beforeEach(() => { vi.clearAllMocks(); fixture.auth.currentUser = { uid: "pilot-a" }; });
+   afterEach(() => vi.useRealTimers());
++  it("reads only a verified host level account and rejects stale sessions", async () => {
++    const account = { schemaVersion: "desktop-account-3", uid: "pilot-a", holobots: [{ name: "ACE", level: 12 }] };
++    fixture.call.mockResolvedValueOnce({ data: account });
++    expect(await readHostLevelAccount("pilot-a")).toEqual(account);
++    expect(fixture.callable).toHaveBeenLastCalledWith({}, "desktopAccountSnapshot");
++    fixture.call.mockResolvedValueOnce({ data: { ...account, uid: "pilot-b" } });
++    await expect(readHostLevelAccount("pilot-a")).rejects.toThrow("could not be verified");
++    fixture.call.mockImplementationOnce(async () => { fixture.auth.currentUser = { uid: "pilot-b" }; return { data: account }; });
++    await expect(readHostLevelAccount("pilot-a")).rejects.toEqual({ code: "unauthenticated" });
++  });
+   it("calls the exact #80 gathering and citizen admission contracts", async () => {
+     fixture.call.mockResolvedValueOnce({ data: CITY_GATHERING_FIXTURE });
+     expect((await meetCityPilots("pilot-a")).roster).toHaveLength(8);
+diff --git a/mobile/src/lib/__tests__/hostFighterLevel.test.ts b/mobile/src/lib/__tests__/hostFighterLevel.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f88b0a65ec1c493f55ea0b8b0e96dc4b14541f88
+--- /dev/null
++++ b/mobile/src/lib/__tests__/hostFighterLevel.test.ts
+@@ -0,0 +1,37 @@
++import { describe, expect, it } from 'vitest';
++import { hostFighterLevel, levelBadge, receiptIssue } from '../bots/hostFighterLevel';
++import fixture from '../../qa/fixtures/duel-receipt-1.json';
++
++describe('host-only fighter level badges', () => {
++  it('reads both levels from the original host fixture input, not final receipt stats', () => {
++    const issue = { duel: { mode: 'resolver', player: fixture.input.player, opponent: fixture.input.opponent } };
++    expect(levelBadge(hostFighterLevel(issue, 'player', 'ACE'))).toBe(`LV ${fixture.input.player[0].level}`);
++    expect(levelBadge(hostFighterLevel(issue, 'rival', 'WOLF'))).toBe(`LV ${fixture.input.opponent[0].level}`);
++    expect(hostFighterLevel(fixture.receipt, 'player', 'ace')).toBeUndefined();
++  });
++  it('matches switched fighters by id rather than taking first squad level', () => {
++    const issue = { duel: { mode: 'resolver', player: [{ holobotId: 'ace', level: 4 }, { holobotId: 'kuma', level: 11 }], opponent: [{ holobotId: 'wolf', level: 8 }] } };
++    expect(hostFighterLevel(issue, 'player', 'kuma')).toBe(11);
++    expect(hostFighterLevel(issue, 'rival', 'wolf')).toBe(8);
++    expect(hostFighterLevel(issue, 'player', 'wolf')).toBeUndefined();
++  });
++  it('retains issued levels in the round and result envelope', () => {
++    const issue = { duel: { mode: 'resolver', player: [{ holobotId: 'ace', level: 4 }], opponent: [{ holobotId: 'wolf', level: 8 }] } };
++    const envelope = { issue, duelReceipt: fixture.receipt };
++    expect(hostFighterLevel(receiptIssue(envelope), 'player', 'ace')).toBe(4);
++    expect(hostFighterLevel(receiptIssue(envelope), 'rival', 'wolf')).toBe(8);
++    expect(hostFighterLevel(receiptIssue(envelope), 'rival', 'ace')).toBeUndefined();
++  });
++  it('uses legacy issue fields and never computes from XP, rank or stats', () => {
++    const issue = { playerCombatants: [{ holobotId: 'ace', level: 4 }], encounter: { opponentSquad: [{ holobotId: 'wolf', level: 8 }] } };
++    expect(hostFighterLevel(issue, 'player', 'ace', { holobots: [{ name: 'ACE', level: 4 }] })).toBe(4);
++    expect(hostFighterLevel(issue, 'rival', 'wolf')).toBe(8);
++    expect(hostFighterLevel(issue, 'player', 'ace')).toBeUndefined();
++    expect(hostFighterLevel({ playerCombatants: [{ holobotId: 'ace', experience: 10000, rank: 'Champion', speed: 99 }] }, 'player', 'ace')).toBeUndefined();
++  });
++  it('hides missing, invalid and ambiguous levels, including in a result card', () => {
++    for (const value of [undefined, null, '4', 0, -1, 100, 1.5, NaN, Infinity]) expect(levelBadge(value)).toBeNull();
++    expect(levelBadge(1)).toBe('LV 1'); expect(levelBadge(99)).toBe('LV 99');
++    expect(hostFighterLevel({ duel: { mode: 'resolver', player: [{ holobotId: 'ace', level: 4 }, { holobotId: 'ace', level: 8 }] } }, 'player', 'ace')).toBeUndefined();
++  });
++});
+diff --git a/mobile/src/lib/bots/hostFighterLevel.ts b/mobile/src/lib/bots/hostFighterLevel.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e21749e68dcd5d6eada7568993cbc9edd7701357
+--- /dev/null
++++ b/mobile/src/lib/bots/hostFighterLevel.ts
+@@ -0,0 +1,21 @@
++/** Presentation-only badge. Never derives level from XP, rank, stats or a fallback. */
++export function levelBadge(value: unknown): string | null {
++  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= 99 ? `LV ${value}` : null;
++}
++const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
++/** Resolve the currently displayed fighter by id in the issued host squad, including switched bench fighters. */
++export function hostFighterLevel(rawIssue: unknown, side: 'player' | 'rival', holobotId: string | null, accountSnapshot?: unknown): number | undefined {
++  if (!holobotId) return undefined;
++  const issue = object(rawIssue), duel = object(issue.duel);
++  const team = duel.mode === 'resolver'
++    ? duel[side === 'player' ? 'player' : 'opponent']
++    : side === 'player' ? object(accountSnapshot).holobots : object(issue.encounter).opponentSquad;
++  if (!Array.isArray(team)) return undefined;
++  const matches = team.map(object).filter(bot => {
++    const id = duel.mode !== 'resolver' && side === 'player' ? bot.name : bot.holobotId;
++    return typeof id === 'string' && id.toLowerCase() === holobotId.toLowerCase();
++  });
++  return matches.length === 1 && levelBadge(matches[0].level) !== null ? matches[0].level as number : undefined;
++}
++/** Offline receipt envelope and live issue use the same read-only lookup; receipt final stats never supply levels. */
++export function receiptIssue(receipt: unknown): unknown { return object(receipt).issue; }
+diff --git a/mobile/src/lib/cityHubClient.ts b/mobile/src/lib/cityHubClient.ts
+index c29c54c3b03d2dfd5cebcbe4c56176f86d83840c..6c081d190e0c3fb556dda24b34fb65131b1be7da 100644
+--- a/mobile/src/lib/cityHubClient.ts
++++ b/mobile/src/lib/cityHubClient.ts
+@@ -57,10 +57,16 @@ export function cityRequestId(): string {
+ /** Read the host account before fetching a seen gathering; opening the hub never joins it implicitly. */
+ export async function loadCityHub(uid: string, fixture?: CityHubFixture) {
+   if (fixture) return { storyFlags: fixture.storyFlags, roster: fixture.roster };
+-  const reply = record(await cityCall(uid, "desktopAccountSnapshot", { schemaVersion: "desktop-account-3" }));
+-  if (reply?.schemaVersion !== "desktop-account-3" || reply.uid !== uid) throw new Error("The city account could not be verified. Refresh to retry.");
++  const reply = await readHostLevelAccount(uid);
+   const storyFlags = readCityStoryFlags(reply.storyFlags);
+-  if (!storyFlags.arenaGatheringSeen) return { storyFlags, roster: [] as ArenaCitizen[] };
++  if (!storyFlags.arenaGatheringSeen) return { storyFlags, roster: [] as ArenaCitizen[], accountSnapshot: reply };
+   const gathering = await meetCityPilots(uid);
+-  return { storyFlags: gathering.storyFlags, roster: gathering.roster };
++  return { storyFlags: gathering.storyFlags, roster: gathering.roster, accountSnapshot: reply };
++}
++
++/** Read-only level source; session is checked before and after the request. */
++export async function readHostLevelAccount(uid: string) {
++  const reply = record(await cityCall(uid, "desktopAccountSnapshot", { schemaVersion: "desktop-account-3" }));
++  if (reply?.schemaVersion !== "desktop-account-3" || reply.uid !== uid) throw new Error("The city account could not be verified. Refresh to retry.");
++  return reply;
+ }
+diff --git a/mobile/src/qa/HoloCityPreview.tsx b/mobile/src/qa/HoloCityPreview.tsx
+index 200905e7231d7d60be311984c2a0ab82cdd83a51..c95aac1027644d641d39e81f204d4ae40b0c0972 100644
+--- a/mobile/src/qa/HoloCityPreview.tsx
++++ b/mobile/src/qa/HoloCityPreview.tsx
+@@ -49,9 +49,10 @@ function HomePreview() {
+   return <HomeScreen rivalPreview={rivalPreview} />;
+ }
+ function DuelPreview() { return <DuelPlaybackScreen fixture receipt={DUEL_PREVIEW_RECEIPT} onClose={noop} showMetrics />; }
+-function HostDuelPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelFixture.receipt} onClose={noop} />; }
++const hostDuelEnvelope = { issue: { duel: { mode: "resolver", player: hostDuelFixture.input.player, opponent: hostDuelFixture.input.opponent } }, duelReceipt: hostDuelFixture.receipt };
++function HostDuelPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelEnvelope} onClose={noop} />; }
+ const hostDuelCaptureScreens = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [
+-  `HostDuelRound${i + 1}`, function HostRoundPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelFixture.receipt} onClose={noop} captureRound={i + 1} />; },
++  `HostDuelRound${i + 1}`, function HostRoundPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelEnvelope} onClose={noop} captureRound={i + 1} />; },
+ ]));
+ function ReceiptPreview() { return <DuelPlaybackScreen fixture receipt={{ issue: { battleId: "offline-result-only", playerCombatants: [{ holobotId: "ace" }], encounter: { opponentSquad: [{ holobotId: "wolf" }] } }, settlement: DUEL_PREVIEW_RECEIPT.settlement }} onClose={noop} />; }
+ const duelCaptureScreens = Object.fromEntries([1, 2, 3].map(round => [`DuelRound${round}`, function RoundPreview() {
+diff --git a/mobile/src/screens/ArenaScreen.tsx b/mobile/src/screens/ArenaScreen.tsx
+index eb0be35e107453344779e41ddacfb456279bfc8c..a4b01f21ffc564cbb04c0b6a3321aeafe1e90401 100644
+--- a/mobile/src/screens/ArenaScreen.tsx
++++ b/mobile/src/screens/ArenaScreen.tsx
+@@ -1,3 +1,4 @@
++import { readHostLevelAccount } from "@/lib/cityHubClient";
+ import { theme } from "@/theme";
+ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+@@ -37,6 +38,17 @@ type BattleSetup = {
+ 
+ export function ArenaScreen() {
+   const { profile, user } = useAuth();
++  const [levelAccount, setLevelAccount] = useState<{ uid: string; snapshot: unknown } | null>(null);
++  useEffect(() => {
++    let cancelled = false;
++    const uid = user?.uid;
++    setLevelAccount(null);
++    if (uid) void readHostLevelAccount(uid).then(snapshot => {
++      if (!cancelled) setLevelAccount({ uid, snapshot });
++    }).catch(() => { if (!cancelled) setLevelAccount(null); });
++    return () => { cancelled = true; };
++  }, [user?.uid]);
++  const hostLevelAccount = levelAccount?.uid === user?.uid ? levelAccount?.snapshot : undefined;
+   const {
+     battleResult,
+     canUseMove,
+@@ -519,6 +531,7 @@ export function ArenaScreen() {
+ 
+       {phase === "battle" && !teamMode && currentBattle ? (
+         <BattleArenaView
++          hostLevelAccount={hostLevelAccount}
+           battle={currentBattle}
+           roundProgress={roundProgress}
+           playerCards={playerMoves}
+@@ -537,6 +550,7 @@ export function ArenaScreen() {
+ 
+       {phase === "battle" && teamMode && teamStore.team ? (
+         <BattleArenaView
++          hostLevelAccount={hostLevelAccount}
+           battle={teamStore.team.duel}
+           roundProgress={null}
+           playerCards={getActiveMoves(teamStore.team, "player")}
+diff --git a/mobile/src/screens/CityHubScreen.tsx b/mobile/src/screens/CityHubScreen.tsx
+index 93eafe7ce054aa0b06164003564d3add1bfecb26..f54ff0bd786dd32ffac0e7cfdaed3a0e1e0f392b 100644
+--- a/mobile/src/screens/CityHubScreen.tsx
++++ b/mobile/src/screens/CityHubScreen.tsx
+@@ -31,7 +31,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
+   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
+   const { user } = useAuth();
+   const insets = useSafeAreaInsets();
+-  const [gathering, setGathering] = useState<(ArenaGathering & { uid: string }) | null>(null);
++  const [gathering, setGathering] = useState<(ArenaGathering & { uid: string; accountSnapshot?: unknown }) | null>(null);
+   const [hour, setHour] = useState(new Date().getHours());
+   const [mapWidth, setMapWidth] = useState(360);
+   const [panel, setPanel] = useState<"rivals" | "workshop" | null>(fixture?.initialPanel ?? null);
+@@ -78,7 +78,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
+     const uid = user.uid; ++requestRevision.current; busy.current = true; setLoading(true); setMessage(null);
+     try {
+       const reply = await meetCityPilots(uid);
+-      if (sessionUid.current === uid) { setGathering({ ...reply, uid }); setPanel("rivals"); }
++      if (sessionUid.current === uid) { setGathering(previous => ({ ...reply, uid, accountSnapshot: previous?.uid === uid ? previous.accountSnapshot : undefined })); setPanel("rivals"); }
+     } catch (error) { if (sessionUid.current === uid) setMessage(cityActionMessage(error)); }
+     finally { busy.current = false; setLoading(false); }
+   }
+@@ -153,7 +153,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
+       </View>
+     </ScrollView>
+     <Modal animationType="slide" visible={panel !== null} onRequestClose={() => { if (!fighting) setPanel(null); }}>
+-      {fighting ? <CityRivalBattle uid={user?.uid ?? "offline-city-preview"} rival={fighting} preview={!!fixture} onClose={() => setFighting(null)} /> : <View style={[styles.sheet, { paddingTop: insets.top }]}>
++      {fighting ? <CityRivalBattle accountSnapshot={currentGathering?.accountSnapshot} uid={user?.uid ?? "offline-city-preview"} rival={fighting} preview={!!fixture} onClose={() => setFighting(null)} /> : <View style={[styles.sheet, { paddingTop: insets.top }]}>
+         <View style={styles.sheetHeader}><Text style={styles.cardTitle}>{panel === "workshop" ? "WORKSHOP" : "CITIZEN PILOTS"}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close city panel" onPress={() => setPanel(null)} style={styles.close}><Text style={styles.closeText}>✕</Text></Pressable></View>
+         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+           {panel === "workshop" ? <CityWorkshopPanel key={user?.uid ?? "anonymous"} uid={user?.uid} preview={!!fixture} onBrowse={browseSupplies} /> : <View style={styles.rivalList}>
+diff --git a/mobile/src/screens/DuelPlaybackScreen.tsx b/mobile/src/screens/DuelPlaybackScreen.tsx
+index 5c2ec12e956233fe7b764acbb34108c7efc49fe7..4c1649655068efe6cf53f5d363712b4cc5c3b06b 100644
+--- a/mobile/src/screens/DuelPlaybackScreen.tsx
++++ b/mobile/src/screens/DuelPlaybackScreen.tsx
+@@ -7,18 +7,20 @@ import { getHolobotHeadshotImageSource } from '../config/holobots';
+ import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../components/HoloCityCommandBar';
+ import { BotStage, type BotMetrics, type BotStageHandle } from '../components/bots/BotStage';
+ import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound, type ObservedDuelState, type ObservedFighterState } from '../lib/bots/duelPlayback';
++import { hostFighterLevel, levelBadge, receiptIssue } from '../lib/bots/hostFighterLevel';
+ import { readLiveRivalPlayback } from '../lib/bots/liveRivalPlayback';
+ export type { DuelRound } from '../lib/bots/duelPlayback';
+-export type DuelPlaybackScreenProps = { receipt: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
++export type DuelPlaybackScreenProps = { receipt: unknown; accountSnapshot?: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
+ 
+ type FighterSnapshot = ObservedFighterState;
+-export function FighterHud({ name, state, rival = false }: { name: string; state?: FighterSnapshot; rival?: boolean }) {
++export function FighterHud({ name, state, level, rival = false }: { name: string; state?: FighterSnapshot; level?: number; rival?: boolean }) {
++  const badge = levelBadge(level);
+   const accent = rival ? theme.rings.rival[0] : theme.rings.player[0];
+   const ratio = state && state.hp !== undefined && state.maxHp > 0 ? Math.max(0, Math.min(1, state.hp / state.maxHp)) : 0;
+   return <View style={[styles.fighter, { borderColor: accent }]}>
+     <View style={[styles.identity, rival && styles.reverse]}>
+       {resolveBotId(name) ? <Image source={getHolobotHeadshotImageSource(name)} resizeMode="contain" style={[styles.portrait, { borderColor: accent }]} /> : <View style={[styles.portrait, { borderColor: accent, alignItems: 'center', justifyContent: 'center' }]}><Text style={styles.statLabel}>?</Text></View>}
+-      <Text numberOfLines={1} style={[styles.name, { color: accent }]}>{name.toUpperCase()}</Text>
++      <View style={styles.nameRow}><Text numberOfLines={1} style={[styles.name, { color: accent }]}>{name.toUpperCase()}</Text>{badge && <Text testID={`fighter-level-${name.toLowerCase()}`} style={styles.levelBadge}>{badge}</Text>}</View>
+     </View>
+     <View style={styles.statLine}><Text style={styles.statLabel}>HP</Text><Text style={styles.statValue}>{state?.hp !== undefined ? `${state.hp}/${state.maxHp}` : '—'}</Text></View>
+     <View style={styles.hpTrack}><View style={[styles.hpFill, { width: `${ratio * 100}%`, backgroundColor: rival ? theme.colors.danger : theme.colors.success }]} /></View>
+@@ -27,7 +29,7 @@ export function FighterHud({ name, state, rival = false }: { name: string; state
+ }
+ 
+ /** Receipt-only presentation. It never calculates damage, stamina, misses, winners or rewards. */
+-export function DuelPlaybackScreen({ receipt, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
++export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
+   const insets = useSafeAreaInsets();
+   const normalized = useMemo(() => liveIssue === undefined ? normalizeDuelReceipt(receipt, rounds) : readLiveRivalPlayback(liveIssue, receipt), [receipt, rounds, liveIssue]);
+   const [actors, setActors] = useState({ player: normalized.attackerBotId, rival: normalized.defenderBotId });
+@@ -96,9 +98,9 @@ export function DuelPlaybackScreen({ receipt, liveIssue, rounds, attackerBotId,
+     <View pointerEvents="box-none" style={[styles.top, { paddingTop: insets.top + 4 }]}>
+       <View style={styles.toolbar}><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel="Return to city" onPress={onClose} hitSlop={4}><Text style={styles.utility}>‹ CITY</Text></Pressable><Text style={styles.arenaLabel}>HOLOCITY / PARK ARENA</Text><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel={complete ? "Replay battle" : paused ? "Resume battle replay" : "Pause battle replay"} onPress={() => complete ? setReplay(v => v + 1) : setPaused(v => !v)} hitSlop={12}><Text style={styles.utility}>{complete ? 'REPLAY ↻' : paused ? 'PLAY ▷' : 'PAUSE Ⅱ'}</Text></Pressable></View>
+       <View style={styles.hud}>
+-        <FighterHud name={player ?? attackerBotId ?? 'PLAYER'} state={snapshot?.player} />
++        <FighterHud name={player ?? attackerBotId ?? 'PLAYER'} state={snapshot?.player} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'player', actors.player, accountSnapshot)} />
+         <View style={styles.roundPlate}><Text style={styles.roundLabel}>{complete && !round ? 'RESULT' : 'ROUND'}</Text><Text style={styles.roundNumber}>{round ? String(round.roundNumber ?? currentRound + 1).padStart(2, '0') : '—'}</Text><Text style={styles.roundLabel}>OF {normalized.roundCount || '—'}</Text></View>
+-        <FighterHud name={rival ?? defenderBotId ?? 'RIVAL'} state={snapshot?.rival} rival />
++        <FighterHud name={rival ?? defenderBotId ?? 'RIVAL'} state={snapshot?.rival} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'rival', actors.rival)} rival />
+       </View>
+     </View>
+     {(normalized.receiptError || stageError || !player || !rival) && <View style={styles.warning}><Text style={styles.notice}>{normalized.receiptError ?? '3D presentation unavailable. The recorded result is preserved.'}</Text></View>}
+@@ -114,6 +116,7 @@ export default DuelPlaybackScreen;
+ const styles = StyleSheet.create({
+   screen: { flex: 1, backgroundColor: theme.colors.carbon }, stage: { ...StyleSheet.absoluteFillObject, borderRadius: 0 },
+   top: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 12 }, toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#101318CC', paddingHorizontal: 10, marginBottom: 9, borderRadius: 4 }, utilityButton: { minWidth: 52, minHeight: 44, justifyContent: 'center' }, utility: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1 }, arenaLabel: { ...theme.type.micro, color: theme.colors.text, letterSpacing: 1, fontSize: 9 },
++  nameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }, levelBadge: { ...theme.type.micro, fontSize: 14, color: theme.colors.text, backgroundColor: theme.colors.carbon, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 2 },
+   hud: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 }, fighter: { flex: 1, minWidth: 0, backgroundColor: '#081723EA', borderWidth: 1, borderRadius: 6, padding: 8 }, identity: { flexDirection: 'row', alignItems: 'center', gap: 7 }, reverse: { flexDirection: 'row-reverse' }, portrait: { width: 36, height: 36, borderWidth: 1, borderRadius: 18, backgroundColor: theme.plates.keycap }, name: { ...theme.type.label, fontSize: 18, flexShrink: 1 }, statLine: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }, statLabel: { ...theme.type.micro, color: theme.colors.muted, fontSize: 9 }, statValue: { ...theme.type.micro, color: theme.colors.text, fontSize: 11 }, hpTrack: { height: 5, backgroundColor: theme.plates.keycap, borderRadius: 2, overflow: 'hidden', marginTop: 3 }, hpFill: { height: '100%' }, stamina: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 7 }, pip: { flex: 1, height: 9, borderWidth: 0.5, borderRadius: 1 },
+   roundPlate: { width: 52, backgroundColor: '#081723EF', borderColor: theme.colors.accent, borderWidth: 1, borderRadius: 4, alignItems: 'center', paddingVertical: 8 }, roundLabel: { ...theme.type.micro, color: theme.colors.accent, fontSize: 9, letterSpacing: 1 }, roundNumber: { ...theme.type.display, fontSize: 30, lineHeight: 34, color: theme.colors.text },
+   bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, gap: 8 }, actionLog: { minHeight: 38, backgroundColor: '#101318F2', borderColor: theme.colors.accent, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, overflow: 'hidden' }, logAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: theme.colors.accent }, logText: { ...theme.type.label, color: theme.colors.text, fontSize: 16, letterSpacing: 0.5 }, source: { ...theme.type.micro, color: theme.colors.text, fontSize: 9, letterSpacing: 1, textAlign: 'center', backgroundColor: '#101318D9', padding: 3 },
