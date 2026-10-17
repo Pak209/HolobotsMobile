@@ -1,0 +1,21 @@
+{
+  "sampleCount": 24,
+  "frames": 384,
+  "fpsMedian": 7.65,
+  "fpsMin": 6.8,
+  "fpsMax": 9.1,
+  "weightedMsPerFrame": {
+    "mixerMs": 0.3428474348038435,
+    "renderMs": 0.6218949599812428,
+    "barrierMs": 123.6619849105676
+  },
+  "drawCalls": [
+    2
+  ],
+  "triangles": 56250,
+  "renderWidth": 402,
+  "renderHeight": 832,
+  "loadMs": 1550,
+  "sameConditionBeforeAfter": false,
+  "runtimeChange": false
+}
