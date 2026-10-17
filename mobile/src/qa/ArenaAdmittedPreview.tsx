@@ -23,7 +23,7 @@ function Preview({ result = false, knownBad = false }: {
     const receipt = result ? arenaReceiptResult(reply) : null;
     return <View style={{ flex: 1, backgroundColor: '#101820' }}><Text style={{ paddingTop: 45, textAlign: 'center', color: '#62DDE8' }}>QA / SIMULATED / NO REWARDS</Text><Text style={{ textAlign: 'center', color: '#ffca79' }}>{knownBad ? "KNOWN BAD: OLD CARD HAS NO HOST LEVELS" : "CPU PRACTICE · STRIKE / HEAVY ONLY"}</Text>
   <BattleArenaView embedded battle={prepared.battle} hostMatchReply={knownBad ? undefined : reply} hostMatchId={knownBad ? undefined : reply.matchId!} roundProgress={{ currentRound: 1, totalRounds: 1 }} playerCards={prepared.playerMoves} playableCardIds={prepared.playerMoves.map(m => m.id)} cardAvailability={{}} lastAction={null} isAnimating={false} onCardPlay={noop} onSignaturePlay={noop}/>
-  {receipt ? <BattleResultsModal visible didWin={receipt.didWin} rewards={receipt.rewards} subtitle={`QA / SIMULATED / NO REWARDS · ACE LV ${reply.match.entrant.level} / HARE LV ${reply.match.opponent.level} · HOST FIXTURE RECEIPT`} hideRematch onRematch={noop} onExit={noop}/> : null}
+  {receipt ? <BattleResultsModal visible didWin={receipt.didWin} receipt={{ kind: 'qa-standin' }} context={`ACE LV ${reply.match.entrant.level} / HARE LV ${reply.match.opponent.level} · HOST FIXTURE RECEIPT`} hideRematch onRematch={noop} onExit={noop}/> : null}
  </View>;
 }
 export function ArenaAdmittedRoundPreview() { return <Preview />; }

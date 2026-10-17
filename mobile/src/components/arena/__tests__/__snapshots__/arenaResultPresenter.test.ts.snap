@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`result buttons > reuse the HUD BACK label treatment and keep the tap target 1`] = `
+{
+  "plate": {
+    "alignItems": "center",
+    "justifyContent": "center",
+    "minHeight": 48,
+    "position": "relative",
+  },
+  "primaryLabel": {
+    "color": "#62DDE8",
+    "fontFamily": "HoloDisplay",
+    "fontSize": 16,
+    "fontWeight": "900",
+    "letterSpacing": 1,
+  },
+  "secondaryLabel": {
+    "color": "#A9BDC8",
+    "fontFamily": "HoloBody",
+    "fontSize": 14,
+    "fontWeight": "900",
+    "letterSpacing": 0.7,
+  },
+}
+`;
