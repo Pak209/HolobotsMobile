@@ -1,3 +1,4 @@
+import { arenaFighterLevel } from "@/lib/bots/arenaFighterLevel";
 import { hostFighterLevel, levelBadge } from "@/lib/bots/hostFighterLevel";
 import { slotAccent, theme } from "@/theme";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -49,6 +50,9 @@ type BattleArenaViewProps = {
   battle: BattleState;
   /** Verified host account only; never local profile or rival samples. */
   hostLevelAccount?: unknown;
+  /** Already-admitted #118 host reply; never a local combat/PvP record. */
+  hostMatchReply?: unknown;
+  hostMatchId?: string;
   roundProgress?: {
     currentRound: number;
     totalRounds: number;
@@ -274,14 +278,16 @@ function BenchChips({ chips, align }: { chips: TeamHudChip[]; align: "left" | "r
   );
 }
 
-function HostLevelBadge({ account, name }: { account: unknown; name: string }) {
-  const label = levelBadge(hostFighterLevel(undefined, 'player', name, account));
+function HostLevelBadge({ account, name, issuedLevel }: { account?: unknown; name: string; issuedLevel?: number }) {
+  const label = levelBadge(issuedLevel ?? hostFighterLevel(undefined, 'player', name, account));
   return label ? <Text style={{ ...theme.type.micro, fontSize: 14, backgroundColor: theme.colors.carbon, color: theme.colors.text, paddingHorizontal: 4, paddingVertical: 2 }}>{label}</Text> : null;
 }
 
 export function BattleArenaView({
   battle,
   hostLevelAccount,
+  hostMatchReply,
+  hostMatchId,
   roundProgress,
   playerCards,
   playableCardIds,
@@ -401,7 +407,7 @@ export function BattleArenaView({
       <View style={styles.topHud}>
         <View style={styles.hudSide}>
           <View style={styles.hudInfoStack}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text><HostLevelBadge account={hostLevelAccount} name={battle.player.name} /></View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text><HostLevelBadge account={hostLevelAccount} name={battle.player.name} issuedLevel={arenaFighterLevel(hostMatchReply, hostMatchId, "entrant", battle.player.name)} /></View>
             <HudBar
               color={theme.colors.success}
               label="HP"
@@ -447,7 +453,7 @@ export function BattleArenaView({
 
         <View style={styles.hudSide}>
           <View style={styles.hudInfoStack}>
-            <Text numberOfLines={1} style={[styles.hudName, styles.hudNameRight]}>{battle.opponent.name}</Text>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4 }}><Text numberOfLines={1} style={[styles.hudName, styles.hudNameRight]}>{battle.opponent.name}</Text><HostLevelBadge name={battle.opponent.name} issuedLevel={arenaFighterLevel(hostMatchReply, hostMatchId, "opponent", battle.opponent.name)} /></View>
             <HudBar
               align="right"
               color={theme.colors.danger}
