@@ -1,0 +1,39 @@
+{
+  "method": "Completed native draw batches with GL backpressure, not compositor fps or recording rate; samples selected while 0 < playback elapsedMs < 51200 (16 actions x 3200ms).",
+  "runs": [
+    {
+      "contextId": 1,
+      "cache": "first receipt in new container",
+      "samples": 24,
+      "medianFps": 6.1,
+      "minFps": 5.7,
+      "maxFps": 6.9,
+      "sampleElapsedFirstMs": 2139,
+      "sampleElapsedLastMs": 50152,
+      "wallWindowMs": 50376,
+      "completedFrames": 309,
+      "windowFramesPerSecond": 6.133873272987136,
+      "glContextToFirstDrawMs": 3241,
+      "width": 402,
+      "height": 874,
+      "assetBytes": 1787952
+    },
+    {
+      "contextId": 2,
+      "cache": "warm second receipt",
+      "samples": 24,
+      "medianFps": 5.4,
+      "minFps": 3.8,
+      "maxFps": 6.5,
+      "sampleElapsedFirstMs": 2000,
+      "sampleElapsedLastMs": 50000,
+      "wallWindowMs": 50157,
+      "completedFrames": 270,
+      "windowFramesPerSecond": 5.383097075183922,
+      "glContextToFirstDrawMs": 2219,
+      "width": 402,
+      "height": 874,
+      "assetBytes": 1787952
+    }
+  ]
+}
