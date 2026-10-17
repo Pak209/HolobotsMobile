@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/arena-bracket-1.json",
+  "title": "Arena bracket reply — fighter level publication contract",
+  "description": "Additive projection of the existing arena-bracket-1 success reply. Other bracket/receipt fields remain governed by host readArenaBracket validation. This schema documents existing published levels; it does not add a new wire field or change admission.",
+  "type": "object",
+  "required": ["schemaVersion", "matchId", "alreadyProcessed", "bracket", "cancelled"],
+  "properties": {
+    "schemaVersion": {"const": "arena-bracket-1"},
+    "matchId": {"type": "string", "pattern": "^am_[a-f0-9]{32}$"},
+    "alreadyProcessed": {"type": "boolean"},
+    "cancelled": {"type": "boolean"},
+    "bracket": {
+      "type": "object",
+      "required": ["schemaVersion", "entrants"],
+      "properties": {
+        "schemaVersion": {"const": "arena-bracket-1"},
+        "entrants": {
+          "type": "array", "minItems": 8, "maxItems": 9,
+          "items": {
+            "type": "object",
+            "required": ["entrantId", "pilotName", "holobotId", "isPlayer", "fighter"],
+            "properties": {
+              "entrantId": {"type": "string", "minLength": 1},
+              "pilotName": {"type": "string", "minLength": 1},
+              "holobotId": {"type": "string", "minLength": 1},
+              "isPlayer": {"type": "boolean"},
+              "fighter": {
+                "type": "object", "required": ["level"],
+                "properties": {
+                  "level": {"type": "integer", "minimum": 1, "maximum": 99, "description": "Immutable host combat level from the admitted match snapshot. Human: match.entrant.level; citizens: match.opponent.level. Same level as the host-issued combatant used by LV badges; never pilotRank or tournament requiredLevel. Required on replies: clients must not invent a default."}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

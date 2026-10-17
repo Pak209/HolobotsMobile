@@ -1,0 +1,579 @@
+{
+  "provenance": "Offline host createArenaBracket + gatheringRoster + playerCombatant; deterministic fixture order, not admission randomization. Human level 21; admitted rookie opponent level 12. Emulator separately proves actual admission publication.",
+  "request": {
+    "schemaVersion": "arena-bracket-1",
+    "operation": "start",
+    "matchId": "am_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "reply": {
+    "schemaVersion": "arena-bracket-1",
+    "matchId": "am_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "alreadyProcessed": false,
+    "bracket": {
+      "schemaVersion": "arena-bracket-1",
+      "matchId": "am_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "tournamentId": "starter",
+      "seed": 12345,
+      "round": 0,
+      "playerAlive": true,
+      "done": false,
+      "entrants": [
+        {
+          "entrantId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+          "pilotName": "Campus Magenta",
+          "holobotId": "gama",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "gama",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 279,
+            "attack": 93,
+            "defense": 77,
+            "speed": 46,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "CV1_HB_CITIZEN2_CampusWhite_09",
+          "pilotName": "Campus White",
+          "holobotId": "ken",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "ken",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 232,
+            "attack": 108,
+            "defense": 46,
+            "speed": 93,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "CV1_HB_CITIZEN5_PlazaSignal_00",
+          "pilotName": "Plaza Signal",
+          "holobotId": "gama",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "gama",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 279,
+            "attack": 93,
+            "defense": 77,
+            "speed": 46,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "CV1_HB_CITIZEN2_CampusAmber_04",
+          "pilotName": "Campus Amber",
+          "holobotId": "kuma",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "kuma",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 310,
+            "attack": 108,
+            "defense": 77,
+            "speed": 46,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "CV1_HB_CITIZEN3_MarketMagenta_03",
+          "pilotName": "Market Magenta",
+          "holobotId": "shadow",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "shadow",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 263,
+            "attack": 77,
+            "defense": 108,
+            "speed": 62,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "CV1_HB_CITIZEN5_TransitCyan_10",
+          "pilotName": "Transit Cyan",
+          "holobotId": "ken",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "ken",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 232,
+            "attack": 108,
+            "defense": 46,
+            "speed": 93,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "CV1_HB_CITIZEN3_StallLinen_13",
+          "pilotName": "Stall Linen",
+          "holobotId": "wolf",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "wolf",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 271,
+            "attack": 77,
+            "defense": 77,
+            "speed": 77,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "CV1_HB_CITIZEN1_LineCyan_06",
+          "pilotName": "Line Cyan",
+          "holobotId": "kuma",
+          "isPlayer": false,
+          "fighter": {
+            "holobotId": "kuma",
+            "level": 12,
+            "tier": 0,
+            "maxHealth": 310,
+            "attack": 108,
+            "defense": 77,
+            "speed": 46,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        },
+        {
+          "entrantId": "player",
+          "pilotName": "You",
+          "holobotId": "ace",
+          "isPlayer": true,
+          "fighter": {
+            "holobotId": "ace",
+            "level": 21,
+            "tier": 0,
+            "maxHealth": 300,
+            "attack": 160,
+            "defense": 120,
+            "speed": 140,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "moveset": {
+              "strike": {
+                "moveId": "gap_closer",
+                "staminaCost": 1,
+                "damageScale": 1.35,
+                "syncGain": 10,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "heavy": {
+                "moveId": "break_heavy",
+                "staminaCost": 2,
+                "damageScale": 1.55,
+                "syncGain": 14,
+                "syncCost": 0,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "issued-move"
+              },
+              "finisher": {
+                "moveId": "derived_finisher",
+                "staminaCost": 4,
+                "damageScale": 3.1,
+                "syncGain": 0,
+                "syncCost": 100,
+                "staminaRestore": 0,
+                "guardReduction": 0,
+                "source": "derived-host-heavy"
+              },
+              "defend": {
+                "moveId": "defend",
+                "staminaCost": 0,
+                "damageScale": 0,
+                "syncGain": 6,
+                "syncCost": 0,
+                "staminaRestore": 2,
+                "guardReduction": 0.5,
+                "source": "host-policy-fallback"
+              }
+            }
+          }
+        }
+      ],
+      "remaining": [
+        "CV1_HB_CITIZEN2_CampusMagenta_14",
+        "CV1_HB_CITIZEN2_CampusWhite_09",
+        "CV1_HB_CITIZEN5_PlazaSignal_00",
+        "CV1_HB_CITIZEN2_CampusAmber_04",
+        "CV1_HB_CITIZEN3_MarketMagenta_03",
+        "CV1_HB_CITIZEN5_TransitCyan_10",
+        "CV1_HB_CITIZEN3_StallLinen_13",
+        "CV1_HB_CITIZEN1_LineCyan_06",
+        "player"
+      ],
+      "health": {
+        "CV1_HB_CITIZEN2_CampusMagenta_14": 279,
+        "CV1_HB_CITIZEN2_CampusWhite_09": 232,
+        "CV1_HB_CITIZEN5_PlazaSignal_00": 279,
+        "CV1_HB_CITIZEN2_CampusAmber_04": 310,
+        "CV1_HB_CITIZEN3_MarketMagenta_03": 263,
+        "CV1_HB_CITIZEN5_TransitCyan_10": 232,
+        "CV1_HB_CITIZEN3_StallLinen_13": 271,
+        "CV1_HB_CITIZEN1_LineCyan_06": 310,
+        "player": 300
+      },
+      "matches": []
+    },
+    "cancelled": false
+  }
+}
