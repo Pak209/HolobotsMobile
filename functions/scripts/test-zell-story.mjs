@@ -70,14 +70,17 @@ test('stand-in: Zell is JUSAN at exactly the ladder tier an ordinary issue serve
 });
 
 test('JUSAN profile has its four moves and named specials, with explicitly provisional WOLF tuning', () => {
-  const j = L.rivalScaledCombatant('jusan', 0), wolf = L.rivalScaledCombatant('wolf', 0);
+  for (const tier of [0, 1, 4, 9, 25, 100]) {
+  const j = L.rivalScaledCombatant('jusan', tier), wolf = L.rivalScaledCombatant('wolf', tier);
   assert.equal(j.sizeTier, 'Medium');
   assert.deepEqual(j.balancePlaceholder, { sourceHolobotId: 'wolf', pendingTuning: true });
   assert.deepEqual(j.moves.map(m => m.moveId), ['gap_closer', 'break_heavy', 'sky_launch', 'intercept']);
   for (const move of j.moves) assert.equal(move.damageScale, wolf.moves.find(m => m.moveId === (move.moveId === 'sky_launch' ? 'break_heavy' : move.moveId)).damageScale);
+  assert.deepEqual(j.specials.map(s => s.specialId), ['rising_edge', 'nova_burst']);
   assert.deepEqual(j.specials.map(s => s.displayName), ['Rising Edge', 'Nova Burst']);
   for (const s of j.specials) assert.equal(s.damageScale, wolf.moves.find(m => m.moveId === 'break_heavy').damageScale);
   assert.equal(wolf.specials, undefined);
+  }
   assert.ok(L.RIVAL_SUPPORTED_IDS.includes('jusan'));
   assert.equal(L.RIVAL_ROSTER_IDS.includes('jusan'), false, 'named story rival does not alter random ladder');
 });
