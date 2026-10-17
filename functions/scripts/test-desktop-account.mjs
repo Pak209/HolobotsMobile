@@ -67,7 +67,7 @@ test('v3: every holobot normalised (mobile defaults) with battleStats = getPlaye
   const profile = profiles()[3];
   const inv = readBuddyInventory(profile);
   const r = S.buildDesktopAccountReply(structuredClone(profile), 'uid-1', 'desktop-account-3', inv.units);
-  assert.deepEqual(Object.keys(r), ['schemaVersion', 'uid', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'holobots', 'blueprints', 'travelSquad', 'blueprintTiers', 'buddyUnits']);
+  assert.deepEqual(Object.keys(r), ['schemaVersion', 'battlefieldMovement', 'uid', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'holobots', 'blueprints', 'travelSquad', 'blueprintTiers', 'buddyUnits']);
   assert.equal(r.schemaVersion, 'desktop-account-3'); assert.deepEqual(r.buddyUnits, { light: 4, medium: 0, heavy: 0 }, 'tier map like v2');
   assert.deepEqual(r.travelSquad, profile.travelSquad);
   const [a, k, w] = r.holobots;
@@ -75,7 +75,7 @@ test('v3: every holobot normalised (mobile defaults) with battleStats = getPlaye
   assert.deepEqual(a.battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 80, intelligence: 60 });
   assert.deepEqual(a.displayStats, { attack: 12, defense: 6, hp: 192, special: 5, speed: 8 });
   assert.deepEqual(a.career, { workouts: 2 }, 'extra keys kept'); assert.deepEqual(a.syncStats, ace().syncStats);
-  assert.deepEqual(Object.keys(a).slice(-2), ['battleStats', 'displayStats']);
+  assert.deepEqual(Object.keys(a).slice(-3), ['battleStats', 'battlefieldMovement', 'displayStats']);
   // KUMA with only name + level: the mobile defaults.
   assert.deepEqual({ level: k.level, experience: k.experience, nextLevelExp: k.nextLevelExp, attributePoints: k.attributePoints, rank: k.rank, boostedAttributes: k.boostedAttributes }, { level: 1, experience: 0, nextLevelExp: 400, attributePoints: 1, rank: 'Rookie', boostedAttributes: {} });
   assert.deepEqual(k.battleStats, { attack: 70, defense: 50, maxHP: 200, speed: 30, intelligence: 40 });
