@@ -1,3 +1,5 @@
+// Dormant internal verification seam; no current callable or issuance routes here.
+export { verifyRivalInputLog } from './rivalInputVerification';
 import { DUEL_RECEIPT_SCHEMA, DUEL_MAX_ROUNDS, duelFighterFromCombatant, resolveDuel, validateDuelIntents, DuelReceipt } from '../lib/duelResolver';
 import { bindGatheringRival, gatheringRivalRequest } from '../story/gatheringRival';
 import { pilotRankAfterWin, PilotRankError } from '../account/pilotRank';
