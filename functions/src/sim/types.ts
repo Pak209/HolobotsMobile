@@ -34,7 +34,7 @@ export interface FighterRule {
 }
 /** Host-authored immutable admission, never accepted from a live client. No balance defaults. */
 export interface RulesSnapshot {
-    simVersion: 'duel-sim-1';
+    simVersion: 'duel-sim-1' | 'duel-sim-2';
     tickHz: 30;
     maxTicks: number;
     arenaHalfSizeMm: number;
@@ -44,6 +44,8 @@ export interface RulesSnapshot {
     cpuEveryTicks: number;
     timeout: 'draw' | 'remaining_hp';
     fighters: FighterRule[];
+    /** Required only for the offline movement v2 core. Keys are fighter instance IDs. */
+    movement?: Record<string, MovementRule>;
 }
 export interface Command {
     seq: number;
@@ -86,9 +88,10 @@ export interface FighterState {
     stunnedUntil: number;
     target: string | null;
     attack: PendingAttack | null;
+    movement?: MovementState;
 }
 export interface SimState {
-    simVersion: 'duel-sim-1';
+    simVersion: 'duel-sim-1' | 'duel-sim-2';
     rulesHash: string;
     seed: string;
     tick: number;
@@ -116,4 +119,14 @@ export interface SimResult {
     ticks: TickResult[];
     finalState: SimState;
     finalHash: string;
+}
+
+export interface MovementRule { speedMmPerSecond: number; preferredRangeMm: number; }
+export interface MovementState {
+    queued: {move: Move; target: string} | null;
+    dashReadyTick: number;
+    dashTicks: number;
+    dashX: number;
+    dashZ: number;
+    runRemainder: number;
 }

@@ -57,3 +57,71 @@ Independent Python `hashlib.sha256`/`struct.pack('<IIII',...)` microvectors:
 These are candidate-produced regression fixtures, **not independent Unity parity evidence**. Tests never rewrite them. Expected arithmetic outcomes, canonical bytes and RNG microvectors are independently asserted in `test-duel-sim.mjs`. Changes to semantics/encoding require deliberate vector review and simVersion compatibility decisions; do not blindly regenerate failed expectations.
 
 Run `npm run build`, `npm run test:duel-sim` and `npm test` from functions. W59 has 33 focused tests: 24 vector replays plus nine independent/adversarial test groups. Native/Unity parity, 10,000-seed platform matrix, producer feel review, replay CPU/memory acceptance, host integration, transport schema and live migration remain future gates. No editor/deploy/account use or flag change.
+
+## Offline movement version 2 (DECISIONS #70)
+
+`duel-sim-2` is an explicit opt-in **offline** rules snapshot. Existing `duel-sim-1`
+inputs, state shapes and 24 frozen bouts (555 tick hashes) are unchanged. The dormant
+host verification seam explicitly rejects v2. Nothing issues, settles or pays from
+v2, and the C# twin still implements v1 only; a future parity lane must port these
+rules and match all movement hashes before wiring it to a host mode.
+
+V2 adds required `movement: {[fighterInstanceId]: {speedMmPerSecond,
+preferredRangeMm}}`. Each fighter's old `speedMmPerTick` must be 0 (no two competing
+speeds). Every move's `rangeMm` and each preferred range must be one of Close 1500,
+Mid 4000, Long 8000. Input logs remain `duel-inputs-1`, with no additional actions.
+The rules hash pins every number. `simVersion` in the state is `duel-sim-2`.
+
+The exact provisional producer table is mirrored from Unity's
+`Assets/Battle/Scripts/Combat/Movement/SpeedTable.cs:DefaultEntries` (read-only
+working-tree source inspected 2026-10-17; the movement brief itself specifies only
+1.6–3.2 m/s and fast/slow groupings). These are **placeholders, not approved balance**:
+
+| Bot | Run m/s | Preferred tier |
+|---|---:|---|
+| ACE | 3.2 | Mid |
+| WOLF | 3.0 | Close |
+| HARE | 3.2 | Close |
+| SHADOW | 3.0 | Close |
+| KEN | 2.6 | Close |
+| TSUIN | 2.6 | Close |
+| WAKE | 2.4 | Mid |
+| JUSAN | 2.4 | Close |
+| KURAI | 2.4 | Mid |
+| ERA | 2.2 | Mid |
+| GAMA | 2.0 | Close |
+| KUMA | 1.6 | Close |
+| TORA | 1.6 | Close |
+
+- An out-of-range strike/heavy/finisher queues a move and closes. Resource
+  availability is checked at request and again at execution; attack costs are
+  charged only when the windup starts. Dash can spend the last STA on the way,
+  causing an explicit `insufficient_stamina` denial at execution, never underflow.
+- Idle fighters keep 90% of their preferred reach. `disengage` backs off beyond
+  the opponent's longest reach by 1 integer mm and holds when already outside;
+  it never approaches an opponent. Directional `move` temporarily overrides
+  autonomy. Guard stays planted. New attacks re-engage. Queues cancel on manual
+  movement, guard, switch, inactive target or KO.
+- An autonomous gap of at least 4000 mm starts a dash if cooldown and STA permit.
+  It commits its direction for 9 ticks, travels 4000 mm on an unobstructed axis,
+  spends 1 STA at start and sets `ready = tick + ceil(360000 / speedMmPerSecond)`.
+  Cooldown thus equals 120 ticks at 3 m/s, 113 at 3.2, 225 at 1.6. Collision,
+  ring bounds or a hit interruption can shorten it. A hit cancels its remainder.
+  At 0 STA running continues; running is free.
+- Town ring means **12,000 mm radius**, centred on snapshot origin; fighter
+  centres stay inside `12000 - radiusMm`. V2 requires `arenaHalfSizeMm=12000`.
+  Arena's 15.5 m variant remains a later version/config change, not inferred here.
+  Squared distances and radial projection use BigInt with ceiling integer square
+  roots. Projection/truncation is conservative; diagonal travel can lose integer
+  millimetres. Running carries `/30` remainders; a dash uses cumulative `/9`
+  displacement. Negative zero is normalized before hashing.
+- Each fighter's hashed `movement` state contains `queued`, `dashReadyTick`,
+  `dashTicks`, `dashX`, `dashZ`, `runRemainder`. Queue stores `{move,target}` or null.
+  All fighters choose movement against the same pre-movement positions, followed
+  by the existing swept collision/contact/resource phases. Damage, RNG and timing
+  rules are unchanged; speed does not scale attacks.
+
+`movement-vectors.json` adds eight frozen bouts beside the untouched v1 file:
+fast-vs-slow chase, slow-vs-fast escape, long-range opener, dash-out-of-STA,
+zero-STA running, diagonal ring bound, Mid keep-range, and Long back-off.
+`generate-movement-vectors.mjs` is an explicit authoring tool, never run by tests.

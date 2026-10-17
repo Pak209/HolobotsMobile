@@ -41,6 +41,7 @@ export function verifyRivalInputLog(issued: unknown, acceptedLog: unknown): Riva
     shape(issued.duel, ['mode', 'seed', 'rulesHash', 'rules']);
     if (typeof issued.battleId !== 'string' || !/^rb_[a-zA-Z0-9_-]{1,128}(?![\s\S])/.test(issued.battleId)) throw new Error('battle_id');
     pinned = issued as unknown as RivalInputIssuedSnapshot;
+    if (pinned.duel.rules.simVersion !== 'duel-sim-1') throw new Error('unsupported_sim_version');
     validate(pinned.duel.rules, {schemaVersion: 'duel-inputs-1', events: []}, pinned.duel.seed);
     const normalizedRules = {...pinned.duel.rules, fighters: [...pinned.duel.rules.fighters].sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)};
     if (pinned.duel.rulesHash !== canonicalHash(normalizedRules)) throw new Error('rules_hash');
