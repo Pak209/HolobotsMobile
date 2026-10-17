@@ -1,0 +1,9 @@
+{
+  "rows": 523,
+  "unique_row_ids": 523,
+  "source_files": 24,
+  "all_source_lines_match_pinned_sha": true,
+  "all_rows_have_one_proposed_interval": true,
+  "production_config_read": false,
+  "editor_used": false
+}
