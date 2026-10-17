@@ -29,10 +29,10 @@ test('meet is monotone and idempotent; a repeat cannot overwrite the original ti
   assert.equal(Z.meetZell(met, 9999), met);
   assert.throws(() => Z.meetZell(initial(), -1), /unavailable/);
 });
-test('named lineup is one server-selected WOLF at the existing ladder tier and uses WOLF commands', () => {
+test('named lineup is one server-selected JUSAN at the existing ladder tier and uses JUSAN commands', () => {
   const r = issued(); assert.deepEqual(r.battle.lineup.opponentPilot, { pilotId: 'zell', displayName: 'Zell', tier: 'rookie' });
-  assert.equal(r.reply.encounter.opponentSquad.length, 1); assert.equal(r.reply.encounter.opponentSquad[0].holobotId, 'wolf');
-  assert.deepEqual(r.battle.lineup.opponentSquad[0], L.rivalScaledCombatant('wolf', 0));
+  assert.equal(r.reply.encounter.opponentSquad.length, 1); assert.equal(r.reply.encounter.opponentSquad[0].holobotId, 'jusan');
+  assert.deepEqual(r.battle.lineup.opponentSquad[0], L.rivalScaledCombatant('jusan', 0));
   assert.ok(r.reply.encounter.opponentSquad[0].commandRules);
   assert.equal(r.battle.storySchema, S); assert.equal(r.battle.storyRivalId, 'zell');
 });
@@ -46,9 +46,9 @@ test('only a stamped, validated Zell WIN advances the ally flag, once', () => {
   assert.equal(Z.meetZell(ally, 99999), ally); assert.deepEqual(Z.readZellStory(ally), ally);
 });
 test('public view has the placeholder and feature flag but no internal timestamps or victory ids', () => {
-  assert.deepEqual(Z.zellStoryView(initial(), false), { schemaVersion: S, pilotId: 'zell', phase: 'unmet', turnedAlly: false, placeholder: true, placeholderHolobotId: 'wolf', enabled: false });
+  assert.deepEqual(Z.zellStoryView(initial(), false), { schemaVersion: S, pilotId: 'zell', phase: 'unmet', turnedAlly: false, placeholder: false, holobotId: 'jusan', placeholderHolobotId: 'jusan', enabled: false });
 });
-test('stand-in: Zell is WOLF at exactly the ladder tier an ordinary issue serves, with rivalScaledCombatant numbers, at every tier', () => {
+test('stand-in: Zell is JUSAN at exactly the ladder tier an ordinary issue serves, with rivalScaledCombatant numbers, at every tier', () => {
   const { desktopPracticeCommands } = require('../lib/lib/desktopPracticeCommands.js');
   const tiers = [];
   for (const wins of [0, 9, 10, 25, 35, 45, 55, 65, 75, 85, 95, 105, 150, 240, 250, 1000]) {
@@ -57,14 +57,27 @@ test('stand-in: Zell is WOLF at exactly the ladder tier an ordinary issue serves
     const zell = L.issueRivalBattle(profile, 1000, 'rb_zell', () => .5, [], L.rivalLineupScaleFor(V3)); Z.bindZellLineup(zell);
     assert.equal(zell.battle.tier, tier); assert.equal(zell.reply.tier, ordinary.reply.tier); assert.deepEqual(zell.reply.status, ordinary.reply.status);
     assert.equal(zell.battle.lineup.opponentPilot.tier, ordinary.battle.lineup.opponentPilot.tier);
-    const expected = L.rivalScaledCombatant('wolf', tier);
+    const expected = L.rivalScaledCombatant('jusan', tier);
     assert.deepEqual(zell.battle.lineup.opponentSquad, [expected]);
-    assert.deepEqual(zell.reply.encounter.opponentSquad, [{ ...expected, ...L.rivalScaledCombatantStats(tier), commandRules: desktopPracticeCommands('wolf') }]);
-    const numbers = ({ holobotId: _id, commandRules: _rules, ...rest }) => rest;
+    assert.deepEqual(zell.reply.encounter.opponentSquad, [{ ...expected, ...L.rivalScaledCombatantStats(tier), commandRules: desktopPracticeCommands('jusan') }]);
+    const numbers = ({ holobotId: _id, commandRules: _rules, moves: _moves, sizeTier: _size, balancePlaceholder: _placeholder, specials: _specials, ...rest }) => rest;
     assert.deepEqual(numbers(zell.reply.encounter.opponentSquad[0]), numbers(ordinary.reply.encounter.opponentSquad[0]), 'same numbers an ordinary rival gets at this tier');
     // known-bad: the comparison tells a neighbouring tier apart (below the level-99 cap at tier 25)
-    if (tier < 24) assert.notDeepEqual(zell.battle.lineup.opponentSquad[0], L.rivalScaledCombatant('wolf', tier + 1));
+    if (tier < 24) assert.notDeepEqual(zell.battle.lineup.opponentSquad[0], L.rivalScaledCombatant('jusan', tier + 1));
     tiers.push(tier);
   }
   assert.deepEqual(tiers, [0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 24, 25, 100]);
+});
+
+test('JUSAN profile has its four moves and named specials, with explicitly provisional WOLF tuning', () => {
+  const j = L.rivalScaledCombatant('jusan', 0), wolf = L.rivalScaledCombatant('wolf', 0);
+  assert.equal(j.sizeTier, 'Medium');
+  assert.deepEqual(j.balancePlaceholder, { sourceHolobotId: 'wolf', pendingTuning: true });
+  assert.deepEqual(j.moves.map(m => m.moveId), ['gap_closer', 'break_heavy', 'sky_launch', 'intercept']);
+  for (const move of j.moves) assert.equal(move.damageScale, wolf.moves.find(m => m.moveId === (move.moveId === 'sky_launch' ? 'break_heavy' : move.moveId)).damageScale);
+  assert.deepEqual(j.specials.map(s => s.displayName), ['Rising Edge', 'Nova Burst']);
+  for (const s of j.specials) assert.equal(s.damageScale, wolf.moves.find(m => m.moveId === 'break_heavy').damageScale);
+  assert.equal(wolf.specials, undefined);
+  assert.ok(L.RIVAL_SUPPORTED_IDS.includes('jusan'));
+  assert.equal(L.RIVAL_ROSTER_IDS.includes('jusan'), false, 'named story rival does not alter random ladder');
 });

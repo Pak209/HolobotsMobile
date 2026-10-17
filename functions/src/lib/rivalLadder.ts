@@ -18,7 +18,7 @@ import { BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, BuddyTierKey, readBuddy
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { getHolobotRank, normalizeUserHolobot } from "./progression";
 import { getPlayerBattleStats } from "./progressionEconomy";
-import { RIVAL_LINEUP_SCALE_WOLF, rivalTierBattleStats, rivalTierDamageScale } from "./rivalTierStats";
+import { RIVAL_NAMED_PROFILES, RIVAL_LINEUP_SCALE_WOLF, rivalTierBattleStats, rivalTierDamageScale } from "./rivalTierStats";
 
 // ---- Daily rival reward (Buddy Unit inventory: lib/buddyUnits.ts, #44) ---------
 
@@ -99,6 +99,8 @@ export const RIVAL_REWARD_DAY_FIELD = "rivalRewardDay";
 
 /** Rival Holobot ids: the real roster (lowercase stable ids, same set as Unity's HolobotRegistry). */
 export const RIVAL_ROSTER_IDS: readonly string[] = HOLOBOT_NAMES.map((name) => toHolobotKey(name));
+/** Random roster plus named story combatants accepted by the host combatant lookup. */
+export const RIVAL_SUPPORTED_IDS: readonly string[] = [...RIVAL_ROSTER_IDS, ...Object.keys(RIVAL_NAMED_PROFILES)];
 
 export type RivalTierRow = {
   tier: number;
@@ -180,6 +182,9 @@ export function getRivalTierRow(tier: number): RivalTierRow {
 
 export type MoveSnapshot = { moveId: string; staminaCost: number; damageScale: number; breakPower: number; chargeable: boolean };
 export type CombatantSnapshot = {
+  sizeTier?: "Medium";
+  balancePlaceholder?: { sourceHolobotId: string; pendingTuning: boolean };
+  specials?: { specialId: string; displayName: string; damageScale: number }[];
   commandRules?: ReturnType<typeof desktopPracticeCommands>;
   holobotId: string;
   level: number;
@@ -265,7 +270,12 @@ export function rivalScaledCombatant(holobotId: string, tier: number): Combatant
     maxStamina: b.maxStamina,
     staminaRegen: b.staminaRegen,
     deployment: { ...b.deployment },
-    moves: b.moves.map((m) => ({ ...m, damageScale: m.damageScale * rivalTierDamageScale(tier) })),
+    moves: (holobotId === 'jusan' ? RIVAL_NAMED_PROFILES.jusan.moves : b.moves).map((m) => ({ ...m, damageScale: m.damageScale * rivalTierDamageScale(tier) })),
+    ...(holobotId === 'jusan' ? {
+      sizeTier: RIVAL_NAMED_PROFILES.jusan.sizeTier,
+      balancePlaceholder: { ...RIVAL_NAMED_PROFILES.jusan.balancePlaceholder },
+      specials: RIVAL_NAMED_PROFILES.jusan.specials.map(s => ({ ...s, damageScale: s.damageScale * rivalTierDamageScale(tier) })),
+    } : {}),
   };
 }
 
