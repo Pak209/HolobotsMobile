@@ -1,3 +1,4 @@
+import { battlefieldMovement, battlefieldMovementCatalog, FLEET_IDS } from '../lib/battlefieldMovement';
 import { tournamentUnlocks } from '../story/tournamentUnlocks';
 /**
  * desktopAccountSnapshot reply builder (pure: no firebase imports, safe to import from tests —
@@ -49,10 +50,12 @@ export function desktopHolobotV3(raw: Record<string, unknown>): Record<string, u
   const holobot = normalizeUserHolobot(raw);
   const boostedAttributes = holobot.boostedAttributes && typeof holobot.boostedAttributes === 'object' && !Array.isArray(holobot.boostedAttributes) ? holobot.boostedAttributes : {};
   const battle = getPlayerBattleStats({ ...holobot, boostedAttributes });
+  const { battlefieldMovement: _untrustedMovement, ...cleanHolobot } = holobot;
   return {
-    ...holobot,
+    ...cleanHolobot,
     boostedAttributes,
     battleStats: { attack: battle.attack, defense: battle.defense, maxHP: battle.maxHP, speed: battle.speed, intelligence: battle.intelligence },
+    ...(FLEET_IDS.some(id => id === holobot.name.trim().toLowerCase()) ? {battlefieldMovement: battlefieldMovement(holobot.name, battle.speed, 'player')} : {}),
     displayStats: getHolobotDisplayStats(holobot.name, holobot.level || 1, boostedAttributes),
   };
 }
@@ -69,6 +72,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     : stored;
   return {
     schemaVersion: version,
+    ...(version === DESKTOP_ACCOUNT_V3 ? {battlefieldMovement: battlefieldMovementCatalog()} : {}),
     uid,
     storyFlags: readStoryFlags(profile.storyFlags),
     pilotRank: readPilotRank(profile.pilotRank),

@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://holobots.local/schemas/battlefield-movement-1.json",
+  "title": "Host-published battlefield movement (additive v3 field)",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/catalog"
+    },
+    {
+      "$ref": "#/$defs/issue"
+    }
+  ],
+  "$defs": {
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "referenceSpeedStat",
+        "referenceSourceHolobotId",
+        "provisional"
+      ],
+      "properties": {
+        "referenceSpeedStat": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "referenceSourceHolobotId": {
+          "type": "string"
+        },
+        "provisional": {
+          "type": "boolean"
+        }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holobotId",
+        "source",
+        "sourceSpeedStat",
+        "referenceSpeedStat",
+        "referenceSourceHolobotId",
+        "provisional",
+        "baseRunMmPerSecond",
+        "runMmPerSecond",
+        "runMetersPerSecond",
+        "preferredRangeMm"
+      ],
+      "properties": {
+        "holobotId": {
+          "enum": [
+            "ace",
+            "wolf",
+            "hare",
+            "shadow",
+            "ken",
+            "tsuin",
+            "wake",
+            "jusan",
+            "kurai",
+            "era",
+            "gama",
+            "kuma",
+            "tora"
+          ]
+        },
+        "source": {
+          "enum": [
+            "player",
+            "rival"
+          ]
+        },
+        "sourceSpeedStat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "referenceSpeedStat": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "referenceSourceHolobotId": {
+          "type": "string"
+        },
+        "provisional": {
+          "type": "boolean"
+        },
+        "baseRunMmPerSecond": {
+          "type": "integer",
+          "minimum": 1600,
+          "maximum": 3200
+        },
+        "runMmPerSecond": {
+          "type": "integer",
+          "minimum": 1600,
+          "maximum": 3200
+        },
+        "runMetersPerSecond": {
+          "type": "number",
+          "minimum": 1.6,
+          "maximum": 3.2
+        },
+        "preferredRangeMm": {
+          "enum": [
+            1500,
+            4000,
+            8000
+          ]
+        }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "minRunMmPerSecond",
+        "maxRunMmPerSecond",
+        "fleet"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "battlefield-movement-1"
+        },
+        "minRunMmPerSecond": {
+          "const": 1600
+        },
+        "maxRunMmPerSecond": {
+          "const": 3200
+        },
+        "fleet": {
+          "type": "array",
+          "minItems": 13,
+          "maxItems": 13,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "holobotId",
+              "baseRunMmPerSecond",
+              "preferredRangeMm",
+              "playerReference",
+              "rivalReference"
+            ],
+            "properties": {
+              "holobotId": {
+                "enum": [
+                  "ace",
+                  "wolf",
+                  "hare",
+                  "shadow",
+                  "ken",
+                  "tsuin",
+                  "wake",
+                  "jusan",
+                  "kurai",
+                  "era",
+                  "gama",
+                  "kuma",
+                  "tora"
+                ]
+              },
+              "baseRunMmPerSecond": {
+                "type": "integer",
+                "minimum": 1600,
+                "maximum": 3200
+              },
+              "preferredRangeMm": {
+                "enum": [
+                  1500,
+                  4000,
+                  8000
+                ]
+              },
+              "playerReference": {
+                "$ref": "#/$defs/reference"
+              },
+              "rivalReference": {
+                "$ref": "#/$defs/reference"
+              }
+            }
+          }
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "player",
+        "opponent"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "battlefield-movement-1"
+        },
+        "player": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/row"
+          }
+        },
+        "opponent": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/row"
+          }
+        }
+      }
+    }
+  }
+}

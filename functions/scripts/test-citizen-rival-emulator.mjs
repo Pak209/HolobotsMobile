@@ -30,7 +30,7 @@ test('known-bad first: real callable gathering issue matches Unity projection, s
  const r=await issue(uid,row);
  assert.equal(Object.hasOwn(r,'playerCombatants'),false,'Unity citizen projection must omit playerCombatants');
  assert.equal(r.schemaVersion,V);
- assert.deepEqual(Object.keys(r).sort(),['schemaVersion','battleId','expiresAtMs','tier','encounter','status','duel'].sort());
+ assert.deepEqual(Object.keys(r).sort(),['schemaVersion','battleId','expiresAtMs','tier','encounter','status','duel','battlefieldMovement'].sort());
  assert.deepEqual(r.encounter.opponentPilot,{pilotId:row.citizenId,displayName:row.pilotName,tier:'Rookie'});
  assert.equal(r.encounter.opponentSquad[0].holobotId,row.holobotId);
  assert.equal(r.duel.mode,'legacy');

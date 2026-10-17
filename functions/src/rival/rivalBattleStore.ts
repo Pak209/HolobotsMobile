@@ -1,3 +1,4 @@
+import { battlefieldIssueMovement } from '../lib/battlefieldMovement';
 // Dormant internal verification seam; no current callable or issuance routes here.
 export { verifyRivalInputLog } from './rivalInputVerification';
 import { DUEL_RECEIPT_SCHEMA, DUEL_MAX_ROUNDS, duelFighterFromCombatant, resolveDuel, validateDuelIntents, DuelReceipt } from '../lib/duelResolver';
@@ -131,6 +132,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // Gathering Unity keeps its existing player presentation payload. Omit only
       // the optional wire snapshot, after vitals and resolver fighters are pinned.
       const issueReply = rivalReplyForVersion(r.reply, command.schemaVersion);
+      if (command.schemaVersion === 'rival-battle-3') issueReply.battlefieldMovement = battlefieldIssueMovement(r.reply);
       if (citizenId !== undefined) delete (issueReply as {playerCombatants?: unknown}).playerCombatants;
       return withStory({...issueReply,duel:r.battle.duel.mode === 'resolver'
         ? {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,maxRounds:DUEL_MAX_ROUNDS,
