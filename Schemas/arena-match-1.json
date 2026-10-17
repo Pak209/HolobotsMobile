@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://holobots.local/schemas/arena-match-1.json",
-  "title": "Arena match additive fighter snapshot reply projection",
+  "title": "Arena match durable lifecycle reply projection",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -31,7 +31,19 @@
           "type": "object",
           "required": [
             "entrant",
-            "opponent"
+            "opponent",
+            "schemaVersion",
+            "matchId",
+            "requestId",
+            "state",
+            "tierId",
+            "issuedAtMs",
+            "expiresAtMs",
+            "startedAtMs",
+            "closedAtMs",
+            "entryReceipt",
+            "rules",
+            "settlementReceipt"
           ],
           "properties": {
             "entrant": {
@@ -91,10 +103,142 @@
                   "maximum": 1000000
                 }
               }
+            },
+            "schemaVersion": {
+              "const": "arena-match-1"
+            },
+            "matchId": {
+              "type": "string",
+              "pattern": "^am_[a-f0-9]{32}$"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{8,80}$"
+            },
+            "state": {
+              "enum": [
+                "issued",
+                "active",
+                "settled",
+                "cancelled",
+                "expired"
+              ]
+            },
+            "tierId": {
+              "enum": [
+                "rookie",
+                "challenger",
+                "elite",
+                "legend"
+              ]
+            },
+            "issuedAtMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expiresAtMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "startedAtMs": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "closedAtMs": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "entryReceipt": {
+              "type": "object",
+              "required": [
+                "matchId",
+                "method",
+                "amount",
+                "balanceBefore",
+                "balanceAfter",
+                "chargedAtMs"
+              ],
+              "properties": {
+                "matchId": {
+                  "type": "string",
+                  "pattern": "^am_[a-f0-9]{32}$"
+                },
+                "method": {
+                  "enum": [
+                    "pass",
+                    "tokens"
+                  ]
+                },
+                "amount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "balanceBefore": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "balanceAfter": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "chargedAtMs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "rules": {
+              "type": "object",
+              "required": [
+                "version"
+              ],
+              "properties": {
+                "version": {
+                  "const": "arena-economy-legacy-1"
+                }
+              }
+            },
+            "settlementReceipt": {
+              "type": [
+                "object",
+                "null"
+              ]
             }
           }
         }
       ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "match": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "matchId": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "matchId": {
+            "type": "string",
+            "pattern": "^am_[a-f0-9]{32}$"
+          }
+        }
+      }
+    }
+  ]
 }

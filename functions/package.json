@@ -19,6 +19,7 @@
     "test:rival-input-verification": "node --test scripts/test-rival-input-verification.mjs",
     "test:tournament-unlocks:emulator": "node --test scripts/test-tournament-unlocks-emulator.mjs",
     "test:duel-movement": "node --test scripts/test-duel-movement.mjs",
+    "test:arena-admitted-contract": "node --test scripts/test-arena-admitted-contract.mjs",
     "test:story-flag-admin": "node --test scripts/test-story-flag-admin.mjs"
   },
   "dependencies": {

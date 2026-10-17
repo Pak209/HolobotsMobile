@@ -1,0 +1,170 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/arena-match-request-1.json",
+  "title": "Existing arena-match-1 lifecycle requests (no wire version change)",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "requestId",
+        "tierId",
+        "paymentMethod",
+        "holobotId",
+        "opponentName"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-1"
+        },
+        "operation": {
+          "const": "issue"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{8,80}$"
+        },
+        "tierId": {
+          "enum": [
+            "rookie",
+            "challenger",
+            "elite",
+            "legend"
+          ]
+        },
+        "paymentMethod": {
+          "enum": [
+            "pass",
+            "tokens"
+          ]
+        },
+        "holobotId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,39}$"
+        },
+        "opponentName": {
+          "type": "string"
+        },
+        "tournamentId": {
+          "enum": [
+            "starter",
+            "champion",
+            "rare"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-1"
+        },
+        "operation": {
+          "const": "start"
+        },
+        "matchId": {
+          "type": "string",
+          "pattern": "^am_[a-f0-9]{32}$"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-1"
+        },
+        "operation": {
+          "const": "resume"
+        },
+        "matchId": {
+          "type": "string",
+          "pattern": "^am_[a-f0-9]{32}$"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-1"
+        },
+        "operation": {
+          "const": "cancel"
+        },
+        "matchId": {
+          "type": "string",
+          "pattern": "^am_[a-f0-9]{32}$"
+        },
+        "playerFinalHealth": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId",
+        "playerFinalHealth",
+        "opponentFinalHealth",
+        "combosCompleted",
+        "perfectDefenses"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-1"
+        },
+        "operation": {
+          "const": "settle"
+        },
+        "matchId": {
+          "type": "string",
+          "pattern": "^am_[a-f0-9]{32}$"
+        },
+        "playerFinalHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "opponentFinalHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "combosCompleted": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 25
+        },
+        "perfectDefenses": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 25
+        }
+      }
+    }
+  ],
+  "description": "Structural validation only; host also checks tier opponent pool, account ownership, balances, HP bounds and state transitions."
+}
