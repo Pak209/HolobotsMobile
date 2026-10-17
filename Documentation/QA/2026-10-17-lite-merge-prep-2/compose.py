@@ -1,0 +1,9 @@
+from PIL import Image,ImageDraw,ImageFont
+from pathlib import Path
+import json
+p=Path('/private/tmp/astra-lite-merge-prep-draft');im=Image.new('RGB',(1500,1100),'#081828');d=ImageDraw.Draw(im);font='/System/Library/Fonts/Supplemental/Arial.ttf';h=ImageFont.truetype(font,30);f=ImageFont.truetype(font,24)
+d.text((30,22),'LITE MERGE DECISION | research only — no merge / release',font=h,fill='white')
+cells=[('1  KNOWN-BAD: CURRENT DRIFT','main cbc5e359 | lite 92def490\n49 main-only / 21 lite-only commits\n367 files | +16,503 / -2,433 lines\n2 conflicts: package.json + package-lock\nNo functions paths in lite merge-base diff'),('2  PR STATE / CI','#87 OPEN / DRAFT: no check rollup\n#117 + #119 MERGED to lite: 3/3 CI each\n#121 OPEN, not folded: 3/3 CI green\n#121: 562 pass / 4 skip (reported)\nNative/live/PvP holds remain'),('3  RECOMMENDATION','Default-OFF main integration, after gates\nCurrent CityHub tab is unconditional\nDev preview flags are NOT rollout gates\nResolve deps; protect old flows; fresh CI\nAvoid indefinite second product branch'),('4  RELEASE HOLDS','Latest simulator: 6.05 → 6.70 FPS\n50 FPS gate HELD; rejected LOD restored\nExpo build 2 vs native 37\nBundle identity exists; signing unverified\nPak: store/signing/privacy/device/upload')]
+for i,(title,body) in enumerate(cells):
+ x=30+(i%2)*740;y=90+(i//2)*470;d.rounded_rectangle((x,y,x+710,y+435),14,fill='#102d44',outline='#45d6df',width=2);d.text((x+20,y+22),title,font=h,fill='#ffcf67');d.multiline_text((x+20,y+90),body,font=f,fill='white',spacing=28)
+d.text((30,1045),'Historical evidence is qualified. No current integrated native acceptance or hold clearance is claimed.',font=f,fill='#b8cedd');im.save(p/'GATE_SHEET.png');(p/'inventory.json').write_text(json.dumps({'width':1500,'height':1100,'cells':[{'cell':i+1,'title':c[0],'content':c[1]} for i,c in enumerate(cells)]},indent=2)+'\n')
