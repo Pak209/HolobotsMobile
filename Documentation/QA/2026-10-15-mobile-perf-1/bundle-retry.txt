@@ -1,0 +1,7 @@
+Starting Metro Bundler
+| (node:67925) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 1132ms w18-perf-entry.tsx (869 modules)
+Writing bundle output to: /private/tmp/w18-evidence/main.jsbundle
+Copying 150 asset files
+Done writing bundle output

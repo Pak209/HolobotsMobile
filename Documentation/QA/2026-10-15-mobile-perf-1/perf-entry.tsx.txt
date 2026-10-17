@@ -1,0 +1,13 @@
+import React from 'react';
+import { registerRootComponent } from 'expo';
+import { useFonts } from 'expo-font';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { DuelPlaybackScreen } from './src/screens/DuelPlaybackScreen';
+import fixture from './src/qa/fixtures/duel-receipt-1.json';
+import * as FileSystem from 'expo-file-system';
+const originalInfo=console.info;
+let lines=''; let pending=Promise.resolve();
+console.info=(...args:any[])=>{originalInfo(...args);const text=args.map(String).join(' ');if(text.startsWith('[W18:')||text.startsWith('[DuelPlayback:')||text.startsWith('[HolobotViewer:')){lines+=JSON.stringify({wallMs:Date.now(),text})+'\n';const snapshot=lines;pending=pending.then(()=>FileSystem.writeAsStringAsync(FileSystem.documentDirectory+'w18-metrics.jsonl',snapshot));}};
+console.info('[W18:entry] '+JSON.stringify({wallMs:Date.now()}));
+function App(){const [loaded]=useFonts({HoloDisplay:require('./assets/fonts/Rajdhani-Medium.ttf'),HoloBody:require('./assets/fonts/Saira-Regular.ttf')});return loaded?<SafeAreaProvider><DuelPlaybackScreen receipt={fixture.receipt} fixture showMetrics onClose={()=>{}} onMetrics={m=>console.info('[W18:sample] '+JSON.stringify({...m,wallMs:Date.now()}))}/></SafeAreaProvider>:null;}
+registerRootComponent(App);

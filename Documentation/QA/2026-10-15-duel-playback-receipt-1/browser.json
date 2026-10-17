@@ -1,0 +1,25 @@
+{
+  "logs": [
+    {
+      "type": "warning",
+      "text": "props.pointerEvents is deprecated. Use style.pointerEvents"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x114000d6800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x114000d6800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x114000d6800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x114000d6800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    }
+  ],
+  "blockedNetwork": []
+}

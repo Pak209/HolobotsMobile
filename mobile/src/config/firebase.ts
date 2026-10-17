@@ -1,5 +1,7 @@
+import { isLitePreviewEnabled } from "./liteFeature";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
+  connectAuthEmulator,
   createUserWithEmailAndPassword,
   deleteUser,
   getAuth,
@@ -11,6 +13,7 @@ import {
 } from "firebase/auth";
 import { getReactNativePersistence } from "@firebase/auth/dist/rn/index";
 import {
+  connectFirestoreEmulator,
   collection,
   deleteDoc,
   doc,
@@ -25,7 +28,7 @@ import {
   updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
@@ -39,7 +42,12 @@ const firebaseConfig = {
 
 export const FIREBASE_FUNCTIONS_REGION = "us-central1";
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+// Offline preview imports shared modules but must never initialize the production project.
+const offlinePreview = isLitePreviewEnabled();
+const existingApp = offlinePreview ? getApps().find(candidate => candidate.name === "holocity-offline") : undefined;
+const app = offlinePreview ? (existingApp ?? initializeApp(
+    { apiKey: "offline-preview", projectId: "demo-holocity-offline", appId: "offline-preview" }, "holocity-offline"))
+  : (getApps().some(candidate => candidate.name === "[DEFAULT]") ? getApp() : initializeApp(firebaseConfig));
 export const auth = (() => {
   try {
     return initializeAuth(app, {
@@ -51,6 +59,12 @@ export const auth = (() => {
 })();
 export const db = getFirestore(app);
 export const functions = getFunctions(app, FIREBASE_FUNCTIONS_REGION);
+if (offlinePreview && !existingApp) {
+  // A closed local port fails accidental calls closed; this preview has no backend.
+  connectAuthEmulator(auth, "http://127.0.0.1:9", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 9);
+  connectFunctionsEmulator(functions, "127.0.0.1", 9);
+}
 
 export {
   collection,

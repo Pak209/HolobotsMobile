@@ -1,0 +1,10 @@
+{
+  "mainAppBytesIdentical": true,
+  "nativeConfigurationFilesIdentical": 134,
+  "duplicateAuthOrFirebaseModules": 0,
+  "isolatedModules": 124,
+  "isolatedRuntimeModules": 97,
+  "tests": "888 passed / 4 skipped; 82 files passed / 1 skipped; single explicitly approved run",
+  "typecheck": "PASS, noEmit",
+  "native": "NOT RUN"
+}

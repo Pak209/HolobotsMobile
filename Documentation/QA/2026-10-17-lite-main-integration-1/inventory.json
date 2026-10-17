@@ -1,0 +1,26 @@
+{
+  "width": 1500,
+  "height": 1000,
+  "cells": [
+    {
+      "cell": 1,
+      "title": "1  KNOWN-BAD: UNGATED LITE",
+      "content": "CityHub tab previously unconditional\nLite Home/Arena/global theme replace main\nPreview flags were not rollout gates\nSource: lite51abaa9, includes #121"
+    },
+    {
+      "cell": 2,
+      "title": "2  DEFAULT-OFF CANDIDATE",
+      "content": "Exact LITE=1 \u2192 lazy LiteApp\nOtherwise byte-identical original MainApp\n124 isolated modules / 97 runtime\nDirect CityHub/receipt/QA exports guarded"
+    },
+    {
+      "cell": 3,
+      "title": "3  STATIC PRESERVATION",
+      "content": "134 native/config files identical to main\nNo duplicated AuthContext/Firebase\nSix reviewed additive shared seams\nMain base35f8f70; no main merge"
+    },
+    {
+      "cell": 4,
+      "title": "4 APPROVED SINGLE VALIDATION",
+      "content": "888 tests passed / 4 skipped\n82 files passed / 1 skipped; typecheck PASS\nExact-URL offline restore; one run only\nNative/live/PvP + 50FPS holds preserved"
+    }
+  ]
+}

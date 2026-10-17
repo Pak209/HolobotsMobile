@@ -1,0 +1,13 @@
+wolf: 799012 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+kuma: 943788 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+ken: 990696 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+tsuin: 851688 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+hare: 1681480 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+shadow: 905576 bytes, 8 clips, 38 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+wake: 903940 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+tora: 1017052 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+gama: 1143744 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+kurai: 822012 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+era: 1054132 bytes, 7 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+ace: 988940 bytes, 8 clips, 10 JS/WASM-identical buffers, skin/textures/durations OK, 0 validation errors
+PASS: 12 bots, 86 clips, 148 identical JS/WASM buffers, 12102060 bytes total

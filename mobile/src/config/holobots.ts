@@ -1,3 +1,4 @@
+import { isLiteEnabled } from "@/config/liteFeature";
 import { Image, type ImageSourcePropType } from "react-native";
 
 import type { UserHolobot } from "@/types/profile";
@@ -36,6 +37,8 @@ export type HolobotRosterEntry = {
   nextLevelExp: number;
   owned: boolean;
   rank?: string;
+  /** Host-sent rank verbatim for HUD TIER labels; never inferred from level. */
+  hostRank?: string;
   specialMove?: string;
   stats: {
     attack: number;
@@ -205,7 +208,7 @@ export function createFallbackRoster(variant: HolobotImageVariant = "headshot"):
   }));
 }
 
-export function mergeHolobotRoster(userHolobots?: UserHolobot[], variant: HolobotImageVariant = "headshot") {
+export function mergeHolobotRoster(userHolobots?: UserHolobot[], variant: HolobotImageVariant = "headshot"): HolobotRosterEntry[] {
   if (!userHolobots?.length) {
     return createFallbackRoster(variant);
   }
@@ -222,6 +225,7 @@ export function mergeHolobotRoster(userHolobots?: UserHolobot[], variant: Holobo
       name: holobot.name.toUpperCase(),
       nextLevelExp: holobot.nextLevelExp || 100,
       owned: true,
+      ...(isLiteEnabled() ? { hostRank: rawHolobot.rank } : {}),
       rank: holobot.rank || getHolobotRank(holobot.level || 1),
       specialMove: getHolobotBaseProfile(holobot.name).specialMove,
       stats: getNormalizedStatsForChart(

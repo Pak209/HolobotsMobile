@@ -1,0 +1,9 @@
+Native iOS Debug build
+Workspace: mobile/ios/HolobotsMobile.xcworkspace
+Scheme: HolobotsMobile
+Xcode: 26.6 (17F113)
+Simulator: iPhone17Pro / iOS26.5
+DerivedData: .work/DerivedData
+Build log: .work/build-simulator.log
+Last result at line6006: ** BUILD SUCCEEDED **
+Native dependencies unchanged since this successful build; all later TypeScript was loaded through Metro.

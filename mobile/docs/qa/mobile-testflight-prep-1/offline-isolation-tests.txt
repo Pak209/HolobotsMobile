@@ -1,0 +1,10 @@
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-testflight-prep-1/mobile
+
+ ✓ src/config/__tests__/offlineFirebase.test.ts (6 tests) 69ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  19:24:04
+   Duration  393ms (transform 71ms, setup 0ms, collect 88ms, tests 69ms, environment 0ms, prepare 80ms)
+

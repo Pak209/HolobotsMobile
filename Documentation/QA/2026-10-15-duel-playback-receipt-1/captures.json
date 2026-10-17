@@ -1,0 +1,82 @@
+[
+  {
+    "cell": 1,
+    "name": "round-1",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-1.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "f73e29437a73515534a9aac3eb01c17ff3177ebb2f2f4b082f77781c36b97725"
+  },
+  {
+    "cell": 2,
+    "name": "round-2",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-2.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "5d74ce5dc8783ffeffe51c7a9d67bad575f7d2e54384a9479112185211bec791"
+  },
+  {
+    "cell": 3,
+    "name": "round-3",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-3.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "2bafa54967916d27ccc1c5d307b6543d901b4bb2e5a7d09c5a536bec38c20b43"
+  },
+  {
+    "cell": 4,
+    "name": "round-4",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-4.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "a912499963d54c98ff5279c5d97774ef254328cb99308d5beed21884727c1821"
+  },
+  {
+    "cell": 5,
+    "name": "round-5",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-5.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "4e87badf8b8cbe3403722963e3cb21430d8f3a050be24122ebebec03c8ff2650"
+  },
+  {
+    "cell": 6,
+    "name": "round-6",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-6.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "3014169c60afa1fe6de5b459fa4d3aba49ea4fffebc4dee868eb9e0e3f1d749c"
+  },
+  {
+    "cell": 7,
+    "name": "round-7",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-7.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "4c8911d5a9df133d6b535e4a2c4760b03161c52c809223c83ef2b9cb91b29d42"
+  },
+  {
+    "cell": 8,
+    "name": "round-8",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/round-8.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "cc090e5972af92eb45aab579b240acc9bc9b07f9da85529e6963948023b6e291"
+  },
+  {
+    "cell": 9,
+    "name": "result",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/result.png",
+    "width": 402,
+    "height": 874,
+    "sha256": "82694c739453d952414172c733b076d9549f957b33d9285059b3e8faee4ce7d3"
+  },
+  {
+    "cell": 10,
+    "name": "desktop",
+    "path": "/Users/pak/HolobotsVault/QA/2026-10-15-duel-playback-receipt-1/desktop.png",
+    "width": 1280,
+    "height": 800,
+    "sha256": "86c10a6e3f99d5aad74750689079d2e53af4154636422d3fd1fa622b04736bdd"
+  }
+]

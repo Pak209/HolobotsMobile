@@ -1,0 +1,9 @@
+{
+  "source": "/Users/pak/Library/Developer/CoreSimulator/Devices/70B47994-793B-44B3-BCF6-2CBE9519EF36/data/Containers/Bundle/Application/B61A068A-9B10-4FC0-9C36-67DB01E473CE/HolobotsMobile.app",
+  "executableSha256": "362011a27343b3eb6cca05d23895d2263f0fb6a8c90172df12ca3ec205e54ca3",
+  "bundleVersion": "37",
+  "scope": "Same installed W6 native shell; isolated container and W15 embedded fixture bundle; watch extensions excluded",
+  "initialPreparedBundleId": "fun.holobots.w18perf",
+  "measurementBundleId": "fun.holobots.w18perf2",
+  "measurementProcessId": 68227
+}
