@@ -1,3 +1,4 @@
+import { desktopDashboardFields } from './desktopDashboardFields';
 import { battlefieldMovement, battlefieldMovementCatalog, FLEET_IDS } from '../lib/battlefieldMovement';
 import { tournamentUnlocks } from '../story/tournamentUnlocks';
 /**
@@ -74,6 +75,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     schemaVersion: version,
     ...(version === DESKTOP_ACCOUNT_V3 ? {battlefieldMovement: battlefieldMovementCatalog()} : {}),
     uid,
+    ...desktopDashboardFields(profile),
     storyFlags: readStoryFlags(profile.storyFlags),
     pilotRank: readPilotRank(profile.pilotRank),
     tournamentUnlocks: tournamentUnlocks(profile),

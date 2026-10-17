@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Desktop account additive dashboard projection",
+  "description": "Validates the additive identity and destination fields on desktop-account-1/2/3; existing inventory/combat fields are outside this projection schema. No wire version change.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "uid",
+    "username",
+    "pilotPortraitId",
+    "pilotColourwayId",
+    "syncPoints",
+    "zones"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        "desktop-account-1",
+        "desktop-account-2",
+        "desktop-account-3"
+      ]
+    },
+    "uid": {
+      "type": "string"
+    },
+    "username": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "pilotPortraitId": {
+      "type": "null"
+    },
+    "pilotColourwayId": {
+      "type": "null"
+    },
+    "syncPoints": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "zones": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "zoneId",
+          "displayName",
+          "statusLabel",
+          "isOpen",
+          "cardImageId",
+          "sceneName"
+        ],
+        "properties": {
+          "zoneId": {
+            "enum": [
+              "holocity",
+              "neonforest",
+              "tide_hollow",
+              "sky_reach"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "statusLabel": {
+            "enum": [
+              "OPEN",
+              "NOT YET AVAILABLE"
+            ]
+          },
+          "isOpen": {
+            "type": "boolean"
+          },
+          "cardImageId": {
+            "type": "string"
+          },
+          "sceneName": {
+            "enum": [
+              "HoloCity_Main",
+              "HoloZone_NeonForest",
+              null
+            ]
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
