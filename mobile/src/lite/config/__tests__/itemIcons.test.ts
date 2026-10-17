@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../assets/items", () => ({
+vi.mock("../../../../assets/items", () => ({
   itemIcons: { "item.arena_pass": 11, item_holo_pack: 12, item_training_booster: 13, "clothing.Ace_Visor": 14 },
   ITEM_ICON_COUNT: 4,
 }));

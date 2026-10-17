@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { isLiteEnabled } from "@/config/liteFeature";
 export type * from "./EnabledArenaHostLevelsPreview";
 const LazyArenaHostLevelsPreview = lazy(() => import("./EnabledArenaHostLevelsPreview").then(m => ({ default: m.ArenaHostLevelsPreview })));

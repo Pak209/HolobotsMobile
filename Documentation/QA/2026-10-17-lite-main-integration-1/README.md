@@ -1,4 +1,4 @@
-# Lite main integration candidate — DRAFT / validation HELD
+# Lite main integration candidate — DRAFT / mobile checks passed
 
 Main base `35f8f70a6dc5994aa0d62da63b70bfff91aebfaa`, integrated lite `51abaa9e79013005570bec6c31f34b2ed11f7f3b` (includes merged #121). This is a main-based integration candidate, **not a merge to main, release, or verified build**. #87 remains draft. No account, deploy, native build, install from network, credits or editor.
 
@@ -18,15 +18,24 @@ Main native/config is preserved: **134 files under ios/android/app.json compare 
 
 Static checks passed: original MainApp bytes, 134 native/config files, no duplicated AuthContext/Firebase modules, Python syntax for generation scripts, and working-diff whitespace check. The final whole-integration whitespace scan reports three inherited blank-at-EOF warnings in the old mobile-testflight-prep-1 text logs; it is not wholly green. A reviewer caught a missing getApp import in the prepared exact-OFF branch; source and generator were corrected without a test invocation.
 
-**Dependency setup HELD after two failures. No full mobile, TypeScript, host, rules or native tests were run.**
+**Initial dependency setup was HELD after two failures. The subsequent explicitly approved exact-URL cache restore and single full mobile/typecheck run passed (details below). No local host/rules or native run.**
 
 1. `npm install --prefix /private/tmp/astra-integration-deps --offline --ignore-scripts --no-audit --no-fund react-test-renderer@19.0.0 @types/react-test-renderer@19.0.0` failed ENOTCACHED for react-is metadata. Log `/Users/pak/.npm/_logs/2026-10-17T22_32_58_103Z-debug-0.log`.
 2. Authorized final route: `npm pack react-test-renderer@19.0.0 @types/react-test-renderer@19.0.0 --offline --ignore-scripts --pack-destination /private/tmp/astra-integration-deps` failed ENOTCACHED for react-test-renderer metadata. Log `/Users/pak/.npm/_logs/2026-10-17T22_33_27_488Z-debug-0.log`.
 
-No network fallback, third setup route, dependency mutation of foreign caches, or test run followed. Proposed regression tests cover actual lazy entry evaluation OFF/ON, direct disabled CityHub mount, and preview flag conjunction; existing Firebase tests were updated for the additional rollout gate and original default-app branch. **They are source only, unexecuted.** Shared-provider identity currently has static singleton evidence, not a new runtime provider test. CI may report further issues; this candidate must remain draft pending review and an authorized bounded validation lane.
+No network fallback or foreign cache mutation followed those failures. The producer then explicitly approved one exact-URL offline restore and one full mobile/typecheck run. Proposed regression tests cover actual lazy entry evaluation OFF/ON, direct disabled CityHub mount, and preview flag conjunction; existing Firebase tests were updated for the additional rollout gate and original default-app branch. They were initially source-only; the approved follow-up run now executes them. Shared-provider identity currently has static singleton evidence, not a new runtime provider test. The candidate remains draft pending producer review and remaining native/live acceptance.
 
 ## Holds and handoff
 
 #121's native round-one/result capture and live acceptance remain HELD; PvP authority and 3v3 limitations remain. Client practice simulation remains unverified, including the existing Holocity #2 finding. Simulator performance stays at historical6.70 median FPS versus50 target; no new performance claim. Native distribution/build-number/signing/privacy/device decisions are unchanged. The JS gate does not clear any release hold.
 
-Evidence: `/Users/pak/HolobotsVault/QA/2026-10-17-lite-main-integration-1/GATE_SHEET.png`,1500×1000, four inventoried diagnostic cells:1 original unconditional CityHub/global presentation;2 proposed isolated lazy gate;3 static preservation checks;4 setup failures and unrun checks. No native screenshots or test success implied. Root owns inbox and clean worktree handover.
+## Approved validation follow-up
+
+Initial CI typecheck passed, but mobile reported4 failing files,5 failed/869 passed/6 skipped and3 suite-load errors. Corrections add React imports to the classic-JSX lazy entry/wrappers, align the item mock and HARE asset URL with isolated paths, and make the mock factory import the intended main move-kit/ability modules. The generation script reproduces each correction.
+
+The explicitly approved exact cached tarball URLs restored react-test-renderer19.0.0 and its types without metadata resolution/network. Own `/private/tmp/astra-integration-deps` overlay reuses existing cached dependencies; app and renderer resolve the same React19.0.0 file and object. Existing HARE LFS asset hydrated locally (1,681,480 bytes; no fetch).
+
+**One approved run: TypeScript noEmit exit0 in3.652s; full mobile82 files passed/1 skipped,888 tests passed/4 existing skipped,0 failed, Vitest4.43s.** No repeat. Logs `typecheck.log`, `mobile-tests.log`, `results.json` accompany this README. Previous Functions/rules CI was green before these client-only corrections; no fresh local host/rules claim. No native build or live-account test.
+
+
+Evidence: `/Users/pak/HolobotsVault/QA/2026-10-17-lite-main-integration-1/GATE_SHEET.png`,1500×1000, four inventoried diagnostic cells:1 original unconditional CityHub/global presentation;2 proposed isolated lazy gate;3 static preservation checks;4 approved mobile/typecheck results with native/live holds. No native screenshots or acceptance implied; only the recorded mobile/typecheck success is claimed. Root owns inbox and clean worktree handover.

@@ -9,7 +9,7 @@ import { repairHareLocomotion } from '../bots/repairHareLocomotion';
 
 let gltf: GLTF;
 beforeAll(async () => {
-  const data = await readFile(new URL('../../../assets/bots/hare.glb', import.meta.url));
+  const data = await readFile(new URL('../../../../assets/bots/hare.glb', import.meta.url));
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   // Pose checks need the actual mesh/skeleton/animation, without decoding image pixels in Node.
   loader.register(() => ({ name: 'test_no_textures', loadTexture: async () => new THREE.Texture() }));

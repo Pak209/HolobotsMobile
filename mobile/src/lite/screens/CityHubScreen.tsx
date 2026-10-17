@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { isLiteEnabled } from "@/config/liteFeature";
 export type * from "./EnabledCityHubScreen";
 const LazyCityHubScreen = lazy(() => import("./EnabledCityHubScreen").then(m => ({ default: m.CityHubScreen })));

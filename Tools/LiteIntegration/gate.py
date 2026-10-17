@@ -8,7 +8,7 @@ flag.write_text('''/** Build-time opt-in; missing or malformed values fail close
 export function isLiteEnabled(): boolean { return process.env.EXPO_PUBLIC_HOLOCITY_LITE === "1"; }
 export function isLitePreviewEnabled(): boolean { return isLiteEnabled() && typeof __DEV__ !== "undefined" && __DEV__ && process.env.EXPO_PUBLIC_HOLOCITY_PREVIEW === "1"; }
 ''')
-(m/'App.tsx').write_text('''import { lazy, Suspense } from "react";
+(m/'App.tsx').write_text('''import React, { lazy, Suspense } from "react";
 import { isLiteEnabled } from "./src/config/liteFeature";
 export type { RootTabs } from "./MainApp";
 const MainApp = lazy(() => import("./MainApp"));
@@ -26,7 +26,7 @@ for file,old,new in [('src/lib/profile.ts','storyFlags: readCityStoryFlags(data.
 p=m/'LiteApp.tsx';s=p.read_text();s='import { isLiteEnabled, isLitePreviewEnabled } from "./src/config/liteFeature";\n'+s;s=s.replace('export default function App() {','function EnabledLiteApp() {');s=s.replace('__DEV__ && process.env.EXPO_PUBLIC_HOLOCITY_PREVIEW === "1"','isLitePreviewEnabled()');s+='\nexport default function LiteApp() { return isLiteEnabled() ? <EnabledLiteApp /> : null; }\n';p.write_text(s)
 # Lightweight exports defer all route imports until an enabled mount.
 for rel,names in [('screens/CityHubScreen.tsx',['CityHubScreen']),('screens/DuelPlaybackScreen.tsx',['DuelPlaybackScreen','FighterHud']),('qa/HoloCityPreview.tsx',['HoloCityPreviewApp']),('qa/ArenaHostLevelsPreview.tsx',['ArenaHostLevelsPreview','ArenaHostLevelsKnownBadPreview']),('qa/ArenaAdmittedPreview.tsx',['ArenaAdmittedRoundPreview','ArenaAdmittedResultPreview','ArenaAdmittedKnownBadPreview'])]:
- p=m/'src/lite'/rel;inner=p.with_name('Enabled'+p.name);p.rename(inner);stem=inner.stem;out='import { lazy, Suspense } from "react";\nimport { isLiteEnabled } from "@/config/liteFeature";\n'
+ p=m/'src/lite'/rel;inner=p.with_name('Enabled'+p.name);p.rename(inner);stem=inner.stem;out='import React, { lazy, Suspense } from "react";\nimport { isLiteEnabled } from "@/config/liteFeature";\n'
  out+=f'export type * from "./{stem}";\n'
  for name in names:
   out+=f'const Lazy{name} = lazy(() => import("./{stem}").then(m => ({{ default: m.{name} }})));\n'
@@ -41,3 +41,15 @@ for rel in ['package.json','package-lock.json']:
 for f in subprocess.check_output(['git','-C',str(r),'ls-tree','-r','--name-only','origin/main','mobile/ios','mobile/android','mobile/app.json'],text=True).splitlines():
  p=r/f;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(subprocess.check_output(['git','-C',str(r),'show','origin/main:'+f]))
 print('Gate and main-native preservation prepared')
+
+# Non-import test references also need their isolated source location.
+for rel, old, new in [
+    ("src/lite/config/__tests__/itemIcons.test.ts", '"../../../assets/items"', '"../../../../assets/items"'),
+    ("src/lite/lib/__tests__/repairHareLocomotion.test.ts", "new URL('../../../assets/bots/hare.glb'", "new URL('../../../../assets/bots/hare.glb'"),
+    ("src/lite/features/arena/__tests__/pvpBattle.test.ts", "('../moveKits')", "('@/features/arena/moveKits')"),
+    ("src/lite/features/arena/__tests__/pvpBattle.test.ts", "('../abilities')", "('@/features/arena/abilities')"),
+]:
+    p = m / rel
+    text = p.read_text()
+    assert old in text, f"Missing expected pinned test reference: {rel}"
+    p.write_text(text.replace(old, new))

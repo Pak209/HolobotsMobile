@@ -4,7 +4,7 @@
   "duplicateAuthOrFirebaseModules": 0,
   "isolatedModules": 124,
   "isolatedRuntimeModules": 97,
-  "tests": "NOT RUN: offline dependency setup HELD after two failures",
-  "typecheck": "NOT RUN",
+  "tests": "888 passed / 4 skipped; 82 files passed / 1 skipped; single explicitly approved run",
+  "typecheck": "PASS, noEmit",
   "native": "NOT RUN"
 }

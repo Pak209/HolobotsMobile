@@ -19,8 +19,8 @@
     },
     {
       "cell": 4,
-      "title": "4  VALIDATION HELD",
-      "content": "2 offline dependency setup failures\nENOTCACHED metadata; no network fallback\nTests / typecheck / native: NOT RUN\n#121 live/native + 50FPS holds preserved"
+      "title": "4 APPROVED SINGLE VALIDATION",
+      "content": "888 tests passed / 4 skipped\n82 files passed / 1 skipped; typecheck PASS\nExact-URL offline restore; one run only\nNative/live/PvP + 50FPS holds preserved"
     }
   ]
 }

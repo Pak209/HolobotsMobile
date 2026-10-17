@@ -1,0 +1,12 @@
+[
+  {
+    "gate": "typecheck",
+    "exitCode": 0,
+    "seconds": 3.652
+  },
+  {
+    "gate": "mobile-tests",
+    "exitCode": 0,
+    "seconds": 4.872
+  }
+]

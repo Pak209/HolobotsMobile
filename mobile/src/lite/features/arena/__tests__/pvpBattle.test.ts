@@ -12,8 +12,8 @@ vi.mock('@/config/holobots', () => ({
 }));
 
 vi.mock('@/config/arenaConfig', async () => {
-  const { getSignatureFinisher } = await vi.importActual<typeof import('../../../../features/arena/moveKits')>('../moveKits');
-  const { getAbility } = await vi.importActual<typeof import('../../../../features/arena/abilities')>('../abilities');
+  const { getSignatureFinisher } = await vi.importActual<typeof import('../../../../features/arena/moveKits')>('@/features/arena/moveKits');
+  const { getAbility } = await vi.importActual<typeof import('../../../../features/arena/abilities')>('@/features/arena/abilities');
   return {
     buildPlayerFighter: (
       uid: string,

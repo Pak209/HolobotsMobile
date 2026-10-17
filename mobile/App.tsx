@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { isLiteEnabled } from "./src/config/liteFeature";
 export type { RootTabs } from "./MainApp";
 const MainApp = lazy(() => import("./MainApp"));

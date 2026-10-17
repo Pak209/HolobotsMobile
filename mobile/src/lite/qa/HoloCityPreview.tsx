@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { isLiteEnabled } from "@/config/liteFeature";
 export type * from "./EnabledHoloCityPreview";
 const LazyHoloCityPreviewApp = lazy(() => import("./EnabledHoloCityPreview").then(m => ({ default: m.HoloCityPreviewApp })));

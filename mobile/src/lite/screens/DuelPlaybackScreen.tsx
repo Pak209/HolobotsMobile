@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { isLiteEnabled } from "@/config/liteFeature";
 export type * from "./EnabledDuelPlaybackScreen";
 const LazyDuelPlaybackScreen = lazy(() => import("./EnabledDuelPlaybackScreen").then(m => ({ default: m.DuelPlaybackScreen })));

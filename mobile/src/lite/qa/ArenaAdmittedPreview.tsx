@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { isLiteEnabled } from "@/config/liteFeature";
 export type * from "./EnabledArenaAdmittedPreview";
 const LazyArenaAdmittedRoundPreview = lazy(() => import("./EnabledArenaAdmittedPreview").then(m => ({ default: m.ArenaAdmittedRoundPreview })));
