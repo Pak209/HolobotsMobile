@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/arena-match-1.json",
+  "title": "Arena match additive fighter snapshot reply projection",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "matchId",
+    "alreadyProcessed",
+    "match"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "arena-match-1"
+    },
+    "matchId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "alreadyProcessed": {
+      "type": "boolean"
+    },
+    "match": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "entrant",
+            "opponent"
+          ],
+          "properties": {
+            "entrant": {
+              "type": "object",
+              "required": [
+                "holobotId",
+                "level",
+                "displayName",
+                "tier"
+              ],
+              "properties": {
+                "holobotId": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 99
+                },
+                "displayName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000
+                }
+              }
+            },
+            "opponent": {
+              "type": "object",
+              "required": [
+                "holobotId",
+                "level",
+                "displayName",
+                "tier"
+              ],
+              "properties": {
+                "holobotId": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 99
+                },
+                "displayName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
