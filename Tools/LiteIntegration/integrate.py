@@ -3,6 +3,10 @@ import subprocess,json,re,posixpath,hashlib
 from pathlib import Path
 R=Path('/private/tmp/astra-mobile-session'); MAIN='35f8f70a6dc5994aa0d62da63b70bfff91aebfaa'; LITE='51abaa9e79013005570bec6c31f34b2ed11f7f3b'
 def git(*a):return subprocess.check_output(['git','-C',str(R),*a],text=True)
+assert R.resolve() == Path("/private/tmp/astra-mobile-session"), "Refuse a different checkout"
+assert git("branch", "--show-current").strip() == "codex/lite-main-integration-1", "Refuse foreign branch"
+assert git("rev-parse", "HEAD").strip() == MAIN and git("rev-parse", "MERGE_HEAD").strip() == LITE, "Requires fresh pinned merge"
+assert not (R / "mobile/src/lite").exists(), "Refuse rerun over generated candidate"
 files=[x for x in git('ls-tree','-r','--name-only',LITE,'mobile/src').splitlines() if x.endswith(('.ts','.tsx','.json'))]
 allfiles=set(files);sources={p:(R/p).read_text() for p in files};mainfiles=set(git('ls-tree','-r','--name-only',MAIN,'mobile/src').splitlines())
 shared={'mobile/src/contexts/AuthContext.tsx','mobile/src/config/firebase.ts','mobile/src/config/holobots.ts','mobile/src/lib/profile.ts','mobile/src/types/profile.ts','mobile/src/lib/cityHub.ts'}

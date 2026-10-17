@@ -1,6 +1,9 @@
 from pathlib import Path
 import re,subprocess,json
 r=Path('/private/tmp/astra-mobile-session');m=r/'mobile';flag=m/'src/config/liteFeature.ts'
+assert r.resolve() == Path("/private/tmp/astra-mobile-session"), "Refuse a different checkout"
+assert subprocess.check_output(["git", "-C", str(r), "branch", "--show-current"], text=True).strip() == "codex/lite-main-integration-1", "Refuse foreign branch"
+assert not flag.exists(), "Refuse rerun over generated gates"
 flag.write_text('''/** Build-time opt-in; missing or malformed values fail closed. */
 export function isLiteEnabled(): boolean { return process.env.EXPO_PUBLIC_HOLOCITY_LITE === "1"; }
 export function isLitePreviewEnabled(): boolean { return isLiteEnabled() && typeof __DEV__ !== "undefined" && __DEV__ && process.env.EXPO_PUBLIC_HOLOCITY_PREVIEW === "1"; }
