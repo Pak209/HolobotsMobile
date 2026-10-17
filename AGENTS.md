@@ -32,3 +32,11 @@ your report with one line per action filed:
 `⚑ filed action: <title> [priority]`.
 Full rule: `~/Projects/PakOS/skills/pakos-human-action/SKILL.md`.
 <!-- END:pakos-human-action -->
+
+## Worktree storage (Pak, 2026-10-17)
+
+Use one temporary worktree per repository per session, reused across lanes.
+At hand-back, once the PR is open, preserve unpublished changes in the vault
+and run `git worktree remove <path>`. Archive held candidates rather than
+parking checkouts. Verify that no session-owned Unity checkout remains; keep
+the primary shared checkout and other sessions' worktrees.
