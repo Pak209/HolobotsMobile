@@ -15,6 +15,12 @@ export function parseOptions(args){
  if(opts['--pilot-rank']!==undefined){const raw=opts['--pilot-rank'];if(!/^(0|[1-9][0-9]*)$/.test(raw)||!Number.isSafeInteger(Number(raw)))fail('pilotRank must be a nonnegative safe integer');updates.pilotRank=Number(raw);}
  if(!Object.keys(updates).length)fail('Select at least one field');return {uid,project:opts['--project'],updates};
 }
+/** Pak-approved local QA completion: all three story fields share one transaction. */
+export function expandArenaEnable(updates){
+ return updates['storyFlags.arenaArcBuilt']===true
+  ? {...updates,'storyFlags.tournamentsWon':3,'storyFlags.arenaGatheringSeen':true}
+  : {...updates};
+}
 export function credentialMode(env,project){
  for(const key of ['GOOGLE_APPLICATION_CREDENTIALS','GOOGLE_GHA_CREDS_PATH','GCE_METADATA_HOST','GCE_METADATA_IP','FIREBASE_TOKEN','GOOGLE_IMPERSONATE_SERVICE_ACCOUNT','CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT'])if(env[key])fail(`Unset ${key}; only local user ADC is permitted`);
  if(env.FIRESTORE_EMULATOR_HOST){if(!/^127\.0\.0\.1:[0-9]{1,5}$/.test(env.FIRESTORE_EMULATOR_HOST)||!project.startsWith('demo-'))fail('Emulator requires loopback and demo- project');return 'emulator';}
@@ -33,18 +39,18 @@ export function validateResult(data,updates){
  const rank=updates.pilotRank??data.pilotRank??0;if(!Number.isSafeInteger(rank)||rank<0)fail('Malformed pilotRank');
  if(data.pilotRank!==undefined&&(!Number.isSafeInteger(data.pilotRank)||data.pilotRank<0))fail('Malformed existing pilotRank');
  for(const [path,value] of Object.entries(updates))if(path.startsWith('storyFlags.'))flags[path.slice(11)]=value;
- if(flags.arenaArcBuilt!==(flags.tournamentsWon===3))fail('arenaArcBuilt must match tournamentsWon===3; no implicit tournament changes');
+ if(flags.arenaArcBuilt!==(flags.tournamentsWon===3))fail('arenaArcBuilt must match tournamentsWon===3; Arena disable requires an already-consistent win count');
 }
 export async function updateStoryFlags(db,options){
  // Validate even programmatic callers, not just the CLI.
  const args=['--uid',options.uid,'--confirm',options.uid,'--project',options.project];
  const names={'storyFlags.arenaArcBuilt':'--arena-arc-built','storyFlags.holoZonesArcBuilt':'--holo-zones-arc-built',pilotRank:'--pilot-rank'};
  for(const [key,value] of Object.entries(options.updates)){if(!names[key])fail('Unapproved update field');args.push(names[key],String(value));}
- const checked=parseOptions(args);const ref=db.doc(`users/${checked.uid}`);
- return db.runTransaction(async tx=>{const snap=await tx.get(ref);if(!snap.exists)fail('Unknown UID; refusing upsert');const before=snap.data();validateResult(before,checked.updates);
-  const after={...before,...(Object.hasOwn(checked.updates,'pilotRank')?{pilotRank:checked.updates.pilotRank}:{})};
-  const flagUpdates=Object.entries(checked.updates).filter(([k])=>k.startsWith('storyFlags.'));if(flagUpdates.length)after.storyFlags={...before.storyFlags,...Object.fromEntries(flagUpdates.map(([k,v])=>[k.slice(11),v]))};
-  tx.update(ref,checked.updates);return {uid:checked.uid,project:checked.project,before:selectedState(before),after:selectedState(after),changedFields:Object.keys(checked.updates)};
+ const checked=parseOptions(args);const updates=expandArenaEnable(checked.updates);const ref=db.doc(`users/${checked.uid}`);
+ return db.runTransaction(async tx=>{const snap=await tx.get(ref);if(!snap.exists)fail('Unknown UID; refusing upsert');const before=snap.data();validateResult(before,updates);
+  const after={...before,...(Object.hasOwn(updates,'pilotRank')?{pilotRank:updates.pilotRank}:{})};
+  const flagUpdates=Object.entries(updates).filter(([k])=>k.startsWith('storyFlags.'));if(flagUpdates.length)after.storyFlags={...before.storyFlags,...Object.fromEntries(flagUpdates.map(([k,v])=>[k.slice(11),v]))};
+  tx.update(ref,updates);return {uid:checked.uid,project:checked.project,before:selectedState(before),after:selectedState(after),changedFields:Object.keys(updates)};
  });
 }
 /** Use the installed Google Cloud transport with this exact verified user client.

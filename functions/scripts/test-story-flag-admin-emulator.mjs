@@ -12,10 +12,27 @@ test('transaction updates exactly selected fields of one existing UID with befor
  assert.deepEqual((await db.doc(`users/${uid}`).get()).data(),{...original,pilotRank:9,storyFlags:{...original.storyFlags,holoZonesArcBuilt:true}});
  assert.deepEqual((await db.doc(`users/${other}`).get()).data(),original);
  const before=(await db.doc(`users/${uid}`).get()).data();
- await assert.rejects(()=>updateStoryFlags(db,{uid,project,updates:{'storyFlags.arenaArcBuilt':true}}),/tournamentsWon/);
+ await assert.rejects(()=>updateStoryFlags(db,{uid,project,updates:{'storyFlags.arenaArcBuilt':'invalid'}}),/exactly/);
  assert.deepEqual((await db.doc(`users/${uid}`).get()).data(),before);
 });
 test('unknown UID and unapproved fields never upsert or write',async()=>{
  const missing=uid+'_absent';await assert.rejects(()=>updateStoryFlags(db,{uid:missing,project,updates:{pilotRank:0}}),/Unknown UID/);assert.equal((await db.doc(`users/${missing}`).get()).exists,false);
  await assert.rejects(()=>updateStoryFlags(db,{uid,project,updates:{holosTokens:100000}}),/Unapproved/);
+});
+
+test('Arena enable atomically completes all three fields, prints before/after and replays safely',async()=>{
+ const original={storyFlags:{arenaGatheringSeen:false,tournamentsWon:0,arenaArcBuilt:false,holoZonesArcBuilt:false,extraFlag:'untouched'},pilotRank:2,holosTokens:731,privateField:{keep:true}};
+ await db.doc(`users/${uid}`).set(original);await db.doc(`users/${other}`).set(original);
+ const options={uid,project,updates:{'storyFlags.arenaArcBuilt':true,pilotRank:9}};
+ const result=await updateStoryFlags(db,options);
+ const expected={...original,pilotRank:9,storyFlags:{...original.storyFlags,arenaGatheringSeen:true,tournamentsWon:3,arenaArcBuilt:true}};
+ assert.deepEqual(result.before,{storyFlags:original.storyFlags,pilotRank:2});
+ assert.deepEqual(result.after,{storyFlags:expected.storyFlags,pilotRank:9});
+ assert.deepEqual(new Set(result.changedFields),new Set(['pilotRank','storyFlags.arenaArcBuilt','storyFlags.arenaGatheringSeen','storyFlags.tournamentsWon']));
+ assert.deepEqual((await db.doc(`users/${uid}`).get()).data(),expected);
+ assert.deepEqual((await db.doc(`users/${other}`).get()).data(),original);
+ const replay=await updateStoryFlags(db,options);assert.deepEqual(replay.before,replay.after);
+ await assert.rejects(()=>updateStoryFlags(db,{uid,project,updates:{'storyFlags.arenaArcBuilt':false}}),/tournamentsWon/);
+ assert.deepEqual((await db.doc(`users/${uid}`).get()).data(),expected);
+ await assert.rejects(()=>updateStoryFlags(db,{uid,project,updates:{'storyFlags.tournamentsWon':1}}),/Unapproved/);
 });

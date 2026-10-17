@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {parseOptions,credentialMode,validateUserAdc,validateResult,selectedState,createUserFirestore} from './admin/story-flags.mjs';
+import {parseOptions,expandArenaEnable,credentialMode,validateUserAdc,validateResult,selectedState,createUserFirestore} from './admin/story-flags.mjs';
 const base=['--uid','throwaway_01','--confirm','throwaway_01','--project','demo-admin-story'];
 test('KNOWN-BAD missing confirmation and unknown/malformed options refuse before credentials',()=>{
  for(const args of [[],['--uid','x'],[...base,'--pilot-rank','-1'],[...base,'--pilot-rank','1.5'],[...base,'--pilot-rank','9007199254740992'],[...base,'--arena-arc-built','1'],[...base,'--all','true'],[...base,'--uid','different'],[...base,'--pilot-rank']])assert.throws(()=>parseOptions(args));
@@ -17,7 +17,7 @@ test('emulator guard only allows loopback demo project; real route requires user
  assert.throws(()=>credentialMode({FIRESTORE_EMULATOR_HOST:'127.0.0.1:8193'},'real-project'));
  assert.throws(()=>credentialMode({},'demo-story'));assert.equal(credentialMode({},'real-project'),'user-adc');
 });
-test('Arena invariant is preserved; no hidden tournament-win mutation',()=>{
+test('final Arena invariant remains enforced, including disabling completed accounts',()=>{
  assert.throws(()=>validateResult({storyFlags:{tournamentsWon:0}}, {'storyFlags.arenaArcBuilt':true}),/tournamentsWon/);
  assert.throws(()=>validateResult({storyFlags:{tournamentsWon:3,arenaArcBuilt:true}}, {'storyFlags.arenaArcBuilt':false}),/tournamentsWon/);
  assert.doesNotThrow(()=>validateResult({storyFlags:{tournamentsWon:3,arenaArcBuilt:true}}, {'storyFlags.arenaArcBuilt':true}));
@@ -35,4 +35,12 @@ test('verified authorized_user constructs Google Cloud Firestore without ADC red
  assert.equal(db.doc('users/offline').path,'users/offline');
  const {default:FirestoreClient}=await import('@google-cloud/firestore/build/src/v1/index.js');const transport=new FirestoreClient({projectId:'synthetic-project',auth:db._settings.auth});assert.equal(await transport.auth.getClient(),client);
  await transport.close();await db.terminate();
+});
+
+test('explicit Arena enable expands to the three approved fields, false and omission do not',()=>{
+ const options=parseOptions([...base,'--arena-arc-built','true','--pilot-rank','9']);
+ assert.deepEqual(expandArenaEnable(options.updates),{'storyFlags.arenaArcBuilt':true,pilotRank:9,'storyFlags.tournamentsWon':3,'storyFlags.arenaGatheringSeen':true});
+ assert.doesNotThrow(()=>validateResult({storyFlags:{tournamentsWon:0}},expandArenaEnable(options.updates)));
+ assert.deepEqual(expandArenaEnable({'storyFlags.arenaArcBuilt':false}),{'storyFlags.arenaArcBuilt':false});
+ assert.deepEqual(expandArenaEnable({pilotRank:0}),{pilotRank:0});
 });
