@@ -26,6 +26,7 @@ import type { UserHolobot } from "@/types/profile";
 
 import * as snapshot from "../../../../functions/src/desktop/desktopAccountReply";
 import * as serverProgression from "../../../../functions/src/lib/progression";
+import { battlefieldMovement } from "../../../../functions/src/lib/battlefieldMovement";
 
 /**
  * DECISIONS #53 amendment 1 + 2: desktop-account-3 holobots carry
@@ -139,13 +140,21 @@ describe("desktop-account-3 holobots", () => {
   });
 
   it("the reply: v3 normalises + adds stats; v1 / v2 return the stored records untouched", () => {
-    const profile = { holobots: [{ name: "ACE", level: 4, career: { workouts: 2 } }, null, { level: 3 }], blueprints: { ace: 2 } };
+    const storedMovement = { source: "client", runMmPerSecond: 999999 };
+    const profile = { holobots: [{ name: "ACE", level: 4, career: { workouts: 2 }, battlefieldMovement: storedMovement }, null, { level: 3 }], blueprints: { ace: 2 } };
     const units = { light: 1, medium: 0, heavy: 2 };
     const v3 = snapshot.buildDesktopAccountReply(structuredClone(profile), "uid-1", "desktop-account-3", units);
     const holobots = v3.holobots as Array<Record<string, unknown>>;
     expect(holobots).toHaveLength(1);
     expect(holobots[0].career).toEqual({ workouts: 2 });
-    expect(Object.keys(holobots[0]).slice(-2)).toEqual(["battleStats", "displayStats"]);
+    const fighter = buildPlayerFighter("uid-1", normalizeUserHolobot({ name: "ACE", level: 4 } as UserHolobot), EMPTY_PART_BOOSTS);
+    expect(holobots[0].battleStats).toEqual({
+      attack: fighter.attack, defense: fighter.defense, maxHP: fighter.maxHP,
+      speed: fighter.speed, intelligence: fighter.intelligence,
+    });
+    expect(holobots[0].displayStats).toEqual(getHolobotDisplayStats("ACE", 4, {}));
+    expect(holobots[0].battlefieldMovement).toEqual(battlefieldMovement("ACE", fighter.speed, "player"));
+    expect(holobots[0].battlefieldMovement).not.toEqual(storedMovement);
     expect(v3.buddyUnits).toEqual(units);
     for (const version of ["desktop-account-1", "desktop-account-2"] as const) {
       const reply = snapshot.buildDesktopAccountReply(structuredClone(profile), "uid-1", version, units);
