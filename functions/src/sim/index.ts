@@ -1,3 +1,5 @@
+import { moveFighter, sqrtCeil } from './movement';
+export * from './movement';
 import { canonicalHash, randomChoice } from './encoding';
 import { validate } from './validate';
 import { Command, FighterState, InputLog, Move, RulesSnapshot, SimEvent, SimResult, SimState } from './types';
@@ -21,7 +23,8 @@ const within = (a: FighterState, b: FighterState, r: number) => { const x = BigI
 export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): SimResult {
     validate(rules, log, seed);
     const definitions = [...rules.fighters].sort((a, b) => a.id < b.id ? -1 : 1);
-    const state: SimState = { simVersion: 'duel-sim-1', rulesHash: canonicalHash({ ...rules, fighters: definitions }), seed, tick: -1, winner: null, reason: 'running', fighters: definitions.map(f => ({ id: f.id, side: f.side, deployed: f.deployed, hp: f.hp, stamina: f.stamina, sync: f.sync, x: f.x, z: f.z, facingX: 0, facingZ: 0, moveX: 0, moveZ: 0, moveUntil: 0, guardUntil: 0, guardStarted: -1, disengaged: false, readyTick: 0, stunnedUntil: 0, target: null, attack: null })) };
+    const movementV2 = rules.simVersion === 'duel-sim-2';
+    const state: SimState = { simVersion: rules.simVersion, rulesHash: canonicalHash({ ...rules, fighters: definitions }), seed, tick: -1, winner: null, reason: 'running', fighters: definitions.map(f => ({ id: f.id, side: f.side, deployed: f.deployed, hp: f.hp, stamina: f.stamina, sync: f.sync, x: f.x, z: f.z, facingX: 0, facingZ: 0, moveX: 0, moveZ: 0, moveUntil: 0, guardUntil: 0, guardStarted: -1, disengaged: false, readyTick: 0, stunnedUntil: 0, target: null, attack: null, ...(movementV2 ? {movement: {queued: null, dashReadyTick: 0, dashTicks: 0, dashX: 0, dashZ: 0, runRemainder: 0}} : {}) })) };
     const result: SimResult = { initialHash: canonicalHash(state), inputHash: canonicalHash(log), ticks: [], finalState: state, finalHash: '' };
     const def = (f: FighterState) => definitions.find(d => d.id === f.id)!;
     const lookup = (id: string) => state.fighters.find(f => f.id === id)!;
@@ -53,6 +56,7 @@ export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): Sim
                     deny('cancel_window');
                     return;
                 }
+                if (f.movement) { f.movement.queued = null; f.movement.dashTicks = 0; f.movement.dashX = f.movement.dashZ = 0; }
                 f.moveX = e.action === 'move' ? e.x! : 0;
                 f.moveZ = e.action === 'move' ? e.z! : 0;
                 f.moveUntil = tick + rules.heldTicks;
@@ -65,6 +69,7 @@ export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): Sim
                     deny('cancel_window');
                     return;
                 }
+                if (f.movement) { f.movement.queued = null; f.movement.dashTicks = 0; f.movement.dashX = f.movement.dashZ = 0; }
                 if (!f.guardUntil)
                     f.guardStarted = tick;
                 f.guardUntil = tick + rules.heldTicks;
@@ -92,6 +97,7 @@ export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): Sim
                     deny('deploy_blocked');
                     return;
                 }
+                if (f.movement) { f.movement.queued = null; f.movement.dashTicks = 0; f.movement.dashX = f.movement.dashZ = 0; }
                 f.deployed = false;
                 f.moveX = f.moveZ = 0;
                 f.guardUntil = 0;
@@ -117,6 +123,16 @@ export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): Sim
                     deny('insufficient_sync');
                     return;
                 }
+                if (f.movement && (f.movement.dashTicks > 0 || !within(f, target!, m.rangeMm))) {
+                    f.movement.queued = {move, target: target!.id};
+                    f.target = target!.id;
+                    f.disengaged = false;
+                    f.guardUntil = 0; f.guardStarted = -1;
+                    f.moveX = f.moveZ = 0;
+                    emit(f, move, target!.id, 'queued_close');
+                    return;
+                }
+                if (f.movement) f.movement.queued = null;
                 f.stamina -= m.staminaCost;
                 f.sync -= m.syncCost;
                 f.attack = { move, target: target!.id, startTick: tick, contactTick: tick + m.windupTicks };
@@ -141,17 +157,42 @@ export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): Sim
                 if (!target)
                     return;
                 const move = moves[randomChoice(seed, 1, tick, index, moves.length)];
-                if (within(f, target, def(f).moves[move].rangeMm))
+                if (f.movement?.queued) return;
+                if (movementV2 || within(f, target, def(f).moves[move].rangeMm))
                     command({ seq: 0, tick, actor: f.id, action: move, target: target.id });
                 else {
                     const x = target.x - f.x, z = target.z - f.z;
                     command({ seq: 0, tick, actor: f.id, action: 'move', x: Math.abs(x) >= Math.abs(z) ? Math.sign(x) * 127 : 0, z: Math.abs(z) > Math.abs(x) ? Math.sign(z) * 127 : 0 });
                 }
             });
+        if (movementV2) for (const f of state.fighters) {
+            const queued = f.movement!.queued;
+            if (!queued || !f.deployed || f.hp === 0 || f.attack || tick < f.stunnedUntil || tick < f.readyTick || f.movement!.dashTicks > 0) continue;
+            const target = lookup(queued.target);
+            if (!target.deployed || target.hp === 0) { f.movement!.queued = null; emit(f, queued.move, target.id, 'target_inactive'); }
+            else if (within(f, target, def(f).moves[queued.move].rangeMm)) {
+                // Clear before execution: a dash can consume the last STA while closing.
+                f.movement!.queued = null;
+                command({seq: 0, tick, actor: f.id, action: queued.move, target: target.id});
+            }
+        }
         const positions = state.fighters.map(f => ({ x: f.x, z: f.z }));
         for (const f of state.fighters) {
             if (!f.deployed || f.hp === 0 || f.attack || tick < f.stunnedUntil)
                 continue;
+            if (movementV2) {
+                if (f.guardUntil > tick) continue;
+                const queued = f.movement!.queued;
+                const target = (queued ? lookup(queued.target) : f.target ? lookup(f.target) : null);
+                const opponent = target?.deployed && target.hp > 0 ? target : state.fighters.find(o => o.side !== f.side && o.deployed && o.hp > 0);
+                const movement = rules.movement![f.id];
+                const goal = queued ? def(f).moves[queued.move].rangeMm : f.disengaged && opponent
+                    ? Math.max(Number(sqrtCeil(BigInt(positions[state.fighters.indexOf(opponent)].x - f.x)**2n + BigInt(positions[state.fighters.indexOf(opponent)].z - f.z)**2n)), Math.max(...Object.values(def(opponent).moves).map(m => m.rangeMm)) + 1)
+                    : Math.floor(movement.preferredRangeMm * 9 / 10);
+                const targetPosition = opponent && !(f.moveX || f.moveZ) ? positions[state.fighters.indexOf(opponent)] : null;
+                moveFighter(f, movement, tick, targetPosition, goal, def(f).radiusMm, () => emit(f, 'dash', opponent?.id ?? null, 'accepted'));
+                continue;
+            }
             const d = def(f), den = Math.max(127, Math.abs(f.moveX) + Math.abs(f.moveZ));
             f.x = clamp(f.x + mulDiv(d.speedMmPerTick, f.moveX, den), -rules.arenaHalfSizeMm + d.radiusMm, rules.arenaHalfSizeMm - d.radiusMm);
             f.z = clamp(f.z + mulDiv(d.speedMmPerTick, f.moveZ, den), -rules.arenaHalfSizeMm + d.radiusMm, rules.arenaHalfSizeMm - d.radiusMm);
@@ -190,6 +231,7 @@ export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): Sim
             if (h.stun > 0) {
                 h.target.stunnedUntil = Math.max(h.target.stunnedUntil, tick + h.stun + 1);
                 h.target.attack = null;
+                if (h.target.movement) { h.target.movement.dashTicks = 0; h.target.movement.dashX = h.target.movement.dashZ = 0; }
                 h.target.moveX = h.target.moveZ = 0;
                 h.target.guardUntil = 0;
                 h.target.guardStarted = -1;
@@ -200,6 +242,7 @@ export function simulate(rules: RulesSnapshot, seed: string, log: InputLog): Sim
             if (f.hp === 0) {
                 f.deployed = false;
                 f.attack = null;
+                if (f.movement) { f.movement.queued = null; f.movement.dashTicks = 0; f.movement.dashX = f.movement.dashZ = 0; }
                 f.moveX = f.moveZ = 0;
                 f.guardUntil = 0;
                 f.guardStarted = -1;

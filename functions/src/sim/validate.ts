@@ -17,8 +17,8 @@ function dense(v: unknown, min: number, max: number): asserts v is unknown[] { i
 export function validate(r: RulesSnapshot, log: InputLog, seed: string): void {
     if (typeof seed !== 'string' || !/^[0-9a-f]{64}$/.test(seed))
         throw new Error('invalid_seed');
-    shape(r, ['simVersion', 'tickHz', 'maxTicks', 'arenaHalfSizeMm', 'heldTicks', 'guardDamageBps', 'guardWindowTicks', 'cpuEveryTicks', 'timeout', 'fighters']);
-    if (r.simVersion !== 'duel-sim-1' || r.tickHz !== 30)
+    shape(r, ['simVersion', 'tickHz', 'maxTicks', 'arenaHalfSizeMm', 'heldTicks', 'guardDamageBps', 'guardWindowTicks', 'cpuEveryTicks', 'timeout', 'fighters', ...(r.simVersion === 'duel-sim-2' ? ['movement'] : [])]);
+    if (!['duel-sim-1', 'duel-sim-2'].includes(r.simVersion) || r.tickHz !== 30)
         throw new Error('invalid_version');
     integer(r.maxTicks, 1, 7200, 'maxTicks');
     integer(r.arenaHalfSizeMm, 1, 1000000, 'arena');
@@ -29,6 +29,10 @@ export function validate(r: RulesSnapshot, log: InputLog, seed: string): void {
     if (!['draw', 'remaining_hp'].includes(r.timeout))
         throw new Error('invalid_timeout');
     dense(r.fighters, 2, 6);
+    if (r.simVersion === 'duel-sim-2') {
+        if (r.arenaHalfSizeMm !== 12000) throw new Error('invalid_ring');
+        shape(r.movement, r.fighters.map(f => f.id));
+    }
     const ids = new Set<string>();
     for (const f of r.fighters) {
         shape(f, ['id', 'side', 'cpu', 'deployed', 'hp', 'stamina', 'sync', 'maxHp', 'maxStamina', 'maxSync', 'x', 'z', 'radiusMm', 'speedMmPerTick', 'regenPerTick', 'disengageRegenPerTick', 'moves']);
@@ -49,6 +53,15 @@ export function validate(r: RulesSnapshot, log: InputLog, seed: string): void {
         integer(f.z, -r.arenaHalfSizeMm + f.radiusMm, r.arenaHalfSizeMm - f.radiusMm, 'z');
         if (f.deployed && f.hp === 0)
             throw new Error('deployed_ko');
+        if (r.simVersion === 'duel-sim-2') {
+            const movement = r.movement![f.id];
+            shape(movement, ['speedMmPerSecond', 'preferredRangeMm']);
+            integer(movement.speedMmPerSecond, 1600, 3200, 'movement_speed');
+            if (![1500, 4000, 8000].includes(movement.preferredRangeMm)) throw new Error('invalid_preferred_range');
+            if (f.speedMmPerTick !== 0) throw new Error('ambiguous_movement_speed');
+            const radius = BigInt(12000 - f.radiusMm);
+            if (BigInt(f.x)**2n + BigInt(f.z)**2n > radius**2n) throw new Error('outside_ring');
+        }
         shape(f.moves, ['strike', 'heavy', 'finisher']);
         for (const m of Object.values(f.moves)) {
             shape(m, ['damage', 'staminaCost', 'syncCost', 'syncGain', 'windupTicks', 'recoveryTicks', 'rangeMm', 'hitChanceBps', 'variance', 'interruptTicks', 'cancelAfterTicks']);
@@ -57,6 +70,7 @@ export function validate(r: RulesSnapshot, log: InputLog, seed: string): void {
             for (const k of ['windupTicks', 'recoveryTicks', 'interruptTicks', 'cancelAfterTicks'] as const)
                 integer(m[k], k === 'windupTicks' ? 1 : 0, 7200, k);
             integer(m.rangeMm, 0, 2000000, 'range');
+            if (r.simVersion === 'duel-sim-2' && ![1500, 4000, 8000].includes(m.rangeMm)) throw new Error('invalid_range_tier');
             integer(m.hitChanceBps, 0, 10000, 'chance');
             if (m.cancelAfterTicks >= m.windupTicks)
                 throw new Error('invalid_cancel_window');
