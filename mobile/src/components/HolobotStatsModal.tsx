@@ -1,6 +1,3 @@
-import { hostTierLabel } from "@/components/dashboard/holobotPresentation";
-import { HolobotViewer } from "@/components/HolobotViewer";
-import { theme } from "@/theme";
 import { getAbility } from "@/features/arena/abilities";
 import { getSignatureFinisher, SPECIAL_METER_SEGMENTS } from "@/features/arena/moveKits";
 import { useEffect, useState } from "react";
@@ -90,11 +87,11 @@ function getTierNumber(label?: string) {
 
 function getTierAccent(label: UpgradeTierLabel) {
   switch (label) {
-    case "Common": return theme.colors.blue;
-    case "Champion": return theme.colors.success;
-    case "Rare": return theme.colors.purple;
-    case "Elite": return theme.colors.accent;
-    case "Legendary": return theme.colors.orange;
+    case "Common": return "#4cc6ff";
+    case "Champion": return "#39d98a";
+    case "Rare": return "#9b4dff";
+    case "Elite": return "#f0bf14";
+    case "Legendary": return "#ff8a2a";
   }
 }
 
@@ -139,7 +136,6 @@ export function HolobotStatsModal({
     return null;
   }
 
-  const hostTier = hostTierLabel(ownedHolobot?.rank);
   const normalizedOwnedHolobot = ownedHolobot ? normalizeUserHolobot(ownedHolobot) : null;
   const base = getHolobotBaseProfile(holobot.name);
   const boosts = normalizedOwnedHolobot?.boostedAttributes || {};
@@ -205,7 +201,7 @@ export function HolobotStatsModal({
               onPress={() => setProfileFlipped((value) => !value)}
               style={[styles.section, styles.profilePanel]}
             >
-              <GameSurfaceFrame accent={theme.colors.accent} strong />
+              <GameSurfaceFrame accent="#f0bf14" strong />
               {profileFlipped && activeTab === "stats" && careerSummary ? (
                 <View style={styles.careerFace}>
                   <View style={styles.levelRow}>
@@ -222,14 +218,13 @@ export function HolobotStatsModal({
                     <Text style={styles.levelText}>
                       {normalizedOwnedHolobot ? `LV ${normalizedOwnedHolobot.level || 1}` : "UNMINTED"}
                     </Text>
-                    {(!normalizedOwnedHolobot || hostTier) && <View style={[styles.rankBadge, getTierColor((normalizedOwnedHolobot?.rank as UpgradeTierLabel) || "Common")]}>
+                    <View style={[styles.rankBadge, getTierColor((normalizedOwnedHolobot?.rank as UpgradeTierLabel) || "Common")]}>
                       <Text style={styles.rankText}>
-                        {normalizedOwnedHolobot ? hostTier : mintTier?.label || "Blueprint"}
+                        {normalizedOwnedHolobot ? currentRank : mintTier?.label || "Blueprint"}
                       </Text>
-                    </View>}
+                    </View>
                   </View>
                   <Text style={styles.nameText}>{holobot.name}</Text>
-                  {visible && <HolobotViewer botId={holobot.key} active={visible} style={{ height: 240, width: "100%" }} />}
                   <View style={styles.expRow}>
                     <Text style={styles.mutedLabel}>{normalizedOwnedHolobot ? "XP" : "BLUEPRINTS"}</Text>
                     <Text style={styles.expValue}>
@@ -260,7 +255,7 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("stats")}
                 style={[styles.tabButton, activeTab === "stats" ? styles.tabButtonActive : null]}
               >
-                <ArenaControlFrame accent={theme.colors.accent} selected={activeTab === "stats"} />
+                <ArenaControlFrame accent="#f0bf14" selected={activeTab === "stats"} />
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -274,7 +269,7 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("abilities")}
                 style={[styles.tabButton, activeTab === "abilities" ? styles.tabButtonActive : null]}
               >
-                <ArenaControlFrame accent={theme.colors.accent} selected={activeTab === "abilities"} />
+                <ArenaControlFrame accent="#17d9ff" selected={activeTab === "abilities"} />
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -288,7 +283,7 @@ export function HolobotStatsModal({
                 onPress={() => setActiveTab("blueprints")}
                 style={[styles.tabButton, activeTab === "blueprints" ? styles.tabButtonActive : null]}
               >
-                <ArenaControlFrame accent={theme.colors.purple} selected={activeTab === "blueprints"} />
+                <ArenaControlFrame accent="#9b4dff" selected={activeTab === "blueprints"} />
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -331,7 +326,7 @@ export function HolobotStatsModal({
                           onPress={() => onUpgrade(stat.key)}
                           style={[styles.boostButton, availablePoints <= 0 ? styles.boostButtonDisabled : null]}
                         >
-                          <MoveActionFrame accent={theme.colors.accent} variant="secondary" />
+                          <MoveActionFrame accent="#17d9ff" variant="secondary" />
                           <Text style={[styles.boostButtonText, availablePoints <= 0 ? styles.boostButtonTextDisabled : null]}>
                             {stat.upgrade}
                           </Text>
@@ -357,14 +352,14 @@ export function HolobotStatsModal({
                         onPress={() => setInnateExpanded((value) => !value)}
                         style={styles.consoleHeader}
                       >
-                        <InnateSystemFrame accent={theme.colors.accent} />
+                        <InnateSystemFrame accent="#17d9ff" />
                         <View>
                           <Text style={styles.sectionTitle}>INNATE IDENTITY</Text>
                           <Text style={styles.consoleSummary}>{`${innateAbility.name} • ${signatureFinisher.name}`}</Text>
                         </View>
                         <View style={styles.expandButton}>
                           <Svg height={16} viewBox="0 0 16 16" width={16}>
-                            <Path d={innateExpanded ? "M3 10.5 L8 5.5 L13 10.5" : "M3 5.5 L8 10.5 L13 5.5"} fill="none" stroke={theme.colors.accent} strokeWidth={2} />
+                            <Path d={innateExpanded ? "M3 10.5 L8 5.5 L13 10.5" : "M3 5.5 L8 10.5 L13 5.5"} fill="none" stroke="#17d9ff" strokeWidth={2} />
                           </Svg>
                         </View>
                       </Pressable>
@@ -409,7 +404,7 @@ export function HolobotStatsModal({
 
                           return (
                             <View key={entry.key} style={styles.syncStatRow}>
-                              <MoveRowFrame accent={theme.colors.purple} />
+                              <MoveRowFrame accent="#9b4dff" />
                               <View style={styles.syncStatCopy}>
                                 <Text style={styles.syncStatName}>{getSyncStatLabel(entry.key).toUpperCase()}</Text>
                                 <Text style={styles.syncStatValue}>{`LV ${entry.value}  /  NEXT ${nextCost} SP`}</Text>
@@ -419,7 +414,7 @@ export function HolobotStatsModal({
                                 onPress={() => onUpgradeSync(entry.key)}
                                 style={[styles.syncUpgradeButton, !canUpgrade ? styles.boostButtonDisabled : null]}
                               >
-                                <MoveActionFrame accent={theme.colors.purple} variant="equip" />
+                                <MoveActionFrame accent="#9b4dff" variant="equip" />
                                 <Text style={[styles.syncUpgradeButtonText, !canUpgrade ? styles.boostButtonTextDisabled : null]}>
                                   {lockedByCap ? "MAX" : "UPGRADE"}
                                 </Text>
@@ -436,7 +431,7 @@ export function HolobotStatsModal({
                         onPress={() => setSyncAbilitiesExpanded((value) => !value)}
                         style={styles.consoleHeader}
                       >
-                        <InnateSystemFrame accent={theme.colors.purple} />
+                        <InnateSystemFrame accent="#9b4dff" />
                         <View>
                           <Text style={styles.sectionTitle}>SYNC ABILITIES</Text>
                           <Text style={styles.consoleSummary}>
@@ -447,7 +442,7 @@ export function HolobotStatsModal({
                         </View>
                         <View style={styles.expandButton}>
                           <Svg height={16} viewBox="0 0 16 16" width={16}>
-                            <Path d={syncAbilitiesExpanded ? "M3 10.5 L8 5.5 L13 10.5" : "M3 5.5 L8 10.5 L13 5.5"} fill="none" stroke={theme.colors.purple} strokeWidth={2} />
+                            <Path d={syncAbilitiesExpanded ? "M3 10.5 L8 5.5 L13 10.5" : "M3 5.5 L8 10.5 L13 5.5"} fill="none" stroke="#9b4dff" strokeWidth={2} />
                           </Svg>
                         </View>
                       </Pressable>
@@ -457,7 +452,7 @@ export function HolobotStatsModal({
                             const unlocked = unlockedSyncAbilityIds.includes(ability.id);
                             return (
                               <View key={ability.id} style={[styles.syncAbilityCard, unlocked ? styles.syncAbilityUnlocked : null]}>
-                                <MoveTelemetryFrame accent={equippedSyncAbilityId === ability.id ? theme.colors.accent : unlocked ? theme.colors.success : "#46505d"} />
+                                <MoveTelemetryFrame accent={equippedSyncAbilityId === ability.id ? "#f0bf14" : unlocked ? "#39d98a" : "#46505d"} />
                                 <View style={styles.syncAbilityHeader}>
                                   <Text style={styles.syncAbilityName}>{ability.name}</Text>
                                   <Text style={styles.syncAbilityTier}>{`T${ability.tier}`}</Text>
@@ -473,7 +468,7 @@ export function HolobotStatsModal({
                                   onPress={() => onEquipSyncAbility(ability.id)}
                                   style={[styles.syncAbilityEquip, !unlocked ? styles.boostButtonDisabled : null]}
                                 >
-                                  <ArenaControlFrame accent={equippedSyncAbilityId === ability.id ? theme.colors.accent : theme.colors.success} selected={equippedSyncAbilityId === ability.id} />
+                                  <ArenaControlFrame accent={equippedSyncAbilityId === ability.id ? "#f0bf14" : "#39d98a"} selected={equippedSyncAbilityId === ability.id} />
                                   <Text style={[styles.syncAbilityState, unlocked ? styles.syncAbilityStateUnlocked : null]}>
                                     {equippedSyncAbilityId === ability.id ? "EQUIPPED" : unlocked ? "EQUIP" : "LOCKED"}
                                   </Text>
@@ -595,7 +590,7 @@ export function HolobotStatsModal({
           <View pointerEvents="none" style={[styles.frameMask, styles.frameMaskBottom]} />
           <View pointerEvents="none" style={[styles.frameMask, styles.frameMaskLeft]} />
           <View pointerEvents="none" style={[styles.frameMask, styles.frameMaskRight]} />
-          <GameDialogFrame accent={theme.colors.accent} fill="transparent" />
+          <GameDialogFrame accent="#f0bf14" fill="transparent" />
         </View>
       </View>
     </Modal>
@@ -604,10 +599,9 @@ export function HolobotStatsModal({
 
 const styles = StyleSheet.create({
   blueprintSummary: {
-    color: theme.colors.muted,
+    color: "#ddd2b5",
     flexShrink: 1,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    fontSize: 14,
   },
   blueprintHeaderRow: {
     alignItems: "center",
@@ -619,7 +613,7 @@ const styles = StyleSheet.create({
   wildcardChip: {
     alignItems: "center",
     backgroundColor: "#141b28",
-    borderColor: theme.colors.accent,
+    borderColor: "#f0bf14",
     borderRadius: 8,
     borderWidth: 1.5,
     flexDirection: "row",
@@ -628,15 +622,14 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   wildcardChipLabel: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
   wildcardChipButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
     borderRadius: 5,
     justifyContent: "center",
     minWidth: 32,
@@ -644,15 +637,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   wildcardChipButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloBody",
+    color: "#050606",
     fontSize: 11,
     fontWeight: "900",
   },
   wildcardRow: {
     alignItems: "center",
     backgroundColor: "#141b28",
-    borderColor: theme.colors.accent,
+    borderColor: "#f0bf14",
     borderRadius: 10,
     borderWidth: 2,
     flexDirection: "row",
@@ -665,21 +657,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   wildcardTitle: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   wildcardMeta: {
     color: "#8f9bb0",
-    fontFamily: "HoloBody",
     fontSize: 11,
     marginTop: 2,
   },
   wildcardButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
     borderRadius: 8,
     justifyContent: "center",
     minWidth: 44,
@@ -687,9 +677,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   wildcardButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#050606",
+    fontSize: 12,
     fontWeight: "900",
   },
   legendaryRow: {
@@ -697,7 +686,6 @@ const styles = StyleSheet.create({
   },
   legendaryTitle: {
     color: "#ffb638",
-    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.8,
@@ -706,17 +694,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#ff9d00",
   },
   rankSkipRow: {
-    borderColor: theme.colors.purple,
+    borderColor: "#ae4cff",
   },
   rankSkipTitle: {
     color: "#c88bff",
-    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   rankSkipButton: {
-    backgroundColor: theme.colors.purple,
+    backgroundColor: "#ae4cff",
   },
   boostButton: {
     alignItems: "center",
@@ -734,8 +721,7 @@ const styles = StyleSheet.create({
   },
   boostButtonText: {
     color: "#d7dde8",
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    fontSize: 16,
     fontWeight: "800",
     textAlign: "center",
   },
@@ -763,26 +749,24 @@ const styles = StyleSheet.create({
     width: "92%",
   },
   closeHint: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#f0bf14",
+    fontSize: 14,
     fontWeight: "800",
     letterSpacing: 0.8,
     textAlign: "center",
   },
   emptyStateText: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#d5cbb2",
+    fontSize: 14,
     lineHeight: 20,
   },
   expFill: {
-    backgroundColor: theme.colors.blue,
+    backgroundColor: "#4cc6ff",
     borderRadius: 999,
     height: "100%",
   },
   frameMask: {
-    backgroundColor: theme.plates.navy,
+    backgroundColor: "#07080a",
     position: "absolute",
     zIndex: 8,
   },
@@ -825,7 +809,6 @@ const styles = StyleSheet.create({
   },
   expValue: {
     color: "#f1efea",
-    fontFamily: "HoloDisplay",
     fontSize: 17,
     fontWeight: "700",
   },
@@ -835,21 +818,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   levelText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloDisplay",
+    color: "#f0bf14",
     fontSize: 26,
     fontWeight: "900",
   },
   metaText: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#d5cbb2",
+    fontSize: 12,
     lineHeight: 16,
     marginTop: 8,
   },
   mutedLabel: {
     color: "#f1efea",
-    fontFamily: "HoloDisplay",
     fontSize: 20,
     fontWeight: "700",
   },
@@ -858,22 +838,19 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   innateCopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#b7bdc9",
+    fontSize: 12,
     lineHeight: 17,
     marginTop: 2,
   },
   innateFootnote: {
     color: "#5a616e",
-    fontFamily: "HoloBody",
     fontSize: 11,
     marginTop: 8,
   },
   innateName: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#ffffff",
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
@@ -883,21 +860,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   innateTag: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#17d9ff",
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   innateTagText: {
-    color: theme.plates.navy,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#07080d",
+    fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1,
   },
   nameText: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.header.fontSize,
+    color: "#f4f4f2",
+    fontSize: 22,
     fontWeight: "900",
     marginTop: 8,
   },
@@ -910,7 +885,7 @@ const styles = StyleSheet.create({
   },
   pointsBadge: {
     backgroundColor: "#16345d",
-    borderColor: theme.colors.blue,
+    borderColor: "#4cc6ff",
     borderWidth: 1.5,
     borderRadius: 999,
     minWidth: 42,
@@ -919,7 +894,6 @@ const styles = StyleSheet.create({
   },
   pointsText: {
     color: "#dff7ff",
-    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "900",
     textAlign: "center",
@@ -931,8 +905,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   rankText: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#f5f3eb",
     fontSize: 15,
     fontWeight: "800",
   },
@@ -950,8 +923,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   sectionTitle: {
-    color: theme.colors.accent,
-    fontFamily: "HoloDisplay",
+    color: "#f0bf14",
     fontSize: 17,
     fontWeight: "900",
     marginBottom: 8,
@@ -960,20 +932,17 @@ const styles = StyleSheet.create({
     borderTopColor: "#3f4659",
     borderTopWidth: 1,
     color: "#42b9ff",
-    fontFamily: "HoloDisplay",
     fontSize: 17,
     marginTop: 10,
     paddingTop: 10,
   },
   statBonus: {
     color: "#8e75ff",
-    fontFamily: "HoloDisplay",
     fontSize: 17,
     fontWeight: "800",
   },
   statLabel: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#f4f4f2",
     fontSize: 17,
     fontWeight: "700",
   },
@@ -992,7 +961,6 @@ const styles = StyleSheet.create({
   },
   syncAbilityDescription: {
     color: "#d7cfb7",
-    fontFamily: "HoloBody",
     fontSize: 13,
     lineHeight: 18,
     marginTop: 6,
@@ -1007,22 +975,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   syncAbilityName: {
-    color: theme.colors.text,
+    color: "#f4f4f2",
     flex: 1,
-    fontFamily: "HoloBody",
     fontSize: 15,
     fontWeight: "800",
     marginRight: 12,
   },
   syncAbilityRequirement: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#8fa6bf",
+    fontSize: 12,
     marginTop: 4,
   },
   syncAbilityState: {
     color: "#7f7a68",
-    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.7,
@@ -1032,9 +997,8 @@ const styles = StyleSheet.create({
     color: "#66d68d",
   },
   syncAbilityTier: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f0bf14",
+    fontSize: 12,
     fontWeight: "900",
   },
   syncAbilityUnlocked: {
@@ -1049,9 +1013,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   syncMeta: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#8fa6bf",
+    fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.35,
     marginTop: 2,
@@ -1065,9 +1028,8 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
   syncStatName: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#f4f4f2",
+    fontSize: 14,
     fontWeight: "800",
   },
   syncStatRow: {
@@ -1078,15 +1040,14 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   syncStatAccent: {
-    backgroundColor: theme.colors.purple,
+    backgroundColor: "#9b4dff",
     height: 24,
     marginRight: 9,
     width: 3,
   },
   syncStatValue: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#8fa6bf",
+    fontSize: 12,
     marginTop: 2,
   },
   syncUpgradeButton: {
@@ -1100,7 +1061,6 @@ const styles = StyleSheet.create({
   },
   syncUpgradeButtonText: {
     color: "#dceeff",
-    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.6,
@@ -1117,14 +1077,13 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   tabButtonText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f0bf14",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   tabButtonTextActive: {
-    color: theme.colors.text,
+    color: "#fef1e0",
   },
   tabRow: {
     flexDirection: "row",
@@ -1141,8 +1100,7 @@ const styles = StyleSheet.create({
   },
   consoleSummary: {
     color: "#8f98aa",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    fontSize: 10,
     marginTop: 1,
   },
   expandButton: {
@@ -1159,22 +1117,20 @@ const styles = StyleSheet.create({
     minHeight: 126,
   },
   careerLead: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#fef1e0",
+    fontSize: 14,
     fontWeight: "800",
     lineHeight: 20,
     marginTop: 12,
   },
   careerRail: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#17d9ff",
     height: 3,
     marginTop: 15,
     width: "58%",
   },
   flipHint: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.7,
@@ -1189,7 +1145,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   syncConsole: {
-    borderLeftColor: theme.colors.purple,
+    borderLeftColor: "#9b4dff",
   },
   syncConsoleHeader: {
     alignItems: "center",
@@ -1197,17 +1153,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   tierAction: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#f5f3eb",
+    fontSize: 10,
     fontWeight: "800",
     marginTop: 4,
     textTransform: "uppercase",
   },
   tierBonus: {
     color: "#fff7da",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    fontSize: 10,
     fontWeight: "700",
     marginTop: 2,
   },
@@ -1228,8 +1182,7 @@ const styles = StyleSheet.create({
     borderColor: "#4ea0ff",
   },
   tierCost: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#f5f3eb",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -1241,7 +1194,7 @@ const styles = StyleSheet.create({
   },
   tierElite: {
     backgroundColor: "#5f4b08",
-    borderColor: theme.colors.accent,
+    borderColor: "#f0bf14",
   },
   tierHeader: {
     alignItems: "center",
@@ -1256,9 +1209,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   tierMeta: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#f5f3eb",
+    fontSize: 10,
     fontWeight: "800",
   },
   tierRare: {
@@ -1266,8 +1218,7 @@ const styles = StyleSheet.create({
     borderColor: "#ab67ff",
   },
   tierTitle: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#ffffff",
     fontSize: 13,
     fontWeight: "900",
   },

@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
@@ -162,7 +161,7 @@ export function TrainingScreen() {
               <View style={styles.statsRow}>
                 <View>
                   <Text style={styles.statLabel}>HP</Text>
-                  <Text style={[styles.statValue, { color: theme.colors.success }]}>{actualStats?.hp ?? 0}</Text>
+                  <Text style={[styles.statValue, { color: "#7ee467" }]}>{actualStats?.hp ?? 0}</Text>
                 </View>
                 <View>
                   <Text style={styles.statLabel}>ATK</Text>
@@ -265,7 +264,7 @@ export function TrainingScreen() {
             <Text style={styles.syncBoostValue}>BONUS +20% EXP</Text>
             <Switch
               onValueChange={handleToggleSyncBoost}
-              thumbColor={progression.syncBoostEnabled ? theme.colors.accent : "#dddddd"}
+              thumbColor={progression.syncBoostEnabled ? "#f5c40d" : "#dddddd"}
               trackColor={{ false: "#272727", true: "#524000" }}
               value={progression.syncBoostEnabled}
             />
@@ -289,15 +288,13 @@ export function TrainingScreen() {
 
 const styles = StyleSheet.create({
   activeCopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#d9d2bd",
+    fontSize: 12,
     lineHeight: 16,
     marginTop: 4,
   },
   activeCountdown: {
-    color: theme.colors.accent,
-    fontFamily: "HoloDisplay",
+    color: "#f5c40d",
     fontSize: 18,
     fontWeight: "900",
     marginTop: 6,
@@ -310,28 +307,26 @@ const styles = StyleSheet.create({
   },
   activeRewards: {
     color: "#9fe4ff",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    fontSize: 10,
     fontWeight: "800",
     lineHeight: 14,
     marginTop: 4,
   },
   claimButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f5c40d",
     justifyContent: "center",
     marginTop: 8,
     minHeight: 34,
   },
   claimButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#050606",
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 1,
   },
   content: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#050606",
     gap: 8,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -355,9 +350,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   courseCopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#ddd2b5",
+    fontSize: 10,
     lineHeight: 13,
   },
   courseIcon: {
@@ -369,12 +363,11 @@ const styles = StyleSheet.create({
     width: 52,
   },
   courseIconText: {
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     fontWeight: "900",
   },
   courseMetaBlock: {
-    borderLeftColor: theme.colors.carbon,
+    borderLeftColor: "#242424",
     borderLeftWidth: 1,
     gap: 3,
     justifyContent: "center",
@@ -382,8 +375,7 @@ const styles = StyleSheet.create({
     width: 94,
   },
   courseMetaLabel: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
+    color: "#8f866f",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.5,
@@ -392,14 +384,12 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   courseMetaValue: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#fef1e0",
     fontSize: 11,
     fontWeight: "900",
   },
   courseRange: {
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    fontSize: 10,
     fontWeight: "900",
     marginTop: 1,
   },
@@ -407,7 +397,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   courseTitle: {
-    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     lineHeight: 16,
@@ -417,31 +406,29 @@ const styles = StyleSheet.create({
   },
   energyBox: {
     alignItems: "flex-end",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#111111",
+    borderColor: "#f0bf14",
     borderWidth: 1,
     minWidth: 88,
     paddingHorizontal: 6,
     paddingVertical: 5,
   },
   energyLabel: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 1,
   },
   energyRefillButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
     height: 18,
     justifyContent: "center",
     marginLeft: 6,
     width: 18,
   },
   energyRefillText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloBody",
+    color: "#050606",
     fontSize: 13,
     fontWeight: "900",
     lineHeight: 14,
@@ -452,25 +439,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   energyValue: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#fef1e0",
+    fontSize: 12,
     fontWeight: "900",
   },
   eyebrow: {
-    color: theme.colors.accent,
-    fontFamily: "HoloDisplay",
+    color: "#f0bf14",
     fontSize: 18,
     fontStyle: "italic",
     fontWeight: "900",
     marginTop: 4,
   },
   expFill: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
     height: "100%",
   },
   expTrack: {
-    backgroundColor: theme.plates.raised,
+    backgroundColor: "#2d2d2d",
     height: 8,
     marginTop: 10,
     overflow: "hidden",
@@ -491,14 +476,12 @@ const styles = StyleSheet.create({
     width: 76,
   },
   heroMeta: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#d9d2bd",
+    fontSize: 10,
     fontWeight: "700",
   },
   heroName: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 24,
     fontWeight: "900",
   },
@@ -512,38 +495,34 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   page: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#050606",
     flex: 1,
   },
   sectionTitle: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
   selectButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f5c40d",
     justifyContent: "center",
     marginTop: 2,
     minHeight: 26,
     paddingHorizontal: 8,
   },
   selectButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloBody",
+    color: "#050606",
     fontSize: 11,
     fontWeight: "900",
   },
   statLabel: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#fef1e0",
     fontSize: 9,
     fontWeight: "800",
   },
   statValue: {
-    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "900",
   },
@@ -553,8 +532,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   subcopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#d1c7ad",
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 2,
@@ -565,14 +543,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   syncBoostCopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#ddd2b5",
     fontSize: 13,
     lineHeight: 18,
   },
   syncBoostIcon: {
     alignItems: "center",
-    borderColor: theme.colors.accent,
+    borderColor: "#1fc9ff",
     borderRadius: 18,
     borderWidth: 2,
     height: 40,
@@ -580,8 +557,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   syncBoostIconText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#5fe1ff",
     fontSize: 9,
     fontWeight: "900",
   },
@@ -591,34 +567,31 @@ const styles = StyleSheet.create({
   },
   syncBoostRow: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#090909",
+    borderColor: "#f0bf14",
     borderWidth: 2,
     flexDirection: "row",
     gap: 8,
     padding: 8,
   },
   syncBoostTitle: {
-    color: theme.colors.accent,
-    fontFamily: "HoloDisplay",
+    color: "#1fc9ff",
     fontSize: 18,
     fontWeight: "900",
   },
   syncBoostValue: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#5fe1ff",
+    fontSize: 10,
     fontWeight: "900",
   },
   yellowBand: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
     marginHorizontal: -18,
     paddingHorizontal: 18,
     paddingVertical: 7,
   },
   yellowBandText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloBody",
+    color: "#050606",
     fontSize: 15,
     fontStyle: "italic",
     fontWeight: "900",

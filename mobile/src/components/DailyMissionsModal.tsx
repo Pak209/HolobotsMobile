@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -92,8 +91,8 @@ export function DailyMissionsModal({ onClose }: DailyMissionsModalProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#050606",
+    borderColor: "#f0bf14",
     borderWidth: 3,
     maxWidth: 430,
     padding: 18,
@@ -103,16 +102,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   eyebrow: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1.8,
   },
   title: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.header.fontSize,
+    color: "#fef1e0",
+    fontSize: 22,
     fontWeight: "900",
     marginTop: 6,
   },
@@ -132,12 +129,11 @@ const styles = StyleSheet.create({
   },
   summaryPillText: {
     color: "#8cc5ff",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     fontWeight: "800",
   },
   summaryPillActiveText: {
-    color: theme.colors.text,
+    color: "#fef1e0",
   },
   list: {
     gap: 12,
@@ -162,14 +158,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   missionName: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#fef1e0",
     fontSize: 15,
     fontWeight: "900",
   },
   missionDescription: {
     color: "#b6bcc6",
-    fontFamily: "HoloBody",
     fontSize: 13,
     marginTop: 4,
   },
@@ -187,9 +181,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   claimButtonText: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#fef1e0",
+    fontSize: 14,
     fontWeight: "900",
   },
   claimButtonTextDisabled: {
@@ -202,8 +195,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     color: "#c8c6be",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     fontWeight: "700",
   },
   progressBar: {
@@ -222,29 +214,26 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   rewardText: {
-    color: theme.colors.success,
-    fontFamily: "HoloBody",
+    color: "#39d98a",
     fontSize: 13,
     fontWeight: "800",
   },
   rewardHolos: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 13,
     fontWeight: "800",
   },
   closeButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#111111",
+    borderColor: "#f0bf14",
     borderWidth: 2,
     justifyContent: "center",
     marginTop: 16,
     minHeight: 48,
   },
   closeText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 1,

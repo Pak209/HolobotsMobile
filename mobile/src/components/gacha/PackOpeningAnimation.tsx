@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -28,7 +27,7 @@ type PackOpeningAnimationProps = {
 
 const rarityGlow = {
   common: "#7b8597",
-  rare: theme.colors.accent,
+  rare: "#00d9ff",
   epic: "#9d4edd",
   legendary: "#ff3366",
 } as const;
@@ -156,7 +155,7 @@ const styles = StyleSheet.create({
   },
   packFrame: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#111111",
     borderWidth: 4,
     height: 170,
     justifyContent: "center",
@@ -164,20 +163,18 @@ const styles = StyleSheet.create({
     width: 170,
   },
   packSubtitle: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#ddd2b5",
+    fontSize: 14,
     marginTop: 10,
   },
   packTitle: {
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.header.fontSize,
+    fontSize: 22,
     fontWeight: "900",
     letterSpacing: 1,
     textAlign: "center",
   },
   collectButton: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#050606",
     borderWidth: 2,
     marginTop: 18,
     minHeight: 52,
@@ -186,13 +183,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   collectText: {
-    fontFamily: "HoloDisplay",
     fontSize: 17,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
   revealCard: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#111111",
     borderWidth: 2,
     padding: 14,
   },
@@ -208,21 +204,18 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   revealLabel: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 18,
     fontWeight: "900",
     marginTop: 6,
   },
   revealRarity: {
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
   revealSubtitle: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#ddd2b5",
     fontSize: 13,
     marginTop: 4,
   },

@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View, type DimensionValue, type ImageSourcePropType } from "react-native";
-import { Defs, Filter, FeColorMatrix, Image as SvgImage } from "react-native-svg";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 import { DashboardSettingsModal } from "@/components/DashboardSettingsModal";
@@ -19,19 +17,9 @@ import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, homeAssets } from "@/config/figmaAssets";
 import { getPartImageSource } from "@/config/gameAssets";
 import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
-import { theme } from "@/theme";
-import { useRivalStatus, type RivalHudPreview } from "@/hooks/useRivalStatus";
 import { useAuth } from "@/contexts/AuthContext";
 import type { RootTabs } from "../../App";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-
-// Overlay only the gold pixels (green without blue), retaining the original
-// red Arena blade, blue bag and white basket. Core Image works in linear RGB.
-const iconAccent = [1, 3, 5].map(offset => {
-  const channel = parseInt(theme.colors.accent.slice(offset, offset + 2), 16) / 255;
-  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-});
-const ICON_PALETTE = `0 0 0 0 ${iconAccent[0]}  0 0 0 0 ${iconAccent[1]}  0 0 0 0 ${iconAccent[2]}  0 3 -3 0 0`;
 
 const ATTRIBUTE_LABELS = ["ATK", "DEF", "SPECIAL", "HP", "SPEED"] as const;
 const ATTRIBUTE_CENTER_X = 415;
@@ -182,12 +170,8 @@ function ArtImage({
   x,
   y,
   zIndex = 1,
-  tintColor,
-  recolorGold = false,
 }: {
   height: number;
-  tintColor?: string;
-  recolorGold?: boolean;
   resizeMode?: "contain" | "cover" | "stretch";
   source: ImageSourcePropType;
   width: number;
@@ -197,24 +181,14 @@ function ArtImage({
 }) {
   return (
     <View pointerEvents="none" style={[styles.artImageFrame, getArtboardFrame(x, y, width, height), { zIndex }]}>
-      {recolorGold ? (
-        <Svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
-          <Defs><Filter id="cityIconPalette">
-            <FeColorMatrix type="matrix" values={ICON_PALETTE} />
-          </Filter></Defs>
-          <SvgImage href={source} width={width} height={height} preserveAspectRatio="xMidYMid meet" />
-          <SvgImage href={source} width={width} height={height} preserveAspectRatio="xMidYMid meet" filter="url(#cityIconPalette)" />
-        </Svg>
-      ) : <RNImage source={source} style={[styles.fillImage, tintColor ? { tintColor } : undefined]} resizeMode={resizeMode} />}
+      <RNImage source={source} style={styles.fillImage} resizeMode={resizeMode} />
     </View>
   );
 }
 
-export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } = {}) {
+export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
-  const insets = useSafeAreaInsets();
   const { profile, updateProfile, user } = useAuth();
-  const rival = useRivalStatus(user?.uid, rivalPreview);
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -272,11 +246,11 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
     SPEED: Math.min(100, selectedHolobot.stats.speed + partBoosts.speed),
   };
   return (
-    <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12, backgroundColor: theme.colors.carbon }}>
-    <FigmaCanvas fillHeight>
+    <FigmaCanvas>
       <View style={StyleSheet.absoluteFill}>
-        <ArtImage tintColor={theme.colors.carbon} source={homeAssets.backgroundBase} x={0} y={0} width={1800} height={3200} />
-        <ArtImage tintColor={theme.plates.navy} source={homeAssets.backgroundDetail} x={0} y={0} width={1800} height={3200} />
+        <ArtImage source={homeAssets.backgroundBase} x={0} y={0} width={1800} height={3200} />
+        <ArtImage source={homeAssets.backgroundDetail} x={0} y={0} width={1800} height={3200} />
+        <ArtImage source={homeAssets.topBackground} x={0} y={100} width={1800} height={409} />
         <ArtImage source={homeAssets.attributeChartBase} x={0} y={628} width={825} height={971} zIndex={2} />
         {abilitySlots.map(({ part, x }, index) => (
           <ArtImage
@@ -289,24 +263,9 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
             zIndex={2}
           />
         ))}
-        <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
-          <G fill="none" stroke={theme.colors.accent} strokeWidth={5}>
-
-            <Path d="M20 910 L280 650 H810 V1350 L580 1570 H20 M40 925 L295 675 H790 V1340 L570 1545 H40" />
-            <Path d={`M110 ${HOME_INFO_CARD_Y + 50} L155 ${HOME_INFO_CARD_Y} H814 V${HOME_INFO_CARD_Y + 260} L720 ${HOME_INFO_CARD_Y + 347} H110 Z`} />
-            <Path d={`M815 ${HOME_CHANGE_BAR_Y + 112} L940 ${HOME_CHANGE_BAR_Y - 15} H1645 L1695 ${HOME_CHANGE_BAR_Y + 30} V${HOME_CHANGE_BAR_Y + 112} Z`} />
-
-          </G>
-          {/* Layered header plate follows the original silhouette. */}
-          <Path d="M0 100 H145 L168 124 H995 L1045 170 H1800 V300 H1530 L1410 425 H260 L230 450 H0 Z" fill={theme.plates.navy} fillOpacity={0.88} />
-          <G fill="none" stroke={theme.colors.accent}>
-            <Path d="M0 100 H145 L168 124 H995 L1045 170 H1800 M0 450 H230 L260 425 H1410 L1530 300 H1800" strokeWidth={5} />
-            <Path d="M0 118 H140 L165 142 H986 L1035 188 H1470 M0 468 H237 L268 443 H1120 M1450 400 L1550 282 H1740" strokeWidth={2} opacity={0.55} />
-            <Path d="M22 125 H135 M195 135 H930 L972 135 M1060 170 H1210 M480 425 H740 M35 450 H125 M1550 300 H1715" strokeWidth={12} />
-            <Path d="M0 360 H36 L75 400 H205 L235 425 M1250 170 L1320 105 H1720" strokeWidth={2} opacity={0.45} />
-          </G>
-          {[1185,1206,1227,1248].map(x => <Rect key={`header-dot-${x}`} x={x} y={145} width={8} height={8} fill={theme.colors.accent} opacity={0.7} />)}
-          <Text x={126} y={268} fill={theme.colors.text} fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
+        <ArtImage source={homeAssets.bottomBackground} x={0} y={2375} width={1800} height={857} zIndex={2} />
+        <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
+          <Text x={126} y={228} fill="#fef1e0" fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
 
           {/* Hologram glow centered under the Holobot (portrait is zIndex 20,
               this vector layer is zIndex 10, so the bot stands on it). */}
@@ -318,7 +277,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
                 key={scale}
                 d={buildPolygonPath(scale)}
                 fill="none"
-                stroke={theme.colors.border}
+                stroke="#333333"
                 strokeWidth={2}
                 opacity={0.28}
               />
@@ -332,15 +291,15 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
                   y1={ATTRIBUTE_CENTER_Y}
                   x2={point.x}
                   y2={point.y}
-                  stroke={theme.colors.border}
+                  stroke="#333333"
                   strokeWidth={2}
                   opacity={0.28}
                 />
               );
             })}
-            <Path d={buildPolygonPath(1)} fill="none" stroke={theme.colors.accent} strokeWidth={6} />
-            <Path d={buildPolygonPath(0.85)} fill="none" stroke={theme.colors.accent} strokeWidth={3} />
-            <Path d={buildValuePolygonPath(attributeValues)} fill={theme.colors.accent} fillOpacity={0.55} stroke={theme.colors.accent} strokeWidth={4} />
+            <Path d={buildPolygonPath(1)} fill="none" stroke="#fdb813" strokeWidth={6} />
+            <Path d={buildPolygonPath(0.85)} fill="none" stroke="#fdb813" strokeWidth={3} />
+            <Path d={buildValuePolygonPath(attributeValues)} fill="#7a1508" fillOpacity={0.94} stroke="#c61d14" strokeWidth={4} />
             {ATTRIBUTE_LABELS.map((label, index) => {
               const position = getAttributeLabelPosition(index);
               return (
@@ -348,7 +307,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
                   key={label}
                   x={position.x}
                   y={position.y}
-                  fill={theme.colors.muted}
+                  fill="#fbdb01"
                   fontSize={index === 1 ? 47.259 : index === 0 ? 40.69 : 41.667}
                   fontWeight="700"
                   textAnchor="middle"
@@ -361,66 +320,56 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
 
           <Path
             d={`M 110.2 ${HOME_INFO_CARD_Y} H 814.6 V ${HOME_INFO_CARD_Y + 231.1} L 699.7 ${HOME_INFO_CARD_Y + 347.1} H 110.2 Z`}
-            fill={theme.colors.carbon}
+            fill="#050606"
           />
-          <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={49.915}>{selectedHolobot.name}</Text>
+          <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill="#ffffff" fontSize={49.915}>{selectedHolobot.name}</Text>
           {/* Ranking tag: the Holobot's ACTUAL rank with its star tier. */}
-          <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={3} />
-          <Text x={677} y={HOME_INFO_CARD_Y + 62} fill={theme.colors.accent} fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
-          <Text x={677} y={HOME_INFO_CARD_Y + 106} fill={theme.colors.accent} fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
-          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill={theme.plates.raised} />
-          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill={theme.colors.accent} />
-          <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
-          <Text x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
+          <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill="#0c0d0e" stroke="#ff526d" strokeWidth={3} />
+          <Text x={677} y={HOME_INFO_CARD_Y + 62} fill="#ff6d9d" fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
+          <Text x={677} y={HOME_INFO_CARD_Y + 106} fill="#ff6d9d" fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
+          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill="#171717" />
+          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill="#f4c312" />
+          <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill="#ffffff" fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
+          <Text x={141} y={HOME_INFO_CARD_Y + 268.92} fill="#ffffff" fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
 
           <Path
             d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
-            fill={theme.colors.carbon}
+            fill="#050606"
           />
-          <Text x={902} y={HOME_CHANGE_BAR_Y + 62.5} fill={theme.colors.text} fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
+          <Text x={902} y={HOME_CHANGE_BAR_Y + 62.5} fill="#e9dfc5" fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
 
           {/* JRPG part frames: rarity-tinted corner-cut outline, star tier,
               and a level plate. Icons render above at zIndex 20. */}
           {abilitySlots.map(({ part, x }) => {
             const stars = part?.stars ?? getPartStars(part);
             const strong = stars >= 4;
-            const borderColor = strong ? theme.colors.warning : stars >= 3 ? theme.colors.magenta : theme.colors.accent;
+            const borderColor = strong ? "#ffd227" : stars >= 3 ? "#ff596f" : "#24d5dc";
             return (
               <G key={`part-frame-${x}`}>
-                {strong ? <Path d={buildPartFramePath(x)} fill="none" stroke={theme.colors.warning} strokeWidth={18} opacity={0.18} /> : null}
-                <Path d={buildPartFramePath(x)} fill={theme.plates.navy} stroke={borderColor} strokeWidth={strong ? 7 : 4} />
-                {!part ? <Text x={x + 124} y={DASHBOARD_SLOT_Y + 150} fill={theme.colors.subtle} fontSize={64} textAnchor="middle">+</Text> : null}
-                <Path d={buildPartFramePath(x, 12)} fill="none" stroke={theme.colors.border} strokeWidth={2} opacity={0.9} />
+                {strong ? <Path d={buildPartFramePath(x)} fill="none" stroke="#ffd227" strokeWidth={18} opacity={0.18} /> : null}
+                <Path d={buildPartFramePath(x)} fill="#080b0c" stroke={borderColor} strokeWidth={strong ? 7 : 4} />
+                <Path d={buildPartFramePath(x, 12)} fill="none" stroke="#5e530f" strokeWidth={2} opacity={0.9} />
                 {/* Star tier centered ABOVE the part art. */}
                 <Text x={x + 124} y={DASHBOARD_SLOT_Y + 42} fill={borderColor} fontSize={30} fontWeight="800" textAnchor="middle">{"★".repeat(stars)}</Text>
                 {/* Rarity plate: every part carries its tier label. */}
-                <Path d={`M ${x + 22} ${DASHBOARD_SLOT_Y + 198} H ${x + 226} V ${DASHBOARD_SLOT_Y + 250} H ${x + 38} L ${x + 22} ${DASHBOARD_SLOT_Y + 236} Z`} fill={theme.colors.carbon} stroke={borderColor} strokeWidth={2} />
+                <Path d={`M ${x + 22} ${DASHBOARD_SLOT_Y + 198} H ${x + 226} V ${DASHBOARD_SLOT_Y + 250} H ${x + 38} L ${x + 22} ${DASHBOARD_SLOT_Y + 236} Z`} fill="#050606" stroke={borderColor} strokeWidth={2} />
                 <Text x={x + 124} y={DASHBOARD_SLOT_Y + 236} fill={borderColor} fontSize={31} fontWeight="800" textAnchor="middle">{getRarityShortLabel(part?.rarity)}</Text>
               </G>
             );
           })}
 
-          <G transform={`translate(1510 ${HOME_CHANGE_BAR_Y - 70})`} fill="none" stroke={theme.colors.accent} strokeWidth={22} strokeLinecap="round" strokeLinejoin="round">
-            <Path d="M155 60 A70 70 0 0 0 30 45 M30 15 V60 H75 M25 105 A70 70 0 0 0 150 120 M150 150 V105 H105" />
-          </G>
-          {/* A complete plate behind BOTH icons and labels; no opaque label strip clipping its rim. */}
-          <Path d="M0 2600 L60 2540 H410 L438 2565 H1740 L1800 2510 V3070 L1700 3170 H96 L0 3074 Z" fill={theme.plates.navy} fillOpacity={0.92} />
-          <G fill="none" stroke={theme.colors.accent}>
-            <Path d="M0 2600 L60 2540 H410 L438 2565 H1740 L1800 2510 M1800 3070 L1700 3170 H96 L0 3074" strokeWidth={6} />
-            <Path d="M36 2650 V3060 L112 3140 H1685 L1762 3060 V2620 M8 2615 L70 2558 H340 M500 2582 H1520 M115 3154 H370 M1420 3154 H1687 L1740 3100" strokeWidth={2} opacity={0.7} />
-            <Path d="M0 3088 L89 3178 H220 M230 3170 H530 M1510 3170 H1680 M45 2550 H155 M1380 2565 H1660" strokeWidth={11} />
-          </G>
-          {[2680,2702,2724,2746].map(y => <Rect key={`footer-dot-${y}`} x={34} y={y} width={7} height={7} fill={theme.colors.accent} opacity={0.6} />)}
-          {[575,597,619,641].map(x => <Rect key={`footer-dot-${x}`} x={x} y={3186} width={7} height={7} fill={theme.colors.accent} opacity={0.6} />)}
-          <Text x={210} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">ARENA</Text>
-          <Text x={622} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">INVENTORY</Text>
-          <Text x={1008} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">SYNC</Text>
-          <Text x={1398} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">MARKET</Text>
+          <Rect x={0} y={2942} width={1800} height={258} fill="#050606" />
+          <Text x={210} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">ARENA</Text>
+          <Text x={622} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">INVENTORY</Text>
+          <Text x={1008} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">SYNC</Text>
+          <Text x={1398} y={3072} fill="#ffffff" fontSize={50} textAnchor="middle">MARKET</Text>
         </Svg>
-        <ArtImage recolorGold source={homeAssets.arenaIcon} x={-50} y={2638} width={432} height={392} resizeMode="contain" zIndex={11} />
-        <ArtImage recolorGold source={homeAssets.inventoryIcon} x={462} y={2680} width={320} height={320} resizeMode="contain" zIndex={11} />
-        <ArtImage tintColor={theme.colors.accent} source={homeAssets.syncIcon} x={858} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
-        <ArtImage recolorGold source={homeAssets.marketplaceIcon} x={1248} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
+        <ArtImage source={homeAssets.changeIconBack} x={1511} y={HOME_CHANGE_BAR_Y - 78.75} width={168} height={159} zIndex={11} />
+        <ArtImage source={homeAssets.changeIconFront} x={1491} y={HOME_CHANGE_BAR_Y - 98.75} width={218} height={211} zIndex={12} />
+        <ArtImage source={homeAssets.arenaIcon} x={-50} y={2638} width={432} height={392} resizeMode="contain" zIndex={11} />
+        <ArtImage source={homeAssets.inventoryIcon} x={462} y={2680} width={320} height={320} resizeMode="contain" zIndex={11} />
+        <ArtImage source={homeAssets.syncIcon} x={858} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
+        <ArtImage source={homeAssets.marketplaceIcon} x={1248} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
 
         <Pressable
           style={styles.syncHotspot}
@@ -463,7 +412,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
               <Svg width="30" height="30" viewBox="0 0 24 24">
                 <Path
                   d="M17 17v-4l-5 3l-5-3v4l5 3zm0-9V4l-5 3l-5-3v4l5 3z"
-                  stroke={theme.colors.accent}
+                  stroke="#f5c40d"
                   strokeWidth={2}
                   fill="none"
                   strokeLinecap="round"
@@ -480,11 +429,11 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
           >
             <View style={styles.statsButtonInner}>
               <Svg width="30" height="30" viewBox="0 0 24 24">
-                <Path d="m3 7l6-3l6 3l6-3v13l-6 3l-6-3l-6 3z" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="M9 12v.01" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="M6 13v.01" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="m17 15-4-4" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="m13 15 4-4" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m3 7l6-3l6 3l6-3v13l-6 3l-6-3l-6 3z" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M9 12v.01" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M6 13v.01" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m17 15-4-4" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m13 15 4-4" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </View>
           </Pressable>
@@ -496,12 +445,12 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
           >
             <View style={styles.statsButtonInner}>
               <Svg width="30" height="30" viewBox="0 0 24 24">
-                <Path d="M10 3a1 1 0 1 0 2 0a1 1 0 0 0-2 0" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="m3 14 4 1 .5-.5" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="M12 18v-3l-3-2.923L9.75 7" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="M6 10V8l4-1 2.5 2.5 2.5.5" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="M21 22a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="m18 21 1-11 2-1" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M10 3a1 1 0 1 0 2 0a1 1 0 0 0-2 0" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m3 14 4 1 .5-.5" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M12 18v-3l-3-2.923L9.75 7" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M6 10V8l4-1 2.5 2.5 2.5.5" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M21 22a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m18 21 1-11 2-1" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </View>
           </Pressable>
@@ -513,8 +462,8 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
           >
             <View style={styles.statsButtonInner}>
               <Svg width="30" height="30" viewBox="0 0 24 24">
-                <Path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0-6 0" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0-6 0" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
             </View>
           </Pressable>
@@ -558,13 +507,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
             ]}
           />
         ))}
-        <View style={styles.statusStrip}>
-          <RNText style={styles.statusText}>TIER {rival.status?.tier ?? "—"} · {(profile?.holosTokens ?? 0).toLocaleString()} HOLOS</RNText>
-          <Pressable accessibilityRole="button" accessibilityLabel="Explore HoloCity and rivals" onPress={() => navigation.navigate("CityHub")}>
-            <RNText style={styles.cityText}>CITY › {rival.countdown || "RIVALS"}</RNText>
-          </Pressable>
-        </View>
-        <View style={styles.nativeCityEntry}><UnityLaunchButton inline compact /></View>
+        <UnityLaunchButton />
         <TravelSquadPanel uid={user?.uid} roster={roster} />
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
@@ -601,7 +544,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
         >
           <View style={styles.partModalBackdrop}>
             <View style={styles.partModalSheet}>
-              <GameDialogFrame accent={theme.colors.accent} fill={theme.colors.carbon} />
+              <GameDialogFrame accent="#f0bf14" fill="#07080a" />
               <RNText style={styles.partModalTitle}>
                 {selectedPartSlot ? `Equip ${selectedPartSlot.toUpperCase()} Part` : "Equip Part"}
               </RNText>
@@ -639,7 +582,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
                           }
                         }}
                       >
-                        <GameSurfaceFrame accent={part.rarity?.toLowerCase().includes("epic") ? theme.colors.purple : theme.colors.accent} />
+                        <GameSurfaceFrame accent={part.rarity?.toLowerCase().includes("epic") ? "#9b4dff" : "#17d9ff"} />
                         <View style={styles.partOptionIcon}>
                           {source ? <RNImage source={source} style={styles.fillImage} resizeMode="contain" /> : null}
                         </View>
@@ -658,7 +601,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
                 )}
               </ScrollView>
               <Pressable style={styles.partBackButton} onPress={() => setSelectedPartSlot(null)}>
-                <ArenaControlFrame accent={theme.colors.accent} selected />
+                <ArenaControlFrame accent="#f0bf14" selected />
                 <RNText style={styles.partBackText}>BACK</RNText>
               </Pressable>
             </View>
@@ -666,15 +609,10 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
         </Modal>
       </View>
     </FigmaCanvas>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  nativeCityEntry: { position: "absolute", left: "69%", right: "5%", top: "4.5%", height: 32, zIndex: 35 },
-  statusStrip: { position: "absolute", left: "7%", right: "7%", top: "9.5%", flexDirection: "row", justifyContent: "space-between", alignItems: "center", zIndex: 30 },
-  statusText: { color: theme.colors.muted, fontSize: 10, fontWeight: "700" },
-  cityText: { color: theme.colors.accent, fontSize: 10, fontWeight: "800", paddingVertical: 4 },
   artImageFrame: {
     position: "absolute",
   },
@@ -726,7 +664,7 @@ const styles = StyleSheet.create({
     gap: 10,
     position: "absolute",
     right: 18,
-    top: "14.5%",
+    top: 72,
     zIndex: 25,
   },
   statsButton: {
@@ -734,8 +672,8 @@ const styles = StyleSheet.create({
   },
   statsButtonInner: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#050606",
+    borderColor: "#f0bf14",
     borderRadius: 26,
     borderWidth: 2,
     height: 52,
@@ -783,13 +721,13 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   partBackText: {
-    color: theme.colors.accent,
+    color: "#f0bf14",
     fontSize: 24,
     fontWeight: "900",
     letterSpacing: 1,
   },
   partEmptyText: {
-    color: theme.colors.muted,
+    color: "#ddd2b5",
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",
@@ -815,7 +753,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   partModalTitle: {
-    color: theme.colors.text,
+    color: "#fef1e0",
     fontSize: 22,
     fontWeight: "900",
     marginBottom: 16,
@@ -833,24 +771,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   partOptionIcon: {
-    backgroundColor: theme.plates.raised,
+    backgroundColor: "#101010",
     height: 72,
     width: 72,
   },
   partOptionBoost: {
-    color: theme.colors.success,
+    color: "#39d98a",
     fontSize: 12,
     fontWeight: "800",
     marginTop: 3,
   },
   partOptionMeta: {
-    color: theme.colors.muted,
+    color: "#ddd2b5",
     fontSize: 12,
     marginTop: 4,
     textTransform: "uppercase",
   },
   partOptionName: {
-    color: theme.colors.text,
+    color: "#ffffff",
     fontSize: 18,
     fontWeight: "800",
   },

@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -6,9 +5,9 @@ import Svg, { Path } from "react-native-svg";
 export type BoosterTier = "common" | "champion" | "rare" | "elite";
 
 export const BOOSTER_TIER_ACCENTS: Record<BoosterTier, string> = {
-  common: theme.colors.accent,
+  common: "#17d9ff",
   champion: "#2f87ff",
-  rare: theme.colors.purple,
+  rare: "#ae4cff",
   elite: "#ff3b4d",
 };
 

@@ -1,126 +1,694 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Alert, StyleSheet, ActivityIndicator, AppState } from 'react-native';
-import { theme } from '@/theme';
-import { useAuth } from '@/contexts/AuthContext';
-import { ArenaPrebattleMenu } from '@/components/arena/ArenaPrebattleMenu';
-import { BattleArenaView } from '@/components/arena/BattleArenaView';
-import { BattleResultsModal } from '@/components/arena/BattleResultsModal';
-import { HomeCogButton } from '@/components/HomeCogButton';
-import { PvpArenaModal } from '@/components/arena/PvpArenaModal';
-import { getTierOpponentLineup, type ArenaTier } from '@/config/arenaConfig';
-import type { UserHolobot } from '@/types/profile';
-import { createArenaMatchClient } from '@/lib/arenaMatchClient';
-import { arenaReceiptResult, type ArenaReply } from '@/lib/arenaMatchFlow';
-import { arenaHostBattle } from '@/lib/arenaHostBattle';
-import { useArenaBattleStore } from '@/stores/arena-battle-store';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+
+import { ArenaPrebattleMenu } from "@/components/arena/ArenaPrebattleMenu";
+import { BattleArenaView } from "@/components/arena/BattleArenaView";
+import { BattleResultsModal } from "@/components/arena/BattleResultsModal";
+import { PvpArenaModal } from "@/components/arena/PvpArenaModal";
+import { HomeCogButton } from "@/components/HomeCogButton";
+import {
+  ARENA_TIERS,
+  type ArenaTier,
+  buildOpponentFighter,
+  buildPlayerFighter,
+  getArenaPotentialRewards,
+  getTierOpponentLineup,
+} from "@/config/arenaConfig";
+import { useAuth } from "@/contexts/AuthContext";
+import { getEquippedPartBoosts, getHolobotEquippedParts } from "@/lib/partStats";
+import { chargeArenaEntryAuthoritative, settleArenaBattleAuthoritative } from "@/lib/arenaClient";
+import type { ArenaTierId } from "@/lib/arenaEconomy";
+import { useArenaBattleStore } from "@/stores/arena-battle-store";
+import { useArenaTeamBattleStore } from "@/stores/arena-team-battle-store";
+import { benchIndexes, getActiveMoves, SEND_IN_DEADLINE_MS, type TeamFighterEntry } from "@/features/arena/teamBattle";
+import { resolveCombatKit } from "@/features/arena/moveKits";
+import { computeArenaSettlement } from "@/lib/arenaEconomy";
+import type { UserHolobot } from "@/types/profile";
+
+type ArenaPhase = "prebattle" | "battle" | "results";
+
+type BattleSetup = {
+  paymentMethod: "tokens" | "pass";
+  roundIndex: number;
+  selectedHolobot: UserHolobot;
+  tier: ArenaTier;
+};
+
 export function ArenaScreen() {
-    const { user, profile } = useAuth();
-    const uid = user?.uid;
-    const flow = useMemo(() => uid ? createArenaMatchClient(uid) : null, [uid]);
-    const currentFlow = useRef(flow);
-    currentFlow.current = flow;
-    const live = useRef(false);
-    const [reply, setReply] = useState<ArenaReply | null>(null);
-    const [busy, setBusy] = useState(false), [error, setError] = useState(''), [pvp, setPvp] = useState(false), [showResult, setShowResult] = useState(true);
-    const store = useArenaBattleStore();
-    const submitted = useRef<string | null>(null);
-    const apply = (r: ArenaReply) => { if (live.current && currentFlow.current === flow) {
-        setReply(r);
-        setError('');
-        setShowResult(true);
-    } };
-    useEffect(() => {
-        live.current = true;
-        setBusy(false);
-        setReply(null);
-        setError('');
-        submitted.current = null;
-        if (flow)
-            void flow.resume().then(apply).catch(e => { if (live.current && currentFlow.current === flow)
-                setError(String(e.message ?? e)); });
-        return () => { live.current = false; flow?.close(); useArenaBattleStore.getState().setPaused(true); useArenaBattleStore.getState().stopGameLoop(); };
-    }, [flow]);
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', state => {
-            if (state !== 'active') {
-                useArenaBattleStore.getState().setPaused(true);
-                return;
-            }
-            if (flow)
-                void flow.resume().then(r => { apply(r); const s = useArenaBattleStore.getState(); if (currentFlow.current === flow && live.current && r.match?.state === 'active' && s.currentBattle?.battleId === r.matchId)
-                    {s.startGameLoop();s.setPaused(false);} }).catch(e => { if (live.current && currentFlow.current === flow)
-                    setError(e.message); });
-        });
-        return () => subscription.remove();
-    }, [flow]);
-    const action = async (work: () => Promise<void>) => { if (!flow || busy)
-        return; setBusy(true); try {
-        await work();
+  const { profile, user } = useAuth();
+  const {
+    battleResult,
+    canUseMove,
+    currentBattle,
+    getMoveAvailabilityMap,
+    getPlayableMoves,
+    isAnimating,
+    lastAction,
+    playerMoves,
+    paused,
+    resetBattle,
+    setPaused,
+    startBattle,
+    useMove: playMove,
+    useSignatureFinisher: playSignature,
+  } = useArenaBattleStore();
+
+  const teamStore = useArenaTeamBattleStore();
+  const [phase, setPhase] = useState<ArenaPhase>("prebattle");
+  const [teamMode, setTeamMode] = useState(false);
+  const [teamSetup, setTeamSetup] = useState<{ tier: ArenaTier; teamNames: string[]; battleId: string } | null>(null);
+  const teamSettledRef = useRef<string | null>(null);
+  const [teamRewards, setTeamRewards] = useState<{
+    exp: number;
+    syncPoints: number;
+    holos: number;
+    blueprints: Record<string, number>;
+  } | null>(null);
+  const [isStartingBattle, setIsStartingBattle] = useState(false);
+  const [isPvpOpen, setIsPvpOpen] = useState(false);
+  const [latestSetup, setLatestSetup] = useState<BattleSetup | null>(null);
+  const [roundProgress, setRoundProgress] = useState<{ currentRound: number; totalRounds: number } | null>(null);
+  const persistedBattleIdRef = useRef<string | null>(null);
+  const [runTotals, setRunTotals] = useState({
+    exp: 0,
+    syncPoints: 0,
+    holos: 0,
+    blueprints: {} as Record<string, number>,
+    rounds: 0,
+  });
+  const accumulatedBattleIdRef = useRef<string | null>(null);
+
+  const holobots = profile?.holobots ?? [];
+  const userTokens = profile?.holosTokens ?? 0;
+  const userArenaPasses = profile?.arena_passes ?? 0;
+  const playableCardIds = useMemo(
+    () => getPlayableMoves().map((move) => move.id),
+    [currentBattle, getPlayableMoves],
+  );
+  const cardAvailability = useMemo(
+    () => getMoveAvailabilityMap(),
+    [currentBattle, getMoveAvailabilityMap],
+  );
+
+  const persistBattleOutcome = useCallback(async () => {
+    if (!user || !profile || !battleResult || !currentBattle || !latestSetup) {
+      return;
     }
-    catch (e) {
-        if (live.current && currentFlow.current === flow)
-            setError(e instanceof Error ? e.message : String(e));
+
+    if (persistedBattleIdRef.current === currentBattle.battleId) {
+      return;
     }
-    finally {
-        if (live.current && currentFlow.current === flow)
-            setBusy(false);
-    } };
-    const launch = async () => {
-        if (!flow?.reply?.match)
-            return;
-        // Verify all required move fields before changing issued -> active.
-        const admitted = flow.reply.match;
-        arenaHostBattle({ ...admitted, state: 'active' }, uid!);
-        const r = admitted.state === 'issued' ? await flow.start() : flow.reply;
-        if (!live.current || currentFlow.current !== flow)
-            return;
-        apply(r);
-        if (r.match?.state !== 'active')
-            return;
-        const existing = useArenaBattleStore.getState().currentBattle;
-        if (admitted.state === 'active' && existing?.battleId !== r.matchId)
-            throw Error('Interrupted fight: no local combat checkpoint. Cancel this match; no new charge or HP reset.');
-        if (existing?.battleId === r.matchId) {
-            store.startGameLoop();
-            store.setPaused(false);
-            return;
+
+    persistedBattleIdRef.current = currentBattle.battleId;
+
+    // The server derives the payout from the tier table plus these
+    // performance counts (clamped server-side); reward amounts are no
+    // longer sent from the client.
+    const didWin = battleResult.winnerId === currentBattle.player.holobotId;
+    const perfectDefenses = currentBattle.actionHistory.filter((action) => action.perfectDefense).length;
+    const combosCompleted = currentBattle.actionHistory.filter((action) => action.triggeredCombo).length;
+
+    try {
+      await settleArenaBattleAuthoritative(
+        profile,
+        user.uid,
+        latestSetup.selectedHolobot.name,
+        currentBattle.battleId,
+        {
+          combosCompleted,
+          didWin,
+          opponentName: currentBattle.opponent.name,
+          perfectDefenses,
+          tierId: latestSetup.tier.id as ArenaTierId,
+        },
+      );
+    } catch (error) {
+      console.error("[Arena] Failed to persist battle rewards", error);
+      Alert.alert("Arena Sync Failed", "The battle finished, but the rewards could not be saved yet.");
+    }
+  }, [battleResult, currentBattle, latestSetup, profile, user]);
+
+  useEffect(() => {
+    if (battleResult && currentBattle) {
+      if (accumulatedBattleIdRef.current !== currentBattle.battleId) {
+        accumulatedBattleIdRef.current = currentBattle.battleId;
+        const rewards = battleResult.rewards;
+        setRunTotals((totals) => ({
+          exp: totals.exp + rewards.exp,
+          syncPoints: totals.syncPoints + rewards.syncPoints,
+          holos: totals.holos + (rewards.holos ?? 0),
+          blueprints: (rewards.blueprintRewards ?? []).reduce(
+            (acc, reward) => ({ ...acc, [reward.holobotKey]: (acc[reward.holobotKey] ?? 0) + reward.amount }),
+            { ...totals.blueprints },
+          ),
+          rounds: totals.rounds + 1,
+        }));
+      }
+      setPhase("results");
+      void persistBattleOutcome();
+    }
+  }, [battleResult, currentBattle, persistBattleOutcome]);
+
+  const startTierRound = useCallback(
+    async ({ selectedHolobot, tier, paymentMethod, roundIndex }: BattleSetup, shouldChargeEntry: boolean) => {
+      if (!user || !profile) {
+        Alert.alert("Sign In Required", "Please sign in before entering the Arena.");
+        return;
+      }
+
+      if (shouldChargeEntry && paymentMethod === "tokens" && (profile.holosTokens || 0) < tier.entryFeeHolos) {
+        Alert.alert("Not Enough Holos", "You do not have enough Holos for this Arena tier.");
+        return;
+      }
+
+      if (shouldChargeEntry && paymentMethod === "pass" && (profile.arena_passes || 0) <= 0) {
+        Alert.alert("No Arena Passes", "You need an Arena Pass or enough Holos to enter.");
+        return;
+      }
+
+      setIsStartingBattle(true);
+
+      if (roundIndex === 0) {
+        setRunTotals({ exp: 0, syncPoints: 0, holos: 0, blueprints: {}, rounds: 0 });
+        accumulatedBattleIdRef.current = null;
+      }
+
+      try {
+        if (shouldChargeEntry) {
+          await chargeArenaEntryAuthoritative(profile, user.uid, tier.id, paymentMethod);
         }
-        const prepared = arenaHostBattle(r.match, uid!);
-        store.startHostBattle(prepared.battle, prepared.playerMoves, prepared.opponentMoves);
-    };
-    const start = ({ selectedHolobot, tier, paymentMethod }: {
-        selectedHolobot: UserHolobot;
-        tier: ArenaTier;
-        paymentMethod: 'tokens' | 'pass';
-    }) => action(async () => {
-        const opponentName = getTierOpponentLineup(tier, selectedHolobot.name)[0];
-        const r = await flow!.issue({ requestId: `lite_arena_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, tierId: tier.id, paymentMethod, holobotId: selectedHolobot.name.toLowerCase(), opponentName });
-        apply(r);
-        await launch();
+
+        const player = buildPlayerFighter(
+          user.uid,
+          selectedHolobot,
+          getEquippedPartBoosts(getHolobotEquippedParts(profile.equippedParts, selectedHolobot.name)),
+        );
+        const opponent = buildOpponentFighter(tier, selectedHolobot.name, roundIndex);
+
+        persistedBattleIdRef.current = null;
+        setLatestSetup({ paymentMethod, selectedHolobot, tier, roundIndex });
+        setRoundProgress({ currentRound: roundIndex + 1, totalRounds: getTierOpponentLineup(tier, selectedHolobot.name).length });
+        startBattle(player, opponent, {
+          battleType: "pve",
+          difficulty: tier.difficulty,
+          playerHolobotId: player.holobotId,
+          opponentHolobotId: opponent.holobotId,
+          allowPlayerControl: true,
+          playerBattleCards: profile.battle_cards,
+          playerDeckTemplateIds: profile.arena_deck_template_ids,
+          playerKitTemplateIds: selectedHolobot.combatKit?.slots,
+          playerMoveProgress: selectedHolobot.moveProgress,
+          potentialRewards: getArenaPotentialRewards(tier, opponent.name),
+          tier: ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id),
+        });
+        setPhase("battle");
+      } catch (error) {
+        console.error("[Arena] Failed to start battle", error);
+        Alert.alert("Arena Error", "We couldn't start the battle. Please try again.");
+      } finally {
+        setIsStartingBattle(false);
+      }
+    },
+    [profile, startBattle, user],
+  );
+
+  const handleStartBattle = useCallback(
+    async ({ selectedHolobot, tier, paymentMethod }: Omit<BattleSetup, "roundIndex">) => {
+      await startTierRound({ selectedHolobot, tier, paymentMethod, roundIndex: 0 }, true);
+    },
+    [startTierRound],
+  );
+
+  const handleStart3v3 = useCallback(
+    async ({ teamNames, tier, paymentMethod }: { teamNames: [string, string, string]; tier: ArenaTier; paymentMethod: "tokens" | "pass" }) => {
+      if (!user || !profile) {
+        Alert.alert("Sign In Required", "Please sign in before entering the Arena.");
+        return;
+      }
+      if (paymentMethod === "tokens" && (profile.holosTokens || 0) < tier.entryFeeHolos) {
+        Alert.alert("Not Enough Holos", "You do not have enough Holos for this Arena tier.");
+        return;
+      }
+      if (paymentMethod === "pass" && (profile.arena_passes || 0) <= 0) {
+        Alert.alert("No Arena Passes", "You need an Arena Pass or enough Holos to enter.");
+        return;
+      }
+
+      setIsStartingBattle(true);
+      try {
+        await chargeArenaEntryAuthoritative(profile, user.uid, tier.id, paymentMethod);
+
+        const playerEntries: TeamFighterEntry[] = teamNames.map((name) => {
+          const holobot = (profile.holobots || []).find(
+            (candidate) => candidate.name.trim().toUpperCase() === name.trim().toUpperCase(),
+          );
+          if (!holobot) {
+            throw new Error(`You do not own ${name}.`);
+          }
+          return {
+            fighter: buildPlayerFighter(
+              user.uid,
+              holobot,
+              getEquippedPartBoosts(getHolobotEquippedParts(profile.equippedParts, holobot.name)),
+            ),
+            moves: [
+              ...resolveCombatKit({
+                savedKitTemplateIds: holobot.combatKit?.slots,
+                deckTemplateIds: profile.arena_deck_template_ids,
+                ownedBattleCards: profile.battle_cards,
+                moveProgress: holobot.moveProgress,
+                idPrefix: `p3-${name.toLowerCase()}`,
+              }).slots,
+            ],
+          };
+        });
+
+        const lineup = getTierOpponentLineup(tier, teamNames[0]).slice(0, 3);
+        const opponentEntries: TeamFighterEntry[] = lineup.map((_, index) => ({
+          fighter: buildOpponentFighter(tier, teamNames[0], index),
+          moves: [...resolveCombatKit({ idPrefix: `o3-${index}` }).slots],
+        }));
+
+        const battleId = `3v3_${tier.id}_${Date.now()}`;
+        setTeamSetup({ tier, teamNames, battleId });
+        teamSettledRef.current = null;
+        setTeamRewards(null);
+        setTeamMode(true);
+        teamStore.startTeamBattle(playerEntries, opponentEntries, {
+          battleType: "pve",
+          difficulty: tier.difficulty,
+          playerHolobotId: `player-${teamNames[0].toLowerCase()}`,
+          allowPlayerControl: true,
+          potentialRewards: getArenaPotentialRewards(tier, lineup[0]),
+          tier: ARENA_TIERS.findIndex((candidate) => candidate.id === tier.id),
+        });
+        setPhase("battle");
+      } catch (error) {
+        console.error("[Arena] Failed to start 3v3", error);
+        Alert.alert("Arena Error", error instanceof Error ? error.message : "We couldn't start the battle.");
+      } finally {
+        setIsStartingBattle(false);
+      }
+    },
+    [profile, teamStore, user],
+  );
+
+  // 3v3 settlement: one server settlement per defeated enemy (economically
+  // identical to a 3-round tier run), plus a consolation settle on a loss.
+  const persist3v3Outcome = useCallback(async () => {
+    const team = teamStore.team;
+    const result = teamStore.teamResult;
+    if (!user || !profile || !team || !result || !teamSetup) return;
+    if (teamSettledRef.current === teamSetup.battleId) return;
+    teamSettledRef.current = teamSetup.battleId;
+
+    const totals = { exp: 0, syncPoints: 0, holos: 0, blueprints: {} as Record<string, number> };
+    const settlements: Array<{ id: string; didWin: boolean; opponentName: string }> = [];
+
+    // The RUN is the unit: win it and every KO pays in full (blueprints,
+    // holos, the works); lose it and every round fought settles as
+    // consolation only (30% EXP / 20% SP — no holos, no blueprints).
+    // Grind-it-out rule: you bank the spoils by finishing the sweep.
+    const didWinRun = result.winnerSide === "player";
+    team.opponent.slots.forEach((slot, index) => {
+      if (slot.isKnockedOut) {
+        settlements.push({
+          id: `${teamSetup.battleId}-ko-${index}`,
+          didWin: didWinRun,
+          opponentName: slot.fighter.name,
+        });
+      }
     });
-    const battle = store.currentBattle?.battleId === reply?.matchId ? store.currentBattle : null;
-    const settle = () => action(async () => { if (!battle || !flow)
-        return; const r = await flow.settle({ playerFinalHealth: battle.player.currentHP, opponentFinalHealth: battle.opponent.currentHP, combosCompleted: Math.min(25, battle.actionHistory.filter(a => a.triggeredCombo).length), perfectDefenses: Math.min(25, battle.actionHistory.filter(a => a.perfectDefense).length) }); apply(r); store.setPaused(true); });
-    useEffect(() => { if (store.battleResult && battle && reply?.match?.state === 'active' && submitted.current !== battle.battleId) {
-        submitted.current = battle.battleId;
-        void settle();
-    } }, [store.battleResult, battle?.battleId, reply?.match?.state]);
-    const open = reply?.match && ['issued', 'active'].includes(reply.match.state);
-    const result = reply?.match?.state === 'settled' ? arenaReceiptResult(reply) : null;
-    const cancel = () => action(async () => { if (!flow || !reply?.match)
-        return; const hp = reply.match.state === 'active' ? (battle?.player.currentHP ?? 0) : undefined; apply(await flow.cancel(hp)); store.resetBattle(); });
-    return <View style={styles.page}>
-  <HomeCogButton onOpenPvp={() => setPvp(true)}/>
-  {error ? <View style={{ paddingTop: 70, padding: 16 }}><Text style={{ color: '#ffca79' }}>{error}</Text><Pressable onPress={() => action(async () => apply(await flow!.resume()))}><Text style={{ color: '#62DDE8' }}>RESUME HOST MATCH</Text></Pressable><Pressable onPress={() => action(async () => { apply(await flow!.retryIssue()); await launch(); })}><Text style={{ color: '#62DDE8' }}>RETRY SAME ADMISSION</Text></Pressable></View> : null}
-  {!open && !result && !busy ? <ArenaPrebattleMenu onStartBattle={start} onStart3v3={() => Alert.alert('3v3 unavailable', 'The host currently admits one fighter. No charge was made.')} userArenaPasses={profile?.arena_passes ?? 0} userHolobots={profile?.holobots ?? []} userTokens={profile?.holosTokens ?? 0}/> : null}
-  {open && !battle ? <View style={{ paddingTop: 90, padding: 20 }}><Text style={{ color: 'white' }}>ADMITTED {reply!.match!.entrant.displayName} LV {reply!.match!.entrant.level} / {reply!.match!.opponent.displayName} LV {reply!.match!.opponent.level}</Text><Pressable onPress={() => action(launch)}><Text style={{ color: '#62DDE8' }}>CONTINUE SAME MATCH</Text></Pressable><Pressable onPress={cancel}><Text style={{ color: '#ffca79' }}>CANCEL MATCH {reply!.match!.state === 'active' ? '(FORFEIT; LOST CHECKPOINT COUNTS AS KO)' : '(REFUND)'}</Text></Pressable></View> : null}
-  {battle && open ? <><Text style={{ color: '#ffca79', textAlign: 'center', paddingTop: 45 }}>CPU PRACTICE · STRIKE / HEAVY · EXTRAS UNAVAILABLE</Text><BattleArenaView embedded battle={battle} hostMatchReply={reply} hostMatchId={reply!.matchId!} roundProgress={{ currentRound: 1, totalRounds: 1 }} playerCards={store.playerMoves} playableCardIds={store.getPlayableMoves().map(m => m.id)} cardAvailability={store.getMoveAvailabilityMap()} lastAction={store.lastAction} isAnimating={store.isAnimating} onCardPlay={store.useMove} onSignaturePlay={() => { }}/><Pressable onPress={cancel}><Text style={{ color: '#ffca79' }}>QUIT / FORFEIT</Text></Pressable>{store.battleResult ? <Pressable onPress={settle}><Text style={{ color: '#62DDE8' }}>RETRY SAME SETTLEMENT</Text></Pressable> : null}</> : null}
-  {result && showResult ? <BattleResultsModal visible didWin={result.didWin} rewards={result.rewards} subtitle={`${reply!.match!.entrant.displayName} LV ${reply!.match!.entrant.level} · ${reply!.match!.opponent.displayName} LV ${reply!.match!.opponent.level} · HOST RECEIPT`} hideRematch onRematch={() => { }} onExit={() => { store.resetBattle(); setReply(null); setShowResult(false); submitted.current = null; }}/> : null}
-  {busy ? <View style={styles.loadingOverlay}><ActivityIndicator color={theme.colors.accent}/></View> : null}
-  <PvpArenaModal visible={pvp} onClose={() => setPvp(false)} userHolobots={profile?.holobots ?? []}/>
- </View>;
+    if (!didWinRun) {
+      const survivor = team.opponent.slots.find((slot) => !slot.isKnockedOut);
+      settlements.push({
+        id: `${teamSetup.battleId}-loss`,
+        didWin: false,
+        opponentName: survivor?.fighter.name ?? team.opponent.slots[0].fighter.name,
+      });
+    }
+
+    for (const [index, settlement] of settlements.entries()) {
+      const input = {
+        combosCompleted: 0,
+        didWin: settlement.didWin,
+        opponentName: settlement.opponentName,
+        perfectDefenses: 0,
+        tierId: teamSetup.tier.id as ArenaTierId,
+      };
+      const preview = computeArenaSettlement(input);
+      if (preview) {
+        totals.exp += preview.exp;
+        totals.syncPoints += preview.syncPoints;
+        totals.holos += preview.holos ?? 0;
+        if (preview.blueprints) {
+          totals.blueprints[preview.blueprints.holobotKey] =
+            (totals.blueprints[preview.blueprints.holobotKey] ?? 0) + preview.blueprints.amount;
+        }
+      }
+      // One settlement per team member (round-robin): a full sweep pays
+      // each of the three Holobots one round's EXP instead of piling the
+      // whole run onto whoever happened to be active at the end.
+      const recipient = teamSetup.teamNames[index % teamSetup.teamNames.length];
+      try {
+        await settleArenaBattleAuthoritative(profile, user.uid, recipient, settlement.id, input);
+      } catch (error) {
+        console.error("[Arena] 3v3 settlement failed", error);
+      }
+    }
+    setTeamRewards(totals);
+  }, [profile, teamSetup, teamStore.team, teamStore.teamResult, user]);
+
+  useEffect(() => {
+    if (teamMode && teamStore.teamResult) {
+      setPhase("results");
+      void persist3v3Outcome();
+    }
+  }, [persist3v3Outcome, teamMode, teamStore.teamResult]);
+
+  const handleExitResults = useCallback(() => {
+    if (teamMode) {
+      teamStore.endBattle();
+      setTeamMode(false);
+      setTeamSetup(null);
+      setTeamRewards(null);
+      setPhase("prebattle");
+      return;
+    }
+    resetBattle();
+    setPhase("prebattle");
+    persistedBattleIdRef.current = null;
+    setRoundProgress(null);
+  }, [resetBattle, teamMode, teamStore]);
+
+  const handleRematch = useCallback(async () => {
+    const setup = latestSetup;
+
+    resetBattle();
+    persistedBattleIdRef.current = null;
+
+    if (!setup) {
+      setPhase("prebattle");
+      return;
+    }
+
+    const lineup = getTierOpponentLineup(setup.tier, setup.selectedHolobot.name);
+    const didWinLastRound = battleResult?.winnerId === currentBattle?.player.holobotId;
+    const nextRoundIndex =
+      didWinLastRound && setup.roundIndex < lineup.length - 1 ? setup.roundIndex + 1 : 0;
+    const shouldChargeEntry = !(didWinLastRound && setup.roundIndex < lineup.length - 1);
+
+    if (!didWinLastRound) {
+      setRoundProgress(null);
+    }
+
+    await startTierRound(
+      { ...setup, roundIndex: nextRoundIndex },
+      shouldChargeEntry,
+    );
+  }, [battleResult?.winnerId, currentBattle?.player.holobotId, latestSetup, resetBattle, startTierRound]);
+
+  const hasMoreRounds =
+    !!latestSetup &&
+    !!battleResult &&
+    !!currentBattle &&
+    battleResult.winnerId === currentBattle.player.holobotId &&
+    latestSetup.roundIndex < getTierOpponentLineup(latestSetup.tier, latestSetup.selectedHolobot.name).length - 1;
+
+  const teamHud = (() => {
+    const team = teamStore.team;
+    if (!teamMode || !team) return null;
+    const now = Date.now();
+    const toChips = (side: typeof team.player) =>
+      side.slots.map((slot, index) => ({
+        index,
+        name: slot.fighter.name,
+        hpPct: slot.fighter.maxHP > 0 ? Math.max(0, slot.fighter.currentHP / slot.fighter.maxHP) : 0,
+        meterPct: Math.max(0, Math.min(1, slot.fighter.specialMeter / 100)),
+        isKnockedOut: slot.isKnockedOut,
+        isActive: index === side.activeIndex,
+      }));
+
+    const playerSendIn =
+      team.phase === "awaiting_send_in" && team.pendingSendInSide === "player"
+        ? {
+            secondsLeft: Math.ceil(((team.sendInDeadline ?? now) - now) / 1000),
+            options: benchIndexes(team.player).map((index) => ({
+              index,
+              name: team.player.slots[index].fighter.name,
+              hpPct:
+                team.player.slots[index].fighter.maxHP > 0
+                  ? team.player.slots[index].fighter.currentHP / team.player.slots[index].fighter.maxHP
+                  : 0,
+              meterPct: Math.min(1, team.player.slots[index].fighter.specialMeter / 100),
+              isKnockedOut: false,
+              isActive: false,
+            })),
+          }
+        : null;
+
+    return {
+      playerChips: toChips(team.player),
+      opponentChips: toChips(team.opponent),
+      canSwitchNow: team.phase === "active" && now >= team.player.switchCooldownUntil,
+      switchSecondsLeft: Math.max(0, Math.ceil((team.player.switchCooldownUntil - now) / 1000)),
+      entryLocked: now < team.player.entryLockUntil,
+      onSwitch: teamStore.switchTo,
+      sendIn: playerSendIn,
+      opponentChoosing: team.phase === "awaiting_send_in" && team.pendingSendInSide === "opponent",
+      onSendIn: teamStore.chooseSendIn,
+    };
+  })();
+
+  const teamAvailability = teamMode ? teamStore.getMoveAvailabilityMap() : null;
+  const teamPlayableIds = teamMode ? teamStore.getPlayableMoves().map((move) => move.id) : null;
+
+  return (
+    <View style={styles.page}>
+      {phase !== "battle" ? <HomeCogButton onOpenPvp={() => setIsPvpOpen(true)} /> : null}
+
+      {phase === "battle" && (currentBattle || teamStore.team) ? (
+        <Pressable onPress={() => (teamMode ? teamStore.setPaused(true) : setPaused(true))} style={styles.pauseButton}>
+          <Text style={styles.pauseButtonGlyph}>⚙</Text>
+        </Pressable>
+      ) : null}
+
+      {(teamMode ? teamStore.paused : paused) && phase === "battle" ? (
+        <View style={styles.pauseOverlay}>
+          <View style={styles.pauseCard}>
+            <Text style={styles.pauseEyebrow}>ARENA SETTINGS</Text>
+            <Text style={styles.pauseTitle}>Battle Paused</Text>
+            <Pressable
+              onPress={() => (teamMode ? teamStore.setPaused(false) : setPaused(false))}
+              style={styles.pausePrimaryButton}
+            >
+              <Text style={styles.pausePrimaryText}>CONTINUE BATTLE</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (teamMode) {
+                  teamStore.setPaused(false);
+                  teamStore.endBattle();
+                  setTeamMode(false);
+                  setTeamSetup(null);
+                  setPhase("prebattle");
+                  return;
+                }
+                setPaused(false);
+                resetBattle();
+                setPhase("prebattle");
+              }}
+              style={styles.pauseSecondaryButton}
+            >
+              <Text style={styles.pauseSecondaryText}>QUIT BATTLE</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {phase === "prebattle" || (!currentBattle && !teamStore.team) ? (
+        <ArenaPrebattleMenu
+          onStartBattle={handleStartBattle}
+          onStart3v3={handleStart3v3}
+          userArenaPasses={userArenaPasses}
+          userHolobots={holobots}
+          userTokens={userTokens}
+        />
+      ) : null}
+
+      {phase === "battle" && !teamMode && currentBattle ? (
+        <BattleArenaView
+          battle={currentBattle}
+          roundProgress={roundProgress}
+          playerCards={playerMoves}
+          playableCardIds={playableCardIds}
+          cardAvailability={cardAvailability}
+          lastAction={lastAction}
+          isAnimating={isAnimating}
+          onCardPlay={(moveId) => {
+            if (canUseMove(moveId)) {
+              playMove(moveId);
+            }
+          }}
+          onSignaturePlay={playSignature}
+        />
+      ) : null}
+
+      {phase === "battle" && teamMode && teamStore.team ? (
+        <BattleArenaView
+          battle={teamStore.team.duel}
+          roundProgress={null}
+          playerCards={getActiveMoves(teamStore.team, "player")}
+          playableCardIds={teamPlayableIds ?? []}
+          cardAvailability={teamAvailability ?? {}}
+          lastAction={teamStore.lastAction}
+          isAnimating={teamStore.isAnimating}
+          onCardPlay={(moveId) => {
+            if (teamStore.canUseMove(moveId)) {
+              teamStore.useMove(moveId);
+            }
+          }}
+          onSignaturePlay={teamStore.useSignatureFinisher}
+          team={teamHud}
+        />
+      ) : null}
+
+      {phase === "results" && teamMode && teamStore.teamResult ? (
+        <BattleResultsModal
+          visible
+          didWin={teamStore.teamResult.winnerSide === "player"}
+          rewards={{
+            exp: teamRewards?.exp ?? 0,
+            syncPoints: teamRewards?.syncPoints ?? 0,
+            holos: teamRewards?.holos ?? 0,
+            blueprintRewards: Object.entries(teamRewards?.blueprints ?? {}).map(
+              ([holobotKey, amount]) => ({ holobotKey, amount }),
+            ),
+          }}
+          subtitle="3V3 SHOWDOWN • EXP SHARED ACROSS YOUR SQUAD"
+          hideRematch
+          onRematch={handleExitResults}
+          onExit={handleExitResults}
+        />
+      ) : null}
+
+      {phase === "results" && !teamMode && battleResult && currentBattle ? (
+        <BattleResultsModal
+          visible
+          didWin={battleResult.winnerId === currentBattle.player.holobotId}
+          rewards={battleResult.rewards}
+          runTotals={runTotals}
+          continueLabel={hasMoreRounds ? `NEXT ROUND ${latestSetup!.roundIndex + 2}` : "REMATCH"}
+          subtitle={roundProgress ? `Round ${roundProgress.currentRound} of ${roundProgress.totalRounds}` : undefined}
+          onRematch={handleRematch}
+          onExit={handleExitResults}
+        />
+      ) : null}
+
+      {isStartingBattle ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#f0bf14" />
+        </View>
+      ) : null}
+
+      <PvpArenaModal
+        visible={isPvpOpen}
+        onClose={() => setIsPvpOpen(false)}
+        userHolobots={holobots}
+      />
+    </View>
+  );
 }
+
 const styles = StyleSheet.create({
-  page: {backgroundColor:theme.colors.carbon,flex:1},
-  loadingOverlay: {alignItems:'center',backgroundColor:'rgba(5,6,6,0.48)',bottom:0,justifyContent:'center',left:0,position:'absolute',right:0,top:0},
+  // Centered under the ROUND box, inside the HUD band's empty middle
+  // column — the old top-right spot covered the CPU's name and HP.
+  pauseButton: {
+    alignItems: "center",
+    backgroundColor: "#0b0d13",
+    borderColor: "#f0bf14",
+    borderRadius: 20,
+    borderWidth: 2,
+    height: 40,
+    justifyContent: "center",
+    left: "50%",
+    marginLeft: -20,
+    position: "absolute",
+    top: 142,
+    width: 40,
+    zIndex: 40,
+  },
+  pauseButtonGlyph: {
+    color: "#f0bf14",
+    fontSize: 18,
+  },
+  pauseCard: {
+    backgroundColor: "#0b0d13",
+    borderColor: "#f0bf14",
+    borderWidth: 2,
+    padding: 22,
+    width: "80%",
+  },
+  pauseEyebrow: {
+    color: "#f0bf14",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+  },
+  pauseOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.82)",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 60,
+  },
+  pausePrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#f0bf14",
+    marginTop: 18,
+    paddingVertical: 13,
+  },
+  pausePrimaryText: {
+    color: "#07080d",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  pauseSecondaryButton: {
+    alignItems: "center",
+    borderColor: "#3a3f4b",
+    borderWidth: 1,
+    marginTop: 10,
+    paddingVertical: 13,
+  },
+  pauseSecondaryText: {
+    color: "#b7bdc9",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  pauseTitle: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  loadingOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(5, 6, 6, 0.48)",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  page: {
+    backgroundColor: "#050606",
+    flex: 1,
+  },
 });

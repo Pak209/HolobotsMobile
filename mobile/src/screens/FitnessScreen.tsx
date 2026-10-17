@@ -1,30 +1,44 @@
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HolobotRosterCard } from "@/components/HolobotRosterCard";
-import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
-import { theme } from "@/theme";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Image as RNImage,
   Modal,
   Pressable,
   StyleSheet,
-  ScrollView,
   Text as RNText,
   View,
 } from "react-native";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
+import { FigmaCanvas } from "@/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
-import { Svg, Path } from "@/components/FigmaSvg";
-import { mergeHolobotRoster } from "@/config/holobots";
+import { Svg, Defs, G, Image, Mask, Path, Text } from "@/components/FigmaSvg";
+import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, fitnessAssets } from "@/config/figmaAssets";
+import { applyHolobotExperience, getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWatchWorkoutPresence } from "@/hooks/useWatchBridge";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
+import { computeLeaderboardScore } from "@/lib/profile";
 import { normalizeProgressionSystem } from "@/lib/progressionSystems";
+import { getSyncRank } from "@/lib/syncProgression";
+import type { UserHolobot } from "@/types/profile";
 import type { RootTabs } from "../../App";
 
+const NEEDLE_MIN_ANGLE = -150;
+const NEEDLE_MAX_ANGLE = -35;
+const NEEDLE_MAX_SPEED = 20;
+const NEEDLE_CENTER_X = 918;
+const NEEDLE_CENTER_Y = 1733;
 const KM_TO_MILES = 0.621371;
 const TOTAL_SYNC_MINUTES = 5;
+
+function formatGoalTime(remainingMinutes: number) {
+  return `Time:  ${String(remainingMinutes).padStart(2, "0")}/${String(TOTAL_SYNC_MINUTES).padStart(2, "0")}`;
+}
+
+function formatSpeed(speed: number, unit: DistanceUnit) {
+  return `${Math.round(speed)} ${unit === "mi" ? "mph" : "km/h"}`;
+}
 
 function formatDistanceLabel(unit: DistanceUnit) {
   return unit === "mi" ? "Miles" : "Kilometers";
@@ -64,6 +78,9 @@ export function FitnessScreen() {
   });
   const displayDistance = distanceUnit === "mi" ? workout.displayDistanceKm * KM_TO_MILES : workout.displayDistanceKm;
   const displaySpeed = distanceUnit === "mi" ? workout.liveSpeedKmh * KM_TO_MILES : workout.liveSpeedKmh;
+  const needleAngle = NEEDLE_MIN_ANGLE + (Math.min(displaySpeed, NEEDLE_MAX_SPEED) / NEEDLE_MAX_SPEED) * (NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE);
+  const goalBarWidth = 698.125 * workout.progress;
+  const expProgressWidth = 473 * getExpProgress(selectedHolobot);
 
   const handleDistanceUnitChange = (nextUnit: DistanceUnit) => {
     setLocalDistanceUnit(nextUnit);
@@ -165,44 +182,188 @@ export function FitnessScreen() {
     }
   };
 
-  const insets = useSafeAreaInsets();
-  const focused = useIsFocused();
   return (
-    <View style={styles.page}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 28 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <View><RNText style={styles.eyebrow}>PILOT FITNESS / SYNC LINK</RNText><RNText style={styles.pageTitle}>SYNC WORKOUT</RNText></View>
-          <View style={styles.headerActions}>
-            <Pressable style={styles.headerAction} onPress={() => navigation.navigate("Home")} accessibilityRole="button" accessibilityLabel="Go to home dashboard"><GameSurfaceFrame /><RNText style={styles.headerGlyph}>⌂</RNText></Pressable>
-            <Pressable style={styles.headerAction} onPress={() => setIsSettingsOpen(true)} accessibilityRole="button" accessibilityLabel="Open Sync settings"><GameSurfaceFrame /><RNText style={styles.headerGlyph}>⚙</RNText></Pressable>
-          </View>
+    <FigmaCanvas>
+      <View style={StyleSheet.absoluteFill}>
+        <View style={styles.utilityStack}>
+          <Pressable
+            accessibilityLabel="Go to home dashboard"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate("Home")}
+            style={styles.utilityButton}
+          >
+            <View style={styles.utilityInner}>
+              <Svg width="28" height="28" viewBox="0 0 24 24">
+                <Path d="M9 21v-6a2 2 0 0 1 2-2h1.6" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m20 11l-8-8l-9 9h2v7a2 2 0 0 0 2 2h4.159" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M16 18a2 2 0 1 0 4 0a2 2 0 1 0-4 0" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M18 14.5V16" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M18 20v1.5" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m21.032 16.25-1.299.75" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m16.269 19 1.299.75" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m16.269 16.25 1.299.75" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="m21.032 19-1.299.75" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Open Sync settings"
+            accessibilityRole="button"
+            onPress={() => setIsSettingsOpen(true)}
+            style={styles.utilityButton}
+          >
+            <View style={styles.utilityInner}>
+              <Svg width="28" height="28" viewBox="0 0 24 24">
+                <Path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0-6 0" stroke="#f5c40d" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </Pressable>
         </View>
-        <View style={styles.syncPlate}>
-          <GameSurfaceFrame strong />
-          <View style={styles.headerRow}><RNText style={styles.eyebrow}>SYNC POINTS</RNText><RNText style={styles.liveStatus}>{workout.isRunning ? "● LIVE" : "STANDBY"}</RNText></View>
-          <RNText style={styles.syncValue}>+{workout.syncPointsReward}</RNText>
-          <View style={styles.headerRow}><RNText style={styles.telemetryLabel}>SESSION PROGRESS</RNText><RNText style={styles.telemetryLabel}>{workout.remainingMinutes} / {TOTAL_SYNC_MINUTES} MIN LEFT</RNText></View>
-          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(0,Math.min(1,workout.progress))*100}%` }]} /></View>
-          <RNText style={styles.hudHelp}>{workout.sessionsCompleted}/4 SESSIONS TODAY · {workout.sessionsRemaining} AVAILABLE</RNText>
+        <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`}>
+          <Defs>
+            <Mask
+              id="goal-mask"
+              x={35}
+              y={537}
+              width={1800}
+              height={3200}
+              maskUnits="userSpaceOnUse"
+              maskContentUnits="userSpaceOnUse"
+            >
+              <Image href={fitnessAssets.goalMask} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
+            </Mask>
+            <Mask
+              id="speedometer-mask"
+              x={0}
+              y={0}
+              width={1800}
+              height={3200}
+              maskUnits="userSpaceOnUse"
+              maskContentUnits="userSpaceOnUse"
+            >
+              <Image href={fitnessAssets.speedometerMask} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
+            </Mask>
+            <Mask
+              id="distance-mask"
+              x={0}
+              y={0}
+              width={1800}
+              height={3200}
+              maskUnits="userSpaceOnUse"
+              maskContentUnits="userSpaceOnUse"
+            >
+              <Image href={fitnessAssets.distanceMask} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
+            </Mask>
+          </Defs>
+
+          <Image href={fitnessAssets.backgroundBase} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.backgroundDesign} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.syncPointBar} x={0} y={101} width={1747} height={237} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.syncPointAccent} x={0} y={337} width={892} height={166} preserveAspectRatio="none" />
+          <Text x={193} y={198.04} fill="#e9dfc5" fontSize={106.012} fontWeight="700">SYNC POINT</Text>
+          <Text x={315} y={418.99} fill="#e83a2a" fontSize={105.805} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
+
+          <Image href={fitnessAssets.goalFill} x={35} y={537} width={914} height={267} preserveAspectRatio="none" mask="url(#goal-mask)" />
+          <Path
+            d={`M 90 686.25 H ${90 + goalBarWidth} L ${Math.max(90, 90 + goalBarWidth - 40)} 766.25 H 90 Z`}
+            fill="#f4c312"
+          />
+          <Text x={103} y={672} fill="#fff7f7" fontSize={116} fontWeight="400">{formatGoalTime(workout.remainingMinutes)}</Text>
+
+          <Path
+            d="M 40 835 L 705 835 L 705 1068 L 545 1210 L 40 1210 Z"
+            fill="#020303"
+          />
+          <Text x={72} y={921.5} fill="#ffffff" fontSize={49.915}>{selectedHolobot.name}</Text>
+          <Path d="M 72 1018 H 545 V 1043 H 72 Z" fill="#171717" />
+          <Path d={`M 72 1018 H ${72 + expProgressWidth} V 1043 H 72 Z`} fill="#f4c312" />
+          <Text x={89} y={1009} fill="#ffffff" fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
+          <Text x={71} y={1119.3} fill="#ffffff" fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
+
+          <Path
+            d="M 838 1091 L 1600 1091 L 1700 1091 L 1648 1204 L 785 1204 Z"
+            fill="#020303"
+          />
+          <Image href={fitnessAssets.changeIconBack} x={1533} y={1012} width={169} height={160} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.changeIconFront} x={1514} y={993} width={218} height={211} preserveAspectRatio="none" />
+          <Text x={900} y={1160} fill="#e9dfc5" fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
+
+          <Image href={fitnessAssets.speedometerFill} x={406} y={1265} width={954} height={954} preserveAspectRatio="none" mask="url(#speedometer-mask)" />
+          <G transform={`rotate(${needleAngle} ${NEEDLE_CENTER_X} ${NEEDLE_CENTER_Y})`}>
+            <Image href={fitnessAssets.speedometerNeedle} x={811} y={1621} width={366} height={211} preserveAspectRatio="none" />
+          </G>
+          <Text x={729} y={1540.12} fill="#e9dfc5" fontSize={89.466} fontWeight="700">{formatSpeed(displaySpeed, distanceUnit)}</Text>
+          <Text x={729} y={1608} fill="#e9dfc5" fontSize={37.004} fontWeight="700">Movement speed</Text>
+
+          <Image href={fitnessAssets.distanceFill} x={92} y={1915} width={1639} height={385} preserveAspectRatio="none" mask="url(#distance-mask)" />
+          {workout.syncPointBoostCount > 0 ? (
+            <G transform="translate(610 2020)">
+              <Path
+                d="M9 12H5.414a1 1 0 0 1-.707-1.707l6.586-6.586a1 1 0 0 1 1.414 0l6.586 6.586A1 1 0 0 1 18.586 12H15v3H9zm0 9h6m-6-3h6"
+                stroke="#f0bf14"
+                strokeWidth={2.6}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </G>
+          ) : null}
+          <Text x={788} y={2074.31} fill="#e9dfc5" fontSize={121.544}>{displayDistance.toFixed(3)}</Text>
+          <Text x={793} y={2180.08} fill="#e9dfc5" fontSize={45.702} fontWeight="500">{formatDistanceLabel(distanceUnit)}</Text>
+          {syncBoostCopy ? (
+            <Text x={794} y={2232} fill="#f0bf14" fontSize={34} fontWeight="700">
+              {syncBoostCopy}
+            </Text>
+          ) : null}
+
+          <Image href={fitnessAssets.bottomElement} x={0} y={2208} width={1800} height={992} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.rewardSync} x={244} y={2429} width={116} height={131} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.rewardHolos} x={740} y={2433} width={109} height={110} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.rewardExp} x={1196} y={2433} width={119} height={118} preserveAspectRatio="none" />
+          <Text x={410} y={2494} fill="#e9dfc5" fontSize={96.929} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
+          <Text x={882} y={2494} fill="#e9dfc5" fontSize={95.215} fontWeight="700">{`+${workout.holosReward}`}</Text>
+          <Text x={1353} y={2493.96} fill="#e9dfc5" fontSize={91.406} fontWeight="700">{`+${workout.expReward}`}</Text>
+
+          {blockedByWatch ? (
+            <Text x={430} y={2588} fill="#f0bf14" fontSize={52} fontWeight="700">
+              WORKOUT RUNNING ON APPLE WATCH
+            </Text>
+          ) : null}
+          <Image href={fitnessAssets.goButton} x={20} y={2606} width={1695} height={446} preserveAspectRatio="none" />
+          <Text
+            x={goLabel === "PAUSE" ? 635 : goLabel === "RESUME" ? 610 : goLabel === "ON WATCH" ? 480 : 740}
+            y={2868}
+            fill="#eeb818"
+            fontSize={goLabel === "ON WATCH" ? 160 : 204.86}
+            fontWeight="700"
+          >
+            {goLabel}
+          </Text>
+        </Svg>
+
+        <Pressable
+          accessibilityLabel={
+            blockedByWatch
+              ? "Workout running on Apple Watch"
+              : workout.isRunning
+                ? "Pause workout"
+                : "Start workout"
+          }
+          accessibilityRole="button"
+          onLongPress={workout.resetWorkout}
+          onPress={handleGoPress}
+          style={styles.goHotspot}
+        />
+        <Pressable
+          accessibilityLabel="Change active holobot"
+          accessibilityRole="button"
+          onPress={() => setIsPickerOpen(true)}
+          style={styles.changeHolobotHotspot}
+        />
+        <View pointerEvents="none" style={styles.holobotPortrait}>
+          <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" />
         </View>
-        <HolobotRosterCard holobot={selectedHolobot} slot={selectedHolobotIndex} compact selected live={focused && !isPickerOpen && !isSettingsOpen && !completionResult} onPress={() => setIsPickerOpen(true)} actionLabel="CHANGE WORKOUT PARTNER ›" />
-        <View style={styles.telemetryRow}>
-          <View style={styles.telemetry}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>DISTANCE</RNText><RNText style={styles.telemetryValue}>{displayDistance.toFixed(3)}</RNText><RNText style={styles.telemetryLabel}>{formatDistanceLabel(distanceUnit).toUpperCase()}</RNText></View>
-          <View style={styles.telemetry}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>MOVEMENT SPEED</RNText><RNText style={styles.telemetryValue}>{Math.round(displaySpeed)}</RNText><RNText style={styles.telemetryLabel}>{distanceUnit === "mi" ? "MILES / HOUR" : "KM / HOUR"}</RNText></View>
-        </View>
-        <View style={styles.rewardPreview}>
-          <GameSurfaceFrame accent={theme.colors.border} />
-          <View><RNText style={styles.telemetryLabel}>HOLOS REWARD</RNText><RNText style={styles.rewardPreviewValue}>+{workout.holosReward}</RNText></View>
-          <View><RNText style={styles.telemetryLabel}>HOLOBOT EXPERIENCE</RNText><RNText style={styles.rewardPreviewValue}>+{workout.expReward}</RNText></View>
-        </View>
-        {syncBoostCopy && <RNText style={styles.boostCopy}>{syncBoostCopy}</RNText>}
-        {workout.syncMessage && <RNText style={workout.syncState === "error" ? styles.hudError : styles.hudHelp}>{workout.syncMessage}</RNText>}
-        {blockedByWatch && <RNText style={styles.hudHelp}>WORKOUT RUNNING ON APPLE WATCH</RNText>}
-        {workout.isCooldownActive && <View style={styles.cooldownPlate}><GameSurfaceFrame accent={theme.colors.cursor} /><RNText style={styles.telemetryLabel}>RECOVERY WINDOW</RNText><RNText style={styles.cooldownValue}>{workout.cooldownRemainingMinutes} MIN</RNText><RNText style={styles.hudHelp}>Open Sync settings to use Quick Refill.</RNText></View>}
-        <Pressable onPress={handleGoPress} onLongPress={workout.resetWorkout} style={styles.goButton} accessibilityRole="button" accessibilityLabel={blockedByWatch ? "Workout running on Apple Watch" : workout.isRunning ? "Pause workout" : "Start workout"}>
-          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.raised} strong /><RNText style={styles.goText}>{goLabel}</RNText><RNText style={styles.goHint}>{workout.isRunning ? "TAP TO PAUSE · HOLD TO RESET" : "MOVEMENT BUILDS YOUR LINK"}</RNText>
-        </Pressable>
-      </ScrollView>
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
           onSelect={(index) => {
@@ -267,7 +428,7 @@ export function FitnessScreen() {
                     style={[styles.refillButton, !workout.canQuickRefill ? styles.refillButtonDisabled : null]}
                   >
                     <Svg width="18" height="18" viewBox="0 0 24 24">
-                      <Path d="M16 7h1a2 2 0 0 1 2 2v.5a.5.5 0 0 0 .5.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5a.5.5 0 0 0-.5.5v.5a2 2 0 0 1-2 2h-2M8 7H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1m5-9l-2 4h3l-2 4" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      <Path d="M16 7h1a2 2 0 0 1 2 2v.5a.5.5 0 0 0 .5.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5a.5.5 0 0 0-.5.5v.5a2 2 0 0 1-2 2h-2M8 7H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1m5-9l-2 4h3l-2 4" stroke="#f0bf14" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
                     </Svg>
                   </Pressable>
                 </View>
@@ -351,53 +512,51 @@ export function FitnessScreen() {
             </View>
           </View>
         </Modal>
-    </View>
+      </View>
+    </FigmaCanvas>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: theme.colors.carbon },
-  content: { paddingHorizontal: 18, gap: 16, width: "100%", maxWidth: 620, alignSelf: "center" },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 6 },
-  headerActions: { flexDirection: "row", gap: 6 },
-  headerAction: { width: 44, height: 48, alignItems: "center", justifyContent: "center" },
-  headerGlyph: { fontSize: 24, color: theme.colors.accent },
-  eyebrow: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1 },
-  pageTitle: { ...theme.type.header, color: theme.colors.text },
-  syncPlate: { padding: 20, gap: 12 },
-  liveStatus: { ...theme.type.micro, color: theme.colors.success, letterSpacing: 1 },
-  syncValue: { ...theme.type.display, fontSize: 60, lineHeight: 66, color: theme.colors.text },
-  progressTrack: { height: 8, backgroundColor: theme.colors.graphite },
-  progressFill: { height: "100%", backgroundColor: theme.colors.accent },
-  rewardPreview: { flexDirection: "row", justifyContent: "space-between", padding: 16, gap: 12 },
-  rewardPreviewValue: { ...theme.type.header, color: theme.colors.accent, marginTop: 4 },
-  telemetryRow: { flexDirection: "row", gap: 12 },
-  telemetry: { flex: 1, padding: 16, gap: 10 },
-  telemetryValue: { ...theme.type.display, color: theme.colors.text },
-  telemetryLabel: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1 },
-  hudHelp: { ...theme.type.caption, color: theme.colors.muted },
-  hudError: { ...theme.type.body, color: theme.colors.danger },
-  boostCopy: { ...theme.type.label, color: theme.colors.success, textAlign: "center" },
-  cooldownPlate: { padding: 16, gap: 6 },
-  cooldownValue: { ...theme.type.header, color: theme.colors.cursor },
-  goButton: { alignItems: "center", justifyContent: "center", minHeight: 96, gap: 4 },
-  goText: { ...theme.type.display, color: theme.colors.accent, letterSpacing: 2 },
-  goHint: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1 },
+  changeHolobotHotspot: {
+    position: "absolute",
+    left: "43.6111%",
+    top: "34.125%",
+    width: "51.6667%",
+    height: "9.0625%",
+  },
   closeSettingsButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.plates.raised,
+    backgroundColor: "#050606",
+    borderColor: "#2a2a2a",
     borderWidth: 2,
     justifyContent: "center",
     marginTop: 18,
     minHeight: 52,
   },
   closeSettingsText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#f0bf14",
+    fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1,
+  },
+  fillImage: {
+    width: "100%",
+    height: "100%",
+  },
+  goHotspot: {
+    position: "absolute",
+    left: "1.111%",
+    top: "81.4375%",
+    width: "94.1667%",
+    height: "13.9375%",
+  },
+  holobotPortrait: {
+    position: "absolute",
+    left: "51.2%",
+    top: "9.6%",
+    width: "34.4444%",
+    height: "21.5%",
   },
   settingsBackdrop: {
     alignItems: "center",
@@ -407,51 +566,46 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   settingsCard: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#111111",
+    borderColor: "#f0bf14",
     borderWidth: 3,
     maxWidth: 420,
     padding: 22,
     width: "100%",
   },
   settingsCopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#d5cbb2",
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
   },
   settingsCopySmall: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#fef1e0",
+    fontSize: 14,
     fontWeight: "700",
     marginTop: 4,
   },
   settingsEyebrow: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f0bf14",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1.8,
   },
   settingsLabel: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#ddd2b5",
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.1,
   },
   settingsMeta: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
+    color: "#8f866f",
     fontSize: 11,
     fontWeight: "700",
     marginTop: 8,
   },
   settingsSection: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.plates.raised,
+    backgroundColor: "#090909",
+    borderColor: "#2a2a2a",
     borderWidth: 1,
     marginTop: 16,
     padding: 16,
@@ -462,15 +616,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   settingsTitle: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 28,
     fontWeight: "900",
     marginTop: 8,
   },
   toggleButton: {
     alignItems: "center",
-    borderColor: theme.colors.border,
+    borderColor: "#5b4b18",
     borderWidth: 1,
     flex: 1,
     justifyContent: "center",
@@ -478,8 +631,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   toggleButtonActive: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
+    borderColor: "#f0bf14",
   },
   toggleRow: {
     flexDirection: "row",
@@ -487,19 +640,40 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   toggleText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f0bf14",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   toggleTextActive: {
-    color: theme.colors.carbon,
+    color: "#050606",
+  },
+  utilityButton: {},
+  utilityInner: {
+    alignItems: "center",
+    backgroundColor: "#050606",
+    borderColor: "#f0bf14",
+    borderRadius: 26,
+    borderWidth: 2,
+    height: 52,
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    width: 52,
+  },
+  utilityStack: {
+    gap: 10,
+    position: "absolute",
+    right: 18,
+    top: 72,
+    zIndex: 20,
   },
   refillButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#050606",
+    borderColor: "#f0bf14",
     borderWidth: 2,
     height: 44,
     justifyContent: "center",
@@ -513,29 +687,27 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
     justifyContent: "center",
     marginTop: 18,
     minHeight: 52,
   },
   continueButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#050606",
+    fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1,
   },
   rewardLabel: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#ddd2b5",
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.1,
   },
   rewardRow: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.plates.raised,
+    backgroundColor: "#090909",
+    borderColor: "#2a2a2a",
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -543,8 +715,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   rewardValue: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 18,
     fontWeight: "900",
   },
@@ -554,8 +725,7 @@ const styles = StyleSheet.create({
   },
   rewardsSyncWarning: {
     color: "#e88a2a",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     fontWeight: "700",
     marginTop: 10,
   },

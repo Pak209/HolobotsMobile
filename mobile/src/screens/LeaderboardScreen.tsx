@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -9,7 +8,7 @@ import { collection, db, limit, onSnapshot, orderBy, query } from "@/config/fire
 
 /** Public projection maintained by the mirrorLeaderboardEntry trigger —
     full /users documents are owner-read-only since the privacy hardening. */
-export type LeaderboardEntry = {
+type LeaderboardEntry = {
   id: string;
   username?: string;
   leaderboardScore?: number;
@@ -30,19 +29,18 @@ function getPlayerRankName(entry: LeaderboardEntry) {
 }
 
 function getPositionAccent(index: number) {
-  if (index === 0) return theme.colors.warning;
-  if (index === 1) return theme.colors.accent;
-  if (index === 2) return theme.colors.purple;
-  return theme.colors.accent;
+  if (index === 0) return "#ffc51b";
+  if (index === 1) return "#20dff2";
+  if (index === 2) return "#b34cff";
+  return "#f0bf14";
 }
 
-export function LeaderboardScreen({ previewEntries }: { previewEntries?: LeaderboardEntry[] } = {}) {
+export function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (previewEntries) { setEntries(previewEntries); setLoading(false); return; }
     const leaderboardQuery = query(
       collection(db, "leaderboard"),
       orderBy("leaderboardScore", "desc"),
@@ -69,7 +67,7 @@ export function LeaderboardScreen({ previewEntries }: { previewEntries?: Leaderb
     );
 
     return unsubscribe;
-  }, [previewEntries]);
+  }, []);
 
   const leaderboardRows = useMemo(
     () =>
@@ -95,7 +93,7 @@ export function LeaderboardScreen({ previewEntries }: { previewEntries?: Leaderb
 
       {loading ? (
         <View style={styles.centerState}>
-          <ActivityIndicator color={theme.colors.accent} size="large" />
+          <ActivityIndicator color="#f0bf14" size="large" />
           <Text style={styles.helperText}>Loading real pilot data...</Text>
         </View>
       ) : error ? (
@@ -139,36 +137,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   errorText: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#fef1e0",
+    fontSize: 16,
     fontWeight: "700",
     textAlign: "center",
   },
   helperText: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#ddd2b5",
+    fontSize: 14,
     marginTop: 12,
   },
   name: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 18,
     fontWeight: "900",
   },
   page: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#f5c40d",
     flex: 1,
   },
   position: {
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    fontSize: 14,
     fontWeight: "900",
   },
   positionBadge: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#030405",
     borderWidth: 1,
     height: 38,
     justifyContent: "center",
@@ -180,8 +174,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-45deg" }],
   },
   rank: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#ddd2b5",
     fontSize: 13,
     marginTop: 4,
   },
@@ -198,8 +191,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   score: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 18,
     fontWeight: "900",
   },

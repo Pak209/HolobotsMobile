@@ -1,5 +1,3 @@
-import { GameDialogFrame } from "@/components/ui/GameSurfaceFrame";
-import { theme } from "@/theme";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -115,7 +113,6 @@ export function LoginScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.panel}>
-          <GameDialogFrame />
           <Text style={styles.eyebrow}>HOLOBOTS MOBILE</Text>
           <Text style={styles.title}>{mode === "signup" ? "Create Account" : sessionLocked ? "Welcome Back" : "Sign In"}</Text>
           <Text style={styles.copy}>
@@ -144,7 +141,7 @@ export function LoginScreen() {
                 loading ? styles.buttonDisabled : null,
               ]}
             >
-              {loading ? <ActivityIndicator color={theme.colors.accent} /> : <Text style={styles.secondaryButtonText}>UNLOCK WITH FACE ID</Text>}
+              {loading ? <ActivityIndicator color="#f0bf14" /> : <Text style={styles.secondaryButtonText}>UNLOCK WITH FACE ID</Text>}
             </Pressable>
           ) : null}
 
@@ -156,7 +153,7 @@ export function LoginScreen() {
                   autoCapitalize="none"
                   onChangeText={setUsername}
                   placeholder="Choose your pilot name"
-                  placeholderTextColor={theme.colors.subtle}
+                  placeholderTextColor="#8f896d"
                   style={styles.input}
                   value={username}
                 />
@@ -196,7 +193,7 @@ export function LoginScreen() {
               keyboardType="email-address"
               onChangeText={setEmail}
               placeholder="pilot@holobots.fun"
-              placeholderTextColor={theme.colors.subtle}
+              placeholderTextColor="#8f896d"
               style={styles.input}
               value={email}
             />
@@ -208,7 +205,7 @@ export function LoginScreen() {
               autoCapitalize="none"
               onChangeText={setPassword}
               placeholder={mode === "signup" ? "Create a password" : "Enter your password"}
-              placeholderTextColor={theme.colors.subtle}
+              placeholderTextColor="#8f896d"
               secureTextEntry
               style={styles.input}
               value={password}
@@ -272,7 +269,7 @@ export function LoginScreen() {
             ]}
           >
             {loading ? (
-              <ActivityIndicator color={theme.colors.carbon} />
+              <ActivityIndicator color="#050606" />
             ) : (
               <Text style={styles.buttonText}>{mode === "signup" ? "CREATE PILOT" : "ENTER DASHBOARD"}</Text>
             )}
@@ -317,7 +314,7 @@ export function LoginScreen() {
 
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#f5c40d",
     flex: 1,
   },
   scrollContent: {
@@ -326,27 +323,26 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   panel: {
-    backgroundColor: "transparent",
+    backgroundColor: "#060606",
+    borderColor: "#e7b916",
+    borderWidth: 3,
     paddingHorizontal: 22,
     paddingVertical: 28,
   },
   eyebrow: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#f5c40d",
+    fontSize: 14,
     fontWeight: "800",
     letterSpacing: 1.5,
   },
   title: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.display.fontSize,
+    color: "#fef1e0",
+    fontSize: 34,
     fontWeight: "900",
     marginTop: 8,
   },
   copy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#d7d0bd",
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 24,
@@ -354,30 +350,28 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#111111",
+    borderColor: "#f0bf14",
     borderWidth: 1,
     marginBottom: 18,
     paddingVertical: 14,
   },
   secondaryButtonText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#f0bf14",
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 1,
   },
   secondaryActionButton: {
     alignItems: "center",
-    borderColor: theme.colors.border,
+    borderColor: "#5b4b18",
     borderWidth: 1,
     justifyContent: "center",
     marginTop: 12,
     minHeight: 50,
   },
   secondaryActionText: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#fef1e0",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.9,
@@ -386,26 +380,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#fef1e0",
+    fontSize: 14,
     fontWeight: "700",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.border,
+    backgroundColor: "#171717",
+    borderColor: "#66561f",
     borderWidth: 1,
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#fef1e0",
+    fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
   starterLabel: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f0bf14",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1.4,
     marginBottom: 12,
@@ -417,8 +408,8 @@ const styles = StyleSheet.create({
   },
   starterCard: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.carbon,
+    backgroundColor: "#0b0d10",
+    borderColor: "#2b2b2b",
     borderWidth: 1,
     flex: 1,
     minHeight: 162,
@@ -426,7 +417,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   starterCardActive: {
-    borderColor: theme.colors.accent,
+    borderColor: "#f0bf14",
     borderWidth: 2,
   },
   starterImage: {
@@ -435,69 +426,62 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   starterName: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#fef1e0",
+    fontSize: 16,
     fontWeight: "900",
   },
   starterRole: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.8,
     marginTop: 4,
   },
   starterDetail: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.plates.raised,
+    backgroundColor: "#090909",
+    borderColor: "#2a2a2a",
     borderWidth: 1,
     marginBottom: 16,
     padding: 14,
   },
   starterDetailTitle: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 18,
     fontWeight: "900",
   },
   starterDetailCopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#d7d0bd",
     fontSize: 13,
     lineHeight: 20,
     marginTop: 6,
   },
   starterDetailMeta: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.6,
     marginTop: 8,
   },
   checkbox: {
-    borderColor: theme.colors.border,
+    borderColor: "#66561f",
     borderWidth: 1,
     height: 16,
     marginRight: 10,
     width: 16,
   },
   checkboxActive: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#f5c40d",
+    borderColor: "#f5c40d",
   },
   error: {
     color: "#ff6a57",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
   },
   meta: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#8f896d",
+    fontSize: 12,
     marginBottom: 14,
     marginTop: 4,
   },
@@ -514,14 +498,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   optionText: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#fef1e0",
     fontSize: 13,
     fontWeight: "700",
   },
   button: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f5c40d",
     marginTop: 8,
     paddingVertical: 16,
   },
@@ -532,9 +515,8 @@ const styles = StyleSheet.create({
     opacity: 0.88,
   },
   buttonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#050606",
+    fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1,
   },

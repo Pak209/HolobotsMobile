@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, StyleSheet, Text, View, type AppStateStatus } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -272,7 +271,7 @@ export function OverworldScreen() {
       ) : null}
       {showLoading ? (
         <View style={styles.overlay}>
-          <ActivityIndicator color={theme.colors.accent} size="large" />
+          <ActivityIndicator color="#f0bf14" size="large" />
           <Text style={styles.overlayText}>Powering up the hangar district…</Text>
         </View>
       ) : null}
@@ -331,16 +330,14 @@ export function OverworldScreen() {
 
 const styles = StyleSheet.create({
   errorCopy: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#f5e9ca",
+    fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
     textAlign: "center",
   },
   errorTitle: {
     color: "#ff8269",
-    fontFamily: "HoloDisplay",
     fontSize: 18,
     fontWeight: "800",
     textAlign: "center",
@@ -348,23 +345,22 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#050606",
     justifyContent: "center",
     paddingHorizontal: 24,
     zIndex: 5,
   },
   overlayText: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#fef1e0",
     fontSize: 15,
     marginTop: 12,
   },
   page: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#050606",
     flex: 1,
   },
   webview: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#1d1d1d",
     flex: 1,
   },
 });

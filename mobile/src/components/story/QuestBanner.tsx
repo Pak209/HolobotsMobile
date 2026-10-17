@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polygon, Rect } from "react-native-svg";
@@ -27,8 +26,8 @@ export function QuestBanner({ zone, objective }: QuestBannerProps) {
     >
       <View style={styles.zonePlate}>
         <Svg height={14} viewBox="0 0 16 16" width={14}>
-          <Polygon fill="none" points="8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5" stroke={theme.colors.accent} strokeWidth={1.5} />
-          <Rect fill={theme.colors.accent} height={4} width={4} x={6} y={6} />
+          <Polygon fill="none" points="8,1 14,4.5 14,11.5 8,15 2,11.5 2,4.5" stroke="#17d9ff" strokeWidth={1.5} />
+          <Rect fill="#17d9ff" height={4} width={4} x={6} y={6} />
         </Svg>
         <Text numberOfLines={1} style={styles.zoneText}>
           {zone.toUpperCase()}
@@ -37,8 +36,8 @@ export function QuestBanner({ zone, objective }: QuestBannerProps) {
       {objective ? (
         <View style={styles.objectiveChip}>
           <Svg height={12} viewBox="0 0 12 12" width={12}>
-            <Polygon fill={theme.colors.accent} points="6,0.5 11.5,6 6,11.5 0.5,6" />
-            <Polygon fill={theme.colors.carbon} points="6,3.5 8.5,6 6,8.5 3.5,6" />
+            <Polygon fill="#f0bf14" points="6,0.5 11.5,6 6,11.5 0.5,6" />
+            <Polygon fill="#050606" points="6,3.5 8.5,6 6,8.5 3.5,6" />
           </Svg>
           <Text numberOfLines={1} style={styles.objectiveText}>
             {objective}
@@ -67,16 +66,15 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   objectiveText: {
-    color: theme.colors.muted,
+    color: "#ddd2b5",
     flexShrink: 1,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     letterSpacing: 0.5,
   },
   zonePlate: {
     alignItems: "center",
     backgroundColor: "rgba(5,6,6,0.62)",
-    borderColor: theme.colors.accent,
+    borderColor: "#17d9ff",
     borderWidth: 1,
     flexDirection: "row",
     gap: 8,
@@ -84,9 +82,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   zoneText: {
-    color: theme.colors.text,
+    color: "#fef1e0",
     flexShrink: 1,
-    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 2,

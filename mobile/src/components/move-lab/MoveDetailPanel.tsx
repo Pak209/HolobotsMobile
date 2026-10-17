@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { useEffect, useState } from "react";
 import {
   Image,
@@ -21,8 +20,8 @@ import { getMoveIcon } from "@/components/move-lab/moveIconRegistry";
 
 const MOVE_ACCENTS: Record<CardType, string> = {
   combo: "#2ce8ef",
-  defense: theme.colors.blue,
-  finisher: theme.colors.warning,
+  defense: "#3296ff",
+  finisher: "#ffc51b",
   strike: "#ff453f",
 };
 
@@ -356,16 +355,14 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   branchChoiceDescription: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
+    color: "#8e939d",
     fontSize: 9,
     lineHeight: 12,
     marginTop: 3,
   },
   branchChoiceName: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#ffffff",
+    fontSize: 10,
     fontWeight: "900",
   },
   branchRow: {
@@ -375,15 +372,13 @@ const styles = StyleSheet.create({
   branchTag: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   category: {
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 1.1,
   },
@@ -415,8 +410,7 @@ const styles = StyleSheet.create({
   },
   description: {
     color: "#d0d3da",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
   },
@@ -427,7 +421,6 @@ const styles = StyleSheet.create({
     paddingLeft: 9,
   },
   descriptionLabel: {
-    fontFamily: "HoloBody",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 1.15,
@@ -450,7 +443,6 @@ const styles = StyleSheet.create({
     width: 5,
   },
   equippedText: {
-    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.7,
@@ -459,9 +451,8 @@ const styles = StyleSheet.create({
     transform: [{ translateX: 5 }, { translateY: 5 }],
   },
   maxRank: {
-    color: theme.colors.warning,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#ffc51b",
+    fontSize: 12,
     fontWeight: "900",
   },
   panel: {
@@ -492,24 +483,21 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   previewActionMeta: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    color: "#8e939d",
+    fontSize: 10,
     fontWeight: "800",
     marginTop: 4,
     zIndex: 1,
   },
   previewActionTitle: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#ffffff",
     fontSize: 18,
     fontWeight: "900",
     letterSpacing: 0.7,
     zIndex: 1,
   },
   previewRow: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
+    color: "#ffffff",
     fontSize: 11,
     fontWeight: "800",
   },
@@ -524,22 +512,19 @@ const styles = StyleSheet.create({
   },
   primaryActionMeta: {
     color: "#302600",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    fontSize: 10,
     fontWeight: "900",
     marginTop: 3,
     zIndex: 1,
   },
   primaryActionTitle: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloDisplay",
+    color: "#050606",
     fontSize: 18,
     fontWeight: "900",
     letterSpacing: 0.7,
     zIndex: 1,
   },
   rankLabel: {
-    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
   },
@@ -551,7 +536,6 @@ const styles = StyleSheet.create({
   },
   slotCode: {
     color: "#7d838f",
-    fontFamily: "HoloBody",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 1.05,
@@ -576,8 +560,7 @@ const styles = StyleSheet.create({
     flex: 1.35,
   },
   statKey: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
+    color: "#8e939d",
     fontSize: 9,
     fontWeight: "800",
   },
@@ -589,7 +572,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   statValue: {
-    color: theme.colors.text,
+    color: "#ffffff",
     fontSize: 10.5,
     fontWeight: "900",
     marginTop: 2,
@@ -613,14 +596,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   tabText: {
-    color: theme.colors.warning,
-    fontFamily: "HoloBody",
+    color: "#ffc51b",
     fontSize: 11,
     fontWeight: "900",
     zIndex: 1,
   },
   tabTextActive: {
-    color: theme.colors.carbon,
+    color: "#050606",
   },
   tabIndicator: {
     bottom: 3,
@@ -631,8 +613,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   title: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#ffffff",
     fontSize: 19,
     fontWeight: "900",
     letterSpacing: 0.8,

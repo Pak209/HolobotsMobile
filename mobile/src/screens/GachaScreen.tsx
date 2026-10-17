@@ -1,6 +1,3 @@
-import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
-import { CompactSectionHeader } from "@/components/navigation/GameSectionChrome";
-import { theme } from "@/theme";
 import { useMemo, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -51,7 +48,11 @@ export function GachaScreen() {
   return (
     <View style={styles.page}>
       <HomeCogButton />
-      <CompactSectionHeader eyebrow="SUPPLY DROP" title="Holo Packs" meta={`${tickets} GACHA TICKETS`} />
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>SUPPLY DROP</Text>
+        <Text style={styles.title}>Gacha</Text>
+        <Text style={styles.meta}>{`Tickets ${tickets}`}</Text>
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {PACKS.map((pack) => {
@@ -59,11 +60,9 @@ export function GachaScreen() {
           return (
             <Pressable
               key={pack.id}
-              style={[styles.packCard, selected && styles.packCardSelected]}
-              accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={`${pack.name}, ${pack.price} tickets`}
+              style={[styles.packCard, { borderColor: pack.accent }, selected && styles.packCardSelected]}
               onPress={() => setActivePack(pack)}
             >
-              <GameSurfaceFrame accent={selected ? theme.colors.cursor : pack.accent} strong={selected} />
               <View style={[styles.packIconFrame, { borderColor: pack.accent }]}>
                 <Image
                   source={PACK_ICONS[pack.id]}
@@ -92,7 +91,7 @@ export function GachaScreen() {
       </ScrollView>
 
       <PackOpeningAnimation
-        accentColor={activePack?.accent || theme.colors.accent}
+        accentColor={activePack?.accent || "#00d9ff"}
         isOpen={isOpening}
         items={revealedItems}
         onComplete={() => {
@@ -105,9 +104,28 @@ export function GachaScreen() {
 }
 
 const styles = StyleSheet.create({
+  eyebrow: {
+    color: "#f0bf14",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+  },
+  header: {
+    backgroundColor: "#050606",
+    borderBottomColor: "#f0bf14",
+    borderBottomWidth: 3,
+    paddingBottom: 18,
+    paddingHorizontal: 24,
+    paddingTop: 94,
+  },
+  meta: {
+    color: "#ddd2b5",
+    fontSize: 14,
+    marginTop: 8,
+  },
   openButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f0bf14",
     marginTop: 10,
     minHeight: 58,
     justifyContent: "center",
@@ -116,9 +134,8 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   openButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#050606",
+    fontSize: 16,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
@@ -126,21 +143,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   packCard: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#090909",
+    borderWidth: 3,
     flexDirection: "row",
     gap: 14,
     padding: 16,
   },
   packCardSelected: {
-    shadowColor: theme.colors.accent,
+    shadowColor: "#f0bf14",
     shadowOpacity: 0.28,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
   packCopy: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
+    color: "#ddd2b5",
+    fontSize: 14,
     marginTop: 6,
   },
   packIconFrame: {
@@ -155,25 +172,29 @@ const styles = StyleSheet.create({
     width: 82,
   },
   packPrice: {
-    color: theme.colors.accent,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#f0bf14",
+    fontSize: 16,
     fontWeight: "900",
     marginTop: 12,
   },
   packTitle: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 24,
     fontWeight: "900",
   },
   page: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#2a2a2a",
     flex: 1,
   },
   scrollContent: {
     gap: 14,
     padding: 18,
     paddingBottom: 30,
+  },
+  title: {
+    color: "#fef1e0",
+    fontSize: 34,
+    fontWeight: "900",
+    marginTop: 6,
   },
 });

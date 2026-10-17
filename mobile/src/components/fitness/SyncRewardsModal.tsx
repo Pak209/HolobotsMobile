@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import React from "react";
 import { Dimensions, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -76,7 +75,7 @@ export function SyncRewardsModal({
                 style={[styles.refillButton, !canQuickRefill ? styles.refillButtonDisabled : null]}
               >
                 <Svg width="16" height="16" viewBox="0 0 24 24">
-                  <Path d="M16 7h1a2 2 0 0 1 2 2v.5a.5.5 0 0 0 .5.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5a.5.5 0 0 0-.5.5v.5a2 2 0 0 1-2 2h-2M8 7H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1m5-9l-2 4h3l-2 4" stroke={theme.colors.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M16 7h1a2 2 0 0 1 2 2v.5a.5.5 0 0 0 .5.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5a.5.5 0 0 0-.5.5v.5a2 2 0 0 1-2 2h-2M8 7H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1m5-9l-2 4h3l-2 4" stroke="#f0bf14" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
                 </Svg>
               </Pressable>
             </View>
@@ -109,14 +108,14 @@ const styles = StyleSheet.create({
   },
   container: {
     width: SCREEN_WIDTH - 48,
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#050606",
     borderRadius: 0,
     overflow: "hidden",
     borderWidth: 3,
-    borderColor: theme.colors.accent,
+    borderColor: "#f0bf14",
   },
   resultHeader: {
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#090909",
     borderBottomWidth: 3,
     paddingHorizontal: 20,
     paddingVertical: 18,
@@ -124,18 +123,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   victoryHeader: {
-    borderBottomColor: theme.colors.accent,
+    borderBottomColor: "#f0bf14",
   },
   resultEyebrow: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f0bf14",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 2,
   },
   resultText: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 30,
     fontWeight: "900",
     letterSpacing: 1.4,
@@ -147,8 +144,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   subtitle: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f5c40d",
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.4,
@@ -156,8 +152,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   rewardsTitle: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#f0bf14",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1.4,
@@ -170,16 +165,15 @@ const styles = StyleSheet.create({
   rewardItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
+    backgroundColor: "#0b0d10",
     borderColor: "#25291c",
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   rewardIcon: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f0bf14",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 0.7,
     marginRight: 12,
@@ -187,15 +181,13 @@ const styles = StyleSheet.create({
   },
   rewardLabel: {
     flex: 1,
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
+    color: "#ddd2b5",
     fontSize: 13,
     fontWeight: "800",
     textTransform: "uppercase",
   },
   rewardValue: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
+    color: "#fef1e0",
     fontSize: 17,
     fontWeight: "900",
   },
@@ -208,16 +200,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sessionsCopy: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#8f866f",
+    fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
   },
   refillButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.accent,
+    backgroundColor: "#050606",
+    borderColor: "#f0bf14",
     borderWidth: 1,
     height: 26,
     justifyContent: "center",
@@ -227,8 +218,7 @@ const styles = StyleSheet.create({
     opacity: 0.38,
   },
   refillMeta: {
-    color: theme.colors.subtle,
-    fontFamily: "HoloBody",
+    color: "#8f866f",
     fontSize: 11,
     fontWeight: "700",
     lineHeight: 16,
@@ -244,12 +234,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   collectButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#f5c40d",
   },
   collectButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#050606",
+    fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1,
   },

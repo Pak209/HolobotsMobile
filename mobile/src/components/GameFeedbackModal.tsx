@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 
@@ -13,7 +12,7 @@ type GameFeedbackModalProps = {
 };
 
 export function GameFeedbackModal({
-  accent = theme.colors.accent,
+  accent = "#f0bf14",
   confirmLabel = "OK",
   lines,
   message,
@@ -68,8 +67,7 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   buttonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloDisplay",
+    color: "#050606",
     fontSize: 17,
     fontWeight: "900",
     letterSpacing: 0.8,
@@ -83,39 +81,35 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   eyebrow: {
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1.8,
   },
   lineGroup: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.plates.raised,
+    backgroundColor: "#090909",
+    borderColor: "#2a2a2a",
     borderWidth: 1,
     gap: 8,
     marginTop: 18,
     padding: 14,
   },
   lineText: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#fef1e0",
+    fontSize: 16,
     fontWeight: "700",
     lineHeight: 22,
     textAlign: "center",
   },
   message: {
-    color: theme.colors.muted,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
+    color: "#d5cbb2",
+    fontSize: 16,
     lineHeight: 23,
     marginTop: 12,
     textAlign: "center",
   },
   title: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.display.fontSize,
+    color: "#fef1e0",
+    fontSize: 34,
     fontWeight: "900",
     marginTop: 8,
     textAlign: "center",

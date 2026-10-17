@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -13,8 +12,8 @@ import type { ActionCard, CardType } from "@/types/arena";
 
 const ACCENTS: Record<CardType, string> = {
   combo: "#25e5ec",
-  defense: theme.colors.blue,
-  finisher: theme.colors.warning,
+  defense: "#3296ff",
+  finisher: "#ffc51b",
   strike: "#ff403b",
 };
 
@@ -55,13 +54,13 @@ function InnateRow({
 }) {
   return (
     <View style={styles.innateRow}>
-      <InnateSystemFrame accent={theme.colors.accent} />
+      <InnateSystemFrame accent="#20e7ee" />
       <View style={styles.innateIconFrame}>
         <View style={styles.innateIconRing} />
         <Image
           source={icon}
           resizeMode="contain"
-          style={[styles.innateIcon, { tintColor: theme.colors.accent }]}
+          style={[styles.innateIcon, { tintColor: "#20e7ee" }]}
         />
       </View>
       <View style={styles.innateCopy}>
@@ -113,7 +112,7 @@ export function BattleLoadoutPanel({
             <Path
               d={innatesExpanded ? "M3 10.5 L8 5.5 L13 10.5" : "M3 5.5 L8 10.5 L13 5.5"}
               fill="none"
-              stroke={theme.colors.accent}
+              stroke="#f4c719"
               strokeLinecap="square"
               strokeLinejoin="miter"
               strokeWidth={2}
@@ -212,15 +211,13 @@ export function BattleLoadoutPanel({
 
 const styles = StyleSheet.create({
   heading: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
+    color: "#f4c719",
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1.15,
   },
   headingMeta: {
     color: "#656d80",
-    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1.1,
@@ -238,14 +235,13 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   innateBadge: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: "#20e7ee",
     marginRight: 9,
     paddingHorizontal: 7,
     paddingVertical: 4,
   },
   innateBadgeText: {
     color: "#011113",
-    fontFamily: "HoloBody",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.6,
@@ -256,7 +252,6 @@ const styles = StyleSheet.create({
   },
   innateDescription: {
     color: "#9098a8",
-    fontFamily: "HoloBody",
     fontSize: 9,
     lineHeight: 12,
     marginTop: 2,
@@ -273,7 +268,7 @@ const styles = StyleSheet.create({
     width: 58,
   },
   innateIconRing: {
-    borderColor: theme.colors.accent,
+    borderColor: "#20e7ee",
     borderRadius: 27,
     borderWidth: 1,
     height: 54,
@@ -282,15 +277,13 @@ const styles = StyleSheet.create({
     width: 54,
   },
   innateLabel: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
+    color: "#20e7ee",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   innateName: {
     color: "#eef1f7",
-    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.2,
@@ -328,7 +321,6 @@ const styles = StyleSheet.create({
   },
   moveClass: {
     flexShrink: 1,
-    fontFamily: "HoloBody",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.55,
@@ -351,8 +343,7 @@ const styles = StyleSheet.create({
   },
   moveName: {
     color: "#edf0f5",
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
+    fontSize: 10,
     fontWeight: "900",
     lineHeight: 11,
     minHeight: 22,
@@ -373,7 +364,6 @@ const styles = StyleSheet.create({
   },
   movesHeadingText: {
     color: "#7d8596",
-    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.9,
@@ -408,7 +398,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   rankText: {
-    fontFamily: "HoloBody",
     fontSize: 7,
     fontWeight: "900",
     letterSpacing: 0.25,

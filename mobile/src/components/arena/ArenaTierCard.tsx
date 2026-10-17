@@ -1,4 +1,3 @@
-import { theme } from "@/theme";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -77,7 +76,7 @@ export function ArenaTierCard({
             <Path
               d="M2 6.2 L4.7 8.8 L10 3"
               fill="none"
-              stroke={theme.colors.carbon}
+              stroke="#020304"
               strokeLinecap="square"
               strokeLinejoin="miter"
               strokeWidth={2}
@@ -117,7 +116,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   fee: {
-    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "900",
     marginTop: 4,
@@ -156,7 +154,6 @@ const styles = StyleSheet.create({
   },
   level: {
     color: "#8f96a4",
-    fontFamily: "HoloBody",
     fontSize: 9,
     fontWeight: "800",
   },
@@ -165,13 +162,11 @@ const styles = StyleSheet.create({
   },
   name: {
     color: "#f3f5f8",
-    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "900",
     lineHeight: 12,
   },
   nameCompact: {
-    fontFamily: "HoloBody",
     fontSize: 9,
     lineHeight: 10,
   },
