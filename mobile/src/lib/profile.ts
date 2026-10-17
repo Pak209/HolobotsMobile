@@ -1,9 +1,11 @@
+import { isLiteEnabled } from "@/config/liteFeature";
 import { Timestamp } from "firebase/firestore";
 
 import { doc, getDoc, onSnapshot, updateDoc, db, type Unsubscribe } from "@/config/firebase";
 import type { SyncRank, UserHolobot, UserProfile } from "@/types/profile";
 import { computeLeaderboardScore } from "@/lib/progression";
 import { getSyncRank } from "@/lib/syncProgression";
+import { readCityStoryFlags } from "@/lib/cityHub";
 
 export { computeLeaderboardScore };
 
@@ -38,6 +40,7 @@ const DEFAULT_USER_PROFILE = {
 };
 
 type FirestoreUserDocument = {
+  storyFlags?: unknown;
   username?: string;
   dailyEnergy?: number;
   maxDailyEnergy?: number;
@@ -134,6 +137,7 @@ function stripUndefinedDeep(value: unknown): unknown {
 
 export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDocument): UserProfile {
   return {
+    ...(isLiteEnabled() ? { storyFlags: readCityStoryFlags(data.storyFlags) } : {}),
     id: userId,
     username: data.username || `pilot_${userId.slice(0, 8)}`,
     holobots: data.holobots || [],

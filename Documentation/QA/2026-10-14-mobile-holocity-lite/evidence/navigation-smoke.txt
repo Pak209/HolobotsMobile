@@ -1,0 +1,6 @@
+Native simulator interaction, 2026-10-14 Pacific
+Offline CityDay map: tapped accessibility target city-rival-pin-7 (Line Cyan / ACE).
+Observed CITY RIVAL CHALLENGE, Line Cyan, ACE / ROOKIE, START RIVAL DUEL and RETURN TO CITY.
+Tapped RETURN TO CITY; observed CITIZEN PILOTS list with all8 challenge targets and Close city panel.
+No host issue/settle call or production account used in this smoke check.
+The mutation paths were separately exercised using the actual #80 host code and loopback Firestore, as recorded in W7.

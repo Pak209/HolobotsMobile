@@ -1,0 +1,759 @@
+{
+  "main": "35f8f70a6dc5994aa0d62da63b70bfff91aebfaa",
+  "lite": "51abaa9e79013005570bec6c31f34b2ed11f7f3b",
+  "shared": [
+    "mobile/src/config/firebase.ts",
+    "mobile/src/config/holobots.ts",
+    "mobile/src/contexts/AuthContext.tsx",
+    "mobile/src/lib/cityHub.ts",
+    "mobile/src/lib/profile.ts",
+    "mobile/src/types/profile.ts"
+  ],
+  "mainAppSha256": "0b633f94a5d06babe5d65333bc5aa4a9d5ef84433b7a7fe0b9d28afcbab9c323",
+  "modules": [
+    {
+      "source": "mobile/src/components/AppLoadingScreen.tsx",
+      "destination": "mobile/src/lite/components/AppLoadingScreen.tsx",
+      "mergedSourceSha256": "db8239ac606e00ff8cff9591797ff36b27136453d1daaa9b858b158c952ab66b",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/DailyMissionsModal.tsx",
+      "destination": "mobile/src/lite/components/DailyMissionsModal.tsx",
+      "mergedSourceSha256": "69952eeee4aa1f9060adef27cea97eefeb8b684fe4ebd8a3d2b1c74edf5ec4dc",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/DashboardSettingsModal.tsx",
+      "destination": "mobile/src/lite/components/DashboardSettingsModal.tsx",
+      "mergedSourceSha256": "9408c788a362ef75c23439c5dd86a4e187deccc2b519810adc4405feafe67738",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/FigmaCanvas.tsx",
+      "destination": "mobile/src/lite/components/FigmaCanvas.tsx",
+      "mergedSourceSha256": "4f2cb7d4f9dbdcd42804874a2cd0a314657ca9fe2738929bf6c97cc92fd71542",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/GameFeedbackModal.tsx",
+      "destination": "mobile/src/lite/components/GameFeedbackModal.tsx",
+      "mergedSourceSha256": "b24c12a7e8e63f3da5aff6d6fd57e621b9d6a898d5a7445fcbcb6709c1138015",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/HoloCityCommandBar.tsx",
+      "destination": "mobile/src/lite/components/HoloCityCommandBar.tsx",
+      "mergedSourceSha256": "80895d847c9afde41f994d3f366302035b40798178e12a129839b295423b25f5",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/components/HolobotPickerModal.tsx",
+      "destination": "mobile/src/lite/components/HolobotPickerModal.tsx",
+      "mergedSourceSha256": "161c08378dc359915d30757cff699af2d82e4b888a5c36746b7fbb751cf56b24",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/HolobotRosterCard.tsx",
+      "destination": "mobile/src/lite/components/HolobotRosterCard.tsx",
+      "mergedSourceSha256": "77682651508b7880fa675e7080abb6eb05a9bbfd8b82aad03929e5d4da1dc301",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/components/HolobotStatsModal.tsx",
+      "destination": "mobile/src/lite/components/HolobotStatsModal.tsx",
+      "mergedSourceSha256": "a28a2fe525bbff7b684e9c2f00fe77775ac534475da01d5fdfb17f9974528f47",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/HolobotViewer.tsx",
+      "destination": "mobile/src/lite/components/HolobotViewer.tsx",
+      "mergedSourceSha256": "06309a55f5c31f647df6f70f4a644cc4414e706f27a7bd3e1477f7d43c48fcd9",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/components/HomeCogButton.tsx",
+      "destination": "mobile/src/lite/components/HomeCogButton.tsx",
+      "mergedSourceSha256": "1586fa598ca950a95c0a18c1031659b6463f211e133f3dc9c7800e860a1e5b17",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/MoveLabPanel.tsx",
+      "destination": "mobile/src/lite/components/MoveLabPanel.tsx",
+      "mergedSourceSha256": "1a64f08a7ab1e8e9cec19bfef71abfb3510a2565c4d21b78cae74f24fd6f502c",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/SeasonStoreSection.tsx",
+      "destination": "mobile/src/lite/components/SeasonStoreSection.tsx",
+      "mergedSourceSha256": "ed0da6753964b295e8054778cad7984b269321de169162c9e52534fc54d0f903",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/UserStatsModal.tsx",
+      "destination": "mobile/src/lite/components/UserStatsModal.tsx",
+      "mergedSourceSha256": "2843c3232c579115f4e490e1488e9120e51b001cc3508f1a6859e907ebf99468",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/WatchRewardsSyncModal.tsx",
+      "destination": "mobile/src/lite/components/WatchRewardsSyncModal.tsx",
+      "mergedSourceSha256": "3386e6f4ce0ed2e7d36581e0049971830380e3b054a56bf84c7837d2ba57ef57",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/arena/ArenaPrebattleMenu.tsx",
+      "destination": "mobile/src/lite/components/arena/ArenaPrebattleMenu.tsx",
+      "mergedSourceSha256": "a0109c3b44380943db428fa1fc23b5d7347328647403a09ef54a9b99d5c8588c",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/arena/ArenaTierCard.tsx",
+      "destination": "mobile/src/lite/components/arena/ArenaTierCard.tsx",
+      "mergedSourceSha256": "33bb90bdf7d2b289ba6712cea3721766e667657c22c3471c45bff7fdb1ae529b",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/arena/ArenaTierFrames.tsx",
+      "destination": "mobile/src/lite/components/arena/ArenaTierFrames.tsx",
+      "mergedSourceSha256": "6bd35d1f75e38a39d85c7f165dd7aa72df0dfa8e45da8c718d351b6ea87de5e5",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/arena/BattleArenaView.tsx",
+      "destination": "mobile/src/lite/components/arena/BattleArenaView.tsx",
+      "mergedSourceSha256": "c0e32bd451360f431978df30741b158420fd31dec51824b2a98c69ccfc6fcb83",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/arena/BattleResultsModal.tsx",
+      "destination": "mobile/src/lite/components/arena/BattleResultsModal.tsx",
+      "mergedSourceSha256": "bd03a3da0be02477c88d4b9a570db223a3892c4681d35baa21cc1e3c99d9a59c",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/arena/PvpArenaModal.tsx",
+      "destination": "mobile/src/lite/components/arena/PvpArenaModal.tsx",
+      "mergedSourceSha256": "1052aac2737c2691fd7cc88cc5ec0a75724dcb85a886604d0605600ef69265eb",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/bots/BotStage.tsx",
+      "destination": "mobile/src/lite/components/bots/BotStage.tsx",
+      "mergedSourceSha256": "4dcc693c512eb7baee47e43c6ba015ac90b0bf8f46b1b5b632b4a9fd5e010247",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/components/city/CityLiveBattleView.tsx",
+      "destination": "mobile/src/lite/components/city/CityLiveBattleView.tsx",
+      "mergedSourceSha256": "cc9fc4dbf1336450c2cc1aae9c65380c9ea5fb5fbcf82b6cefba595827852898",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/components/city/CityRivalBattle.tsx",
+      "destination": "mobile/src/lite/components/city/CityRivalBattle.tsx",
+      "mergedSourceSha256": "bd4c6dac5fb554339afc09350d050cb84560f0bf0cdef52daf40ad8e41a886a0",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/components/city/CityWorkshopPanel.tsx",
+      "destination": "mobile/src/lite/components/city/CityWorkshopPanel.tsx",
+      "mergedSourceSha256": "2a930632af0363b00fab2f6133c32ccbf668319a94481f780f0d21a113abe6f8",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/components/dashboard/HologramPlatform.tsx",
+      "destination": "mobile/src/lite/components/dashboard/HologramPlatform.tsx",
+      "mergedSourceSha256": "d87aa19e3d4a43ef2b630a684df3326e1adae1167cbd1e829543f0ab5202bde2",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/dashboard/TravelSquadPanel.tsx",
+      "destination": "mobile/src/lite/components/dashboard/TravelSquadPanel.tsx",
+      "mergedSourceSha256": "8bffa7328f21d66c4fb8188c823b36aaba291bf465966844e1257ea5129a2c4a",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/dashboard/UnityLaunchButton.tsx",
+      "destination": "mobile/src/lite/components/dashboard/UnityLaunchButton.tsx",
+      "mergedSourceSha256": "cc7a5adc20a0f763385a0d7394432aca462ac6d360637d4a06e3306d31d8ce2b",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/dashboard/holobotPresentation.ts",
+      "destination": "mobile/src/lite/components/dashboard/holobotPresentation.ts",
+      "mergedSourceSha256": "af7fe97155889fca4b1ac4b7e909c8c92b1e1bbb077721f24236382cde0ab4cc",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/fitness/SyncCooldownModal.tsx",
+      "destination": "mobile/src/lite/components/fitness/SyncCooldownModal.tsx",
+      "mergedSourceSha256": "449f258a4477798f042d805117a39050bd4a793f4c36a261b21ee65a7ec56729",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/fitness/SyncRewardsModal.tsx",
+      "destination": "mobile/src/lite/components/fitness/SyncRewardsModal.tsx",
+      "mergedSourceSha256": "1a6745bdd377c78703e34ec6a7e51bc35da89c0a246449e00100e5c9881c9896",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/gacha/PackOpeningAnimation.tsx",
+      "destination": "mobile/src/lite/components/gacha/PackOpeningAnimation.tsx",
+      "mergedSourceSha256": "17adce7b4ea25bfe9d7e823e0ec92e4324f5c7a724c96d5c7160a0aeb1a29bdf",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/marketplace/BoosterPackFrames.tsx",
+      "destination": "mobile/src/lite/components/marketplace/BoosterPackFrames.tsx",
+      "mergedSourceSha256": "6b878e223a005809ed5984d6144625d62a267ad0f1eab740b88475665622955c",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/move-lab/AvailableMovesPanel.tsx",
+      "destination": "mobile/src/lite/components/move-lab/AvailableMovesPanel.tsx",
+      "mergedSourceSha256": "64524711db8aa5f15595a3389cdbf41f1bb809810af292b1b806d9d3bedee2b4",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/move-lab/BattleLoadoutPanel.tsx",
+      "destination": "mobile/src/lite/components/move-lab/BattleLoadoutPanel.tsx",
+      "mergedSourceSha256": "d3b9ef18ffb6226f96066d474c0772411fcf8013071c80485383ea28b98071f2",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/move-lab/MoveDetailPanel.tsx",
+      "destination": "mobile/src/lite/components/move-lab/MoveDetailPanel.tsx",
+      "mergedSourceSha256": "63aa05c5a75ec46946ec96ba2ccd33248af04fe93ab341605f97e5fc13491134",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/move-lab/MoveLabFrames.tsx",
+      "destination": "mobile/src/lite/components/move-lab/MoveLabFrames.tsx",
+      "mergedSourceSha256": "51da724376fea72f4fcdd4168340fe9b2a035ab95798cb1cac32fd1fc6c82f65",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/navigation/GameSectionChrome.tsx",
+      "destination": "mobile/src/lite/components/navigation/GameSectionChrome.tsx",
+      "mergedSourceSha256": "779ad32a6a7e0e3cf809d1440146d90d7015169276208dd532be2db9e95feca2",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/story/Minimap.tsx",
+      "destination": "mobile/src/lite/components/story/Minimap.tsx",
+      "mergedSourceSha256": "14845e074912512e0881775ded2996dd246dc566f18766e1d02ab66b7c9d29ea",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/story/QuestBanner.tsx",
+      "destination": "mobile/src/lite/components/story/QuestBanner.tsx",
+      "mergedSourceSha256": "30a2c642ec32c6e052c6a18b134db7e77d309df0909bfb704569e7b4c47b6f27",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/story/StoryDialogueOverlay.tsx",
+      "destination": "mobile/src/lite/components/story/StoryDialogueOverlay.tsx",
+      "mergedSourceSha256": "032c619dbececa1457667d5afb63b7dfa7eaecfc2e085fcad3f3d29c56560b28",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/story/StoryUpdateRequiredCard.tsx",
+      "destination": "mobile/src/lite/components/story/StoryUpdateRequiredCard.tsx",
+      "mergedSourceSha256": "bd9c63238b1f4bfdb85374ed2c428aa9421a3a70e44987bc244fa447d1416739",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/components/ui/GameSurfaceFrame.tsx",
+      "destination": "mobile/src/lite/components/ui/GameSurfaceFrame.tsx",
+      "mergedSourceSha256": "46baf561c9ec42e1c9b9968bc2c795b6a4aba570c252ee94c0d82f74e888c8fd",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/config/__tests__/itemIcons.test.ts",
+      "destination": "mobile/src/lite/config/__tests__/itemIcons.test.ts",
+      "mergedSourceSha256": "30c6e30c8767c584b38f471fcc80f947a6c5803a3df9cc49afde97436ba2e4b8",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/config/__tests__/offlineFirebase.test.ts",
+      "destination": "mobile/src/lite/config/__tests__/offlineFirebase.test.ts",
+      "mergedSourceSha256": "51cf9b6dc3df7090ac444c6c3e18611584a8bbf704632fb273f4473dda3efee0",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/config/gameAssets.ts",
+      "destination": "mobile/src/lite/config/gameAssets.ts",
+      "mergedSourceSha256": "731cfa4f88faa2275a68cdbac394b0437ae43e90f7bec7fbbb6a3edabaf17773",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/config/itemIcons.ts",
+      "destination": "mobile/src/lite/config/itemIcons.ts",
+      "mergedSourceSha256": "35971b3385b7bf2128e8d80dbe9962dc4fa46e431bdafeb9a3970d7c07951944",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/features/arena/__tests__/combatEngine.test.ts",
+      "destination": "mobile/src/lite/features/arena/__tests__/combatEngine.test.ts",
+      "mergedSourceSha256": "bf575fe9b7cb3a7162e847a8944349121c402d19e118a9ce7e25e02cc22ef17f",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/__tests__/pvpBattle.test.ts",
+      "destination": "mobile/src/lite/features/arena/__tests__/pvpBattle.test.ts",
+      "mergedSourceSha256": "f3e588983f380863ee0d0834ce28490798153aa27590c8ddcef83b1aaa584855",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/__tests__/pvpPoolEntryScan.test.ts",
+      "destination": "mobile/src/lite/features/arena/__tests__/pvpPoolEntryScan.test.ts",
+      "mergedSourceSha256": "1de6318d1a87f50901db1c3569cf292865429405771803ed1699f6ca3fea0a09",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/__tests__/pvpTeamBattle.test.ts",
+      "destination": "mobile/src/lite/features/arena/__tests__/pvpTeamBattle.test.ts",
+      "mergedSourceSha256": "160451162292beecd8f2837551b246de9e440d9592103d1476f3ea961793868c",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/__tests__/teamBattle.test.ts",
+      "destination": "mobile/src/lite/features/arena/__tests__/teamBattle.test.ts",
+      "mergedSourceSha256": "532585af478aa952ca10611a6e20815ed52e137bfad8e33582bcce39d57eae38",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/combatEngine.ts",
+      "destination": "mobile/src/lite/features/arena/combatEngine.ts",
+      "mergedSourceSha256": "b0365ca53c9d8dbae98db8d6f3f4a34a14fe9dd1479e60c19d158adf1e7a73f2",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/pvpBattle.ts",
+      "destination": "mobile/src/lite/features/arena/pvpBattle.ts",
+      "mergedSourceSha256": "c68cabc39c0a13cbf32e0012959dec52760504131dda91de2c538eff01e7ced0",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/pvpTeamBattle.ts",
+      "destination": "mobile/src/lite/features/arena/pvpTeamBattle.ts",
+      "mergedSourceSha256": "7c5ea391befd064f2afef6cd849c7108eb27fcd0b917abfce66c699d2ea92520",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/features/arena/teamBattle.ts",
+      "destination": "mobile/src/lite/features/arena/teamBattle.ts",
+      "mergedSourceSha256": "9ce9d658eb4d52b571e03ac50580737b46be0df4c1141231cfe8face5ffbf391",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/hooks/__tests__/cityRivalCooldowns.test.ts",
+      "destination": "mobile/src/lite/hooks/__tests__/cityRivalCooldowns.test.ts",
+      "mergedSourceSha256": "bf6217d0d2dd7be984f40e624e583bdb0a1d2e56b1b7980723cb979730841151",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/hooks/useRealtimeArena.ts",
+      "destination": "mobile/src/lite/hooks/useRealtimeArena.ts",
+      "mergedSourceSha256": "18f982b39c0a5c9b3d2749e669d3ec81a7e228c5ba793c34e78627ba64e713e0",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/hooks/useRivalStatus.ts",
+      "destination": "mobile/src/lite/hooks/useRivalStatus.ts",
+      "mergedSourceSha256": "7c9c4996d6bc80ad555fabf319045e434e5c89e1765723e1fbbbbb41bea0729e",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/animationClips.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/animationClips.test.ts",
+      "mergedSourceSha256": "f92eb48a7901aa463e156f40c631217400f8b49ee114f289d11a6b2d82b977b3",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/arenaFighterLevel.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/arenaFighterLevel.test.ts",
+      "mergedSourceSha256": "c56f640d62d30eab267b885fa5c5511154cd875b168fe6c1dadb0b07a05c4094",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/arenaHostBattle.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/arenaHostBattle.test.ts",
+      "mergedSourceSha256": "aa4d8f3e93de6d3c806a4b22ff14bf0737cb0bd37db1edbcd0af190987f6d237",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/arenaMatchFlow.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/arenaMatchFlow.test.ts",
+      "mergedSourceSha256": "a8bf954765b1329be2ab5ec4f2e7ec0704272a22ef5da13d1e4c5c243c8c4d84",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/arenaServerParity.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/arenaServerParity.test.ts",
+      "mergedSourceSha256": "c7c5af4db71f134210ebdbf18b3e57d172a8c3b4c013d70ce5925c043b817f2d",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/lib/__tests__/cityHost.integration.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/cityHost.integration.test.ts",
+      "mergedSourceSha256": "57a6baf58654805ce014abed8d8507db8493c25d015a229261c5a3d1aceb1a85",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/cityHub.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/cityHub.test.ts",
+      "mergedSourceSha256": "430ed0e85f4c8589f1cf706d9cecfb18b214d464c89c38711323de88959536d5",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/cityHubClient.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/cityHubClient.test.ts",
+      "mergedSourceSha256": "b22e5df55550ef1a540eb30027fc8e50c6d9e586f23da8890dc2f96abaf25e46",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/cityRequestJournal.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/cityRequestJournal.test.ts",
+      "mergedSourceSha256": "9856268ad31468babd82a3053c483f424358f6046abad9b923cf1b1ea760edb3",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/cityRivalBattle.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/cityRivalBattle.test.ts",
+      "mergedSourceSha256": "9d68983a5017c22145f79002f02cc133c07371088b689d2a7cf98c8ab0e3fc10",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/duelPlayback.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/duelPlayback.test.ts",
+      "mergedSourceSha256": "e24a61c2b2914e81f1bf8a302eee72bc7f46be872145fced769e71fc07b9c0a1",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/guardVisual.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/guardVisual.test.ts",
+      "mergedSourceSha256": "f390802ebdeb69fb39e3b5d43ae1d6b581544cdc0e35eea8c84c4f4224b6c1d2",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/hostDuelReceipt.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/hostDuelReceipt.test.ts",
+      "mergedSourceSha256": "05010be82600db1c5030e1eec898440addd2c030af307f6acc98e234ee54cdfb",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/hostFighterLevel.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/hostFighterLevel.test.ts",
+      "mergedSourceSha256": "d2bb69d009dc46527cbb0cf2c41c87ae577def3d1fd363db43cc6fe16884406c",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/liveRivalPlayback.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/liveRivalPlayback.test.ts",
+      "mergedSourceSha256": "857b2924a9dfd5cce07d4a43371f5cfe7d9cbabedb2292f917e486219d9b8e1e",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/repairHareLocomotion.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/repairHareLocomotion.test.ts",
+      "mergedSourceSha256": "0ca1d563e5435583e568a28f286da9ef24b3e906360215c6bc8eed28470b1337",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/__tests__/rivalHud.test.ts",
+      "destination": "mobile/src/lite/lib/__tests__/rivalHud.test.ts",
+      "mergedSourceSha256": "c801988ed30903d3b1434cd0b82e6f55f16cc2db09d4ad664ca1e1ec7df70dad",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/arenaHostBattle.ts",
+      "destination": "mobile/src/lite/lib/arenaHostBattle.ts",
+      "mergedSourceSha256": "095cd2a9935626a5f374e113a4596646a3ecf45d3e32f9b230b93663db0bd081",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/arenaMatchClient.ts",
+      "destination": "mobile/src/lite/lib/arenaMatchClient.ts",
+      "mergedSourceSha256": "f9863e0807420a8ae71410e9178d187c318841e3a0531bfb20f37c923c5b2355",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/arenaMatchFlow.ts",
+      "destination": "mobile/src/lite/lib/arenaMatchFlow.ts",
+      "mergedSourceSha256": "3e60263b48ce41e886395b37a9b85cfba784e633e9355fd22232f9c7375f4ec4",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/animationClips.ts",
+      "destination": "mobile/src/lite/lib/bots/animationClips.ts",
+      "mergedSourceSha256": "dade57aa14f9e0a75a80a66c0fe6d8f1302d16fcbe0fb78257e1e04b615384fc",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/arenaFighterLevel.ts",
+      "destination": "mobile/src/lite/lib/bots/arenaFighterLevel.ts",
+      "mergedSourceSha256": "4cb65ad365d31d0668e2926fdfd6c1e878246ade71bfd2f4fba0c42b30397783",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/duelPlayback.ts",
+      "destination": "mobile/src/lite/lib/bots/duelPlayback.ts",
+      "mergedSourceSha256": "645a9922527977c11eb682db533f9c698264beaaa2fa3200e0b89a9e31e0624d",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/guardVisual.ts",
+      "destination": "mobile/src/lite/lib/bots/guardVisual.ts",
+      "mergedSourceSha256": "6be86024b0eed2c5977de7600cc6abe91cb8025d4d2021c9ec09fd0d13c514c0",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/hostDuelReceipt.ts",
+      "destination": "mobile/src/lite/lib/bots/hostDuelReceipt.ts",
+      "mergedSourceSha256": "0a2058df04fb59d34f0dbeb02791fd2d5688da4368432c7446109a46f324b17a",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/hostFighterLevel.ts",
+      "destination": "mobile/src/lite/lib/bots/hostFighterLevel.ts",
+      "mergedSourceSha256": "286cf4ffe9e9e7a6ff8fe23db89a07357ad2c3689345742fd739c491f8cee8a5",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/liveRivalPlayback.ts",
+      "destination": "mobile/src/lite/lib/bots/liveRivalPlayback.ts",
+      "mergedSourceSha256": "03482ccd527edf76cd6d3c183bc96a964b7bc22b6d53512c1ed2afdd721f3e2c",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/loadBot.ts",
+      "destination": "mobile/src/lite/lib/bots/loadBot.ts",
+      "mergedSourceSha256": "9732b6f569083a774c194e671448edb14cf7a4f5e18257c5d808d3748955dfb8",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/materials.ts",
+      "destination": "mobile/src/lite/lib/bots/materials.ts",
+      "mergedSourceSha256": "a43c073e0bd4b77535c9b25666bc75e29726dd241012922455d504c53225f71b",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/bots/repairHareLocomotion.ts",
+      "destination": "mobile/src/lite/lib/bots/repairHareLocomotion.ts",
+      "mergedSourceSha256": "b7ff58348494babc346e94023dbae96fa2d0c6b6902e120f424b344c4c138ddd",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/cityHubClient.ts",
+      "destination": "mobile/src/lite/lib/cityHubClient.ts",
+      "mergedSourceSha256": "9b8231d21d449a021ec9f669c0bccb019be8cbdf7e5acee1b2be0b573762d9de",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/cityHubFixtures.ts",
+      "destination": "mobile/src/lite/lib/cityHubFixtures.ts",
+      "mergedSourceSha256": "23461b39e2c0695c134fdb735e5ce01c96ea7fecbe61ca7aadd28da556c32495",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/cityRequestJournal.ts",
+      "destination": "mobile/src/lite/lib/cityRequestJournal.ts",
+      "mergedSourceSha256": "8a2b3a1defc400c02bb85d024bca2a13c9af492d617e604faf579504a91cb79a",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/cityRivalBattle.ts",
+      "destination": "mobile/src/lite/lib/cityRivalBattle.ts",
+      "mergedSourceSha256": "cd83d8fd70a597626ac1355ea4fc83956c133175b5ee9babcd5ca9f8618ff1d7",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/lib/rivalHud.ts",
+      "destination": "mobile/src/lite/lib/rivalHud.ts",
+      "mergedSourceSha256": "1cedca3352e2f03f2795cfc58155bf75706e96c32f4ed663ac2ff3d95a147dd4",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/ArenaAdmittedPreview.tsx",
+      "destination": "mobile/src/lite/qa/ArenaAdmittedPreview.tsx",
+      "mergedSourceSha256": "a99042031c0e702b03a8899bad598cad5f5ca665f75d098afb2398682bf66e7a",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/ArenaHostLevelsPreview.tsx",
+      "destination": "mobile/src/lite/qa/ArenaHostLevelsPreview.tsx",
+      "mergedSourceSha256": "dc2460c8dd8d233c4419945d7a95173b7fb93ab2eb60cf2f5832a4aa8b206e93",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/HoloCityPreview.tsx",
+      "destination": "mobile/src/lite/qa/HoloCityPreview.tsx",
+      "mergedSourceSha256": "6ac8bee866c18ac3fa0846b9be7e26a7f88223d21bb8ba746a01e0305fcef533",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/duelFixture.ts",
+      "destination": "mobile/src/lite/qa/duelFixture.ts",
+      "mergedSourceSha256": "9752ec6318dd7fd618c76a0cf848f632e53a323fde25a232fd85260586cfd350",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/fixtures/arena-admitted-lifecycle.json",
+      "destination": "mobile/src/lite/qa/fixtures/arena-admitted-lifecycle.json",
+      "mergedSourceSha256": "8d138f1dc772b869f8a59c728c4919a1f0044b35c62dfd8f76e26f7ef5d9ae1e",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/fixtures/arena-match-fighter-snapshots.json",
+      "destination": "mobile/src/lite/qa/fixtures/arena-match-fighter-snapshots.json",
+      "mergedSourceSha256": "7bbf8740d3a0eec17acc29b26e9999e5411bd58da7f321ad7fb8af71800a08ea",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/fixtures/duel-receipt-1-squad.json",
+      "destination": "mobile/src/lite/qa/fixtures/duel-receipt-1-squad.json",
+      "mergedSourceSha256": "77337cd6b94e694989334bac350447ea92489d6d7e03c3cacd3e2174485e56db",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/fixtures/duel-receipt-1.json",
+      "destination": "mobile/src/lite/qa/fixtures/duel-receipt-1.json",
+      "mergedSourceSha256": "eb6366f53bca3aca53f166131e36e7146798c4b82b7b86c16c696ec54576fd0b",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/qa/previewProfile.ts",
+      "destination": "mobile/src/lite/qa/previewProfile.ts",
+      "mergedSourceSha256": "d3aeb133ad2101b84444009e556b6ea9881e1f89a138676e40881b86b1a2fb0b",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/screens/ArenaScreen.tsx",
+      "destination": "mobile/src/lite/screens/ArenaScreen.tsx",
+      "mergedSourceSha256": "0305a2f32a35fa24798d0fbea8a4b8895ab99ebcc23610c05807bd2bfb732316",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/CityHubScreen.tsx",
+      "destination": "mobile/src/lite/screens/CityHubScreen.tsx",
+      "mergedSourceSha256": "a395aa2cd9ffbeb09c004fc97c27722ef296dbb8d91228317e8f415b608cb6c3",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/screens/DuelPlaybackScreen.tsx",
+      "destination": "mobile/src/lite/screens/DuelPlaybackScreen.tsx",
+      "mergedSourceSha256": "320e19efa9bf540cb377fc455c9337b67d13c794405439683e4e49e720f485e5",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/screens/FitnessScreen.tsx",
+      "destination": "mobile/src/lite/screens/FitnessScreen.tsx",
+      "mergedSourceSha256": "336adf05cd0d8e59501c09ec7a15dc1a8587d62d7e82a38e625b111783ab4ef6",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/GachaScreen.tsx",
+      "destination": "mobile/src/lite/screens/GachaScreen.tsx",
+      "mergedSourceSha256": "7427e2f25c6d1bdcffc44196f35c41bdbdf3e937d60395579c0fc42c66802b35",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/HomeScreen.tsx",
+      "destination": "mobile/src/lite/screens/HomeScreen.tsx",
+      "mergedSourceSha256": "20ad919268fae52d06c09239b916aa7e1a28f1aa34d0519bacd9e989ecfec4d7",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/InventoryScreen.tsx",
+      "destination": "mobile/src/lite/screens/InventoryScreen.tsx",
+      "mergedSourceSha256": "5781abcd769d5f0e2d595f07f3dd8b88c781110795bad196ea231ad3edf0604d",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/LeaderboardScreen.tsx",
+      "destination": "mobile/src/lite/screens/LeaderboardScreen.tsx",
+      "mergedSourceSha256": "949eb35047da57ce969f55f67460980271da95431982bfb568b895c9c08ee838",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/LoginScreen.tsx",
+      "destination": "mobile/src/lite/screens/LoginScreen.tsx",
+      "mergedSourceSha256": "005ea2304ae87e167eb8f7173467a9a154ad5f94b9773590ca3b54582713b2a4",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/MarketplaceScreen.tsx",
+      "destination": "mobile/src/lite/screens/MarketplaceScreen.tsx",
+      "mergedSourceSha256": "7d46ec346bd3f682b66f6b976e8a476c78fd77654e1e260d4226a3d3a8c6ad9d",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/OverworldScreen.tsx",
+      "destination": "mobile/src/lite/screens/OverworldScreen.tsx",
+      "mergedSourceSha256": "dcc60f754bfcab807b43d79b1b8b2fddad88489b379576ca8f33dbba989d79a2",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/QuestsScreen.tsx",
+      "destination": "mobile/src/lite/screens/QuestsScreen.tsx",
+      "mergedSourceSha256": "d7ca6dfefab782fe9fa9dbf199a9397599c242ac7de714ebf6f676890dd7d295",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/TrainingScreen.tsx",
+      "destination": "mobile/src/lite/screens/TrainingScreen.tsx",
+      "mergedSourceSha256": "089e805bfbc36135ecf8551df4364de77145dc8d32d993ca5323b440b05d1517",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/screens/WebSectionScreen.tsx",
+      "destination": "mobile/src/lite/screens/WebSectionScreen.tsx",
+      "mergedSourceSha256": "3b9e23150d6bdf43d46287963b060a6ce43bcc21a825458212692d5a6559beaa",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/stores/__tests__/arena-battle-store.test.ts",
+      "destination": "mobile/src/lite/stores/__tests__/arena-battle-store.test.ts",
+      "mergedSourceSha256": "8c4757847a15a488629051f8adef0318ba8f19c0c926c04f244e3ea14fd058a4",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/stores/__tests__/arena-team-battle-store.test.ts",
+      "destination": "mobile/src/lite/stores/__tests__/arena-team-battle-store.test.ts",
+      "mergedSourceSha256": "2e93dbc46313352cb6867b09b566b631fdbde8032ed7eaaf9544bac46910cd46",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/stores/arena-battle-store.ts",
+      "destination": "mobile/src/lite/stores/arena-battle-store.ts",
+      "mergedSourceSha256": "96230e7a6c4aac7634e2e4e2122fceae336ae55e712c1cedf88285dfd666d705",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/stores/arena-team-battle-store.ts",
+      "destination": "mobile/src/lite/stores/arena-team-battle-store.ts",
+      "mergedSourceSha256": "a7968c326e82cae3d450e36d8d7dac7a0832bc484819efc1c62b05c656fab98d",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/theme.ts",
+      "destination": "mobile/src/lite/theme.ts",
+      "mergedSourceSha256": "593cf4283f97dc499fdffeae8da3b08edc0711f037bb80e6bd4104628d405aad",
+      "existedOnMain": false
+    },
+    {
+      "source": "mobile/src/types/arena.ts",
+      "destination": "mobile/src/lite/types/arena.ts",
+      "mergedSourceSha256": "523703b21b6be7d9b8a908bb1069837d4745213a7f65193549018672fb1b4edf",
+      "existedOnMain": true
+    },
+    {
+      "source": "mobile/src/types/meshoptimizer-reference.d.ts",
+      "destination": "mobile/src/lite/types/meshoptimizer-reference.d.ts",
+      "mergedSourceSha256": "5d4b5ecb30e2fffff2aba98eae42771beac1707e5aee9d4212ce5bb3cbd850d3",
+      "existedOnMain": false
+    }
+  ]
+}

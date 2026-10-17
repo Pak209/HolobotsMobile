@@ -1,0 +1,14 @@
+{
+  "name": "@holobots/bot-asset-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned offline build/validation tools for bundled bot GLBs",
+  "dependencies": {
+    "@gltf-transform/core": "4.2.1",
+    "@gltf-transform/extensions": "4.2.1",
+    "@gltf-transform/functions": "4.2.1",
+    "gltf-validator": "2.0.0-dev.3.10",
+    "meshoptimizer": "0.22.0",
+    "sharp": "0.34.5"
+  }
+}

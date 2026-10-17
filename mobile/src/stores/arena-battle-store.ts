@@ -45,6 +45,7 @@ interface ArenaBattleStore {
   lastAIActionTime: number;
 
   // Actions
+  startHostBattle: (battle: BattleState, playerMoves: ActionCard[], opponentMoves: ActionCard[]) => void;
   startBattle: (
     player: ArenaFighter,
     opponent: ArenaFighter,
@@ -87,7 +88,7 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
 
     const winCheck = ArenaCombatEngine.checkWinCondition(newState);
     if (winCheck.isComplete && winCheck.winnerId) {
-      const rewards = ArenaCombatEngine.calculateActualRewards(newState, winCheck.winnerId);
+      const rewards = newState.hostSnapshot ? {exp:0,syncPoints:0} : ArenaCombatEngine.calculateActualRewards(newState, winCheck.winnerId);
       set({
         battleResult: { winnerId: winCheck.winnerId, rewards },
         isAnimating: false,
@@ -111,6 +112,11 @@ export const useArenaBattleStore = create<ArenaBattleStore>((set, get) => {
     gameLoopIntervalId: null,
     lastAIActionTime: 0,
 
+    startHostBattle: (battle, playerMoves, opponentMoves) => {
+      get().stopGameLoop();
+      set({currentBattle:battle, playerMoves, opponentMoves, battleResult:null, paused:false, isAnimating:false, lastAction:null, lastAIActionTime:Date.now()});
+      get().startGameLoop();
+    },
     // Start a new battle: resolve each fighter's fixed four-move kit.
     startBattle: (player, opponent, config) => {
       const battle = ArenaCombatEngine.initializeBattle(player, opponent, config);

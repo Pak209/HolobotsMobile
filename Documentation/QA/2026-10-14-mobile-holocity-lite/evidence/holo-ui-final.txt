@@ -1,0 +1,2 @@
+105 indexed PNGs verified, 104 distinct image hashes, 18938563 bytes (18.94 MB).
+Source: https://github.com/Pak209/Holocity.git @ 99a1b23fb5d335c8317a2740f02f1a75c9a299b5

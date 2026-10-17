@@ -219,6 +219,9 @@ export interface AbilityRuntimeState {
 // ============================================================================
 
 export interface ActionCard {
+  /** Issued CPU practice scale; bypasses local card base-damage templates. */
+  hostDamageScale?: number;
+  hostSyncGain?: number;
   id: string;
   templateId: string;
   name: string;
@@ -258,6 +261,8 @@ export interface CardEffect {
 // ============================================================================
 
 export interface BattleState {
+  /** Existing generic practice timing, with issued per-second resource recovery. */
+  hostSnapshot?: { playerRegen: number; opponentRegen: number };
   battleId: string;
   battleType: BattleType;
   status: BattleStatus;

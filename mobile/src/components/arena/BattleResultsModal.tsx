@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import React from 'react';
 import {
   View,
@@ -55,7 +56,7 @@ export function BattleResultsModal({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <GameDialogFrame accent={didWin ? "#f0bf14" : "#ef2b23"} fill="#050606" />
+          <GameDialogFrame accent={didWin ? theme.colors.accent : "#ef2b23"} fill={theme.colors.carbon} />
           <View style={[
             styles.resultHeader,
             didWin ? styles.victoryHeader : styles.defeatHeader,
@@ -82,14 +83,14 @@ export function BattleResultsModal({
 
             <View style={styles.rewardsList}>
               <View style={styles.rewardItem}>
-                <GameSurfaceFrame accent="#596273" />
+                <GameSurfaceFrame accent={theme.colors.border} />
                 <Text style={styles.rewardIcon}>EXP</Text>
                 <Text style={styles.rewardLabel}>EXP</Text>
                 <Text style={styles.rewardValue}>+{rewards.exp}</Text>
               </View>
 
               <View style={styles.rewardItem}>
-                <GameSurfaceFrame accent="#f0bf14" />
+                <GameSurfaceFrame accent={theme.colors.accent} />
                 <Text style={styles.rewardIcon}>SP</Text>
                 <Text style={styles.rewardLabel}>Sync Points</Text>
                 <Text style={styles.rewardValue}>+{rewards.syncPoints}</Text>
@@ -97,7 +98,7 @@ export function BattleResultsModal({
 
               {typeof rewards.holos === "number" && rewards.holos > 0 ? (
                 <View style={[styles.rewardItem, styles.rareReward]}>
-                  <GameSurfaceFrame accent="#00d9ff" />
+                  <GameSurfaceFrame accent={theme.colors.accent} />
                   <Text style={styles.rewardIcon}>H</Text>
                   <Text style={styles.rewardLabel}>HOLOS</Text>
                   <Text style={[styles.rewardValue, styles.rareValue]}>
@@ -108,7 +109,7 @@ export function BattleResultsModal({
 
               {rewards.blueprintRewards?.map((reward) => (
                 <View key={reward.holobotKey} style={[styles.rewardItem, styles.rareReward]}>
-                  <GameSurfaceFrame accent="#00d9ff" />
+                  <GameSurfaceFrame accent={theme.colors.accent} />
                   <Text style={styles.rewardIcon}>BP</Text>
                   <Text style={styles.rewardLabel}>{`${reward.holobotKey.toUpperCase()} BLUEPRINT`}</Text>
                   <Text style={[styles.rewardValue, styles.rareValue]}>+{reward.amount}</Text>
@@ -117,7 +118,7 @@ export function BattleResultsModal({
 
               {rewards.eloChange !== undefined && (
                 <View style={styles.rewardItem}>
-                  <GameSurfaceFrame accent={rewards.eloChange >= 0 ? "#f0bf14" : "#ef4444"} />
+                  <GameSurfaceFrame accent={rewards.eloChange >= 0 ? theme.colors.accent : theme.colors.danger} />
                   <Text style={styles.rewardIcon}>RT</Text>
                   <Text style={styles.rewardLabel}>Rating</Text>
                   <Text style={[
@@ -153,7 +154,7 @@ export function BattleResultsModal({
                 style={[styles.button, styles.rematchButton]}
                 onPress={onRematch}
               >
-                <ArenaControlFrame accent="#f0bf14" selected />
+                <ArenaControlFrame accent={theme.colors.accent} selected />
                 <Text style={styles.rematchButtonText}>{continueLabel || 'REMATCH'}</Text>
               </TouchableOpacity>
             ) : null}
@@ -162,7 +163,7 @@ export function BattleResultsModal({
               style={[styles.button, hideRematch ? styles.rematchButton : styles.exitButton]}
               onPress={onExit}
             >
-              <ArenaControlFrame accent={hideRematch ? "#f0bf14" : "#596273"} selected={hideRematch} />
+              <ArenaControlFrame accent={hideRematch ? theme.colors.accent : theme.colors.border} selected={hideRematch} />
               <Text style={hideRematch ? styles.rematchButtonText : styles.exitButtonText}>
                 EXIT ARENA
               </Text>
@@ -215,43 +216,47 @@ const styles = StyleSheet.create({
     width: '62%',
   },
   headerRailVictory: {
-    backgroundColor: '#f0bf14',
+    backgroundColor: theme.colors.accent,
   },
   headerRailDefeat: {
     backgroundColor: '#ef2b23',
   },
   resultEyebrow: {
-    color: '#f0bf14',
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: '900',
     letterSpacing: 2,
   },
   resultText: {
-    fontSize: 34,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.display.fontSize,
     fontWeight: '900',
     letterSpacing: 2,
   },
   victoryText: {
-    color: '#fef1e0',
+    color: theme.colors.text,
   },
   defeatText: {
-    color: '#ef4444',
+    color: theme.colors.danger,
   },
   runTotals: {
-    borderColor: '#f0bf14',
+    borderColor: theme.colors.accent,
     borderTopWidth: 1,
     marginTop: 14,
     paddingTop: 10,
   },
   runTotalsLine: {
     color: '#d8dbe2',
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: '700',
     marginTop: 3,
     textAlign: 'center',
   },
   runTotalsTitle: {
-    color: '#f0bf14',
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -263,7 +268,8 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   subtitle: {
-    color: '#f5c40d',
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.6,
@@ -271,7 +277,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rewardsTitle: {
-    color: '#f0bf14',
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1.4,
@@ -292,8 +299,9 @@ const styles = StyleSheet.create({
   rareReward: {
   },
   rewardIcon: {
-    color: '#f0bf14',
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: '900',
     letterSpacing: 0.7,
     marginRight: 12,
@@ -301,24 +309,26 @@ const styles = StyleSheet.create({
   },
   rewardLabel: {
     flex: 1,
-    color: '#ddd2b5',
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   rewardValue: {
-    color: '#fef1e0',
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 17,
     fontWeight: '900',
   },
   rareValue: {
-    color: '#00d9ff',
+    color: theme.colors.accent,
   },
   positiveValue: {
-    color: '#f0bf14',
+    color: theme.colors.accent,
   },
   negativeValue: {
-    color: '#ef4444',
+    color: theme.colors.danger,
   },
   buttonsContainer: {
     padding: 18,
@@ -333,16 +343,18 @@ const styles = StyleSheet.create({
   rematchButton: {
   },
   rematchButtonText: {
-    color: '#050606',
-    fontSize: 16,
+    color: theme.colors.carbon,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: '900',
     letterSpacing: 1,
   },
   exitButton: {
   },
   exitButtonText: {
-    color: '#ddd2b5',
-    fontSize: 14,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: '900',
     letterSpacing: 0.7,
   },

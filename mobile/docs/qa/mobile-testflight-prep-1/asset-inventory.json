@@ -1,0 +1,74 @@
+[
+  {
+    "bot": "wolf",
+    "bytes": 799012,
+    "manifestBytes": 799012,
+    "sha256": "e431692f656fa17c29b6779111e32d5a1df3e0348d174a2a17a9af94ae0bd974"
+  },
+  {
+    "bot": "kuma",
+    "bytes": 943788,
+    "manifestBytes": 943788,
+    "sha256": "2580b0511975706de982c9f12bada5817329cdace5f854bbbc9f645c286cd72a"
+  },
+  {
+    "bot": "ken",
+    "bytes": 990696,
+    "manifestBytes": 990696,
+    "sha256": "c5ddd7b09d8478fb5928d676148947e8adf76330d6ce1457d7113001c6206cf2"
+  },
+  {
+    "bot": "tsuin",
+    "bytes": 851688,
+    "manifestBytes": 851688,
+    "sha256": "eed27edd2f75583e167984a9eebf56a8376fc52bba08959e0a3f4b2e5c2e5a75"
+  },
+  {
+    "bot": "hare",
+    "bytes": 1681480,
+    "manifestBytes": 1681480,
+    "sha256": "d42b1e56204a55aad593bf063a4d617262ea6bedd211fd91897e47ef73833bc4"
+  },
+  {
+    "bot": "shadow",
+    "bytes": 905576,
+    "manifestBytes": 905576,
+    "sha256": "c1267257f2b7083b0c9dff7336899ec9cbc897e28a3c9344d49f7a0541f1087d"
+  },
+  {
+    "bot": "wake",
+    "bytes": 903940,
+    "manifestBytes": 903940,
+    "sha256": "8011bec69f0b58eadaa40edbba3f7e8acd5b445706b593d900422adc7b9562ff"
+  },
+  {
+    "bot": "tora",
+    "bytes": 1017052,
+    "manifestBytes": 1017052,
+    "sha256": "70ddcf41bde134d9d53c7720094942f810fedd830f2461fe375700ee212aaa3a"
+  },
+  {
+    "bot": "gama",
+    "bytes": 1143744,
+    "manifestBytes": 1143744,
+    "sha256": "79775c3aeec773a27fa65f57800780def3b5e1383bf176339de68120aba310cc"
+  },
+  {
+    "bot": "kurai",
+    "bytes": 822012,
+    "manifestBytes": 822012,
+    "sha256": "d1a82e6bc7a2aac26a1e3669d0758086257106ed16919c0a709d2c03c41ab1e4"
+  },
+  {
+    "bot": "era",
+    "bytes": 1054132,
+    "manifestBytes": 1054132,
+    "sha256": "45220e280b467910b994903d01db5666f1f241e1881bbd9f10a96472c93025b7"
+  },
+  {
+    "bot": "ace",
+    "bytes": 988940,
+    "manifestBytes": 988940,
+    "sha256": "5760acb630750a0b9039e1cfafa0569b9363dd536547b791a972860759e8d88b"
+  }
+]

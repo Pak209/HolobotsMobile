@@ -1,0 +1,176 @@
+
+ RUN  v3.2.4 /private/tmp/holobots-duel-playback-receipt-1/mobile
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts (15 tests | 14 failed) 7ms
+   × W10 duel-receipt-1 playback > known-bad first: uses all16 host actions/8 rounds and winner instead of contrary didWin/client trace 4ms
+     → expected [ { attacker: 'rival', damage: 999 } ] to have a length of 16 but got 1
+   × W10 duel-receipt-1 playback > accepts direct receipt, callable data envelope and nested settle 1ms
+     → expected null to be true // Object.is equality
+   × W10 duel-receipt-1 playback > copies recorded resources without inventing regen or reconstructing initial HP 0ms
+     → Cannot read properties of undefined (reading 'observedState')
+   × W10 duel-receipt-1 playback > uses host move aliases, no attacking or hit reaction for refused actions 0ms
+     → Cannot read properties of undefined (reading 'clip')
+   × W10 duel-receipt-1 playback > does not mutate host data or allow final HP to determine winner 0ms
+     → expected null to be false // Object.is equality
+   × W10 duel-receipt-1 playback > fails closed for invalid damage, never falls back to didWin 1ms
+     → expected [ { attacker: 'player', damage: 999 } ] to deeply equal []
+   × W10 duel-receipt-1 playback > fails closed for invalid staAfter, never falls back to didWin 0ms
+     → expected [ { attacker: 'player', damage: 999 } ] to deeply equal []
+   × W10 duel-receipt-1 playback > fails closed for invalid defenderHpAfter, never falls back to didWin 0ms
+     → expected [ { attacker: 'player', damage: 999 } ] to deeply equal []
+   × W10 duel-receipt-1 playback > fails closed for invalid syncAfter, never falls back to didWin 0ms
+     → expected [ { attacker: 'player', damage: 999 } ] to deeply equal []
+   × W10 duel-receipt-1 playback > fails closed for malformed winner 0ms
+     → expected undefined to be truthy
+   × W10 duel-receipt-1 playback > fails closed for malformed schemaVersion 0ms
+     → expected undefined to be truthy
+   × W10 duel-receipt-1 playback > fails closed for malformed playerFinal 0ms
+     → expected undefined to be truthy
+   × W10 duel-receipt-1 playback > fails closed for malformed rounds 0ms
+     → expected undefined to be truthy
+   ✓ W10 duel-receipt-1 playback > rejects out-of-order and duplicate side rows, foreign fighters, and damaging waits 0ms
+   × W10 duel-receipt-1 playback > does not truncate the120-turn/240-action host contract at the old200-row client bound 0ms
+     → expected [] to have a length of 240 but got +0
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > known-bad first: uses all16 host actions/8 rounds and winner instead of contrary didWin/client trace
+AssertionError: expected [ { attacker: 'rival', damage: 999 } ] to have a length of 16 but got 1
+
+- Expected
++ Received
+
+- 16
++ 1
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:8:27
+      6|   it('known-bad first: uses all16 host actions/8 rounds and winner ins…
+      7|     const result = normalizeDuelReceipt(envelope(), [{ attacker: 'riva…
+      8|     expect(result.rounds).toHaveLength(16); expect(result.roundCount).…
+       |                           ^
+      9|     expect(result.traceSource).toBe('host'); expect(result.rounds.map(…
+     10|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/14]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > accepts direct receipt, callable data envelope and nested settle
+AssertionError: expected null to be true // Object.is equality
+
+- Expected:
+true
+
++ Received:
+null
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:13:63
+     11|   it('accepts direct receipt, callable data envelope and nested settle…
+     12|     for (const value of [fixture.receipt, { data: envelope() }, envelo…
+     13|       const p = normalizeDuelReceipt(value); expect(p.didWin).toBe(tru…
+       |                                                               ^
+     14|     }
+     15|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/14]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > copies recorded resources without inventing regen or reconstructing initial HP
+TypeError: Cannot read properties of undefined (reading 'observedState')
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:18:69
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/14]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > uses host move aliases, no attacking or hit reaction for refused actions
+TypeError: Cannot read properties of undefined (reading 'clip')
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:27:30
+     25|       const actions = cues.filter(c => c.roundIndex === i && ['attack'…
+     26|       if (r.move === 'wait') expect(actions).toEqual([]);
+     27|       else expect(actions[0].clip).toBe(({strike:'Strike',heavy:'Heavy…
+       |                              ^
+     28|       expect(cues.some(c=>c.roundIndex===i&&c.kind==='hit')).toBe(r.hi…
+     29|     });
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:24:28
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/14]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > does not mutate host data or allow final HP to determine winner
+AssertionError: expected null to be false // Object.is equality
+
+- Expected:
+false
+
++ Received:
+null
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:33:50
+     31|   it('does not mutate host data or allow final HP to determine winner'…
+     32|     const before = JSON.stringify(fixture); const receipt = {...fixtur…
+     33|     expect(normalizeDuelReceipt(receipt).didWin).toBe(false); buildPla…
+       |                                                  ^
+     34|   });
+     35|   it.each(['damage','staAfter','defenderHpAfter','syncAfter'])('fails …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/14]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for invalid damage, never falls back to didWin
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for invalid staAfter, never falls back to didWin
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for invalid defenderHpAfter, never falls back to didWin
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for invalid syncAfter, never falls back to didWin
+AssertionError: expected [ { attacker: 'player', damage: 999 } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "attacker": "player",
++     "damage": 999,
++   },
++ ]
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:36:183
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/14]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for malformed winner
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for malformed schemaVersion
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for malformed playerFinal
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > fails closed for malformed rounds
+AssertionError: expected undefined to be truthy
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:39:122
+     37|   });
+     38|   it.each(['winner','schemaVersion','playerFinal','rounds'])('fails cl…
+     39|     const e=envelope();Object.assign(e.settlement.duelReceipt,{[key]:n…
+       |                                                                                                                          ^
+     40|   });
+     41|   it('rejects out-of-order and duplicate side rows, foreign fighters, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/14]⎯
+
+ FAIL  src/lib/__tests__/hostDuelReceipt.test.ts > W10 duel-receipt-1 playback > does not truncate the120-turn/240-action host contract at the old200-row client bound
+AssertionError: expected [] to have a length of 240 but got +0
+
+- Expected
++ Received
+
+- 240
++ 0
+
+ ❯ src/lib/__tests__/hostDuelReceipt.test.ts:46:195
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/14]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  14 failed | 1 passed (15)
+   Start at  23:51:04
+   Duration  198ms (transform 27ms, setup 0ms, collect 27ms, tests 7ms, environment 0ms, prepare 37ms)

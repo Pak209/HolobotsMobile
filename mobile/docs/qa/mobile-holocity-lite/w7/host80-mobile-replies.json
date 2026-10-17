@@ -1,0 +1,420 @@
+{
+  "project": "demo-holocity-lite-city",
+  "account": "throwaway local emulator",
+  "gathering": {
+    "schemaVersion": "arena-gathering-1",
+    "roster": [
+      {
+        "citizenId": "CV1_HB_CITIZEN3_StallLinen_13",
+        "pilotName": "Stall Linen",
+        "holobotId": "kuma",
+        "rank": "Rookie",
+        "ringColor": "#2FE6FF"
+      },
+      {
+        "citizenId": "CV1_HB_CITIZEN2_CampusAmber_04",
+        "pilotName": "Campus Amber",
+        "holobotId": "wake",
+        "rank": "Rookie",
+        "ringColor": "#7CFF4F"
+      },
+      {
+        "citizenId": "CV1_HB_CITIZEN5_MarketAmber_05",
+        "pilotName": "Market Amber",
+        "holobotId": "hare",
+        "rank": "Rookie",
+        "ringColor": "#B07CFF"
+      },
+      {
+        "citizenId": "CV1_HB_CITIZEN2_CampusWhite_09",
+        "pilotName": "Campus White",
+        "holobotId": "gama",
+        "rank": "Rookie",
+        "ringColor": "#FF7A1A"
+      },
+      {
+        "citizenId": "CV1_HB_CITIZEN3_MarketMagenta_03",
+        "pilotName": "Market Magenta",
+        "holobotId": "era",
+        "rank": "Rookie",
+        "ringColor": "#FF3D8B"
+      },
+      {
+        "citizenId": "CV1_HB_CITIZEN5_TransitCyan_10",
+        "pilotName": "Transit Cyan",
+        "holobotId": "shadow",
+        "rank": "Rookie",
+        "ringColor": "#FFD21A"
+      },
+      {
+        "citizenId": "CV1_HB_CITIZEN4_DepotOlive_07",
+        "pilotName": "Depot Olive",
+        "holobotId": "tora",
+        "rank": "Rookie",
+        "ringColor": "#2FE6FF"
+      },
+      {
+        "citizenId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+        "pilotName": "Campus Magenta",
+        "holobotId": "tsuin",
+        "rank": "Rookie",
+        "ringColor": "#7CFF4F"
+      }
+    ],
+    "storyFlags": {
+      "arenaGatheringSeen": true,
+      "tournamentsWon": 0,
+      "arenaArcBuilt": false,
+      "holoZonesArcBuilt": false
+    }
+  },
+  "issue": {
+    "schemaVersion": "rival-battle-3",
+    "battleId": "rb_82fb722f9574b1df31a2d07e",
+    "expiresAtMs": 1792049420226,
+    "tier": 0,
+    "encounter": {
+      "encounterId": "rb_82fb722f9574b1df31a2d07e",
+      "seed": 1073741823,
+      "opponentPilot": {
+        "pilotId": "CV1_HB_CITIZEN3_StallLinen_13",
+        "displayName": "Stall Linen",
+        "tier": "Rookie"
+      },
+      "opponentSquad": [
+        {
+          "holobotId": "kuma",
+          "level": 1,
+          "maxHealth": 175,
+          "attack": 50,
+          "defense": 50,
+          "maxStamina": 110,
+          "staminaRegen": 16,
+          "deployment": {
+            "deployCost": 14,
+            "drainPerSecond": 1.6,
+            "rechargePerSecond": 4
+          },
+          "moves": [
+            {
+              "moveId": "gap_closer",
+              "staminaCost": 22,
+              "damageScale": 1.35,
+              "breakPower": 14,
+              "chargeable": true
+            },
+            {
+              "moveId": "break_heavy",
+              "staminaCost": 38,
+              "damageScale": 1.55,
+              "breakPower": 42,
+              "chargeable": true
+            },
+            {
+              "moveId": "intercept",
+              "staminaCost": 18,
+              "damageScale": 0.45,
+              "breakPower": 6,
+              "chargeable": false
+            }
+          ],
+          "speed": 50,
+          "intelligence": 40,
+          "commandRules": {
+            "version": 1,
+            "maxStamina": 7,
+            "staminaRegen": 0.5,
+            "strikeCost": 1,
+            "comboCost": 2,
+            "defendThreshold": 1,
+            "defendRestore": 2,
+            "halfCost": 2,
+            "fullCost": 4,
+            "halfSync": 50,
+            "fullSync": 100,
+            "halfEffect": 0.5,
+            "fullEffect": 1,
+            "guardSeconds": 2.5,
+            "guardCooldown": 6,
+            "braceSeconds": 1.5,
+            "guardReduction": 0.5,
+            "stackReduction": 0.15,
+            "maxGuardStacks": 2,
+            "guardCharges": 1,
+            "strikeSync": 10,
+            "comboSync": 14,
+            "blockedSyncScale": 0.5,
+            "guardSync": 6,
+            "syncFloor": 0,
+            "comboExpiry": 4,
+            "regenPause": 1
+          }
+        }
+      ]
+    },
+    "status": {
+      "tier": 0,
+      "tierLabel": "rookie",
+      "rivalWins": 0,
+      "winsToNextTier": 10,
+      "rivalsThisTier": 1,
+      "dailyRewardAvailable": true,
+      "buddyUnits": {
+        "light": 0,
+        "medium": 0,
+        "heavy": 0
+      }
+    },
+    "playerCombatants": [
+      {
+        "holobotId": "ace",
+        "commandRules": {
+          "version": 1,
+          "maxStamina": 7,
+          "staminaRegen": 0.5,
+          "strikeCost": 1,
+          "comboCost": 2,
+          "defendThreshold": 1,
+          "defendRestore": 2,
+          "halfCost": 2,
+          "fullCost": 4,
+          "halfSync": 50,
+          "fullSync": 100,
+          "halfEffect": 0.5,
+          "fullEffect": 1,
+          "guardSeconds": 2.5,
+          "guardCooldown": 6,
+          "braceSeconds": 1.5,
+          "guardReduction": 0.5,
+          "stackReduction": 0.15,
+          "maxGuardStacks": 2,
+          "guardCharges": 1,
+          "strikeSync": 10,
+          "comboSync": 14,
+          "blockedSyncScale": 0.5,
+          "guardSync": 6,
+          "syncFloor": 0,
+          "comboExpiry": 4,
+          "regenPause": 1
+        },
+        "level": 2,
+        "maxHealth": 157,
+        "attack": 84,
+        "defense": 63,
+        "maxStamina": 110,
+        "staminaRegen": 16,
+        "deployment": {
+          "deployCost": 14,
+          "drainPerSecond": 1.6,
+          "rechargePerSecond": 4
+        },
+        "moves": [
+          {
+            "moveId": "gap_closer",
+            "staminaCost": 22,
+            "damageScale": 1.35,
+            "breakPower": 14,
+            "chargeable": true
+          },
+          {
+            "moveId": "break_heavy",
+            "staminaCost": 38,
+            "damageScale": 1.55,
+            "breakPower": 42,
+            "chargeable": true
+          },
+          {
+            "moveId": "intercept",
+            "staminaCost": 18,
+            "damageScale": 0.45,
+            "breakPower": 6,
+            "chargeable": false
+          }
+        ],
+        "speed": 73,
+        "intelligence": 52,
+        "experience": 0,
+        "nextLevelExp": 120,
+        "attributePoints": 0,
+        "boostedAttributes": {
+          "attack": 0,
+          "defense": 0,
+          "speed": 0,
+          "special": 0,
+          "health": 0
+        },
+        "rank": "Starter"
+      }
+    ]
+  },
+  "settlement": {
+    "schemaVersion": "rival-battle-3",
+    "battleId": "rb_82fb722f9574b1df31a2d07e",
+    "alreadyProcessed": false,
+    "didWin": false,
+    "buddyUnitsGranted": 0,
+    "buddyUnitTierGranted": "",
+    "tierBefore": 0,
+    "tierAfter": 0,
+    "status": {
+      "tier": 0,
+      "tierLabel": "rookie",
+      "rivalWins": 0,
+      "winsToNextTier": 10,
+      "rivalsThisTier": 1,
+      "dailyRewardAvailable": true,
+      "buddyUnits": {
+        "light": 0,
+        "medium": 0,
+        "heavy": 0
+      }
+    },
+    "progression": [
+      {
+        "holobotId": "ace",
+        "expGained": 28,
+        "levelBefore": 2,
+        "levelAfter": 2,
+        "attributePoints": 0,
+        "experience": 28,
+        "nextLevelExp": 120,
+        "rank": "Starter"
+      }
+    ],
+    "holosGranted": 25
+  },
+  "settlementReplay": {
+    "schemaVersion": "rival-battle-3",
+    "battleId": "rb_82fb722f9574b1df31a2d07e",
+    "alreadyProcessed": true,
+    "didWin": false,
+    "buddyUnitsGranted": 0,
+    "buddyUnitTierGranted": "",
+    "tierBefore": 0,
+    "tierAfter": 0,
+    "status": {
+      "tier": 0,
+      "tierLabel": "rookie",
+      "rivalWins": 0,
+      "winsToNextTier": 10,
+      "rivalsThisTier": 1,
+      "dailyRewardAvailable": true,
+      "buddyUnits": {
+        "light": 0,
+        "medium": 0,
+        "heavy": 0
+      }
+    },
+    "progression": [
+      {
+        "holobotId": "ace",
+        "expGained": 28,
+        "levelBefore": 2,
+        "levelAfter": 2,
+        "attributePoints": 0,
+        "experience": 28,
+        "nextLevelExp": 120,
+        "rank": "Starter"
+      }
+    ],
+    "holosGranted": 25
+  },
+  "clientTrace": [
+    {
+      "attacker": "player",
+      "evaded": false,
+      "damage": 14,
+      "label": "Quick Jab"
+    }
+  ],
+  "citizenIntegration": [
+    {
+      "citizenId": "CV1_HB_CITIZEN3_StallLinen_13",
+      "assignedBot": "kuma",
+      "ringColor": "#2FE6FF",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN2_CampusAmber_04",
+      "assignedBot": "wake",
+      "ringColor": "#7CFF4F",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN5_MarketAmber_05",
+      "assignedBot": "hare",
+      "ringColor": "#B07CFF",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN2_CampusWhite_09",
+      "assignedBot": "gama",
+      "ringColor": "#FF7A1A",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN3_MarketMagenta_03",
+      "assignedBot": "era",
+      "ringColor": "#FF3D8B",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN5_TransitCyan_10",
+      "assignedBot": "shadow",
+      "ringColor": "#FFD21A",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN4_DepotOlive_07",
+      "assignedBot": "tora",
+      "ringColor": "#2FE6FF",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    },
+    {
+      "citizenId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+      "assignedBot": "tsuin",
+      "ringColor": "#7CFF4F",
+      "playerBot": "ace",
+      "observedDamage": 14,
+      "receiptHolos": 25
+    }
+  ],
+  "heal": {
+    "schemaVersion": "healing-workshop-1",
+    "operation": "heal",
+    "holobotIds": [
+      "ace"
+    ],
+    "vitals": {
+      "ace": {
+        "currentHealth": 165,
+        "maxHealth": 165
+      }
+    },
+    "cost": 0,
+    "alreadyProcessed": false
+  },
+  "craft": {
+    "schemaVersion": "healing-workshop-1",
+    "operation": "craft",
+    "itemId": "item.repair_kit",
+    "quantity": 1,
+    "fragmentsSpent": 3,
+    "lowerItemSpent": "item.emergency_patch",
+    "alreadyProcessed": false
+  }
+}

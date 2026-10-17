@@ -1,0 +1,74 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/pak/Projects/HolobotsMobile-lite/mobile
+
+ ✓ src/lib/__tests__/travelSquadFirebase.test.ts (5 tests) 35ms
+ ✓ src/lib/__tests__/progressionParity.test.ts (7 tests) 12ms
+ ✓ src/lib/__tests__/mintingServerParity.test.ts (11 tests) 8ms
+ ✓ src/features/arena/__tests__/pvpTeamBattle.test.ts (11 tests) 10ms
+ ✓ src/lib/__tests__/genesisParity.test.ts (16 tests) 34ms
+ ✓ src/lib/__tests__/economyServerParity.test.ts (15 tests) 166ms
+ ✓ src/lib/__tests__/playerCombatantParity.test.ts (5 tests) 532ms
+   ✓ player combatant stats = arenaConfig.buildPlayerFighter (no parts) > maxHealth / attack / defense / speed / intelligence match for every bot, level, boost and sync set  487ms
+ ✓ src/lib/__tests__/cityHubClient.test.ts (6 tests) 42ms
+ ✓ src/lib/__tests__/cityRequestJournal.test.ts (3 tests) 23ms
+ ✓ src/features/arena/__tests__/moveProgression.test.ts (13 tests) 129ms
+ ✓ src/lib/__tests__/desktopAccountParity.test.ts (5 tests) 880ms
+   ✓ desktop-account-3 holobots > battleStats = arenaConfig.buildPlayerFighter (no parts); displayStats = getHolobotDisplayStats  729ms
+ ✓ src/lib/__tests__/fitnessSyncServerParity.test.ts (10 tests) 22ms
+ ✓ src/lib/__tests__/fitnessSync.test.ts (13 tests) 61ms
+ ✓ src/features/arena/__tests__/combatEngine.test.ts (71 tests) 230ms
+ ✓ src/lib/unity/__tests__/wildBridge.test.ts (10 tests) 307ms
+ ✓ src/features/arena/__tests__/moveKits.test.ts (9 tests) 10ms
+ ✓ src/lib/__tests__/rivalHud.test.ts (4 tests) 37ms
+ ✓ src/features/arena/__tests__/teamBattle.test.ts (15 tests) 33ms
+ ✓ src/lib/__tests__/moveProgressionParity.test.ts (4 tests) 71ms
+ ✓ src/stores/__tests__/arena-team-battle-store.test.ts (2 tests) 6ms
+ ✓ src/features/arena/__tests__/abilities.test.ts (10 tests) 12ms
+ ✓ src/lib/__tests__/gacha.test.ts (11 tests) 110ms
+ ✓ src/lib/__tests__/battleSettlementParity.test.ts (8 tests) 2934ms
+   ✓ battleSettlement byte-identical pair > client and server agree for every kind, tier, outcome and count  700ms
+   ✓ arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid  2214ms
+ ✓ src/lib/__tests__/genesisSignupParity.test.ts (5 tests | 1 skipped) 23ms
+ ✓ src/lib/__tests__/cityRivalBattle.test.ts (3 tests) 4ms
+ ✓ src/lib/__tests__/cityHub.test.ts (5 tests) 11ms
+ ✓ src/lib/unity/__tests__/nativeUnitySession.test.ts (14 tests) 34ms
+ ✓ src/lib/__tests__/repairHareLocomotion.test.ts (2 tests) 419ms
+ ✓ src/lib/story/__tests__/overlayVisibility.test.ts (6 tests) 7ms
+ ✓ src/lib/__tests__/boostHolobotAttributeClient.test.ts (5 tests) 70ms
+ ✓ src/lib/__tests__/marketplace.test.ts (11 tests) 5ms
+ ✓ src/lib/security/__tests__/webAuthBridge.test.ts (4 tests) 8ms
+ ✓ src/lib/story/__tests__/storyBridge.test.ts (14 tests) 17ms
+ ✓ src/lib/__tests__/async.test.ts (4 tests) 5ms
+ ✓ src/lib/__tests__/attributeBoostParity.test.ts (6 tests) 136ms
+ ✓ src/lib/__tests__/monetizationServerParity.test.ts (11 tests) 16ms
+ ✓ src/lib/__tests__/travelSquadClient.test.ts (14 tests) 72ms
+ ✓ src/features/arena/__tests__/finisherPolicy.test.ts (3 tests) 5ms
+ ✓ src/features/arena/__tests__/pvpPoolEntryScan.test.ts (1 test) 9ms
+ ✓ src/components/arena/__tests__/battleVisualStates.test.ts (3 tests) 8ms
+ ✓ src/lib/__tests__/progressionServerParity.test.ts (14 tests) 75ms
+ ✓ src/lib/__tests__/rivalLadderScaleParity.test.ts (5 tests) 28ms
+ ✓ src/lib/story/__tests__/dialogueSequencer.test.ts (4 tests) 17ms
+ ✓ src/config/__tests__/itemIcons.test.ts (3 tests) 8ms
+ ✓ src/components/character/__tests__/animationAssetResolver.test.ts (4 tests) 8ms
+ ✓ src/lib/__tests__/healingServerParity.test.ts (6 tests) 7ms
+ ✓ src/lib/__tests__/arenaServerParity.test.ts (8 tests) 17ms
+ ✓ src/lib/__tests__/monetization.test.ts (5 tests) 46ms
+ ✓ src/lib/__tests__/duelPlayback.test.ts (16 tests) 28ms
+ ✓ src/stores/__tests__/arena-battle-store.test.ts (3 tests) 11ms
+ ✓ src/lib/__tests__/animationClips.test.ts (14 tests) 15ms
+ ✓ src/features/arena/__tests__/pvpBattle.test.ts (9 tests) 132ms
+ ✓ src/lib/__tests__/energy.test.ts (11 tests) 9ms
+ ✓ src/lib/__tests__/partStats.test.ts (7 tests) 8ms
+ ✓ src/lib/__tests__/economyHostServerParity.test.ts (4 tests) 12ms
+ ✓ src/lib/security/__tests__/workoutRewardLimits.test.ts (6 tests) 10ms
+ ✓ src/config/__tests__/arenaConfigSync.test.ts (2 tests) 3ms
+ ↓ src/lib/__tests__/cityHost.integration.test.ts (3 tests | 3 skipped)
+
+ Test Files  57 passed | 1 skipped (58)
+      Tests  495 passed | 4 skipped (499)
+   Start at  23:40:25
+   Duration  8.10s (transform 4.76s, setup 0ms, collect 14.40s, tests 6.98s, environment 20ms, prepare 14.36s)

@@ -392,6 +392,7 @@ export class ArenaCombatEngine {
   }
 
   static canUseSignatureFinisher(state: BattleState, role: FighterRole, power: FinisherPower = 'full'): boolean {
+    if (state.hostSnapshot) return false;
     return this.getSignatureAvailability(state, role, power).playable;
   }
 
@@ -566,7 +567,7 @@ export class ArenaCombatEngine {
     const modifiers: DamageModifier[] = [];
     const attackMultiplier = (attacker.attack || 20) / 20;
     const defenseReduction = 30 / (30 + (defender.defense || 10));
-    let damage = card.baseDamage * attackMultiplier * defenseReduction;
+    let damage = card.hostDamageScale === undefined ? card.baseDamage * attackMultiplier * defenseReduction : attacker.attack * card.hostDamageScale * defenseReduction;
 
     modifiers.push({
       source: 'Attack Stat',
@@ -674,8 +675,8 @@ export class ArenaCombatEngine {
   static regenerateStamina(state: BattleState): BattleState {
     return {
       ...state,
-      player: this.recoverStamina(cloneFighter(state.player), TURN_STAMINA_REGEN),
-      opponent: this.recoverStamina(cloneFighter(state.opponent), TURN_STAMINA_REGEN),
+      player: this.recoverStamina(cloneFighter(state.player), state.hostSnapshot ? state.hostSnapshot.playerRegen * 2 : TURN_STAMINA_REGEN),
+      opponent: this.recoverStamina(cloneFighter(state.opponent), state.hostSnapshot ? state.hostSnapshot.opponentRegen * 2 : TURN_STAMINA_REGEN),
     };
   }
 
@@ -953,7 +954,7 @@ export class ArenaCombatEngine {
     action.outcome = outcome;
     this.applyLifesteal(attacker, dealt);
 
-    const meterGain = this.getMeterGainForDamage('strike', dealt, outcome);
+    const meterGain = action.card.hostSyncGain ?? this.getMeterGainForDamage('strike', dealt, outcome);
     this.setMeter(attacker, attacker.specialMeter + meterGain);
     action.specialMeterChange = meterGain;
 
@@ -1048,7 +1049,7 @@ export class ArenaCombatEngine {
     action.comboLength = comboLength + 1;
     this.applyLifesteal(attacker, dealt);
 
-    const meterGain = this.getMeterGainForDamage('combo', dealt, outcome);
+    const meterGain = action.card.hostSyncGain ?? this.getMeterGainForDamage('combo', dealt, outcome);
     this.setMeter(attacker, attacker.specialMeter + meterGain);
     action.specialMeterChange = meterGain;
 

@@ -1,0 +1,10 @@
+{
+  "mainAppBytesIdentical": true,
+  "nativeConfigurationFilesIdentical": 134,
+  "duplicateAuthOrFirebaseModules": 0,
+  "isolatedModules": 124,
+  "isolatedRuntimeModules": 97,
+  "tests": "NOT RUN: offline dependency setup HELD after two failures",
+  "typecheck": "NOT RUN",
+  "native": "NOT RUN"
+}

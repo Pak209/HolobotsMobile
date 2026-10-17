@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -72,7 +73,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
       >
         <View style={styles.backdrop}>
           <View style={styles.card}>
-            <GameDialogFrame accent={isDeleteFlowOpen ? "#ef4444" : "#f0bf14"} fill="#07080a" />
+            <GameDialogFrame accent={isDeleteFlowOpen ? theme.colors.danger : theme.colors.accent} fill={theme.plates.navy} />
             {!isDeleteFlowOpen ? (
               <>
                 <Text style={styles.eyebrow}>DASHBOARD SETTINGS</Text>
@@ -82,7 +83,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                 </Text>
 
                 <View style={styles.section}>
-                  <GameSurfaceFrame accent="#f0bf14" />
+                  <GameSurfaceFrame accent={theme.colors.accent} />
                   <Text style={styles.label}>ACCOUNT</Text>
                   <Text style={styles.copySmall}>{pilotLabel}</Text>
                   {user?.email ? <Text style={styles.meta}>{user.email}</Text> : null}
@@ -93,7 +94,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                       void logout();
                     }}
                   >
-                    <ArenaControlFrame accent="#f0bf14" />
+                    <ArenaControlFrame accent={theme.colors.accent} />
                     <Text style={styles.primaryActionText}>SIGN OUT</Text>
                   </Pressable>
                   {canRestorePurchases ? (
@@ -123,9 +124,9 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                         }
                       }}
                     >
-                      <ArenaControlFrame accent="#f0bf14" />
+                      <ArenaControlFrame accent={theme.colors.accent} />
                       {isRestoringPurchases ? (
-                        <ActivityIndicator color="#f0bf14" />
+                        <ActivityIndicator color={theme.colors.accent} />
                       ) : (
                         <Text style={styles.secondaryActionText}>RESTORE PURCHASES</Text>
                       )}
@@ -134,7 +135,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                 </View>
 
                 <View style={styles.section}>
-                  <GameSurfaceFrame accent="#ef4444" />
+                  <GameSurfaceFrame accent={theme.colors.danger} />
                   <Text style={styles.dangerLabel}>DANGER ZONE</Text>
                   <Text style={styles.meta}>
                     Permanently remove this account and all saved pilot data from Holobots Mobile.
@@ -147,13 +148,13 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                       setIsDeleteFlowOpen(true);
                     }}
                   >
-                    <ArenaControlFrame accent="#ef4444" />
+                    <ArenaControlFrame accent={theme.colors.danger} />
                     <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
                   </Pressable>
                 </View>
 
                 <Pressable style={styles.closeButton} onPress={onClose}>
-                  <ArenaControlFrame accent="#f0bf14" selected />
+                  <ArenaControlFrame accent={theme.colors.accent} selected />
                   <Text style={styles.closeText}>CLOSE</Text>
                 </Pressable>
               </>
@@ -166,14 +167,14 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                 </Text>
 
                 <View style={styles.section}>
-                  <GameSurfaceFrame accent="#ef4444" />
+                  <GameSurfaceFrame accent={theme.colors.danger} />
                   <Text style={styles.label}>TYPE DELETE TO CONFIRM</Text>
                   <TextInput
                     autoCapitalize="characters"
                     autoCorrect={false}
                     onChangeText={setDeleteConfirmationText}
                     placeholder="DELETE"
-                    placeholderTextColor="#8f896d"
+                    placeholderTextColor={theme.colors.subtle}
                     style={styles.deleteInput}
                     value={deleteConfirmationText}
                   />
@@ -209,9 +210,9 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                     }
                   }}
                 >
-                  <ArenaControlFrame accent="#ef4444" selected={canConfirmDelete} />
+                  <ArenaControlFrame accent={theme.colors.danger} selected={canConfirmDelete} />
                   {isDeletingAccount ? (
-                    <ActivityIndicator color="#fef1e0" />
+                    <ActivityIndicator color={theme.colors.text} />
                   ) : (
                     <Text style={styles.deleteAccountText}>PERMANENTLY DELETE</Text>
                   )}
@@ -225,7 +226,7 @@ export function DashboardSettingsModal({ onClose, visible }: DashboardSettingsMo
                     setIsDeleteFlowOpen(false);
                   }}
                 >
-                  <ArenaControlFrame accent="#f0bf14" />
+                  <ArenaControlFrame accent={theme.colors.accent} />
                   <Text style={styles.closeText}>CANCEL</Text>
                 </Pressable>
               </>
@@ -262,26 +263,30 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   closeText: {
-    color: "#f0bf14",
-    fontSize: 16,
+    color: theme.colors.accent,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
   copy: {
-    color: "#d5cbb2",
-    fontSize: 14,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     lineHeight: 20,
     marginTop: 6,
   },
   copySmall: {
-    color: "#fef1e0",
-    fontSize: 14,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "700",
     marginTop: 4,
   },
   dangerLabel: {
     color: "#ff8c7c",
-    fontSize: 12,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 1.1,
   },
@@ -297,42 +302,48 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   deleteAccountText: {
-    color: "#fef1e0",
-    fontSize: 14,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
   deleteErrorText: {
     color: "#ff8c7c",
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
     marginTop: 12,
   },
   deleteInput: {
-    backgroundColor: "#171717",
-    borderColor: "#66561f",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.border,
     borderWidth: 1,
-    color: "#fef1e0",
-    fontSize: 16,
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     marginTop: 10,
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
   eyebrow: {
-    color: "#f0bf14",
-    fontSize: 12,
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 1.8,
   },
   label: {
-    color: "#ddd2b5",
-    fontSize: 12,
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "800",
     letterSpacing: 1.1,
   },
   meta: {
-    color: "#8f866f",
+    color: theme.colors.subtle,
+    fontFamily: "HoloBody",
     fontSize: 11,
     fontWeight: "700",
     lineHeight: 16,
@@ -347,8 +358,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   primaryActionText: {
-    color: "#fef1e0",
-    fontSize: 14,
+    color: theme.colors.text,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.body.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
@@ -361,7 +373,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   secondaryActionText: {
-    color: "#f0bf14",
+    color: theme.colors.accent,
+    fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.8,
@@ -373,7 +386,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   title: {
-    color: "#fef1e0",
+    color: theme.colors.text,
+    fontFamily: "HoloDisplay",
     fontSize: 26,
     fontWeight: "900",
     marginTop: 6,

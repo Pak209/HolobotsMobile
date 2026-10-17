@@ -1,3 +1,4 @@
+import { theme } from "@/theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   borderLine: {
-    backgroundColor: "#ffc107",
+    backgroundColor: theme.colors.warning,
     height: 4,
     left: 0,
     position: "absolute",
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
   },
   container: {
     alignItems: "center",
-    backgroundColor: "#050606",
+    backgroundColor: theme.colors.carbon,
     flex: 1,
     justifyContent: "center",
     overflow: "hidden",
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   corner: {
-    borderColor: "#ffc107",
+    borderColor: theme.colors.warning,
     height: 60,
     position: "absolute",
     width: 60,
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   dot: {
-    backgroundColor: "#ffc107",
+    backgroundColor: theme.colors.warning,
     height: 8,
     width: 8,
   },
@@ -229,13 +230,13 @@ const styles = StyleSheet.create({
     width: 196,
   },
   progressFill: {
-    backgroundColor: "#ffc107",
+    backgroundColor: theme.colors.warning,
     height: "100%",
     overflow: "hidden",
   },
   progressFrame: {
-    backgroundColor: "#1a1a1a",
-    borderColor: "#ffc107",
+    backgroundColor: theme.colors.carbon,
+    borderColor: theme.colors.warning,
     borderWidth: 2,
     height: 24,
     overflow: "hidden",
@@ -243,7 +244,8 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     color: "#6d6d6d",
-    fontSize: 12,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 2,
   },
@@ -260,8 +262,9 @@ const styles = StyleSheet.create({
     width: 4,
   },
   progressValue: {
-    color: "#ffc107",
-    fontSize: 16,
+    color: theme.colors.warning,
+    fontFamily: "HoloDisplay",
+    fontSize: theme.type.label.fontSize,
     fontWeight: "900",
     letterSpacing: 1,
   },
@@ -280,13 +283,15 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: "#8b8b8b",
-    fontSize: 12,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
     letterSpacing: 4,
     marginBottom: 42,
   },
   title: {
-    color: "#ffc107",
+    color: theme.colors.warning,
+    fontFamily: "HoloDisplay",
     fontSize: 48,
     fontStyle: "italic",
     fontWeight: "900",
