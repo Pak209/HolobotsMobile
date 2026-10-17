@@ -379,7 +379,7 @@ export function BattleArenaView({
   const visibleCards = useMemo(() => {
     const slots = playerCards.filter(card => card.type !== "finisher").slice(0, CARD_SLOTS - 1);
     while (slots.length < CARD_SLOTS - 1) slots.push(undefined as never);
-    slots.push(ArenaCombatEngine.buildSignatureCard(battle.player, finisherPower));
+    slots.push(battle.hostSnapshot ? undefined as never : ArenaCombatEngine.buildSignatureCard(battle.player, finisherPower));
     return slots;
   }, [playerCards, battle.player, finisherPower]);
 
@@ -393,7 +393,7 @@ export function BattleArenaView({
   const playerStaminaPercent = getHealthPercent(battle.player.stamina, battle.player.maxStamina);
   const opponentStaminaPercent = getHealthPercent(battle.opponent.stamina, battle.opponent.maxStamina);
   const playerSpecialPercent = getHealthPercent(battle.player.specialMeter, 100);
-  const finisherReady = finisherAvailability.playable;
+  const finisherReady = !battle.hostSnapshot && finisherAvailability.playable;
   const lastActionDamage = lastAction ? (lastAction.actualDamage ?? lastAction.damageDealt) : 0;
 
   return (
@@ -658,7 +658,7 @@ export function BattleArenaView({
           </View>
           </View>
           <View style={styles.specialCluster}>
-            {(["half", "full"] as const).map(power => (
+            {!battle.hostSnapshot && (["half", "full"] as const).map(power => (
               <Pressable key={power} accessibilityRole="button" accessibilityState={{ selected: finisherPower === power }}
                 accessibilityLabel={`${power === "half" ? "Half" : "Full"} strength Finisher`}
                 onPress={() => setFinisherPower(power)} style={[styles.powerChoice, finisherPower === power ? styles.powerChoiceSelected : null]}>
@@ -688,7 +688,7 @@ export function BattleArenaView({
         <View style={styles.cardRow}>
           {visibleCards.map((card, index) => {
             const isSignature = index === CARD_SLOTS - 1;
-            const isPlayable = !!card && (isSignature ? finisherAvailability.playable : playableCardIds.includes(card.id)) && !team?.entryLocked;
+            const isPlayable = !!card && (isSignature ? !battle.hostSnapshot && finisherAvailability.playable : playableCardIds.includes(card.id)) && !team?.entryLocked;
             return (
               <ArenaCard
                 key={card?.id ?? `empty-${index}`}
@@ -715,9 +715,9 @@ export function BattleArenaView({
         <View style={styles.abilityDock}>
           {(["player", "opponent"] as const).map(side => (
             <Pressable key={side} accessibilityRole="button" accessibilityLabel={`${battle[side].name} passive details`}
-              onPress={() => setPassiveDetail(side)} style={styles.abilityPanel}>
+              disabled={!!battle.hostSnapshot} onPress={() => setPassiveDetail(side)} style={styles.abilityPanel}>
               <GameSurfaceFrame accent={side === "player" ? theme.colors.accent : theme.colors.border} />
-              <Text numberOfLines={1} style={styles.abilityPanelName}>{battle[side].name} · {battle[side].ability?.name ?? "Combat routine"}</Text>
+              <Text numberOfLines={1} style={styles.abilityPanelName}>{battle[side].name} · {battle[side].ability?.name ?? (battle.hostSnapshot ? "EXTRAS UNAVAILABLE" : "Combat routine")}</Text>
             </Pressable>
           ))}
         </View>
