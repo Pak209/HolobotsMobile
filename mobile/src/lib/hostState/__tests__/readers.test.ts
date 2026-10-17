@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { buildDesktopAccountReply } from '../../../../../functions/src/desktop/desktopAccountReply';
+import { readDesktopStoryState, readHostStoryFlags, readRivalRetryAfterMs, remainingCooldownMs } from '../readers';
+const defaults = { arenaGatheringSeen: false, tournamentsWon: 0, arenaArcBuilt: false, holoZonesArcBuilt: false };
+describe('desktop host progress reader', () => {
+  it.each(['desktop-account-1', 'desktop-account-2', 'desktop-account-3'] as const)('consumes real %s host replies at every tournament stage', schema => {
+    for (const wins of [0, 1, 2, 3]) {
+      const flags = { ...defaults, arenaGatheringSeen: true, tournamentsWon: wins, arenaArcBuilt: wins === 3 };
+      const raw = buildDesktopAccountReply({ storyFlags: flags }, 'demo-reader', schema, { light: 1, medium: 0, heavy: 0 });
+      expect(readDesktopStoryState(raw, 'demo-reader')).toEqual({ uid: 'demo-reader', schemaVersion: schema, storyFlags: flags, pilotRank: 0 });
+    }
+  });
+  it('defaults old accounts without claiming a gate, preserving false and zero', () => {
+    expect(readHostStoryFlags(undefined)).toEqual(defaults);
+    expect(readHostStoryFlags({ arenaGatheringSeen: false, tournamentsWon: 0 })).toEqual(defaults);
+  });
+  it('preserves host-owned Pilot Rank separately from tournament wins', () => {
+    expect(readDesktopStoryState({ uid: 'a', schemaVersion: 'desktop-account-3', pilotRank: 47 }, 'a').pilotRank).toBe(47);
+  });
+  it('returns immutable copies, permits unrelated additive reply fields', () => {
+    const raw = { uid: 'a', schemaVersion: 'desktop-account-3', storyFlags: { ...defaults }, extra: 'future' };
+    const parsed = readDesktopStoryState(raw, 'a'); raw.storyFlags.arenaGatheringSeen = true;
+    expect(parsed.storyFlags.arenaGatheringSeen).toBe(false);
+    expect(Object.isFrozen(parsed)).toBe(true); expect(Object.isFrozen(parsed.storyFlags)).toBe(true);
+  });
+  it.each([null, [], 'flags', { tournamentsWon: -1 }, { tournamentsWon: 4 }, { tournamentsWon: 1.5 },
+    { tournamentsWon: '1' }, { tournamentsWon: NaN }, { tournamentsWon: null }, { arenaGatheringSeen: 1 },
+    { arenaArcBuilt: true }, { tournamentsWon: 3 }, { holoZonesArcBuilt: 'false' }])('rejects malformed/inconsistent flags: %j', value => {
+    expect(() => readHostStoryFlags(value)).toThrow('invalid_reply');
+  });
+  it.each([null, [], {}, { uid: 'b', schemaVersion: 'desktop-account-3' }, { uid: 'a', schemaVersion: 'future' },
+    { uid: 'a', schemaVersion: 'desktop-account-3', pilotRank: -1 }, { uid: 'a', schemaVersion: 'desktop-account-3', pilotRank: '2' },
+    { uid: 'a', schemaVersion: 'desktop-account-3', pilotRank: null }, { uid: 'a', schemaVersion: 'desktop-account-3', pilotRank: 1.5 }])('rejects mismatched account or malformed envelope: %j', value => {
+    expect(() => readDesktopStoryState(value, 'a')).toThrow('invalid_reply');
+  });
+});
+describe('structured rival cooldown reader', () => {
+  it.each([0, 1, 299999, 300000, 301000])('reads exact host duration %i, including future-host-clock offsets', retryAfterMs => {
+    expect(readRivalRetryAfterMs({ code: 'functions/failed-precondition', details: { rejectionCode: 'rival_cooldown', retryAfterMs } })).toBe(retryAfterMs);
+  });
+  it.each([undefined, null, '300000', -1, 1.5, NaN, Infinity])('ignores unusable durations %j', retryAfterMs => {
+    expect(readRivalRetryAfterMs({ details: { rejectionCode: 'rival_cooldown', retryAfterMs } })).toBeNull();
+  });
+  it('never guesses from error text, codes alone or other refusal kinds', () => {
+    for (const error of [new Error('rival_cooldown'), { code: 'rival_cooldown', retryAfterMs: 1000 }, { details: { rejectionCode: 'zone_cooldown', retryAfterMs: 1000 } }]) expect(readRivalRetryAfterMs(error)).toBeNull();
+  });
+  it('expires exactly at deadline and clamps after it without granting anything', () => {
+    expect(remainingCooldownMs(300000, 299999)).toBe(1);
+    expect(remainingCooldownMs(300000, 300000)).toBe(0);
+    expect(remainingCooldownMs(300000, 400000)).toBe(0);
+    expect(remainingCooldownMs(null, 10)).toBe(0);
+  });
+});

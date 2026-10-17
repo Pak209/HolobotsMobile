@@ -1,0 +1,74 @@
+
+> holobots-mobile@0.1.0 test
+> vitest run src/lib/hostState/__tests__/hooks.test.ts --maxWorkers=1
+
+
+ RUN  v3.2.4 /private/tmp/holobots-mobile-tests-2/mobile
+
+ ❯ src/lib/hostState/__tests__/hooks.test.ts (4 tests | 2 failed) 14ms
+   × real React host-state hook lifecycle > survives StrictMode effect cleanup/setup and loads host progress 7ms
+     → expected undefined to be 'a' // Object.is equality
+   ✓ real React host-state hook lifecycle > switches account without exposing the previous pilot progress 1ms
+   ✓ real React host-state hook lifecycle > renders the exact countdown, expires and cleans its timer on unmount 3ms
+   × real React host-state hook lifecycle > rival session remains usable after StrictMode cleanup 2ms
+     → promise rejected "Error: session_closed" instead of resolving
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  23:19:16
+   Duration  226ms (transform 44ms, setup 0ms, collect 76ms, tests 14ms, environment 0ms, prepare 44ms)
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > survives StrictMode effect cleanup/setup and loads host progress
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > switches account without exposing the previous pilot progress
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > renders the exact countdown, expires and cleans its timer on unmount
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+stderr | src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > rival session remains usable after StrictMode cleanup
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > survives StrictMode effect cleanup/setup and loads host progress
+AssertionError: expected undefined to be 'a' // Object.is equality
+
+- Expected: 
+"a"
+
++ Received: 
+undefined
+
+ ❯ src/lib/hostState/__tests__/hooks.test.ts:19:34
+     17|     m.call.mockResolvedValue({ data: { uid: 'a', schemaVersion: 'deskt…
+     18|     await act(async () => { mounted = create(React.createElement(Stric…
+     19|     expect(account.account?.uid).toBe('a'); expect(account.loading).to…
+       |                                  ^
+     20|   });
+     21|   it('switches account without exposing the previous pilot progress', …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/hostState/__tests__/hooks.test.ts > real React host-state hook lifecycle > rival session remains usable after StrictMode cleanup
+AssertionError: promise rejected "Error: session_closed" instead of resolving
+ ❯ src/lib/hostState/__tests__/hooks.test.ts:46:80
+     44|     m.call.mockResolvedValue({ data: { ok: true } });
+     45|     await act(async () => { mounted = create(React.createElement(Stric…
+     46|     await act(async () => { await expect(rival.request({ operation: 's…
+       |                                                                                ^
+     47|   });
+     48| });
+ ❯ Proxy.process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:1081:22
+ ❯ src/lib/hostState/__tests__/hooks.test.ts:46:11
+
+Caused by: Error: session_closed
+ ❯ Object.request src/lib/hostState/stores.ts:40:25
+ ❯ src/lib/hostState/__tests__/hooks.test.ts:46:48
+ ❯ Proxy.process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:1081:22
+ ❯ src/lib/hostState/__tests__/hooks.test.ts:46:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
