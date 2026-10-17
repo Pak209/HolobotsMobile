@@ -43,7 +43,7 @@ test('long opener strikes immediately; queued close cannot spend STA below zero'
 test('fast chaser closes sooner; faster escape can make a queued strike whiff',()=>{
  const events=name=>run(copy(name)).ticks.flatMap(t=>t.events);
  const start=name=>events(name).find(e=>e.actor==='a'&&e.action==='strike'&&e.reason==='accepted')?.tick ?? 90;
- assert.ok(start('fast-vs-slow-chase') < start('slow-vs-fast-escape')); 
+ assert.ok(start('fast-vs-slow-chase') < start('slow-vs-fast-escape'));
  assert.ok(!events('slow-vs-fast-escape').some(e=>e.actor==='a'&&e.reason==='contact'));
 });
 test('strict v2 shape rejects illegal speeds, tiers, corner spawns and ambiguous old speed',()=>{
