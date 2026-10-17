@@ -4,6 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
+const Ajv = createRequire(new URL('../../rules-tests/package.json', import.meta.url))('ajv');
+const validateDashboard = new Ajv().compile(require('../../Schemas/desktop-account-dashboard-fields.json'));
+assert.equal(validateDashboard(require('../../Documentation/QA/2026-10-17-desktop-snapshot-identity-1/known-bad-before.json')),false);
+assert.equal(validateDashboard(require('../../Documentation/QA/2026-10-17-desktop-snapshot-identity-1/desktop-account-3.json')),true);
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulator required; never run against production');
 process.env.GCLOUD_PROJECT ||= 'demo-holobots-desktop-tests';
 const { db } = require('../lib/admin.js');
@@ -20,7 +24,7 @@ test('v3: normalised holobots + battleStats / displayStats; the starter Buddy Un
   assert.equal(r.schemaVersion, 'desktop-account-3'); assert.deepEqual(r.buddyUnits, { light: 1, medium: 0, heavy: 0 });
   assert.deepEqual(r.holobots[0].battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 80, intelligence: 60 });
   assert.deepEqual(r.holobots[0].displayStats, P.getHolobotDisplayStats('ACE', 4, { attack: 3, health: 20 }));
-  assert.deepEqual({ ...r.holobots[1], battleStats: undefined, displayStats: undefined }, { name: 'KUMA', level: 1, attributePoints: 1, experience: 0, nextLevelExp: 400, rank: 'Rookie', boostedAttributes: {}, battleStats: undefined, displayStats: undefined });
+  assert.deepEqual({ ...r.holobots[1], battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined }, { name: 'KUMA', level: 1, attributePoints: 1, experience: 0, nextLevelExp: 400, rank: 'Rookie', boostedAttributes: {}, battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined });
   const s = E.getPlayerBattleStats({ name: 'KUMA', level: 1 });
   assert.deepEqual(r.holobots[1].battleStats, { attack: s.attack, defense: s.defense, maxHP: s.maxHP, speed: s.speed, intelligence: s.intelligence });
   const stored = (await db.doc(`users/${uid}`).get()).data();
@@ -39,4 +43,18 @@ test('v1 / v2 keep the stored records verbatim; an unknown version is invalid-ar
   for (const r of [v1, v2]) { assert.deepEqual(r.holobots, [ace(), { name: 'KUMA', level: 1 }]); assert.equal('battleStats' in r.holobots[0], false); }
   await assert.rejects(() => desktopAccountSnapshot.run({ auth: { uid }, data: { schemaVersion: 'desktop-account-9' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
   await assert.rejects(() => desktopAccountSnapshot.run({ data: { schemaVersion: 'desktop-account-3' } }), e => e.code === 'unauthenticated');
+});
+
+test('dashboard projection ignores request overrides and preserves stored account fields', async () => {
+  const uid=await setup({username:'Throwaway Pilot',syncPoints:37,privateSentinel:{keep:true}});
+  for(const schemaVersion of ['desktop-account-1','desktop-account-2','desktop-account-3']) {
+    const r=await desktopAccountSnapshot.run({auth:{uid},data:{schemaVersion,username:'Spoof',syncPoints:999,zones:[{zoneId:'sky_reach',isOpen:true}]}});
+    assert.equal(validateDashboard(r),true,JSON.stringify(validateDashboard.errors));
+    assert.equal(r.username,'Throwaway Pilot');assert.equal(r.syncPoints,37);
+    assert.equal(r.pilotPortraitId,null);assert.equal(r.pilotColourwayId,null);
+    assert.deepEqual(r.zones.map(z=>z.isOpen),[true,true,false,false]);
+  }
+  const stored=(await db.doc(`users/${uid}`).get()).data();
+  assert.equal(stored.username,'Throwaway Pilot');assert.equal(stored.syncPoints,37);
+  assert.deepEqual(stored.privateSentinel,{keep:true});assert.equal(stored.zones,undefined);
 });

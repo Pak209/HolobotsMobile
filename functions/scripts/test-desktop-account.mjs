@@ -51,6 +51,7 @@ test('v1 / v2 retain deployed fields byte for byte after additive storyFlags, pi
       delete a.pilotRank;
       assert.ok(Array.isArray(a.tournamentUnlocks));
       delete a.tournamentUnlocks;
+      for (const key of ["username", "pilotPortraitId", "pilotColourwayId", "syncPoints", "zones"]) delete a[key];
       const b = deployed(structuredClone(profile), 'uid-1', version, inv);
       assert.equal(JSON.stringify(a), JSON.stringify(b), `${version} ${JSON.stringify(profile)}`);
       n++;
@@ -67,7 +68,7 @@ test('v3: every holobot normalised (mobile defaults) with battleStats = getPlaye
   const profile = profiles()[3];
   const inv = readBuddyInventory(profile);
   const r = S.buildDesktopAccountReply(structuredClone(profile), 'uid-1', 'desktop-account-3', inv.units);
-  assert.deepEqual(Object.keys(r), ['schemaVersion', 'battlefieldMovement', 'uid', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'holobots', 'blueprints', 'travelSquad', 'blueprintTiers', 'buddyUnits']);
+  assert.deepEqual(Object.keys(r), ['schemaVersion', 'battlefieldMovement', 'uid', 'username', 'pilotPortraitId', 'pilotColourwayId', 'syncPoints', 'zones', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'holobots', 'blueprints', 'travelSquad', 'blueprintTiers', 'buddyUnits']);
   assert.equal(r.schemaVersion, 'desktop-account-3'); assert.deepEqual(r.buddyUnits, { light: 4, medium: 0, heavy: 0 }, 'tier map like v2');
   assert.deepEqual(r.travelSquad, profile.travelSquad);
   const [a, k, w] = r.holobots;
@@ -97,4 +98,22 @@ test('v3 drops entries that are not named records; v1 / v2 keep them verbatim', 
   assert.deepEqual(v3.holobots.map(h => h.name), ['HARE']); assert.deepEqual(v3.blueprints, {});
   assert.equal(v3.holobots[0].attributePoints, 0); assert.deepEqual(v3.holobots[0].displayStats, P.getHolobotDisplayStats('HARE', 7, { speed: 4 }));
   assert.deepEqual(S.buildDesktopAccountReply(structuredClone(profile), 'u', 'desktop-account-2', inv.units).holobots, profile.holobots);
+});
+
+ test('dashboard identity is stored-only, nullable, and never accepts client-like appearance/catalog fields', () => {
+  for (const version of ['desktop-account-1', 'desktop-account-2', 'desktop-account-3']) {
+    const profile = {username:'Pilot Actual',syncPoints:0,pilotPortraitId:'forged',pilotColourwayId:'forged',zones:[{isOpen:true}],wardrobe:{preset:'Default_Boy'}};
+    const before = structuredClone(profile);
+    const r = S.buildDesktopAccountReply(profile,'not-a-name',version,{light:0,medium:0,heavy:0});
+    assert.equal(r.username,'Pilot Actual'); assert.equal(r.syncPoints,0);
+    assert.equal(r.pilotPortraitId,null); assert.equal(r.pilotColourwayId,null);
+    assert.deepEqual(r.zones.map(z=>z.zoneId),['holocity','neonforest','tide_hollow','sky_reach']);
+    assert.deepEqual(r.zones.map(z=>z.sceneName),['HoloCity_Main','HoloZone_NeonForest',null,null]);
+    assert.deepEqual(r.zones.map(z=>z.isOpen),[true,true,false,false]);
+    assert.deepEqual(profile,before);
+  }
+  for (const invalid of [undefined,null,-1,1.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1,'5']) {
+    const r=S.buildDesktopAccountReply({username:42,syncPoints:invalid},'uid','desktop-account-3',{light:0,medium:0,heavy:0});
+    assert.equal(r.username,null); assert.equal(r.syncPoints,null);
+  }
 });
