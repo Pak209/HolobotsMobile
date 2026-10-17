@@ -1,5 +1,5 @@
 /** DECISIONS #54-1: Zell is the story rival. Server-owned, opt-in; no new rewards.
- * WOLF is a temporary roster stand-in until Pak's thirteenth Holobot exists.
+ * JUSAN is Zell's own bot; its balance remains a flagged WOLF placeholder.
  * The host, not a request field, decides when a issued Zell victory turns him ally.
  */
 import { desktopPracticeCommands } from './desktopPracticeCommands';
@@ -7,7 +7,7 @@ import { RivalBattleRecord, RivalError, IssueReply, RIVAL_SCHEMA_V3, rivalScaled
 
 export const ZELL_STORY_SCHEMA = 'zell-story-1';
 export const ZELL_PILOT_ID = 'zell';
-export const ZELL_PLACEHOLDER_HOLOBOT = 'wolf';
+export const ZELL_HOLOBOT = 'jusan';
 export const ZELL_STORY_ENV_FLAG = 'HOLOCITY_ZELL_STORY';
 export type ZellPhase = 'unmet' | 'rival' | 'ally';
 export type ZellStoryState = {
@@ -45,7 +45,7 @@ export function storyRequest(raw: unknown): { requested: boolean; issueZell: boo
   return { requested: true, issueZell: c.rivalId === ZELL_PILOT_ID };
 }
 export function zellStoryView(s: ZellStoryState, enabled: boolean) {
-  return { schemaVersion: ZELL_STORY_SCHEMA, pilotId: ZELL_PILOT_ID, phase: s.phase, turnedAlly: s.phase === 'ally', placeholder: true, placeholderHolobotId: ZELL_PLACEHOLDER_HOLOBOT, enabled };
+  return { schemaVersion: ZELL_STORY_SCHEMA, pilotId: ZELL_PILOT_ID, phase: s.phase, turnedAlly: s.phase === 'ally', placeholder: false, placeholderHolobotId: ZELL_HOLOBOT, holobotId: ZELL_HOLOBOT, enabled };
 }
 export function meetZell(s: ZellStoryState, nowMs: number): ZellStoryState {
   if (!integer(nowMs)) return fail();
@@ -54,7 +54,7 @@ export function meetZell(s: ZellStoryState, nowMs: number): ZellStoryState {
 /** Use the existing ladder's level/stat scale, commands and rewards; one named rival. */
 export function bindZellLineup(result: { battle: RivalBattleRecord; reply: IssueReply }) {
   const pilot = { pilotId: ZELL_PILOT_ID, displayName: 'Zell', tier: result.reply.status.tierLabel };
-  const combatant = rivalScaledCombatant(ZELL_PLACEHOLDER_HOLOBOT, result.battle.tier);
+  const combatant = rivalScaledCombatant(ZELL_HOLOBOT, result.battle.tier);
   const battle = result.battle as StoryRivalRecord;
   battle.storySchema = ZELL_STORY_SCHEMA;
   battle.storyRivalId = ZELL_PILOT_ID;

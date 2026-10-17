@@ -34,10 +34,10 @@ test('server feature defaults OFF: Zell issue refuses without writing any battle
   assert.deepEqual(await user(uid), before); assert.equal(await story(uid), undefined);
   assert.equal((await db.collection(`rivalBattles/${uid}/battles`).get()).size, 0);
 });
-test('Zell issue is an existing ladder battle with a host-owned placeholder and persists meeting', async () => {
+test('Zell issue is an existing ladder battle with a host-owned JUSAN and persists meeting', async () => {
   const uid = await setup(), i = await issue(uid); assert.equal(i.encounter.opponentPilot.displayName, 'Zell');
-  assert.equal(i.encounter.opponentSquad.length, 1); assert.equal(i.encounter.opponentSquad[0].holobotId, 'wolf');
-  assert.equal(i.story.phase, 'rival'); assert.equal(i.story.placeholder, true);
+  assert.equal(i.encounter.opponentSquad.length, 1); assert.equal(i.encounter.opponentSquad[0].holobotId, 'jusan');
+  assert.equal(i.story.phase, 'rival'); assert.equal(i.story.placeholder, false);
   assert.deepEqual(await story(uid), { schemaVersion: S, phase: 'rival', metAtMs: T, allyAtMs: null, victoryBattleId: null });
   const b = (await db.doc(`rivalBattles/${uid}/battles/${i.battleId}`).get()).data(); assert.equal(b.storyRivalId, 'zell'); assert.equal(b.storySchema, S);
 });
@@ -106,8 +106,8 @@ test('HOLOCITY_ZELL_STORY is read per request by the callable: only "1" serves Z
     const zell = await call(data), ordinary = await call({ operation: 'issue', schemaVersion: V3 });
     assert.equal(zell.story.enabled, true); assert.equal(zell.story.phase, 'rival'); assert.equal(zell.encounter.opponentPilot.pilotId, 'zell');
     assert.equal(zell.tier, 3); assert.equal(zell.tier, ordinary.tier); assert.equal(zell.encounter.opponentPilot.tier, ordinary.encounter.opponentPilot.tier);
-    assert.deepEqual(zell.encounter.opponentSquad, [{ ...L.rivalScaledCombatant('wolf', 3), ...L.rivalScaledCombatantStats(3), commandRules: desktopPracticeCommands('wolf') }]);
-    assert.deepEqual((await db.doc(`rivalBattles/${uid}/battles/${zell.battleId}`).get()).data().lineup.opponentSquad, [L.rivalScaledCombatant('wolf', 3)]);
+    assert.deepEqual(zell.encounter.opponentSquad, [{ ...L.rivalScaledCombatant('jusan', 3), ...L.rivalScaledCombatantStats(3), commandRules: desktopPracticeCommands('jusan') }]);
+    assert.deepEqual((await db.doc(`rivalBattles/${uid}/battles/${zell.battleId}`).get()).data().lineup.opponentSquad, [L.rivalScaledCombatant('jusan', 3)]);
     delete process.env.HOLOCITY_ZELL_STORY;
     assert.equal((await call({ operation: 'status', schemaVersion: V3, storySchema: S })).story.enabled, false);
     await assert.rejects(() => call(data), e => e.code === 'unavailable');
