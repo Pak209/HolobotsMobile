@@ -6,6 +6,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
+import { previewScreenFromUrl } from "./previewDeepLink";
 
 import { OfflinePreviewAuthProvider } from "@/contexts/AuthContext";
 import { HomeScreen } from "@/screens/HomeScreen";
@@ -102,8 +103,8 @@ export function HoloCityPreviewApp() {
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const open = (url: string | null) => {
-      const name = url?.match(/^holobotsmobile:\/\/qa\/([a-zA-Z0-9-]+)/)?.[1];
-      if (name && name in screens) { setScreen(name); setRevision(value => value + 1); }
+      const name = previewScreenFromUrl(url, screens);
+      if (name) { setScreen(name); setRevision(value => value + 1); }
     };
     void Linking.getInitialURL().then(open);
     const subscription = Linking.addEventListener("url", event => open(event.url));
