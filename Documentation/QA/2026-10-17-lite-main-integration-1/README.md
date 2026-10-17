@@ -16,7 +16,7 @@ Main native/config is preserved: **134 files under ios/android/app.json compare 
 
 ## Verification / attempt ledger
 
-Static checks passed: original MainApp bytes, 134 native/config files, no duplicated AuthContext/Firebase modules, Python syntax for generation scripts, git whitespace check. A reviewer caught a missing getApp import in the prepared exact-OFF branch; source and generator were corrected without a test invocation.
+Static checks passed: original MainApp bytes, 134 native/config files, no duplicated AuthContext/Firebase modules, Python syntax for generation scripts, and working-diff whitespace check. The final whole-integration whitespace scan reports three inherited blank-at-EOF warnings in the old mobile-testflight-prep-1 text logs; it is not wholly green. A reviewer caught a missing getApp import in the prepared exact-OFF branch; source and generator were corrected without a test invocation.
 
 **Dependency setup HELD after two failures. No full mobile, TypeScript, host, rules or native tests were run.**
 
