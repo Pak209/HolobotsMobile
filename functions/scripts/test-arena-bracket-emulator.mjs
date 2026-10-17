@@ -33,6 +33,23 @@ test('known-bad claimed victory and final HP cannot bypass the host bracket or m
  await refused(uid,id,()=>arena(uid,'cancel',{matchId:id,playerFinalHealth:1},T0+2000),'bracket_bound');
  assert.deepEqual(await user(uid),before);
 });
+test('bracket fighter levels are host admission snapshots on start, resume and advance; client level is refused',async()=>{
+ const uid=await setup(21),a=await issue(uid),id=a.matchId;
+ await refused(uid,id,()=>call(uid,'start',id,{level:99}),'invalid_request');
+ const start=await call(uid,'start',id);
+ const levels=rows=>rows.map(e=>[e.entrantId,e.fighter.level]);
+ assert.equal(start.bracket.entrants.find(e=>e.isPlayer).fighter.level,a.match.entrant.level);
+ assert.equal(a.match.entrant.level,21);
+ for(const row of start.bracket.entrants.filter(e=>!e.isPlayer))assert.equal(row.fighter.level,a.match.opponent.level);
+ assert.equal(a.match.opponent.level,12);
+ // Profile changes after admission must not rewrite a bracket's immutable LV badge.
+ await db.doc(`users/${uid}`).update({holobots:[bot(45)]});
+ const resumed=await call(uid,'resume',id);
+ assert.deepEqual(levels(resumed.bracket.entrants),levels(start.bracket.entrants));
+ const advanced=await call(uid,'advance',id,{expectedRound:0});
+ assert.deepEqual(levels(advanced.bracket.entrants),levels(start.bracket.entrants));
+ assert.equal((await user(uid)).storyFlags.holoZonesArcBuilt,false);
+});
 test('unbound tournament admission cannot bypass the bracket with public start or claimed-HP settle',async()=>{
  const uid=await setup(),a=await issue(uid),id=a.matchId;
  await refused(uid,id,()=>arena(uid,'start',{matchId:id}),'bracket_required');
