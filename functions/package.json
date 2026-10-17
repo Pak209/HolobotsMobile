@@ -16,7 +16,8 @@
     "test:pilot-rank": "node --test scripts/test-pilot-rank-emulator.mjs",
     "test:duel-sim": "node --test scripts/test-duel-sim.mjs",
     "test:duel-inputs": "node --test scripts/test-duel-inputs-contract.mjs",
-    "test:rival-input-verification": "node --test scripts/test-rival-input-verification.mjs"
+    "test:rival-input-verification": "node --test scripts/test-rival-input-verification.mjs",
+    "test:tournament-unlocks:emulator": "node --test scripts/test-tournament-unlocks-emulator.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",

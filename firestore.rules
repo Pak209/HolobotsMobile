@@ -112,7 +112,7 @@ service cloud.firestore {
         // are server-only.
         'buddyUnits', 'rivalWins', 'rivalRewardDay',
         // DECISIONS #58 (3): the once-per-bot-per-tier rank Kit record.
-        'rankKitTiers', 'storyFlags', 'pilotRank', 'expeditionSupplies', 'expeditionBank'
+        'rankKitTiers', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'tournamentUnlockAcknowledged', 'expeditionSupplies', 'expeditionBank'
       ]);
     }
 
@@ -149,6 +149,8 @@ service cloud.firestore {
         && !('rankKitTiers' in data)
         && !('storyFlags' in data)
         && !('pilotRank' in data)
+        && !('tournamentUnlocks' in data)
+        && !('tournamentUnlockAcknowledged' in data)
         && !('expeditionSupplies' in data)
         && !('expeditionBank' in data)
         && !('expBoosterActiveUntil' in data)

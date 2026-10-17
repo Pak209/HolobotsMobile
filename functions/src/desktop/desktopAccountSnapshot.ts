@@ -1,3 +1,4 @@
+import { acknowledgeTournamentUnlock, readTournamentAcknowledged, tournamentUnlocks } from '../story/tournamentUnlocks';
 import { readStoryFlags, StoryError } from '../story/storyFlags';
 import { readPilotRank, PilotRankError } from '../account/pilotRank';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -26,6 +27,12 @@ export const desktopAccountSnapshot = onCall(async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in to view your Holobots.');
   const version = desktopAccountVersion(request.data);
+  const data = request.data as Record<string, unknown> | undefined;
+  const ack = data?.operation === 'ackTournamentUnlock';
+  if (data?.operation !== undefined && data.operation !== 'snapshot' && !ack)
+    throw new HttpsError('invalid-argument','invalid_request',{rejectionCode:'invalid_request'});
+  if (ack && Object.keys(data!).some(k => !['schemaVersion','operation','tournamentId'].includes(k)))
+    throw new HttpsError('invalid-argument','invalid_request',{rejectionCode:'invalid_request'});
   const userRef = db.doc(`users/${uid}`);
   return db.runTransaction(async tx => {
     const snapshot = await tx.get(userRef);
@@ -40,7 +47,16 @@ export const desktopAccountSnapshot = onCall(async request => {
       if (e instanceof StoryError || e instanceof PilotRankError) throw new HttpsError('unavailable','unavailable',{rejectionCode:'unavailable'});
       throw e;
     }
-    const updates = { ...inv.updates, ...squad.updates,
+    let tournamentUpdates;
+    try {
+      const tournamentUnlockAcknowledged = ack ? acknowledgeTournamentUnlock(profile,data?.tournamentId) : readTournamentAcknowledged(profile.tournamentUnlockAcknowledged);
+      tournamentUpdates = {tournamentUnlockAcknowledged, tournamentUnlocks: tournamentUnlocks({...profile,tournamentUnlockAcknowledged})};
+    } catch (e) {
+      if (e instanceof StoryError) throw new HttpsError(e.code === 'invalid_request' ? 'invalid-argument' : e.code === 'not_eligible' ? 'failed-precondition' : 'unavailable',e.code,{rejectionCode:e.code});
+      throw e;
+    }
+    const changedTournamentUpdates = Object.fromEntries(Object.entries(tournamentUpdates).filter(([key,value]) => JSON.stringify(profile[key]) !== JSON.stringify(value)));
+    const updates = { ...changedTournamentUpdates, ...inv.updates, ...squad.updates,
       ...(profile.pilotRank === undefined ? {pilotRank} : {}),
       ...(JSON.stringify(profile.storyFlags) !== JSON.stringify(storyFlags) ? {storyFlags} : {}) };
     if (Object.keys(updates).length) tx.update(userRef, updates);
