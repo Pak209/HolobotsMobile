@@ -1,3 +1,4 @@
+import { guardVisual } from '../../lib/bots/guardVisual';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, PixelRatio, Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
@@ -173,6 +174,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           actor.base.copy(actor.root.position);
           const shield = new THREE.Mesh(new THREE.SphereGeometry(0.75, 24, 12), new THREE.MeshBasicMaterial({ color: theme.colors.accent, transparent: true, opacity: 0, wireframe: true, depthWrite: false }));
           shield.position.copy(actor.base); shield.position.y = 0.75; shield.scale.set(0.8, 1.1, 0.8);
+          // Retain the transparent first draw to warm its shader before the first defend pulse.
           scene.add(shield); ownedRoots.push(shield); actor.guardRim = shield;
         });
       }
@@ -225,8 +227,11 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           const hitElapsed = actor.hitAt === undefined ? Infinity : now - actor.hitAt;
           // The source fleet has no HitLight take; a short additive recoil is presentation only.
           actor.root.position.copy(actor.base).addScaledVector(actor.away, hitElapsed < 280 ? Math.sin(hitElapsed / 280 * Math.PI) * 0.08 : 0);
-          const guardElapsed = actor.guardAt === undefined ? Infinity : now - actor.guardAt;
-          if (actor.guardRim) actor.guardRim.material.opacity = guardElapsed < 700 ? 0.28 * (1 - guardElapsed / 700) : 0;
+          if (actor.guardRim) {
+            const guard = guardVisual(now, actor.guardAt);
+            actor.guardRim.material.opacity = guard.opacity;
+            actor.guardRim.visible = guard.visible;
+          }
         });
         camera.position.copy(cameraHome);
         const strikeElapsed = now - cameraCue.current.strikeAt;
