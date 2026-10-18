@@ -101,15 +101,51 @@ function missionState(value: unknown, date: Date, bump: DailyMissionCounter | nu
   };
 }
 
-/** The two writes every counter-bumping callable adds: the authoritative ledger and the display mirror. */
+/** The stored rewardSystem map's own keys (quest / training state: activeQuests, activeTraining, availableQuestIds,
+ * lastQuestRefreshDate, questRefreshesRemaining, syncBoostEnabled, ...); {} when absent or not a map. */
+function rewardSystemKeys(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+/**
+ * The two writes every counter-bumping callable adds: the authoritative ledger and the display mirror.
+ * hardening-2: the mirror is MERGED into the rewardSystem read in the same transaction ({...stored, ...missionState}),
+ * never a 4-key replacement. The arena settle and the desktop cache pack write with tx.update, which replaces a whole
+ * top-level map, so a bare missionState wiped activeQuests / activeTraining / availableQuestIds. The spread is also
+ * correct under set(..., {merge: true}) (gacha, booster); dotted `rewardSystem.<key>` paths would not be (merge-set
+ * treats a dotted key as a literal field name).
+ */
 export function dailyMissionCounterUpdates(
   userData: Record<string, unknown>,
   counter: DailyMissionCounter,
   date = new Date(),
 ): Record<string, unknown> {
   return {
-    rewardSystem: missionState(userData.rewardSystem, date, counter),
+    rewardSystem: { ...rewardSystemKeys(userData.rewardSystem), ...missionState(userData.rewardSystem, date, counter) },
     [DAILY_MISSION_LEDGER_FIELD]: missionState(userData[DAILY_MISSION_LEDGER_FIELD], date, counter),
+  };
+}
+
+export const DAILY_MISSION_LEDGER_SUMMARY_SCHEMA = "daily-mission-ledger-1";
+export type DailyMissionId = (typeof DAILY_MISSION_TABLE)[number]["id"];
+
+/**
+ * hardening-2: the read-only summary desktopAccountSnapshot serves as `dailyMissionLedger` (Schemas/daily-mission-ledger-1.json),
+ * so the main app / lite / Unity render daily missions from the host instead of the client-writable rewardSystem copy.
+ * Counts come from the server-only ledger only (0 when it is from another UTC day). `claimed[id]` is true exactly when
+ * claimDailyMission would refuse already_claimed today (the ledger OR the rewardSystem mirror records it).
+ */
+export function dailyMissionLedgerSummary(userData: Record<string, unknown>, date = new Date()) {
+  const day = getTodayMissionKey(date);
+  const ledger = missionState(userData[DAILY_MISSION_LEDGER_FIELD], date, null);
+  const ledgerClaims = ledger.missionClaims as Record<string, unknown>;
+  const mirrorClaims = missionState(userData.rewardSystem, date, null).missionClaims as Record<string, unknown>;
+  return {
+    schemaVersion: DAILY_MISSION_LEDGER_SUMMARY_SCHEMA,
+    day,
+    arenaBattlesToday: ledger.arenaBattlesToday as number,
+    boosterPacksToday: ledger.boosterPacksToday as number,
+    claimed: Object.fromEntries(DAILY_MISSION_TABLE.map((m) => [m.id, ledgerClaims[m.id] === day || mirrorClaims[m.id] === day])) as Record<DailyMissionId, boolean>,
   };
 }
 
@@ -160,7 +196,7 @@ export function buildMissionClaimUpdatesRaw(
       gachaTickets: Number(userData.gachaTickets || 0) + mission.reward.gachaTickets,
       holosTokens: Number(userData.holosTokens || 0) + mission.reward.holosTokens,
       [DAILY_MISSION_LEDGER_FIELD]: next,
-      rewardSystem: { ...next, missionClaims: { ...mirrorClaims, ...next.missionClaims } },
+      rewardSystem: { ...rewardSystemKeys(userData.rewardSystem), ...next, missionClaims: { ...mirrorClaims, ...next.missionClaims } },
     },
   };
 }

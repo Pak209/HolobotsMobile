@@ -22,6 +22,10 @@
     "alreadyProcessed": {
       "type": "boolean"
     },
+    "payoutCapped": {
+      "type": "boolean",
+      "description": "Additive (hardening-2), issue replies only (new and replayed): true when the account already has ARENA_CPU_DAILY_PAYOUT_CAP paid CPU practice settles on the current UTC day (host clock), so a settle today closes with settlement.payoutWithheld 'daily_cap'. Advisory: the issue is not refused and the entry fee is still charged. Always false for a tournament issue (host bracket, outside the CPU cap). Absent on resume/start/settle/cancel replies."
+    },
     "match": {
       "anyOf": [
         {

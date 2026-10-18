@@ -130,6 +130,25 @@ refused `unavailable` and nothing is written; status / settle that carry `storyS
   `rivalBattleHost` deploy must carry it or the flag reverts to off. To switch off: remove the line, redeploy.
   Turning it on is Pak's call, after the Unity story reader lands; nothing in this repo enables it.
 
+## Legacy quest / training timers (`HOLOCITY_LEGACY_QUEST_TIMERS`) — off by default
+
+`claimQuestRun` / `claimTrainingSession` (critic review 2026-10-17 S3) pay only from the server-only
+`users/{uid}.progressionTimers` record that `startQuestRun` / `startTrainingSession` write (host clock, host-computed
+holobotPower, host-rolled training boost; `src/lib/progressionTimers.ts`). A run a client wrote straight into
+`rewardSystem` (the pre-hardening start path) is claimable ONLY when no server record exists AND the function's
+environment has `HOLOCITY_LEGACY_QUEST_TIMERS=1` — exactly `1`; anything else is off and the claim refuses
+`failed-precondition` / `details.rejectionCode: "not_started_on_host"`, nothing written. The callables read it on
+every request.
+
+- Deploy day: set `HOLOCITY_LEGACY_QUEST_TIMERS=1` in `functions/.env.holobots-24046` (or `functions/.env`) for the
+  deploy of `claimQuestRun` + `claimTrainingSession`, so quests / training already in flight on old clients can still
+  be claimed (longest quest 4 h, training 1 h). Once the clients call `startQuestRun` / `startTrainingSession`,
+  remove the line and redeploy those two functions (`.env*` files are git-ignored; every later deploy must carry or
+  omit it deliberately). With the flag on, a client-written record is trusted exactly as before this change.
+- Tests: pass `{ legacyTimers: true }` to `transactClaimQuestRun` / `transactClaimTrainingSession`, or set
+  `process.env.HOLOCITY_LEGACY_QUEST_TIMERS = '1'` before `claimQuestRun.run(...)`
+  (`scripts/test-progression-timers-emulator.mjs`).
+
 ## Layout
 
 Functions are TypeScript, compiled to `lib/` (`npm run build`, which also

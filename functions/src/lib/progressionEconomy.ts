@@ -105,6 +105,14 @@ export function getTrainingCourseEconomy(courseId: string): TrainingCourseEconom
 
 export const MAX_CLAIMED_HOLOBOT_POWER = 50000;
 
+/** Mirror of progressionSystems.getHolobotPowerScore (mobile; parity-tested): the quest power the client shows at
+ * start. hardening-2 (critic S3): startQuestRun computes it HERE from the stored holobot and records it server-side;
+ * the claim rolls against that record, never a client-written holobotPower. */
+export function getHolobotPowerScore(holobot: { name: string; level?: number; boostedAttributes?: unknown }): number {
+  const stats = getHolobotBattleStats(holobot.name, holobot.level, holobot.boostedAttributes);
+  return Math.round(stats.maxHP * 4 + stats.attack * 6 + stats.defense * 5 + stats.speed * 4 + stats.intelligence * 5);
+}
+
 /** Mirror of the client's start-time chance formula, evaluated at claim time. */
 export function getQuestSuccessChance(holobotPower: number, recommendedPower: number): number {
   const power = Math.min(MAX_CLAIMED_HOLOBOT_POWER, Math.max(0, Number(holobotPower) || 0));

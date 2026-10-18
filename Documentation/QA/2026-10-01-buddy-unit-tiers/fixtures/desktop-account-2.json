@@ -54,6 +54,17 @@
       "level": 3
     }
   ],
+  "dailyMissionLedger": {
+    "schemaVersion": "daily-mission-ledger-1",
+    "day": "2026-10-18",
+    "arenaBattlesToday": 0,
+    "boosterPacksToday": 0,
+    "claimed": {
+      "daily_login": false,
+      "arena_v2_battle": false,
+      "open_booster_pack": false
+    }
+  },
   "holobots": [
     {
       "name": "ACE",
