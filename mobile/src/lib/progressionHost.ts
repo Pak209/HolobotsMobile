@@ -220,9 +220,9 @@ export const START_BLOCK_COPY: Record<StartBlock, string> = {
 export function runStatusLine(card: { state: RunState; endsAtMs: number | null }, nowMs: number): string {
   switch (card.state) {
     case "ready": return "READY TO CLAIM";
-    case "running": return `ENDS ${formatClock(card.endsAtMs!)} · ${formatRemaining(card.endsAtMs! - nowMs)}`;
+    case "running": return `ENDS ${formatClock(card.endsAtMs!)} · ${formatRemaining(card.endsAtMs! - nowMs)} LEFT`;
     case "legacy_ready": return "STARTED ON AN OLDER APP · TRY CLAIM";
-    case "legacy_running": return card.endsAtMs === null ? "STARTED ON AN OLDER APP" : `STARTED ON AN OLDER APP · ${formatRemaining(card.endsAtMs - nowMs)}`;
+    case "legacy_running": return card.endsAtMs === null ? "STARTED ON AN OLDER APP" : `STARTED ON AN OLDER APP · ${formatRemaining(card.endsAtMs - nowMs)} LEFT`;
     case "legacy_refused": return "THE CITY CAN'T PAY THIS RUN · START A NEW ONE";
   }
 }
@@ -233,12 +233,13 @@ export function formatClock(ms: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** "1h 05m" / "11m 55s": never a second hh:mm beside the end time (the simulator witness read "ENDS 11:34 · 11:55"). */
 export function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 /** The claim button: enabled on a finished run (by the City's end time) or a legacy run the older app says is done. */

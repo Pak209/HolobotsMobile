@@ -128,7 +128,9 @@ describe("start → claim through the City (happy path)", () => {
     const [running] = buildQuestCards(timers, fixture.after.rewardSystem, noneRefused, CITY_QUEST.endsAtMs - 61_000);
     expect(running).toMatchObject({ runId: "qr_lpfixture0001", source: "city", endsAtMs: CITY_QUEST.endsAtMs, state: "running" });
     expect(canTryClaim(running)).toBe(false);
-    expect(runStatusLine(running, CITY_QUEST.endsAtMs - 61_000)).toMatch(/^ENDS \d\d:\d\d · 01:01$/);
+    expect(runStatusLine(running, CITY_QUEST.endsAtMs - 61_000)).toMatch(/^ENDS \d\d:\d\d · 1m 01s LEFT$/);
+    expect(runStatusLine(running, CITY_QUEST.startedAtMs)).toMatch(/^ENDS \d\d:\d\d · 30m 00s LEFT$/);
+    expect(runStatusLine({ state: "running", endsAtMs: CITY_TRAINING.endsAtMs }, CITY_TRAINING.endsAtMs - 3_725_000)).toMatch(/· 1h 02m LEFT$/);
     const [ready] = buildQuestCards(timers, fixture.after.rewardSystem, noneRefused, CITY_QUEST.endsAtMs);
     expect(ready.state).toBe("ready");
     expect(canTryClaim(ready)).toBe(true);
