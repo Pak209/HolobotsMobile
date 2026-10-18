@@ -154,7 +154,7 @@ describe("presentHostDashboard", () => {
 describe("presentSquadTitle", () => {
   it("joins travel squad membership with snapshot LV", () => {
     expect(presentSquadTitle(["ace", "kuma"], { ace: 12, kuma: 8 })).toBe("ACE LV 12 · KUMA LV 8");
-    expect(presentSquadTitle(["ace", "wolf"], { ace: 12 })).toBe("ACE LV 12 · WOLF LV —");
+    expect(presentSquadTitle(["ace", "wolf"], { ace: 12 })).toBe("ACE LV 12 · WOLF");
     expect(presentSquadTitle(["ace"], null)).toBe("ACE · LV UNAVAILABLE");
     expect(presentSquadTitle([], { ace: 12 })).toBe("NO HOLOBOTS ASSIGNED");
     expect(presentSquadTitle(null, { ace: 12 })).toBe("CONNECT TO VIEW SQUAD");

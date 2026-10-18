@@ -73,3 +73,13 @@ export function isAllowedOverworldOrigin(
   const origin = getHttpOrigin(url);
   return devOrigin !== null && origin !== null && devOrigin === origin;
 }
+
+/**
+ * Whether Story Mode has an overworld this build may load: the exact gate OverworldScreen applies.
+ * Release builds accept only an allowed https host, so the localhost default keeps STORY out of the
+ * pilot menu instead of opening a blocked screen.
+ */
+export function isStoryOverworldAvailable(options: { dev?: boolean; url?: string } = {}): boolean {
+  const url = options.url ?? STORY_OVERWORLD_URL;
+  return isAllowedOverworldOrigin(url, { dev: options.dev, devUrl: url });
+}

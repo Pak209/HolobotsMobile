@@ -1,5 +1,4 @@
-export const ARTBOARD_WIDTH = 1800;
-export const ARTBOARD_HEIGHT = 3200;
+export { ARTBOARD_HEIGHT, ARTBOARD_WIDTH } from "./homeLayout";
 
 export const homeAssets = {
   backgroundBase: require("../../assets/figma/home/backgroundBase.png"),
