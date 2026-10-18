@@ -1,0 +1,227 @@
+{
+  "provenance": "Throwaway loopback demo emulator (demo- project, 127.0.0.1); real transactPvpRoomFighter transactions; disposable demo uids deleted after the run.",
+  "schemaVersion": "pvp-room-fighters-1",
+  "profiles": {
+    "p1": {
+      "uid": "demo_pvp_fighters_p1",
+      "username": "Pilot One",
+      "holobots": [
+        {
+          "name": "ACE",
+          "level": 21,
+          "experience": 0,
+          "nextLevelExp": 48400,
+          "attributePoints": 0
+        },
+        {
+          "name": "HARE",
+          "level": 4,
+          "experience": 0,
+          "nextLevelExp": 2500,
+          "attributePoints": 0
+        }
+      ]
+    },
+    "p2": {
+      "uid": "demo_pvp_fighters_p2",
+      "username": "Pilot Two",
+      "holobots": [
+        {
+          "name": "KUMA",
+          "level": 12,
+          "experience": 0,
+          "nextLevelExp": 16900,
+          "attributePoints": 0
+        }
+      ]
+    }
+  },
+  "knownBad": {
+    "note": "Client-authored room before any host answer. players.*.level is the LOCAL profile value (99 / 50) and must never reach a badge.",
+    "room": {
+      "roomId": "hsXoA9yHj1F6dcrvLsWC",
+      "roomCode": "PVPFX1",
+      "rulesVersion": 3,
+      "status": "active",
+      "mode": "1v1",
+      "players": {
+        "p1": {
+          "uid": "demo_pvp_fighters_p1",
+          "username": "Pilot One",
+          "holobotName": "ACE",
+          "level": 99,
+          "archetype": "balanced",
+          "maxHP": 150,
+          "currentHP": 150,
+          "attack": 8,
+          "defense": 6,
+          "speed": 7,
+          "intelligence": 5,
+          "stamina": 7,
+          "maxStamina": 7,
+          "specialMeter": 0,
+          "comboCounter": 0,
+          "guardStacks": 0,
+          "isInDefenseMode": false,
+          "armedDefenseTrap": null,
+          "moveCooldowns": {},
+          "abilityRuntime": {
+            "firedCount": 0
+          },
+          "moves": [],
+          "totalDamageDealt": 0,
+          "isConnected": true
+        },
+        "p2": {
+          "uid": "demo_pvp_fighters_p2",
+          "username": "Pilot Two",
+          "holobotName": "KUMA",
+          "level": 50,
+          "archetype": "balanced",
+          "maxHP": 150,
+          "currentHP": 150,
+          "attack": 8,
+          "defense": 6,
+          "speed": 7,
+          "intelligence": 5,
+          "stamina": 7,
+          "maxStamina": 7,
+          "specialMeter": 0,
+          "comboCounter": 0,
+          "guardStacks": 0,
+          "isInDefenseMode": false,
+          "armedDefenseTrap": null,
+          "moveCooldowns": {},
+          "abilityRuntime": {
+            "firedCount": 0
+          },
+          "moves": [],
+          "totalDamageDealt": 0,
+          "isConnected": true
+        }
+      },
+      "turnNumber": 0,
+      "winner": null,
+      "battleLog": [],
+      "createdAt": 1792267200000
+    }
+  },
+  "replies": {
+    "p1": {
+      "schemaVersion": "pvp-room-fighters-1",
+      "roomId": "hsXoA9yHj1F6dcrvLsWC",
+      "role": "p1",
+      "alreadyProcessed": false,
+      "fighter": {
+        "holobotId": "ace",
+        "level": 21,
+        "displayName": "ACE",
+        "tier": 0
+      }
+    },
+    "p2": {
+      "schemaVersion": "pvp-room-fighters-1",
+      "roomId": "hsXoA9yHj1F6dcrvLsWC",
+      "role": "p2",
+      "alreadyProcessed": false,
+      "fighter": {
+        "holobotId": "kuma",
+        "level": 12,
+        "displayName": "KUMA",
+        "tier": 0
+      }
+    }
+  },
+  "room": {
+    "roomId": "hsXoA9yHj1F6dcrvLsWC",
+    "roomCode": "PVPFX1",
+    "rulesVersion": 3,
+    "mode": "1v1",
+    "turnNumber": 0,
+    "winner": null,
+    "battleLog": [],
+    "createdAt": 1792267200000,
+    "players": {
+      "p1": {
+        "uid": "demo_pvp_fighters_p1",
+        "username": "Pilot One",
+        "holobotName": "ACE",
+        "level": 99,
+        "archetype": "balanced",
+        "maxHP": 150,
+        "currentHP": 150,
+        "attack": 8,
+        "defense": 6,
+        "speed": 7,
+        "intelligence": 5,
+        "stamina": 7,
+        "maxStamina": 7,
+        "specialMeter": 0,
+        "comboCounter": 0,
+        "guardStacks": 0,
+        "isInDefenseMode": false,
+        "armedDefenseTrap": null,
+        "moveCooldowns": {},
+        "abilityRuntime": {
+          "firedCount": 0
+        },
+        "moves": [],
+        "totalDamageDealt": 0,
+        "isConnected": true
+      },
+      "p2": {
+        "uid": "demo_pvp_fighters_p2",
+        "username": "Pilot Two",
+        "holobotName": "KUMA",
+        "level": 50,
+        "archetype": "balanced",
+        "maxHP": 150,
+        "currentHP": 150,
+        "attack": 8,
+        "defense": 6,
+        "speed": 7,
+        "intelligence": 5,
+        "stamina": 7,
+        "maxStamina": 7,
+        "specialMeter": 0,
+        "comboCounter": 0,
+        "guardStacks": 0,
+        "isInDefenseMode": false,
+        "armedDefenseTrap": null,
+        "moveCooldowns": {},
+        "abilityRuntime": {
+          "firedCount": 0
+        },
+        "moves": [],
+        "totalDamageDealt": 0,
+        "isConnected": true
+      }
+    },
+    "status": "active",
+    "hostFighters": {
+      "p1": {
+        "uid": "demo_pvp_fighters_p1",
+        "fighters": {
+          "ace": {
+            "holobotId": "ace",
+            "level": 21,
+            "displayName": "ACE",
+            "tier": 0
+          }
+        }
+      },
+      "schemaVersion": "pvp-room-fighters-1",
+      "p2": {
+        "uid": "demo_pvp_fighters_p2",
+        "fighters": {
+          "kuma": {
+            "holobotId": "kuma",
+            "level": 12,
+            "displayName": "KUMA",
+            "tier": 0
+          }
+        }
+      }
+    }
+  }
+}

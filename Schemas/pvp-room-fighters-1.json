@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/pvp-room-fighters-1.json",
+  "title": "PvP room host-minted fighter snapshot (pvpRoomFighterHost reply)",
+  "description": "Presentation-only level badge for a PvP room seat, minted by the host from the caller's owned Holobot. The fighter object is the #118 ArenaFighterSnapshot shape. definitions.request is the whole callable body; definitions.roomHostFighters is the host-only battle_rooms/{roomId}.hostFighters field. See Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "roomId",
+    "role",
+    "alreadyProcessed",
+    "fighter"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "pvp-room-fighters-1"
+    },
+    "roomId": {
+      "$ref": "#/definitions/roomId"
+    },
+    "role": {
+      "enum": [
+        "p1",
+        "p2"
+      ]
+    },
+    "alreadyProcessed": {
+      "type": "boolean"
+    },
+    "fighter": {
+      "$ref": "#/definitions/fighter"
+    }
+  },
+  "definitions": {
+    "roomId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]{20}$"
+    },
+    "holobotId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,39}$"
+    },
+    "fighter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holobotId",
+        "level",
+        "displayName",
+        "tier"
+      ],
+      "properties": {
+        "holobotId": {
+          "$ref": "#/definitions/holobotId"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      }
+    },
+    "request": {
+      "description": "The whole pvpRoomFighterHost body. The uid comes only from request.auth; level, tier, uid or role in the body is refused as invalid_request.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roomId",
+        "holobotId"
+      ],
+      "properties": {
+        "roomId": {
+          "$ref": "#/definitions/roomId"
+        },
+        "holobotId": {
+          "$ref": "#/definitions/holobotId"
+        }
+      }
+    },
+    "seat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uid",
+        "fighters"
+      ],
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fighters": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/definitions/holobotId"
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/fighter"
+          }
+        }
+      }
+    },
+    "roomHostFighters": {
+      "description": "battle_rooms/{roomId}.hostFighters. Written only by pvpRoomFighterHost (Admin SDK); firestore.rules deny every client create/modify/replace/delete of it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "pvp-room-fighters-1"
+        },
+        "p1": {
+          "$ref": "#/definitions/seat"
+        },
+        "p2": {
+          "$ref": "#/definitions/seat"
+        }
+      }
+    }
+  }
+}
