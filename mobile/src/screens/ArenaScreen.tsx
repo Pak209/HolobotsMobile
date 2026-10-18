@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Alert, StyleSheet, ActivityIndicator, AppState } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, AppState } from 'react-native';
 import { theme } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArenaPrebattleMenu } from '@/components/arena/ArenaPrebattleMenu';
@@ -11,6 +11,7 @@ import { getTierOpponentLineup, type ArenaTier } from '@/config/arenaConfig';
 import type { UserHolobot } from '@/types/profile';
 import { createArenaMatchClient } from '@/lib/arenaMatchClient';
 import { arenaReceiptResult, type ArenaReply } from '@/lib/arenaMatchFlow';
+import { ARENA_3V3_UNAVAILABLE_COPY } from '@/lib/arenaMatch3v3';
 import { arenaHostBattle } from '@/lib/arenaHostBattle';
 import { useArenaBattleStore } from '@/stores/arena-battle-store';
 import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lib/hostDashboard';
@@ -117,7 +118,7 @@ export function ArenaScreen() {
     return <View style={styles.page}>
   <HomeCogButton onOpenPvp={() => setPvp(true)}/>
   {error ? <View style={{ paddingTop: 70, padding: 16 }}><Text style={{ color: '#ffca79' }}>{error}</Text><Pressable onPress={() => action(async () => apply(await flow!.resume()))}><Text style={{ color: '#62DDE8' }}>RESUME HOST MATCH</Text></Pressable><Pressable onPress={() => action(async () => { apply(await flow!.retryIssue()); await launch(); })}><Text style={{ color: '#62DDE8' }}>RETRY SAME ADMISSION</Text></Pressable></View> : null}
-  {!open && !result && !busy ? <ArenaPrebattleMenu onStartBattle={start} onStart3v3={() => Alert.alert('3v3 unavailable', 'The host currently admits one fighter. No charge was made.')} userArenaPasses={profile?.arena_passes ?? 0} userHolobots={profile?.holobots ?? []} userTokens={profile?.holosTokens ?? 0}/> : null}
+  {!open && !result && !busy ? <ArenaPrebattleMenu onStartBattle={start} unavailable3v3Copy={ARENA_3V3_UNAVAILABLE_COPY} userArenaPasses={profile?.arena_passes ?? 0} userHolobots={profile?.holobots ?? []} userTokens={profile?.holosTokens ?? 0}/> : null}
   {open && !battle ? <View style={{ paddingTop: 90, padding: 20 }}><Text style={{ color: 'white' }}>ADMITTED {reply!.match!.entrant.displayName} LV {reply!.match!.entrant.level} / {reply!.match!.opponent.displayName} LV {reply!.match!.opponent.level}</Text><Pressable onPress={() => action(launch)}><Text style={{ color: '#62DDE8' }}>CONTINUE SAME MATCH</Text></Pressable><Pressable onPress={cancel}><Text style={{ color: '#ffca79' }}>CANCEL MATCH {reply!.match!.state === 'active' ? '(FORFEIT; LOST CHECKPOINT COUNTS AS KO)' : '(REFUND)'}</Text></Pressable></View> : null}
   {battle && open ? <><Text style={{ color: '#ffca79', textAlign: 'center', paddingTop: 45 }}>CPU PRACTICE · STRIKE / HEAVY · EXTRAS UNAVAILABLE</Text><BattleArenaView embedded battle={battle} hostMatchReply={reply} hostMatchId={reply!.matchId!} roundProgress={{ currentRound: 1, totalRounds: 1 }} playerCards={store.playerMoves} playableCardIds={store.getPlayableMoves().map(m => m.id)} cardAvailability={store.getMoveAvailabilityMap()} lastAction={store.lastAction} isAnimating={store.isAnimating} onCardPlay={store.useMove} onSignaturePlay={() => { }}/><Pressable onPress={cancel}><Text style={{ color: '#ffca79' }}>QUIT / FORFEIT</Text></Pressable>{store.battleResult ? <Pressable onPress={settle}><Text style={{ color: '#62DDE8' }}>RETRY SAME SETTLEMENT</Text></Pressable> : null}</> : null}
   {result && showResult ? <BattleResultsModal visible didWin={result.didWin} receipt={{ kind: 'host', rewards: result.rewards }} context={`${reply!.match!.entrant.displayName} LV ${reply!.match!.entrant.level} · ${reply!.match!.opponent.displayName} LV ${reply!.match!.opponent.level}`} hideRematch onRematch={() => { }} onExit={() => { store.resetBattle(); setReply(null); setShowResult(false); submitted.current = null; }}/> : null}

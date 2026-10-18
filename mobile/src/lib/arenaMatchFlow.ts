@@ -1,4 +1,5 @@
 /** Durable CPU Arena transport. No combat simulation or local reward writes. */
+import { ARENA_3V3_SCHEMA, readArena3v3Reply, type Arena3v3Reply, type Arena3v3Swap } from './arenaMatch3v3';
 export type ArenaIssue = {
     requestId: string;
     tierId: string;
@@ -91,15 +92,28 @@ export interface ArenaFlowStorage {
     get(): Promise<ArenaIssue | null>;
     set(value: ArenaIssue | null): Promise<void>;
 }
+/** Pending arena-match-3v3-1 swap, persisted per account before it is sent. */
+export interface Arena3v3IntentStorage {
+    get(): Promise<Arena3v3Swap | null>;
+    set(value: Arena3v3Swap | null): Promise<void>;
+}
+/** A callable error carrying a host rejectionCode is a final ruling: the intent was not applied. */
+export function arenaHostRejection(e: unknown): string | null {
+    const code = record(record(e).details).rejectionCode;
+    return typeof code === 'string' ? code : null;
+}
 /** One in-flight command. Unknown issue outcome retains its exact persisted request. */
 export class ArenaMatchFlow {
     private epoch = 0;
-    private flight: Promise<ArenaReply> | null = null;
+    private flight: Promise<unknown> | null = null;
     private latest: ArenaReply | null = null;
-    constructor(private call: (request: Record<string, unknown>) => Promise<unknown>, private storage: ArenaFlowStorage, private active: () => boolean) { }
-    close() { this.epoch++; this.latest = null; }
+    private team: Arena3v3Reply | null = null;
+    constructor(private call: (request: Record<string, unknown>) => Promise<unknown>, private storage: ArenaFlowStorage, private active: () => boolean, private intents?: Arena3v3IntentStorage) { }
+    close() { this.epoch++; this.latest = null; this.team = null; }
     get reply() { return this.latest; }
-    private run(work: (epoch: number) => Promise<ArenaReply>): Promise<ArenaReply> {
+    /** Last host arena-match-3v3-1 projection. Only a host reply ever replaces it. */
+    get teamReply() { return this.team; }
+    private run<T>(work: (epoch: number) => Promise<T>): Promise<T> {
         if (this.flight)
             return Promise.reject(Error('arena_busy'));
         const epoch = this.epoch;
@@ -151,6 +165,72 @@ export class ArenaMatchFlow {
         combosCompleted: number;
         perfectDefenses: number;
     }) { return this.operation('settle', report); }
+    private async teamRequest(request: Record<string, unknown>, epoch: number, expect: Parameters<typeof readArena3v3Reply>[1]) {
+        const raw = await this.call(request);
+        if (epoch !== this.epoch || !this.active())
+            throw Error('arena_session_changed');
+        const reply = readArena3v3Reply(raw, expect), known = this.team?.match;
+        if (known && reply.match && known.matchId === reply.matchId) {
+            for (const side of ['team', 'opponentTeam'] as const)
+                if (canonicalArenaValue(known[side].map(s => s.fighter)) !== canonicalArenaValue(reply.match[side].map(s => s.fighter)))
+                    throw Error('arena_snapshot_changed');
+            if (reply.match.battle.turn < known.battle.turn)
+                throw Error('arena_3v3_stale_reply');
+        }
+        return reply;
+    }
+    /** Read this account's 3v3 match. No live caller until the host implements arena-match-3v3-1 (HELD). */
+    resumeTeam() {
+        return this.run(async (epoch) => {
+            const matchId = this.team?.matchId ?? undefined;
+            this.team = await this.teamRequest({ schemaVersion: ARENA_3V3_SCHEMA, operation: 'resume', ...(matchId ? { matchId } : {}) }, epoch, { matchId });
+            return this.team;
+        });
+    }
+    /** Swap intent THROUGH THE HOST. The exact body is persisted before sending and retried unchanged.
+     * Nothing changes locally until the host replies; a host refusal clears the intent and leaves the state as it was. */
+    swap(holobotId: string) {
+        return this.run(async (epoch) => {
+            const intents = this.intents, current = this.team?.match;
+            if (!intents)
+                throw Error('arena_3v3_unavailable');
+            if (!current)
+                throw Error('arena_not_admitted');
+            let pending = await intents.get();
+            if (pending && pending.matchId !== current.matchId) {
+                // One Arena lease per account: an intent for an earlier match can no longer apply.
+                await intents.set(null);
+                pending = null;
+            }
+            if (pending && pending.holobotId !== holobotId)
+                throw Error('arena_intent_pending');
+            const request: Arena3v3Swap = pending ?? { schemaVersion: ARENA_3V3_SCHEMA, operation: 'swap', matchId: current.matchId, intentId: `lite3v3_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, turn: current.battle.turn, holobotId };
+            if (!pending)
+                await intents.set(request);
+            if (epoch !== this.epoch || !this.active())
+                throw Error('arena_session_changed');
+            let reply: Arena3v3Reply;
+            try {
+                reply = await this.teamRequest({ ...request }, epoch, { matchId: current.matchId, intent: { intentId: request.intentId, operation: 'swap' } });
+            }
+            catch (e) {
+                if (arenaHostRejection(e))
+                    await intents.set(null);
+                throw e;
+            }
+            if (reply.intent?.appliedTurn !== request.turn)
+                throw Error('arena_3v3_intent_mismatch');
+            await intents.set(null);
+            this.team = reply;
+            return reply;
+        });
+    }
+    retrySwap() {
+        if (!this.intents)
+            return Promise.reject(Error('arena_3v3_unavailable'));
+        return this.intents.get().then(p => { if (!p)
+            throw Error('arena_no_pending_intent'); return this.swap(p.holobotId); });
+    }
     cancel(playerFinalHealth?: number) { return this.operation('cancel', playerFinalHealth === undefined ? {} : { playerFinalHealth }); }
     private operation(op: string, fields: Record<string, unknown> = {}) { return this.run(epoch => { const matchId = this.latest?.matchId; if (!matchId)
         throw Error('arena_not_admitted'); return this.request(op, { matchId, ...fields }, epoch, matchId); }); }
