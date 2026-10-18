@@ -290,7 +290,7 @@ export function OverworldScreen() {
           injectedJavaScriptBeforeContentLoaded={INJECTED_STORY_BRIDGE}
           javaScriptCanOpenWindowsAutomatically={false}
           onError={(event) => setLoadError(event.nativeEvent.description || "Unknown WebView error.")}
-          onHttpError={(event) => setLoadError(`HTTP ${event.nativeEvent.statusCode} from the overworld host.`)}
+          onHttpError={(event) => setLoadError(`The overworld returned HTTP ${event.nativeEvent.statusCode}.`)}
           onLoadEnd={() => setPageLoading(false)}
           onLoadStart={() => {
             helloReceived.current = false;

@@ -1,7 +1,7 @@
 import { auth, functions, httpsCallable } from "@/config/firebase";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "./async";
 import {
-  CITY_MARKET_VENDOR, VENDOR_CATALOG_CALLABLE, isSignedOutError, isUncertainOutcome, listingNeedsRequestId, listingPurchasable,
+  CITY_MARKET_VENDOR, VENDOR_CATALOG_CALLABLE, isSignedOutError, isUncertainOutcome, listingBlock,
   listingPurchase, marketUnavailableText, purchaseConfirmed, purchaseNotice, readVendorCatalog, refusalNotice,
   type CityMarketEvent, type MarketNotice, type VendorListing,
 } from "./cityMarket";
@@ -18,19 +18,21 @@ export type CityMarketRequestJournal = {
 async function marketCall(uid: string, name: string, request: Record<string, unknown>): Promise<unknown> {
   if (!uid || auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
   const reply = await withTimeout(httpsCallable<Record<string, unknown>, unknown>(functions, name)(request), CALLABLE_TIMEOUT_MS,
-    name === VENDOR_CATALOG_CALLABLE ? "The market host is taking too long. Refresh to retry." : "The market host did not confirm this purchase in time.");
+    name === VENDOR_CATALOG_CALLABLE ? "The market is taking too long. Refresh to retry." : "The City did not confirm this purchase in time.");
   if (auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
   return reply.data;
 }
 
+// PLACEHOLDER copy (Lex).
 export const NOT_SOLD_IN_LITE_TEXT = "This listing is sold on the desktop app only.";
+export const NOT_SOLD_HERE_TEXT = "This stall can't take this order in this app yet.";
 const journalAction = (listing: VendorListing) => `vendor:${CITY_MARKET_VENDOR}:${listing.listingId}`;
 
 /**
- * Live host for one signed-in pilot. A listing whose request carries "<client-generated>" gets a
- * journaled requestId: kept after an uncertain outcome (so a resend replays the same receipt and
- * never buys twice), cleared after any host verdict. Other listings are sent exactly as named and
- * are never retried automatically (the legacy purchase callables are not idempotent).
+ * Live host for one signed-in pilot. Only a listing whose request carries "<client-generated>" is
+ * sent (S12); it gets a journaled requestId: kept after an uncertain outcome (so a resend replays
+ * the same receipt and never buys twice), cleared after any host verdict. The legacy itemName /
+ * packId purchases are not idempotent and never leave the app.
  * Only a confirmed purchase reply publishes the economy-change signal, so the dashboard re-reads its
  * Holos; a refusal, an uncertain outcome or an unreadable reply never does.
  */
@@ -38,12 +40,13 @@ export function liveCityMarketHost(uid: string, journal: CityMarketRequestJourna
   return {
     readCatalog: () => marketCall(uid, VENDOR_CATALOG_CALLABLE, { operation: "catalog", vendorId: CITY_MARKET_VENDOR }),
     async buy(listing) {
-      if (!listingPurchasable(listing)) throw new Error(NOT_SOLD_IN_LITE_TEXT);
+      const block = listingBlock(listing);
+      if (block) throw new Error(block === "desktop_only" ? NOT_SOLD_IN_LITE_TEXT : NOT_SOLD_HERE_TEXT);
       const action = journalAction(listing);
-      const requestId = listingNeedsRequestId(listing) ? await journal.acquire(uid, action) : undefined;
+      const requestId = await journal.acquire(uid, action);
       const call = listingPurchase(listing, requestId);
       if (!call) throw new Error("This listing could not be bought.");
-      const settle = async () => { if (requestId) { try { await journal.complete(uid, action, requestId); } catch { /* a stale id only replays a receipt */ } } };
+      const settle = async () => { try { await journal.complete(uid, action, requestId); } catch { /* a stale id only replays a receipt */ } };
       let reply: unknown;
       try {
         reply = await marketCall(uid, call.callable, call.request);
@@ -52,7 +55,8 @@ export function liveCityMarketHost(uid: string, journal: CityMarketRequestJourna
         throw error;
       }
       await settle();
-      if (purchaseConfirmed(reply)) notifyHostEconomyChanged(uid);
+      // A listener must never turn a real charge into a refusal: the signal is best-effort.
+      if (purchaseConfirmed(reply)) { try { notifyHostEconomyChanged(uid); } catch { /* listeners re-read on focus */ } }
       return reply;
     },
   };

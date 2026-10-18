@@ -112,4 +112,15 @@ export function headerDiagonalX(y: number): number {
   const t = Math.min(1, Math.max(0, (y - top.y) / (bottom.y - top.y)));
   return top.x + (bottom.x - top.x) * t;
 }
-export const HOME_STATUS_STRIP = { left: 126, top: 304, right: 1400 } as const;
+export const HOME_STATUS_STRIP = { left: 126, top: 300, right: 1400 } as const;
+/** The plate's lower edge under the strip (a 5-unit stroke): no PILOT glyph may reach it. */
+export const HEADER_PLATE_LOWER_EDGE_Y = 425;
+/** Two 10 pt HUD lines, no padding between them: counters · CITY, then PILOT. */
+export const STATUS_STRIP_TEXT_PT = 10;
+/**
+ * HoloDisplay (Rajdhani-Medium) metrics in em: hhea ascender 930 / descender -346 (no line gap); the
+ * tallest letter or digit reaches 703 above the baseline and the deepest ("y") 157 below it.
+ */
+export const HUD_FONT_LINE = { ascent: 0.93, height: 1.276, glyphTop: 0.703, glyphBottom: 0.157 } as const;
+/** The 3D city entry above the strip's right end: 69%..95% wide, 4.5% down, 32 pt tall (shown only with the native module). */
+export const HOME_NATIVE_CITY_ENTRY = { left: 1242, right: 1710, top: 144, heightPt: 32 } as const;

@@ -7,9 +7,9 @@ const source = (path: string) => readFileSync(fileURLToPath(new URL(path, import
 
 describe("L10 · STORY appears only when the overworld would load", () => {
   it("hides STORY in a release build with the shipped localhost default", () => {
-    expect(process.env.EXPO_PUBLIC_OVERWORLD_URL).toBeUndefined();
-    expect(STORY_OVERWORLD_URL).toBe("http://localhost:5173/overworld.html");
-    expect(isStoryOverworldAvailable({ dev: false })).toBe(false);
+    expect(source("../storyMode.ts")).toContain('process.env.EXPO_PUBLIC_OVERWORLD_URL ?? "http://localhost:5173/overworld.html"');
+    expect(isStoryOverworldAvailable({ dev: false, url: "http://localhost:5173/overworld.html" })).toBe(false);
+    if (process.env.EXPO_PUBLIC_OVERWORLD_URL === undefined) expect(isStoryOverworldAvailable({ dev: false, url: STORY_OVERWORLD_URL })).toBe(false);
   });
   it("accepts only an allowed https host in release", () => {
     expect(isStoryOverworldAvailable({ dev: false, url: "https://play.holobots.fun/overworld/v1/" })).toBe(true);
@@ -21,6 +21,11 @@ describe("L10 · STORY appears only when the overworld would load", () => {
   it("keeps the local overworld for development builds only", () => {
     expect(isStoryOverworldAvailable({ dev: true })).toBe(true);
     expect(isStoryOverworldAvailable({ dev: true, url: "file:///overworld.html" })).toBe(false);
+  });
+  it("hides the city's HoloZone district (the other way into the overworld) behind the same gate", () => {
+    const hub = source("../../screens/CityHubScreen.tsx");
+    expect(hub).toContain("const STORY_AVAILABLE = isStoryOverworldAvailable();");
+    expect(hub).toContain('(district.destination !== "Overworld" || STORY_AVAILABLE)');
   });
   it("gates the pilot menu entry and never prints the address on the blocked screen", () => {
     expect(source("../../components/HomeCogButton.tsx")).toContain('...(STORY_AVAILABLE ? [{ label: "STORY"');

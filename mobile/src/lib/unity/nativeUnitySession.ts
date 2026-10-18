@@ -6,6 +6,28 @@ import { subscribeTravelSquadSnapshots, publishTravelSquadSnapshot, travelSquadI
 import { readTravelSquad } from '../travelSquadClient';
 
 let activeClose: (() => Promise<void>) | undefined;
+
+/** True only in builds that ship the native Unity runtime; without it the 3D city entry is not shown (L17). */
+export function hasNativeUnity(): boolean {
+  return !!NativeModules.HolobotsUnityRuntime;
+}
+
+// PLACEHOLDER copy (Lex) for the 3D city entry and its failure dialog.
+export const NATIVE_CITY_COPY = {
+  label: "ENTER HOLOCITY",
+  opening: "OPENING…",
+  accessibility: "Enter HoloCity in 3D",
+  unavailableTitle: "HOLOCITY UNAVAILABLE",
+  back: "BACK TO DASHBOARD",
+  failed: "HoloCity couldn't open. Try again.",
+} as const;
+const PLAYER_ERRORS = new Set(["Sign in before entering HoloCity", "HoloCity did not become ready. Try again.", "Sign-in changed. Reopen HoloCity."]);
+/** Player text for a failed launch: this module's own player messages pass through; raw native errors never do. Null = closed on purpose. */
+export function nativeCityErrorText(error: unknown): string | null {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "HoloCity session closed") return null;
+  return PLAYER_ERRORS.has(message) ? message : NATIVE_CITY_COPY.failed;
+}
 /** Full-screen native Unity entry. Await real ready + attached + host refresh, never invent a runtime. */
 export async function openNativeUnity(): Promise<() => Promise<void>> {
   if (activeClose) throw new Error('Unity is already open');

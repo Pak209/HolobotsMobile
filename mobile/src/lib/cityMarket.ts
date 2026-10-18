@@ -30,6 +30,9 @@ const INVENTORY_FIELDS = ["arenaPasses", "gachaTickets", "energyRefills", "expBo
  * The purchase callables this app may send. `operation` pins the request's operation field
  * for multi-operation hosts, so a catalog row can never make the app "use" or "favorite".
  * wardrobeHost (boutique) and holoZoneHost (expedition supplies) are not sent from lite.
+ * A known callable is still sent only when its catalog request carries a "<client-generated>"
+ * requestId (S12): the legacy itemName / packId purchases are not idempotent, so a resend could
+ * charge twice. Those rows stay visible but are never bought here.
  */
 export const LITE_PURCHASE_CALLABLES: Readonly<Record<string, { operation?: string }>> = {
   purchaseMarketplaceItem: {},
@@ -62,18 +65,19 @@ export const CITY_MARKET_COPY = {
   kicker: "HOLOCITY / MARKETPLACE",
   title: "BROWSE THE STALLS.",
   vendorName: "MARKETPLACE STALLS",
-  intro: "Supplies, booster packs and Buddy Units. The city host sets every price and keeps your stock.",
-  status: "HOST CATALOG",
+  intro: "Supplies, booster packs and Buddy Units. The City sets every price and keeps your stock.",
+  status: "CITY CATALOG",
   backLabel: "Back to the city",
+  backHomeLabel: "Back to the dashboard",
   loading: "READING THE STALLS…",
   signedOutTitle: "SIGN IN FIRST",
-  signedOutBody: "The market host prices every stall for your account. Sign in to browse.",
+  signedOutBody: "The City prices every stall for your account. Sign in to browse.",
   unavailableTitle: "UNAVAILABLE",
   refresh: "REFRESH",
   refreshing: "REFRESHING…",
   refreshStalls: "REFRESH STALLS",
-  footer: "PRICES, STOCK AND HOLOS COME FROM THE CITY HOST.",
-  confirmBody: "Your Holos and stock update after the host confirms.",
+  footer: "PRICES, STOCK AND HOLOS COME FROM THE CITY.",
+  confirmBody: "Your Holos and stock update after the City confirms.",
   confirm: "CONFIRM",
   cancel: "CANCEL",
   buy: "BUY",
@@ -82,6 +86,7 @@ export const CITY_MARKET_COPY = {
   restocking: "RESTOCKING",
   soldOut: "SOLD OUT",
   desktopOnly: "DESKTOP ONLY",
+  notSoldHere: "NOT SOLD HERE",
   inStock: "IN STOCK",
   sections: { item: "SUPPLIES", booster: "BOOSTER PACKS", buddy_unit: "BUDDY UNITS", part: "PARTS", clothing: "CLOTHING" } as Record<ListingKind, string>,
 } as const;
@@ -144,19 +149,23 @@ export function readVendorCatalog(value: unknown, expectedVendor: VendorId): Ven
   return { schemaVersion: VENDOR_SCHEMA, vendorId: expectedVendor, holosTokens: reply.holosTokens, inventory, listings };
 }
 
-/** True when this app may send the listing's own purchase call. A capability check, never an economy rule. */
-export function listingPurchasable(listing: VendorListing): boolean {
-  const rule = own(LITE_PURCHASE_CALLABLES, listing.purchase.callable) ? LITE_PURCHASE_CALLABLES[listing.purchase.callable] : undefined;
-  if (!rule) return false;
-  return rule.operation === undefined || listing.purchase.request.operation === rule.operation;
-}
 export function listingNeedsRequestId(listing: VendorListing): boolean {
   return Object.values(listing.purchase.request).some((value) => value === REQUEST_ID_PLACEHOLDER);
+}
+/** Why this app will not send a listing's purchase call, or null when it may. A capability check, never an economy rule. */
+export function listingBlock(listing: VendorListing): "desktop_only" | "not_idempotent" | null {
+  const rule = own(LITE_PURCHASE_CALLABLES, listing.purchase.callable) ? LITE_PURCHASE_CALLABLES[listing.purchase.callable] : undefined;
+  if (!rule || (rule.operation !== undefined && listing.purchase.request.operation !== rule.operation)) return "desktop_only";
+  return listingNeedsRequestId(listing) ? null : "not_idempotent";
+}
+/** True when this app may send the listing's own purchase call: a known callable with a host-idempotent requestId. */
+export function listingPurchasable(listing: VendorListing): boolean {
+  return listingBlock(listing) === null;
 }
 /** The exact request the listing names, with each "<client-generated>" value replaced by requestId. Null when it may not be sent. */
 export function listingPurchase(listing: VendorListing, requestId?: string): { callable: string; request: Record<string, unknown> } | null {
   if (!listingPurchasable(listing)) return null;
-  if (listingNeedsRequestId(listing) && (!str(requestId) || !REQUEST_ID_RULE.test(requestId))) return null;
+  if (!str(requestId) || !REQUEST_ID_RULE.test(requestId)) return null;
   const request: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(listing.purchase.request)) request[key] = value === REQUEST_ID_PLACEHOLDER ? requestId : value;
   return { callable: listing.purchase.callable, request };
@@ -185,11 +194,12 @@ const REFUSAL_TEXT: Record<string, string> = {
   not_enough_holos: "Not enough Holos.",
   on_cooldown: "This stall restocks weekly.",
   unknown_item: "This listing is no longer sold. Refresh the stalls.",
-  invalid_request: "The host refused this request.",
-  sequence_conflict: "This purchase id was already used. Refresh and try again.",
+  invalid_request: "The City refused this request.",
+  sequence_conflict: "This order was already placed. Refresh the stalls and try again.",
   unavailable: "Your account is unavailable right now.",
   between_battles_only: "Finish your expedition before buying this.",
 };
+const REFUSED_TEXT = "The City refused this purchase.";
 export type MarketNotice = { tone: "ok" | "refused" | "info"; text: string };
 
 /** A purchase reply the app reads as the host's confirmation (a fresh charge or the replayed receipt of one); purchaseNotice's "ok". */
@@ -198,26 +208,27 @@ export function purchaseConfirmed(reply: unknown): boolean {
 }
 export function purchaseNotice(listing: VendorListing, reply: unknown): MarketNotice {
   const body = record(reply);
-  if (!body) return { tone: "info", text: "The host reply could not be verified. Check the stalls before buying again." };
+  if (!body) return { tone: "info", text: "The City's reply could not be verified. Check the stalls before buying again." };
   return { tone: "ok", text: `${body.alreadyProcessed === true ? "ALREADY CONFIRMED" : "PURCHASE CONFIRMED"} · ${listing.displayName}` };
 }
 export function refusalNotice(listing: VendorListing, error: unknown): MarketNotice {
   if (isSignedOutError(error)) return { tone: "refused", text: "Sign in first, then reopen the market." };
   const code = hostRejectionCode(error);
-  if (code) return { tone: "refused", text: REFUSAL_TEXT[code] ? `REFUSED · ${code} — ${REFUSAL_TEXT[code]}` : `REFUSED · ${code}` };
+  // Player copy only: a refusal code is mapped, never printed (L20).
+  if (code) return { tone: "refused", text: own(REFUSAL_TEXT, code) ? REFUSAL_TEXT[code] : REFUSED_TEXT };
   if (isUncertainOutcome(error)) {
     return { tone: "info", text: listingNeedsRequestId(listing)
-      ? "The host did not confirm this purchase. Check the stalls below; buying again resends the same receipt."
-      : "The host did not confirm this purchase. Check the stalls below before buying again." };
+      ? "The City did not confirm this purchase. Check the stalls below; buying again resends the same receipt."
+      : "The City did not confirm this purchase. Check the stalls below before buying again." };
   }
-  return { tone: "refused", text: error instanceof Error && error.message ? error.message : "The host refused this purchase." };
+  return { tone: "refused", text: REFUSED_TEXT };
 }
 export function marketUnavailableText(error: unknown): string {
   if (error instanceof Error && error.message === CATALOG_INVALID_TEXT) return CATALOG_INVALID_TEXT;
   const code = errorCode(error);
-  if (code === "functions/not-found") return "The market host is not available yet. Please try again after the service update.";
-  if (hostRejectionCode(error) === "unavailable") return "The market host could not read your account. Refresh to retry.";
-  if (!code || UNCERTAIN_CODES.has(code)) return "The market host is offline. Check your connection and refresh.";
+  if (code === "functions/not-found") return "The market isn't open yet. Please try again after the next update.";
+  if (hostRejectionCode(error) === "unavailable") return "The City could not read your account. Refresh to retry.";
+  if (!code || UNCERTAIN_CODES.has(code)) return "The market is offline. Check your connection and refresh.";
   return "The market could not be read. Refresh to retry.";
 }
 
@@ -281,7 +292,8 @@ export function formatHostNumber(value: number): string {
 
 export type CityMarketRowView = { listingId: string; title: string; priceText: string; metaText: string; detailText: string | null; action: { label: string; enabled: boolean } };
 export type CityMarketView = {
-  holosText: string;
+  /** Null until a catalog is read: no bare placeholder value. */
+  holosText: string | null;
   loading: boolean;
   refreshing: boolean;
   refreshEnabled: boolean;
@@ -301,7 +313,8 @@ function detailText(listing: VendorListing): string | null {
 function rowAction(state: CityMarketState, listing: VendorListing): { label: string; enabled: boolean } {
   const copy = CITY_MARKET_COPY;
   if (state.buying === listing.listingId) return { label: copy.buying, enabled: false };
-  if (!listingPurchasable(listing)) return { label: copy.desktopOnly, enabled: false };
+  const block = listingBlock(listing);
+  if (block) return { label: block === "desktop_only" ? copy.desktopOnly : copy.notSoldHere, enabled: false };
   if (!listing.available) return { label: listing.availableAtMs > 0 ? copy.restocking : copy.soldOut, enabled: false };
   if (!listing.affordable) return { label: copy.needHolos, enabled: false };
   return { label: copy.buy, enabled: state.phase === "ready" && !state.refreshing && !state.buying };
@@ -327,7 +340,7 @@ export function presentCityMarket(state: CityMarketState): CityMarketView {
   }
   const confirming = find(catalog, state.confirming);
   return {
-    holosText: catalog ? `${formatHostNumber(catalog.holosTokens)} HOLOS` : "— HOLOS",
+    holosText: catalog ? `${formatHostNumber(catalog.holosTokens)} HOLOS` : null,
     loading: state.phase === "loading",
     refreshing: state.refreshing,
     refreshEnabled: (state.phase === "ready" || state.phase === "unavailable") && !state.refreshing && !state.buying,

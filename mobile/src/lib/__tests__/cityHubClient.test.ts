@@ -3,7 +3,8 @@ const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as {
 vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { readHostLevelAccount, loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad, CITY_LIVE_DUEL_HOLD, CITY_LIVE_DUELS_HELD, cityChallengeEnabled } from "../cityHubClient";
+import * as cityHubClient from "../cityHubClient";
+import { readHostLevelAccount, loadCityHub, meetCityPilots, issueCityRival, craftCityItem, healCitySquad, CITY_LIVE_DUEL_HOLD, CITY_LIVE_DUELS_HELD, cityChallengeEnabled } from "../cityHubClient";
 import { CITY_GATHERING_FIXTURE } from "../cityHubFixtures";
 describe("live citizen duel hold (L11)", () => {
   beforeEach(() => { vi.clearAllMocks(); fixture.auth.currentUser = { uid: "pilot-a" }; });
@@ -20,12 +21,21 @@ describe("live citizen duel hold (L11)", () => {
     expect(cityChallengeEnabled(false)).toBe(!refuses);
     fixture.call.mockReset();
   });
-  it("wires both hub Challenge CTAs (map pins and roster rows) to the hold", () => {
+  it("wires both hub Challenge CTAs to the hold: pins open the roster panel, rows are disabled", () => {
     const hub = readFileSync(fileURLToPath(new URL("../../screens/CityHubScreen.tsx", import.meta.url) as unknown as string), "utf8");
     expect(hub).toContain("const challengeOpen = cityChallengeEnabled(!!fixture);");
-    expect(hub.split("onPress={() => pickRival(rival)}")).toHaveLength(3);
-    expect(hub.split("disabled={!challengeOpen || !!cooldowns[rival.citizenId]}")).toHaveLength(3);
-    expect(hub).toContain("if (!challengeOpen) return;");
+    // Both CTAs (map pins, roster rows) go through pickRival, which never opens a duel while held.
+    expect(hub.match(/onPress=\{\(\) => pickRival\(rival\)\}/g)).toHaveLength(2);
+    expect(hub).toMatch(/function pickRival\(rival: ArenaCitizen\) \{\s*\/\/[^\n]*\n\s*if \(!challengeOpen\) \{ setPanel\("rivals"\); return; \}/);
+    expect(hub).toMatch(/disabled=\{!challengeOpen \|\| !!cooldowns\[rival\.citizenId\]\}/);
+  });
+  it("F8: has no client-decided settle; live duels can only settle through the City's resolver", () => {
+    expect("settleCityRival" in cityHubClient).toBe(false);
+    const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url) as unknown as string), "utf8");
+    // No City request carries didWin (as `didWin: x` or shorthand `{ …, didWin, … }`); the pre-F8 client had two.
+    expect(read("../cityHubClient.ts")).not.toMatch(/settleCityRival\(|\bdidWin\s*:|[{,]\s*didWin\s*[,}]/);
+    // The battle screen settles only its offline preview: it imports no settle call at all.
+    expect(read("../../components/city/CityRivalBattle.tsx")).not.toMatch(/import[^;]*settleCity|settleCity\w*\(/);
   });
 });
 
@@ -110,12 +120,6 @@ describe("city authenticated host actions", () => {
       fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "healing-workshop-1", operation: "heal", ...invalid } });
       await expect(healCitySquad("pilot-a", "heal_123")).rejects.toThrow("could not be verified");
     }
-  });
-  it("settles the admitted battle without resending gathering or reward fields", async () => {
-    fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "rival-battle-3", battleId: "rb_123", didWin: true, alreadyProcessed: false, status: { tier: 0, tierLabel: "Rookie", rivalWins: 1, winsToNextTier: 9 } } });
-    const reply = await settleCityRival("pilot-a", "rb_123", true, ["ace"]);
-    expect(reply.status.rivalWins).toBe(1);
-    expect(fixture.call).toHaveBeenLastCalledWith({ schemaVersion: "rival-battle-3", operation: "settle", battleId: "rb_123", didWin: true, fielded: ["ace"] });
   });
 });
 

@@ -19,8 +19,8 @@ import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/p
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { homeAssets } from "@/config/figmaAssets";
 import {
-  ARTBOARD_HEIGHT, ARTBOARD_WIDTH, FOOTER_LABEL_SIZE, FOOTER_LABEL_Y, HEADER_PLATE_PATH, HOME_FOOTER_ITEMS, HOME_PAGE_PADDING, HOME_STATUS_STRIP,
-  PART_OVERLAY, PART_SLOT_HEIGHT, PART_SLOT_WIDTH, PART_SLOT_XS, PART_SLOT_Y, artboardPercentX, artboardPercentY, type HomeFooterKey,
+  ARTBOARD_HEIGHT, ARTBOARD_WIDTH, FOOTER_LABEL_SIZE, FOOTER_LABEL_Y, HEADER_PLATE_PATH, HOME_FOOTER_ITEMS, HOME_NATIVE_CITY_ENTRY, HOME_PAGE_PADDING, HOME_STATUS_STRIP,
+  PART_OVERLAY, PART_SLOT_HEIGHT, PART_SLOT_WIDTH, PART_SLOT_XS, PART_SLOT_Y, STATUS_STRIP_TEXT_PT, artboardPercentX, artboardPercentY, type HomeFooterKey,
 } from "@/config/homeLayout";
 import { getPartImageSource } from "@/config/gameAssets";
 import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
@@ -42,6 +42,8 @@ const ICON_PALETTE = `0 0 0 0 ${iconAccent[0]}  0 0 0 0 ${iconAccent[1]}  0 0 0 
 
 // Every SVG label on Home uses the HUD face (L16); without it they fell back to the system font.
 const HUD_FONT = theme.type.display.fontFamily;
+// PLACEHOLDER copy (Lex): the one state for a roster the app could not read.
+const HOME_COPY = { rosterUnavailable: "CAN'T LOAD YOUR ROSTER", retry: "RETRY" } as const;
 const FOOTER_ICONS: Record<HomeFooterKey, ImageSourcePropType> = {
   arena: homeAssets.arenaIcon, inventory: homeAssets.inventoryIcon, sync: homeAssets.syncIcon, market: homeAssets.marketplaceIcon,
 };
@@ -220,7 +222,7 @@ function ArtImage({
 export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: RivalHudPreview; dashboardPreview?: HostDashboardState } = {}) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, user } = useAuth();
+  const { profile, retryProfile, updateProfile, user } = useAuth();
   const rival = useRivalStatus(user?.uid, rivalPreview);
   // Header pilot / SYNC / HOLOS, squad LV and zone rows: host reads only (desktopAccountSnapshot + desktopItemsHost).
   const host = useHostDashboard(user?.uid, dashboardPreview);
@@ -376,17 +378,20 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             d={`M 110.2 ${HOME_INFO_CARD_Y} H 814.6 V ${HOME_INFO_CARD_Y + 231.1} L 699.7 ${HOME_INFO_CARD_Y + 347.1} H 110.2 Z`}
             fill={theme.colors.carbon}
           />
-          <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={rosterAvailable ? 49.915 : 34}>{rosterAvailable ? selectedHolobot.name : "ROSTER UNAVAILABLE"}</Text>
+          <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={rosterAvailable ? 49.915 : 34}>{rosterAvailable ? selectedHolobot.name : HOME_COPY.rosterUnavailable}</Text>
           {/* Ranking tag: the Holobot's ACTUAL rank with its star tier. */}
           {rosterAvailable ? <G>
             <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={3} />
             <Text fontFamily={HUD_FONT} x={677} y={HOME_INFO_CARD_Y + 62} fill={theme.colors.accent} fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
             <Text fontFamily={HUD_FONT} x={677} y={HOME_INFO_CARD_Y + 106} fill={theme.colors.accent} fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
           </G> : null}
-          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill={theme.plates.raised} />
-          <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill={theme.colors.accent} />
-          <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{rosterAvailable ? `EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}` : "EXP —"}</Text>
-          <Text fontFamily={HUD_FONT} x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{rosterAvailable ? `Lv ${selectedHolobot.level}` : "Lv —"}</Text>
+          {/* No EXP or level without a roster: the card says it could not load and offers a retry (L20/L22). */}
+          {rosterAvailable ? <G>
+            <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill={theme.plates.raised} />
+            <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill={theme.colors.accent} />
+            <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
+            <Text fontFamily={HUD_FONT} x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
+          </G> : <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 250} fill={theme.colors.accent} fontSize={64}>{HOME_COPY.retry}</Text>}
 
           <Path
             d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
@@ -450,9 +455,17 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             style={[styles.footerHotspot, getArtboardFrame(item.hotspot.x, item.hotspot.y, item.hotspot.width, item.hotspot.height)]}
             accessibilityRole="button"
             accessibilityLabel={item.accessibilityLabel}
-            onPress={() => navigation.navigate(item.route)}
+            onPress={() => { if (item.route === "CityMarket") navigation.navigate("CityMarket", { from: "Home" }); else navigation.navigate(item.route); }}
           />
         ))}
+        {!rosterAvailable ? (
+          <Pressable
+            style={[styles.footerHotspot, getArtboardFrame(110, HOME_INFO_CARD_Y, 705, 347)]}
+            accessibilityRole="button"
+            accessibilityLabel="Can't load your roster. Retry"
+            onPress={retryProfile}
+          />
+        ) : null}
         <Pressable
           style={styles.changeHolobotHotspot}
           onPress={() => setIsPickerOpen(true)}
@@ -568,8 +581,8 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
         <View style={styles.statusStrip}>
           <View style={styles.statusRow}>
             {/* HOLOS = desktopItemsHost read; SYNC = desktopAccountSnapshot.syncPoints. PLACEHOLDER copy. */}
-            <RNText testID="dashboard-header-counters" style={[styles.statusText, styles.statusCounters]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>TIER {rival.status?.tier ?? "—"} · {dashboard.holos} · {dashboard.sync}</RNText>
-            <Pressable accessibilityRole="button" accessibilityLabel="Explore HoloCity and rivals" hitSlop={8} onPress={() => navigation.navigate("CityHub")}>
+            <RNText testID="dashboard-header-counters" style={[styles.statusText, styles.statusCounters]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{[rival.status ? `TIER ${rival.status.tier}` : null, dashboard.holos, dashboard.sync].filter(Boolean).join(" · ")}</RNText>
+            <Pressable accessibilityRole="button" accessibilityLabel="Explore HoloCity and rivals" hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} onPress={() => navigation.navigate("CityHub")}>
               <RNText style={styles.cityText}>CITY › {rival.countdown || "RIVALS"}</RNText>
             </Pressable>
           </View>
@@ -687,15 +700,16 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
 }
 
 const styles = StyleSheet.create({
-  nativeCityEntry: { position: "absolute", left: "69%", right: "5%", top: "4.5%", height: 32, zIndex: 35 },
-  // Ends left of the header plate's diagonal (L14); it used to run under it to x 1674.
+  nativeCityEntry: { position: "absolute", left: artboardPercentX(HOME_NATIVE_CITY_ENTRY.left), right: artboardPercentX(ARTBOARD_WIDTH - HOME_NATIVE_CITY_ENTRY.right), top: artboardPercentY(HOME_NATIVE_CITY_ENTRY.top), height: HOME_NATIVE_CITY_ENTRY.heightPt, zIndex: 35 },
+  // Ends left of the header plate's diagonal and keeps both lines above its lower edge (L14); it used
+  // to run under the diagonal to x 1674, and the PILOT line sat on the edge.
   statusStrip: { position: "absolute", left: artboardPercentX(HOME_STATUS_STRIP.left), right: artboardPercentX(ARTBOARD_WIDTH - HOME_STATUS_STRIP.right), top: artboardPercentY(HOME_STATUS_STRIP.top), zIndex: 30 },
   statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  statusText: { color: theme.colors.muted, fontFamily: HUD_FONT, fontSize: 10, fontWeight: "700" },
+  statusText: { color: theme.colors.muted, fontFamily: HUD_FONT, fontSize: STATUS_STRIP_TEXT_PT, fontWeight: "700" },
   statusCounters: { flexShrink: 1 },
-  pilotRow: { alignSelf: "flex-start", maxWidth: "70%", marginTop: 1 },
+  pilotRow: { alignSelf: "flex-start", maxWidth: "70%" },
   pilotText: { color: theme.colors.text },
-  cityText: { color: theme.colors.accent, fontFamily: HUD_FONT, fontSize: 10, fontWeight: "800", paddingVertical: 2 },
+  cityText: { color: theme.colors.accent, fontFamily: HUD_FONT, fontSize: STATUS_STRIP_TEXT_PT, fontWeight: "800" },
   artImageFrame: {
     position: "absolute",
   },

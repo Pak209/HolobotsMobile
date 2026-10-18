@@ -26,7 +26,8 @@ import { theme } from "./src/theme";
 
 export type RootTabs = {
   CityHub: undefined;
-  CityMarket: undefined;
+  /** `from` decides where the market's back button returns (Home's MARKET or the city's Vendor). */
+  CityMarket: { from?: "Home" | "CityHub" } | undefined;
   Arena: undefined;
   Home: undefined;
   Fitness: undefined;

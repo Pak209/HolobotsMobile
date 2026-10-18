@@ -57,7 +57,7 @@ export function readArenaGathering(value: unknown): ArenaGathering {
   const reply = record(value);
   if (reply?.schemaVersion !== GATHERING_SCHEMA || !Array.isArray(reply.roster) || reply.roster.length !== 8) throw new Error("The city roster needs an app update. Try again later.");
   const flags = readCityStoryFlags(reply.storyFlags);
-  if (!flags.arenaGatheringSeen) throw new Error("The city host has not confirmed your gathering yet.");
+  if (!flags.arenaGatheringSeen) throw new Error("The City has not confirmed your gathering yet.");
   const ids = new Set<string>();
   const botRings = new Set<string>();
   const roster = reply.roster.map((value): ArenaCitizen => {
@@ -94,9 +94,10 @@ export const CITY_RIVAL_PIN_POINTS = [
 export function cityActionMessage(error: unknown): string {
   const detail = record(record(error)?.details);
   const code = String(detail?.rejectionCode ?? record(error)?.code ?? "");
+  // PLACEHOLDER copy (Lex). The authority on screen is "the City", never "host" (DECISIONS #71).
   const messages: Record<string, string> = {
-    "functions/not-found": "The city host is not available yet. Please try again after the service update.",
-    "functions/unavailable": "The city host is offline. Check your connection and retry.",
+    "functions/not-found": "The City isn't open yet. Please try again after the next update.",
+    "functions/unavailable": "The City is offline. Check your connection and retry.",
     "functions/unauthenticated": "Sign in again to meet the city pilots.",
     "unauthenticated": "Sign in again to meet the city pilots.",
     "rival_cooldown": "This pilot is recovering. Check their countdown before a rematch.",
@@ -110,7 +111,7 @@ export function cityActionMessage(error: unknown): string {
     "no_item": "You need the lower-tier repair item for this recipe.",
     "too_many_open": "Finish your open rival battle before starting another.",
     "activity_conflict": "Finish your current activity before battling a rival.",
-    "too_fast": "The host is still confirming this battle. Wait a moment and retry.",
+    "too_fast": "The City is still confirming this battle. Wait a moment and retry.",
   };
   return messages[code] ?? (error instanceof Error && !code ? error.message : "The city could not complete that action. Please retry.");
 }

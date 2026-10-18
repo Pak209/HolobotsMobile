@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,6 +28,7 @@ export function CityMarketplaceScreen({ fixture }: { fixture?: CityMarketFixture
 
 function CityMarketPage({ uid, fixture }: { uid?: string; fixture?: CityMarketFixture }) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
+  const route = useRoute<RouteProp<RootTabs, "CityMarket">>();
   const insets = useSafeAreaInsets();
   const host = useMemo(() => fixture ? (fixture.signedIn ? fixtureCityMarketHost(fixture) : null) : uid ? liveCityMarketHost(uid, journal) : null, [fixture, uid]);
   const [state, dispatch] = useReducer(cityMarketReducer, host, initialCityMarketState);
@@ -49,17 +50,19 @@ function CityMarketPage({ uid, fixture }: { uid?: string; fixture?: CityMarketFi
 
   const view = presentCityMarket(state);
   const confirmListing = state.catalog?.listings.find((row) => row.listingId === state.confirming);
-  const back = () => navigation.navigate("CityHub");
+  // Back returns to whoever opened the market: Home's MARKET or the city's Vendor.
+  const fromHome = route.params?.from === "Home";
+  const back = () => navigation.navigate(fromHome ? "Home" : "CityHub");
 
   return <View style={styles.screen}>
     <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + (view.confirm ? 220 : 24) }}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}><Text style={styles.kicker}>{copy.kicker}</Text><Text style={styles.title}>{copy.title}</Text></View>
-        <Pressable accessibilityRole="button" accessibilityLabel={copy.backLabel} onPress={back} style={styles.home}><Text style={styles.homeText}>‹</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={fromHome ? copy.backHomeLabel : copy.backLabel} onPress={back} style={styles.home}><Text style={styles.homeText}>‹</Text></Pressable>
       </View>
       <View style={styles.statusRow}>
         <View style={styles.signal}><View style={styles.signalDot} /><Text style={styles.statusText}>{copy.status}</Text></View>
-        <Text accessibilityLabel={`Holos from the host: ${view.holosText}`} testID="city-market-holos" style={styles.holos}>{view.holosText}</Text>
+        {view.holosText ? <Text accessibilityLabel={`Holos on your account: ${view.holosText}`} testID="city-market-holos" style={styles.holos}>{view.holosText}</Text> : null}
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{copy.vendorName}</Text>
@@ -95,7 +98,7 @@ function CityMarketPage({ uid, fixture }: { uid?: string; fixture?: CityMarketFi
           {state.phase === "ready" ? <Pressable accessibilityRole="button" disabled={!view.refreshEnabled} onPress={() => void controller.load()} style={styles.refresh}>
             <Text style={[styles.caption, { color: theme.colors.accent }]}>{view.refreshing ? copy.refreshing : copy.refreshStalls}</Text>
           </Pressable> : <View />}
-          <Text style={styles.caption}>{fixture ? "OFFLINE PREVIEW" : "HOLOCITY LITE"}</Text>
+          {fixture ? <Text style={styles.caption}>OFFLINE PREVIEW</Text> : null}
         </View>
       </View>
     </ScrollView>

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as { uid: string } | null }, call: vi.fn(), callable: vi.fn() }));
 vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
-import { createCityMarketController, fixtureCityMarketHost, liveCityMarketHost, NOT_SOLD_IN_LITE_TEXT, type CityMarketFixture, type CityMarketHost } from "../cityMarketClient";
+import { createCityMarketController, fixtureCityMarketHost, liveCityMarketHost, NOT_SOLD_HERE_TEXT, NOT_SOLD_IN_LITE_TEXT, type CityMarketFixture, type CityMarketHost } from "../cityMarketClient";
 import { CATALOG_INVALID_TEXT, cityMarketReducer, initialCityMarketState, presentCityMarket, readVendorCatalog, type CityMarketEvent, type CityMarketState } from "../cityMarket";
 import { createCityRequestJournal } from "../cityRequestJournal";
 import { subscribeHostEconomyChanged } from "../hostDashboard";
@@ -32,12 +32,12 @@ describe("live market host (vendorCatalogHost + the listing's own purchase call)
     expect(fixture.callable).toHaveBeenLastCalledWith({}, "vendorCatalogHost");
     expect(fixture.call).toHaveBeenLastCalledWith({ operation: "catalog", vendorId: "marketplace" });
   });
-  it("sends a legacy listing exactly as named, without a requestId", async () => {
-    fixture.call.mockResolvedValueOnce({ data: { holosTokens: 4950, itemName: "Arena Pass", price: 50 } });
+  it("S12: a listing whose host purchase takes no requestId never reaches a purchase call", async () => {
     const { journal, store } = memoryJournal();
-    await liveCityMarketHost("pilot-a", journal).buy(listing("item.arena_pass"));
-    expect(fixture.callable).toHaveBeenLastCalledWith({}, "purchaseMarketplaceItem");
-    expect(fixture.call).toHaveBeenLastCalledWith({ itemName: "Arena Pass" });
+    const host = liveCityMarketHost("pilot-a", journal);
+    for (const id of ["item.arena_pass", "item.rank_skip", "booster.rare"]) await expect(host.buy(listing(id))).rejects.toThrow(NOT_SOLD_HERE_TEXT);
+    expect(fixture.callable).not.toHaveBeenCalled();
+    expect(fixture.call).not.toHaveBeenCalled();
     expect(store.size).toBe(0);
   });
   it("keeps a Buddy Unit requestId across an uncertain outcome and clears it after the host verdict", async () => {
@@ -102,7 +102,7 @@ describe("economy-change signal (#132) from the live buy path", () => {
     fixture.call.mockRejectedValueOnce(NOT_ENOUGH_HOLOS_REFUSAL);
     await expect(liveCityMarketHost("pilot-a", journal).buy(listing("buddy.heavy"))).rejects.toBe(NOT_ENOUGH_HOLOS_REFUSAL);
     fixture.call.mockRejectedValueOnce({ code: "functions/failed-precondition", details: { rejectionCode: "on_cooldown" } });
-    await expect(liveCityMarketHost("pilot-a", journal).buy(listing("item.arena_pass"))).rejects.toBeTruthy();
+    await expect(liveCityMarketHost("pilot-a", journal).buy(listing("item.repair_kit"))).rejects.toBeTruthy();
     expect(seen).toEqual([]);
   });
   it("does not publish on an uncertain outcome, an unreadable reply, a switched session or a listing lite cannot send", async () => {
@@ -112,7 +112,7 @@ describe("economy-change signal (#132) from the live buy path", () => {
     fixture.call.mockRejectedValueOnce({ code: "functions/deadline-exceeded" });
     await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: "functions/deadline-exceeded" });
     fixture.call.mockResolvedValueOnce({ data: null });
-    await host.buy(listing("item.arena_pass"));
+    await host.buy(listing("item.repair_kit"));
     fixture.call.mockImplementationOnce(async () => { fixture.auth.currentUser = { uid: "pilot-b" }; return { data: hostMarket.purchaseReply }; });
     await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: "unauthenticated" });
     fixture.auth.currentUser = { uid: "pilot-a" };
@@ -159,7 +159,7 @@ describe("market page flow (controller + reducer + presenter, host fixtures)", (
   it("host offline → UNAVAILABLE with a connection message; signed-out reply → SIGN IN FIRST", async () => {
     const offline = harness(fixtureCityMarketHost({ signedIn: true, catalogError: { code: "functions/unavailable" } }));
     await offline.controller.load();
-    expect(offline.view.plate?.body).toBe("The market host is offline. Check your connection and refresh.");
+    expect(offline.view.plate?.body).toBe("The market is offline. Check your connection and refresh.");
     const expired = harness(fixtureCityMarketHost({ signedIn: true, catalogError: { code: "functions/unauthenticated" } }));
     await expired.controller.load();
     expect(expired.view.plate?.title).toBe("SIGN IN FIRST");
@@ -188,13 +188,13 @@ describe("market page flow (controller + reducer + presenter, host fixtures)", (
     expect(h.view.sections.flatMap((s) => s.rows).find((r) => r.listingId === "buddy.medium")!.metaText).toBe("OWNED 1 · IN STOCK");
     expect(h.view.confirm).toBeNull();
   });
-  it("purchase refused → host code printed, catalog still re-read", async () => {
+  it("purchase refused → player copy (never the raw code), catalog still re-read", async () => {
     const { host } = spyHost(cityMarketFixtures.CityMarketRefused);
     const h = harness(host);
     await h.controller.load();
     h.select("buddy.heavy");
     await h.controller.confirm(h.state.catalog!.listings.find((row) => row.listingId === "buddy.heavy")!);
-    expect(h.view.notice).toEqual({ tone: "refused", text: "REFUSED · not_enough_holos — Not enough Holos." });
+    expect(h.view.notice).toEqual({ tone: "refused", text: "Not enough Holos." });
     expect(host.readCatalog).toHaveBeenCalledTimes(2);
     expect(h.view.holosText).toBe("5,000 HOLOS");
   });
@@ -208,6 +208,6 @@ describe("market page flow (controller + reducer + presenter, host fixtures)", (
     expect(h.state.catalog).toBeNull();
     expect(h.view.plate?.title).toBe("UNAVAILABLE");
     expect(h.view.notice?.text).toBe("PURCHASE CONFIRMED · Medium Buddy Unit");
-    expect(h.view.holosText).toBe("— HOLOS");
+    expect(h.view.holosText).toBeNull();
   });
 });

@@ -12,6 +12,7 @@ import { CityRivalBattle } from "@/components/city/CityRivalBattle";
 import { CITY_DISTRICTS, CITY_RIVAL_PIN_POINTS, cityActionMessage, cityDistrictAccess, cityMapPoint, cityTimeOfDay, readCityStoryFlags, type ArenaCitizen, type ArenaGathering, type CityDistrict } from "@/lib/cityHub";
 import { CITY_LIVE_DUEL_HOLD, cityChallengeEnabled, loadCityHub, meetCityPilots } from "@/lib/cityHubClient";
 import { CITY_MARKET_COPY } from "@/lib/cityMarket";
+import { isStoryOverworldAvailable } from "@/config/storyMode";
 import type { CityHubFixture } from "@/lib/cityHubFixtures";
 import { useCityRivalCooldowns } from "@/hooks/useRivalStatus";
 import { theme } from "@/theme";
@@ -19,6 +20,16 @@ import { theme } from "@/theme";
 const MAP_WIDTH = 360;
 const MAP_HEIGHT = 380;
 const districtSymbols = { plaza: "◎", vendor: "▥", workshop: "✚", arena: "◇", harbor: "≈", port: "◈", zone: "△" };
+// HoloZone opens the story overworld: without one this build may load, the district stays off the map (L10).
+const STORY_AVAILABLE = isStoryOverworldAvailable();
+// PLACEHOLDER copy (Lex). The authority on screen is "the City", never "host" (DECISIONS #71).
+const HUB_COPY = {
+  rivalsBody: "Every pilot has a signature ring. Pick a rival to challenge; the City confirms availability and rewards.",
+  gatheringBody: "Your rivals are out in the city. Follow their rings to meet a pilot and challenge their Holobot.",
+  gatheringBodyHeld: "Your rivals are out in the city. Follow their rings to meet a pilot.",
+  rosterBody: "The City confirms the gathering roster. Joining also unlocks Arena entry.",
+  refreshRoster: "REFRESH CITY ROSTER",
+} as const;
 
 function DistrictBuildings({ x, y, accent }: { x: number; y: number; accent: string }) {
   return <>
@@ -48,7 +59,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
   const roster = fixture?.roster ?? currentGathering?.roster ?? [];
   const period = cityTimeOfDay(fixture?.hour ?? hour);
   const scale = mapWidth / MAP_WIDTH;
-  const districts = CITY_DISTRICTS.filter((district) => cityDistrictAccess(district.id, flags) !== "hidden");
+  const districts = CITY_DISTRICTS.filter((district) => cityDistrictAccess(district.id, flags) !== "hidden" && (district.destination !== "Overworld" || STORY_AVAILABLE));
   const tint = period === "night" ? "#091D2B" : "#18343D";
   // Live citizen duels are held: no Challenge CTA may open a battle that can never start (L11).
   const challengeOpen = cityChallengeEnabled(!!fixture);
@@ -96,14 +107,15 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
     navigation.navigate(district.destination);
   }
   function pickRival(rival: ArenaCitizen) {
-    if (!challengeOpen) return;
+    // Held: a pin or row opens the roster panel, which says live duels are not available.
+    if (!challengeOpen) { setPanel("rivals"); return; }
     if (!fixture && !user) { setMessage("Sign in to challenge a city pilot."); return; }
     if (cooldowns[rival.citizenId]) { setMessage(`${rival.pilotName} is recovering · ${cooldowns[rival.citizenId]}`); return; }
     setPanel("rivals"); setFighting(rival);
   }
   function browseSupplies() {
     setPanel(null);
-    if (fixture) fixture.onNavigate?.("CityMarket"); else navigation.navigate("CityMarket");
+    if (fixture) fixture.onNavigate?.("CityMarket"); else navigation.navigate("CityMarket", { from: "CityHub" });
   }
 
   return <View style={styles.screen}>
@@ -140,12 +152,12 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
             <Text style={[styles.districtLabel, locked && { color: theme.colors.muted }]}>{district.name.toUpperCase()}{locked ? " · LOCKED" : ""}</Text>
           </Pressable>;
         })}
-        {roster.map((rival, i) => { const p = CITY_RIVAL_PIN_POINTS[i]; return p ? <Pressable key={rival.citizenId} accessibilityRole="button" accessibilityLabel={`${cooldowns[rival.citizenId] ? `Recovering ${cooldowns[rival.citizenId]} · ` : ""}Challenge ${rival.pilotName}, ${rival.holobotId.toUpperCase()}, ${rival.rank}`} testID={`city-rival-pin-${i}`} disabled={!challengeOpen || !!cooldowns[rival.citizenId]} accessibilityState={{ disabled: !challengeOpen || !!cooldowns[rival.citizenId] }} onPress={() => pickRival(rival)} style={[styles.rivalPin, { left: p.x*scale-22, top: p.y*scale-22 }]}><View style={[styles.rivalDot, { borderColor: rival.ringColor }]}><Text style={[styles.pinInitial, { color: rival.ringColor }]}>{rival.pilotName[0]}</Text></View>{cooldowns[rival.citizenId] ? <Text style={styles.caption}>{cooldowns[rival.citizenId]}</Text> : null}</Pressable> : null; })}
+        {roster.map((rival, i) => { const p = CITY_RIVAL_PIN_POINTS[i]; return p ? <Pressable key={rival.citizenId} accessibilityRole="button" accessibilityLabel={`${cooldowns[rival.citizenId] ? `Recovering ${cooldowns[rival.citizenId]} · ` : ""}${challengeOpen ? "Challenge" : "Meet"} ${rival.pilotName}, ${rival.holobotId.toUpperCase()}, ${rival.rank}`} testID={`city-rival-pin-${i}`} disabled={!!cooldowns[rival.citizenId]} onPress={() => pickRival(rival)} style={[styles.rivalPin, { left: p.x*scale-22, top: p.y*scale-22 }]}><View style={[styles.rivalDot, { borderColor: rival.ringColor }]}><Text style={[styles.pinInitial, { color: rival.ringColor }]}>{rival.pilotName[0]}</Text></View>{cooldowns[rival.citizenId] ? <Text style={styles.caption}>{cooldowns[rival.citizenId]}</Text> : null}</Pressable> : null; })}
       </View>
-      <View style={styles.mapCaption}><Text style={styles.caption}>TAP A DISTRICT TO TRAVEL</Text><Text style={styles.caption}>{fixture ? "OFFLINE PREVIEW" : "HOLOCITY LITE"}</Text></View>
+      <View style={styles.mapCaption}><Text style={styles.caption}>TAP A DISTRICT TO TRAVEL</Text>{fixture ? <Text style={styles.caption}>OFFLINE PREVIEW</Text> : null}</View>
       <View style={styles.gatheringCard}>
         <View style={styles.row}><Text style={styles.cardTitle}>CITIZEN GATHERING</Text><Text style={styles.ringBadge}>{roster.length.toString().padStart(2, "0")}</Text></View>
-        <Text style={styles.body}>{roster.length ? "Your rivals are out in the city. Follow their rings to meet a pilot and challenge their Holobot." : "Eight pilots. Twelve Holobots. Meet the citizens at the Port gathering to open your Arena journey."}</Text>
+        <Text style={styles.body}>{roster.length ? (challengeOpen ? HUB_COPY.gatheringBody : HUB_COPY.gatheringBodyHeld) : "Eight pilots. Twelve Holobots. Meet the citizens at the Port gathering to open your Arena journey."}</Text>
         <Pressable accessibilityRole="button" disabled={loading} onPress={() => roster.length ? setPanel("rivals") : void gather()} style={styles.primary}>
           {loading ? <ActivityIndicator color={theme.colors.carbon} /> : <Text style={styles.primaryText}>{roster.length ? "MEET YOUR RIVALS" : "JOIN THE GATHERING"} →</Text>}
         </Pressable>
@@ -161,15 +173,15 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
         <View style={styles.sheetHeader}><Text style={styles.cardTitle}>{panel === "workshop" ? "WORKSHOP" : "CITIZEN PILOTS"}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close city panel" onPress={() => setPanel(null)} style={styles.close}><Text style={styles.closeText}>✕</Text></Pressable></View>
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
           {panel === "workshop" ? <CityWorkshopPanel key={user?.uid ?? "anonymous"} uid={user?.uid} preview={!!fixture} onBrowse={browseSupplies} /> : <View style={styles.rivalList}>
-            <Text style={styles.body}>{challengeOpen ? "Every pilot has a signature ring. Pick a rival to challenge; the host confirms availability and rewards." : CITY_LIVE_DUEL_HOLD}</Text>
-            {roster.map((rival) => <Pressable key={rival.citizenId} accessibilityRole="button" accessibilityLabel={`Challenge ${rival.pilotName}`} disabled={!challengeOpen || !!cooldowns[rival.citizenId]} accessibilityState={{ disabled: !challengeOpen || !!cooldowns[rival.citizenId] }} onPress={() => pickRival(rival)} style={styles.rivalRow}>
+            <Text style={styles.body}>{challengeOpen ? HUB_COPY.rivalsBody : CITY_LIVE_DUEL_HOLD}</Text>
+            {roster.map((rival) => <Pressable key={rival.citizenId} accessibilityRole="button" accessibilityLabel={challengeOpen ? `Challenge ${rival.pilotName}` : rival.pilotName} disabled={!challengeOpen || !!cooldowns[rival.citizenId]} accessibilityState={{ disabled: !challengeOpen || !!cooldowns[rival.citizenId] }} onPress={() => pickRival(rival)} style={styles.rivalRow}>
               <View style={[styles.portraitRing, { borderColor: rival.ringColor }]}><Image source={getHolobotHeadshotImageSource(rival.holobotId)} style={styles.portrait} /></View>
               <View style={{ flex: 1 }}><Text style={styles.rivalName}>{rival.pilotName}</Text><Text style={styles.caption}>{rival.holobotId.toUpperCase()} / {cooldowns[rival.citizenId] ?? rival.rank.toUpperCase()}</Text></View>
               {challengeOpen ? <Text style={[styles.challengeArrow, { color: rival.ringColor }]}>↗</Text> : null}
             </Pressable>)}
-            {!roster.length ? <><Text style={styles.body}>The gathering roster is confirmed by the city host. Joining also unlocks Arena entry.</Text><Pressable disabled={loading} accessibilityRole="button" onPress={() => void gather()} style={styles.primary}>{loading ? <ActivityIndicator color={theme.colors.carbon} /> : <Text style={styles.primaryText}>JOIN THE GATHERING</Text>}</Pressable></> : null}
+            {!roster.length ? <><Text style={styles.body}>{HUB_COPY.rosterBody}</Text><Pressable disabled={loading} accessibilityRole="button" onPress={() => void gather()} style={styles.primary}>{loading ? <ActivityIndicator color={theme.colors.carbon} /> : <Text style={styles.primaryText}>JOIN THE GATHERING</Text>}</Pressable></> : null}
             {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
-            {!!roster.length && !fixture ? <Pressable accessibilityRole="button" disabled={loading} onPress={() => void gather()} style={styles.refresh}><Text style={styles.caption}>{loading ? "REFRESHING…" : "REFRESH HOST ROSTER"}</Text></Pressable> : null}
+            {!!roster.length && !fixture ? <Pressable accessibilityRole="button" disabled={loading} onPress={() => void gather()} style={styles.refresh}><Text style={styles.caption}>{loading ? "REFRESHING…" : HUB_COPY.refreshRoster}</Text></Pressable> : null}
           </View>}
         </ScrollView>
       </View>}

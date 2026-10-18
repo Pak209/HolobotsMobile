@@ -267,5 +267,6 @@ export function presentSquadTitle(holobotIds: readonly string[] | null, levels: 
   if (!holobotIds.length) return "NO HOLOBOTS ASSIGNED";
   const names = holobotIds.map(id => id.toUpperCase());
   if (!levels) return `${names.join(" · ")} · LV UNAVAILABLE`;
-  return holobotIds.map((id, i) => `${names[i]} LV ${levels[id] ?? "—"}`).join(" · ");
+  // A bot the account snapshot has no level for shows its name only: no bare placeholder (L22).
+  return holobotIds.map((id, i) => (levels[id] === undefined ? names[i] : `${names[i]} LV ${levels[id]}`)).join(" · ");
 }
