@@ -111,6 +111,7 @@ Every contact-sheet cell was reviewed and shows OFFLINE FIXTURE · NO REWARDS on
 - QA harness screen `HostDuelPerfSweep` (`src/qa/DuelPerfSweepPreview.tsx`) runs the 11 arms in order and logs `[HolobotViewer:perfSweep]`.
 - `src/lib/bots/stagePerf.ts` (arms, summary, mixer cap) is covered by 8 unit tests in `src/lib/__tests__/stagePerf.test.ts`. `src/lib/bots/stageProbe.ts` holds the probe and inventory.
 - Checks: `tsc --noEmit` exit 0. Vitest: 70 files passed, 1 skipped; 604 tests passed, 4 skipped.
+- After merging #131 and #132 from the base branch (the only conflict was the QA screen registry in `HoloCityPreview.tsx`, where both entries were kept): `tsc --noEmit` exit 0. Vitest: 75 files passed, 1 skipped; 687 tests passed, 4 skipped. The merge touched no BotStage, DuelPlaybackScreen or bot-asset file, so the measured render path is unchanged.
 
 ## Device run (for when Pak plugs in the iPhone)
 

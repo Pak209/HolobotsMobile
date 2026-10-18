@@ -17,7 +17,7 @@ export type ArenaCitizen = {
 };
 export type ArenaGathering = { schemaVersion: typeof GATHERING_SCHEMA; roster: ArenaCitizen[]; storyFlags: CityStoryFlags };
 export type CityDistrictId = "plaza" | "vendor" | "workshop" | "arena" | "harbor" | "port" | "zone";
-export type CityDestination = "Home" | "Marketplace" | "Workshop" | "Arena" | "Quests" | "Rivals" | "Overworld";
+export type CityDestination = "Home" | "CityMarket" | "Workshop" | "Arena" | "Quests" | "Rivals" | "Overworld";
 export type CityDistrict = {
   id: CityDistrictId;
   name: string;
@@ -31,7 +31,7 @@ export type CityDistrict = {
 export const CITY_LAYOUT_SOURCE = "HolobotsUnity/Documentation/QA/2026-09-22-layout-calls/context.json";
 export const CITY_DISTRICTS: readonly CityDistrict[] = [
   { id: "plaza", name: "Plaza", activity: "Your squad", destination: "Home", world: [0, 10], sourceAnchor: "anchors.SyncTower_disc" },
-  { id: "vendor", name: "Vendor", activity: "Catalog & supplies", destination: "Marketplace", world: [100, -55], sourceAnchor: "anchors.Market" },
+  { id: "vendor", name: "Vendor", activity: "Catalog & supplies", destination: "CityMarket", world: [100, -55], sourceAnchor: "anchors.Market" },
   { id: "workshop", name: "Workshop", activity: "Heal & craft", destination: "Workshop", world: [-135, 0], sourceAnchor: "anchors_extra.minimapLandmarks.WORKSHOP" },
   { id: "arena", name: "Arena", activity: "Enter the arena", destination: "Arena", world: [-22, -55], sourceAnchor: "anchors.ArenaFoundation" },
   { id: "harbor", name: "Harbor", activity: "Quests & voyages", destination: "Quests", world: [-48, -164.4], sourceAnchor: "anchors.Marina gangway" },
