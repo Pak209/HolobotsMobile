@@ -22,6 +22,9 @@ import { useArenaBattleStore } from '@/stores/arena-battle-store';
 import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lib/hostDashboard';
 /** Lite CPU Arena. Presentation and transport only (hard rule 1): the City admits, settles and pays; this screen shows
  * its replies, runs the existing client practice sim between `start` and `settle`, and never decides an outcome. */
+/** F3: performance carried over when an interrupted fight continues from its checkpoint, keyed by matchId. Module
+ * scope, like the battle store it complements, so a remount mid-fight keeps it. */
+const carriedPerformance = new Map<string, { combos: number; perfects: number }>();
 /** Offline QA only (src/qa/ArenaPolishPreview.tsx, __DEV__ harness): a recorded-reply transport instead of the callable. */
 export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean };
 export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) {
@@ -42,9 +45,9 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     /** The City answered too_fast for this match (the floor refuses only wins), so "win" is the City's word, not ours. */
     const tooFastFor = useRef<string | null>(null);
     const [savedCheckpoint, setSavedCheckpoint] = useState<ArenaCheckpoint | null>(null);
-    /** F3: performance carried over when an interrupted fight continues from its checkpoint. */
-    const perfBase = useRef<{ matchId: string; combos: number; perfects: number } | null>(null);
     const [ready, setReady] = useState(false);
+    /** While the quit prompt is up, nothing but the prompt may unpause the fight or re-arm the resend. */
+    const quitOpen = useRef(false);
     const [cappedMatchId, setCappedMatchId] = useState<string | null>(null);
     const [busy, setBusy] = useState(false), [error, setError] = useState<unknown>(null), [pvp, setPvp] = useState(false);
     const [quitAsk, setQuitAsk] = useState<{ prompt: ArenaQuitPrompt } | null>(null);
@@ -80,7 +83,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
         if (phase.kind === 'settled')
             void applyRef.current(phase.reply);
         else if (phase.kind === 'refused' || phase.kind === 'idle')
-            void flow.pendingSettle().then(p => { if (live.current && currentFlow.current === flow) setPendingSettleHp(p?.report.playerFinalHealth ?? null); });
+            void flow.pendingSettle().then(p => { if (live.current && currentFlow.current === flow) setPendingSettleHp(p?.report.playerFinalHealth ?? null); }).catch(() => undefined);
     }) : null, [flow]);
     const setSettlePhase = (phase: ArenaSettlePhase) => setSettleState({ phase, matchId: confirmerMatch.current });
     /** The only entry to the confirmer: binds its phases to the open match. */
@@ -105,18 +108,32 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const resumeAll = async () => {
         if (!flow)
             return;
-        // Never collide with an in-flight settle or cancel as arena_busy: let it land, then read the City's view.
-        await flow.whenIdle();
-        const r = await flow.resume();
+        // Never collide with an in-flight settle or cancel as arena_busy: queue behind it, then read the City's view.
+        const r = await flow.afterIdle(() => flow.resume());
         await apply(r);
-        if (!mine() || r.match?.state !== 'active')
+        if (!mine() || r.match?.state !== 'active' || quitOpen.current)
             return;
-        if (await flow.pendingSettle()) { runConfirm('resume'); return; }
+        await rearm(r.matchId);
+    };
+    /** Resend what this device owes the City for the open match, or resume its live fight: the stored settle; else a
+     * finished fight whose first send never got stored; else the paused live fight. */
+    const rearm = async (matchId: string | null) => {
+        if (!flow)
+            return;
+        const pending = await flow.pendingSettle().catch(() => null);
+        if (!mine() || quitOpen.current)
+            return;
+        if (pending) { runConfirm('resume'); return; }
         const s = useArenaBattleStore.getState();
-        if (s.currentBattle?.battleId === r.matchId && !s.battleResult) { s.startGameLoop(); s.setPaused(false); }
+        if (!s.currentBattle || s.currentBattle.battleId !== matchId)
+            return;
+        if (s.battleResult) { runConfirm('start', reportOf(s.currentBattle)); return; }
+        s.startGameLoop();
+        s.setPaused(false);
     };
     useEffect(() => {
         live.current = true;
+        setReady(false);
         setBusy(false);
         setReply(null);
         setError(null);
@@ -176,12 +193,13 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
         const cp = await flow.checkpoint();
         if (!mine())
             return;
-        perfBase.current = null;
+        carriedPerformance.delete(r.matchId!);
         if (cp) {
             if (cp.report.playerFinalHealth <= 0 || cp.report.opponentFinalHealth <= 0) { runConfirm('start', cp.report); return; }
-            prepared.battle.player.currentHP = Math.min(prepared.battle.player.maxHP, cp.report.playerFinalHealth);
-            prepared.battle.opponent.currentHP = Math.min(prepared.battle.opponent.maxHP, cp.report.opponentFinalHealth);
-            perfBase.current = { matchId: cp.matchId, combos: cp.report.combosCompleted, perfects: cp.report.perfectDefenses };
+            // Never above what the City admitted (it accepts a forfeit only at or below admission HP).
+            prepared.battle.player.currentHP = Math.min(prepared.battle.player.maxHP, r.match.entrant.currentHealth ?? r.match.entrant.maxHealth, cp.report.playerFinalHealth);
+            prepared.battle.opponent.currentHP = Math.min(prepared.battle.opponent.maxHP, r.match.opponent.currentHealth ?? r.match.opponent.maxHealth, cp.report.opponentFinalHealth);
+            carriedPerformance.set(cp.matchId, { combos: cp.report.combosCompleted, perfects: cp.report.perfectDefenses });
         }
         submitted.current = null;
         store.startHostBattle(prepared.battle, prepared.playerMoves, prepared.opponentMoves);
@@ -201,7 +219,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const battle = store.currentBattle?.battleId === reply?.matchId ? store.currentBattle : null;
     /** The report of the fight on this device (plus what it carried over from a checkpoint). */
     const reportOf = (b: NonNullable<typeof battle>): ArenaSettleReport => {
-        const base = perfBase.current?.matchId === b.battleId ? perfBase.current : null;
+        const base = carriedPerformance.get(b.battleId) ?? null;
         return { playerFinalHealth: b.player.currentHP, opponentFinalHealth: b.opponent.currentHP, combosCompleted: Math.min(25, (base?.combos ?? 0) + b.actionHistory.filter(a => a.triggeredCombo).length), perfectDefenses: Math.min(25, (base?.perfects ?? 0) + b.actionHistory.filter(a => a.perfectDefense).length) };
     };
     // F3: keep the fight's state on this device as it changes, so an interrupted fight continues instead of re-rolling.
@@ -214,17 +232,15 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     } }, [store.battleResult, battle?.battleId, reply?.match?.state]);
     const match = reply?.match ?? null;
     const settlePhase: ArenaSettlePhase = settleState.matchId !== null && settleState.matchId === (reply?.matchId ?? null) ? settleState.phase : { kind: 'idle' };
-    const phase = arenaScreenPhase({ reply, acknowledged, hasCheckpoint: !!battle, savedCheckpoint: !!savedCheckpoint, settle: settlePhase, pendingIssue, error });
+    const phase = arenaScreenPhase({ reply, acknowledged, hasCheckpoint: !!battle, savedCheckpoint: !!savedCheckpoint, savedCheckpointFinished: !!savedCheckpoint && (savedCheckpoint.report.playerFinalHealth <= 0 || savedCheckpoint.report.opponentFinalHealth <= 0), settle: settlePhase, pendingIssue, error });
     const pendingResult = pendingSettleHp !== null || ['sending', 'waiting', 'stalled'].includes(settlePhase.kind);
     const winPending = !!reply?.matchId && tooFastFor.current === reply.matchId;
     const forfeitHpNow = () => match && match.state === 'active' ? arenaForfeitHp({ checkpointHp: battle?.player.currentHP ?? null, pendingSettleHp, savedCheckpointHp: savedCheckpoint?.report.playerFinalHealth ?? null, admissionHp: match.entrant.currentHealth ?? match.entrant.maxHealth }) : null;
     const doCancel = () => action(async () => {
         store.setPaused(true);
         confirmer?.stop();
-        // An in-flight settle lands first (a settled match then replays its record instead of being cancelled).
-        await flow!.whenIdle();
-        const hp = forfeitHpNow();
-        const r = await flow!.cancel(hp ?? undefined);
+        // Queued behind any in-flight settle (a match it settled then replays its record instead of being cancelled).
+        const r = await flow!.afterIdle(() => flow!.cancel(forfeitHpNow() ?? undefined));
         setSettlePhase({ kind: 'idle' });
         store.resetBattle();
         await apply(r);
@@ -234,18 +250,18 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const quit = () => {
         if (!match || (match.state !== 'issued' && match.state !== 'active'))
             return;
+        quitOpen.current = true;
         store.setPaused(true);
         confirmer?.stop();
         setQuitAsk({ prompt: arenaQuitPrompt({ state: match.state, pendingSettle: pendingResult, win: winPending, fighter: match.entrant.displayName, forfeitHp: forfeitHpNow() }) });
     };
     const dismissQuit = () => {
+        quitOpen.current = false;
         setQuitAsk(null);
-        const s = useArenaBattleStore.getState();
-        if (battle && !s.battleResult) s.setPaused(false);
-        void flow?.pendingSettle().then(p => { if (p) runConfirm('resume'); });
+        void rearm(reply?.matchId ?? null);
     };
     // A prompt for a match that is no longer open (settled under it, closed elsewhere) is withdrawn.
-    useEffect(() => { if (quitAsk && !(match && (match.state === 'issued' || match.state === 'active'))) setQuitAsk(null); }, [match?.state, quitAsk]);
+    useEffect(() => { if (quitAsk && !(match && (match.state === 'issued' || match.state === 'active'))) { quitOpen.current = false; setQuitAsk(null); } }, [match?.state, quitAsk]);
     const exit = () => action(async () => {
         confirmer?.stop();
         if (reply?.matchId)
@@ -270,8 +286,8 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
             { label: COPY.retryEntry, onPress: () => void action(async () => { const r = await flow!.retryIssue(); await apply(r); if (arenaIssuePayoutCapped(r)) { setCappedMatchId(r.matchId); return; } await launch(); }) },
             { label: COPY.discardEntry, tone: 'secondary', onPress: () => void action(async () => { await flow!.discardPendingIssue(); await resumeAll(); }) },
         ]}/>) : null}
-  {phase.kind === 'admitted' && match ? framed(<ArenaInterstitial eyebrow={phase.interrupted ? COPY.interruptedEyebrow : COPY.admittedEyebrow} title={phase.interrupted ? COPY.interruptedTitle : COPY.admittedTitle} body={!phase.interrupted ? COPY.admittedBody : phase.resumable ? COPY.interruptedBody : COPY.notStartedBody} notice={cappedMatchId === reply?.matchId ? COPY.payoutCapped : null} actions={[
-            { label: !phase.interrupted ? COPY.start : phase.resumable ? COPY.resumeFight : COPY.restart, onPress: () => void action(launch) },
+  {phase.kind === 'admitted' && match ? framed(<ArenaInterstitial eyebrow={phase.interrupted ? COPY.interruptedEyebrow : COPY.admittedEyebrow} title={phase.interrupted ? COPY.interruptedTitle : COPY.admittedTitle} body={!phase.interrupted ? COPY.admittedBody : phase.finished ? COPY.finishedBody : phase.resumable ? COPY.interruptedBody : COPY.notStartedBody} notice={cappedMatchId === reply?.matchId ? COPY.payoutCapped : null} actions={[
+            { label: !phase.interrupted ? COPY.start : phase.finished ? COPY.sendResult : phase.resumable ? COPY.resumeFight : COPY.restart, onPress: () => void action(launch) },
             { label: phase.interrupted ? COPY.forfeit : COPY.cancelRefund, tone: phase.interrupted ? 'danger' : 'secondary', onPress: quit },
         ]}>{fighters}</ArenaInterstitial>) : null}
   {battle && (phase.kind === 'battle' || phase.kind === 'confirming') ? <View style={[styles.fight, pad]}>
@@ -297,7 +313,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
       drops a Modal presented while another is still dismissing (witness cell 07). */}
   {quitAsk ? <View style={[styles.overlay, styles.confirm]}>
       <ArenaInterstitial tone="danger" eyebrow={COPY.errorEyebrow} title={quitAsk.prompt.title} body={quitAsk.prompt.body} actions={[
-            { label: quitAsk.prompt.confirm, tone: 'danger', onPress: () => { setQuitAsk(null); void doCancel(); } },
+            { label: quitAsk.prompt.confirm, tone: 'danger', onPress: () => { quitOpen.current = false; setQuitAsk(null); void doCancel(); } },
             { label: quitAsk.prompt.dismiss, tone: 'secondary', onPress: dismissQuit },
         ]}/>
     </View> : null}

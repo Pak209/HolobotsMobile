@@ -51,9 +51,11 @@ export class ArenaSettleConfirmer {
     /** Background, quit prompt, cancel, exit: disarm the resend. An answer already in flight is NOT thrown away: a
      * `settled` reply is the City's truth and is still reported; a failure reports `idle` and arms nothing. */
     stop() {
+        const armed = this.timer !== null;
         this.halted = true;
         this.clear();
-        if (!this.inFlight) this.onPhase({ kind: 'idle' });
+        // Only a disarmed resend changes the phase; a `refused` or `stalled` screen stays as it is.
+        if (armed && !this.inFlight) this.onPhase({ kind: 'idle' });
     }
     /** Unmount: report nothing more. */
     dispose() { this.generation++; this.halted = true; this.clear(); }
@@ -84,7 +86,9 @@ export class ArenaSettleConfirmer {
         if (local === 'arena_session_changed' || local === 'arena_no_pending_settle' || local === 'arena_not_admitted') { this.onPhase({ kind: 'idle' }); return; }
         const rejection = arenaHostRejection(error);
         const tooFast = rejection === ARENA_SETTLE_TOO_FAST;
-        if (!tooFast && rejection !== 'request_conflict' && arenaDefiniteRefusal(error)) { this.onPhase({ kind: 'refused', code: rejection ?? arenaCallCode(error) ?? 'unknown' }); return; }
+        // Any definite refusal but the floor ends the loop. (request_conflict keeps its stored body in the flow, so CHECK
+        // AGAIN resends it; it is not retried blindly.)
+        if (!tooFast && arenaDefiniteRefusal(error)) { this.onPhase({ kind: 'refused', code: rejection ?? arenaCallCode(error) ?? 'unknown' }); return; }
         const reason = tooFast ? 'too_fast' : 'unknown';
         if (this.resends >= ARENA_SETTLE_BACKOFF_MS.length) { this.onPhase({ kind: 'stalled', reason }); return; }
         const hint = tooFast ? arenaRetryAfterMs(error) : null;

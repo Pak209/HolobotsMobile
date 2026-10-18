@@ -67,6 +67,8 @@ describe('F3: a lost start reply never forces a 0-HP forfeit', () => {
     it('an active match with no checkpoint is the "interrupted" admitted state, not an error', () => {
         expect(phase({ reply: ARENA_STARTED })).toEqual({ kind: 'admitted', interrupted: true, resumable: false });
         expect(phase({ reply: ARENA_STARTED, savedCheckpoint: true })).toEqual({ kind: 'admitted', interrupted: true, resumable: true });
+        // Round 2 #9: a checkpoint whose fight already ended offers SEND RESULT, not CONTINUE FIGHT.
+        expect(phase({ reply: ARENA_STARTED, savedCheckpoint: true, savedCheckpointFinished: true })).toEqual({ kind: 'admitted', interrupted: true, finished: true });
         expect(phase({ reply: ARENA_ISSUED })).toEqual({ kind: 'admitted', interrupted: false });
     });
     it('a forfeit reports the checkpoint, else the saved result, else the admission HP (never 0 by default)', () => {
@@ -77,6 +79,8 @@ describe('F3: a lost start reply never forces a 0-HP forfeit', () => {
         expect(arenaForfeitHp({ checkpointHp: null, pendingSettleHp: 30, admissionHp })).toBe(30);
         // Critic #6: a fight that ran here and was cut off forfeits at its saved HP, not the entry HP.
         expect(arenaForfeitHp({ checkpointHp: null, pendingSettleHp: null, savedCheckpointHp: 9, admissionHp })).toBe(9);
+        // Round 2 #6: never above the admission HP the City checks a forfeit against.
+        expect(arenaForfeitHp({ checkpointHp: admissionHp + 50, pendingSettleHp: null, admissionHp })).toBe(admissionHp);
     });
     it('the fight state is checkpointed per match and retired with it (no re-roll by force-quit)', async () => {
         let cp: any = null;
@@ -90,8 +94,21 @@ describe('F3: a lost start reply never forces a 0-HP forfeit', () => {
         await flow.settle({ playerFinalHealth: 30, opponentFinalHealth: 0, combosCompleted: 0, perfectDefenses: 0 });
         expect(cp).toBeNull();
         const screen = readFileSync(fileURLToPath(new URL('../../screens/ArenaScreen.tsx', import.meta.url) as unknown as string), 'utf8');
-        expect(screen).toContain('prepared.battle.player.currentHP = Math.min(prepared.battle.player.maxHP, cp.report.playerFinalHealth)');
+        expect(screen).toContain('prepared.battle.player.currentHP = Math.min(prepared.battle.player.maxHP, r.match.entrant.currentHealth ?? r.match.entrant.maxHealth, cp.report.playerFinalHealth)');
+        expect(screen).toContain('const carriedPerformance = new Map<string, { combos: number; perfects: number }>();'); // round 2 #5: survives a remount
         expect(screen).toContain("if (cp.report.playerFinalHealth <= 0 || cp.report.opponentFinalHealth <= 0) { runConfirm('start', cp.report); return; }");
+    });
+    it('round 2 #3: afterIdle queues two waiters behind an in-flight command (no arena_busy)', async () => {
+        let release!: (v: unknown) => void;
+        const call = vi.fn().mockImplementationOnce(() => new Promise(r => { release = r; })).mockResolvedValue(ARENA_STARTED);
+        const flow = new ArenaMatchFlow(call, { get: async () => null, set: async () => { } }, () => true);
+        const first = flow.resume();
+        await Promise.resolve();
+        const a = flow.afterIdle(() => flow.resume()), b = flow.afterIdle(() => flow.resume());
+        release(ARENA_STARTED); await first;
+        await expect(a).resolves.toMatchObject({ matchId: ARENA_STARTED.matchId });
+        await expect(b).resolves.toMatchObject({ matchId: ARENA_STARTED.matchId });
+        expect(call).toHaveBeenCalledTimes(3);
     });
     it('whenIdle waits out an in-flight command instead of colliding as arena_busy', async () => {
         let release!: (v: unknown) => void;
@@ -216,8 +233,13 @@ describe('L1: player copy, never raw codes', () => {
         const screen = readFileSync(fileURLToPath(new URL('../../screens/ArenaScreen.tsx', import.meta.url) as unknown as string), 'utf8');
         expect(screen).toMatch(/if \(state === 'background'\)\s*confirmer\?\.stop\(\);/);
         expect(screen).toMatch(/const quit = \(\) => \{[\s\S]*?store\.setPaused\(true\);\s*confirmer\?\.stop\(\);/);
-        expect(screen).toMatch(/const doCancel = \(\) => action\(async \(\) => \{[\s\S]*?await flow!\.whenIdle\(\);/);
-        expect(screen).toMatch(/const resumeAll = async \(\) => \{[\s\S]*?await flow\.whenIdle\(\);/);
+        expect(screen).toMatch(/const doCancel = \(\) => action\(async \(\) => \{[\s\S]*?flow!\.afterIdle\(\(\) => flow!\.cancel\(/);
+        expect(screen).toMatch(/const resumeAll = async \(\) => \{[\s\S]*?flow\.afterIdle\(\(\) => flow\.resume\(\)\)/);
+        // Round 2 #1: while the quit prompt is up, a foreground resume neither unpauses the fight nor re-arms the resend.
+        expect(screen).toMatch(/if \(!mine\(\) \|\| r\.match\?\.state !== 'active' \|\| quitOpen\.current\)\s*return;/);
+        expect(screen).toMatch(/if \(!mine\(\) \|\| quitOpen\.current\)\s*return;/);
+        // Round 2 #4: a finished fight whose first send never got stored is sent again, not left frozen.
+        expect(screen).toContain("if (s.battleResult) { runConfirm('start', reportOf(s.currentBattle)); return; }");
         expect(screen).toMatch(/const exit = \(\) => action\(async \(\) => \{\s*confirmer\?\.stop\(\);/);
         expect(screen).not.toMatch(/confirmer\?\.(start|resume|retryNow)\(/); // one entry point, bound to the open match
         expect(screen).toContain("settleState.matchId === (reply?.matchId ?? null) ? settleState.phase : { kind: 'idle' }");

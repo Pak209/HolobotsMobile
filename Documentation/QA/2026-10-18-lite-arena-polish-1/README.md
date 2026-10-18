@@ -20,7 +20,7 @@ Test files: `lib/__tests__/arenaSettleConfirm.test.ts` (fake timers), `lib/__tes
 
 | Item | Fix | Evidence |
 |---|---|---|
-| A1 `too_fast` is PENDING, not an error | `ArenaMatchFlow.settle()` persists `{matchId, report}` per account (`arena-match-settle-pending-1:<uid>`) **before** sending. A stored body for the same match is resent unchanged and never rebuilt. `lib/arenaSettleConfirm.ts` then resends: after exactly `details.retryAfterMs` when the refusal has one (0..10 min), otherwise on a 1/2/4/8/16 s backoff (31 s in all), then hands over a manual TRY AGAIN. The floor is never hardcoded. The hint shares the same five-resend budget, so a host that keeps saying "not yet" cannot loop forever. An unknown outcome (timeout, `unavailable`, dropped reply, `arena_busy`) uses the same budget. Any other definite refusal (e.g. `match_expired`) ends the loop and retires the body. Only a terminal reply, a reply for another match, or that definite refusal clears the stored body. The screen keeps the result locked behind "The City is confirming your win…" (PLACEHOLDER) and never shows the code. On a relaunch or foreground, `resume` finds the stored body for the open match and resends it. A forfeit while it is pending opens an in-app confirmation that says the win is unconfirmed and will be discarded. | `arenaSettleConfirm.test.ts`: the hint is honoured to the millisecond (2,499 ms → no resend, 2,500 ms → resend); the backoff without a hint; byte-identical resends (the same body `{schemaVersion, operation, matchId, …4 fields}`); give-up after 5 resends / 31 s → `stalled` → TRY AGAIN resends the same body; the hint budget is bounded; it survives a kill (a new flow on the same storage resends the stored body); a second `settle()` never rebuilds the report; `stop()` cancels the armed resend; a first send that hit `arena_busy` before storing still settles; `match_expired` ends it; too_fast never yields a `refused` phase and its copy contains neither `too_fast` nor "host". `arenaPolish.test.ts` "forfeit while a win is pending asks first". Cells 04 (confirming) and 05 (not confirmed). |
+| A1 `too_fast` is PENDING, not an error | `ArenaMatchFlow.settle()` persists `{matchId, report}` per account (`arena-match-settle-pending-1:<uid>`) **before** sending. A stored body for the same match is resent unchanged and never rebuilt. `lib/arenaSettleConfirm.ts` then resends: after exactly `details.retryAfterMs` when the refusal has one (0..10 min), otherwise on a 1/2/4/8/16 s backoff (31 s in all), then hands over a manual TRY AGAIN. The floor is never hardcoded. The hint shares the same five-resend budget, so a host that keeps saying "not yet" cannot loop forever. An unknown outcome (timeout, `unavailable`, dropped reply, `arena_busy`) uses the same budget. Any other definite refusal (e.g. `match_expired`) ends the loop and retires the body. Only a terminal reply, a reply for another match, or that definite refusal clears the stored body. The screen keeps the result locked behind "The City is confirming your win…" (PLACEHOLDER) and never shows the code. On a relaunch or foreground, `resume` finds the stored body for the open match and resends it. A forfeit while it is pending opens an in-app confirmation (an overlay, not a second native Modal). It pauses the fight and says the result is unconfirmed and will be discarded. It says "win" only after the City's too_fast for this match. Only a real background disarms the resend, and an answer already in flight is never thrown away. Resume and cancel wait for in-flight work (`flow.whenIdle`) instead of failing as `arena_busy`. There is one confirmer entry point, bound to the open matchId, and never two sends at once. | `arenaSettleConfirm.test.ts`: the hint is honoured to the millisecond (2,499 ms → no resend, 2,500 ms → resend); the backoff without a hint; byte-identical resends (the same body `{schemaVersion, operation, matchId, …4 fields}`); give-up after 5 resends / 31 s → `stalled` → TRY AGAIN resends the same body; the hint budget is bounded; it survives a kill (a new flow on the same storage resends the stored body); a second `settle()` never rebuilds the report; `stop()` cancels the armed resend; a first send that hit `arena_busy` before storing still settles; `match_expired` ends it; too_fast never yields a `refused` phase and its copy contains neither `too_fast` nor "host". `arenaPolish.test.ts` "forfeit while a win is pending asks first". Cells 04 (confirming) and 05 (not confirmed). |
 | A2 `payoutWithheld` on the receipt | `arenaReceiptResult` returns `payoutWithheld`. It accepts only `daily_cap` / `under_floor`, and only with an all-zero settlement (`exp`, `awardedExp`, `holos`, `syncPoints` = 0, `blueprints` null); anything else is `arena_result_unavailable`. The presenter shows no rows, "CITY RECEIPT · NO REWARDS", and one notice: "Daily Arena rewards reached · resets 00:00 UTC" or "Quick loss · no rewards" (PLACEHOLDER). | `arenaPolish.test.ts` "accepts payoutWithheld … only with an all-zero settlement" (unknown reason and each non-zero field are refused); `arenaResultPresenter.test.ts` "(A)2". Cell 06. |
 | A3 `payoutCapped` on issue (**ANTICIPATED**) | `arenaIssuePayoutCapped(reply)`: only a literal `true` on the reply or its match means capped. Absent means unknown and is never assumed. When it is true, the screen stops after the issue (no auto-START) and shows "Daily Arena rewards reached · this match pays no rewards" above START and CANCEL · REFUND ENTRY. The field location is marked `TODO(host-economy-hardening-2)`: that PR was not open when this lane finished (no branch on origin), so the field name and shape still have to be matched to it. | `arenaPolish.test.ts` "(A)3" (true, nested true, absent, `"true"`, null; the reader keeps the additive key; the source stops before `launch()`). Cell 03. |
 
@@ -29,7 +29,7 @@ Test files: `lib/__tests__/arenaSettleConfirm.test.ts` (fake timers), `lib/__tes
 | Row | Fix | Evidence |
 |---|---|---|
 | F2 pending-admission wedge | `issue()` clears the stored request on a definite refusal (`invalid-argument`, `failed-precondition`, `not-found`, `permission-denied`), and keeps it on `unavailable`, `deadline-exceeded`, a timeout or a dropped reply. A reply that admits the stored requestId resolves it from any call. `discardPendingIssue()` is the explicit discard (single-flight). With no open match known, `resume` discovers the account's latest match, so an admission whose reply was lost (or whose request was discarded) still surfaces. The "earlier entry is still waiting" interstitial offers RETRY SAME ENTRY / DISCARD ENTRY. **KO guard:** the profile now passes through the City's `holobotVitals` ledger (strict reader `lib/arenaVitals.ts`; malformed → unknown). The picker disables PAY/USE PASS and says "KO · heal it before entering" only when the ledger records 0 HP. | `arenaPolish.test.ts` "F2" (4 definite codes clear, and the next pick is not blocked; 2 transient codes and a timeout keep; discard clears; admitted requestId resolves; discovery vs pinned resume; KO guard reads only the ledger, unknown is never KO). |
-| F3 lost `start` reply → 0-HP forfeit | An active match with no local checkpoint is the "FIGHT INTERRUPTED" interstitial: RESTART FROM ENTRY HP starts the practice from the City's admitted snapshot, and FORFEIT MATCH reports the checkpoint HP, else the saved result's HP, else the admission HP. It is never `?? 0`, and "Interrupted fight" is gone. A stored settle always wins over a restart. | `arenaPolish.test.ts` "F3". |
+| F3 lost `start` reply → 0-HP forfeit | An active match with no live fight here is the "FIGHT INTERRUPTED" interstitial, never an error, and nothing reports `?? 0` any more. All restored and forfeit HPs are clamped to the admission HP. The practice fight's state (HP both sides, combos, perfects) is checkpointed per match as it changes (`arena-match-checkpoint-1:<uid>`), and retired on a terminal or other-match reply. **The fight ran here and was cut off** (kill, relaunch): CONTINUE FIGHT restores both HPs into a fresh practice battle, and performance carries over. Force-quitting therefore never re-rolls a losing fight (critic #6). If the checkpoint already has a 0-HP side, SEND RESULT sends that report as the settle. **It never ran here** (lost `start` reply): START FROM ENTRY HP uses the City's admitted snapshot. FORFEIT reports, in order: the live HP, else the saved result's, else the checkpoint's, else the admission HP. A stored settle always wins over any restart. | `arenaPolish.test.ts` "F3": interrupted vs resumable phases; forfeit-HP order; checkpoint save, scope and retirement; the restore and the finished-fight branch in source. |
 | F4 last result re-opens on every mount | EXIT ARENA stores the matchId (`arena-match-ack-1:<uid>`). A terminal match already acknowledged falls back to the menu on mount and foreground. | `arenaPolish.test.ts` "F4". |
 | F7 forfeit/cancel/refund show nothing | `arenaClosureResult` reads the City's receipt for a match closed without a settle. `presentArenaClosure` shows ENTRY REFUNDED ("Cancelled before the fight · 50 Holos returned"; timed out is noted) or FORFEIT ("entry not refunded · ACE HP 44 / 172"). A terminal record the readers refuse is the "MATCH UNREADABLE" interstitial, never a crash. | `arenaPolish.test.ts` "F7"; `arenaResultPresenter.test.ts` "F7 closures". Cell 07. |
 
@@ -72,3 +72,79 @@ Test files: `lib/__tests__/arenaSettleConfirm.test.ts` (fake timers), `lib/__tes
 Notes for the lane that picks this up:
 - Since #143, the authoritative ledger is the server-only field `users/{uid}.dailyMissionLedger` (`firestore.rules` protected list). It is owner-readable, so the client could also read it from the profile, but its shape is the host's to change in hardening-2.
 - Per #143's rules comment, `rewardSystem` stays owner-writable until the quest/training starts move to callables. Dropping the spread is therefore safe for the rules today, but it belongs with the summary switch.
+
+## Adversarial self-review
+
+**Round 1.** A read-only critic (no edits, no ref writes) ran a refute-first pass over `39a7ccd` on rule 1, honesty of states, raw codes, "host" on screen and the pending-settle flow.
+- Already fixed before its report landed: #7 (closure parse could throw in render; now `arenaScreenPhase` validates and shows MATCH UNREADABLE) and most of #2 (resends now go through `settle(report)`, so a first send that hit `arena_busy` is still stored and sent).
+- **Fixed in `47c4b6e`:**
+  - **#1 HIGH.** `stop()` dropped the City's in-flight answer and left a stale "confirming" spinner with nothing armed. An `inactive` blip disarmed the loop, and the foreground resume collided as `arena_busy`.
+  - **#2 HIGH, rest.** Confirmer cycles outlived cancel/exit and could cover the next match. A missing body looped as a fake "saved" stall.
+  - **#3.** A double start on remount.
+  - **#4.** "Your win" was shown for a pending loss.
+  - **#5.** The quit prompt did not pause the fight and was never withdrawn.
+  - **#6.** F3 re-roll by force-quit; now the checkpoint.
+  - **#8.** `payoutWithheld: null`.
+  - **#9.** `request_conflict` retired the body.
+  - **#10.** Unknown refusals read as "no answer".
+  - **#11.** TRY AGAIN double tap.
+  - **#12.** Confirmer start after unmount.
+  - **#13.** A 0 ms hint burned the budget.
+  - **#14.** Stale pending HP; the menu showed before the first resume; the KO-guard comment.
+- **Refuted by the critic:** raw codes reaching the screen; "host" in player copy; rewards or outcomes not from a City receipt (no VICTORY before `settled`); resend body drift; stale settles blocking later matches; F2 semantics; unbounded loops; account switch; `holobotVitals` written back; `structuredClone`.
+
+**Round 2.** A second read-only critic reviewed the fix commit `47c4b6e`.
+- **Fixed in the next commit:**
+  - **#1 MED.** A foreground resume while the quit prompt was open unpaused the fight and re-armed the resend. `quitOpen` now guards `resumeAll` and `rearm`; only the prompt's own buttons resume.
+  - **#2.** `stop()` overwrote a refused or stalled screen with idle. It now only disarms an armed resend.
+  - **#3.** `whenIdle` was not a queue. `flow.afterIdle(command)` now starts the command in the same step as the idle check, and resume and cancel use it.
+  - **#4.** A finished fight whose first send never got stored is re-sent by `rearm`, never left frozen.
+  - **#5.** Carried-over performance is kept per matchId in module scope, so it survives a remount.
+  - **#6.** Restored HP and forfeit HP are clamped to the admission HP.
+  - **#8.** `request_conflict` ends the loop as refused but keeps the body for CHECK AGAIN.
+  - **#9.** `ready` resets per flow; `.catch` added on storage reads; a finished checkpoint offers SEND RESULT.
+- **Not fixed, documented:** #7. A force-quit restores HP and performance but not stamina or the special meter, so the opponent's meter restarts at 0. That is narrower than the round-1 re-roll, and the practice sim is untrusted by the City in any case.
+- **Refuted by the critic:**
+  - dispose/stop phase leaks;
+  - double sends;
+  - resend body drift;
+  - unbounded loops;
+  - stale checkpoints leaking into a new match;
+  - checkpoint writes on every render;
+  - any new client-decided value;
+  - "win" copy for the wrong match;
+  - phase binding.
+
+## Simulator witness
+
+One bounded run at `cf6f332` (now `15f65e3`; same tree), with offline Metro and the cached `fun.holobots.mobile.w64` on iPhone 17 Pro / iOS 26.5. Evidence: `~/HolobotsVault/QA/2026-10-18-lite-arena-polish-1/GATE_SHEET.png`, plus nine cells, `metro.log`, `launch.txt` and `source-head.txt`. Each `ArenaPolish*` cell mounts the real `ArenaScreen` on a recorded-reply transport.
+
+| Cell | Result |
+|---|---|
+| 01 KnownBad | Pre-fix replica: raw `too_fast`, "RESUME HOST MATCH", unframed. |
+| 02 Admitted | PASS: framed card, City fighter cards with the LV lower-left corner tab, START / CANCEL · REFUND. |
+| 03 Capped (ANTICIPATED) | PASS: notice above START. |
+| 04 Confirming | PASS: "The City is confirming your win…", spinner, FORFEIT. |
+| 05 Not confirmed | PASS: "Still waiting for the City", TRY AGAIN, FORFEIT. |
+| 06 Withheld | PASS: VICTORY!, "CITY RECEIPT · NO REWARDS", "Daily Arena rewards reached · resets 00:00 UTC". |
+| 07 Refund closure | **NOT WITNESSED.** Blank (no redbox); the native results Modal did not present while cell 06's Modal was dismissing. The same Modal-on-Modal race existed after the quit confirm, so that confirm is now an in-tree overlay (`3239459`). |
+| 08 Paid | PASS: CITY RECEIPT rows with the bundled EXP / SYNC / HOLOS / BLUEPRINT glyphs. |
+| 09 ArenaAdmittedRound | PASS for L5 / L7 / L8: park stage, two real moves and no ghosts, clean card bay. |
+
+**Changed since the witness, covered by tests only:**
+- `3239459`: the quit confirm is an overlay.
+- `47c4b6e`: the critic fixes. On screen, the Confirming cell's title becomes "The City is confirming your result…" until the City answers too_fast (cell 04 still shows "win", because its transport refuses too_fast); the interrupted copy now reads CONTINUE FIGHT or START FROM ENTRY HP; the Stalled cell uses a 1 ms hint.
+
+## Not witnessed / HELD
+
+- **(E) Daily Missions from the host ledger: HELD.** See above. The host dependency is `host-economy-hardening-2`'s `dailyMissionLedger` summary in the desktop account snapshot.
+- **A3 `payoutCapped`: ANTICIPATED.** The field location still has to be matched to `host-economy-hardening-2`'s PR when it opens.
+- **`retryAfterMs`: ANTICIPATED.** It is honoured if the host adds it. Without it, the backoff covers a 20 s floor (resends land at +1/+3/+7/+15/+31 s).
+- **Not witnessed on device:**
+  - the refund/forfeit closure (cell 07);
+  - the fight-time quit prompt and CONTINUE FIGHT (both need a live `start`);
+  - the KO guard (the preview profile carries no `holobotVitals`);
+  - the L2 passive dock (CPU matches have no passives, so there is nothing to draw).
+- **Host notes, no host edits here:**
+  - `payoutCapped` exists only on the ISSUE reply, so a resume after a kill cannot show the notice; the client treats that as unknown. A field on the desktop account snapshot would let the picker warn before payment.
+  - A host `unavailable` that carries a `rejectionCode` keeps a stored issue (F2 uses the HTTPS code). Retrying with the same requestId is safe.
