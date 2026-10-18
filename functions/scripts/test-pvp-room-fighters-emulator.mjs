@@ -49,7 +49,7 @@ test('create -> seat -> join -> seat -> read: both snapshots in the replies, sto
  await assert.rejects(()=>readOp(STRANGER,ref.id),refused('not_participant'));
  const stored=await seatsDoc(ref.id);
  assert.ok(validateDoc(stored),JSON.stringify(validateDoc.errors));
- assert.deepEqual(stored,{schemaVersion:'pvp-room-fighters-1',roomId:ref.id,...b.seats});
+ assert.deepEqual(stored,{schemaVersion:'pvp-room-fighters-1',roomId:ref.id,byUid:{[P1]:{fighters:{ace:a.fighter}},[P2]:{fighters:{kuma:b.fighter}}}});
  assert.deepEqual((await ref.get()).data(),joined); // The host never writes battle_rooms.
  // Frozen: a later level-up does not rewrite this room's badge, and a retry is a replay.
  await db.doc(`users/${P1}`).update({holobots:[bot('ACE',45),bot('HARE',4)]});
@@ -89,14 +89,30 @@ test('3v3: every lineup member mints into the seat; a non-member is refused',asy
  assert.equal(valid(await seatOp(P1,ref.id,'ace')).fighter.level,21);
  assert.equal(valid(await seatOp(P1,ref.id,'hare')).fighter.level,4);
  await assert.rejects(()=>seatOp(P2,ref.id,'ace'),refused('not_seated'));
- const doc=await seatsDoc(ref.id);assert.ok(validateDoc(doc));assert.deepEqual(Object.keys(doc.p1.fighters).sort(),['ace','hare']);
+ const doc=await seatsDoc(ref.id);assert.ok(validateDoc(doc));assert.deepEqual(Object.keys(doc.byUid[P1].fighters).sort(),['ace','hare']);
 });
 
-test('reused room id: a seat minted for an earlier occupant is never shown and is replaced on the next mint',async()=>{
+test('reused room id: a snapshot minted for an earlier occupant is never shown; the new occupant mints their own',async()=>{
  await seed();const ref=await newRoom({players:{p1:seat(P1,'ACE',99),p2:seat(P2,'KUMA',50)},status:'active'});
  await seatOp(P1,ref.id,'ace');
  await ref.delete();await newRoom({players:{p1:seat(STRANGER,'ACE',1),p2:seat(P2,'KUMA',50)},status:'active'},ref.id);
  assert.deepEqual(valid(await readOp(STRANGER,ref.id)).seats,{});
  const s=valid(await seatOp(STRANGER,ref.id,'ace'));assert.equal(s.fighter.level,30);assert.deepEqual(Object.keys(s.seats),['p1']);
- assert.equal((await seatsDoc(ref.id)).p1.uid,STRANGER);
+ assert.deepEqual(Object.keys((await seatsDoc(ref.id)).byUid).sort(),[P1,STRANGER].sort());
+});
+
+test('seat-swap tampering on the client-authored room cannot erase the other snapshot or unfreeze your own',async()=>{
+ await seed();const ref=await newRoom({players:{p1:seat(P1,'ACE',99),p2:seat(P2,'KUMA',50)},status:'active'});
+ await seatOp(P1,ref.id,'ace');await seatOp(P2,ref.id,'kuma');
+ const before=valid(await readOp(P1,ref.id)).seats;
+ // P1 (a participant, so the rules allow it) rewrites P2's seat uid, seats another owned bot, then restores the room.
+ await ref.update({'players.p2.uid':'x','players.p1.holobotName':'HARE'});
+ assert.equal(valid(await seatOp(P1,ref.id,'hare')).fighter.level,4);
+ await ref.update({'players.p2.uid':P2,'players.p1.holobotName':'ACE'});
+ const after=valid(await readOp(P2,ref.id)).seats;
+ assert.deepEqual(after.p2,before.p2);assert.deepEqual(after.p1.fighters.ace,before.p1.fighters.ace);
+ // P1 levels ACE, then swaps seats so P1 sits in p2 and asks again: still the frozen first-mint level.
+ await db.doc(`users/${P1}`).update({holobots:[bot('ACE',45),bot('HARE',4)]});
+ await ref.update({'players.p1':seat(P2,'KUMA',50),'players.p2':seat(P1,'ACE',99)});
+ const replay=valid(await seatOp(P1,ref.id,'ace'));assert.equal(replay.alreadyProcessed,true);assert.equal(replay.fighter.level,21);assert.equal(replay.role,'p2');
 });

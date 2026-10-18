@@ -39,7 +39,7 @@
   "knownBad": {
     "note": "Client-authored room. players.*.level is the LOCAL profile value (99 / 50) and must never reach a badge; the room doc never carries host snapshots.",
     "room": {
-      "roomId": "oPgbK6uUI0G0kwNrSsnX",
+      "roomId": "YcAkqAE5F39qPMmWd9DA",
       "roomCode": "PVPFX1",
       "rulesVersion": 3,
       "mode": "1v1",
@@ -110,7 +110,7 @@
     "seatP1": {
       "schemaVersion": "pvp-room-fighters-1",
       "operation": "seat",
-      "roomId": "oPgbK6uUI0G0kwNrSsnX",
+      "roomId": "YcAkqAE5F39qPMmWd9DA",
       "role": "p1",
       "alreadyProcessed": false,
       "fighter": {
@@ -136,7 +136,7 @@
     "seatP2": {
       "schemaVersion": "pvp-room-fighters-1",
       "operation": "seat",
-      "roomId": "oPgbK6uUI0G0kwNrSsnX",
+      "roomId": "YcAkqAE5F39qPMmWd9DA",
       "role": "p2",
       "alreadyProcessed": false,
       "fighter": {
@@ -150,10 +150,10 @@
           "uid": "demo_pvp_fighters_p1",
           "fighters": {
             "ace": {
-              "holobotId": "ace",
+              "tier": 0,
               "level": 21,
               "displayName": "ACE",
-              "tier": 0
+              "holobotId": "ace"
             }
           }
         },
@@ -173,17 +173,17 @@
     "readP1": {
       "schemaVersion": "pvp-room-fighters-1",
       "operation": "read",
-      "roomId": "oPgbK6uUI0G0kwNrSsnX",
+      "roomId": "YcAkqAE5F39qPMmWd9DA",
       "role": "p1",
       "seats": {
         "p1": {
           "uid": "demo_pvp_fighters_p1",
           "fighters": {
             "ace": {
-              "holobotId": "ace",
+              "tier": 0,
               "level": 21,
               "displayName": "ACE",
-              "tier": 0
+              "holobotId": "ace"
             }
           }
         },
@@ -191,10 +191,10 @@
           "uid": "demo_pvp_fighters_p2",
           "fighters": {
             "kuma": {
-              "holobotId": "kuma",
+              "tier": 0,
               "level": 12,
               "displayName": "KUMA",
-              "tier": 0
+              "holobotId": "kuma"
             }
           }
         }
@@ -203,17 +203,17 @@
     "readP2": {
       "schemaVersion": "pvp-room-fighters-1",
       "operation": "read",
-      "roomId": "oPgbK6uUI0G0kwNrSsnX",
+      "roomId": "YcAkqAE5F39qPMmWd9DA",
       "role": "p2",
       "seats": {
         "p1": {
           "uid": "demo_pvp_fighters_p1",
           "fighters": {
             "ace": {
-              "holobotId": "ace",
+              "tier": 0,
               "level": 21,
               "displayName": "ACE",
-              "tier": 0
+              "holobotId": "ace"
             }
           }
         },
@@ -221,10 +221,10 @@
           "uid": "demo_pvp_fighters_p2",
           "fighters": {
             "kuma": {
-              "holobotId": "kuma",
+              "tier": 0,
               "level": 12,
               "displayName": "KUMA",
-              "tier": 0
+              "holobotId": "kuma"
             }
           }
         }
@@ -233,26 +233,26 @@
   },
   "seatsDoc": {
     "schemaVersion": "pvp-room-fighters-1",
-    "roomId": "oPgbK6uUI0G0kwNrSsnX",
-    "p1": {
-      "uid": "demo_pvp_fighters_p1",
-      "fighters": {
-        "ace": {
-          "holobotId": "ace",
-          "level": 21,
-          "displayName": "ACE",
-          "tier": 0
+    "roomId": "YcAkqAE5F39qPMmWd9DA",
+    "byUid": {
+      "demo_pvp_fighters_p1": {
+        "fighters": {
+          "ace": {
+            "tier": 0,
+            "level": 21,
+            "displayName": "ACE",
+            "holobotId": "ace"
+          }
         }
-      }
-    },
-    "p2": {
-      "uid": "demo_pvp_fighters_p2",
-      "fighters": {
-        "kuma": {
-          "holobotId": "kuma",
-          "level": 12,
-          "displayName": "KUMA",
-          "tier": 0
+      },
+      "demo_pvp_fighters_p2": {
+        "fighters": {
+          "kuma": {
+            "tier": 0,
+            "level": 12,
+            "displayName": "KUMA",
+            "holobotId": "kuma"
+          }
         }
       }
     }

@@ -14,7 +14,7 @@ const snapshot = (level: number) => ({ holobotId: "ace", level, displayName: "AC
 const SEATS = {
   schemaVersion: "pvp-room-fighters-1",
   roomId: ROOM,
-  p1: { uid: "alice", fighters: { ace: snapshot(21) } },
+  byUid: { alice: { fighters: { ace: snapshot(21) } } },
 };
 
 describe("pvpRoomSeats (server-only PvP level snapshots)", () => {
@@ -48,11 +48,11 @@ describe("pvpRoomSeats (server-only PvP level snapshots)", () => {
     const alice = authedDb(env, "alice");
     const bob = authedDb(env, "bob");
 
-    await assertFails(setDoc(doc(alice, `pvpRoomSeats/${ROOM}`), { ...SEATS, p1: { uid: "alice", fighters: { ace: snapshot(99) } } }));
+    await assertFails(setDoc(doc(alice, `pvpRoomSeats/${ROOM}`), { ...SEATS, byUid: { alice: { fighters: { ace: snapshot(99) } } } }));
     await seedDoc(env, `pvpRoomSeats/${ROOM}`, SEATS);
     await assertFails(setDoc(doc(alice, `pvpRoomSeats/${ROOM}`), SEATS));
-    await assertFails(updateDoc(doc(alice, `pvpRoomSeats/${ROOM}`), { "p1.fighters.ace.level": 99 }));
-    await assertFails(updateDoc(doc(bob, `pvpRoomSeats/${ROOM}`), { p2: { uid: "bob", fighters: { kuma: { holobotId: "kuma", level: 99, displayName: "KUMA", tier: 0 } } } }));
+    await assertFails(updateDoc(doc(alice, `pvpRoomSeats/${ROOM}`), { "byUid.alice.fighters.ace.level": 99 }));
+    await assertFails(updateDoc(doc(bob, `pvpRoomSeats/${ROOM}`), { "byUid.bob": { fighters: { kuma: { holobotId: "kuma", level: 99, displayName: "KUMA", tier: 0 } } } }));
     await assertFails(deleteDoc(doc(alice, `pvpRoomSeats/${ROOM}`)));
   });
 

@@ -27,8 +27,12 @@ type Data = Record<string, any>;
 export type PvpRole = 'p1' | 'p2';
 export type PvpSeatFighters = { uid: string; fighters: Record<string, ArenaFighterSnapshot> };
 export type PvpSeats = { p1?: PvpSeatFighters; p2?: PvpSeatFighters };
+/** Stored shape: snapshots keyed by the MINTING uid, never by role, so a seat swap on the client-authored room
+ * cannot move, erase or unfreeze anyone's snapshot. Roles are projected from the room's current seats on reply. */
+export type PvpSeatsByUid = Record<string, { fighters: Record<string, ArenaFighterSnapshot> }>;
 export type PvpRoomFighterRequest = { operation: 'seat'; roomId: string; holobotId: string } | { operation: 'read'; roomId: string };
-export type PvpRoomFighterMint = { role: PvpRole; fighter: ArenaFighterSnapshot; alreadyProcessed: boolean; seats: PvpSeats };
+/** `write` is the merge payload (the caller's own entry only), or null on a replay. */
+export type PvpRoomFighterMint = { role: PvpRole; fighter: ArenaFighterSnapshot; alreadyProcessed: boolean; seats: PvpSeats; write: Data | null };
 const object = (x: unknown): x is Data => !!x && typeof x === 'object' && !Array.isArray(x);
 const fail = (code: keyof typeof PVP_ROOM_REFUSALS): never => { throw new PvpRoomError(code); };
 const ROLES: readonly PvpRole[] = ['p1', 'p2'];
@@ -69,24 +73,24 @@ const snapshotOk = (s: unknown, id: string): s is ArenaFighterSnapshot => {
   catch { return false; }
 };
 /** The stored seats doc. Only this host writes it, so anything malformed is corruption: fail closed. */
-export function readPvpRoomSeats(raw: unknown, roomId: string): PvpSeats {
+export function readPvpRoomSeats(raw: unknown, roomId: string): PvpSeatsByUid {
   if (raw === undefined) return {};
-  if (!object(raw) || raw.schemaVersion !== PVP_ROOM_FIGHTERS_SCHEMA || raw.roomId !== roomId
-    || Object.keys(raw).some(k => !['schemaVersion', 'roomId', 'p1', 'p2'].includes(k))) return fail('unavailable');
-  const seats: PvpSeats = {};
-  for (const role of ROLES) {
-    const seat = raw[role];
-    if (seat === undefined) continue;
-    if (!object(seat) || Object.keys(seat).length !== 2 || typeof seat.uid !== 'string' || !seat.uid || !object(seat.fighters)
-      || Object.entries(seat.fighters).some(([id, s]) => !snapshotOk(s, id))) return fail('unavailable');
-    seats[role] = seat as PvpSeatFighters;
+  if (!object(raw) || raw.schemaVersion !== PVP_ROOM_FIGHTERS_SCHEMA || raw.roomId !== roomId || !object(raw.byUid)
+    || Object.keys(raw).some(k => !['schemaVersion', 'roomId', 'byUid'].includes(k))) return fail('unavailable');
+  for (const [uid, entry] of Object.entries(raw.byUid)) {
+    if (!uid || !object(entry) || Object.keys(entry).length !== 1 || !object(entry.fighters)
+      || Object.entries(entry.fighters).some(([id, s]) => !snapshotOk(s, id))) return fail('unavailable');
   }
-  return seats;
+  return raw.byUid as PvpSeatsByUid;
 }
-/** Seats minted for the uid now in that seat. A seat left by an earlier room with a reused id is dropped, not shown. */
-function currentSeats(seats: PvpSeats, room: Data): PvpSeats {
+/** Role view for the uids now in the room seats. Entries minted by anyone else (an earlier occupant of a reused
+ * room id, or a uid a participant briefly wrote into a seat) are kept in storage but never shown. */
+function currentSeats(byUid: PvpSeatsByUid, room: Data): PvpSeats {
   const out: PvpSeats = {};
-  for (const role of ROLES) if (seats[role] && seats[role]!.uid === seatUid(room, role)) out[role] = seats[role];
+  for (const role of ROLES) {
+    const uid = seatUid(room, role);
+    if (uid && Object.hasOwn(byUid, uid)) out[role] = { uid, fighters: byUid[uid].fighters };
+  }
   return out;
 }
 /** Exactly one owned record for a catalog bot. Mirrors arenaMatchStore uniqueEntrant (missing level is 1), but a null level is refused. */
@@ -106,16 +110,22 @@ export function mintPvpRoomFighter(room: unknown, profile: unknown, seatsDoc: un
   if (room.status !== 'waiting' && room.status !== 'active') return fail('room_closed');
   const role = callerRole(room, uid);
   if (!seatedIds(room, role).includes(holobotId)) return fail('not_seated');
-  const seats = currentSeats(readPvpRoomSeats(seatsDoc, roomId), room), mine = seats[role];
-  // Frozen at first mint, like an Arena admission: a later level-up does not rewrite this room's badge.
-  if (mine && Object.hasOwn(mine.fighters, holobotId)) return { role, fighter: mine.fighters[holobotId], alreadyProcessed: true, seats };
+  const byUid = readPvpRoomSeats(seatsDoc, roomId), mine = Object.hasOwn(byUid, uid) ? byUid[uid] : undefined;
+  // Frozen at first mint per (room, uid, bot), like an Arena admission, whatever seat the uid now sits in:
+  // a later level-up or a seat swap does not rewrite this room's badge.
+  if (mine && Object.hasOwn(mine.fighters, holobotId)) {
+    return { role, fighter: mine.fighters[holobotId], alreadyProcessed: true, seats: currentSeats(byUid, room), write: null };
+  }
   const level = ownedLevel(profile, holobotId);
   const combatant = buildPlayerCombatants(profile as Data, [holobotId])[0];
   if (!combatant || combatant.level !== level) return fail('unavailable');
   let fighter: ArenaFighterSnapshot;
   try { fighter = arenaFighterSnapshot(combatant, PVP_ROOM_TIER); }
   catch { return fail('unavailable'); } // Level above 99: refuse, never clamp.
-  return { role, fighter, alreadyProcessed: false, seats: { ...seats, [role]: { uid, fighters: { ...(mine?.fighters ?? {}), [holobotId]: fighter } } } };
+  const next: PvpSeatsByUid = { ...byUid, [uid]: { fighters: { ...(mine?.fighters ?? {}), [holobotId]: fighter } } };
+  // Merge payload touches only the caller's own entry; no other uid's snapshot can be dropped by a mint.
+  const write = { schemaVersion: PVP_ROOM_FIGHTERS_SCHEMA, roomId, byUid: { [uid]: { fighters: { [holobotId]: fighter } } } };
+  return { role, fighter, alreadyProcessed: false, seats: currentSeats(next, room), write };
 }
 /** Pure `read` ruling: both current seats, for a participant only. Any room status, so a result screen still badges. */
 export function readPvpRoomFighters(room: unknown, seatsDoc: unknown, uid: string, roomId: string): { role: PvpRole; seats: PvpSeats } {
@@ -146,8 +156,7 @@ export async function transactPvpRoomFighter(firestore: Firestore, uid: string, 
     if (!roomSnap.exists) return fail('unknown_room');
     const mint = mintPvpRoomFighter(roomSnap.data(), userSnap.exists ? userSnap.data() : undefined,
       seatsSnap.exists ? seatsSnap.data() : undefined, uid, roomId, request.holobotId);
-    // Whole-doc set: also drops a seat left behind by an earlier room that reused this id.
-    if (!mint.alreadyProcessed) tx.set(seatsRef, { schemaVersion: PVP_ROOM_FIGHTERS_SCHEMA, roomId, ...mint.seats });
+    if (mint.write) tx.set(seatsRef, mint.write, { merge: true });
     return pvpRoomSeatReply(roomId, mint);
   });
 }

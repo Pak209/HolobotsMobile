@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://holobots.local/schemas/pvp-room-fighters-1.json",
   "title": "PvP room host-minted fighter snapshots (pvpRoomFighterHost reply)",
-  "description": "Presentation-only level badges for PvP room seats, minted by the host from each caller's owned Holobot and stored in the server-only pvpRoomSeats/{roomId} doc (no client rule; default deny). Each fighter is the #118 ArenaFighterSnapshot shape. `seats` holds only seats minted for the uid currently in that seat. definitions.request is the whole callable body; definitions.seatsDoc is the stored doc. See Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md.",
+  "description": "Presentation-only level badges for PvP room seats, minted by the host from each caller's owned Holobot and stored by minting uid in the server-only pvpRoomSeats/{roomId} doc (no client rule; default deny). Each fighter is the #118 ArenaFighterSnapshot shape. `seats` holds only seats minted for the uid currently in that seat. definitions.request is the whole callable body; definitions.seatsDoc is the stored doc. See Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md.",
   "oneOf": [
     {
       "$ref": "#/definitions/seatReply"
@@ -196,12 +196,13 @@
       ]
     },
     "seatsDoc": {
-      "description": "pvpRoomSeats/{roomId}: written only by pvpRoomFighterHost (Admin SDK). No firestore.rules match exists for it, so the default deny refuses every client read and write.",
+      "description": "pvpRoomSeats/{roomId}: written only by pvpRoomFighterHost (Admin SDK, set-merge of the caller's own byUid entry). Snapshots are keyed by the MINTING uid, never by role; replies project p1/p2 from the uids currently in the room seats. No firestore.rules match exists for it, so the default deny refuses every client read and write.",
       "type": "object",
       "additionalProperties": false,
       "required": [
         "schemaVersion",
-        "roomId"
+        "roomId",
+        "byUid"
       ],
       "properties": {
         "schemaVersion": {
@@ -210,11 +211,29 @@
         "roomId": {
           "$ref": "#/definitions/roomId"
         },
-        "p1": {
-          "$ref": "#/definitions/seat"
-        },
-        "p2": {
-          "$ref": "#/definitions/seat"
+        "byUid": {
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fighters"
+            ],
+            "properties": {
+              "fighters": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/definitions/holobotId"
+                },
+                "additionalProperties": {
+                  "$ref": "#/definitions/fighter"
+                }
+              }
+            }
+          }
         }
       }
     }

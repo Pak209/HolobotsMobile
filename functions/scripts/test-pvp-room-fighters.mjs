@@ -17,7 +17,9 @@ const profileOf={[p1.uid]:p1,[p2.uid]:p2};
 const clone=x=>x===undefined?undefined:structuredClone(x);
 const mint=(room,uid,id,{profile=profileOf[uid],seats}={})=>mintPvpRoomFighter(clone(room),clone(profile),clone(seats),uid,roomId,id);
 const code=c=>e=>e.code===c;
-const docWith=(seats)=>({schemaVersion:'pvp-room-fighters-1',roomId,...seats});
+// Firestore set(..., {merge:true}) semantics: nested maps merge key by key; nothing absent from the write is removed.
+const applyWrite=(doc,write)=>{const out=clone(doc)??{};const m=(t,src)=>{for(const [k,v] of Object.entries(src)){if(v&&typeof v==='object'&&!Array.isArray(v)&&t[k]&&typeof t[k]==='object')m(t[k],v);else t[k]=clone(v);}};m(out,write);return out;};
+const docFor=(uid,fighters)=>({schemaVersion:'pvp-room-fighters-1',roomId,byUid:{[uid]:{fighters}}});
 
 test('known-bad control: the client-authored room carries local levels and no host snapshot; the host reads it, never trusts its levels',()=>{
  assert.deepEqual([bad.players.p1.level,bad.players.p2.level],[99,50]);
@@ -29,9 +31,10 @@ test('known-bad control: the client-authored room carries local levels and no ho
 test('pure rulings reproduce the recorded emulator replies and stored doc from the owned bots only',()=>{
  const a=mint(bad,p1.uid,'ace');
  assert.deepEqual(pvpRoomSeatReply(roomId,a),R.seatP1);
- const b=mint(bad,p2.uid,'kuma',{seats:docWith(a.seats)});
+ const b=mint(bad,p2.uid,'kuma',{seats:applyWrite(undefined,a.write)});
  assert.deepEqual(pvpRoomSeatReply(roomId,b),R.seatP2);
- assert.deepEqual(fixture.seatsDoc,docWith(b.seats));
+ assert.deepEqual(fixture.seatsDoc,applyWrite(applyWrite(undefined,a.write),b.write));
+ assert.deepEqual(Object.keys(b.write.byUid),[p2.uid]); // A mint writes only the caller's own entry.
  assert.deepEqual(pvpRoomReadReply(roomId,readPvpRoomFighters(clone(bad),clone(fixture.seatsDoc),p1.uid,roomId)),R.readP1);
  assert.deepEqual(pvpRoomReadReply(roomId,readPvpRoomFighters(clone(bad),clone(fixture.seatsDoc),p2.uid,roomId)),R.readP2);
  // #118 shape exactly, tier is the host PvP constant.
@@ -43,20 +46,33 @@ test('pure rulings reproduce the recorded emulator replies and stored doc from t
 test('frozen: once minted, a level-up replays the stored snapshot instead of re-minting',()=>{
  const levelled={...p1,holobots:p1.holobots.map(h=>h.name==='ACE'?{...h,level:45}:h)};
  const r=mint(bad,p1.uid,'ace',{profile:levelled,seats:fixture.seatsDoc});
- assert.equal(r.alreadyProcessed,true);assert.equal(r.fighter.level,21);assert.deepEqual(r.seats,R.readP1.seats);
+ assert.equal(r.alreadyProcessed,true);assert.equal(r.fighter.level,21);assert.deepEqual(r.seats,R.readP1.seats);assert.equal(r.write,null);
  assert.equal(mint(bad,p1.uid,'ace',{profile:levelled}).fighter.level,45); // A fresh room mints the current record.
 });
 
-test('stale seats: a seat minted for an earlier occupant of a reused room id is never returned and is replaced',()=>{
+test('stale seats: a snapshot minted for an earlier occupant of a reused room id is never returned',()=>{
  const reseated={...bad,players:{...bad.players,p1:{...bad.players.p1,uid:'demo_new_occupant'}}};
- assert.deepEqual(readPvpRoomFighters(clone(reseated),clone(fixture.seatsDoc),p2.uid,roomId).seats,{p2:fixture.seatsDoc.p2});
+ assert.deepEqual(readPvpRoomFighters(clone(reseated),clone(fixture.seatsDoc),p2.uid,roomId).seats,{p2:R.readP1.seats.p2});
  const r=mint(reseated,'demo_new_occupant','ace',{profile:{holobots:[{name:'ACE',level:7}]},seats:fixture.seatsDoc});
- assert.deepEqual(r.seats,{p1:{uid:'demo_new_occupant',fighters:{ace:{holobotId:'ace',level:7,displayName:'ACE',tier:0}}},p2:fixture.seatsDoc.p2});
+ assert.deepEqual(r.seats,{p1:{uid:'demo_new_occupant',fighters:{ace:{holobotId:'ace',level:7,displayName:'ACE',tier:0}}},p2:R.readP1.seats.p2});
+ assert.deepEqual(Object.keys(applyWrite(fixture.seatsDoc,r.write).byUid).sort(),[p1.uid,p2.uid,'demo_new_occupant'].sort());
+});
+
+test('seat-swap tampering on the room doc: a mint cannot erase the other snapshot, and freezing holds per uid in any seat',()=>{
+ const swapped={...bad,players:{p1:{...bad.players.p1,holobotName:'HARE'},p2:{...bad.players.p2,uid:'x'}}};
+ const m=mint(swapped,p1.uid,'hare',{seats:fixture.seatsDoc});
+ assert.deepEqual(Object.keys(m.write.byUid),[p1.uid]);
+ const doc=applyWrite(fixture.seatsDoc,m.write);
+ assert.deepEqual(readPvpRoomFighters(clone(bad),doc,p2.uid,roomId).seats.p2,R.readP1.seats.p2);
+ const levelled={...p1,holobots:p1.holobots.map(h=>h.name==='ACE'?{...h,level:45}:h)};
+ const flipped={...bad,players:{p1:bad.players.p2,p2:bad.players.p1}};
+ const r=mint(flipped,p1.uid,'ace',{profile:levelled,seats:fixture.seatsDoc});
+ assert.equal(r.role,'p2');assert.equal(r.alreadyProcessed,true);assert.equal(r.fighter.level,21);assert.equal(r.write,null);
 });
 
 const NO_PROFILE=Symbol('no users/{uid} doc');
 const ownedBots=holobots=>({...p1,holobots});
-const fakeSeat=(fighter)=>docWith({p1:{uid:p1.uid,fighters:{ace:fighter}}});
+const fakeSeat=(fighter)=>docFor(p1.uid,{ace:fighter});
 const SEAT_REFUSALS=[
  ['stranger is not a participant','not_participant',()=>[bad,'demo_stranger','ace',{profile:p1}]],
  ['one account in both seats','not_participant',()=>[{...bad,players:{p1:bad.players.p1,p2:{...bad.players.p2,uid:p1.uid}}},p1.uid,'ace']],
@@ -73,6 +89,9 @@ const SEAT_REFUSALS=[
  ['seats doc with another schema','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,schemaVersion:'pvp-room-fighters-0'}}]],
  ['seats doc for another room','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,roomId:'B'.repeat(20)}}]],
  ['seats doc with an extra key','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,level:99}}]],
+ ['seats doc without byUid','unavailable',()=>[bad,p1.uid,'ace',{seats:{schemaVersion:'pvp-room-fighters-1',roomId}}]],
+ ['seats doc with a role-keyed seat','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,p1:{uid:p1.uid,fighters:{}}}}]],
+ ['byUid entry with an extra key','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,byUid:{...fixture.seatsDoc.byUid,[p1.uid]:{fighters:{},role:'p1'}}}}]],
  ['stored snapshot with a fifth key','unavailable',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,uid:p1.uid})}]],
  ['stored snapshot with a non-PvP tier','unavailable',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,tier:3})}]],
  ['stored snapshot level 100','unavailable',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,level:100})}]],
@@ -91,7 +110,7 @@ test('read refusals: participants only (any room status); a corrupt seats doc fa
  assert.throws(()=>readPvpRoomFighters({...bad,players:{p1:bad.players.p1,p2:{...bad.players.p2,uid:p1.uid}}},clone(fixture.seatsDoc),p1.uid,roomId),code('not_participant'));
  assert.deepEqual(readPvpRoomFighters({...clone(bad),status:'completed'},clone(fixture.seatsDoc),p1.uid,roomId).seats,R.readP1.seats);
  assert.deepEqual(readPvpRoomFighters(clone(bad),undefined,p1.uid,roomId).seats,{});
- assert.throws(()=>readPvpRoomFighters(clone(bad),{...fixture.seatsDoc,p1:{...fixture.seatsDoc.p1,extra:1}},p1.uid,roomId),code('unavailable'));
+ assert.throws(()=>readPvpRoomFighters(clone(bad),{...fixture.seatsDoc,byUid:{...fixture.seatsDoc.byUid,[p2.uid]:{fighters:{kuma:{...R.seatP2.fighter,level:'12'}}}}},p1.uid,roomId),code('unavailable'));
 });
 
 test('request: exactly {operation:"seat", roomId, holobotId} or {operation:"read", roomId}; anything else is refused',()=>{
@@ -116,5 +135,6 @@ test('schema: every recorded reply and the stored doc validate; fighter is the #
  const resolve=p=>p.$ref?schema.definitions[p.$ref.split('/').pop()]:p;
  assert.deepEqual(schema.definitions.fighter.required,arena.required);
  for(const k of arena.required)assert.deepEqual(resolve(schema.definitions.fighter.properties[k]),arena.properties[k],k);
- assert.deepEqual(readPvpRoomSeats(clone(fixture.seatsDoc),roomId),R.readP1.seats);assert.deepEqual(readPvpRoomSeats(undefined,roomId),{});
+ assert.deepEqual(readPvpRoomSeats(clone(fixture.seatsDoc),roomId),fixture.seatsDoc.byUid);assert.deepEqual(readPvpRoomSeats(undefined,roomId),{});
+ assert.equal(validateDoc({...fixture.seatsDoc,p1:R.readP1.seats.p1}),false);
 });
