@@ -9,7 +9,8 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
-  MOBILE_DIR, PIN_MANIFEST, PIN_SCHEMA, PIN_SRC, directoryReader, driftFromPin, gitBlobSha, hostClosure, pinEntries, readPin,
+  MOBILE_DIR, PIN_MANIFEST, PIN_SCHEMA, PIN_SRC, directoryReader, driftFromPin, gitBlobSha, gitHostBlobs, gitHostTree, hostClosure,
+  pinEntries, readPin,
 } from "../test-fixtures/hostPin.mjs";
 
 const git = (...args) => execFileSync("git", ["-C", MOBILE_DIR, ...args], { maxBuffer: 1 << 28 });
@@ -22,12 +23,8 @@ function commitOf(rev) {
 
 /** A hostClosure reader over <sha>:functions/src, from git objects. */
 function gitReader(sha) {
-  const blobs = new Map();
-  for (const line of git("ls-tree", "-r", "--full-tree", sha, "--", "functions/src").toString().split("\n")) {
-    const match = /^\d+ blob ([0-9a-f]{40})\tfunctions\/src\/(.+)$/.exec(line);
-    if (match) blobs.set(match[2], match[1]);
-  }
-  if (blobs.size === 0) fail(`${sha} has no functions/src.`);
+  const blobs = gitHostBlobs(sha);
+  if (!blobs || blobs.size === 0) fail(`${sha} has no functions/src.`);
   const cache = new Map();
   return (relative) => {
     if (!blobs.has(relative)) return null;
@@ -53,6 +50,7 @@ if (flag("--check") !== undefined) {
   }
   report(driftFromPin(pin, directoryReader(PIN_SRC)), "the vendored snapshot (vs HOST_PIN.json)");
   const rev = flag("--check") || pin.sha;
+  if (rev === pin.sha && gitHostTree(commitOf(pin.sha)) !== pin.srcTree) fail(`HOST_PIN.json srcTree ${pin.srcTree} is not ${pin.sha}:functions/src.`);
   report(driftFromPin(pin, gitReader(commitOf(rev))), rev === pin.sha ? `the pinned commit ${pin.sha}` : `${rev} (${commitOf(rev)})`);
 } else if (flag("--sha")) {
   const sha = commitOf(flag("--sha"));
@@ -70,6 +68,7 @@ if (flag("--check") !== undefined) {
     schema: PIN_SCHEMA,
     repo: "Pak209/HolobotsMobile",
     sha,
+    srcTree: gitHostTree(sha),
     note: flag("--note") || `functions/src at ${flag("--sha")}`,
     pinnedAt: new Date().toLocaleDateString("sv"),
     entries,

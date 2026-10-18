@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
-import { existsSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { cityDistrictAccess, readArenaGathering, record } from "../cityHub";
 import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, readCityRivalSettlement } from "../cityRivalBattle";
@@ -8,7 +8,7 @@ import { normalizeDuelReceipt } from "../bots/duelPlayback";
 import { ArenaCombatEngine } from "../../features/arena/combatEngine";
 import { resolveCombatKit } from "../../features/arena/moveKits";
 
-import { directoryReader, driftFromPin, readPin } from "../../../test-fixtures/hostPin.mjs";
+import { gitTreeSha, readPin } from "../../../test-fixtures/hostPin.mjs";
 
 // Opt-in integration lane: a BUILT host functions/ dir (HOLOCITY_TEST_HOST_ROOT) against a loopback
 // Firestore emulator with a demo- project. The regular suite needs neither, so by default this skips
@@ -26,6 +26,16 @@ const skip = unmet.length > 0 && !required;
 if (skip) {
   console.warn(`[cityHost.integration] SKIPPED (opt-in): ${unmet.join("; ")}. HOLOCITY_REQUIRE_HOST_INTEGRATION=1 makes this a failure.`);
 }
+/** src/*.ts files whose compiled lib/*.js is missing or older than the source (the run executes lib/). */
+function staleBuild(root: string, dir = ""): string[] {
+  return readdirSync(path.join(root, "src", dir)).flatMap((name) => {
+    const relative = path.join(dir, name);
+    if (statSync(path.join(root, "src", relative)).isDirectory()) return staleBuild(root, relative);
+    if (!/(?<!\.d)\.ts$/.test(name)) return [];
+    const built = path.join(root, "lib", relative.replace(/\.ts$/, ".js"));
+    return existsSync(built) && statSync(built).mtimeMs >= statSync(path.join(root, "src", relative)).mtimeMs ? [] : [relative];
+  });
+}
 type EmulatorDocument = { set(value: unknown): Promise<unknown>; get(): Promise<{ data(): Record<string, unknown> | undefined }> };
 type EmulatorDb = { doc(path: string): EmulatorDocument; recursiveDelete(document: EmulatorDocument): Promise<unknown>; terminate(): Promise<unknown> };
 describe.skipIf(skip)("HoloCity mobile against the real host + loopback Firestore", () => {
@@ -36,11 +46,18 @@ describe.skipIf(skip)("HoloCity mobile against the real host + loopback Firestor
   beforeAll(async () => {
     if (unmet.length) throw new Error(`HOLOCITY_REQUIRE_HOST_INTEGRATION=1 but: ${unmet.join("; ")}`);
     if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? "") || !process.env.GCLOUD_PROJECT?.startsWith("demo-")) throw new Error("Loopback demo emulator only. Production is forbidden.");
-    // Which host this is, by content: its src/ against the pinned deployed host (HOST_PIN.json).
+    // Which host this is, by content: the whole src/ tree against the pinned deployed host's tree id,
+    // and lib/ built from that src/. Under HOLOCITY_REQUIRE_HOST_INTEGRATION=1 it must be the deployed host.
     const pin = readPin();
-    const drift = driftFromPin(pin, directoryReader(path.join(hostRoot!, "src")));
-    console.info(`[cityHost.integration] host ${hostRoot}: ${drift.length ? `src/ differs from the pinned deployed host ${pin.sha}: ${drift.join(", ")}` : `src/ matches the pinned deployed host ${pin.sha}`}`);
-    captures.host = { root: hostRoot, pinnedSha: pin.sha, driftFromPin: drift };
+    const srcTree = gitTreeSha(path.join(hostRoot!, "src"));
+    const stale = staleBuild(hostRoot!);
+    const problems = [
+      srcTree !== pin.srcTree && `src/ tree ${srcTree} is not the pinned deployed host's ${pin.srcTree} (${pin.sha})`,
+      stale.length > 0 && `lib/ is older than or missing for ${stale.length} src/ file(s), e.g. ${stale.slice(0, 3).join(", ")}; rebuild`,
+    ].filter((problem): problem is string => typeof problem === "string");
+    console.info(`[cityHost.integration] host ${hostRoot}: ${problems.length ? problems.join("; ") : `src/ is the pinned deployed host ${pin.sha} (tree ${pin.srcTree}); lib/ is newer than src/`}`);
+    captures.host = { root: hostRoot, pinnedSha: pin.sha, pinnedSrcTree: pin.srcTree, srcTree, staleBuild: stale };
+    if (required && problems.length) throw new Error(`HOLOCITY_REQUIRE_HOST_INTEGRATION=1 but ${problems.join("; ")}`);
     host = createRequire(path.join(hostRoot!, "package.json"));
     db = host("./lib/admin.js").db;
     uid = `mobile_city_throwaway_${Date.now()}`;

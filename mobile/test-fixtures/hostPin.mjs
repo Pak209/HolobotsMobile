@@ -11,6 +11,7 @@
  * - HOLOCITY_HOST_ROOT=<a functions/ dir> redirects every pinned import to that checkout (vitest.config.ts)
  *   to preview a re-pin or run a known-bad control; hostPin.test.ts then fails, listing the drifted files.
  */
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -23,10 +24,14 @@ export const PIN_DIR = path.join(here, "host-pin");
 export const PIN_SRC = path.join(PIN_DIR, "src");
 export const PIN_MANIFEST = path.join(PIN_DIR, "HOST_PIN.json");
 export const PIN_SCHEMA = "holocity-host-pin-1";
+/** The branch's own host copy. Parity tests must never load it (vitest.config.ts enforces this at load time). */
+export const BRANCH_HOST_DIR = path.resolve(MOBILE_DIR, "..", "functions");
+/** Where the host lives in the repo's tree. */
+const HOST_TREE = "functions/src";
 /** How test files name a pinned host module: an import specifier through host-pin/src/, or hostSourceFile("..."). */
 const PIN_SPECIFIER = /host-pin\/src\/([^'"]+)['"]|hostSourceFile\(\s*['"]([^'"]+)['"]\s*\)/g;
 
-/** @returns {{schema: string, repo: string, sha: string, note: string, pinnedAt: string, entries: string[], files: Record<string, string>}} */
+/** @returns {{schema: string, repo: string, sha: string, srcTree: string, note: string, pinnedAt: string, entries: string[], files: Record<string, string>}} */
 export function readPin() {
   return JSON.parse(readFileSync(PIN_MANIFEST, "utf8"));
 }
@@ -52,23 +57,94 @@ export function gitBlobSha(bytes) {
   return createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
 }
 
-/** Every *.test.ts under mobile/src, as [absolute path, source]. */
-export function testSources() {
+const git = (...args) => execFileSync("git", ["-C", MOBILE_DIR, ...args], { maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] });
+
+/** Blob id of every file in <rev>:functions/src, keyed by functions/src-relative path; null if this clone lacks <rev>. */
+export function gitHostBlobs(rev) {
+  let listing;
+  try { listing = git("ls-tree", "-r", "--full-tree", rev, "--", HOST_TREE).toString(); } catch { return null; }
+  const blobs = new Map();
+  for (const line of listing.split("\n")) {
+    const match = /^\d+ blob ([0-9a-f]{40})\t(.+)$/.exec(line);
+    if (match && match[2].startsWith(`${HOST_TREE}/`)) blobs.set(match[2].slice(HOST_TREE.length + 1), match[1]);
+  }
+  return blobs;
+}
+
+/** git's tree id of <rev>:functions/src; null if this clone lacks <rev>. */
+export function gitHostTree(rev) {
+  try { return git("rev-parse", `${rev}:${HOST_TREE}`).toString().trim(); } catch { return null; }
+}
+
+/** Pinned files that origin/main has changed since the pin; null if this clone lacks either commit. */
+export function pinnedFilesChangedOn(pin, rev = "origin/main") {
+  let names;
+  try { names = git("diff", "--name-only", pin.sha, rev, "--", `:(top)${HOST_TREE}`).toString(); } catch { return null; }
+  return names.split("\n").map((name) => name.slice(HOST_TREE.length + 1)).filter((relative) => relative in pin.files);
+}
+
+/** git's tree id for a directory on disk: what `git rev-parse <sha>:<dir>` prints when the bytes match. */
+export function gitTreeSha(dir) {
+  const entries = [];
+  for (const name of readdirSync(dir)) {
+    const full = path.join(dir, name);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      const sha = gitTreeSha(full);
+      if (sha !== null) entries.push({ name, mode: "40000", sha, key: `${name}/` });
+    } else {
+      entries.push({ name, mode: stat.mode & 0o111 ? "100755" : "100644", sha: gitBlobSha(readFileSync(full)), key: name });
+    }
+  }
+  if (entries.length === 0) return null;
+  entries.sort((a, b) => Buffer.compare(Buffer.from(a.key), Buffer.from(b.key)));
+  const body = Buffer.concat(entries.flatMap((e) => [Buffer.from(`${e.mode} ${e.name}\0`), Buffer.from(e.sha, "hex")]));
+  return createHash("sha1").update(`tree ${body.length}\0`).update(body).digest("hex");
+}
+
+/** Every source file under mobile/src (tests, test helpers and app code), as [absolute path, source]. */
+export function codeSources() {
   const out = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
       if (name === "node_modules") continue;
       const full = path.join(dir, name);
       if (statSync(full).isDirectory()) walk(full);
-      else if (name.endsWith(".test.ts")) out.push([full, readFileSync(full, "utf8")]);
+      else if (/\.[cm]?[jt]sx?$/.test(name)) out.push([full, readFileSync(full, "utf8")]);
     }
   };
   walk(path.join(MOBILE_DIR, "src"));
   return out.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
+/** Every *.test.ts under mobile/src. */
+export function testSources() {
+  return codeSources().filter(([file]) => file.endsWith(".test.ts"));
+}
+
+/**
+ * String literals in `source` that name the branch's functions/src or functions/lib: a path such as
+ * "../functions/src/x", or adjacent "functions", "src" segments as in path.join(..., "functions", "src").
+ * Comments are ignored (only literals are read).
+ */
+export function branchHostReferences(fileName, source) {
+  const found = [];
+  const literal = (node) => (ts.isStringTextContainingNode(node) ? node.text : null);
+  const visit = (node) => {
+    const text = literal(node);
+    if (text !== null && /(?:^|\/)functions\/(?:src|lib)(?:\/|$)/.test(text)) found.push(text);
+    const siblings = ts.isCallExpression(node) || ts.isNewExpression(node) ? node.arguments ?? [] : ts.isArrayLiteralExpression(node) ? node.elements : [];
+    for (let i = 0; i + 1 < siblings.length; i += 1) {
+      if (literal(siblings[i]) === "functions" && ["src", "lib"].includes(literal(siblings[i + 1]))) found.push(`"functions", "${literal(siblings[i + 1])}"`);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true));
+  return found;
+}
+
 /** The host modules the tests name through the pin, as functions/src-relative specifiers (sorted, unique). */
-export function pinEntries(sources = testSources()) {
+export function pinEntries(sources = codeSources()) {
   const entries = new Set();
   for (const [, source] of sources) {
     for (const match of source.matchAll(PIN_SPECIFIER)) entries.add((match[1] ?? match[2]).replace(/\.ts$/, ""));

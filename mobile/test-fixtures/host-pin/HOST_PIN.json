@@ -2,6 +2,7 @@
   "schema": "holocity-host-pin-1",
   "repo": "Pak209/HolobotsMobile",
   "sha": "3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f",
+  "srcTree": "006b1c7ba2aedbe34774343dbb82abd47d75400c",
   "note": "origin/main 3b1e790 (#129): the commit the Firebase functions host is deployed from (2026-10-17)",
   "pinnedAt": "2026-10-17",
   "entries": [
