@@ -9,7 +9,7 @@ if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '') || !pr
   throw new Error('Loopback demo Firestore emulator required; production is forbidden');
 }
 const { db } = require('../lib/admin.js');
-const { transactArenaMatch, ARENA_MIN_SETTLE_MS, ARENA_MS_PER_COMBO, ARENA_MS_PER_PERFECT_DEFENSE, ARENA_CPU_DAILY_PAYOUT_CAP, ARENA_CPU_PAYOUTS_SCHEMA } = require('../lib/arena/arenaMatchStore.js');
+const { transactArenaMatch, ARENA_MIN_SETTLE_MS_CPU, ARENA_MS_PER_COMBO, ARENA_MS_PER_PERFECT_DEFENSE, ARENA_CPU_DAILY_PAYOUT_CAP, ARENA_CPU_PAYOUTS_SCHEMA } = require('../lib/arena/arenaMatchStore.js');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
 const { transactHoloZoneRun } = require('../lib/holozone/holoZoneStore.js');
 const { transactDesktopItems } = require('../lib/vendors/desktopItemsHost.js');
@@ -186,8 +186,8 @@ test('repair during open Arena never consumes inventory, heals, or writes a rece
 
 const start = (uid, matchId, now = T0 + 1) => call(uid, { operation: 'start', matchId }, now);
 const settleData = (matchId, overrides = {}) => ({ operation: 'settle', matchId, playerFinalHealth: 30, opponentFinalHealth: 0, combosCompleted: 0, perfectDefenses: 0, ...overrides });
-// S1 (2026-10-17): a win needs ARENA_MIN_SETTLE_MS after start (T0 + 1); the default keeps the old 1,999 ms margin past it.
-const SETTLED = T0 + 1 + ARENA_MIN_SETTLE_MS + 1999;
+// S1 (2026-10-17): a win needs ARENA_MIN_SETTLE_MS_CPU after start (T0 + 1); the default keeps the old 1,999 ms margin past it.
+const SETTLED = T0 + 1 + ARENA_MIN_SETTLE_MS_CPU + 1999;
 const settle = (uid, matchId, overrides = {}, now = SETTLED) => call(uid, settleData(matchId, overrides), now);
 const match = (uid, matchId) => doc(`arenaMatches/${uid}/matches/${matchId}`);
 
@@ -569,8 +569,8 @@ test('admission numeric quote remains binding after a later tier fee/reward tabl
 
 test('minimum elapsed and performance upper bounds accept their exact legal boundary', async () => {
   const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
-  // S1: the win floor is exact at ARENA_MIN_SETTLE_MS after start (T0 + 1); 25 / 25 needs 75 s of receipt.
-  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + ARENA_MIN_SETTLE_MS), /too_fast/);
+  // S1: the win floor is exact at ARENA_MIN_SETTLE_MS_CPU after start (T0 + 1); 25 / 25 needs 75 s of receipt.
+  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + ARENA_MIN_SETTLE_MS_CPU), /too_fast/);
   const longest = 25 * Math.max(ARENA_MS_PER_COMBO, ARENA_MS_PER_PERFECT_DEFENSE);
   const reply = await settle(uid, issued.matchId, { combosCompleted: 25, perfectDefenses: 25 }, T0 + 1 + longest);
   assert.equal(reply.match.settlementReceipt.report.combosCompleted, 25);
@@ -676,8 +676,8 @@ test('fresh-client resume without IDs discovers absent, open, expired and latest
   const b = await issue(uid, 'discovery_match_b', {}, expired + 2);
   await discover(expired + 3, b.matchId, 'issued');
   await start(uid, b.matchId, expired + 4);
-  const settled = await settle(uid, b.matchId, { playerFinalHealth: 20 }, expired + 4 + ARENA_MIN_SETTLE_MS);
-  const latest = await discover(expired + 5 + ARENA_MIN_SETTLE_MS, b.matchId, 'settled');
+  const settled = await settle(uid, b.matchId, { playerFinalHealth: 20 }, expired + 4 + ARENA_MIN_SETTLE_MS_CPU);
+  const latest = await discover(expired + 5 + ARENA_MIN_SETTLE_MS_CPU, b.matchId, 'settled');
   assert.deepEqual(latest.match.settlementReceipt, settled.match.settlementReceipt);
 
   for (const lease of [
@@ -732,18 +732,23 @@ test('open duel-healing run refuses rival and zone issue with no write', async (
 
 // ---- Critic review 2026-10-17 S1: bounded CPU arena mitigation (floor, performance clamp, daily payout cap). ----
 const payouts = async uid => doc(`arenaMatches/${uid}/ledger/cpuPayouts`);
-async function played(uid, requestId, report = {}, elapsed = ARENA_MIN_SETTLE_MS, startAt = T0 + 1) {
+async function played(uid, requestId, report = {}, elapsed = ARENA_MIN_SETTLE_MS_CPU, startAt = T0 + 1) {
   const issued = await issue(uid, requestId, {}, startAt - 1);
   await start(uid, issued.matchId, startAt);
   return { issued, reply: await settle(uid, issued.matchId, report, startAt + elapsed) };
 }
 
-test('S1 floor: a win under ARENA_MIN_SETTLE_MS is too_fast with nothing written and settles later; a fast loss settles but pays nothing', async () => {
+const tooFast = retryAfterMs => e => e.code === 'too_fast' && e.retryAfterMs === retryAfterMs;
+test('S1 floor (hardening-2): CPU practice floor is 3 s; a win under it is too_fast with retryAfterMs = floor - elapsed, nothing written, and the identical settle succeeds once the wait passes; a fast loss settles but pays nothing', async () => {
+  assert.equal(ARENA_MIN_SETTLE_MS_CPU, 3000, 'producer pick for client-played CPU practice (lite fights measured 0.7-7.3 s)');
   const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
   const before = await state(uid);
-  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + ARENA_MIN_SETTLE_MS), /too_fast/);
+  // start is T0 + 1, so a settle at T0 + floor is 1 ms short.
+  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + ARENA_MIN_SETTLE_MS_CPU), tooFast(1));
   assert.deepEqual(await state(uid), before, 'too_fast writes nothing');
-  const win = await settle(uid, issued.matchId, {}, T0 + 1 + ARENA_MIN_SETTLE_MS);
+  // The measured lite minimum (0.7 s): refused with the exact wait.
+  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + 1 + 700), tooFast(ARENA_MIN_SETTLE_MS_CPU - 700));
+  const win = await settle(uid, issued.matchId, {}, T0 + 1 + ARENA_MIN_SETTLE_MS_CPU);
   assert.equal(win.match.settlementReceipt.outcome, 'win'); assert.equal(win.match.settlementReceipt.settlement.holos, issued.record.rules.holos);
 
   const lossUid = await setup(); const l = await issue(lossUid); await start(lossUid, l.matchId);
@@ -758,20 +763,29 @@ test('S1 floor: a win under ARENA_MIN_SETTLE_MS is too_fast with nothing written
   assert.deepEqual(lossAfter.holobots, lossBefore.holobots); assert.equal(lossAfter.holobotVitals.ace.currentHealth, 0);
   assert.equal(lossAfter.losses, lossBefore.losses + 1);
   assert.equal(await payouts(lossUid), undefined, 'a withheld settle does not count toward the cap');
-  const replay = await settle(lossUid, l.matchId, {}, T0 + 1 + ARENA_MIN_SETTLE_MS);
+  const replay = await settle(lossUid, l.matchId, {}, T0 + 1 + ARENA_MIN_SETTLE_MS_CPU);
   assert.equal(replay.alreadyProcessed, true); assert.deepEqual(replay.match.settlementReceipt, s);
+});
+
+test('KNOWN-BAD (hardening-2): a 0.5 s scripted win is still refused too_fast under the 3 s floor, and its retry hint is not a payout', async () => {
+  const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
+  const before = await state(uid);
+  await refused(uid, () => settle(uid, issued.matchId, { combosCompleted: 25, perfectDefenses: 25 }, T0 + 1 + 500), tooFast(2500));
+  assert.deepEqual(await state(uid), before);
+  assert.equal((await match(uid, issued.matchId)).state, 'active', 'the match stays open for the honest resend');
 });
 
 test('S1 clamp: combos / perfect defenses are bounded by the recorded receipt length; the stored report and EXP use the clamped values', async () => {
   const uid = await setup();
   const { issued, reply } = await played(uid, 'clamp_floor', { combosCompleted: 25, perfectDefenses: 25 });
-  const combos = Math.floor(ARENA_MIN_SETTLE_MS / ARENA_MS_PER_COMBO), perfects = Math.floor(ARENA_MIN_SETTLE_MS / ARENA_MS_PER_PERFECT_DEFENSE);
+  const combos = Math.floor(ARENA_MIN_SETTLE_MS_CPU / ARENA_MS_PER_COMBO), perfects = Math.floor(ARENA_MIN_SETTLE_MS_CPU / ARENA_MS_PER_PERFECT_DEFENSE);
   const r = issued.record.rules, receipt = reply.match.settlementReceipt;
   assert.deepEqual([receipt.report.combosCompleted, receipt.report.perfectDefenses], [combos, perfects]);
   assert.equal(receipt.settlement.exp, Math.floor(r.exp * (1 + r.comboBonus * combos + r.perfectDefenseBonus * perfects)));
   assert.ok(receipt.settlement.exp < Math.floor(r.exp * (1 + r.comboBonus * 25 + r.perfectDefenseBonus * 25)));
-  // An honest report inside the bound is untouched.
-  const honest = await played(uid, 'clamp_honest', { combosCompleted: 3, perfectDefenses: 2 }, ARENA_MIN_SETTLE_MS, SETTLED + 1000);
+  // An honest report inside the bound is untouched (3 combos / 2 perfects need 6 s of receipt, past the 3 s floor).
+  const honestElapsed = Math.max(3 * ARENA_MS_PER_COMBO, 2 * ARENA_MS_PER_PERFECT_DEFENSE);
+  const honest = await played(uid, 'clamp_honest', { combosCompleted: 3, perfectDefenses: 2 }, honestElapsed, SETTLED + 1000);
   assert.deepEqual([honest.reply.match.settlementReceipt.report.combosCompleted, honest.reply.match.settlementReceipt.report.perfectDefenses], [3, 2]);
   const replay = await settle(uid, issued.matchId, { combosCompleted: 0 }, SETTLED + 999999);
   assert.deepEqual(replay.match.settlementReceipt, receipt, 'replay returns the stored receipt');
@@ -784,11 +798,11 @@ test('S1 cap: ARENA_CPU_DAILY_PAYOUT_CAP paid settles per UTC day; the next sett
   assert.equal(first.reply.match.settlementReceipt.settlement.payoutWithheld, undefined);
   // Fast-forward the server-only ledger to the cap boundary (the loop itself is covered above).
   await db.doc(`arenaMatches/${uid}/ledger/cpuPayouts`).set({ schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day: new Date(T0).toISOString().slice(0, 10), paidSettles: ARENA_CPU_DAILY_PAYOUT_CAP - 1 });
-  const last = await played(uid, 'cap_last', {}, ARENA_MIN_SETTLE_MS, SETTLED + 1000);
+  const last = await played(uid, 'cap_last', {}, ARENA_MIN_SETTLE_MS_CPU, SETTLED + 1000);
   assert.equal(last.reply.match.settlementReceipt.settlement.holos, last.issued.record.rules.holos, 'the cap-th settle still pays');
   assert.equal((await payouts(uid)).paidSettles, ARENA_CPU_DAILY_PAYOUT_CAP);
   const before = await user(uid);
-  const capped = await played(uid, 'cap_over', { playerFinalHealth: 20 }, ARENA_MIN_SETTLE_MS, SETTLED + 60000);
+  const capped = await played(uid, 'cap_over', { playerFinalHealth: 20 }, ARENA_MIN_SETTLE_MS_CPU, SETTLED + 60000);
   const receipt = capped.reply.match.settlementReceipt;
   assert.equal(receipt.outcome, 'win');
   assert.deepEqual(receipt.settlement, { exp: 0, awardedExp: 0, holos: 0, syncPoints: 0, blueprints: null, payoutWithheld: 'daily_cap' });
@@ -801,7 +815,7 @@ test('S1 cap: ARENA_CPU_DAILY_PAYOUT_CAP paid settles per UTC day; the next sett
   assert.equal(replay.alreadyProcessed, true); assert.deepEqual(replay.match.settlementReceipt, receipt);
   // Next UTC day: T0 is 22:00 UTC, so +3 h is tomorrow.
   const tomorrow = T0 + 3 * 60 * 60 * 1000;
-  const next = await played(uid, 'cap_tomorrow', { playerFinalHealth: 20 }, ARENA_MIN_SETTLE_MS, tomorrow);
+  const next = await played(uid, 'cap_tomorrow', { playerFinalHealth: 20 }, ARENA_MIN_SETTLE_MS_CPU, tomorrow);
   assert.equal(next.reply.match.settlementReceipt.settlement.payoutWithheld, undefined);
   assert.deepEqual(await payouts(uid), { schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day: new Date(tomorrow).toISOString().slice(0, 10), paidSettles: 1 });
 });

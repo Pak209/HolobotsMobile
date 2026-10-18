@@ -10,7 +10,7 @@ const { tournamentResultHost } = require('../lib/story/tournamentResultHost.js')
 const { transactArenaGathering, gatheringRoster, CV1_CITIZENS, GATHERING_HOLOBOTS, GATHERING_RING_COLORS } = require('../lib/story/arenaGathering.js');
 const { tournamentAdmission } = require('../lib/story/arenaTournament.js');
 const { transactTournamentResult } = require('../lib/story/tournamentResultStore.js');
-const { transactArenaMatch, ARENA_MIN_SETTLE_MS } = require('../lib/arena/arenaMatchStore.js');
+const { transactArenaMatch, ARENA_MIN_SETTLE_MS_CPU } = require('../lib/arena/arenaMatchStore.js');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
 const { desktopAccountSnapshot } = require('../lib/desktop/desktopAccountSnapshot.js');
 const { calculateExperience } = require('../lib/lib/progression.js');
@@ -36,9 +36,9 @@ async function win(uid,tournamentId,now=T0) {
  // the receipt as a pre-bracket tournament. New tagged public outcomes are blocked.
  const issued=await issue(uid,undefined,now), id=issued.matchId;
  await call(uid,'start',{matchId:id},now);
- const settled=await call(uid,'settle',{matchId:id,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},now+1500+ARENA_MIN_SETTLE_MS);
+ const settled=await call(uid,'settle',{matchId:id,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},now+1500+ARENA_MIN_SETTLE_MS_CPU);
  if(tournamentId){const tournament=tournamentAdmission((await profile(uid)).storyFlags,tournamentId,issued.match.entrant.level);await db.doc(`arenaMatches/${uid}/matches/${id}`).update({tournament});
-  const before=await profile(uid),replay=await call(uid,'settle',{matchId:id,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},now+2000+ARENA_MIN_SETTLE_MS);assert.equal(replay.alreadyProcessed,true);assert.deepEqual(await profile(uid),before);return replay;}
+  const before=await profile(uid),replay=await call(uid,'settle',{matchId:id,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},now+2000+ARENA_MIN_SETTLE_MS_CPU);assert.equal(replay.alreadyProcessed,true);assert.deepEqual(await profile(uid),before);return replay;}
  return settled;
 }
 const hasCode=code=>e=>e.code===code;
@@ -185,7 +185,7 @@ test('foreign, ordinary practice, wrong tournament and unfinished receipts canno
 test('loss and malformed host receipts fail closed; low admission level and corrupted tags refuse',async()=>{
  const uid=await setup();
  const i=await issue(uid,undefined); await call(uid,'start',{matchId:i.matchId});
- await call(uid,'settle',{matchId:i.matchId,playerFinalHealth:0,opponentFinalHealth:i.match.opponent.maxHealth,combosCompleted:0,perfectDefenses:0},T0+1500+ARENA_MIN_SETTLE_MS);
+ await call(uid,'settle',{matchId:i.matchId,playerFinalHealth:0,opponentFinalHealth:i.match.opponent.maxHealth,combosCompleted:0,perfectDefenses:0},T0+1500+ARENA_MIN_SETTLE_MS_CPU);
  await db.doc(`arenaMatches/${uid}/matches/${i.matchId}`).update({tournament:tournamentAdmission((await profile(uid)).storyFlags,'starter',i.match.entrant.level)});
  await refused(uid,()=>result(uid,'starter',i.matchId),'win_required');
  const ref=db.doc(`arenaMatches/${uid}/matches/${i.matchId}`), original=(await ref.get()).data();

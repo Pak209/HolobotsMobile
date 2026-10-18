@@ -26,19 +26,24 @@ export const ARENA_MATCH_TTL_MS = 30 * 60 * 1000;
  * Critic review 2026-10-17 S1 — BOUNDED mitigation for the client-reported CPU practice outcome (host re-simulation
  * from seeded intents is the next lane; until then the client still decides win / HP / performance).
  *
- * ARENA_MIN_SETTLE_MS (was 1000): a WIN reported sooner than this after `start` is too_fast (nothing written; the match
- * stays active and may settle later, inside the TTL); a LOSS that soon settles but pays nothing (the rival #58 rule).
- * The only arena receipt in the fixtures (scripts/fixtures/arena-match/admitted-lifecycle.json) closes 1,064 ms after
- * start on a synthetic emulator clock — the old floor paid that as a win. The measured gameplay durations in the repo
- * are the lite duel-receipt playbacks (Documentation/QA/2026-10-15-mobile-perf-1, 2026-10-16-lite-sim-build-1):
- * 8 host rounds x 6,400 ms = 51.2 s. 20 s equals the host's existing floor for the same duel class (RIVAL_MIN_WIN_MS,
- * HOLOZONE_MIN_XP_MS) and is under half a measured full duel.
+ * ARENA_MIN_SETTLE_MS_CPU: a WIN reported sooner than this after `start` is too_fast (nothing written; the match stays
+ * active and may settle later, inside the TTL; the refusal carries details.retryAfterMs = floor - elapsed so the client
+ * resends the identical settle once); a LOSS that soon settles but pays nothing (the rival #58 rule).
+ * #143 set 20 s (RIVAL_MIN_WIN_MS / HOLOZONE_MIN_XP_MS, the host-played duel-receipt class: 8 rounds x 6,400 ms).
+ * Every `settle` here is a CLIENT-PLAYED real-time CPU practice fight; the host never plays a receipt back for it
+ * (tournament matches must use the host bracket, settleArenaBracketRecord, which has no floor). The lite scout measured
+ * those fights at 0.7-7.3 s, so 20 s refused every lite win. 3 s is the producer pick for all CPU practice
+ * (hardening-2; Pak may override): it still refuses a sub-3 s scripted loop, and a fight that really ends sooner waits
+ * at most retryAfterMs (< 2.3 s at the measured 0.7 s minimum) for its one resend.
  */
-export const ARENA_MIN_SETTLE_MS = 20_000;
+export const ARENA_MIN_SETTLE_MS_CPU = 3_000;
+/** @deprecated #143 name, kept as an alias of the CPU floor for in-flight branches whose tests import it. */
+export const ARENA_MIN_SETTLE_MS = ARENA_MIN_SETTLE_MS_CPU;
 /** Performance clamp: a report can claim at most one completed combo per 2 s and one perfect defense per 3 s of the
  * recorded receipt length (settle - start). Generous bounds: the client sim spaces defense plays by >= 2 cooldown turns
  * x DEFENSE_COOLDOWN_MS_PER_TURN 3,000 ms (mobile/src/features/arena/arenaCards.ts) and a duel-receipt action is
- * 3,200 ms. At the 20 s floor that is <= 10 combos / 6 perfects (bonus <= 2.3x, was 4.75x); 25 / 25 needs >= 75 s. */
+ * 3,200 ms. The clamp scales with elapsed, not the floor: at 3 s that is <= 1 combo / 1 perfect (bonus <= 1.35x),
+ * at 20 s <= 10 / 6 (<= 2.3x, was 4.75x); 25 / 25 needs >= 75 s. */
 export const ARENA_MS_PER_COMBO = 2_000;
 export const ARENA_MS_PER_PERFECT_DEFENSE = 3_000;
 /**
@@ -58,7 +63,7 @@ function paidToday(raw: unknown, nowMs: number): number {
   if (!object(raw) || raw.schemaVersion !== ARENA_CPU_PAYOUTS_SCHEMA || typeof raw.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.day) || !whole(raw.paidSettles)) return fail('unavailable');
   return raw.day === utcDay(nowMs) ? raw.paidSettles : 0;
 }
-export class ArenaError extends Error { constructor(public code: string) { super(code); } }
+export class ArenaError extends Error { constructor(public code: string, public retryAfterMs?: number) { super(code); } }
 type Data = Record<string, any>;
 type Command = Data & { operation: 'issue'|'start'|'resume'|'settle'|'cancel' };
 type Match = Data & { matchId: string; state: 'issued'|'active'|'settled'|'cancelled'|'expired' };
@@ -364,13 +369,13 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           if (c.combosCompleted > m.rules.maxPerformanceEvents || c.perfectDefenses > m.rules.maxPerformanceEvents || c.opponentFinalHealth > m.opponent.maxHealth || (c.playerFinalHealth === 0) === (c.opponentFinalHealth === 0)) return fail('invalid_request');
           // S1 (bounded): floor, performance clamp and daily payout cap. Every read precedes the writes below.
           const elapsedMs = nowMs - m.startedAtMs, won = c.opponentFinalHealth === 0;
-          if (won && elapsedMs < ARENA_MIN_SETTLE_MS) return fail('too_fast');
+          if (won && elapsedMs < ARENA_MIN_SETTLE_MS_CPU) throw new ArenaError('too_fast', ARENA_MIN_SETTLE_MS_CPU - elapsedMs);
           const reported: Command = {...c,
             combosCompleted: Math.min(c.combosCompleted, m.rules.maxPerformanceEvents, Math.floor(elapsedMs / ARENA_MS_PER_COMBO)),
             perfectDefenses: Math.min(c.perfectDefenses, m.rules.maxPerformanceEvents, Math.floor(elapsedMs / ARENA_MS_PER_PERFECT_DEFENSE))};
           const payoutsRef = parentRef.collection('ledger').doc('cpuPayouts');
           const paid = paidToday((await tx.get(payoutsRef)).data(), nowMs);
-          const withheld = elapsedMs < ARENA_MIN_SETTLE_MS ? 'under_floor' : paid >= ARENA_CPU_DAILY_PAYOUT_CAP ? 'daily_cap' : undefined;
+          const withheld = elapsedMs < ARENA_MIN_SETTLE_MS_CPU ? 'under_floor' : paid >= ARENA_CPU_DAILY_PAYOUT_CAP ? 'daily_cap' : undefined;
           const result = rewards(profile,m,reported,nowMs,undefined,withheld);
           updates = withRankHealingReward(profile, result.updates); // #72 rank-tier Kit, moved off the closed legacy settle.
           receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:c.playerFinalHealth,opponentFinalHealth:c.opponentFinalHealth,combosCompleted:reported.combosCompleted,perfectDefenses:reported.perfectDefenses},closedAtMs:nowMs};

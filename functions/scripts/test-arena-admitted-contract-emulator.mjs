@@ -6,7 +6,7 @@ const require=createRequire(import.meta.url);
 if(!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')||!process.env.GCLOUD_PROJECT?.startsWith('demo-'))throw Error('Loopback demo emulator required');
 const {db}=require('../lib/admin');
 const {arenaMatchHost}=require('../lib/arena/arenaMatchHost');
-const {ARENA_MIN_SETTLE_MS}=require('../lib/arena/arenaMatchStore');
+const {ARENA_MIN_SETTLE_MS_CPU}=require('../lib/arena/arenaMatchStore');
 const {chargeArenaEntry}=require('../lib/arena/chargeArenaEntry');
 const Ajv=createRequire(new URL('../../rules-tests/package.json',import.meta.url))('ajv');
 const ajv=new Ajv({strict:false});
@@ -33,8 +33,19 @@ test('callable lifecycle uses one paid ID and frozen snapshots across recovery a
  assert.deepEqual((await call('issue',issue)).match,a.match);
  assert.deepEqual((await call('resume')).match,a.match);
  await call('start',{matchId});
- await new Promise(resolve=>setTimeout(resolve,ARENA_MIN_SETTLE_MS+50)); // S1 win floor (was 1,050 ms past the old 1 s floor)
- const done=await call('settle',{matchId,playerFinalHealth:30,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0});
+ // hardening-2: an immediate win is refused too_fast with details.retryAfterMs (floor - elapsed, host clock);
+ // the client waits that long and resends the IDENTICAL settle exactly once.
+ const winRequest={schemaVersion:'arena-match-1',operation:'settle',matchId,playerFinalHealth:30,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0};
+ const before=(await db.doc(`users/${uid}`).get()).data();
+ let refusal;
+ await assert.rejects(()=>arenaMatchHost.run({auth:{uid},data:winRequest}),e=>{refusal={code:e.code,message:e.message,details:e.details};return true;});
+ assert.equal(refusal.code,'failed-precondition');assert.equal(refusal.message,'too_fast');assert.equal(refusal.details.rejectionCode,'too_fast');
+ assert.ok(Number.isSafeInteger(refusal.details.retryAfterMs)&&refusal.details.retryAfterMs>0&&refusal.details.retryAfterMs<=ARENA_MIN_SETTLE_MS_CPU,JSON.stringify(refusal));
+ assert.deepEqual((await db.doc(`users/${uid}`).get()).data(),before,'too_fast writes nothing');
+ const refusals=[{request:winRequest,refusal}];
+ await new Promise(resolve=>setTimeout(resolve,refusal.details.retryAfterMs+50));
+ const {schemaVersion:_v,operation:_o,...resend}=winRequest;
+ const done=await call('settle',resend);
  assert.equal(done.match.state,'settled');assert.equal(done.match.settlementReceipt.outcome,'win');
  const account=(await db.doc(`users/${uid}`).get()).data();assert.equal(account.holosTokens,1050);assert.equal(account.wins,1);
  assert.deepEqual((await call('resume')).match,done.match);
@@ -47,5 +58,5 @@ test('callable lifecycle uses one paid ID and frozen snapshots across recovery a
   assert.equal(validators['arena-match-request-1'](forged),false);
   await assert.rejects(()=>arenaMatchHost.run({auth:{uid},data:forged}),e=>e.details?.rejectionCode==='invalid_request');
  }
- if(process.env.ARENA_ADMITTED_FIXTURE_OUT)writeFileSync(process.env.ARENA_ADMITTED_FIXTURE_OUT,JSON.stringify({schemaVersion:'arena-match-1',provenance:'Offline demo emulator, authenticated throwaway callable flow. CPU outcome remains client-reported HP, not verified combat.',steps},null,2)+'\n');
+ if(process.env.ARENA_ADMITTED_FIXTURE_OUT)writeFileSync(process.env.ARENA_ADMITTED_FIXTURE_OUT,JSON.stringify({schemaVersion:'arena-match-1',provenance:'Offline demo emulator, authenticated throwaway callable flow. CPU outcome remains client-reported HP, not verified combat.',steps,refusals},null,2)+'\n');
 });
