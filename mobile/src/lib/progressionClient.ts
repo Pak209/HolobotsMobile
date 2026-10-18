@@ -1,28 +1,18 @@
 import { functions, httpsCallable } from "@/config/firebase";
 import { toServerActionError } from "@/lib/callables";
 import type { BoostableAttribute } from "@/lib/progression";
-import type { ActiveQuestRecord, TrainingSessionRecord } from "@/lib/progressionSystems";
 import { type SyncStatKey } from "@/lib/syncProgression";
 import type { UserHolobot, UserProfile } from "@/types/profile";
 
 /**
- * Server-authoritative quest/training claims, minting, rank-ups, energy
+ * Server-authoritative minting, rank-ups, energy
  * refills, and sync-stat upgrades. The legacy client-side fallbacks were
  * removed once the callables baked in production — Firestore rules now
- * freeze the economy fields, so only the server can pay.
+ * freeze the economy fields, so only the server can pay. Quest / training starts
+ * and claims go through the City in lib/progressionHostClient.ts.
  */
 
 type UpdateProfileFn = (updates: Record<string, unknown>) => Promise<void>;
-
-const claimQuestRunCallable = httpsCallable<
-  { questRunId: string },
-  { rewards: { exp: number; syncPoints: number }; succeeded: boolean }
->(functions, "claimQuestRun");
-
-const claimTrainingSessionCallable = httpsCallable<Record<string, never>, { claimed: boolean }>(
-  functions,
-  "claimTrainingSession",
-);
 
 const upgradeSyncStatCallable = httpsCallable<
   { holobotName: string; stat: SyncStatKey },
@@ -71,30 +61,6 @@ const redeemLegendaryBlueprintCallable = httpsCallable<
   { holobotName: string },
   { holobotName: string; outcome: "minted" | "ascended" | "converted"; wildcards?: number }
 >(functions, "redeemLegendaryBlueprint");
-
-export async function claimQuestRunAuthoritative(
-  _profile: UserProfile,
-  _updateProfile: UpdateProfileFn,
-  quest: ActiveQuestRecord,
-): Promise<void> {
-  try {
-    await claimQuestRunCallable({ questRunId: quest.id });
-  } catch (error) {
-    throw toServerActionError(error);
-  }
-}
-
-export async function claimTrainingSessionAuthoritative(
-  _profile: UserProfile,
-  _updateProfile: UpdateProfileFn,
-  _training: TrainingSessionRecord,
-): Promise<void> {
-  try {
-    await claimTrainingSessionCallable({});
-  } catch (error) {
-    throw toServerActionError(error);
-  }
-}
 
 export async function mintHolobotAuthoritative(
   _profile: UserProfile,

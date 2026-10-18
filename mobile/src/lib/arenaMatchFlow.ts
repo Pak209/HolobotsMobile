@@ -46,6 +46,8 @@ export type ArenaReply = {
     matchId: string | null;
     alreadyProcessed: boolean;
     match: ArenaMatch | null;
+    /** Issue replies only (host #145): the CPU daily payout cap is reached; the fee is still charged. Absent = unknown. */
+    payoutCapped?: boolean;
 };
 export const canonicalArenaValue = (value: unknown): string => JSON.stringify(Array.isArray(value) ? value.map(v => JSON.parse(canonicalArenaValue(v))) : value !== null && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, JSON.parse(canonicalArenaValue(v))])) : value);
 const record = (v: unknown): Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
@@ -466,12 +468,11 @@ export function arenaClosureResult(reply: ArenaReply): ArenaClosure {
     return { kind: 'forfeit', holobotId: m.entrant.holobotId, finalHealth: known ? Number(vitals.currentHealth) : null, maxHealth: known ? Number(vitals.maxHealth) : null, expired };
 }
 /**
- * ANTICIPATED (host-economy-hardening-2, PR not open yet): an additive `payoutCapped` flag on the ISSUE reply when this
- * account already reached the daily CPU payout cap. Tolerant: only a literal `true` (on the reply or its match) means
- * capped; absent or anything else is UNKNOWN and is never read as "rewards available" or "capped".
- * TODO(host-economy-hardening-2): pin the exact field location once the host PR lands.
+ * Host #145 (host-economy-hardening-2, arenaMatchStore.ts issue branch): the ISSUE reply carries a TOP-LEVEL boolean
+ * `payoutCapped` when this account already reached the daily CPU payout cap. The fee is still charged; the match pays
+ * nothing. Read exactly there and nowhere else (the match record never carries it). Tolerant: only a literal `true` means
+ * capped; absent (an older host) or anything else is UNKNOWN and is never read as "rewards available" or "capped".
  */
 export function arenaIssuePayoutCapped(reply: ArenaReply | null): boolean {
-    const r = record(reply);
-    return r.payoutCapped === true || record(r.match).payoutCapped === true;
+    return record(reply).payoutCapped === true;
 }

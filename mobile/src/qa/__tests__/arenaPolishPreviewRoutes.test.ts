@@ -47,6 +47,6 @@ describe('lite-arena-polish-1 offline QA routes', () => {
     it('Hermes safety: no structuredClone call in the QA cells or fixtures; banners say QA / RECORDED', () => {
         for (const src of [preview, fixtures]) expect(src).not.toMatch(/structuredClone\s*\(/);
         expect(preview).toContain('QA / OFFLINE / RECORDED REPLIES');
-        expect(fixtures).toContain('ANTICIPATED');
+        expect(fixtures).toContain('byte-identical to host #145');
     });
 });

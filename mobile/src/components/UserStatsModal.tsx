@@ -7,8 +7,9 @@ import { DailyMissionsModal } from "@/components/DailyMissionsModal";
 import { GameDialogFrame } from "@/components/ui/GameSurfaceFrame";
 import { itemIcons } from "@/config/itemIcons";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHostDashboard } from "@/hooks/useHostDashboard";
 import { useEnergyRefillAuthoritative } from "@/lib/progressionClient";
-import { getDailyMissionSummary } from "@/lib/dailyMissions";
+import { buildDailyMissions, getDailyMissionSummary, missionLedgerNote } from "@/lib/dailyMissions";
 import type { UserProfile } from "@/types/profile";
 import type { DashboardPresentation } from "@/lib/hostDashboard";
 
@@ -108,10 +109,14 @@ export function UserStatsModal({
   hostAccount,
   visible,
 }: UserStatsModalProps) {
-  const { updateProfile } = useAuth();
+  const { updateProfile, user } = useAuth();
   const [isMissionsOpen, setIsMissionsOpen] = useState(false);
   const [legalDocument, setLegalDocument] = useState<LegalDocument | null>(null);
-  const missionSummary = getDailyMissionSummary(profile);
+  // Daily missions read the City's ledger (desktopAccountSnapshot dailyMissionLedger). Only while this sheet is open:
+  // a closed sheet mounts no store and reads nothing.
+  const missionHost = useHostDashboard(visible ? user?.uid : undefined);
+  const missionLedger = missionHost.state.account?.dailyMissionLedger ?? null;
+  const missionSummary = getDailyMissionSummary(profile, new Date(), missionLedger);
   const playerRank = getPlayerRank(profile);
 
   const handleRefillEnergy = async () => {
@@ -180,7 +185,13 @@ export function UserStatsModal({
                 </Pressable>
               </>
             ) : isMissionsOpen ? (
-              <DailyMissionsModal onClose={() => setIsMissionsOpen(false)} />
+              <DailyMissionsModal
+                onClose={() => setIsMissionsOpen(false)}
+                missions={buildDailyMissions(profile, new Date(), missionLedger)}
+                ledgerNote={missionLedgerNote(missionHost.state.accountStatus, missionLedger)}
+                claimsOpen={missionHost.state.accountStatus === "ready"}
+                onRetry={missionHost.retry}
+              />
             ) : (
               <>
                 <Text style={styles.eyebrow}>PILOT DATA</Text>

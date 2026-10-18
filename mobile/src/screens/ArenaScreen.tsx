@@ -212,7 +212,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
         const opponentName = getTierOpponentLineup(tier, selectedHolobot.name)[0];
         const r = await flow!.issue({ requestId: `lite_arena_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, tierId: tier.id, paymentMethod, holobotId: selectedHolobot.name.toLowerCase(), opponentName });
         await apply(r);
-        // ANTICIPATED payoutCapped: stop before START so the player reads the notice (and may cancel for a refund).
+        // payoutCapped (host #145, top level of the issue reply): stop before START so the player reads the notice (and may cancel for a refund).
         if (arenaIssuePayoutCapped(r)) { setCappedMatchId(r.matchId); return; }
         await launch();
     });

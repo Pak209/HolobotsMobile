@@ -1,5 +1,5 @@
 import { applyHolobotExperience, getHolobotBattleStats, normalizeUserHolobot } from "@/lib/progression";
-import { getTodayMissionKey, normalizeRewardSystem, type MobileRewardSystem } from "@/lib/dailyMissions";
+import { getTodayMissionKey } from "@/lib/dailyMissions";
 import type { UserHolobot, UserProfile } from "@/types/profile";
 
 export type TrainingCourseId =
@@ -44,7 +44,13 @@ export type ActiveQuestRecord = {
   succeeded: boolean;
 };
 
-export type MobileProgressionSystem = MobileRewardSystem & {
+/**
+ * The quest / training keys of rewardSystem, as this client reads them. The daily-mission keys (arenaBattlesToday,
+ * boosterPacksToday, lastDailyMissionReset, missionClaims) are deliberately NOT part of it: they are the host's mission
+ * mirror, and spreading a stale client copy of them into a quest / training write clobbered the host's counters.
+ * activeQuests / activeTraining are display copies; runs start and claim through the City (lib/progressionHost.ts).
+ */
+export type MobileProgressionSystem = {
   activeQuests: ActiveQuestRecord[];
   activeTraining: TrainingSessionRecord | null;
   availableQuestIds: QuestId[];
@@ -224,10 +230,6 @@ function isTrainingCourseId(value: unknown): value is TrainingCourseId {
   return TRAINING_COURSES.some((course) => course.id === value);
 }
 
-function randomInt(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 function makeQuestRunId() {
   return `quest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -244,7 +246,6 @@ export function normalizeProgressionSystem(
   value: unknown,
   date = new Date(),
 ): MobileProgressionSystem {
-  const base = normalizeRewardSystem(value, date);
   const raw = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
   const todayKey = getTodayMissionKey(date);
   const refreshDate = typeof raw.lastQuestRefreshDate === "string" ? raw.lastQuestRefreshDate : "";
@@ -298,7 +299,6 @@ export function normalizeProgressionSystem(
     : [];
 
   return {
-    ...base,
     activeQuests,
     activeTraining,
     availableQuestIds: availableQuestIds.length ? availableQuestIds : DEFAULT_QUEST_ROTATION,
@@ -308,62 +308,25 @@ export function normalizeProgressionSystem(
   };
 }
 
-export function refreshQuestBoard(system: unknown, date = new Date()): MobileProgressionSystem {
+export type QuestBoardKeys = Pick<MobileProgressionSystem, "availableQuestIds" | "lastQuestRefreshDate" | "questRefreshesRemaining">;
+
+/** The quest-board keys after one refresh (null when none are left today). Written as dotted paths, never the whole map. */
+export function refreshQuestBoard(system: unknown, date = new Date()): QuestBoardKeys | null {
   const next = normalizeProgressionSystem(system, date);
   if (next.questRefreshesRemaining <= 0) {
-    return next;
+    return null;
   }
 
-  const shuffled = [...DEFAULT_QUEST_ROTATION].sort(() => Math.random() - 0.5);
-  next.availableQuestIds = shuffled;
-  next.questRefreshesRemaining -= 1;
-  return next;
+  return {
+    availableQuestIds: [...DEFAULT_QUEST_ROTATION].sort(() => Math.random() - 0.5),
+    lastQuestRefreshDate: next.lastQuestRefreshDate,
+    questRefreshesRemaining: next.questRefreshesRemaining - 1,
+  };
 }
 
 export function getHolobotPowerScore(holobot: UserHolobot) {
   const stats = getHolobotBattleStats(holobot.name, holobot.level, holobot.boostedAttributes);
   return Math.round(stats.maxHP * 4 + stats.attack * 6 + stats.defense * 5 + stats.speed * 4 + stats.intelligence * 5);
-}
-
-export function startTrainingSession(
-  system: unknown,
-  holobot: UserHolobot,
-  courseId: TrainingCourseId,
-  date = new Date(),
-) {
-  const next = normalizeProgressionSystem(system, date);
-  const course = getTrainingCourse(courseId);
-  const endsAt = new Date(date.getTime() + course.durationMinutes * 60 * 1000).toISOString();
-  const boostAmount = randomInt(course.minBoost, course.maxBoost);
-  const statBoosts: NonNullable<UserHolobot["boostedAttributes"]> =
-    courseId === "balanced"
-      ? {
-          attack: boostAmount,
-          defense: boostAmount,
-          health: boostAmount,
-          special: boostAmount,
-          speed: boostAmount,
-        }
-      : courseId === "attack"
-        ? { attack: boostAmount }
-        : courseId === "defense"
-          ? { defense: boostAmount }
-          : courseId === "health"
-            ? { health: boostAmount }
-            : courseId === "speed"
-              ? { speed: boostAmount }
-              : { special: boostAmount };
-
-  next.activeTraining = {
-    courseId,
-    endsAt,
-    expReward: course.durationMinutes === 60 ? 140 : 70,
-    holobotName: holobot.name,
-    startedAt: date.toISOString(),
-    statBoosts,
-  };
-
-  return next;
 }
 
 export function claimTrainingSession(holobots: UserHolobot[], session: TrainingSessionRecord) {
@@ -392,35 +355,6 @@ export function claimTrainingSession(holobots: UserHolobot[], session: TrainingS
   });
 }
 
-export function startQuestRun(
-  system: unknown,
-  holobot: UserHolobot,
-  questId: QuestId,
-  date = new Date(),
-) {
-  const next = normalizeProgressionSystem(system, date);
-  const quest = getQuestDefinition(questId);
-  const holobotPower = getHolobotPowerScore(holobot);
-  const successChance = Math.max(0.45, Math.min(0.95, holobotPower / quest.recommendedPower));
-  const succeeded = Math.random() <= successChance;
-
-  next.activeQuests = [
-    ...next.activeQuests,
-    {
-      endsAt: new Date(date.getTime() + quest.durationMinutes * 60 * 1000).toISOString(),
-      holobotName: holobot.name,
-      holobotPower,
-      id: makeQuestRunId(),
-      questId,
-      rewards: quest.rewards,
-      startedAt: date.toISOString(),
-      succeeded,
-    },
-  ].slice(0, 3);
-
-  return next;
-}
-
 export function claimQuestRun(
   holobots: UserHolobot[],
   inventory: Record<string, number> | undefined,
@@ -447,10 +381,9 @@ export function claimQuestRun(
   };
 }
 
-export function getEligibleQuestHolobots(profile: UserProfile | null) {
-  const system = normalizeProgressionSystem(profile?.rewardSystem);
-  const busyHolobots = new Set(system.activeQuests.map((quest) => quest.holobotName.toUpperCase()));
-  return (profile?.holobots || []).filter((holobot) => !busyHolobots.has(holobot.name.toUpperCase()));
+/** Owned Holobots not on a quest in `busy` (the City's own records: progressionHost.cityBusyHolobots). */
+export function getEligibleQuestHolobots(profile: UserProfile | null, busy: ReadonlySet<string>) {
+  return (profile?.holobots || []).filter((holobot) => !busy.has(holobot.name.toUpperCase()));
 }
 
 export function isSessionComplete(endsAt: string, now = new Date()) {

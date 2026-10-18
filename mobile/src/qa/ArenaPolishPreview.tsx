@@ -13,7 +13,7 @@ import { ARENA_ISSUED, ARENA_SETTLED, ARENA_SETTLE_REPORT, ARENA_STARTED, arenaP
 type Cell = { title: string; caption: string; resume: () => ArenaReply; settle?: () => never | ArenaReply; pendingSettle?: boolean; payoutCapped?: boolean };
 const CELLS: Record<string, Cell> = {
     ArenaPolishAdmitted: { title: 'ADMITTED', caption: 'Issued match, framed interstitial, City fighter cards with the LV corner tab.', resume: () => ARENA_ISSUED },
-    ArenaPolishCapped: { title: 'PAYOUT CAPPED (ANTICIPATED)', caption: 'host-economy-hardening-2 payoutCapped on issue: notice before START.', resume: () => arenaPayoutCappedIssue(), payoutCapped: true },
+    ArenaPolishCapped: { title: 'PAYOUT CAPPED', caption: 'Recorded issue reply with payoutCapped true: notice before START.', resume: () => arenaPayoutCappedIssue(), payoutCapped: true },
     // Relaunch with a stored settle; the City keeps answering too_fast with a long hint, so the resend stays armed.
     ArenaPolishConfirming: { title: 'PENDING CONFIRM', caption: 'Stored win resent after relaunch; too_fast is shown as "confirming", never raw.', resume: () => ARENA_STARTED, settle: () => { throw tooFast(600_000); }, pendingSettle: true },
     // Hint 1 ms: the bounded budget is spent almost at once and the screen hands over TRY AGAIN.

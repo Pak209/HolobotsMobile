@@ -172,11 +172,15 @@ describe('F7 + (A)2: closures and withheld payouts are receipts with honest reas
     });
 });
 
-describe('(A)3 ANTICIPATED payoutCapped on the issue reply', () => {
-    it('only a literal true means capped; absent means unknown (no notice, never assumed)', () => {
+describe('(A)3 payoutCapped on the issue reply (host #145: top level only)', () => {
+    it('only a literal top-level true means capped; absent means unknown (no notice, never assumed)', () => {
         expect(arenaIssuePayoutCapped(arenaPayoutCappedIssue())).toBe(true);
-        expect(arenaIssuePayoutCapped({ ...ARENA_ISSUED, match: { ...ARENA_ISSUED.match!, payoutCapped: true } })).toBe(true);
+        // #145 never puts it on the match record: a match-level flag is not the host's field and is ignored.
+        expect(arenaIssuePayoutCapped({ ...ARENA_ISSUED, payoutCapped: undefined, match: { ...ARENA_ISSUED.match!, payoutCapped: true } } as unknown as ArenaReply)).toBe(false);
+        expect(ARENA_ISSUED.payoutCapped).toBe(false); // recorded by #145
         expect(arenaIssuePayoutCapped(ARENA_ISSUED)).toBe(false);
+        const { payoutCapped: _absent, ...olderHost } = ARENA_ISSUED;
+        expect(arenaIssuePayoutCapped(olderHost as ArenaReply)).toBe(false);
         expect(arenaIssuePayoutCapped({ ...ARENA_ISSUED, payoutCapped: 'true' } as unknown as ArenaReply)).toBe(false);
         expect(arenaIssuePayoutCapped(null)).toBe(false);
         // The reader keeps the additive key, so the screen can show the notice before START.
