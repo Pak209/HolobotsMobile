@@ -12,7 +12,7 @@ export type CityRivalIssue = {
 export function readCityRivalSettlement(reply: unknown, battleId: string) {
   const data = record(reply), status = record(data?.status);
   if (data?.schemaVersion !== "rival-battle-3" || data.battleId !== battleId || typeof data.didWin !== "boolean" || typeof data.alreadyProcessed !== "boolean" ||
-      !status || typeof status.tierLabel !== "string" || !["tier", "rivalWins", "winsToNextTier"].every((key) => typeof status[key] === "number" && Number.isSafeInteger(status[key]) && Number(status[key]) >= 0)) throw new Error("The City's result could not be verified. Retry the same battle.");
+      !status || typeof status.tierLabel !== "string" || !["tier", "rivalWins", "winsToNextTier"].every((key) => typeof status[key] === "number" && Number.isSafeInteger(status[key]) && Number(status[key]) >= 0)) throw new Error("The City's result could not be verified. Retry the same battle." /* PLACEHOLDER copy (Lex, DECISIONS #71) */);
   return { ...data, holosGranted: data.holosGranted, duelReceipt: data.duelReceipt, alreadyProcessed: data.alreadyProcessed, didWin: data.didWin, battleId: data.battleId, status: { tier: Number(status.tier), tierLabel: status.tierLabel, rivalWins: Number(status.rivalWins), winsToNextTier: Number(status.winsToNextTier) } };
 }
 function combatant(value: unknown): CityCombatant {
@@ -32,7 +32,7 @@ export function readCityRivalIssue(raw: unknown, citizenId: string, expectedBotI
   if (reply?.schemaVersion !== "rival-battle-3" || typeof reply.battleId !== "string" || !/^rb_[a-f0-9]{24}$/.test(reply.battleId) ||
       typeof reply.expiresAtMs !== "number" || !Number.isFinite(reply.expiresAtMs) || reply.expiresAtMs <= now ||
       encounter?.encounterId !== reply.battleId || pilot?.pilotId !== citizenId || !Array.isArray(encounter?.opponentSquad) || encounter.opponentSquad.length !== 1 ||
-      !Array.isArray(reply.playerCombatants) || reply.playerCombatants.length === 0) throw new Error("The City did not return a playable squad. Check your travel squad and try again.");
+      !Array.isArray(reply.playerCombatants) || reply.playerCombatants.length === 0) throw new Error("The City did not return a playable squad. Check your travel squad and try again." /* PLACEHOLDER copy (Lex, DECISIONS #71) */);
   const player = combatant(reply.playerCombatants[0]), opponent = combatant(encounter.opponentSquad[0]);
   if (opponent.holobotId !== expectedBotId) throw new Error("The rival’s Holobot changed. Refresh the gathering first.");
   return { battleId: reply.battleId, expiresAtMs: reply.expiresAtMs, player, opponent, raw };

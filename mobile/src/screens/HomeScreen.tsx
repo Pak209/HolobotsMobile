@@ -29,6 +29,7 @@ import { useRivalStatus, type RivalHudPreview } from "@/hooks/useRivalStatus";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHostDashboard } from "@/hooks/useHostDashboard";
 import { presentHostDashboard, type HostDashboardState } from "@/lib/hostDashboard";
+import { HOME_ROSTER_COPY, homeRosterState } from "@/lib/homeRoster";
 import type { RootTabs } from "../../App";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
@@ -42,8 +43,6 @@ const ICON_PALETTE = `0 0 0 0 ${iconAccent[0]}  0 0 0 0 ${iconAccent[1]}  0 0 0 
 
 // Every SVG label on Home uses the HUD face (L16); without it they fell back to the system font.
 const HUD_FONT = theme.type.display.fontFamily;
-// PLACEHOLDER copy (Lex): the one state for a roster the app could not read.
-const HOME_COPY = { rosterUnavailable: "CAN'T LOAD YOUR ROSTER", retry: "RETRY" } as const;
 const FOOTER_ICONS: Record<HomeFooterKey, ImageSourcePropType> = {
   arena: homeAssets.arenaIcon, inventory: homeAssets.inventoryIcon, sync: homeAssets.syncIcon, market: homeAssets.marketplaceIcon,
 };
@@ -222,7 +221,7 @@ function ArtImage({
 export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: RivalHudPreview; dashboardPreview?: HostDashboardState } = {}) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const insets = useSafeAreaInsets();
-  const { profile, retryProfile, updateProfile, user } = useAuth();
+  const { profile, profileError, profileLoading, retryProfile, updateProfile, user } = useAuth();
   const rival = useRivalStatus(user?.uid, rivalPreview);
   // Header pilot / SYNC / HOLOS, squad LV and zone rows: host reads only (desktopAccountSnapshot + desktopItemsHost).
   const host = useHostDashboard(user?.uid, dashboardPreview);
@@ -234,8 +233,10 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
   const [selectedPartSlot, setSelectedPartSlot] = useState<DashboardSlot | null>(null);
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots, "full"), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
-  // Signed in with no owned Holobot (profile read failed / empty): never present the catalog fallback as the account's bot.
-  const rosterAvailable = !user || roster.some((holobot) => holobot.owned);
+  // Signed in with no owned Holobot: never present the catalog fallback as the account's bot. Only a failed
+  // profile read says "can't load" and offers RETRY; a loaded profile with no Holobots says so (L20).
+  const rosterState = homeRosterState({ signedIn: !!user, ownsHolobot: roster.some((holobot) => holobot.owned), profileLoaded: !!profile, profileLoading, profileError });
+  const rosterAvailable = rosterState === "ready";
   const expProgressWidth = rosterAvailable ? 460.193 * getExpProgress(selectedHolobot) : 0;
   const equippedParts =
     (profile?.equippedParts?.[selectedHolobot.name] as Record<string, { id?: string; name?: string; slot?: string }> | undefined) ??
@@ -378,20 +379,20 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             d={`M 110.2 ${HOME_INFO_CARD_Y} H 814.6 V ${HOME_INFO_CARD_Y + 231.1} L 699.7 ${HOME_INFO_CARD_Y + 347.1} H 110.2 Z`}
             fill={theme.colors.carbon}
           />
-          <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={rosterAvailable ? 49.915 : 34}>{rosterAvailable ? selectedHolobot.name : HOME_COPY.rosterUnavailable}</Text>
+          <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={rosterAvailable ? 49.915 : 34}>{rosterState === "ready" ? selectedHolobot.name : HOME_ROSTER_COPY[rosterState]}</Text>
           {/* Ranking tag: the Holobot's ACTUAL rank with its star tier. */}
           {rosterAvailable ? <G>
             <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={3} />
             <Text fontFamily={HUD_FONT} x={677} y={HOME_INFO_CARD_Y + 62} fill={theme.colors.accent} fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
             <Text fontFamily={HUD_FONT} x={677} y={HOME_INFO_CARD_Y + 106} fill={theme.colors.accent} fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
           </G> : null}
-          {/* No EXP or level without a roster: the card says it could not load and offers a retry (L20/L22). */}
+          {/* No EXP or level without a roster; only a failed read offers a retry (L20/L22). */}
           {rosterAvailable ? <G>
             <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill={theme.plates.raised} />
             <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill={theme.colors.accent} />
             <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
             <Text fontFamily={HUD_FONT} x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
-          </G> : <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 250} fill={theme.colors.accent} fontSize={64}>{HOME_COPY.retry}</Text>}
+          </G> : rosterState === "unavailable" ? <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 250} fill={theme.colors.accent} fontSize={64}>{HOME_ROSTER_COPY.retry}</Text> : null}
 
           <Path
             d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
@@ -458,10 +459,11 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             onPress={() => { if (item.route === "CityMarket") navigation.navigate("CityMarket", { from: "Home" }); else navigation.navigate(item.route); }}
           />
         ))}
-        {!rosterAvailable ? (
+        {rosterState === "unavailable" ? (
           <Pressable
             style={[styles.footerHotspot, getArtboardFrame(110, HOME_INFO_CARD_Y, 705, 347)]}
             accessibilityRole="button"
+            // PLACEHOLDER copy (Lex, DECISIONS #71).
             accessibilityLabel="Can't load your roster. Retry"
             onPress={retryProfile}
           />

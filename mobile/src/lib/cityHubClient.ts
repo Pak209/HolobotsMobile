@@ -8,6 +8,7 @@ import { readCityRivalSettlement } from "./cityRivalBattle";
 /** Captures the session across each call so a delayed response cannot cross accounts. */
 async function cityCall(uid: string, name: string, request: Record<string, unknown>): Promise<unknown> {
   if (!uid || auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
+  // PLACEHOLDER copy (Lex, DECISIONS #71).
   const reply = await withTimeout(httpsCallable<Record<string, unknown>, unknown>(functions, name)(request), CALLABLE_TIMEOUT_MS,
     name === "rivalBattleHost" && request.operation === "issue"
       ? "The City did not confirm admission. It may still be processing; do not start another challenge yet."

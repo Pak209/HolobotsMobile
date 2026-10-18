@@ -2,7 +2,7 @@ import { auth, functions, httpsCallable } from "@/config/firebase";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "./async";
 import {
   CITY_MARKET_VENDOR, VENDOR_CATALOG_CALLABLE, isSignedOutError, isUncertainOutcome, listingBlock,
-  listingPurchase, marketUnavailableText, purchaseConfirmed, purchaseNotice, readVendorCatalog, refusalNotice,
+  listingPurchase, marketUnavailableText, purchaseConfirmed, purchaseNotice, readVendorCatalog, refusalNotice, SESSION_SWITCHED_CODE,
   type CityMarketEvent, type MarketNotice, type VendorListing,
 } from "./cityMarket";
 import { notifyHostEconomyChanged } from "./hostDashboard";
@@ -14,16 +14,21 @@ export type CityMarketRequestJournal = {
   complete(uid: string, action: string, requestId: string): Promise<void>;
 };
 
-/** Captures the session across each call so a delayed reply cannot cross accounts. */
-async function marketCall(uid: string, name: string, request: Record<string, unknown>): Promise<unknown> {
+/**
+ * Captures the session across each call so a delayed reply cannot cross accounts. A purchase reply that
+ * lands after an account switch is an uncertain outcome (it may have charged the previous pilot), not
+ * "sign in first": the journal keeps its requestId so that pilot's resend replays the same receipt.
+ */
+async function marketCall(uid: string, name: string, request: Record<string, unknown>, purchase = false): Promise<unknown> {
   if (!uid || auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
+  // PLACEHOLDER copy (Lex, DECISIONS #71).
   const reply = await withTimeout(httpsCallable<Record<string, unknown>, unknown>(functions, name)(request), CALLABLE_TIMEOUT_MS,
     name === VENDOR_CATALOG_CALLABLE ? "The market is taking too long. Refresh to retry." : "The City did not confirm this purchase in time.");
-  if (auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
+  if (auth.currentUser?.uid !== uid) throw { code: purchase ? SESSION_SWITCHED_CODE : "unauthenticated" };
   return reply.data;
 }
 
-// PLACEHOLDER copy (Lex).
+// PLACEHOLDER copy (Lex, DECISIONS #71).
 export const NOT_SOLD_IN_LITE_TEXT = "This listing is sold on the desktop app only.";
 export const NOT_SOLD_HERE_TEXT = "This stall can't take this order in this app yet.";
 const journalAction = (listing: VendorListing) => `vendor:${CITY_MARKET_VENDOR}:${listing.listingId}`;
@@ -49,14 +54,14 @@ export function liveCityMarketHost(uid: string, journal: CityMarketRequestJourna
       const settle = async () => { try { await journal.complete(uid, action, requestId); } catch { /* a stale id only replays a receipt */ } };
       let reply: unknown;
       try {
-        reply = await marketCall(uid, call.callable, call.request);
+        reply = await marketCall(uid, call.callable, call.request, true);
       } catch (error) {
         if (!isUncertainOutcome(error)) await settle();
         throw error;
       }
       await settle();
       // A listener must never turn a real charge into a refusal: the signal is best-effort.
-      if (purchaseConfirmed(reply)) { try { notifyHostEconomyChanged(uid); } catch { /* listeners re-read on focus */ } }
+      if (purchaseConfirmed(listing, reply, requestId)) { try { notifyHostEconomyChanged(uid); } catch { /* listeners re-read on focus */ } }
       return reply;
     },
   };

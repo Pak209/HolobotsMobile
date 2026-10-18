@@ -22,7 +22,7 @@ const MAP_HEIGHT = 380;
 const districtSymbols = { plaza: "◎", vendor: "▥", workshop: "✚", arena: "◇", harbor: "≈", port: "◈", zone: "△" };
 // HoloZone opens the story overworld: without one this build may load, the district stays off the map (L10).
 const STORY_AVAILABLE = isStoryOverworldAvailable();
-// PLACEHOLDER copy (Lex). The authority on screen is "the City", never "host" (DECISIONS #71).
+// PLACEHOLDER copy (Lex, DECISIONS #71), including the pins' "Meet"/"Challenge" labels below. The authority on screen is "the City", never "host".
 const HUB_COPY = {
   rivalsBody: "Every pilot has a signature ring. Pick a rival to challenge; the City confirms availability and rewards.",
   gatheringBody: "Your rivals are out in the city. Follow their rings to meet a pilot and challenge their Holobot.",

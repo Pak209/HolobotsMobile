@@ -62,6 +62,7 @@ function CityMarketPage({ uid, fixture }: { uid?: string; fixture?: CityMarketFi
       </View>
       <View style={styles.statusRow}>
         <View style={styles.signal}><View style={styles.signalDot} /><Text style={styles.statusText}>{copy.status}</Text></View>
+        {/* PLACEHOLDER copy (Lex, DECISIONS #71). */}
         {view.holosText ? <Text accessibilityLabel={`Holos on your account: ${view.holosText}`} testID="city-market-holos" style={styles.holos}>{view.holosText}</Text> : null}
       </View>
       <View style={styles.card}>

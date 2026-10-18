@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as { uid: string } | null }, call: vi.fn(), callable: vi.fn() }));
 vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
 import { createCityMarketController, fixtureCityMarketHost, liveCityMarketHost, NOT_SOLD_HERE_TEXT, NOT_SOLD_IN_LITE_TEXT, type CityMarketFixture, type CityMarketHost } from "../cityMarketClient";
-import { CATALOG_INVALID_TEXT, cityMarketReducer, initialCityMarketState, presentCityMarket, readVendorCatalog, type CityMarketEvent, type CityMarketState } from "../cityMarket";
+import { CATALOG_INVALID_TEXT, cityMarketReducer, initialCityMarketState, presentCityMarket, readVendorCatalog, refusalNotice, SESSION_SWITCHED_CODE, type CityMarketEvent, type CityMarketState } from "../cityMarket";
 import { createCityRequestJournal } from "../cityRequestJournal";
 import { subscribeHostEconomyChanged } from "../hostDashboard";
 import { cityMarketFixtures, CITY_MARKET_HOST_FIXTURE as hostMarket, NOT_ENOUGH_HOLOS_REFUSAL } from "../../qa/cityMarketFixtures";
@@ -91,10 +91,47 @@ describe("economy-change signal (#132) from the live buy path", () => {
     const seen = listen();
     const { journal } = memoryJournal();
     let seenBeforeReply = -1;
-    fixture.call.mockImplementationOnce(async () => { seenBeforeReply = seen.length; return { data: hostMarket.purchaseReply }; });
+    fixture.call.mockImplementationOnce(async () => { seenBeforeReply = seen.length; return { data: { ...hostMarket.purchaseReply, requestId: "req_1" } }; });
     await liveCityMarketHost("pilot-a", journal).buy(listing("buddy.medium"));
     expect(seenBeforeReply).toBe(0);
     expect(seen).toEqual(["pilot-a"]);
+  });
+  it("publishes for a desktopItemsHost buy receipt, and never for an object that is not this purchase's confirmation", async () => {
+    const seen = listen();
+    const { journal } = memoryJournal();
+    const host = liveCityMarketHost("pilot-a", journal);
+    fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "desktop-items-2", items: [], result: { kind: "buy", itemId: "item.repair_kit" } } });
+    await host.buy(listing("item.repair_kit"));
+    expect(seen).toEqual(["pilot-a"]);
+    const notConfirmations = [
+      {}, { schemaVersion: "desktop-items-2" }, { schemaVersion: "desktop-items-2", result: { kind: "use", itemId: "item.repair_kit" } },
+      { schemaVersion: "desktop-items-2", result: { kind: "buy", itemId: "item.full_restore" } },
+    ];
+    for (const data of notConfirmations) { fixture.call.mockResolvedValueOnce({ data }); await host.buy(listing("item.repair_kit")); }
+    for (const data of [{ ...hostMarket.purchaseReply, requestId: "someone_elses" }, { ...hostMarket.purchaseReply, requestId: "req_9", tierId: "buddy_heavy" }]) {
+      fixture.call.mockResolvedValueOnce({ data }); await host.buy(listing("buddy.medium"));
+    }
+    expect(seen).toEqual(["pilot-a"]);
+  });
+  it("critic F6: a throwing listener never turns a real charge into a refusal", async () => {
+    const seen = listen();
+    offs.push(subscribeHostEconomyChanged(() => { throw new Error("listener blew up"); }));
+    const { journal, store } = memoryJournal();
+    const reply = { ...hostMarket.purchaseReply, requestId: "req_1" };
+    fixture.call.mockResolvedValueOnce({ data: reply });
+    await expect(liveCityMarketHost("pilot-a", journal).buy(listing("buddy.medium"))).resolves.toEqual(reply);
+    expect(store.size).toBe(0);
+    expect(seen).toEqual(["pilot-a"]);
+  });
+  it("a reply that lands after an account switch is uncertain, not 'sign in first': no publish, requestId kept", async () => {
+    const seen = listen();
+    const { journal, store } = memoryJournal();
+    fixture.call.mockImplementationOnce(async () => { fixture.auth.currentUser = { uid: "pilot-b" }; return { data: { ...hostMarket.purchaseReply, requestId: "req_1" } }; });
+    const error = await liveCityMarketHost("pilot-a", journal).buy(listing("buddy.medium")).then(() => null, (e: unknown) => e);
+    expect(error).toEqual({ code: SESSION_SWITCHED_CODE });
+    expect(seen).toEqual([]);
+    expect([...store.values()]).toEqual(["req_1"]);
+    expect(refusalNotice(listing("buddy.medium"), error)).toEqual({ tone: "info", text: "The City did not confirm this purchase. Check the stalls below; buying again resends the same receipt." });
   });
   it("does not publish when the host refuses the buy", async () => {
     const seen = listen();
@@ -114,7 +151,7 @@ describe("economy-change signal (#132) from the live buy path", () => {
     fixture.call.mockResolvedValueOnce({ data: null });
     await host.buy(listing("item.repair_kit"));
     fixture.call.mockImplementationOnce(async () => { fixture.auth.currentUser = { uid: "pilot-b" }; return { data: hostMarket.purchaseReply }; });
-    await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: "unauthenticated" });
+    await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: SESSION_SWITCHED_CODE });
     fixture.auth.currentUser = { uid: "pilot-a" };
     const forged = clone(hostMarket.catalog) as Record<string, any>;
     forged.listings[3].purchase = { callable: "deleteUserAccountV2", request: {} };

@@ -11,7 +11,7 @@ const FILES = [
   "../../screens/HomeScreen.tsx", "../../screens/CityHubScreen.tsx", "../../screens/CityMarketplaceScreen.tsx", "../../screens/OverworldScreen.tsx",
   "../../components/city/CityRivalBattle.tsx", "../../components/dashboard/UnityLaunchButton.tsx", "../../components/dashboard/TravelSquadPanel.tsx",
   "../../components/dashboard/DashboardZonesPanel.tsx", "../cityHub.ts", "../cityHubClient.ts", "../cityRivalBattle.ts", "../cityMarket.ts",
-  "../cityMarketClient.ts", "../hostDashboard.ts", "../unity/nativeUnitySession.ts",
+  "../cityMarketClient.ts", "../hostDashboard.ts", "../unity/nativeUnitySession.ts", "../homeRoster.ts",
 ] as const;
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url) as unknown as string), "utf8");
 /** Source with comments removed, then every string literal and JSX text run. */
@@ -33,11 +33,10 @@ describe("lite copy rules (DECISIONS #71)", () => {
     const dashes = onScreenText(read(path)).filter((text) => /(^["'`>]?\s*—\s*["'`]?$)|LV —|Lv —|EXP —|— HOLOS|TIER —/.test(text));
     expect(dashes).toEqual([]);
   });
-  it("L20: Home has one honest roster state with a retry, never ROSTER UNAVAILABLE", () => {
+  it("L20: Home never says ROSTER UNAVAILABLE; its roster copy comes from one honest state (homeRoster.ts)", () => {
     const home = read("../../screens/HomeScreen.tsx");
     expect(home).not.toContain("ROSTER UNAVAILABLE");
-    expect(home).toContain(`rosterUnavailable: "CAN'T LOAD YOUR ROSTER", retry: "RETRY"`);
-    expect(home).toContain("onPress={retryProfile}");
+    expect(home).toContain("HOME_ROSTER_COPY[rosterState]");
   });
   it("L20: the market prints no product codename and no raw refusal code", () => {
     for (const path of ["../../screens/CityMarketplaceScreen.tsx", "../../screens/CityHubScreen.tsx"]) expect(read(path)).not.toContain("HOLOCITY LITE");

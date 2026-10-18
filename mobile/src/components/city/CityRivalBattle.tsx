@@ -151,6 +151,7 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     {!issue ? <Text style={styles.body}>{preview ? "Your first travel-squad Holobot enters this offline duel." : CITY_LIVE_DUEL_HOLD}</Text> : <Text style={styles.title}>{battle?.status === "completed" ? "DUEL COMPLETE" : "DUEL ENDED"}</Text>}
     {pending ? <ActivityIndicator size="large" color={theme.colors.accent} /> : null}
     {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
+    {/* PLACEHOLDER copy (Lex, DECISIONS #71): the QA receipt button's label. */}
     {__DEV__ && preview && !issue && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1" ? <Pressable accessibilityRole="button" accessibilityLabel="Play offline City receipt" onPress={() => setHostPreview(true)} style={styles.primary}><Text style={styles.primaryText}>OFFLINE ACE / WOLF RECEIPT · NO REWARDS</Text></Pressable> : null}
     {preview && !issue && !issueAttempted ? <Pressable accessibilityRole="button" onPress={() => void start()} style={styles.primary}><Text style={styles.primaryText}>START RIVAL DUEL</Text></Pressable> : null}
     {issue && !pending && !receipt && battle?.status === "completed" && !settlementAttempted.current ? <Text style={styles.body}>Confirming the match · {waitSeconds}s</Text> : null}

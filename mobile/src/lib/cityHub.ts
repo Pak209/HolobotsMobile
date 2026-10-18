@@ -57,6 +57,7 @@ export function readArenaGathering(value: unknown): ArenaGathering {
   const reply = record(value);
   if (reply?.schemaVersion !== GATHERING_SCHEMA || !Array.isArray(reply.roster) || reply.roster.length !== 8) throw new Error("The city roster needs an app update. Try again later.");
   const flags = readCityStoryFlags(reply.storyFlags);
+  // PLACEHOLDER copy (Lex, DECISIONS #71).
   if (!flags.arenaGatheringSeen) throw new Error("The City has not confirmed your gathering yet.");
   const ids = new Set<string>();
   const botRings = new Set<string>();
@@ -94,7 +95,7 @@ export const CITY_RIVAL_PIN_POINTS = [
 export function cityActionMessage(error: unknown): string {
   const detail = record(record(error)?.details);
   const code = String(detail?.rejectionCode ?? record(error)?.code ?? "");
-  // PLACEHOLDER copy (Lex). The authority on screen is "the City", never "host" (DECISIONS #71).
+  // PLACEHOLDER copy (Lex, DECISIONS #71): the authority on screen is "the City", never "host".
   const messages: Record<string, string> = {
     "functions/not-found": "The City isn't open yet. Please try again after the next update.",
     "functions/unavailable": "The City is offline. Check your connection and retry.",

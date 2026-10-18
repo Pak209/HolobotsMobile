@@ -182,14 +182,17 @@ export function isSignedOutError(error: unknown): boolean {
   const code = errorCode(error);
   return code === "unauthenticated" || code === "functions/unauthenticated";
 }
-const UNCERTAIN_CODES = new Set(["functions/unavailable", "functions/deadline-exceeded", "functions/internal", "functions/unknown", "functions/cancelled"]);
-/** No host verdict reached the app (timeout, network, crash): the purchase may or may not have happened. */
+/** The account changed while a purchase reply was in flight: it may have charged the previous pilot. */
+export const SESSION_SWITCHED_CODE = "session-switched";
+const UNCERTAIN_CODES = new Set(["functions/unavailable", "functions/deadline-exceeded", "functions/internal", "functions/unknown", "functions/cancelled", SESSION_SWITCHED_CODE]);
+/** No verdict reached this session (timeout, network, crash, account switch): the purchase may or may not have happened. */
 export function isUncertainOutcome(error: unknown): boolean {
   if (hostRejectionCode(error) || isSignedOutError(error)) return false;
   const code = errorCode(error);
   return !code || UNCERTAIN_CODES.has(code);
 }
 
+// PLACEHOLDER copy (Lex, DECISIONS #71): every refusal and notice string from here to marketUnavailableText.
 const REFUSAL_TEXT: Record<string, string> = {
   not_enough_holos: "Not enough Holos.",
   on_cooldown: "This stall restocks weekly.",
@@ -202,13 +205,28 @@ const REFUSAL_TEXT: Record<string, string> = {
 const REFUSED_TEXT = "The City refused this purchase.";
 export type MarketNotice = { tone: "ok" | "refused" | "info"; text: string };
 
-/** A purchase reply the app reads as the host's confirmation (a fresh charge or the replayed receipt of one); purchaseNotice's "ok". */
-export function purchaseConfirmed(reply: unknown): boolean {
-  return record(reply) !== null;
+/**
+ * True only for the reply the listing's own purchase call returns on a charge (or its replayed receipt):
+ * purchaseBuddyUnit echoes vendor-3, the tier and the requestId; desktopItemsHost returns desktop-items-2
+ * with result {kind: "buy", itemId}. Anything else is unverified. Pass requestId to require the echo.
+ */
+export function purchaseConfirmed(listing: VendorListing, reply: unknown, requestId?: string): boolean {
+  const body = record(reply);
+  const request = listing.purchase.request;
+  if (!body) return false;
+  if (listing.purchase.callable === "purchaseBuddyUnit") {
+    return body.schemaVersion === VENDOR_SCHEMA && body.tierId === request.tierId && nonNeg(body.holosTokens) && str(body.requestId) &&
+      (requestId === undefined || body.requestId === requestId);
+  }
+  if (listing.purchase.callable === "desktopItemsHost") {
+    const result = record(body.result);
+    return body.schemaVersion === "desktop-items-2" && result?.kind === "buy" && result.itemId === request.itemId;
+  }
+  return false;
 }
 export function purchaseNotice(listing: VendorListing, reply: unknown): MarketNotice {
   const body = record(reply);
-  if (!body) return { tone: "info", text: "The City's reply could not be verified. Check the stalls before buying again." };
+  if (!body || !purchaseConfirmed(listing, reply)) return { tone: "info", text: "The City's reply could not be verified. Check the stalls before buying again." };
   return { tone: "ok", text: `${body.alreadyProcessed === true ? "ALREADY CONFIRMED" : "PURCHASE CONFIRMED"} · ${listing.displayName}` };
 }
 export function refusalNotice(listing: VendorListing, error: unknown): MarketNotice {

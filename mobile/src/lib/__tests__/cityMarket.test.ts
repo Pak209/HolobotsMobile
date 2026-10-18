@@ -115,6 +115,15 @@ describe("presentCityMarket renders the host reply only", () => {
     expect(row(state, "booster.elite")).toMatchObject({ metaText: "IN STOCK", detailText: "BONUS · EXP BOOSTER" });
     expect(row(state, "item.full_restore").action).toEqual({ label: "BUY", enabled: true });
   });
+  it("a sellable listing out of stock reads RESTOCKING (with a restock time) or SOLD OUT", () => {
+    const stock = clone(hostMarket.catalog) as Record<string, any>;
+    Object.assign(stock.listings.find((r: any) => r.listingId === "buddy.heavy"), { available: false, availableAtMs: 1_900_000_000_000 });
+    Object.assign(stock.listings.find((r: any) => r.listingId === "item.full_restore"), { available: false, availableAtMs: 0 });
+    const state = ready(readVendorCatalog(stock, "marketplace"));
+    expect(row(state, "buddy.heavy").action).toEqual({ label: "RESTOCKING", enabled: false });
+    expect(row(state, "item.full_restore").action).toEqual({ label: "SOLD OUT", enabled: false });
+    expect(cityMarketReducer(state, { type: "select", listingId: "buddy.heavy" }).confirming).toBeNull();
+  });
   it("uses the host's affordable flag, never a local Holos comparison", () => {
     const poor = clone(hostMarket.catalog) as Record<string, any>;
     poor.listings.find((r: any) => r.listingId === "buddy.heavy").affordable = false;
