@@ -5,7 +5,7 @@ import {
   buildPackGrantUpdatesRaw,
   buildPackRewards,
   GACHA_PACKS,
-  incrementBoosterPacksToday,
+  dailyMissionCounterUpdates,
   type GachaGrantedItem,
   type GachaPackId,
 } from "../lib/economy";
@@ -68,7 +68,8 @@ export const openGachaPack = onCall(async (request): Promise<OpenGachaPackRespon
           },
           ...packHistory,
         ].slice(0, 50),
-        rewardSystem: incrementBoosterPacksToday(userData.rewardSystem, now),
+        // S2: the server-only daily-mission ledger + the rewardSystem display mirror.
+        ...dailyMissionCounterUpdates(userData, "boosterPacksToday", now),
       },
       { merge: true },
     );

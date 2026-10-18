@@ -11,7 +11,7 @@ const {transactRivalBattle}=require('../lib/rival/rivalBattleStore.js');
 const FLAG='rival-health-1';let serial=0;
 async function setup(extra={}) {
  const uid=`zone_ko_${Date.now()}_${serial++}`;
- await db.doc(`users/${uid}`).set({holobots:[{name:'ACE',level:4,experience:1700,nextLevelExp:2500,rank:'Starter',attributePoints:1,boostedAttributes:{attack:3,health:20}},{name:'KUMA',level:1,experience:350,nextLevelExp:400,attributePoints:0}],travelSquad:{schemaVersion:'travel-squad-1',revision:1,holobotIds:['ace']},emergencyPatches:1,holobotVitals:{ace:{currentHealth:0,maxHealth:192}},...extra});return uid;
+ await db.doc(`users/${uid}`).set({storyFlags:{arenaGatheringSeen:false,tournamentsWon:0,arenaArcBuilt:false,holoZonesArcBuilt:true},holobots:[{name:'ACE',level:4,experience:1700,nextLevelExp:2500,rank:'Starter',attributePoints:1,boostedAttributes:{attack:3,health:20}},{name:'KUMA',level:1,experience:350,nextLevelExp:400,attributePoints:0}],travelSquad:{schemaVersion:'travel-squad-1',revision:1,holobotIds:['ace']},emergencyPatches:1,holobotVitals:{ace:{currentHealth:0,maxHealth:192}},...extra});return uid;
 }
 const user=async uid=>(await db.doc(`users/${uid}`).get()).data();
 const runs=async uid=>(await db.doc(`holoZoneRuns/${uid}`).get()).data();

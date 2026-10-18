@@ -86,7 +86,7 @@ test('emergency extraction clock, charge, replay, bulky loss and no wrong-owner 
 test('guardian flag and rare discovery remain host-only; bank feeds existing fragments without unlocking story/13th',async()=>{
  const uid=await setup(),r=(await enter(uid)).run,runId=r.runId;
  for(let band=1;band<=3;band++){await call(uid,cmd('move',{runId,sectorId:`gate${band}`}));const at=r.layout.sectors.find(s=>s.band===band&&s.cache);await call(uid,cmd('move',{runId,sectorId:at.id}));await call(uid,cmd('fight',{runId,playerIntents:['strike','defend','heavy']}));await call(uid,cmd('cache',{runId}));}
- await call(uid,cmd('move',{runId,sectorId:'gate3'}));await call(uid,cmd('extract',{runId,mode:'normal'}));const u=await user(uid);assert.equal(u.expeditionBank.guardianDefeated,true);assert.equal(u.expeditionBank.rareBlueprints,1);assert.equal(u.itemStocks.blueprint_fragment,14);assert.equal(u.storyFlags.holoZonesArcBuilt,false);assert.equal(u.holobots.length,3);
+ await call(uid,cmd('move',{runId,sectorId:'gate3'}));await call(uid,cmd('extract',{runId,mode:'normal'}));const u=await user(uid);assert.equal(u.expeditionBank.guardianDefeated,true);assert.equal(u.expeditionBank.rareBlueprints,1);assert.equal(u.itemStocks.blueprint_fragment,14);assert.deepEqual(u.storyFlags,profile().storyFlags);assert.equal(u.holobots.length,3);
 });
 test('client Firestore writes cannot mint inventory, bank, leases, receipts, or seeds',async()=>{
  const rr=createRequire(new URL('../../rules-tests/package.json',import.meta.url));const {initializeTestEnvironment,assertFails,assertSucceeds}=rr('@firebase/rules-unit-testing'),{doc,setDoc,updateDoc}=rr('firebase/firestore');
@@ -115,7 +115,16 @@ test('review: new terminal replay request ID is reserved and cannot later buy or
 });
 test('review: actual callable maps KO and malformed shared-domain state to documented refusal',async()=>{
  process.env.HOLOCITY_ZONE_EXPEDITION_CONFIG=JSON.stringify(CONFIG);
- try{for(const [extra,expected] of [[{holobotVitals:{ace:{currentHealth:0,maxHealth:100}}},'holobot_ko'],[{storyFlags:{arenaArcBuilt:true,tournamentsWon:0}},'unavailable'],[{travelSquad:{bad:true}},'unavailable'],[{itemStocks:{repair_kit:-1}},'unavailable']]){
+ try{for(const [extra,expected] of [[{holobotVitals:{ace:{currentHealth:0,maxHealth:100}}},'holobot_ko'],[{storyFlags:{arenaGatheringSeen:true,tournamentsWon:3,arenaArcBuilt:true,holoZonesArcBuilt:false}},'zone_locked'],[{storyFlags:{arenaArcBuilt:true,tournamentsWon:0}},'unavailable'],[{travelSquad:{bad:true}},'unavailable'],[{itemStocks:{repair_kit:-1}},'unavailable']]){
   const uid=await setup(extra);await assert.rejects(()=>holoZoneHost.run({auth:{uid},data:cmd('issue',{repairKits:0,carryExtractionCharge:false})}),e=>e.details?.rejectionCode===expected&&e.code!=='internal');
  }}finally{delete process.env.HOLOCITY_ZONE_EXPEDITION_CONFIG;}
+});
+test('HoloZones arc gate (critic review 2026-10-17 #1): a locked account cannot issue; nothing is written; buy/status still answer',async()=>{
+ const locked={storyFlags:{arenaGatheringSeen:true,tournamentsWon:3,arenaArcBuilt:true,holoZonesArcBuilt:false}};
+ const uid=await setup(locked),before=await user(uid);
+ await assert.rejects(()=>call(uid,cmd('issue',{repairKits:2,carryExtractionCharge:true})),/zone_locked/);
+ assert.deepEqual(await user(uid),before);assert.equal((await db.doc(`holoZoneRuns/${uid}`).get()).exists,false);
+ assert.equal((await call(uid,cmd('status'))).run,null);
+ await call(uid,cmd('buy',{itemId:'item.repair_kit'}));
+ const built=await setup();assert.equal((await enter(built)).run.state,'open');
 });

@@ -87,8 +87,13 @@ service cloud.firestore {
     // (regen/quest/training starts), holobots (attribute-point spends),
     // battle_cards + arena_deck_template_ids + starter_deck_claimed (deck
     // building & signup starter grant), equippedParts, inventory,
-    // rewardSystem (mission/quest state), leaderboardScore (recomputed by
+    // rewardSystem (quest/training state + a DISPLAY mirror of the daily
+    // mission counters; nothing pays from it), leaderboardScore (recomputed by
     // legit holobots writes), asyncBattleTickets, prestigeCount.
+    // Daily missions (2026-10-17 critic review S2): the counters and claims
+    // claimDailyMission pays from live in dailyMissionLedger, server-only
+    // below. rewardSystem itself stays owner-writable until the quest/training
+    // starts (QuestsScreen / TrainingScreen, main app + lite) move to callables.
     // EVALUATION BUDGET (2026-07-18): rules abort past 1000 expression
     // evaluations per request. The old shape chained ~30 per-field frozen
     // checks whose cost grew with every POPULATED field, so real accounts
@@ -112,7 +117,9 @@ service cloud.firestore {
         // are server-only.
         'buddyUnits', 'rivalWins', 'rivalRewardDay',
         // DECISIONS #58 (3): the once-per-bot-per-tier rank Kit record.
-        'rankKitTiers', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'tournamentUnlockAcknowledged', 'expeditionSupplies', 'expeditionBank'
+        'rankKitTiers', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'tournamentUnlockAcknowledged', 'expeditionSupplies', 'expeditionBank',
+        // 2026-10-17 critic review S2: daily-mission counters + claims.
+        'dailyMissionLedger'
       ]);
     }
 
@@ -153,6 +160,7 @@ service cloud.firestore {
         && !('tournamentUnlockAcknowledged' in data)
         && !('expeditionSupplies' in data)
         && !('expeditionBank' in data)
+        && !('dailyMissionLedger' in data)
         && !('expBoosterActiveUntil' in data)
         && !('lastWildcardPackAt' in data)
         && frozenEmptyOnCreate(data, 'parts')

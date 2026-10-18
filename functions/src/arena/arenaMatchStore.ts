@@ -11,7 +11,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { ActivityError, arenaOpen, duelOpen } from '../lib/arenaActivity';
 import { withRankHealingReward } from '../lib/rankHealingReward';
-import { ARENA_TIERS, getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, incrementArenaBattlesToday, ArenaTierId } from '../lib/arenaEconomy';
+import { ARENA_TIERS, getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, ArenaTierId } from '../lib/arenaEconomy';
+import { dailyMissionCounterUpdates } from '../lib/economy';
 import { BATTLE_COMBO_BONUS, BATTLE_PERFECT_DEFENSE_BONUS, BATTLE_LOSS_EXP_FRACTION, BATTLE_LOSS_SYNC_FRACTION, MAX_PERFORMANCE_EVENTS, EXP_BOOSTER_MULTIPLIER } from '../lib/battleSettlement';
 import { buildPlayerCombatants, playerCombatant, readOpenBattles, RivalError } from '../lib/rivalLadder';
 import { readHoloZoneRuns, HoloZoneError } from '../lib/holoZoneRuns';
@@ -21,7 +22,42 @@ import { toHolobotKey } from '../lib/mintingEconomy';
 
 export const ARENA_MATCH_SCHEMA = 'arena-match-1';
 export const ARENA_MATCH_TTL_MS = 30 * 60 * 1000;
-export const ARENA_MIN_SETTLE_MS = 1000; // Replay plausibility only, not proof of combat.
+/**
+ * Critic review 2026-10-17 S1 — BOUNDED mitigation for the client-reported CPU practice outcome (host re-simulation
+ * from seeded intents is the next lane; until then the client still decides win / HP / performance).
+ *
+ * ARENA_MIN_SETTLE_MS (was 1000): a WIN reported sooner than this after `start` is too_fast (nothing written; the match
+ * stays active and may settle later, inside the TTL); a LOSS that soon settles but pays nothing (the rival #58 rule).
+ * The only arena receipt in the fixtures (scripts/fixtures/arena-match/admitted-lifecycle.json) closes 1,064 ms after
+ * start on a synthetic emulator clock — the old floor paid that as a win. The measured gameplay durations in the repo
+ * are the lite duel-receipt playbacks (Documentation/QA/2026-10-15-mobile-perf-1, 2026-10-16-lite-sim-build-1):
+ * 8 host rounds x 6,400 ms = 51.2 s. 20 s equals the host's existing floor for the same duel class (RIVAL_MIN_WIN_MS,
+ * HOLOZONE_MIN_XP_MS) and is under half a measured full duel.
+ */
+export const ARENA_MIN_SETTLE_MS = 20_000;
+/** Performance clamp: a report can claim at most one completed combo per 2 s and one perfect defense per 3 s of the
+ * recorded receipt length (settle - start). Generous bounds: the client sim spaces defense plays by >= 2 cooldown turns
+ * x DEFENSE_COOLDOWN_MS_PER_TURN 3,000 ms (mobile/src/features/arena/arenaCards.ts) and a duel-receipt action is
+ * 3,200 ms. At the 20 s floor that is <= 10 combos / 6 perfects (bonus <= 2.3x, was 4.75x); 25 / 25 needs >= 75 s. */
+export const ARENA_MS_PER_COMBO = 2_000;
+export const ARENA_MS_PER_PERFECT_DEFENSE = 3_000;
+/**
+ * Paid CPU practice settles per account per UTC day; later settles still close the match and write HP but pay nothing
+ * (settlement.payoutWithheld 'daily_cap'). From lib/arenaEconomy.ts a paid win returns 2 x entryFeeHolos for an entry of
+ * entryFeeHolos (net +50 / +100 / +150 / +225 Holos rookie..legend) plus 5 / 10 / 15 / 20 blueprints of the opponent the
+ * client picked. 10 keeps >= 3x the arena_v2_battle daily mission (target 3) fully paid for an honest player and bounds
+ * the reported-win farm at <= +2,250 net Holos and 200 blueprints per account per day (legend), from unbounded.
+ * Producer default; Pak tunes.
+ */
+export const ARENA_CPU_DAILY_PAYOUT_CAP = 10;
+export const ARENA_CPU_PAYOUTS_SCHEMA = 'arena-cpu-payouts-1';
+const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+/** Server-only arenaMatches/{uid}/ledger/cpuPayouts (rules deny every depth; recursiveDelete covers it). */
+function paidToday(raw: unknown, nowMs: number): number {
+  if (raw === undefined) return 0;
+  if (!object(raw) || raw.schemaVersion !== ARENA_CPU_PAYOUTS_SCHEMA || typeof raw.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.day) || !whole(raw.paidSettles)) return fail('unavailable');
+  return raw.day === utcDay(nowMs) ? raw.paidSettles : 0;
+}
 export class ArenaError extends Error { constructor(public code: string) { super(code); } }
 type Data = Record<string, any>;
 type Command = Data & { operation: 'issue'|'start'|'resume'|'settle'|'cancel' };
@@ -143,6 +179,12 @@ function match(raw: unknown, id: string): Match {
     || !whole(report.combosCompleted) || report.combosCompleted > rules.maxPerformanceEvents
     || !whole(report.perfectDefenses) || report.perfectDefenses > rules.maxPerformanceEvents) return fail('unavailable');
   const won = receipt.outcome === 'win';
+  if (settlement.payoutWithheld !== undefined) {
+    // S1: a settle past the daily cap, or a loss under the floor, closes the match and pays nothing.
+    if (!['daily_cap','under_floor'].includes(settlement.payoutWithheld) || (settlement.payoutWithheld === 'under_floor' && won)
+      || settlement.exp !== 0 || settlement.awardedExp !== 0 || settlement.syncPoints !== 0 || settlement.holos !== 0 || settlement.blueprints !== null) return fail('unavailable');
+    return raw as Match;
+  }
   const bonus = 1 + rules.comboBonus * report.combosCompleted + rules.perfectDefenseBonus * report.perfectDefenses;
   const exp = Math.floor(rules.exp * (won ? bonus : rules.lossExpFraction));
   const sync = Math.floor(rules.syncPoints * (won ? bonus : rules.lossSyncFraction));
@@ -190,17 +232,17 @@ function assertFiniteTree(value: unknown): void {
   else if (object(value)) Object.values(value).forEach(assertFiniteTree);
 }
 /** Use the admission's numeric quote, so a later price/table release cannot change an outstanding match. */
-function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:boolean) {
-  const r = m.rules, won = bracketWon ?? c.opponentFinalHealth === 0;
+function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:boolean, withheld?: 'daily_cap'|'under_floor') {
+  const r = m.rules, won = bracketWon ?? c.opponentFinalHealth === 0, pays = withheld === undefined;
   const bonus = 1 + r.comboBonus * c.combosCompleted + r.perfectDefenseBonus * c.perfectDefenses;
-  const exp = Math.floor(r.exp * (won ? bonus : r.lossExpFraction));
-  const syncPoints = Math.floor(r.syncPoints * (won ? bonus : r.lossSyncFraction));
-  const holos = won ? r.holos : 0;
+  const exp = pays ? Math.floor(r.exp * (won ? bonus : r.lossExpFraction)) : 0;
+  const syncPoints = pays ? Math.floor(r.syncPoints * (won ? bonus : r.lossSyncFraction)) : 0;
+  const holos = won && pays ? r.holos : 0;
   const awardedExp = exp * (finite(profile.expBoosterActiveUntil) && profile.expBoosterActiveUntil > now ? r.expBoosterMultiplier : 1);
   uniqueEntrant(profile, m.entrant.holobotId);
   const blueprints = { ...(profile.blueprints ?? {}) };
   if (!object(profile.blueprints ?? {} ) || Object.values(blueprints).some(n => !whole(n))) fail('unavailable');
-  const blueprint = won ? { holobotKey: m.opponent.name.toLowerCase(), amount: r.blueprints } : null;
+  const blueprint = won && pays ? { holobotKey: m.opponent.name.toLowerCase(), amount: r.blueprints } : null;
   if (blueprint) blueprints[blueprint.holobotKey] = (blueprints[blueprint.holobotKey] ?? 0) + blueprint.amount;
   const updates: Data = {
     blueprints,
@@ -208,10 +250,11 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
     holosTokens: counter(profile,'holosTokens') + holos,
     wins: counter(profile,'wins') + (won ? 1 : 0), losses: counter(profile,'losses') + (won ? 0 : 1),
     syncPoints: counter(profile,'syncPoints') + syncPoints,
-    rewardSystem: incrementArenaBattlesToday(profile.rewardSystem, new Date(now)),
+    // S2: the server-only daily-mission ledger + the rewardSystem display mirror.
+    ...dailyMissionCounterUpdates(profile, 'arenaBattlesToday', new Date(now)),
   };
   assertFiniteTree(updates);
-  return { updates, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint }, outcome: won ? 'win' : 'loss' };
+  return { updates, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}) }, outcome: won ? 'win' : 'loss' };
 }
 
 export async function transactArenaMatch(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now()) {
@@ -318,11 +361,20 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:c.playerFinalHealth}]);
         if (c.operation === 'settle') {
           if (nowMs > m.expiresAtMs) return fail('match_expired');
-          if (nowMs - m.startedAtMs < ARENA_MIN_SETTLE_MS) return fail('too_fast');
           if (c.combosCompleted > m.rules.maxPerformanceEvents || c.perfectDefenses > m.rules.maxPerformanceEvents || c.opponentFinalHealth > m.opponent.maxHealth || (c.playerFinalHealth === 0) === (c.opponentFinalHealth === 0)) return fail('invalid_request');
-          const result = rewards(profile,m,c,nowMs);
+          // S1 (bounded): floor, performance clamp and daily payout cap. Every read precedes the writes below.
+          const elapsedMs = nowMs - m.startedAtMs, won = c.opponentFinalHealth === 0;
+          if (won && elapsedMs < ARENA_MIN_SETTLE_MS) return fail('too_fast');
+          const reported: Command = {...c,
+            combosCompleted: Math.min(c.combosCompleted, m.rules.maxPerformanceEvents, Math.floor(elapsedMs / ARENA_MS_PER_COMBO)),
+            perfectDefenses: Math.min(c.perfectDefenses, m.rules.maxPerformanceEvents, Math.floor(elapsedMs / ARENA_MS_PER_PERFECT_DEFENSE))};
+          const payoutsRef = parentRef.collection('ledger').doc('cpuPayouts');
+          const paid = paidToday((await tx.get(payoutsRef)).data(), nowMs);
+          const withheld = elapsedMs < ARENA_MIN_SETTLE_MS ? 'under_floor' : paid >= ARENA_CPU_DAILY_PAYOUT_CAP ? 'daily_cap' : undefined;
+          const result = rewards(profile,m,reported,nowMs,undefined,withheld);
           updates = withRankHealingReward(profile, result.updates); // #72 rank-tier Kit, moved off the closed legacy settle.
-          receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:c.playerFinalHealth,opponentFinalHealth:c.opponentFinalHealth,combosCompleted:c.combosCompleted,perfectDefenses:c.perfectDefenses},closedAtMs:nowMs};
+          receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:c.playerFinalHealth,opponentFinalHealth:c.opponentFinalHealth,combosCompleted:reported.combosCompleted,perfectDefenses:reported.perfectDefenses},closedAtMs:nowMs};
+          if (withheld === undefined) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
           nextState = 'settled';
         } else {
           receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:c.playerFinalHealth},closedAtMs:nowMs};

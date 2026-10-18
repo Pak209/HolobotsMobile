@@ -12,7 +12,7 @@ const { transactHoloZoneRun } = require('../lib/holozone/holoZoneStore.js');
 test('deleteUserData removes pilot trees including Arena leases, matches and receipts; other pilots untouched', async () => {
   const uid = `del_${Date.now()}`, other = `${uid}_other`;
   for (const u of [uid, other]) {
-    await db.doc(`users/${u}`).set({ holobots: [], buddyUnits: 0 });
+    await db.doc(`users/${u}`).set({ holobots: [], buddyUnits: 0, storyFlags: { arenaGatheringSeen: false, tournamentsWon: 0, arenaArcBuilt: false, holoZonesArcBuilt: true } });
     await db.doc(`users/${u}/fitness_daily/2026-10-01`).set({ steps: 1 });
     await db.doc(`wildEncounterSessions/${u}`).set({ enabled: true });
     await db.doc(`wildEncounterSessions/${u}/receipts/r1`).set({ digest: 'x' });
@@ -61,3 +61,37 @@ test('deleteUserData removes orphaned Arena receipt and match subcollections', a
 });
 
 after(()=>db.terminate());
+
+// Critic review 2026-10-17 S11: a data-field ID token is verified with checkRevoked; request.auth needs no token.
+test('deleteUserAccountV2: request.auth or a checkRevoked-verified data token; a revoked token deletes nothing', async () => {
+  const admin = require('../lib/admin.js');
+  const { deleteUserAccountV2 } = require('../lib/account/deleteUserAccount.js');
+  const original = { verifyIdToken: admin.auth.verifyIdToken, deleteUser: admin.auth.deleteUser };
+  const verified = [], deleted = [];
+  const seed = async u => { await db.doc(`users/${u}`).set({ holobots: [], buddyUnits: 0 }); await db.doc(`rivalBattles/${u}`).set({ openBattles: {} }); };
+  const exists = async u => (await db.doc(`users/${u}`).get()).exists && (await db.doc(`rivalBattles/${u}`).get()).exists;
+  const base = `del_token_${Date.now()}`, revoked = `${base}_revoked`, viaToken = `${base}_token`, viaAuth = `${base}_auth`;
+  admin.auth.verifyIdToken = async (token, checkRevoked) => {
+    verified.push([token, checkRevoked]);
+    if (token === 'revoked-token') { const e = new Error('revoked'); e.code = 'auth/id-token-revoked'; throw e; }
+    return { uid: viaToken };
+  };
+  admin.auth.deleteUser = async u => { deleted.push(u); };
+  try {
+    for (const u of [revoked, viaToken, viaAuth]) await seed(u);
+    await assert.rejects(() => deleteUserAccountV2.run({ data: {} }), e => e.code === 'unauthenticated');
+    await assert.rejects(() => deleteUserAccountV2.run({ data: { idToken: 'revoked-token' } }), e => e.code === 'unauthenticated');
+    assert.deepEqual(verified, [['revoked-token', true]], 'the data token is verified with checkRevoked');
+    assert.equal(await exists(revoked), true, 'a revoked token deletes nothing'); assert.deepEqual(deleted, []);
+    assert.deepEqual(await deleteUserAccountV2.run({ data: { idToken: 'live-token' } }), { success: true });
+    assert.deepEqual(verified.at(-1), ['live-token', true]);
+    assert.equal(await exists(viaToken), false); assert.deepEqual(deleted, [viaToken]);
+    assert.deepEqual(await deleteUserAccountV2.run({ auth: { uid: viaAuth, token: {} }, data: { idToken: 'ignored-token' } }), { success: true });
+    assert.equal(verified.length, 2, 'request.auth is used as-is; the data token is not consulted');
+    assert.equal(await exists(viaAuth), false); assert.deepEqual(deleted, [viaToken, viaAuth]);
+    assert.equal(await exists(revoked), true, 'other pilots untouched');
+  } finally {
+    Object.assign(admin.auth, original);
+    await db.recursiveDelete(db.doc(`users/${revoked}`)); await db.recursiveDelete(db.doc(`rivalBattles/${revoked}`));
+  }
+});

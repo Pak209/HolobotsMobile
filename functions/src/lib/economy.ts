@@ -66,9 +66,7 @@ export function incrementBoosterPacksToday(value: unknown, date = new Date()): R
 
 /**
  * Daily mission table — mirror of DAILY_MISSION_TABLE in
- * mobile/src/lib/dailyMissions.ts (parity-tested). Completion validates
- * against SERVER-incremented counters: arenaBattlesToday is bumped by
- * settleArenaBattle and boosterPacksToday by purchaseMarketplaceBooster.
+ * mobile/src/lib/dailyMissions.ts (parity-tested).
  */
 export const DAILY_MISSION_TABLE = [
   { id: "daily_login", target: 1, reward: { gachaTickets: 1, holosTokens: 0 } },
@@ -76,8 +74,52 @@ export const DAILY_MISSION_TABLE = [
   { id: "open_booster_pack", target: 1, reward: { gachaTickets: 1, holosTokens: 0 } },
 ] as const;
 
+/**
+ * Critic review 2026-10-17 S2: the daily-mission AUTHORITY is the server-only users/{uid}.dailyMissionLedger
+ * ({arenaBattlesToday, boosterPacksToday, lastDailyMissionReset, missionClaims}; firestore.rules
+ * protectedFieldsUntouched + absent on create). Only host callables write it: the counters are bumped by the
+ * arenaMatchHost settle, purchaseMarketplaceBooster, openGachaPack and the desktop cache pack; missionClaims only by
+ * claimDailyMission. users/{uid}.rewardSystem stays client-writable (quest / training state lives there, written by
+ * the main app and lite) and keeps a DISPLAY mirror of the same four keys; nothing pays from it.
+ */
+export const DAILY_MISSION_LEDGER_FIELD = "dailyMissionLedger";
+export type DailyMissionCounter = "arenaBattlesToday" | "boosterPacksToday";
+
+function missionState(value: unknown, date: Date, bump: DailyMissionCounter | null): Record<string, unknown> {
+  const todayKey = getTodayMissionKey(date);
+  const raw = (value && typeof value === "object" && !Array.isArray(value) ? value : {}) as Record<string, unknown>;
+  const fresh = raw.lastDailyMissionReset === todayKey;
+  const count = (key: DailyMissionCounter) => {
+    const n = fresh ? Number(raw[key] || 0) : 0;
+    return (Number.isSafeInteger(n) && n >= 0 ? n : 0) + (bump === key ? 1 : 0);
+  };
+  return {
+    arenaBattlesToday: count("arenaBattlesToday"),
+    boosterPacksToday: count("boosterPacksToday"),
+    lastDailyMissionReset: todayKey,
+    missionClaims: raw.missionClaims && typeof raw.missionClaims === "object" && !Array.isArray(raw.missionClaims) ? raw.missionClaims : {},
+  };
+}
+
+/** The two writes every counter-bumping callable adds: the authoritative ledger and the display mirror. */
+export function dailyMissionCounterUpdates(
+  userData: Record<string, unknown>,
+  counter: DailyMissionCounter,
+  date = new Date(),
+): Record<string, unknown> {
+  return {
+    rewardSystem: missionState(userData.rewardSystem, date, counter),
+    [DAILY_MISSION_LEDGER_FIELD]: missionState(userData[DAILY_MISSION_LEDGER_FIELD], date, counter),
+  };
+}
+
 export type MissionClaimRefusal = "unknown_mission" | "not_completed" | "already_claimed";
 
+/**
+ * Progress comes ONLY from the server-only ledger. A claim is refused when either the ledger or the (client-writable)
+ * rewardSystem mirror already records it today: the mirror can only make a claim stricter, and it carries claims made
+ * before the ledger existed (deploy day). Writes the ledger and the display mirror (merge: quest state survives).
+ */
 export function buildMissionClaimUpdatesRaw(
   userData: Record<string, unknown>,
   missionId: string,
@@ -91,42 +133,34 @@ export function buildMissionClaimUpdatesRaw(
   }
 
   const todayKey = getTodayMissionKey(date);
-  const raw = (userData.rewardSystem && typeof userData.rewardSystem === "object"
-    ? userData.rewardSystem
-    : {}) as Record<string, unknown>;
-  const hasFreshCounters = raw.lastDailyMissionReset === todayKey;
-  const arenaBattlesToday = hasFreshCounters ? Number(raw.arenaBattlesToday || 0) : 0;
-  const boosterPacksToday = hasFreshCounters ? Number(raw.boosterPacksToday || 0) : 0;
-  const missionClaims = (raw.missionClaims && typeof raw.missionClaims === "object"
-    ? raw.missionClaims
-    : {}) as Record<string, unknown>;
+  const ledger = missionState(userData[DAILY_MISSION_LEDGER_FIELD], date, null);
+  const mirror = missionState(userData.rewardSystem, date, null);
+  const ledgerClaims = ledger.missionClaims as Record<string, unknown>;
+  const mirrorClaims = mirror.missionClaims as Record<string, unknown>;
 
   const progress =
     missionId === "daily_login"
       ? 1 // being signed in IS the mission
       : missionId === "arena_v2_battle"
-        ? arenaBattlesToday
-        : boosterPacksToday;
+        ? (ledger.arenaBattlesToday as number)
+        : (ledger.boosterPacksToday as number);
   if (progress < mission.target) {
     return { refusal: "not_completed" };
   }
 
-  if (missionClaims[missionId] === todayKey) {
+  if (ledgerClaims[missionId] === todayKey || mirrorClaims[missionId] === todayKey) {
     return { refusal: "already_claimed" };
   }
 
+  const next = { ...ledger, missionClaims: { ...ledgerClaims, [missionId]: todayKey } };
   return {
     refusal: null,
     reward: { ...mission.reward },
     updates: {
       gachaTickets: Number(userData.gachaTickets || 0) + mission.reward.gachaTickets,
       holosTokens: Number(userData.holosTokens || 0) + mission.reward.holosTokens,
-      rewardSystem: {
-        arenaBattlesToday,
-        boosterPacksToday,
-        lastDailyMissionReset: todayKey,
-        missionClaims: { ...missionClaims, [missionId]: todayKey },
-      },
+      [DAILY_MISSION_LEDGER_FIELD]: next,
+      rewardSystem: { ...next, missionClaims: { ...mirrorClaims, ...next.missionClaims } },
     },
   };
 }
