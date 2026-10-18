@@ -40,7 +40,7 @@ export function TravelSquadPanel({ uid, roster, inline = false, levels }: { uid?
         <View style={styles.slots}>{[0, 1, 2].map(index => <Pressable key={index} accessibilityRole="button" accessibilityState={{ selected: slot === index, disabled: state.busy || state.retry || !state.squad || index > ids.length }}
           disabled={state.busy || state.retry || !state.squad || index > ids.length} onPress={() => setSlot(index)} style={styles.slot}>
           <GameSurfaceFrame accent={slot === index ? theme.colors.accent : theme.colors.border} fill={theme.plates.navy} strong={slot === index} />
-          <Text style={styles.slotNumber}>SLOT {index + 1}</Text><Text style={styles.slotName}>{state.squad ? (ids[index]?.toUpperCase() ?? 'EMPTY') : '—'}</Text>
+          <Text style={styles.slotNumber}>SLOT {index + 1}</Text>{state.squad ? <Text style={styles.slotName}>{ids[index]?.toUpperCase() ?? 'EMPTY'}</Text> : null}
         </Pressable>)}</View>
         <Text style={styles.status} accessibilityLiveRegion="polite">{state.message || (state.busy ? 'Loading travel squad…' : 'Choose your companions.')}</Text>
         <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>

@@ -19,7 +19,7 @@ vi.mock('../../travelSquadFirebase',()=>({
  publishTravelSquadSnapshot:(uid:string,snapshot:any)=>m.squadListener?.({uid,snapshot}),
  travelSquadInvoker:()=>m.refresh,
 }));
-import {openNativeUnity,closeNativeUnity} from '../nativeUnitySession';
+import {openNativeUnity,closeNativeUnity,hasNativeUnity,nativeCityErrorText,NATIVE_CITY_COPY} from '../nativeUnitySession';
 const squad={schemaVersion:'travel-squad-1',revision:1,holobotIds:['ace']};
 const emit=(x:any)=>m.event?.({json:typeof x==='string'?x:JSON.stringify(x)});
 const tick=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
@@ -87,5 +87,19 @@ describe('native Unity session',()=>{
  });
  it('fails closed when authenticated host refresh is unavailable',async()=>{
   m.refresh.mockRejectedValue(new Error('Host unavailable'));const pending=openNativeUnity();const check=expect(pending).rejects.toThrow('Host unavailable');await tick();emit({schemaVersion:'runtime-ready-1'});await tick();emit({schemaVersion:'native-session-1',sessionId:session(),operation:'attached'});await check;expect(m.close).toHaveBeenCalledOnce();
+ });
+});
+
+describe('3D city entry (L17)',()=>{
+ it('is offered only when the build ships the native runtime',()=>{
+  m.nativePresent=true;expect(hasNativeUnity()).toBe(true);
+  m.nativePresent=false;expect(hasNativeUnity()).toBe(false);
+ });
+ it('shows player copy for a failed launch, never a raw native error',()=>{
+  expect(nativeCityErrorText(new Error('HoloCity did not become ready. Try again.'))).toBe('HoloCity did not become ready. Try again.');
+  expect(nativeCityErrorText(new Error('Sign in before entering HoloCity'))).toBe('Sign in before entering HoloCity');
+  for(const raw of [new Error('Unity is already open'),new Error('This build does not include the native Unity module'),new Error('EXC_BAD_ACCESS in UnityFramework'),'boom',undefined])
+   expect(nativeCityErrorText(raw)).toBe(NATIVE_CITY_COPY.failed);
+  expect(nativeCityErrorText(new Error('HoloCity session closed'))).toBeNull();
  });
 });

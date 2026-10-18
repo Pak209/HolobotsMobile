@@ -1,10 +1,11 @@
 import { auth, functions, httpsCallable } from "@/config/firebase";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "./async";
 import {
-  CITY_MARKET_VENDOR, VENDOR_CATALOG_CALLABLE, isSignedOutError, isUncertainOutcome, listingNeedsRequestId, listingPurchasable,
-  listingPurchase, marketUnavailableText, purchaseNotice, readVendorCatalog, refusalNotice,
+  CITY_MARKET_VENDOR, VENDOR_CATALOG_CALLABLE, isSignedOutError, isUncertainOutcome, listingBlock,
+  listingPurchase, marketUnavailableText, purchaseConfirmed, purchaseNotice, readVendorCatalog, refusalNotice, SESSION_SWITCHED_CODE, UNVERIFIED_REPLY_CODE,
   type CityMarketEvent, type MarketNotice, type VendorListing,
 } from "./cityMarket";
+import { notifyHostEconomyChanged } from "./hostDashboard";
 
 /** The two host reads/writes the market page makes. Live = Firebase callables; fixture = offline QA. */
 export type CityMarketHost = { readCatalog(): Promise<unknown>; buy(listing: VendorListing): Promise<unknown> };
@@ -13,42 +14,60 @@ export type CityMarketRequestJournal = {
   complete(uid: string, action: string, requestId: string): Promise<void>;
 };
 
-/** Captures the session across each call so a delayed reply cannot cross accounts. */
-async function marketCall(uid: string, name: string, request: Record<string, unknown>): Promise<unknown> {
+/**
+ * Captures the session across each call so a delayed reply cannot cross accounts. A purchase reply that
+ * lands after an account switch is an uncertain outcome (it may have charged the previous pilot), not
+ * "sign in first": the journal keeps its requestId so that pilot's resend replays the same receipt.
+ */
+async function marketCall(uid: string, name: string, request: Record<string, unknown>, purchase = false): Promise<unknown> {
   if (!uid || auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
+  // PLACEHOLDER copy (Lex, DECISIONS #71).
   const reply = await withTimeout(httpsCallable<Record<string, unknown>, unknown>(functions, name)(request), CALLABLE_TIMEOUT_MS,
-    name === VENDOR_CATALOG_CALLABLE ? "The market host is taking too long. Refresh to retry." : "The market host did not confirm this purchase in time.");
-  if (auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
+    name === VENDOR_CATALOG_CALLABLE ? "The market is taking too long. Refresh to retry." : "The City did not confirm this purchase in time.");
+  if (auth.currentUser?.uid !== uid) throw { code: purchase ? SESSION_SWITCHED_CODE : "unauthenticated" };
   return reply.data;
 }
 
+// PLACEHOLDER copy (Lex, DECISIONS #71).
 export const NOT_SOLD_IN_LITE_TEXT = "This listing is sold on the desktop app only.";
+export const NOT_SOLD_HERE_TEXT = "This stall can't take this order in this app yet.";
 const journalAction = (listing: VendorListing) => `vendor:${CITY_MARKET_VENDOR}:${listing.listingId}`;
 
 /**
- * Live host for one signed-in pilot. A listing whose request carries "<client-generated>" gets a
- * journaled requestId: kept after an uncertain outcome (so a resend replays the same receipt and
- * never buys twice), cleared after any host verdict. Other listings are sent exactly as named and
- * are never retried automatically (the legacy purchase callables are not idempotent).
+ * Live host for one signed-in pilot. Only a listing whose request carries "<client-generated>" is
+ * sent (S12); it gets a journaled requestId: kept after an uncertain outcome (so a resend replays
+ * the same receipt and never buys twice), cleared after any host verdict. The legacy itemName /
+ * packId purchases are not idempotent and never leave the app.
+ * Only a confirmed purchase reply publishes the economy-change signal, so the dashboard re-reads its
+ * Holos; a refusal, an uncertain outcome or an unreadable reply never does.
  */
 export function liveCityMarketHost(uid: string, journal: CityMarketRequestJournal): CityMarketHost {
   return {
     readCatalog: () => marketCall(uid, VENDOR_CATALOG_CALLABLE, { operation: "catalog", vendorId: CITY_MARKET_VENDOR }),
     async buy(listing) {
-      if (!listingPurchasable(listing)) throw new Error(NOT_SOLD_IN_LITE_TEXT);
+      const block = listingBlock(listing);
+      if (block) throw new Error(block === "desktop_only" ? NOT_SOLD_IN_LITE_TEXT : NOT_SOLD_HERE_TEXT);
+      // A stale session sends nothing and leaves the journal alone (a kept requestId must survive).
+      if (!uid || auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
       const action = journalAction(listing);
-      const requestId = listingNeedsRequestId(listing) ? await journal.acquire(uid, action) : undefined;
+      const requestId = await journal.acquire(uid, action);
       const call = listingPurchase(listing, requestId);
       if (!call) throw new Error("This listing could not be bought.");
-      const settle = async () => { if (requestId) { try { await journal.complete(uid, action, requestId); } catch { /* a stale id only replays a receipt */ } } };
+      const settle = async () => { try { await journal.complete(uid, action, requestId); } catch { /* a stale id only replays a receipt */ } };
       let reply: unknown;
       try {
-        reply = await marketCall(uid, call.callable, call.request);
+        reply = await marketCall(uid, call.callable, call.request, true);
       } catch (error) {
-        if (!isUncertainOutcome(error)) await settle();
+        // Only the City's verdict clears the requestId; no verdict (timeout, switch, sign-out) keeps it.
+        if (!isUncertainOutcome(error) && !isSignedOutError(error)) await settle();
         throw error;
       }
+      // Anything but this purchase's own receipt is no verdict either: keep the requestId (a resend
+      // replays the receipt), publish nothing, and let the page say the City did not confirm.
+      if (!purchaseConfirmed(listing, reply, requestId)) throw { code: UNVERIFIED_REPLY_CODE };
       await settle();
+      // A listener must never turn a real charge into a refusal: the signal is best-effort.
+      try { notifyHostEconomyChanged(uid); } catch { /* listeners re-read on focus */ }
       return reply;
     },
   };
