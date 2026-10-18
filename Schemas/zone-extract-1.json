@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "zone-extract-1",
+  "title": "zone-extract-1 holoZoneHost request or successful reply",
+  "description": "Mirror of HolobotsMobile #89 7ee81868 and #92 eba0c342. Validate transport request/reply via $defs/request or $defs/reply. Firebase callable data/result envelope excluded; refusals are callable errors, not success objects. Register both zone schemas and duel-intents-1 / duel-receipt-1. Shape checks do not authenticate or resolve gameplay. Cross-field host invariants remain authoritative.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/reply"
+    }
+  ],
+  "$defs": {
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "zone-extract-1"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "outcome": {
+          "enum": [
+            "normal",
+            "emergency",
+            "wipe"
+          ]
+        },
+        "closedAtMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "banked": {
+          "type": "array",
+          "items": {
+            "$ref": "zone-run-3#/$defs/haul"
+          }
+        },
+        "lost": {
+          "type": "array",
+          "items": {
+            "$ref": "zone-run-3#/$defs/haul"
+          }
+        },
+        "guardianDefeated": {
+          "type": "boolean"
+        },
+        "finalVitals": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "currentHealth": {
+                "type": "number",
+                "minimum": 0
+              },
+              "maxHealth": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "currentHealth",
+              "maxHealth"
+            ]
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "outcome",
+        "closedAtMs",
+        "banked",
+        "lost",
+        "guardianDefeated",
+        "finalVitals"
+      ]
+    },
+    "request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-extract-1"
+            },
+            "operation": {
+              "const": "extract"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "mode": {
+              "const": "normal"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "mode"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-extract-1"
+            },
+            "operation": {
+              "const": "emergency_start"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-extract-1"
+            },
+            "operation": {
+              "const": "emergency_finish"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-extract-1"
+            },
+            "operation": {
+              "const": "wipe"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId"
+          ]
+        }
+      ]
+    },
+    "reply": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-extract-1"
+            },
+            "operation": {
+              "enum": [
+                "extract",
+                "emergency_finish",
+                "wipe",
+                "fight"
+              ]
+            },
+            "run": {
+              "$ref": "zone-run-3#/$defs/run"
+            },
+            "receipt": {
+              "$ref": "#/$defs/receipt"
+            },
+            "duelReceipt": {
+              "$ref": "duel-receipt-1"
+            },
+            "interrupted": {
+              "const": true
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "run",
+            "receipt",
+            "alreadyProcessed"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-extract-1"
+            },
+            "receipt": {
+              "$ref": "#/$defs/receipt"
+            },
+            "alreadyProcessed": {
+              "const": true
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "receipt",
+            "alreadyProcessed"
+          ]
+        }
+      ]
+    }
+  }
+}

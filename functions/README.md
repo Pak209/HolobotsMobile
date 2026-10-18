@@ -21,7 +21,10 @@ auth bridge. Always deploy with an explicit function list:
 firebase deploy --project holobots-24046 --only functions:applyReferralCode,functions:assignWildcardBlueprints,functions:chargeArenaEntry,functions:createGenesisProfile,functions:createWebviewBridgeToken,functions:claimDailyMission,functions:claimGenesisSquad,functions:claimQuestRun,functions:claimTrainingSession,functions:clearWorkoutCooldown,functions:deleteUserAccountV2,functions:mintHolobot,functions:mirrorLeaderboardEntry,functions:openGachaPack,functions:purchaseMarketplaceBooster,functions:purchaseMarketplaceItem,functions:redeemLegendaryBlueprint,functions:revenuecatWebhook,functions:purchaseMarketplacePart,functions:saveHolobotCombatKit,functions:settleArenaBattle,functions:syncFitnessActivity,functions:syncWatchWorkoutRewards,functions:upgradeHolobotRank,functions:upgradeHolobotMove,functions:upgradeSyncStat,functions:useEnergyRefill,functions:useExpBooster,functions:useRankSkip,functions:wildEncounterHost,functions:travelSquadHost,functions:desktopAccountSnapshot,functions:rivalBattleHost,functions:introQuestHost,functions:vendorCatalogHost,functions:purchaseBuddyUnit,functions:wardrobeHost,functions:boostHolobotAttribute,functions:holoZoneHost
 ```
 
-That is all 39 functions exported from `src/index.ts` (2026-10-10: `holoZoneHost` also serves `rival-health-1` on the zone
+That is all 39 functions exported from `src/index.ts` (2026-10-17: `holoZoneHost` serves `zone-run-4` — expedition
+utility results `run.utilityUsed` / `utilityResult`, refusals `utility_spent` / `utility_cooling`, layout `glimpse` /
+`dangerLabel` — additive over `zone-run-3` (whose replies are unchanged); schema `Schemas/zone-run-4.json`, redeploy
+`holoZoneHost` only (`vendorCatalogHost` imports the module but its behaviour is unchanged); 2026-10-10: `holoZoneHost` also serves `rival-health-1` on the zone
 — the one `users/{uid}.holobotVitals` ledger the rival host and the repair item write — see `docs/HOLOCITY_PROGRESSION.md`
 section 9, redeploy `holoZoneHost` only; 2026-10-10: `holoZoneHost` serves `holozone-run-2` — the zone
 population by zone and tier — see `docs/HOLOCITY_PROGRESSION.md` section 5a, redeploy `holoZoneHost` only; 2026-10-06: `holoZoneHost` added for

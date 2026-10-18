@@ -7,9 +7,17 @@ import { healingDelta, healingStock, healingItem } from '../lib/repairItems';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { readStoryFlags } from '../story/storyFlags';
 
+/** Storage version of every run document AND the zone-run-3 wire. zone-run-4 is a reply shape over the same rulings. */
 export const ZONE_RUN_SCHEMA = 'zone-run-3';
+/** zone-run-4 (additive over zone-run-3): run.utilityUsed + utility reply utilityResult. A zone-run-3 request still gets
+ * exactly the zone-run-3 shapes (no utilityUsed / utilityResult, same key order); rulings are identical in both. */
+export const ZONE_RUN_SCHEMA_V4 = 'zone-run-4';
+export type ZoneRunWire = typeof ZONE_RUN_SCHEMA | typeof ZONE_RUN_SCHEMA_V4;
+export const ZONE_RUN_WIRES:readonly string[] = [ZONE_RUN_SCHEMA, ZONE_RUN_SCHEMA_V4];
 export const ZONE_EXTRACT_SCHEMA = 'zone-extract-1';
 export const EXTRACTION_CHANNEL_MS = ZONE_EXPEDITION_RULES.extraction.channelMs;
+export const UTILITY_COOLDOWN_MS = ZONE_EXPEDITION_RULES.utility.cooldownMs;
+const MAX_HAUL = 9;
 export class ExpeditionError extends Error { constructor(public code:string, public details:Record<string,unknown>={}) { super(code); } }
 const fail=(code:string):never=>{throw new ExpeditionError(code);};
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
@@ -61,14 +69,21 @@ export type Haul={id:string;kind:'blueprint_fragment'|'rare_blueprint_fragment'|
 export type ExtractionReceipt={schemaVersion:typeof ZONE_EXTRACT_SCHEMA;runId:string;outcome:'normal'|'emergency'|'wipe';closedAtMs:number;banked:Haul[];lost:Haul[];guardianDefeated:boolean;finalVitals:Vitals};
 export type ExpeditionRun={schemaVersion:typeof ZONE_RUN_SCHEMA;runId:string;state:'open'|'closed';issuedAtMs:number;config:ExpeditionConfig;layout:Layout;privateSeed:number;
   opponents:Record<string,DuelFighterStats>;sectorId:string;visited:string[];cleared:string[];looted:string[];squad:DuelFighterStats[];energy:number;kits:number;charge:number;haul:Haul[];guardianDefeated:boolean;
-  extraction:{startedAtMs:number}|null;receipt:ExtractionReceipt|null;revision:number};
+  extraction:{startedAtMs:number}|null;receipt:ExtractionReceipt|null;revision:number;
+  /** Sector ids whose utility has been spent this run (one-shot). Absent on documents issued before zone-run-4 = []. */
+  utilityUsed:string[];
+  /** Host clock of the last spent utility (cooldown anchor). Internal: never in a run view. */
+  utilityAtMs:number|null};
+export type UtilityEffect='route'|'cache'|'clear'|'none';
+/** zone-run-4 utility reply field. haul = rows this use added (also present in run.haul, unbanked until extraction). */
+export type UtilityResult={sectorId:string;utility:'ace'|'shadow'|'kuma';effect:UtilityEffect;opensSectorId:string|null;haul:Haul[];spent:boolean;cooldownMs:number|null};
 export type ExpeditionCommand={schemaVersion:string;operation:string;requestId?:string;runId?:string;itemId?:string;repairKits?:number;carryExtractionCharge?:boolean;
   sectorId?:string;holobotId?:string;order?:string[];haulId?:string;utility?:string;playerIntents?:unknown};
 const fields:Record<string,string[]>={status:[],layout:[],buy:['itemId'],issue:['repairKits','carryExtractionCharge'],move:['sectorId'],fight:['playerIntents'],cache:[],protect:['haulId'],heal:['holobotId'],reorder:['order'],utility:['utility'],extract:['mode'],emergency_start:[],emergency_finish:[],wipe:[]};
 export function validateExpeditionCommand(raw:unknown):ExpeditionCommand {
   if(!object(raw)||typeof raw.operation!=='string'||!Object.hasOwn(fields,raw.operation))return fail('invalid_request');
   const op=raw.operation,read=op==='status'||op==='layout',town=op==='issue'||op==='buy',extract=op==='extract'||op.startsWith('emergency_')||op==='wipe';
-  if(raw.schemaVersion!==(extract?ZONE_EXTRACT_SCHEMA:ZONE_RUN_SCHEMA)||Object.keys(raw).some(k=>!['schemaVersion','operation',...(!read?['requestId']:[]),...(!read&&!town?['runId']:[]),...fields[op]].includes(k)))return fail('invalid_request');
+  if(!(extract?raw.schemaVersion===ZONE_EXTRACT_SCHEMA:ZONE_RUN_WIRES.includes(String(raw.schemaVersion)))||Object.keys(raw).some(k=>!['schemaVersion','operation',...(!read?['requestId']:[]),...(!read&&!town?['runId']:[]),...fields[op]].includes(k)))return fail('invalid_request');
   const id=(v:unknown)=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
   if(!read&&!id(raw.requestId)||!read&&!town&&!id(raw.runId))return fail('invalid_request');
   if(op==='issue'&&(!whole(raw.repairKits,99)||typeof raw.carryExtractionCharge!=='boolean'))return fail('invalid_request');
@@ -104,10 +119,36 @@ export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionComma
   const squad=players.map(p=>duelFighterFromCombatant({...p,currentHealth:vitals[p.holobotId].currentHealth}));
   const layout=dailyLayout(now),opponents=Object.fromEntries(layout.sectors.filter(s=>!s.safe).map(at=>[at.id,buildThreat(config,at)]));
   const run:ExpeditionRun={schemaVersion:ZONE_RUN_SCHEMA,runId:id,state:'open',issuedAtMs:now,config:structuredClone(config),layout,privateSeed:seed,opponents,
-    sectorId:'entry',visited:['entry'],cleared:[],looted:[],squad,energy:supplies.energy,kits,charge,haul:[],guardianDefeated:false,extraction:null,receipt:null,revision:0};
+    sectorId:'entry',visited:['entry'],cleared:[],looted:[],squad,energy:supplies.energy,kits,charge,haul:[],guardianDefeated:false,extraction:null,receipt:null,revision:0,
+    utilityUsed:[],utilityAtMs:null};
   return {run,updates:{...healingDelta(profile,'item.repair_kit',-kits),holobotVitals:vitals,expeditionSupplies:{...supplies,extractionCharges:supplies.extractionCharges-charge}}};
 }
-export function runView(run:ExpeditionRun){const {privateSeed:_seed,...view}=run;return structuredClone({...view,seed:run.layout.seed,band:sector(run).band,sector:run.sectorId,protectedSlot:run.haul.find(h=>h.protected)??null});}
+/** zone-run-3 view: the deployed shape, byte for byte (utility bookkeeping stripped). zone-run-4 view: schemaVersion
+ * "zone-run-4" plus utilityUsed. The cooldown anchor and private seed never leave the host. */
+export function runView(run:ExpeditionRun,wire:ZoneRunWire=ZONE_RUN_SCHEMA){
+  const {privateSeed:_seed,utilityUsed,utilityAtMs:_cooldown,...view}=run;
+  const shaped=wire===ZONE_RUN_SCHEMA_V4?{...view,schemaVersion:ZONE_RUN_SCHEMA_V4,layout:layoutView(run.layout,wire),utilityUsed}:view;
+  return structuredClone({...shaped,seed:run.layout.seed,band:sector(run).band,sector:run.sectorId,protectedSlot:run.haul.find(h=>h.protected)??null});
+}
+/** The host-authored preview line for a sector, from its role in the daily layout table. */
+export function sectorGlimpse(at:Sector):string{
+  const g=ZONE_EXPEDITION_RULES.layoutCopy.glimpse;
+  return at.band===0?g.entry:at.safe?g.gate:at.utility?g[at.utility]:at.guardian?g.guardian:at.rareDiscovery?g.rareDiscovery:g.cache;
+}
+/** zone-run-3 layout: unchanged. zone-run-4 layout: every sector adds glimpse; band 1-3 sectors add their band's dangerLabel. */
+export function layoutView(layout:Layout,wire:ZoneRunWire=ZONE_RUN_SCHEMA):Layout{
+  if(wire!==ZONE_RUN_SCHEMA_V4)return structuredClone(layout);
+  return {...structuredClone(layout),sectors:layout.sectors.map(s=>({...structuredClone(s),glimpse:sectorGlimpse(s),
+    ...(s.band>0?{dangerLabel:ZONE_EXPEDITION_RULES.layoutCopy.dangerLabels[s.band-1]}:{})}))};
+}
+/** Reply to a run-advancing operation. A closing reply stays zone-extract-1 with the zone-run-3 run view (that schema
+ * references zone-run-3's run); only an open zone-run-4 reply carries utilityResult. */
+export function advanceReply(wire:ZoneRunWire,operation:string,run:ExpeditionRun,result:{duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult}){
+  const closed=run.receipt!==null,v4=wire===ZONE_RUN_SCHEMA_V4&&!closed;
+  return {schemaVersion:closed?ZONE_EXTRACT_SCHEMA:wire,operation,run:runView(run,closed?ZONE_RUN_SCHEMA:wire),receipt:run.receipt,
+    ...(result.duelReceipt?{duelReceipt:result.duelReceipt}:{}),...(result.interrupted?{interrupted:true}:{}),
+    ...(v4&&result.utilityResult?{utilityResult:structuredClone(result.utilityResult)}:{}),alreadyProcessed:false};
+}
 export function readExpedition(raw:unknown):ExpeditionRun{
   if(!object(raw)||raw.schemaVersion!==ZONE_RUN_SCHEMA||typeof raw.runId!=='string'||!['open','closed'].includes(String(raw.state))
     ||!whole(raw.privateSeed,0xffffffff)||!whole(raw.energy)||!whole(raw.kits,99)||!whole(raw.charge,1)||!whole(raw.revision)||!Array.isArray(raw.squad)
@@ -117,16 +158,43 @@ export function readExpedition(raw:unknown):ExpeditionRun{
   if(!whole(r.issuedAtMs,8_640_000_000_000_000)||typeof r.sectorId!=='string'||typeof r.guardianDefeated!=='boolean'
     ||r.squad.length<1||r.squad.length>3||new Set(r.squad.map(b=>b.holobotId)).size!==r.squad.length
     ||r.squad.some(b=>!b||typeof b.holobotId!=='string'||!whole(b.maxHealth)||b.maxHealth<1||typeof b.currentHealth!=='number'||!Number.isFinite(b.currentHealth)||b.currentHealth<0||b.currentHealth>b.maxHealth)
-    ||r.haul.length>9||r.haul.some(h=>!h||typeof h.id!=='string'||!['blueprint_fragment','rare_blueprint_fragment','bulky_salvage'].includes(h.kind)||!whole(h.amount)||h.amount<1||typeof h.protected!=='boolean')
+    ||r.haul.length>MAX_HAUL||r.haul.some(h=>!h||typeof h.id!=='string'||!['blueprint_fragment','rare_blueprint_fragment','bulky_salvage'].includes(h.kind)||!whole(h.amount)||h.amount<1||typeof h.protected!=='boolean')
     ||r.haul.filter(h=>h.protected).length>ZONE_EXPEDITION_RULES.protectedSlot.count||new Set(r.haul.map(h=>h.id)).size!==r.haul.length
     ||!Array.isArray(r.layout.sectors)||r.layout.sectors.length!==10||!r.layout.sectors.some(s=>s.id===r.sectorId)||!whole(r.layout.seed,0xffffffff)
     ||typeof r.layout.day!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(r.layout.day)||!object(r.opponents)
     ||[r.visited,r.cleared,r.looted].some(a=>a.length>10||new Set(a).size!==a.length||a.some(id=>typeof id!=='string'||!r.layout.sectors.some(s=>s.id===id)))
     ||(r.extraction!==null&&(!object(r.extraction)||!whole(r.extraction.startedAtMs,8_640_000_000_000_000)))
     ||(r.state==='open'?r.receipt!==null:!r.receipt||r.receipt.schemaVersion!==ZONE_EXTRACT_SCHEMA||r.receipt.runId!==r.runId))return fail('unavailable');
-  return structuredClone(r);
+  const used=r.utilityUsed??[],at=r.utilityAtMs??null;
+  if(!Array.isArray(used)||used.length>10||new Set(used).size!==used.length||used.some(id=>typeof id!=='string'||!r.layout.sectors.some(s=>s.id===id&&s.utility!==null))
+    ||(at!==null&&!whole(at,8_640_000_000_000_000))||(used.length>0)!==(at!==null))return fail('unavailable');
+  return structuredClone({...r,utilityUsed:used,utilityAtMs:at});
 }
 function sector(run:ExpeditionRun):Sector {return run.layout.sectors.find(s=>s.id===run.sectorId)??fail('unavailable');}
+/** ACE route target, read from the pinned layout: the utility sector's safe neighbor one band deeper (gate{n+1}). */
+export function utilityRoute(layout:Layout,at:Sector):string|null{
+  return at.neighbors.map(id=>layout.sectors.find(s=>s.id===id)).find(s=>!!s&&s.safe&&s.band===at.band+1)?.id??null;
+}
+function routeOpened(run:ExpeditionRun,at:Sector,next:Sector):boolean{
+  return !!at.utility&&ZONE_EXPEDITION_RULES.utility.effects[at.utility]==='route'&&run.utilityUsed.includes(at.id)&&utilityRoute(run.layout,at)===next.id;
+}
+/** Host-only resolution. Effect comes from the rules table for the layout's utility; loot from the run's private seed.
+ * Nothing to do (route already open, barrier already down, haul full) = effect "none": not spent, no cooldown. */
+function resolveUtility(run:ExpeditionRun,at:Sector,now:number):UtilityResult{
+  const utility=at.utility!,effect=ZONE_EXPEDITION_RULES.utility.effects[utility];
+  let opensSectorId:string|null=null,haul:Haul[]=[],applied=false;
+  if(effect==='route'){opensSectorId=utilityRoute(run.layout,at);applied=opensSectorId!==null&&!run.cleared.includes(at.id);if(!applied)opensSectorId=null;}
+  else if(effect==='cache'){
+    if(run.haul.length<MAX_HAUL){
+      const rare=seed32(`${run.privateSeed}:utility:${at.id}`)%10000<run.config.rareBlueprintChanceBasisPoints;
+      haul=[{id:`${at.id}_utility`,kind:rare?'rare_blueprint_fragment':'blueprint_fragment',amount:run.config.cacheFragments,protected:false}];
+      run.haul.push(...structuredClone(haul));applied=true;
+    }
+  }else if(effect==='clear'){if(!run.cleared.includes(at.id)){run.cleared.push(at.id);applied=true;}}
+  if(!applied)return {sectorId:at.id,utility,effect:'none',opensSectorId:null,haul:[],spent:false,cooldownMs:null};
+  run.utilityUsed.push(at.id);run.utilityAtMs=now;
+  return {sectorId:at.id,utility,effect,opensSectorId,haul,spent:true,cooldownMs:UTILITY_COOLDOWN_MS>0?UTILITY_COOLDOWN_MS:null};
+}
 function buildThreat(config:ExpeditionConfig,at:Sector):DuelFighterStats{
   const level=config.bandLevels[Math.max(0,at.band-1)];
   // Existing WOLF curve/commands only. The parked 13th bot is never fabricated or granted.
@@ -148,10 +216,10 @@ function terminal(profile:Record<string,unknown>,run:ExpeditionRun,outcome:Extra
     expeditionBank:{...bank,rareBlueprints:count(bank.rareBlueprints)+banked.filter(h=>h.kind==='rare_blueprint_fragment').reduce((n,h)=>n+h.amount,0),
       bulkySalvage:count(bank.bulkySalvage)+banked.filter(h=>h.kind==='bulky_salvage').reduce((n,h)=>n+h.amount,0),guardianDefeated:bank.guardianDefeated===true||run.guardianDefeated}};
 }
-export function advanceExpedition(profile:Record<string,unknown>,original:ExpeditionRun,c:ExpeditionCommand,now:number):{run:ExpeditionRun;updates:Record<string,unknown>;duelReceipt?:DuelReceipt;interrupted?:boolean}{
+export function advanceExpedition(profile:Record<string,unknown>,original:ExpeditionRun,c:ExpeditionCommand,now:number):{run:ExpeditionRun;updates:Record<string,unknown>;duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult}{
   const run=structuredClone(original);if(run.state!=='open')return fail('run_closed');
   if(now<run.issuedAtMs)return fail('invalid_request');
-  const at=sector(run);let duelReceipt:DuelReceipt|undefined,interrupted=false,updates:Record<string,unknown>={};
+  const at=sector(run);let duelReceipt:DuelReceipt|undefined,interrupted=false,updates:Record<string,unknown>={},utilityResult:UtilityResult|undefined;
   const terminalOp=(outcome:ExtractionReceipt['outcome'])=>{updates=terminal(profile,run,outcome,now);};
   if(run.extraction&&!['fight','emergency_finish','wipe'].includes(c.operation))return fail('extraction_in_progress');
   switch(c.operation){
@@ -159,7 +227,7 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
       const next=run.layout.sectors.find(s=>s.id===c.sectorId);if(!next||!at.neighbors.includes(next.id))return fail('invalid_route');
       const deeper=next.band>at.band||at.safe&&!next.safe;
       if(deeper&&run.energy<run.config.sectorEnergyCost)return fail('no_energy');
-      if(!at.safe&&!run.cleared.includes(at.id)&&next.band>at.band)return fail('sector_not_cleared');
+      if(!at.safe&&!run.cleared.includes(at.id)&&next.band>at.band&&!routeOpened(run,at,next))return fail('sector_not_cleared');
       run.energy=Math.max(0,run.energy-run.config.sectorEnergyCost);run.sectorId=next.id;
       if(!run.visited.includes(next.id))run.visited.push(next.id);break;
     }
@@ -185,7 +253,12 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
       if((bot.currentHealth??bot.maxHealth)>=bot.maxHealth)return fail('already_full');run.kits--;bot.currentHealth=Math.min(bot.maxHealth,(bot.currentHealth??bot.maxHealth)+bot.maxHealth*healingItem('item.repair_kit')!.fraction);break;
     }
     case 'reorder': {if(!at.safe)return fail('safe_room_required');if(c.order!.length!==run.squad.length||c.order!.some(id=>!run.squad.some(b=>b.holobotId===id)))return fail('not_in_squad');run.squad=c.order!.map(id=>run.squad.find(b=>b.holobotId===id)!);break;}
-    case 'utility': {if(!at.utility||at.utility!==c.utility)return fail('no_utility');if(!run.squad.some(b=>b.holobotId===c.utility&&(b.currentHealth??b.maxHealth)>0))return fail('companion_required');break;}
+    case 'utility': {
+      if(!at.utility||at.utility!==c.utility)return fail('no_utility');if(!run.squad.some(b=>b.holobotId===c.utility&&(b.currentHealth??b.maxHealth)>0))return fail('companion_required');
+      if(run.utilityUsed.includes(at.id))return fail('utility_spent');
+      if(run.utilityAtMs!==null){const retryAfterMs=run.utilityAtMs+UTILITY_COOLDOWN_MS-now;if(retryAfterMs>0)throw new ExpeditionError('utility_cooling',{retryAfterMs});}
+      utilityResult=resolveUtility(run,at,now);break;
+    }
     case 'extract': if(!at.beacon)return fail('beacon_required');terminalOp('normal');break;
     // Resolver fights settle atomically: uncleared host encounter is the conservative open-fight gate.
     // Refuse before spending a charge; no live mid-fight escape lifecycle is introduced.
@@ -199,5 +272,5 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
   }
   run.revision++;
   if(run.state==='open')updates={expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy},holobotVitals:{...(profile.holobotVitals as Vitals??{}),...vitalsOf(run)}};
-  return {run,updates,...(duelReceipt?{duelReceipt}:{}),...(interrupted?{interrupted:true}:{})};
+  return {run,updates,...(duelReceipt?{duelReceipt}:{}),...(interrupted?{interrupted:true}:{}),...(utilityResult?{utilityResult}:{})};
 }
