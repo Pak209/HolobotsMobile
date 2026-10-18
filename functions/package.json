@@ -23,6 +23,7 @@
     "test:arena-admitted-contract": "node --test scripts/test-arena-admitted-contract.mjs",
     "test:arena-3v3-contract": "node --test scripts/test-arena-match-3v3-contract.mjs",
     "test:story-flag-admin": "node --test scripts/test-story-flag-admin.mjs",
+    "test:story-flag-admin:emulator": "../rules-tests/node_modules/.bin/firebase emulators:exec --config ../firebase.json --project demo-holobots-story-flags --only firestore 'node --test scripts/test-story-flag-admin-emulator.mjs'",
     "test:pvp-room-fighters:emulator": "../rules-tests/node_modules/.bin/firebase emulators:exec --config ../firebase.json --project demo-holobots-pvp-fighters --only firestore 'node --test scripts/test-pvp-room-fighters-emulator.mjs'"
   },
   "dependencies": {
