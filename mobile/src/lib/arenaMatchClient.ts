@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, functions, httpsCallable } from '@/config/firebase';
 import { withTimeout, CALLABLE_TIMEOUT_MS } from './async';
-import { ArenaMatchFlow, type ArenaIssue } from './arenaMatchFlow';
+import { ArenaMatchFlow, type ArenaCheckpoint, type ArenaIssue, type ArenaPendingSettle } from './arenaMatchFlow';
 import type { Arena3v3Swap } from './arenaMatch3v3';
 
 const accountStorage = <T>(key: string) => ({
@@ -23,5 +23,12 @@ export function createArenaMatchClient(uid: string) {
         return response.data;
     }, accountStorage<ArenaIssue>(key), () => auth.currentUser?.uid === uid,
     // arena-match-3v3-1 swap intents: same callable, own key. Dormant until arena-host-resolver-1 and the 3v3 host land (HELD).
-    accountStorage<Arena3v3Swap>(`arena-match-3v3-pending-1:${uid}`));
+    accountStorage<Arena3v3Swap>(`arena-match-3v3-pending-1:${uid}`), {
+        // A settle the host has not confirmed yet (too_fast floor, lost reply): resent unchanged after a kill or relaunch.
+        settles: accountStorage<ArenaPendingSettle>(`arena-match-settle-pending-1:${uid}`),
+        // F4: the last terminal receipt the player dismissed on this device.
+        acks: accountStorage<string>(`arena-match-ack-1:${uid}`),
+        // F3: the local practice fight's last HP/performance for the open match, so an interrupted fight continues.
+        checkpoints: accountStorage<ArenaCheckpoint>(`arena-match-checkpoint-1:${uid}`),
+    });
 }

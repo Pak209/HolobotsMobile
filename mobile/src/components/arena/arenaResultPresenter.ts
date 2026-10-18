@@ -1,5 +1,6 @@
 import { theme } from "@/theme";
 import type { BattleRewards } from "@/types/arena";
+import type { ArenaClosure, ArenaPayoutWithheld } from "@/lib/arenaMatchFlow";
 
 /**
  * Arena RESULT presenter: the subtitle and the reward rows come from ONE
@@ -11,14 +12,16 @@ import type { BattleRewards } from "@/types/arena";
  * be printed under a "NO REWARDS" line again.
  */
 export type ArenaResultReceipt =
-  | { kind: "host"; rewards: BattleRewards }
+  | { kind: "host"; rewards: BattleRewards; withheld?: ArenaPayoutWithheld | null }
   | { kind: "qa-standin" };
 
 export type ArenaResultRowTone = "plain" | "rare" | "positive" | "negative";
+/** L18: each row draws a real reward glyph (BattleResultsModal maps the key to the bundled art), not a repeat of its label. */
+export type ArenaRewardGlyph = "exp" | "sync" | "holos" | "blueprint" | "rating";
 
 export type ArenaResultRow = {
   key: string;
-  icon: string;
+  glyph: ArenaRewardGlyph;
   label: string;
   value: string;
   frameAccent: string;
@@ -26,30 +29,45 @@ export type ArenaResultRow = {
 };
 
 export type ArenaResultPresentation = {
+  /** The big headline: VICTORY! / DEFEAT, or FORFEIT / ENTRY REFUNDED for a match closed without a settle (F7). */
+  headline: string;
+  /** "win" draws the accent frame; "loss" the danger frame; "neutral" (refund) the border frame. */
+  tone: "win" | "loss" | "neutral";
   subtitle: string;
+  /** One honest line under the subtitle: why nothing was paid, or what a forfeit/refund recorded. */
+  notice: string | null;
   /** null when there are no reward rows: no empty REWARDS header. */
   rowsTitle: string | null;
   rows: ArenaResultRow[];
 };
 
-// PLACEHOLDER copy until Lex signs off the result-screen strings.
+// PLACEHOLDER copy until Lex signs off the result-screen strings. DECISIONS #71: the authority is "the City".
 export const ARENA_RESULT_COPY = {
   qaStandIn: "QA / SIMULATED / NO REWARDS",
-  hostReceipt: "HOST RECEIPT",
-  hostNothingGranted: "HOST RECEIPT · NOTHING GRANTED",
+  cityReceipt: "CITY RECEIPT",
+  cityNothingGranted: "CITY RECEIPT · NOTHING GRANTED",
+  cityNoRewards: "CITY RECEIPT · NO REWARDS",
   rewardsTitle: "REWARDS",
   consolationTitle: "CONSOLATION",
+  victory: "VICTORY!",
+  defeat: "DEFEAT",
+  forfeit: "FORFEIT",
+  refunded: "ENTRY REFUNDED",
+  withheld: {
+    daily_cap: "Daily Arena rewards reached · resets 00:00 UTC",
+    under_floor: "Quick loss · no rewards",
+  },
 } as const;
 
 const positive = (n: number | undefined): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
 
 function hostRows(rewards: BattleRewards): ArenaResultRow[] {
   const rows: ArenaResultRow[] = [];
-  if (positive(rewards.exp)) rows.push({ key: "exp", icon: "EXP", label: "EXP", value: `+${rewards.exp}`, frameAccent: theme.colors.border, tone: "plain" });
-  if (positive(rewards.syncPoints)) rows.push({ key: "sp", icon: "SP", label: "Sync Points", value: `+${rewards.syncPoints}`, frameAccent: theme.colors.accent, tone: "plain" });
-  if (positive(rewards.holos)) rows.push({ key: "holos", icon: "H", label: "HOLOS", value: `+${rewards.holos}`, frameAccent: theme.colors.accent, tone: "rare" });
+  if (positive(rewards.exp)) rows.push({ key: "exp", glyph: "exp", label: "EXP", value: `+${rewards.exp}`, frameAccent: theme.colors.border, tone: "plain" });
+  if (positive(rewards.syncPoints)) rows.push({ key: "sp", glyph: "sync", label: "Sync Points", value: `+${rewards.syncPoints}`, frameAccent: theme.colors.accent, tone: "plain" });
+  if (positive(rewards.holos)) rows.push({ key: "holos", glyph: "holos", label: "HOLOS", value: `+${rewards.holos}`, frameAccent: theme.colors.accent, tone: "rare" });
   for (const bp of rewards.blueprintRewards ?? []) {
-    if (positive(bp.amount)) rows.push({ key: `bp:${bp.holobotKey}`, icon: "BP", label: `${bp.holobotKey.toUpperCase()} BLUEPRINT`, value: `+${bp.amount}`, frameAccent: theme.colors.accent, tone: "rare" });
+    if (positive(bp.amount)) rows.push({ key: `bp:${bp.holobotKey}`, glyph: "blueprint", label: `${bp.holobotKey.toUpperCase()} BLUEPRINT`, value: `+${bp.amount}`, frameAccent: theme.colors.accent, tone: "rare" });
   }
   return rows;
 }
@@ -57,23 +75,41 @@ function hostRows(rewards: BattleRewards): ArenaResultRow[] {
 function ratingRow(eloChange: number | undefined): ArenaResultRow | null {
   if (typeof eloChange !== "number") return null;
   const up = eloChange >= 0;
-  return { key: "rating", icon: "RT", label: "Rating", value: `${up ? "+" : ""}${eloChange}`, frameAccent: up ? theme.colors.accent : theme.colors.danger, tone: up ? "positive" : "negative" };
+  return { key: "rating", glyph: "rating", label: "Rating", value: `${up ? "+" : ""}${eloChange}`, frameAccent: up ? theme.colors.accent : theme.colors.danger, tone: up ? "positive" : "negative" };
 }
+
+const join = (...parts: Array<string | undefined>) => parts.filter(Boolean).join(" · ");
 
 /** `context` is the caller's match line (e.g. "ACE LV 4 · HARE LV 12"). */
 export function presentArenaResult(input: { didWin: boolean; receipt: ArenaResultReceipt; context?: string }): ArenaResultPresentation {
-  const join = (...parts: Array<string | undefined>) => parts.filter(Boolean).join(" · ");
+  const base = { headline: input.didWin ? ARENA_RESULT_COPY.victory : ARENA_RESULT_COPY.defeat, tone: input.didWin ? "win" as const : "loss" as const };
   if (input.receipt.kind === "qa-standin") {
-    return { subtitle: join(ARENA_RESULT_COPY.qaStandIn, input.context), rowsTitle: null, rows: [] };
+    return { ...base, subtitle: join(ARENA_RESULT_COPY.qaStandIn, input.context), notice: null, rowsTitle: null, rows: [] };
   }
-  const granted = hostRows(input.receipt.rewards);
+  const withheld = input.receipt.withheld ?? null;
+  // A withheld receipt is all-zero by contract (arenaReceiptResult); never print a row under its notice.
+  const granted = withheld ? [] : hostRows(input.receipt.rewards);
   const rating = ratingRow(input.receipt.rewards.eloChange);
   const rows = rating ? [...granted, rating] : granted;
   return {
-    subtitle: join(input.context, granted.length > 0 ? ARENA_RESULT_COPY.hostReceipt : ARENA_RESULT_COPY.hostNothingGranted),
+    ...base,
+    subtitle: join(input.context, withheld ? ARENA_RESULT_COPY.cityNoRewards : granted.length > 0 ? ARENA_RESULT_COPY.cityReceipt : ARENA_RESULT_COPY.cityNothingGranted),
+    notice: withheld ? ARENA_RESULT_COPY.withheld[withheld] : null,
     rowsTitle: rows.length > 0 ? (input.didWin ? ARENA_RESULT_COPY.rewardsTitle : ARENA_RESULT_COPY.consolationTitle) : null,
     rows,
   };
+}
+
+/** F7: a match the City closed without a settle. A refund names what came back; a forfeit names the HP it recorded. */
+export function presentArenaClosure(input: { closure: ArenaClosure; fighter: string; context?: string }): ArenaResultPresentation {
+  const { closure } = input;
+  const late = closure.expired ? " · match timed out" : "";
+  if (closure.kind === "refund") {
+    const what = closure.method === "pass" ? `${closure.amount} Arena Pass${closure.amount === 1 ? "" : "es"}` : `${closure.amount} Holos`;
+    return { headline: ARENA_RESULT_COPY.refunded, tone: "neutral", subtitle: join(input.context, ARENA_RESULT_COPY.cityReceipt), notice: `Cancelled before the fight${late} · ${what} returned`, rowsTitle: null, rows: [] };
+  }
+  const hp = closure.finalHealth !== null && closure.maxHealth !== null ? ` · ${input.fighter} HP ${Math.round(closure.finalHealth)} / ${Math.round(closure.maxHealth)}` : "";
+  return { headline: ARENA_RESULT_COPY.forfeit, tone: "loss", subtitle: join(input.context, ARENA_RESULT_COPY.cityNoRewards), notice: `Forfeit${late} · entry not refunded${hp}`, rowsTitle: null, rows: [] };
 }
 
 /**
