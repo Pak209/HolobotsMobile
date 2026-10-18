@@ -5,7 +5,7 @@ import { applyBenchRegen, createTeamBattle, type TeamBattle } from '@/features/a
 import type { ArenaFighter } from '@/types/arena';
 import fixture from './fixtures/arena-match-3v3-lifecycle.json';
 
-/** Verbatim copy of functions/scripts/fixtures/arena-match-3v3/lifecycle.json (HolobotsMobile #134, commit f94f786). */
+/** Verbatim copy of functions/scripts/fixtures/arena-match-3v3/lifecycle.json (HolobotsMobile #134 at b1149bd; byte-identical since f94f786). */
 export const ARENA_3V3_FIXTURE_SHA256 = 'cded7d434e9d318f2571230bd96a7d987ef1e3eb8d18061ce6f8c071341c20cf';
 /** Known-bad calibration first, then host cells. */
 export const ARENA_BENCH_PREVIEW_ROUTES = ['ArenaBenchKnownBad', 'ArenaBenchCommand', 'ArenaBenchRefused', 'ArenaBenchSendIn', 'ArenaBenchSettled'] as const;

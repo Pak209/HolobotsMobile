@@ -13,7 +13,7 @@ Today:
 
 ## PRs
 
-- **Contract** [Pak209/HolobotsMobile#134](https://github.com/Pak209/HolobotsMobile/pull/134), into `main`, branch `claude/lite-3v3-prep-1-contract`, head `f94f786`.
+- **Contract** [Pak209/HolobotsMobile#134](https://github.com/Pak209/HolobotsMobile/pull/134), into `main`, branch `claude/lite-3v3-prep-1-contract`, head `b1149bd`, rebased on main `dd49ab3`. Main's S1 1v1 hardening (#143) is cited as a 3v3 runtime obligation.
   - `Schemas/arena-match-3v3-1.json` and `Schemas/arena-match-request-3v3-1.json`.
   - A hand-authored fixture, `functions/scripts/fixtures/arena-match-3v3/lifecycle.json`: 25 steps (15 accepted, 10 refused), sha256 `cded7d434e9d318f2571230bd96a7d987ef1e3eb8d18061ce6f8c071341c20cf`. Its bout steps are hand-authored stand-ins for host-resolved bouts.
   - **No client message decides a bout.** A report with HP above the host's stored value, or with both sides at 0, is refused (`invalid_request`, matching 1v1). That check is a **defensive shape check, not the authority**. Bouts are host-simulated (`arena-host-resolver-1`). Pak call 1 asks whether to override this.
