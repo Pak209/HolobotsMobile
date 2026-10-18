@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {T,CONFIG,profile,issued} from './zone-expedition-fixtures.mjs';
 const require=createRequire(import.meta.url),Z=require('../lib/holozone/expedition.js'),C=require('../lib/config/zoneExpedition.js'),{expeditionRejection}=require('../lib/holozone/expeditionErrors.js');
-const {default:Ajv2020}=createRequire(new URL('../../rules-tests/package.json',import.meta.url))('ajv/dist/2020');
+const {default:Ajv2020}=require('ajv/dist/2020');
 const load=n=>JSON.parse(readFileSync(new URL(n,import.meta.url)));
 const ajv=new Ajv2020({strict:false});for(const n of ['duel-intents-1','duel-receipt-1','zone-extract-1','zone-run-3','zone-run-4'])ajv.addSchema(load(`../../Schemas/${n}.json`));
 const v3=ajv.getSchema('zone-run-3'),v4=ajv.getSchema('zone-run-4'),extract=ajv.getSchema('zone-extract-1');
