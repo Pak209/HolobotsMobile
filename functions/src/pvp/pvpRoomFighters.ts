@@ -1,5 +1,6 @@
 /** pvp-room-fighters-1: host-minted PvP fighter snapshots (Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md).
- * Presentation only. The caller's OWNED bot level is minted into the server-only `pvpRoomSeats/{roomId}` doc
+ * Presentation only. The caller's owned-bot level, as stored in the OWNER-WRITABLE users/{uid}.holobots (S4 open:
+ * both ownership and level are only as trustworthy as that field), is minted into the server-only `pvpRoomSeats/{roomId}` doc
  * (no client rule: firestore.rules' default deny; Admin SDK only) and both seats come back in the callable reply.
  * The `battle_rooms` doc itself stays client-authored (SECURITY_AUDIT.md C4) and is only read here, never written.
  * Nothing here settles, rewards or validates combat.
@@ -17,10 +18,13 @@ export const PVP_ROOM_SEATS = 'pvpRoomSeats';
 export const PVP_ROOM_TIER = 0;
 export const PVP_ROOM_ID = /^[A-Za-z0-9]{20}$/; // Firestore auto-ID; both room writers use doc(collection(...)).
 export class PvpRoomError extends Error { constructor(public code: string) { super(code); } }
-/** Every refusal code and its callable status. The host never invents a level on any of them. */
+/** Every refusal code and its callable status. The host never invents a level on any of them. All are
+ * permanent for the same inputs (none is the transient `unavailable`): bad stored data fails as
+ * profile_invalid / room_invalid (failed-precondition) or seats_invalid (data-loss), never as "retry later". */
 export const PVP_ROOM_REFUSALS = {
   invalid_request: 'invalid-argument', unknown_room: 'not-found', not_participant: 'permission-denied',
-  room_closed: 'failed-precondition', not_seated: 'failed-precondition', not_owned: 'failed-precondition', unavailable: 'unavailable',
+  room_closed: 'failed-precondition', not_seated: 'failed-precondition', not_owned: 'failed-precondition',
+  profile_invalid: 'failed-precondition', room_invalid: 'failed-precondition', seats_invalid: 'data-loss',
 } as const;
 
 type Data = Record<string, any>;
@@ -62,7 +66,7 @@ function seatedIds(room: Data, role: PvpRole): string[] {
   const names: unknown[] = [room.players[role].holobotName];
   if (room.mode === '3v3') {
     const members = object(room.teams) && object(room.teams[role]) ? room.teams[role].members : undefined;
-    if (!Array.isArray(members) || members.length > 3) return fail('unavailable');
+    if (!Array.isArray(members) || members.length > 3) return fail('room_invalid');
     for (const m of members) names.push(object(m) ? m.holobotName : undefined);
   }
   return names.filter((n): n is string => typeof n === 'string' && n.trim() !== '').map(toHolobotKey);
@@ -76,10 +80,10 @@ const snapshotOk = (s: unknown, id: string): s is ArenaFighterSnapshot => {
 export function readPvpRoomSeats(raw: unknown, roomId: string): PvpSeatsByUid {
   if (raw === undefined) return {};
   if (!object(raw) || raw.schemaVersion !== PVP_ROOM_FIGHTERS_SCHEMA || raw.roomId !== roomId || !object(raw.byUid)
-    || Object.keys(raw).some(k => !['schemaVersion', 'roomId', 'byUid'].includes(k))) return fail('unavailable');
+    || Object.keys(raw).some(k => !['schemaVersion', 'roomId', 'byUid'].includes(k))) return fail('seats_invalid');
   for (const [uid, entry] of Object.entries(raw.byUid)) {
     if (!uid || !object(entry) || Object.keys(entry).length !== 1 || !object(entry.fighters)
-      || Object.entries(entry.fighters).some(([id, s]) => !snapshotOk(s, id))) return fail('unavailable');
+      || Object.entries(entry.fighters).some(([id, s]) => !snapshotOk(s, id))) return fail('seats_invalid');
   }
   return raw.byUid as PvpSeatsByUid;
 }
@@ -95,18 +99,18 @@ function currentSeats(byUid: PvpSeatsByUid, room: Data): PvpSeats {
 }
 /** Exactly one owned record for a catalog bot. Mirrors arenaMatchStore uniqueEntrant (missing level is 1), but a null level is refused. */
 function ownedLevel(profile: unknown, id: string): number {
-  if (!object(profile) || !Array.isArray(profile.holobots)) return fail('unavailable');
+  if (!object(profile) || !Array.isArray(profile.holobots)) return fail('profile_invalid');
   const found = profile.holobots.filter((h: unknown) => object(h) && typeof h.name === 'string' && toHolobotKey(h.name) === id);
   if (found.length === 0 || !Object.hasOwn(HOLOBOT_BASE_STATS, id.toUpperCase())) return fail('not_owned');
-  if (found.length > 1) return fail('unavailable');
+  if (found.length > 1) return fail('profile_invalid');
   const level = found[0].level === undefined ? 1 : found[0].level; // Owner-writable: validate before playerCombatant floors it.
-  if (!Number.isSafeInteger(level) || level < 1) return fail('unavailable');
+  if (!Number.isSafeInteger(level) || level < 1) return fail('profile_invalid');
   return level;
 }
 
 /** Pure `seat` ruling. Same owned-bot path as Arena issue: profile.holobots -> buildPlayerCombatants. */
 export function mintPvpRoomFighter(room: unknown, profile: unknown, seatsDoc: unknown, uid: string, roomId: string, holobotId: string): PvpRoomFighterMint {
-  if (!object(room) || !object(room.players)) return fail('unavailable');
+  if (!object(room) || !object(room.players)) return fail('room_invalid');
   if (room.status !== 'waiting' && room.status !== 'active') return fail('room_closed');
   const role = callerRole(room, uid);
   if (!seatedIds(room, role).includes(holobotId)) return fail('not_seated');
@@ -118,10 +122,10 @@ export function mintPvpRoomFighter(room: unknown, profile: unknown, seatsDoc: un
   }
   const level = ownedLevel(profile, holobotId);
   const combatant = buildPlayerCombatants(profile as Data, [holobotId])[0];
-  if (!combatant || combatant.level !== level) return fail('unavailable');
+  if (!combatant || combatant.level !== level) return fail('profile_invalid');
   let fighter: ArenaFighterSnapshot;
   try { fighter = arenaFighterSnapshot(combatant, PVP_ROOM_TIER); }
-  catch { return fail('unavailable'); } // Level above 99: refuse, never clamp.
+  catch { return fail('profile_invalid'); } // Level above 99: refuse, never clamp.
   const next: PvpSeatsByUid = { ...byUid, [uid]: { fighters: { ...(mine?.fighters ?? {}), [holobotId]: fighter } } };
   // Merge payload touches only the caller's own entry; no other uid's snapshot can be dropped by a mint.
   const write = { schemaVersion: PVP_ROOM_FIGHTERS_SCHEMA, roomId, byUid: { [uid]: { fighters: { [holobotId]: fighter } } } };
@@ -129,7 +133,7 @@ export function mintPvpRoomFighter(room: unknown, profile: unknown, seatsDoc: un
 }
 /** Pure `read` ruling: both current seats, for a participant only. Any room status, so a result screen still badges. */
 export function readPvpRoomFighters(room: unknown, seatsDoc: unknown, uid: string, roomId: string): { role: PvpRole; seats: PvpSeats } {
-  if (!object(room) || !object(room.players)) return fail('unavailable');
+  if (!object(room) || !object(room.players)) return fail('room_invalid');
   const role = callerRole(room, uid);
   return { role, seats: currentSeats(readPvpRoomSeats(seatsDoc, roomId), room) };
 }

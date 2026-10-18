@@ -7,7 +7,7 @@ export const pvpRoomFighterHost = onCall(async request => {
   try { return await transactPvpRoomFighter(db, request.auth.uid, request.data); }
   catch (e) {
     if (e instanceof PvpRoomError) {
-      throw new HttpsError(PVP_ROOM_REFUSALS[e.code as keyof typeof PVP_ROOM_REFUSALS] ?? 'unavailable', e.code, { rejectionCode: e.code });
+      throw new HttpsError(PVP_ROOM_REFUSALS[e.code as keyof typeof PVP_ROOM_REFUSALS] ?? 'internal', e.code, { rejectionCode: e.code });
     }
     throw e;
   }

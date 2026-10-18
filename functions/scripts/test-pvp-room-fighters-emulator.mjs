@@ -28,7 +28,7 @@ const seatsDoc=async id=>(await db.doc(`${PVP_ROOM_SEATS}/${id}`).get()).data();
 async function seed(){for(const [uid,p] of Object.entries(profiles))await db.doc(`users/${uid}`).set(p);}
 async function newRoom(extra,id){const ref=id?db.doc(`battle_rooms/${id}`):db.collection('battle_rooms').doc();if(!rooms.includes(ref.id))rooms.push(ref.id);await ref.set(clientRoom(ref.id,extra));return ref;}
 
-test('known-bad control: a client-authored room carries only local levels and the host has minted nothing',async()=>{
+test('premise: a client-authored room carries only local levels and the host has minted nothing',async()=>{
  await seed();const ref=await newRoom();const room=(await ref.get()).data();
  assert.equal(room.players.p1.level,99); // Local value; ACE is 21 on the host record.
  assert.equal(await seatsDoc(ref.id),undefined);

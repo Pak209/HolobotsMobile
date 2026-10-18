@@ -21,7 +21,7 @@ const code=c=>e=>e.code===c;
 const applyWrite=(doc,write)=>{const out=clone(doc)??{};const m=(t,src)=>{for(const [k,v] of Object.entries(src)){if(v&&typeof v==='object'&&!Array.isArray(v)&&t[k]&&typeof t[k]==='object')m(t[k],v);else t[k]=clone(v);}};m(out,write);return out;};
 const docFor=(uid,fighters)=>({schemaVersion:'pvp-room-fighters-1',roomId,byUid:{[uid]:{fighters}}});
 
-test('known-bad control: the client-authored room carries local levels and no host snapshot; the host reads it, never trusts its levels',()=>{
+test('premise: the recorded client-authored room carries local levels (99 / 50) and no host snapshot',()=>{
  assert.deepEqual([bad.players.p1.level,bad.players.p2.level],[99,50]);
  assert.equal(bad.hostFighters,undefined);
  assert.deepEqual([R.seatP1.fighter.level,R.seatP2.fighter.level],[21,12]);
@@ -41,6 +41,14 @@ test('pure rulings reproduce the recorded emulator replies and stored doc from t
  assert.deepEqual(a.fighter,arenaFighterSnapshot({holobotId:'ace',level:21},PVP_ROOM_TIER));assert.equal(PVP_ROOM_TIER,0);
  // The local room level never feeds the ruling: forging it changes nothing.
  assert.equal(mint({...bad,players:{...bad.players,p1:{...bad.players.p1,level:1}}},p1.uid,'ace').fighter.level,21);
+});
+
+test('S4 OPEN (documented, not fixed here): ownership AND level come from the owner-writable users/{uid}.holobots',()=>{
+ // An owner who writes WOLF LV 99 into their own profile and seats WOLF gets a WOLF 99 snapshot. The stored seat
+ // cannot be forged by a client, but its source can, until host-economy-hardening-1 protects holobots.
+ const room={...bad,players:{...bad.players,p1:{...bad.players.p1,holobotName:'WOLF'}}};
+ const forgedProfile={...p1,holobots:[...p1.holobots,{name:'WOLF',level:99}]};
+ assert.deepEqual(mint(room,p1.uid,'wolf',{profile:forgedProfile}).fighter,{holobotId:'wolf',level:99,displayName:'WOLF',tier:0});
 });
 
 test('frozen: once minted, a level-up replays the stored snapshot instead of re-minting',()=>{
@@ -81,20 +89,20 @@ const SEAT_REFUSALS=[
  ['not a catalog bot','not_owned',()=>[{...bad,players:{...bad.players,p1:{...bad.players.p1,holobotName:'GHOSTBOT'}}},p1.uid,'ghostbot',{profile:ownedBots([{name:'GHOSTBOT',level:5}])}]],
  ['completed room','room_closed',()=>[{...bad,status:'completed'},p1.uid,'ace']],
  ['abandoned room','room_closed',()=>[{...bad,status:'abandoned'},p1.uid,'ace']],
- ['no profile','unavailable',()=>[bad,p1.uid,'ace',{profile:NO_PROFILE}]],
- ['duplicate owned records','unavailable',()=>[bad,p1.uid,'ace',{profile:ownedBots([...p1.holobots,{name:'ace',level:3}])}]],
- ...['21',0,-1,1.5,null,NaN].map(level=>[`stored level ${String(level)}`,'unavailable',()=>[bad,p1.uid,'ace',{profile:ownedBots([{name:'ACE',level}])}]]),
- ['stored level 100 is refused, never clamped','unavailable',()=>[bad,p1.uid,'ace',{profile:ownedBots([{name:'ACE',level:100}])}]],
- ['3v3 lineup larger than three','unavailable',()=>[{...bad,mode:'3v3',teams:{p1:{members:[1,2,3,4].map(()=>bad.players.p1)},p2:{members:[]}}},p1.uid,'ace']],
- ['seats doc with another schema','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,schemaVersion:'pvp-room-fighters-0'}}]],
- ['seats doc for another room','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,roomId:'B'.repeat(20)}}]],
- ['seats doc with an extra key','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,level:99}}]],
- ['seats doc without byUid','unavailable',()=>[bad,p1.uid,'ace',{seats:{schemaVersion:'pvp-room-fighters-1',roomId}}]],
- ['seats doc with a role-keyed seat','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,p1:{uid:p1.uid,fighters:{}}}}]],
- ['byUid entry with an extra key','unavailable',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,byUid:{...fixture.seatsDoc.byUid,[p1.uid]:{fighters:{},role:'p1'}}}}]],
- ['stored snapshot with a fifth key','unavailable',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,uid:p1.uid})}]],
- ['stored snapshot with a non-PvP tier','unavailable',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,tier:3})}]],
- ['stored snapshot level 100','unavailable',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,level:100})}]],
+ ['no profile','profile_invalid',()=>[bad,p1.uid,'ace',{profile:NO_PROFILE}]],
+ ['duplicate owned records','profile_invalid',()=>[bad,p1.uid,'ace',{profile:ownedBots([...p1.holobots,{name:'ace',level:3}])}]],
+ ...['21',0,-1,1.5,null,NaN].map(level=>[`stored level ${String(level)}`,'profile_invalid',()=>[bad,p1.uid,'ace',{profile:ownedBots([{name:'ACE',level}])}]]),
+ ['stored level 100 is refused, never clamped','profile_invalid',()=>[bad,p1.uid,'ace',{profile:ownedBots([{name:'ACE',level:100}])}]],
+ ['3v3 lineup larger than three','room_invalid',()=>[{...bad,mode:'3v3',teams:{p1:{members:[1,2,3,4].map(()=>bad.players.p1)},p2:{members:[]}}},p1.uid,'ace']],
+ ['seats doc with another schema','seats_invalid',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,schemaVersion:'pvp-room-fighters-0'}}]],
+ ['seats doc for another room','seats_invalid',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,roomId:'B'.repeat(20)}}]],
+ ['seats doc with an extra key','seats_invalid',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,level:99}}]],
+ ['seats doc without byUid','seats_invalid',()=>[bad,p1.uid,'ace',{seats:{schemaVersion:'pvp-room-fighters-1',roomId}}]],
+ ['seats doc with a role-keyed seat','seats_invalid',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,p1:{uid:p1.uid,fighters:{}}}}]],
+ ['byUid entry with an extra key','seats_invalid',()=>[bad,p1.uid,'ace',{seats:{...fixture.seatsDoc,byUid:{...fixture.seatsDoc.byUid,[p1.uid]:{fighters:{},role:'p1'}}}}]],
+ ['stored snapshot with a fifth key','seats_invalid',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,uid:p1.uid})}]],
+ ['stored snapshot with a non-PvP tier','seats_invalid',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,tier:3})}]],
+ ['stored snapshot level 100','seats_invalid',()=>[bad,p1.uid,'ace',{seats:fakeSeat({...R.seatP1.fighter,level:100})}]],
 ];
 test('seat refusal table: every refusal is a documented code and no refusal yields a fighter',()=>{
  for(const [name,expected,args] of SEAT_REFUSALS){
@@ -103,14 +111,17 @@ test('seat refusal table: every refusal is a documented code and no refusal yiel
   assert.throws(()=>mintPvpRoomFighter(clone(room),clone(profile),clone(opts.seats),uid,roomId,id),code(expected),name);
   assert.ok(Object.hasOwn(PVP_ROOM_REFUSALS,expected),name);
  }
- assert.deepEqual(Object.keys(PVP_ROOM_REFUSALS).sort(),['invalid_request','not_owned','not_participant','not_seated','room_closed','unavailable','unknown_room']);
+ assert.deepEqual(Object.keys(PVP_ROOM_REFUSALS).sort(),['invalid_request','not_owned','not_participant','not_seated','profile_invalid','room_closed','room_invalid','seats_invalid','unknown_room']);
+ // Every refusal is permanent for the same inputs: none tells the client to retry.
+ assert.ok(!Object.values(PVP_ROOM_REFUSALS).includes('unavailable'));
+ assert.throws(()=>mintPvpRoomFighter(null,clone(p1),undefined,p1.uid,roomId,'ace'),code('room_invalid'));
 });
 test('read refusals: participants only (any room status); a corrupt seats doc fails closed',()=>{
  assert.throws(()=>readPvpRoomFighters(clone(bad),clone(fixture.seatsDoc),'demo_stranger',roomId),code('not_participant'));
  assert.throws(()=>readPvpRoomFighters({...bad,players:{p1:bad.players.p1,p2:{...bad.players.p2,uid:p1.uid}}},clone(fixture.seatsDoc),p1.uid,roomId),code('not_participant'));
  assert.deepEqual(readPvpRoomFighters({...clone(bad),status:'completed'},clone(fixture.seatsDoc),p1.uid,roomId).seats,R.readP1.seats);
  assert.deepEqual(readPvpRoomFighters(clone(bad),undefined,p1.uid,roomId).seats,{});
- assert.throws(()=>readPvpRoomFighters(clone(bad),{...fixture.seatsDoc,byUid:{...fixture.seatsDoc.byUid,[p2.uid]:{fighters:{kuma:{...R.seatP2.fighter,level:'12'}}}}},p1.uid,roomId),code('unavailable'));
+ assert.throws(()=>readPvpRoomFighters(clone(bad),{...fixture.seatsDoc,byUid:{...fixture.seatsDoc.byUid,[p2.uid]:{fighters:{kuma:{...R.seatP2.fighter,level:'12'}}}}},p1.uid,roomId),code('seats_invalid'));
 });
 
 test('request: exactly {operation:"seat", roomId, holobotId} or {operation:"read", roomId}; anything else is refused',()=>{
@@ -131,6 +142,9 @@ test('schema: every recorded reply and the stored doc validate; fighter is the #
  assert.equal(validateReply({...R.seatP1,fighter:{...R.seatP1.fighter,level:100}}),false);
  assert.equal(validateReply({...R.readP1,seats:{...R.readP1.seats,p3:{}}}),false);
  assert.equal(validateReply({...R.readP1,fighter:R.seatP1.fighter}),false);
+ // PvP tier is pinned to 0 ("unranked PvP"), so it cannot be read as an Arena tier index by mistake.
+ assert.equal(validateReply({...R.seatP1,fighter:{...R.seatP1.fighter,tier:3}}),false);
+ assert.equal(validateDoc({...fixture.seatsDoc,byUid:{x:{fighters:{ace:{...R.seatP1.fighter,tier:1}}}}}),false);
  const arena=load('../../Schemas/arena-match-1.json').properties.match.anyOf[1].properties.entrant;
  const resolve=p=>p.$ref?schema.definitions[p.$ref.split('/').pop()]:p;
  assert.deepEqual(schema.definitions.fighter.required,arena.required);
