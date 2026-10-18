@@ -8,6 +8,9 @@ const firebase = vi.hoisted(() => ({
   calls: [] as Array<[string, unknown]>,
   replies: {} as Record<string, (request: unknown) => Promise<unknown>>,
   writes: [] as Array<[unknown, unknown]>,
+  /** The next onSnapshot: deliver a doc's data, or fail. */
+  snapshot: { data: undefined as Record<string, unknown> | undefined, fail: false },
+  storage: new Map<string, string>(),
 }));
 // progressionTimerErrors.ts (host #145) imports HttpsError; the parity check below needs only its code / message / details.
 vi.mock("firebase-functions/v2/https", () => ({
@@ -15,11 +18,21 @@ vi.mock("firebase-functions/v2/https", () => ({
     constructor(public code: string, message: string, public details?: unknown) { super(message); }
   },
 }));
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: {
+    getItem: async (key: string) => firebase.storage.get(key) ?? null,
+    setItem: async (key: string, value: string) => { firebase.storage.set(key, value); },
+  },
+}));
 vi.mock("@/config/firebase", () => ({
   db: {},
   functions: {},
   doc: (_db: unknown, ...path: string[]) => path.join("/"),
-  onSnapshot: () => () => undefined,
+  onSnapshot: (_ref: unknown, next: (snapshot: unknown) => void, error: (e: Error) => void) => {
+    if (firebase.snapshot.fail) error(new Error("permission-denied"));
+    else next({ exists: () => firebase.snapshot.data !== undefined, data: () => firebase.snapshot.data });
+    return () => undefined;
+  },
   updateDoc: async (ref: unknown, updates: unknown) => { firebase.writes.push([ref, updates]); },
   httpsCallable: (_functions: unknown, name: string) => async (request: unknown) => {
     firebase.calls.push([name, request]);
@@ -34,11 +47,11 @@ import {
   canTryClaim,
   CITY_QUEST_SLOTS,
   CLIENT_REWARD_SYSTEM_KEYS,
+  createLegacyRefusals,
   createStartRequestMemo,
-  legacyRefusals,
+  legacyRefusalsKey,
   legacyTrainingKey,
   makeProgressionRequestId,
-  markLegacyRefused,
   PROGRESSION_REFUSAL_COPY,
   PROGRESSION_REQUEST_ID,
   progressionRefusalCopy,
@@ -50,12 +63,14 @@ import {
   runStatusLine,
   START_BLOCK_COPY,
   trainingStartBlock,
+  readCityProgression,
+  type CityProgression,
   type CityTimers,
   type ProgressionAction,
 } from "../progressionHost";
-import { claimQuestRunInCity, claimTrainingInCity, startQuestRunInCity, startTrainingInCity, updateRewardSystemKeys } from "../progressionHostClient";
+import { claimQuestRunInCity, claimTrainingInCity, legacyRefusals, startQuestRunInCity, startTrainingInCity, subscribeCityProgression, updateRewardSystemKeys } from "../progressionHostClient";
 
-const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url) as unknown as string), "utf8");
+const read = (file: string) => readFileSync(path.isAbsolute(file) ? file : fileURLToPath(new URL(file, import.meta.url) as unknown as string), "utf8");
 const json = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 /** A host refusal exactly as the Firebase client SDK surfaces it (code prefixed with functions/). */
 const sdkError = (refusal: { code: string; message: string; details?: unknown }) =>
@@ -134,7 +149,9 @@ describe("start → claim through the City (happy path)", () => {
     const [running] = buildQuestCards(timers, fixture.after.rewardSystem, noneRefused, CITY_QUEST.endsAtMs - 61_000);
     expect(running).toMatchObject({ runId: "qr_lpfixture0001", source: "city", endsAtMs: CITY_QUEST.endsAtMs, state: "running" });
     expect(canTryClaim(running)).toBe(false);
-    expect(runStatusLine(running, CITY_QUEST.endsAtMs - 61_000)).toMatch(/^ENDS \d\d:\d\d · 01:01$/);
+    expect(runStatusLine(running, CITY_QUEST.endsAtMs - 61_000)).toMatch(/^ENDS \d\d:\d\d · 1m 01s LEFT$/);
+    expect(runStatusLine(running, CITY_QUEST.startedAtMs)).toMatch(/^ENDS \d\d:\d\d · 30m 00s LEFT$/);
+    expect(runStatusLine({ state: "running", endsAtMs: CITY_TRAINING.endsAtMs }, CITY_TRAINING.endsAtMs - 3_725_000)).toMatch(/· 1h 02m LEFT$/);
     const [ready] = buildQuestCards(timers, fixture.after.rewardSystem, noneRefused, CITY_QUEST.endsAtMs);
     expect(ready.state).toBe("ready");
     expect(canTryClaim(ready)).toBe(true);
@@ -227,6 +244,8 @@ describe("no client timer fields are written", () => {
       // main's shared client-timer builders and legacy claim wrappers stay with the main app; the gated tree never imports them.
       const imports = (source.match(/^import[\s\S]*?from\s+"[^"]+";$/gm) ?? []).join("\n");
       expect(imports).toContain('from "@/lite/lib/progressionHostClient"');
+      // A claim with no session never reaches a callable.
+      expect(source).toMatch(/if \(busy \|\| !uid \|\| /);
       expect(imports).not.toMatch(/\b(startQuestRun|startTrainingSession|getEligibleQuestHolobots|claimQuestRunAuthoritative|claimTrainingSessionAuthoritative|isSessionComplete)\b/);
     }
   });
@@ -274,14 +293,20 @@ describe("legacy in-flight runs (started by an older app on client timers)", () 
     const copy = progressionRefusalCopy(error, "quest_claim");
     expect(copy.outcome).toBe("legacy_refused");
     expect(copy.body).toBe(PROGRESSION_REFUSAL_COPY.not_started_on_host);
-    markLegacyRefused("pilot-legacy", LEGACY_QUEST_ID);
-    const cards = buildQuestCards(readCityTimers(fixture.after.progressionTimers), fixture.after.rewardSystem, legacyRefusals("pilot-legacy"), NOW);
+    await legacyRefusals.mark("pilot-legacy", LEGACY_QUEST_ID);
+    const cards = buildQuestCards(readCityTimers(fixture.after.progressionTimers), fixture.after.rewardSystem, legacyRefusals.get("pilot-legacy"), NOW);
     const legacy = cards.find((card) => card.runId === LEGACY_QUEST_ID)!;
     expect(legacy.state).toBe("legacy_refused");
     expect(canTryClaim(legacy)).toBe(false);
     expect(runStatusLine(legacy, NOW)).toBe("THE CITY CAN'T PAY THIS RUN · START A NEW ONE");
     // Another account's refusals never leak into this one.
-    expect(legacyRefusals("pilot-other").has(LEGACY_QUEST_ID)).toBe(false);
+    expect(legacyRefusals.get("pilot-other").has(LEGACY_QUEST_ID)).toBe(false);
+    // It stays closed after a relaunch: a fresh store reads the persisted refusal for this account only.
+    expect(JSON.parse(firebase.storage.get(legacyRefusalsKey("pilot-legacy"))!)).toEqual([LEGACY_QUEST_ID]);
+    const relaunched = createLegacyRefusals({ getItem: async (key) => firebase.storage.get(key) ?? null, setItem: async () => undefined });
+    expect(relaunched.get("pilot-legacy").size).toBe(0);
+    expect((await relaunched.load("pilot-legacy")).has(LEGACY_QUEST_ID)).toBe(true);
+    expect((await relaunched.load("pilot-other")).size).toBe(0);
     // The City's own run is untouched by the legacy refusal.
     expect(cards.find((card) => card.source === "city")!.state).toBe("running");
   });
@@ -317,6 +342,42 @@ describe("start hints follow the City's record (the City still decides)", () => 
     const card = buildTrainingCard(timers, fixture.after.rewardSystem, noneRefused, NOW);
     expect(trainingStartBlock(timers, card, "ACE", 100, 10)).toBe("training_active");
     for (const text of Object.values(START_BLOCK_COPY)) expect(text).not.toMatch(/\bhost\b/i);
+  });
+});
+
+describe("critic round 1 (read-only review of f1f21b8)", () => {
+  it("F1: a legacy run whose end time can't be read is offered TRY CLAIM, so the City can answer (and close it)", () => {
+    const empty = readCityTimers(undefined);
+    const noEnd = { ...fixture.profile.rewardSystem, activeTraining: { courseId: "attack", holobotName: "KUMA", statBoosts: { attack: 18 }, expReward: 70, startedAt: "x", endsAt: { seconds: 1 } } };
+    const card = buildTrainingCard(empty, noEnd, noneRefused, NOW)!;
+    expect(card).toMatchObject({ source: "legacy", endsAtMs: null, state: "legacy_ready" });
+    expect(canTryClaim(card)).toBe(true);
+    expect(runStatusLine(card, NOW)).toBe("STARTED ON AN OLDER APP · TRY CLAIM");
+    const quests = { activeQuests: [{ ...fixture.profile.rewardSystem.activeQuests[0], endsAt: undefined }] };
+    expect(buildQuestCards(empty, quests, noneRefused, NOW)[0].state).toBe("legacy_ready");
+  });
+
+  it("F2: a City card refused not_started_on_host (already paid, reply lost) reads 'may already be claimed', never the older-app copy", () => {
+    const refusal = sdkError(fixture.claims.legacyQuestFlagOff!);
+    expect(progressionRefusalCopy(refusal, "quest_claim", "city")).toMatchObject({ body: PROGRESSION_REFUSAL_COPY.not_active, outcome: "refused" });
+    expect(progressionRefusalCopy(refusal, "training_claim", "city").outcome).toBe("refused");
+    expect(progressionRefusalCopy(refusal, "quest_claim", "legacy").outcome).toBe("legacy_refused");
+  });
+
+  it("F3: the City's records and the run copies come from one snapshot", () => {
+    let seen: CityProgression | null = null;
+    firebase.snapshot = { data: { ...fixture.profile, ...fixture.after }, fail: false };
+    subscribeCityProgression("pilot-a", (progression) => { seen = progression; });
+    expect(seen).toEqual(readCityProgression({ progressionTimers: fixture.after.progressionTimers, rewardSystem: fixture.after.rewardSystem }));
+    expect(seen!.rewardSystem).toEqual(fixture.after.rewardSystem);
+    firebase.snapshot = { data: undefined, fail: false };
+    subscribeCityProgression("pilot-a", (progression) => { seen = progression; });
+    expect(seen).toEqual({ timers: { status: "ready", quests: [], training: null }, rewardSystem: undefined });
+    // F6: a failed listener reads UNAVAILABLE (the hook re-subscribes on RETRY / foreground).
+    firebase.snapshot = { data: undefined, fail: true };
+    subscribeCityProgression("pilot-a", (progression) => { seen = progression; });
+    expect(seen!.timers.status).toBe("unavailable");
+    expect(read("../../hooks/useCityProgression.ts")).toMatch(/AppState\.addEventListener\("change"/);
   });
 });
 
@@ -409,7 +470,7 @@ describe("progression-timers-1.json is what host #145's functions produce", () =
   });
 });
 
-const NEW_MODULES = ["lite/lib/progressionHost", "lite/lib/progressionHostClient", "lite/hooks/useCityProgressionTimers"];
+const NEW_MODULES = ["lite/lib/progressionHost", "lite/lib/progressionHostClient", "lite/hooks/useCityProgression"];
 const MOBILE = path.resolve(__dirname, "../../../..");
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -432,7 +493,7 @@ describe("flag-off proof: the City quest/training modules load only inside the g
     const lite = sourceFiles(path.join(MOBILE, "src", "lite"));
     const users = lite.filter((file) => NEW_MODULES.some((module) => readFileSync(file, "utf8").includes(module))).map((file) => path.relative(MOBILE, file)).sort();
     expect(users).toEqual([
-      "src/lite/hooks/useCityProgressionTimers.ts",
+      "src/lite/hooks/useCityProgression.ts",
       "src/lite/lib/__tests__/progressionHost.test.ts",
       "src/lite/lib/progressionHostClient.ts",
       "src/lite/screens/QuestsScreen.tsx",

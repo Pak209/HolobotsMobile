@@ -49,6 +49,14 @@ export type CityTimers =
 export const CITY_TIMERS_LOADING: CityTimers = Object.freeze({ status: "loading" });
 export const CITY_TIMERS_UNAVAILABLE: CityTimers = Object.freeze({ status: "unavailable" });
 
+/**
+ * The City's run records and the rewardSystem run copies from ONE user-doc snapshot. Cards are classified from both
+ * (a display copy vs a legacy run), so they are never read from two listeners that can commit at different moments.
+ */
+export type CityProgression = Readonly<{ timers: CityTimers; rewardSystem: unknown }>;
+export const CITY_PROGRESSION_LOADING: CityProgression = Object.freeze({ timers: CITY_TIMERS_LOADING, rewardSystem: undefined });
+export const CITY_PROGRESSION_UNAVAILABLE: CityProgression = Object.freeze({ timers: CITY_TIMERS_UNAVAILABLE, rewardSystem: undefined });
+
 type Data = Record<string, unknown>;
 const object = (x: unknown): x is Data => !!x && typeof x === "object" && !Array.isArray(x);
 const whole = (x: unknown): x is number => typeof x === "number" && Number.isSafeInteger(x) && x >= 0;
@@ -92,6 +100,11 @@ export function readCityTimers(raw: unknown): CityTimers {
   return Object.freeze({ status: "ready", quests: Object.freeze(quests), training });
 }
 
+/** One user-doc snapshot's data (undefined when the doc does not exist). */
+export function readCityProgression(data: Record<string, unknown> | undefined): CityProgression {
+  return Object.freeze({ timers: readCityTimers(data?.progressionTimers), rewardSystem: data?.rewardSystem });
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Cards: what the Quests / Training screens show.
 
@@ -121,9 +134,10 @@ function endsAt(raw: unknown): number | null {
   const ms = typeof raw === "string" && raw ? Date.parse(raw) : NaN;
   return Number.isFinite(ms) ? ms : null;
 }
+/** An unreadable end time is offered TRY CLAIM too: the City decides, and only its answer can close the run. */
 function legacyState(id: string, endsAtMs: number | null, refused: ReadonlySet<string>, nowMs: number): RunState {
   if (refused.has(id)) return "legacy_refused";
-  return endsAtMs !== null && nowMs >= endsAtMs ? "legacy_ready" : "legacy_running";
+  return endsAtMs === null || nowMs >= endsAtMs ? "legacy_ready" : "legacy_running";
 }
 function rewardSystemOf(raw: unknown): Data {
   return object(raw) ? raw : {};
@@ -220,9 +234,9 @@ export const START_BLOCK_COPY: Record<StartBlock, string> = {
 export function runStatusLine(card: { state: RunState; endsAtMs: number | null }, nowMs: number): string {
   switch (card.state) {
     case "ready": return "READY TO CLAIM";
-    case "running": return `ENDS ${formatClock(card.endsAtMs!)} · ${formatRemaining(card.endsAtMs! - nowMs)}`;
+    case "running": return `ENDS ${formatClock(card.endsAtMs!)} · ${formatRemaining(card.endsAtMs! - nowMs)} LEFT`;
     case "legacy_ready": return "STARTED ON AN OLDER APP · TRY CLAIM";
-    case "legacy_running": return card.endsAtMs === null ? "STARTED ON AN OLDER APP" : `STARTED ON AN OLDER APP · ${formatRemaining(card.endsAtMs - nowMs)}`;
+    case "legacy_running": return `STARTED ON AN OLDER APP · ${formatRemaining(card.endsAtMs! - nowMs)} LEFT`;
     case "legacy_refused": return "THE CITY CAN'T PAY THIS RUN · START A NEW ONE";
   }
 }
@@ -233,12 +247,13 @@ export function formatClock(ms: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** "1h 05m" / "11m 55s": never a second hh:mm beside the end time (the simulator witness read "ENDS 11:34 · 11:55"). */
 export function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 /** The claim button: enabled on a finished run (by the City's end time) or a legacy run the older app says is done. */
@@ -341,14 +356,22 @@ export const PROGRESSION_REFUSAL_COPY: Record<string, string> = {
 const UNKNOWN_OUTCOME_CODES = new Set(["unavailable", "deadline-exceeded", "internal", "unknown", "cancelled", "resource-exhausted"]);
 const REPLY_UNREADABLE = "progression_reply_invalid";
 
-export function progressionRefusalCopy(error: unknown, action: ProgressionAction): RefusalCopy {
+/**
+ * `cardSource`: the card a claim came from. A City run refused not_started_on_host has no City record any more (it was
+ * just paid, or the reply was lost); that is "may already be claimed", never the older-app copy.
+ */
+export function progressionRefusalCopy(error: unknown, action: ProgressionAction, cardSource?: "city" | "legacy"): RefusalCopy {
   const title = TITLES[action];
   const message = object(error) && typeof error.message === "string" ? error.message : "";
   // A reply this app can't read: the City may have acted. The listener shows what it recorded.
   if (message === REPLY_UNREADABLE) return Object.freeze({ title, body: "The City replied in a way this app can't read. Check your runs before trying again.", outcome: "unknown" });
   const code = progressionRefusalCode(error);
   const rejection = object(error) && object(error.details) && typeof error.details.rejectionCode === "string";
-  if (code === "not_started_on_host") return Object.freeze({ title, body: PROGRESSION_REFUSAL_COPY.not_started_on_host, outcome: "legacy_refused" });
+  if (code === "not_started_on_host") {
+    return cardSource === "city"
+      ? Object.freeze({ title, body: PROGRESSION_REFUSAL_COPY.not_active, outcome: "refused" })
+      : Object.freeze({ title, body: PROGRESSION_REFUSAL_COPY.not_started_on_host, outcome: "legacy_refused" });
+  }
   // A host rejection code (including its own "unavailable") means the City answered and wrote nothing.
   if (rejection && code && PROGRESSION_REFUSAL_COPY[code]) return Object.freeze({ title, body: PROGRESSION_REFUSAL_COPY[code], outcome: "refused" });
   if (!code || UNKNOWN_OUTCOME_CODES.has(code)) return Object.freeze({ title, body: "Couldn't reach the City. Check your connection and try again.", outcome: "unknown" });
@@ -356,17 +379,38 @@ export function progressionRefusalCopy(error: unknown, action: ProgressionAction
   return Object.freeze({ title, body: "The City refused that. Try again later.", outcome: "refused" });
 }
 
-/** Legacy runs the City refused (not_started_on_host), per account, for this app session. */
-const refusedLegacy = new Map<string, Set<string>>();
-export function legacyRefusals(uid: string | null | undefined): ReadonlySet<string> {
-  return refusedLegacy.get(uid ?? "") ?? new Set<string>();
+export type RefusalStorage = { getItem(key: string): Promise<string | null>; setItem(key: string, value: string): Promise<void> };
+export const legacyRefusalsKey = (uid: string) => `progression-legacy-refused-1:${uid}`;
+const MAX_REMEMBERED_REFUSALS = 50;
+
+/**
+ * Legacy runs the City refused (not_started_on_host), per account. Persisted, so a dead run stays closed across launches
+ * (the City refuses before writing, so nothing ever removes its copy). Display state only: it never decides a claim.
+ */
+export function createLegacyRefusals(storage?: RefusalStorage) {
+  const byUid = new Map<string, ReadonlySet<string>>();
+  const empty: ReadonlySet<string> = new Set<string>();
+  const key = (uid: string | null | undefined) => uid ?? "";
+  return {
+    get(uid: string | null | undefined): ReadonlySet<string> {
+      return byUid.get(key(uid)) ?? empty;
+    },
+    async load(uid: string | null | undefined): Promise<ReadonlySet<string>> {
+      if (!uid || !storage) return this.get(uid);
+      let stored: unknown = [];
+      try { stored = JSON.parse((await storage.getItem(legacyRefusalsKey(uid))) ?? "[]"); } catch { stored = []; }
+      const ids = Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : [];
+      byUid.set(uid, new Set([...ids, ...this.get(uid)]));
+      return this.get(uid);
+    },
+    async mark(uid: string | null | undefined, runId: string): Promise<void> {
+      const next = [...this.get(uid), runId].filter((id, i, all) => all.indexOf(id) === i).slice(-MAX_REMEMBERED_REFUSALS);
+      byUid.set(key(uid), new Set(next));
+      if (uid && storage) await storage.setItem(legacyRefusalsKey(uid), JSON.stringify(next)).catch(() => undefined);
+    },
+  };
 }
-export function markLegacyRefused(uid: string | null | undefined, runId: string): void {
-  const key = uid ?? "";
-  const set = new Set(refusedLegacy.get(key) ?? []);
-  set.add(runId);
-  refusedLegacy.set(key, set);
-}
+export type LegacyRefusals = ReturnType<typeof createLegacyRefusals>;
 
 // ---------------------------------------------------------------------------------------------------------
 // The quest-board / sync-boost preferences: the only rewardSystem keys this client still writes.

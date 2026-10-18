@@ -7,7 +7,7 @@ import { HomeCogButton } from "@/lite/components/HomeCogButton";
 import { GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCityProgressionTimers } from "@/lite/hooks/useCityProgressionTimers";
+import { useCityProgression } from "@/lite/hooks/useCityProgression";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
 import {
   buildQuestCards,
@@ -15,16 +15,14 @@ import {
   CITY_QUEST_SLOTS,
   cityBusyHolobots,
   createStartRequestMemo,
-  legacyRefusals,
-  markLegacyRefused,
   progressionRefusalCopy,
   questStartBlock,
   runStatusLine,
   START_BLOCK_COPY,
-  type CityTimers,
+  type CityProgression,
   type QuestCard,
 } from "@/lite/lib/progressionHost";
-import { claimQuestRunInCity, startQuestRunInCity, updateRewardSystemKeys } from "@/lite/lib/progressionHostClient";
+import { claimQuestRunInCity, legacyRefusals, startQuestRunInCity, updateRewardSystemKeys } from "@/lite/lib/progressionHostClient";
 import {
   getHolobotPowerScore,
   getQuestDefinition,
@@ -42,13 +40,15 @@ function formatQuestDuration(minutes: number) {
 /**
  * Quests run through the City (host #145): SEND asks startQuestRun, which stamps the run with the City's clock and
  * debits the energy; the cards show the City's end time; CLAIM asks claimQuestRun against the City's record. Nothing
- * here writes a run, a timer, a power score or the energy. `timersPreview` is the offline QA harness only.
+ * here writes a run, a timer, a power score or the energy. `cityPreview` is the offline QA harness only.
  */
-export function QuestsScreen({ timersPreview }: { timersPreview?: CityTimers } = {}) {
+export function QuestsScreen({ cityPreview }: { cityPreview?: CityProgression } = {}) {
   const { profile, user } = useAuth();
   useEnergyRegen();
   const uid = user?.uid ?? null;
-  const timers = useCityProgressionTimers(uid, timersPreview);
+  // The City's records and the run copies come from one snapshot, so a card is never classified across two moments.
+  const city = useCityProgression(uid, cityPreview);
+  const timers = city.timers;
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -57,9 +57,9 @@ export function QuestsScreen({ timersPreview }: { timersPreview?: CityTimers } =
   const starts = useRef(createStartRequestMemo()).current;
   const progression = useMemo(() => normalizeProgressionSystem(profile?.rewardSystem), [profile?.rewardSystem]);
   const cards = useMemo(
-    () => buildQuestCards(timers, profile?.rewardSystem, legacyRefusals(uid), nowTick),
-    // refusedRevision: a legacy refusal changes legacyRefusals(uid) outside React state.
-    [timers, profile?.rewardSystem, uid, nowTick, refusedRevision],
+    () => buildQuestCards(timers, city.rewardSystem, legacyRefusals.get(uid), nowTick),
+    // refusedRevision: a legacy refusal changes legacyRefusals outside React state.
+    [timers, city.rewardSystem, uid, nowTick, refusedRevision],
   );
   const cityRuns = timers.status === "ready" ? timers.quests.length : 0;
   // Busy = on a City quest (the host's holobot_busy rule counts only its own records), not the shared rewardSystem copy.
@@ -77,6 +77,13 @@ export function QuestsScreen({ timersPreview }: { timersPreview?: CityTimers } =
   const selectedHolobot = eligibleRoster[selectedHolobotIndex] ?? eligibleRoster[0];
   const availableQuests = progression.availableQuestIds.map((questId) => getQuestDefinition(questId));
   const timersNote = timers.status === "ready" ? null : START_BLOCK_COPY[timers.status === "loading" ? "checking" : "unavailable"];
+
+  useEffect(() => {
+    // Legacy runs the City already refused stay closed across launches.
+    let live = true;
+    void legacyRefusals.load(uid).then(() => { if (live) setRefusedRevision((value) => value + 1); });
+    return () => { live = false; };
+  }, [uid]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowTick(Date.now()), 1000);
@@ -140,15 +147,15 @@ export function QuestsScreen({ timersPreview }: { timersPreview?: CityTimers } =
   };
 
   const handleClaimQuest = async (card: QuestCard) => {
-    if (busy || !canTryClaim(card)) return;
+    if (busy || !uid || !canTryClaim(card)) return;
     setBusy(true);
     try {
       // The City rolls the outcome at claim time against its own record (a legacy run: only while it still honours them).
       await claimQuestRunInCity(card.runId);
     } catch (error) {
-      const copy = progressionRefusalCopy(error, "quest_claim");
+      const copy = progressionRefusalCopy(error, "quest_claim", card.source);
       if (copy.outcome === "legacy_refused" && card.source === "legacy") {
-        markLegacyRefused(uid, card.runId);
+        await legacyRefusals.mark(uid, card.runId);
         setRefusedRevision((value) => value + 1);
       }
       Alert.alert(copy.title, copy.body);
@@ -203,7 +210,11 @@ export function QuestsScreen({ timersPreview }: { timersPreview?: CityTimers } =
           </View>
         </View>
 
-        {timersNote ? <Text style={styles.cityNote}>{timersNote}</Text> : null}
+        {timersNote ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Check your runs again" disabled={timers.status !== "unavailable"} onPress={city.retry}>
+            <Text style={styles.cityNote}>{timers.status === "unavailable" ? `${timersNote}  RETRY` : timersNote}</Text>
+          </Pressable>
+        ) : null}
 
         {cards.length ? (
           <View style={styles.activeQuestStack}>
