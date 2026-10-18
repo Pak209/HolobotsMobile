@@ -1,0 +1,1732 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/arena-match-3v3-1.json",
+  "title": "PROPOSAL: Arena 3v3 durable lifecycle reply projection (arena-match-3v3-1). No host implements this yet.",
+  "description": "The host owns every fighter's vitals (and so every KO and the winner), the active slot, the turn, the phase, swap legality, the CPU send-in, the one charge and the frozen quote. Default decision (producer, pending Pak's override): client-asserted bout HP is not accepted; bouts are simulated on the host (arena-host-resolver-1) and the runtime is HELD until then. No client message decides a bout. Clients render this projection and never derive HP, STA, regen, level, rewards or prices locally. The arena-match-1 reply schema is unchanged.",
+  "definitions": {
+    "matchId": {
+      "type": "string",
+      "pattern": "^a3_[a-f0-9]{32}$"
+    },
+    "requestToken": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,80}$"
+    },
+    "holobotId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,39}$"
+    },
+    "ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "fighterSnapshot": {
+      "description": "Frozen #118 arena fighter snapshot (functions/src/lib/arenaFighterSnapshot.ts). Exactly these four fields.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holobotId",
+        "level",
+        "displayName",
+        "tier"
+      ],
+      "properties": {
+        "holobotId": {
+          "$ref": "#/definitions/holobotId"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      }
+    },
+    "vitals": {
+      "description": "Host-owned HP. There is no stamina field: the host does not track STA across bouts, and the client must not show STA it computed itself.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currentHealth",
+        "maxHealth"
+      ],
+      "properties": {
+        "currentHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxHealth": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot",
+        "fighter",
+        "vitals",
+        "status"
+      ],
+      "properties": {
+        "slot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "fighter": {
+          "$ref": "#/definitions/fighterSnapshot"
+        },
+        "vitals": {
+          "$ref": "#/definitions/vitals"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "bench",
+            "ko"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "ko"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "vitals": {
+                "properties": {
+                  "currentHealth": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "vitals": {
+                "properties": {
+                  "currentHealth": {
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "team": {
+      "description": "Exactly three slots in issue order. slot equals the array index and never changes; only status moves.",
+      "type": "array",
+      "items": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/slot"
+            },
+            {
+              "properties": {
+                "slot": {
+                  "const": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/slot"
+            },
+            {
+              "properties": {
+                "slot": {
+                  "const": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/slot"
+            },
+            {
+              "properties": {
+                "slot": {
+                  "const": 2
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3,
+      "additionalItems": false
+    },
+    "battle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turn",
+        "phase",
+        "activeSlot",
+        "opponentActiveSlot",
+        "voluntarySwapsUsed",
+        "winner"
+      ],
+      "properties": {
+        "turn": {
+          "description": "Host intent sequence. It goes up by exactly one for each accepted report or swap. Refusals and replays leave it unchanged.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "phase": {
+          "enum": [
+            "ready",
+            "command",
+            "send_in",
+            "over"
+          ]
+        },
+        "activeSlot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "opponentActiveSlot": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "voluntarySwapsUsed": {
+          "$ref": "#/definitions/count"
+        },
+        "winner": {
+          "enum": [
+            null,
+            "player",
+            "opponent"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "over"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "winner": {
+                "enum": [
+                  "player",
+                  "opponent"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "winner": {
+                "const": null
+              }
+            }
+          }
+        }
+      ]
+    },
+    "payment": {
+      "enum": [
+        "pass",
+        "tokens"
+      ]
+    },
+    "entryReceipt": {
+      "description": "The ONE entry charge for the whole match: amount equals rules.entryFeeHolos (tokens) or rules.entryFeePasses (pass). There is no per-fighter charge.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matchId",
+        "method",
+        "amount",
+        "balanceBefore",
+        "balanceAfter",
+        "chargedAtMs"
+      ],
+      "properties": {
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        },
+        "method": {
+          "$ref": "#/definitions/payment"
+        },
+        "amount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "balanceBefore": {
+          "$ref": "#/definitions/count"
+        },
+        "balanceAfter": {
+          "$ref": "#/definitions/count"
+        },
+        "chargedAtMs": {
+          "$ref": "#/definitions/ms"
+        }
+      }
+    },
+    "rules": {
+      "description": "Host-frozen admission quote. Later price or table changes never reprice an outstanding match. Numbers in the fixture are placeholders that need a Pak decision.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "teamSize",
+        "entryFeeHolos",
+        "entryFeePasses",
+        "exp",
+        "holos",
+        "syncPoints",
+        "blueprints",
+        "comboBonus",
+        "perfectDefenseBonus",
+        "lossExpFraction",
+        "lossSyncFraction",
+        "maxPerformanceEvents",
+        "expBoosterMultiplier",
+        "voluntarySwapLimit",
+        "benchRegen",
+        "sendIn",
+        "opponentSendIn"
+      ],
+      "properties": {
+        "version": {
+          "const": "arena-3v3-rules-1"
+        },
+        "teamSize": {
+          "const": 3
+        },
+        "entryFeeHolos": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "entryFeePasses": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Host-frozen Arena Pass price for a pass-paid entry."
+        },
+        "exp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "holos": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "syncPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "blueprints": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "comboBonus": {
+          "$ref": "#/definitions/fraction"
+        },
+        "perfectDefenseBonus": {
+          "$ref": "#/definitions/fraction"
+        },
+        "lossExpFraction": {
+          "$ref": "#/definitions/fraction"
+        },
+        "lossSyncFraction": {
+          "$ref": "#/definitions/fraction"
+        },
+        "maxPerformanceEvents": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 25
+        },
+        "expBoosterMultiplier": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "voluntarySwapLimit": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "benchRegen": {
+          "const": "none",
+          "description": "Benched fighters keep their host HP unchanged. Any client-side bench regen breaks the contract."
+        },
+        "sendIn": {
+          "const": "forced_on_ko",
+          "description": "When the active fighter is KO'd and a living bench fighter remains, the phase becomes send_in. A swap is then the only legal intent."
+        },
+        "opponentSendIn": {
+          "const": "next_alive_slot",
+          "description": "The host sends in the CPU team's next living slot. The client never picks it."
+        }
+      }
+    },
+    "settlementReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matchId",
+        "outcome",
+        "refunded",
+        "settlement",
+        "report",
+        "finalVitals",
+        "closedAtMs"
+      ],
+      "properties": {
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        },
+        "outcome": {
+          "enum": [
+            "win",
+            "loss",
+            "forfeit",
+            "cancelled_before_start"
+          ]
+        },
+        "refunded": {
+          "type": "boolean"
+        },
+        "refund": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "amount",
+            "balanceBefore",
+            "balanceAfter"
+          ],
+          "properties": {
+            "method": {
+              "$ref": "#/definitions/payment"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "balanceBefore": {
+              "$ref": "#/definitions/count"
+            },
+            "balanceAfter": {
+              "$ref": "#/definitions/count"
+            }
+          }
+        },
+        "settlement": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "exp",
+                "awardedExp",
+                "holos",
+                "syncPoints",
+                "blueprints",
+                "experience"
+              ],
+              "properties": {
+                "exp": {
+                  "$ref": "#/definitions/count"
+                },
+                "awardedExp": {
+                  "$ref": "#/definitions/count"
+                },
+                "holos": {
+                  "$ref": "#/definitions/count"
+                },
+                "syncPoints": {
+                  "$ref": "#/definitions/count"
+                },
+                "blueprints": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "holobotKey",
+                        "amount"
+                      ],
+                      "properties": {
+                        "holobotKey": {
+                          "$ref": "#/definitions/holobotId"
+                        },
+                        "amount": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "experience": {
+                  "description": "Per-fighter EXP that the host awarded. Who gets EXP is a Pak call. The fixture proposes awardedExp for each fighter that took the field.",
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "holobotId",
+                      "awardedExp"
+                    ],
+                    "properties": {
+                      "holobotId": {
+                        "$ref": "#/definitions/holobotId"
+                      },
+                      "awardedExp": {
+                        "$ref": "#/definitions/count"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "report": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "combosCompleted",
+                "perfectDefenses"
+              ],
+              "properties": {
+                "combosCompleted": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 25
+                },
+                "perfectDefenses": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 25
+                }
+              }
+            }
+          ]
+        },
+        "finalVitals": {
+          "description": "Host vitals written to the account ledger: one entry for each of the three team bots, or null when cancelled before start.",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "minProperties": 3,
+              "maxProperties": 3,
+              "propertyNames": {
+                "$ref": "#/definitions/holobotId"
+              },
+              "additionalProperties": {
+                "$ref": "#/definitions/vitals"
+              }
+            }
+          ]
+        },
+        "closedAtMs": {
+          "$ref": "#/definitions/ms"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "cancelled_before_start"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "refund"
+            ],
+            "properties": {
+              "refunded": {
+                "const": true
+              },
+              "settlement": {
+                "type": "null"
+              },
+              "report": {
+                "type": "null"
+              },
+              "finalVitals": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "refund"
+              ]
+            },
+            "properties": {
+              "refunded": {
+                "const": false
+              },
+              "finalVitals": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "win",
+                  "loss"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlement": {
+                "type": "object"
+              },
+              "report": {
+                "type": "object"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "settlement": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "loss"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlement": {
+                "properties": {
+                  "holos": {
+                    "const": 0
+                  },
+                  "blueprints": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "matchId",
+        "requestId",
+        "format",
+        "state",
+        "tierId",
+        "issuedAtMs",
+        "expiresAtMs",
+        "startedAtMs",
+        "closedAtMs",
+        "team",
+        "opponentTeam",
+        "battle",
+        "entryReceipt",
+        "rules",
+        "settlementReceipt"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        },
+        "requestId": {
+          "$ref": "#/definitions/requestToken"
+        },
+        "format": {
+          "const": "3v3"
+        },
+        "state": {
+          "enum": [
+            "issued",
+            "active",
+            "settled",
+            "cancelled",
+            "expired"
+          ]
+        },
+        "tierId": {
+          "enum": [
+            "rookie",
+            "challenger",
+            "elite",
+            "legend"
+          ]
+        },
+        "issuedAtMs": {
+          "$ref": "#/definitions/ms"
+        },
+        "expiresAtMs": {
+          "$ref": "#/definitions/ms"
+        },
+        "startedAtMs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "closedAtMs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "team": {
+          "$ref": "#/definitions/team"
+        },
+        "opponentTeam": {
+          "$ref": "#/definitions/team"
+        },
+        "battle": {
+          "$ref": "#/definitions/battle"
+        },
+        "entryReceipt": {
+          "$ref": "#/definitions/entryReceipt"
+        },
+        "rules": {
+          "$ref": "#/definitions/rules"
+        },
+        "settlementReceipt": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/settlementReceipt"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "issued"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "startedAtMs": {
+                "type": "null"
+              },
+              "closedAtMs": {
+                "type": "null"
+              },
+              "settlementReceipt": {
+                "type": "null"
+              },
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "ready"
+                  },
+                  "turn": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "active"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "startedAtMs": {
+                "type": "integer"
+              },
+              "closedAtMs": {
+                "type": "null"
+              },
+              "settlementReceipt": {
+                "type": "null"
+              },
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "command",
+                      "send_in",
+                      "over"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "settled",
+                  "cancelled",
+                  "expired"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "closedAtMs": {
+                "type": "integer"
+              },
+              "settlementReceipt": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "settled"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "over"
+                  }
+                }
+              },
+              "settlementReceipt": {
+                "properties": {
+                  "outcome": {
+                    "enum": [
+                      "win",
+                      "loss"
+                    ]
+                  }
+                }
+              },
+              "startedAtMs": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "cancelled",
+                  "expired"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlementReceipt": {
+                "properties": {
+                  "outcome": {
+                    "enum": [
+                      "forfeit",
+                      "cancelled_before_start"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "cancelled_before_start"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "startedAtMs": {
+                "type": "null"
+              },
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "ready"
+                  },
+                  "turn": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "forfeit"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "startedAtMs": {
+                "type": "integer"
+              },
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "winner": {
+                    "const": null
+                  }
+                }
+              },
+              "settlementReceipt": {
+                "properties": {
+                  "report": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "settled"
+              },
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "player"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "win"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "settled"
+              },
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "opponent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "loss"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command"
+                    ]
+                  },
+                  "activeSlot": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "send_in"
+                  },
+                  "activeSlot": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "ko"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "const": "bench"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "opponentActiveSlot": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command"
+                    ]
+                  },
+                  "activeSlot": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "send_in"
+                  },
+                  "activeSlot": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "ko"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "const": "bench"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "opponentActiveSlot": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command"
+                    ]
+                  },
+                  "activeSlot": {
+                    "const": 2
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "send_in"
+                  },
+                  "activeSlot": {
+                    "const": 2
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "ko"
+                      }
+                    }
+                  }
+                ],
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "const": "bench"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "opponentActiveSlot": {
+                    "const": 2
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "player"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": {
+                  "properties": {
+                    "status": {
+                      "const": "ko"
+                    }
+                  }
+                }
+              },
+              "team": {
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "not": {
+                        "const": "ko"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "opponent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": {
+                  "properties": {
+                    "status": {
+                      "const": "ko"
+                    }
+                  }
+                }
+              },
+              "opponentTeam": {
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "not": {
+                        "const": "ko"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "matchId",
+    "alreadyProcessed",
+    "intent",
+    "match"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "arena-match-3v3-1"
+    },
+    "matchId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "alreadyProcessed": {
+      "type": "boolean"
+    },
+    "intent": {
+      "description": "Echo for report and swap: which intent the host applied, and at which turn. A replay of the same intentId returns the CURRENT match, alreadyProcessed true and the same echo. Null for every other operation.",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "intentId",
+            "operation",
+            "appliedTurn"
+          ],
+          "properties": {
+            "intentId": {
+              "$ref": "#/definitions/requestToken"
+            },
+            "operation": {
+              "enum": [
+                "report",
+                "swap"
+              ]
+            },
+            "appliedTurn": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            }
+          }
+        }
+      ]
+    },
+    "match": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/match"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "match": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "matchId": {
+            "type": "null"
+          },
+          "intent": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "matchId": {
+            "$ref": "#/definitions/matchId"
+          }
+        }
+      }
+    }
+  ]
+}
