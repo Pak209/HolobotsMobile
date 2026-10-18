@@ -827,3 +827,42 @@ test('S1 cap: a malformed payout ledger fails closed with nothing written', asyn
   await refused(uid, () => settle(uid, issued.matchId), /unavailable/);
   assert.deepEqual(await state(uid), before);
 });
+
+// ---- hardening-2 item 3: the issue reply carries payoutCapped (advisory; the fee is still charged). ----
+const capLedger = (uid, paidSettles, day = new Date(T0).toISOString().slice(0, 10)) =>
+  db.doc(`arenaMatches/${uid}/ledger/cpuPayouts`).set({ schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day, paidSettles });
+test('payoutCapped: false below the cap, true at the cap (fee still charged, match issued normally), carried on replay; next UTC day false', async () => {
+  const uid = await setup({ holosTokens: 5000 });
+  const fresh = await issue(uid, 'capflag_fresh');
+  assert.equal(fresh.reply.payoutCapped, false, 'no ledger yet');
+  await call(uid, { operation: 'cancel', matchId: fresh.matchId }, T0 + 1);
+  await capLedger(uid, ARENA_CPU_DAILY_PAYOUT_CAP - 1);
+  const under = await issue(uid, 'capflag_under', {}, T0 + 2);
+  assert.equal(under.reply.payoutCapped, false, 'the cap-th settle still pays');
+  await call(uid, { operation: 'cancel', matchId: under.matchId }, T0 + 3);
+  await capLedger(uid, ARENA_CPU_DAILY_PAYOUT_CAP);
+  const before = await user(uid);
+  const capped = await issue(uid, 'capflag_over', {}, T0 + 4);
+  assert.equal(capped.reply.payoutCapped, true);
+  assert.equal(capped.reply.match.state, 'issued');
+  assert.equal(capped.record.entryReceipt.amount, 50, 'no free admission: the persisted record cannot express one');
+  assert.equal((await user(uid)).holosTokens, before.holosTokens - 50);
+  assert.equal(Object.hasOwn(capped.record, 'payoutCapped'), false, 'advisory only: not persisted on the match');
+  const replay = await call(uid, issueData('capflag_over'), T0 + 5);
+  assert.equal(replay.alreadyProcessed, true); assert.equal(replay.payoutCapped, true); assert.deepEqual(replay.match, capped.reply.match);
+  for (const operation of ['resume', 'start']) assert.equal(Object.hasOwn(await call(uid, { operation, matchId: capped.matchId }, T0 + 6), 'payoutCapped'), false, `${operation} replies are unchanged`);
+  const settled = await settle(uid, capped.matchId, {}, T0 + 6 + ARENA_MIN_SETTLE_MS_CPU);
+  assert.equal(settled.match.settlementReceipt.settlement.payoutWithheld, 'daily_cap', 'the flag predicted the settle');
+  const tomorrow = T0 + 3 * 60 * 60 * 1000;
+  assert.equal((await issue(uid, 'capflag_tomorrow', {}, tomorrow)).reply.payoutCapped, false);
+});
+
+test('payoutCapped: a tournament issue is never capped (host bracket, outside the CPU cap); a malformed ledger fails the issue closed before any debit', async () => {
+  const uid = await setup();
+  await capLedger(uid, ARENA_CPU_DAILY_PAYOUT_CAP + 5);
+  const t = await issue(uid, 'capflag_tournament', { tournamentId: 'starter' });
+  assert.equal(t.reply.payoutCapped, false);
+  const bad = await setup();
+  await db.doc(`arenaMatches/${bad}/ledger/cpuPayouts`).set({ schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day: 'today', paidSettles: -1 });
+  await refused(bad, () => call(bad, issueData('capflag_bad')), /unavailable/);
+});

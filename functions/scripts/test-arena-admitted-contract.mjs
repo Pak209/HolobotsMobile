@@ -33,3 +33,12 @@ test('too_fast refusal (hardening-2): a callable error with details.retryAfterMs
  const start=fixture.steps.find(s=>s.request.operation==='start').reply.match.startedAtMs;
  assert.ok(settles[0].reply.match.closedAtMs-start>=3000,'the accepted win is at or past the floor');
 });
+test('payoutCapped (hardening-2): issue replies carry a boolean, no other operation does; the schema rejects a non-boolean',()=>{
+ for(const step of fixture.steps){
+  if(step.request.operation==='issue')assert.equal(step.reply.payoutCapped,false,'fixture account is under the cap');
+  else assert.equal(Object.hasOwn(step.reply,'payoutCapped'),false,step.request.operation);
+ }
+ const issued=structuredClone(fixture.steps.find(s=>s.request.operation==='issue').reply);
+ issued.payoutCapped=true;assert.equal(reply(issued),true);
+ issued.payoutCapped='yes';assert.equal(reply(issued),false);
+});

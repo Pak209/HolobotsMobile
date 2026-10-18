@@ -276,13 +276,20 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       if (c.operation === 'issue') {
         const requestRef = parentRef.collection('requests').doc(c.requestId);
         const request = await tx.get(requestRef);
+        // hardening-2: issue replies carry payoutCapped so a client can warn before the fee. Advisory, read in this
+        // transaction from the server-only cpuPayouts ledger (malformed -> unavailable, as settle). Never a refusal
+        // (Pak call), and the fee is still charged: the persisted admission cannot express a free entry
+        // (match(): rules.entryFeeHolos and entryReceipt.amount must be > 0 and equal the tier quote).
+        // A tournament issue is never capped: it settles through the host bracket, outside the CPU cap.
+        const payoutCapped = async () => c.tournamentId === undefined
+          && paidToday((await tx.get(parentRef.collection('ledger').doc('cpuPayouts'))).data(), nowMs) >= ARENA_CPU_DAILY_PAYOUT_CAP;
         if (request.exists) {
           if (request.data()!.identity !== identity) return fail('request_conflict');
           const id = request.data()!.matchId;
           if (typeof id !== 'string' || !/^am_[a-f0-9]{32}$/.test(id)) return fail('unavailable');
           const saved = match((await tx.get(parentRef.collection('matches').doc(id))).data(),id);
           if (saved.requestId !== c.requestId) return fail('unavailable');
-          return reply(saved,true);
+          return {...reply(saved,true), payoutCapped: await payoutCapped()};
         }
         const lease = await tx.get(parentRef);
         if (arenaOpen(lease.data())) return fail('activity_conflict');
@@ -306,6 +313,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const amount = c.paymentMethod === 'pass' ? 1 : tier.entryFeeHolos;
         const before = counter(profile,field);
         if (before < amount) return fail('insufficient_funds');
+        const capped = await payoutCapped(); // Last read: every write below follows it.
         const m: Match = {
           schemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,requestId:c.requestId,state:'issued',tierId:tier.id as ArenaTierId,
           issuedAtMs:nowMs,expiresAtMs:nowMs+ARENA_MATCH_TTL_MS,startedAtMs:null,closedAtMs:null,
@@ -320,7 +328,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         tx.create(parentRef.collection('matches').doc(generatedId),m);
         tx.create(requestRef,{schemaVersion:ARENA_MATCH_SCHEMA,identity,matchId:generatedId,createdAtMs:nowMs});
         tx.set(parentRef,{schemaVersion:'arena-healing-1',recordSchemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,open:true,issuedAtMs:nowMs,expiresAtMs:m.expiresAtMs});
-        return reply(m);
+        return {...reply(m), payoutCapped: capped};
       }
       // A fresh device may have lost both local IDs. Discover only this authenticated account's latest match.
       let requestedId = c.matchId;

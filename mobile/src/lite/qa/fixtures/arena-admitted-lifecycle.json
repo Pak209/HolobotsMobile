@@ -26,16 +26,16 @@
       },
       "reply": {
         "schemaVersion": "arena-match-1",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "alreadyProcessed": false,
         "match": {
           "schemaVersion": "arena-match-1",
-          "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+          "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
           "requestId": "admitted_fixture_01",
           "state": "issued",
           "tierId": "rookie",
-          "issuedAtMs": 1792306849025,
-          "expiresAtMs": 1792308649025,
+          "issuedAtMs": 1792307607596,
+          "expiresAtMs": 1792309407596,
           "startedAtMs": null,
           "closedAtMs": null,
           "entrant": {
@@ -204,12 +204,12 @@
             "tier": 0
           },
           "entryReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "method": "tokens",
             "amount": 50,
             "balanceBefore": 1000,
             "balanceAfter": 950,
-            "chargedAtMs": 1792306849025
+            "chargedAtMs": 1792307607596
           },
           "rules": {
             "version": "arena-economy-legacy-1",
@@ -226,7 +226,8 @@
             "expBoosterMultiplier": 2
           },
           "settlementReceipt": null
-        }
+        },
+        "payoutCapped": false
       }
     },
     {
@@ -241,16 +242,16 @@
       },
       "reply": {
         "schemaVersion": "arena-match-1",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "alreadyProcessed": true,
         "match": {
           "schemaVersion": "arena-match-1",
-          "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+          "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
           "requestId": "admitted_fixture_01",
           "state": "issued",
           "tierId": "rookie",
-          "issuedAtMs": 1792306849025,
-          "expiresAtMs": 1792308649025,
+          "issuedAtMs": 1792307607596,
+          "expiresAtMs": 1792309407596,
           "startedAtMs": null,
           "closedAtMs": null,
           "entrant": {
@@ -419,12 +420,12 @@
             "tier": 0
           },
           "entryReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "method": "tokens",
             "amount": 50,
             "balanceBefore": 1000,
             "balanceAfter": 950,
-            "chargedAtMs": 1792306849025
+            "chargedAtMs": 1792307607596
           },
           "rules": {
             "version": "arena-economy-legacy-1",
@@ -441,7 +442,8 @@
             "expBoosterMultiplier": 2
           },
           "settlementReceipt": null
-        }
+        },
+        "payoutCapped": false
       }
     },
     {
@@ -451,16 +453,16 @@
       },
       "reply": {
         "schemaVersion": "arena-match-1",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "alreadyProcessed": true,
         "match": {
           "schemaVersion": "arena-match-1",
-          "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+          "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
           "requestId": "admitted_fixture_01",
           "state": "issued",
           "tierId": "rookie",
-          "issuedAtMs": 1792306849025,
-          "expiresAtMs": 1792308649025,
+          "issuedAtMs": 1792307607596,
+          "expiresAtMs": 1792309407596,
           "startedAtMs": null,
           "closedAtMs": null,
           "entrant": {
@@ -629,12 +631,12 @@
             "tier": 0
           },
           "entryReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "method": "tokens",
             "amount": 50,
             "balanceBefore": 1000,
             "balanceAfter": 950,
-            "chargedAtMs": 1792306849025
+            "chargedAtMs": 1792307607596
           },
           "rules": {
             "version": "arena-economy-legacy-1",
@@ -658,21 +660,21 @@
       "request": {
         "schemaVersion": "arena-match-1",
         "operation": "start",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b"
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f"
       },
       "reply": {
         "schemaVersion": "arena-match-1",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "alreadyProcessed": false,
         "match": {
           "schemaVersion": "arena-match-1",
-          "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+          "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
           "requestId": "admitted_fixture_01",
           "state": "active",
           "tierId": "rookie",
-          "issuedAtMs": 1792306849025,
-          "expiresAtMs": 1792308649025,
-          "startedAtMs": 1792306849099,
+          "issuedAtMs": 1792307607596,
+          "expiresAtMs": 1792309407596,
+          "startedAtMs": 1792307607788,
           "closedAtMs": null,
           "entrant": {
             "holobotId": "ace",
@@ -840,12 +842,12 @@
             "tier": 0
           },
           "entryReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "method": "tokens",
             "amount": 50,
             "balanceBefore": 1000,
             "balanceAfter": 950,
-            "chargedAtMs": 1792306849025
+            "chargedAtMs": 1792307607596
           },
           "rules": {
             "version": "arena-economy-legacy-1",
@@ -869,7 +871,7 @@
       "request": {
         "schemaVersion": "arena-match-1",
         "operation": "settle",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "playerFinalHealth": 30,
         "opponentFinalHealth": 0,
         "combosCompleted": 0,
@@ -877,18 +879,18 @@
       },
       "reply": {
         "schemaVersion": "arena-match-1",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "alreadyProcessed": false,
         "match": {
           "schemaVersion": "arena-match-1",
-          "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+          "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
           "requestId": "admitted_fixture_01",
           "state": "settled",
           "tierId": "rookie",
-          "issuedAtMs": 1792306849025,
-          "expiresAtMs": 1792308649025,
-          "startedAtMs": 1792306849099,
-          "closedAtMs": 1792306852163,
+          "issuedAtMs": 1792307607596,
+          "expiresAtMs": 1792309407596,
+          "startedAtMs": 1792307607788,
+          "closedAtMs": 1792307610857,
           "entrant": {
             "holobotId": "ace",
             "commandRules": {
@@ -1055,12 +1057,12 @@
             "tier": 0
           },
           "entryReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "method": "tokens",
             "amount": 50,
             "balanceBefore": 1000,
             "balanceAfter": 950,
-            "chargedAtMs": 1792306849025
+            "chargedAtMs": 1792307607596
           },
           "rules": {
             "version": "arena-economy-legacy-1",
@@ -1077,7 +1079,7 @@
             "expBoosterMultiplier": 2
           },
           "settlementReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "outcome": "win",
             "refunded": false,
             "settlement": {
@@ -1096,7 +1098,7 @@
               "combosCompleted": 0,
               "perfectDefenses": 0
             },
-            "closedAtMs": 1792306852163,
+            "closedAtMs": 1792307610857,
             "finalVitals": {
               "ace": {
                 "currentHealth": 30,
@@ -1114,18 +1116,18 @@
       },
       "reply": {
         "schemaVersion": "arena-match-1",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "alreadyProcessed": true,
         "match": {
           "schemaVersion": "arena-match-1",
-          "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+          "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
           "requestId": "admitted_fixture_01",
           "state": "settled",
           "tierId": "rookie",
-          "issuedAtMs": 1792306849025,
-          "expiresAtMs": 1792308649025,
-          "startedAtMs": 1792306849099,
-          "closedAtMs": 1792306852163,
+          "issuedAtMs": 1792307607596,
+          "expiresAtMs": 1792309407596,
+          "startedAtMs": 1792307607788,
+          "closedAtMs": 1792307610857,
           "entrant": {
             "holobotId": "ace",
             "commandRules": {
@@ -1292,12 +1294,12 @@
             "tier": 0
           },
           "entryReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "method": "tokens",
             "amount": 50,
             "balanceBefore": 1000,
             "balanceAfter": 950,
-            "chargedAtMs": 1792306849025
+            "chargedAtMs": 1792307607596
           },
           "rules": {
             "version": "arena-economy-legacy-1",
@@ -1314,7 +1316,7 @@
             "expBoosterMultiplier": 2
           },
           "settlementReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "outcome": "win",
             "refunded": false,
             "settlement": {
@@ -1333,7 +1335,7 @@
               "combosCompleted": 0,
               "perfectDefenses": 0
             },
-            "closedAtMs": 1792306852163,
+            "closedAtMs": 1792307610857,
             "finalVitals": {
               "ace": {
                 "currentHealth": 30,
@@ -1348,7 +1350,7 @@
       "request": {
         "schemaVersion": "arena-match-1",
         "operation": "settle",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "playerFinalHealth": 0,
         "opponentFinalHealth": 1,
         "combosCompleted": 0,
@@ -1356,18 +1358,18 @@
       },
       "reply": {
         "schemaVersion": "arena-match-1",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "alreadyProcessed": true,
         "match": {
           "schemaVersion": "arena-match-1",
-          "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+          "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
           "requestId": "admitted_fixture_01",
           "state": "settled",
           "tierId": "rookie",
-          "issuedAtMs": 1792306849025,
-          "expiresAtMs": 1792308649025,
-          "startedAtMs": 1792306849099,
-          "closedAtMs": 1792306852163,
+          "issuedAtMs": 1792307607596,
+          "expiresAtMs": 1792309407596,
+          "startedAtMs": 1792307607788,
+          "closedAtMs": 1792307610857,
           "entrant": {
             "holobotId": "ace",
             "commandRules": {
@@ -1534,12 +1536,12 @@
             "tier": 0
           },
           "entryReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "method": "tokens",
             "amount": 50,
             "balanceBefore": 1000,
             "balanceAfter": 950,
-            "chargedAtMs": 1792306849025
+            "chargedAtMs": 1792307607596
           },
           "rules": {
             "version": "arena-economy-legacy-1",
@@ -1556,7 +1558,7 @@
             "expBoosterMultiplier": 2
           },
           "settlementReceipt": {
-            "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+            "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
             "outcome": "win",
             "refunded": false,
             "settlement": {
@@ -1575,7 +1577,7 @@
               "combosCompleted": 0,
               "perfectDefenses": 0
             },
-            "closedAtMs": 1792306852163,
+            "closedAtMs": 1792307610857,
             "finalVitals": {
               "ace": {
                 "currentHealth": 30,
@@ -1592,7 +1594,7 @@
       "request": {
         "schemaVersion": "arena-match-1",
         "operation": "settle",
-        "matchId": "am_ae3dd116c10430932f5b02e43f1ef38b",
+        "matchId": "am_21067ffcb28cd9f84769699c2c1f752f",
         "playerFinalHealth": 30,
         "opponentFinalHealth": 0,
         "combosCompleted": 0,
@@ -1603,7 +1605,7 @@
         "message": "too_fast",
         "details": {
           "rejectionCode": "too_fast",
-          "retryAfterMs": 2983
+          "retryAfterMs": 2976
         }
       }
     }

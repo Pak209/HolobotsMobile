@@ -30,7 +30,8 @@ test('callable lifecycle uses one paid ID and frozen snapshots across recovery a
  const issue={requestId:'admitted_fixture_01',tierId:'rookie',paymentMethod:'tokens',holobotId:'ace',opponentName:'HARE'};
  const a=await call('issue',issue),matchId=a.matchId;
  assert.equal(a.match.entryReceipt.amount,50);assert.equal(a.match.entryReceipt.balanceAfter,950);
- assert.deepEqual((await call('issue',issue)).match,a.match);
+ assert.equal(a.payoutCapped,false,'hardening-2: issue replies carry the daily-cap flag');
+ const issueReplay=await call('issue',issue);assert.deepEqual(issueReplay.match,a.match);assert.equal(issueReplay.payoutCapped,false);
  assert.deepEqual((await call('resume')).match,a.match);
  await call('start',{matchId});
  // hardening-2: an immediate win is refused too_fast with details.retryAfterMs (floor - elapsed, host clock);
