@@ -1,12 +1,14 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { doc, db, functions, httpsCallable, onSnapshot, updateDoc, type Unsubscribe } from "@/config/firebase";
 import {
-  CITY_TIMERS_UNAVAILABLE,
-  readCityTimers,
+  CITY_PROGRESSION_UNAVAILABLE,
+  createLegacyRefusals,
+  readCityProgression,
   readQuestStartReply,
   readTrainingStartReply,
   rewardSystemKeyUpdates,
+  type CityProgression,
   type CityQuestRun,
-  type CityTimers,
   type CityTrainingRun,
   type ClientRewardSystemKey,
 } from "@/lib/progressionHost";
@@ -47,11 +49,17 @@ export async function updateRewardSystemKeys(uid: string, patch: Partial<Record<
   await updateDoc(doc(db, "users", uid), rewardSystemKeyUpdates(patch) as Record<string, any>);
 }
 
-/** The owner's users/{uid}.progressionTimers (server-only field; owner-readable). A listener error reads UNAVAILABLE. */
-export function subscribeCityTimers(uid: string, onTimers: (timers: CityTimers) => void): Unsubscribe {
+/**
+ * The owner's users/{uid}.progressionTimers (server-only field; owner-readable) and rewardSystem run copies, from the
+ * same snapshot. A listener error reads UNAVAILABLE (the listener has ended; the hook re-subscribes on RETRY / foreground).
+ */
+export function subscribeCityProgression(uid: string, onProgression: (progression: CityProgression) => void): Unsubscribe {
   return onSnapshot(
     doc(db, "users", uid),
-    (snapshot) => onTimers(readCityTimers(snapshot.exists() ? snapshot.get("progressionTimers") : undefined)),
-    () => onTimers(CITY_TIMERS_UNAVAILABLE),
+    (snapshot) => onProgression(readCityProgression(snapshot.exists() ? snapshot.data() : undefined)),
+    () => onProgression(CITY_PROGRESSION_UNAVAILABLE),
   );
 }
+
+/** Legacy runs the City refused, per account, kept across launches (display state only). */
+export const legacyRefusals = createLegacyRefusals(AsyncStorage);

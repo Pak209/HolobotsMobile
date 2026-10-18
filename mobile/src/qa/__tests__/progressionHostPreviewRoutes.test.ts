@@ -15,8 +15,8 @@ describe("lite-progression-host-1 offline QA routes", () => {
   });
 
   it("mounts the real screens on recorded host records only: no listener, callable or structured clone", () => {
-    expect(preview).toContain("<QuestsScreen timersPreview={state.timers} />");
-    expect(preview).toContain("<TrainingScreen timersPreview={state.timers} />");
+    expect(preview).toContain("<QuestsScreen cityPreview={state} />");
+    expect(preview).toContain("<TrainingScreen cityPreview={state} />");
     expect(preview).toContain('import timersFixture from "./fixtures/progression-timers-1.json";');
     expect(preview).not.toMatch(/structuredClone\s*\(|httpsCallable|onSnapshot/);
     expect(preview).toContain("QA / OFFLINE / RECORDED REPLIES");

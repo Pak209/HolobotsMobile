@@ -7,34 +7,34 @@ import { HomeCogButton } from "@/components/HomeCogButton";
 import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCityProgressionTimers } from "@/hooks/useCityProgressionTimers";
+import { useCityProgression } from "@/hooks/useCityProgression";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
 import { useEnergyRefillAuthoritative } from "@/lib/progressionClient";
 import {
   buildTrainingCard,
   canTryClaim,
   createStartRequestMemo,
-  legacyRefusals,
-  markLegacyRefused,
   progressionRefusalCopy,
   runStatusLine,
   START_BLOCK_COPY,
   trainingStartBlock,
-  type CityTimers,
+  type CityProgression,
 } from "@/lib/progressionHost";
-import { claimTrainingInCity, startTrainingInCity, updateRewardSystemKeys } from "@/lib/progressionHostClient";
+import { claimTrainingInCity, legacyRefusals, startTrainingInCity, updateRewardSystemKeys } from "@/lib/progressionHostClient";
 import { getTrainingCourse, normalizeProgressionSystem, TRAINING_COURSES } from "@/lib/progressionSystems";
 
 /**
  * Training runs through the City (host #145): SELECT asks startTrainingSession, which rolls the boost, debits the
  * energy and stamps the session with its clock; the panel shows the City's end time and boost; CLAIM asks
- * claimTrainingSession against the City's record. `timersPreview` is the offline QA harness only.
+ * claimTrainingSession against the City's record. `cityPreview` is the offline QA harness only.
  */
-export function TrainingScreen({ timersPreview }: { timersPreview?: CityTimers } = {}) {
+export function TrainingScreen({ cityPreview }: { cityPreview?: CityProgression } = {}) {
   const { profile, updateProfile, user } = useAuth();
   useEnergyRegen();
   const uid = user?.uid ?? null;
-  const timers = useCityProgressionTimers(uid, timersPreview);
+  // The City's records and the run copies come from one snapshot, so a card is never classified across two moments.
+  const city = useCityProgression(uid, cityPreview);
+  const timers = city.timers;
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -45,11 +45,18 @@ export function TrainingScreen({ timersPreview }: { timersPreview?: CityTimers }
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
   const progression = useMemo(() => normalizeProgressionSystem(profile?.rewardSystem), [profile?.rewardSystem]);
   const activeTraining = useMemo(
-    () => buildTrainingCard(timers, profile?.rewardSystem, legacyRefusals(uid), nowTick),
-    // refusedRevision: a legacy refusal changes legacyRefusals(uid) outside React state.
-    [timers, profile?.rewardSystem, uid, nowTick, refusedRevision],
+    () => buildTrainingCard(timers, city.rewardSystem, legacyRefusals.get(uid), nowTick),
+    // refusedRevision: a legacy refusal changes legacyRefusals outside React state.
+    [timers, city.rewardSystem, uid, nowTick, refusedRevision],
   );
   const timersNote = timers.status === "ready" ? null : START_BLOCK_COPY[timers.status === "loading" ? "checking" : "unavailable"];
+
+  useEffect(() => {
+    // Legacy runs the City already refused stay closed across launches.
+    let live = true;
+    void legacyRefusals.load(uid).then(() => { if (live) setRefusedRevision((value) => value + 1); });
+    return () => { live = false; };
+  }, [uid]);
   const canRefill = (profile?.energy_refills || 0) > 0 && (profile?.dailyEnergy || 0) < (profile?.maxDailyEnergy || 100);
   const actualStats = selectedHolobot
     ? getHolobotDisplayStats(selectedHolobot.name, selectedHolobot.level, selectedHolobot.boostedAttributes)
@@ -100,7 +107,7 @@ export function TrainingScreen({ timersPreview }: { timersPreview?: CityTimers }
   };
 
   const handleClaimTraining = async () => {
-    if (busy || !activeTraining || !canTryClaim(activeTraining)) {
+    if (busy || !uid || !activeTraining || !canTryClaim(activeTraining)) {
       return;
     }
 
@@ -109,9 +116,9 @@ export function TrainingScreen({ timersPreview }: { timersPreview?: CityTimers }
       // The City pays its own record's boosts and the course's EXP (a legacy session: only while it still honours them).
       await claimTrainingInCity();
     } catch (error) {
-      const copy = progressionRefusalCopy(error, "training_claim");
+      const copy = progressionRefusalCopy(error, "training_claim", activeTraining.source);
       if (copy.outcome === "legacy_refused" && activeTraining.source === "legacy") {
-        markLegacyRefused(uid, activeTraining.runId);
+        await legacyRefusals.mark(uid, activeTraining.runId);
         setRefusedRevision((value) => value + 1);
       }
       Alert.alert(copy.title, copy.body);
@@ -205,7 +212,11 @@ export function TrainingScreen({ timersPreview }: { timersPreview?: CityTimers }
           </Pressable>
         ) : null}
 
-        {timersNote ? <Text style={styles.cityNote}>{timersNote}</Text> : null}
+        {timersNote ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Check your runs again" disabled={timers.status !== "unavailable"} onPress={city.retry}>
+            <Text style={styles.cityNote}>{timers.status === "unavailable" ? `${timersNote}  RETRY` : timersNote}</Text>
+          </Pressable>
+        ) : null}
 
         {activeTraining ? (
           <View style={styles.activePanel}>

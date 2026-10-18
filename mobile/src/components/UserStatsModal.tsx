@@ -189,6 +189,7 @@ export function UserStatsModal({
                 onClose={() => setIsMissionsOpen(false)}
                 missions={buildDailyMissions(profile, new Date(), missionLedger)}
                 ledgerNote={missionLedgerNote(missionHost.state.accountStatus, missionLedger)}
+                claimsOpen={missionHost.state.accountStatus === "ready"}
                 onRetry={missionHost.retry}
               />
             ) : (

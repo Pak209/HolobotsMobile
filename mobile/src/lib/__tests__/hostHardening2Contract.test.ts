@@ -108,6 +108,16 @@ describe("Daily Missions from the City's ledger (desktop-account dailyMissionLed
     expect(readDailyMissionLedger(null)).toBeNull();
   });
 
+  it("one claim at a time, none while the ledger is read again, none without a session (critic F7 / F8)", () => {
+    const modal = readFileSync(path.resolve(__dirname, "../../components/DailyMissionsModal.tsx"), "utf8");
+    expect(modal).toContain("const canClaim = mission.claimable && claimsOpen && !claiming && !!user;");
+    expect(modal).toContain("if (!user || claiming) return;");
+    expect(modal).toContain("notifyHostEconomyChanged(user?.uid);");
+    const sheet = readFileSync(path.resolve(__dirname, "../../components/UserStatsModal.tsx"), "utf8");
+    expect(sheet).toContain('claimsOpen={missionHost.state.accountStatus === "ready"}');
+    expect(sheet).toContain("useHostDashboard(visible ? user?.uid : undefined)");
+  });
+
   it("says why claims are paused without the ledger (City copy, never host)", () => {
     expect(missionLedgerNote("ready", ledger)).toBeNull();
     const notes = (["idle", "loading", "ready", "unavailable"] as const).map((status) => missionLedgerNote(status, null));

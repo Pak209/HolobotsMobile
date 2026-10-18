@@ -1,4 +1,5 @@
 import { theme } from "@/theme";
+import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,15 +13,20 @@ type DailyMissionsModalProps = {
   missions: MobileDailyMission[];
   /** missionLedgerNote(): set when the City's ledger is not in hand (claims are paused). */
   ledgerNote: string | null;
+  /** False while the ledger is being read again (after a claim): its claimed flags may be stale. */
+  claimsOpen: boolean;
   onRetry: () => void;
 };
 
-export function DailyMissionsModal({ onClose, missions, ledgerNote, onRetry }: DailyMissionsModalProps) {
+export function DailyMissionsModal({ onClose, missions, ledgerNote, claimsOpen, onRetry }: DailyMissionsModalProps) {
   const { user } = useAuth();
+  const [claiming, setClaiming] = useState(false);
   const completed = missions.filter((mission) => mission.completed).length;
   const unclaimed = missions.filter((mission) => mission.claimable).length;
 
   const handleClaim = async (missionId: string) => {
+    if (!user || claiming) return;
+    setClaiming(true);
     try {
       // Server validates completion (against its own ledger) and pays from the mission table; the ledger summary
       // is read again so the City's claimed flag replaces this one.
@@ -28,6 +34,8 @@ export function DailyMissionsModal({ onClose, missions, ledgerNote, onRetry }: D
       notifyHostEconomyChanged(user?.uid);
     } catch (error) {
       Alert.alert("Claim failed", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setClaiming(false);
     }
   };
 
@@ -54,7 +62,8 @@ export function DailyMissionsModal({ onClose, missions, ledgerNote, onRetry }: D
       <View style={styles.list}>
         {missions.map((mission) => {
           const progressPercent = Math.max(0, Math.min(100, (mission.progress / mission.target) * 100));
-          const canClaim = mission.claimable;
+          // One claim at a time, and none while the City's ledger is being read again.
+          const canClaim = mission.claimable && claimsOpen && !claiming && !!user;
 
           return (
             <View key={mission.id} style={[styles.missionCard, mission.completed ? styles.missionCardDone : null]}>

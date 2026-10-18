@@ -5,7 +5,8 @@ import { DailyMissionsModal } from "@/components/DailyMissionsModal";
 import { OfflinePreviewAuthProvider } from "@/contexts/AuthContext";
 import { buildDailyMissions, getTodayMissionKey, missionLedgerNote } from "@/lib/dailyMissions";
 import { readDailyMissionLedger } from "@/lib/hostDashboard";
-import { markLegacyRefused, readCityTimers, type CityTimers } from "@/lib/progressionHost";
+import { readCityTimers, type CityProgression } from "@/lib/progressionHost";
+import { legacyRefusals } from "@/lib/progressionHostClient";
 import { QuestsScreen } from "@/screens/QuestsScreen";
 import { TrainingScreen } from "@/screens/TrainingScreen";
 import { theme } from "@/theme";
@@ -34,7 +35,7 @@ function shiftedFixture(nowMs: number) {
   for (const entry of after.rewardSystem.activeQuests) { entry.startedAt = shiftIso(entry.startedAt); entry.endsAt = shiftIso(entry.endsAt); }
   // A second legacy run the City already refused (flag off), to show the honest closed card beside the claimable one.
   after.rewardSystem.activeQuests.push({ ...after.rewardSystem.activeQuests[0], id: REFUSED_LEGACY_ID, questId: "factory_raid", holobotName: "SHADOW" });
-  return { timers: readCityTimers(after.progressionTimers) as CityTimers, rewardSystem: after.rewardSystem as Record<string, unknown> };
+  return { timers: readCityTimers(after.progressionTimers), rewardSystem: after.rewardSystem as Record<string, unknown> } satisfies CityProgression;
 }
 
 function Banner({ title, caption }: { title: string; caption: string }) {
@@ -46,9 +47,10 @@ function withProfile(rewardSystem: Record<string, unknown>): UserProfile {
 }
 
 function ProgressionQuests() {
-  const [state] = useState(() => { markLegacyRefused(null, REFUSED_LEGACY_ID); return shiftedFixture(Date.now()); });
+  // No session here: the refusal is held in memory only (nothing is persisted for a signed-out preview).
+  const [state] = useState(() => { void legacyRefusals.mark(null, REFUSED_LEGACY_ID); return shiftedFixture(Date.now()); });
   return <OfflinePreviewAuthProvider profile={withProfile(state.rewardSystem)}>
-    <View style={styles.root}><QuestsScreen timersPreview={state.timers} /></View>
+    <View style={styles.root}><QuestsScreen cityPreview={state} /></View>
     <Banner title="QA / OFFLINE / RECORDED REPLIES" caption="City run (City clock) · legacy run ready · legacy run refused (flag off)" />
   </OfflinePreviewAuthProvider>;
 }
@@ -56,7 +58,7 @@ function ProgressionQuests() {
 function ProgressionTraining() {
   const [state] = useState(() => shiftedFixture(Date.now()));
   return <OfflinePreviewAuthProvider profile={withProfile(state.rewardSystem)}>
-    <View style={styles.root}><TrainingScreen timersPreview={state.timers} /></View>
+    <View style={styles.root}><TrainingScreen cityPreview={state} /></View>
     <Banner title="QA / OFFLINE / RECORDED REPLIES" caption="City training: boost rolled and clock stamped by the City" />
   </OfflinePreviewAuthProvider>;
 }
@@ -68,7 +70,7 @@ function missionsPreview(withLedger: boolean) {
   return function ProgressionMissionsCell() {
     return <OfflinePreviewAuthProvider profile={profile}>
       <View style={[styles.root, styles.center]}>
-        <DailyMissionsModal onClose={() => undefined} onRetry={() => undefined}
+        <DailyMissionsModal onClose={() => undefined} onRetry={() => undefined} claimsOpen
           missions={buildDailyMissions(profile, new Date(), ledger)} ledgerNote={missionLedgerNote(withLedger ? "ready" : "unavailable", ledger)} />
       </View>
       <Banner title="QA / OFFLINE / RECORDED REPLIES" caption={withLedger ? "City ledger: progress and CLAIM from the City; forged device count ignored" : "No City ledger: device count shown, claims paused"} />
