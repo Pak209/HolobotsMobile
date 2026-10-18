@@ -44,7 +44,7 @@
               "guardian": false,
               "utility": null,
               "glimpse": "A safe room. Beacon online, repairs possible.",
-              "dangerLabel": "Rookie"
+              "dangerLabel": "ROOKIE"
             },
             {
               "id": "b1a",
@@ -60,7 +60,7 @@
               "guardian": false,
               "utility": null,
               "glimpse": "Something glints past the threat.",
-              "dangerLabel": "Rookie"
+              "dangerLabel": "ROOKIE"
             },
             {
               "id": "b1b",
@@ -76,7 +76,7 @@
               "guardian": false,
               "utility": "ace",
               "glimpse": "A high ledge. ACE could boost across.",
-              "dangerLabel": "Rookie"
+              "dangerLabel": "ROOKIE"
             },
             {
               "id": "gate2",
@@ -94,7 +94,7 @@
               "guardian": false,
               "utility": null,
               "glimpse": "A safe room. Beacon online, repairs possible.",
-              "dangerLabel": "Veteran"
+              "dangerLabel": "DEEPWOOD"
             },
             {
               "id": "b2a",
@@ -111,7 +111,7 @@
               "guardian": false,
               "utility": "shadow",
               "glimpse": "A sealed hatch. SHADOW could slip inside.",
-              "dangerLabel": "Veteran"
+              "dangerLabel": "DEEPWOOD"
             },
             {
               "id": "b2b",
@@ -128,7 +128,7 @@
               "guardian": false,
               "utility": null,
               "glimpse": "A rare signal pulses past the threat.",
-              "dangerLabel": "Veteran"
+              "dangerLabel": "DEEPWOOD"
             },
             {
               "id": "gate3",
@@ -146,7 +146,7 @@
               "guardian": false,
               "utility": null,
               "glimpse": "A safe room. Beacon online, repairs possible.",
-              "dangerLabel": "Elite"
+              "dangerLabel": "THE CORE"
             },
             {
               "id": "b3a",
@@ -162,7 +162,7 @@
               "guardian": false,
               "utility": "kuma",
               "glimpse": "A boulder blocks the way. KUMA could move it.",
-              "dangerLabel": "Elite"
+              "dangerLabel": "THE CORE"
             },
             {
               "id": "b3b",
@@ -178,7 +178,7 @@
               "guardian": true,
               "utility": null,
               "glimpse": "A heavy signature waits here.",
-              "dangerLabel": "Elite"
+              "dangerLabel": "THE CORE"
             }
           ]
         },
@@ -268,7 +268,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "b1a",
@@ -284,7 +284,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "Something glints past the threat.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "b1b",
@@ -300,7 +300,7 @@
                 "guardian": false,
                 "utility": "ace",
                 "glimpse": "A high ledge. ACE could boost across.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "gate2",
@@ -318,7 +318,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "b2a",
@@ -335,7 +335,7 @@
                 "guardian": false,
                 "utility": "shadow",
                 "glimpse": "A sealed hatch. SHADOW could slip inside.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "b2b",
@@ -352,7 +352,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A rare signal pulses past the threat.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "gate3",
@@ -370,7 +370,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               },
               {
                 "id": "b3a",
@@ -386,7 +386,7 @@
                 "guardian": false,
                 "utility": "kuma",
                 "glimpse": "A boulder blocks the way. KUMA could move it.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               },
               {
                 "id": "b3b",
@@ -402,7 +402,7 @@
                 "guardian": true,
                 "utility": null,
                 "glimpse": "A heavy signature waits here.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               }
             ]
           },
@@ -1012,7 +1012,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "b1a",
@@ -1028,7 +1028,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "Something glints past the threat.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "b1b",
@@ -1044,7 +1044,7 @@
                 "guardian": false,
                 "utility": "ace",
                 "glimpse": "A high ledge. ACE could boost across.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "gate2",
@@ -1062,7 +1062,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "b2a",
@@ -1079,7 +1079,7 @@
                 "guardian": false,
                 "utility": "shadow",
                 "glimpse": "A sealed hatch. SHADOW could slip inside.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "b2b",
@@ -1096,7 +1096,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A rare signal pulses past the threat.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "gate3",
@@ -1114,7 +1114,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               },
               {
                 "id": "b3a",
@@ -1130,7 +1130,7 @@
                 "guardian": false,
                 "utility": "kuma",
                 "glimpse": "A boulder blocks the way. KUMA could move it.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               },
               {
                 "id": "b3b",
@@ -1146,7 +1146,7 @@
                 "guardian": true,
                 "utility": null,
                 "glimpse": "A heavy signature waits here.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               }
             ]
           },
@@ -1772,7 +1772,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "b1a",
@@ -1788,7 +1788,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "Something glints past the threat.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "b1b",
@@ -1804,7 +1804,7 @@
                 "guardian": false,
                 "utility": "ace",
                 "glimpse": "A high ledge. ACE could boost across.",
-                "dangerLabel": "Rookie"
+                "dangerLabel": "ROOKIE"
               },
               {
                 "id": "gate2",
@@ -1822,7 +1822,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "b2a",
@@ -1839,7 +1839,7 @@
                 "guardian": false,
                 "utility": "shadow",
                 "glimpse": "A sealed hatch. SHADOW could slip inside.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "b2b",
@@ -1856,7 +1856,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A rare signal pulses past the threat.",
-                "dangerLabel": "Veteran"
+                "dangerLabel": "DEEPWOOD"
               },
               {
                 "id": "gate3",
@@ -1874,7 +1874,7 @@
                 "guardian": false,
                 "utility": null,
                 "glimpse": "A safe room. Beacon online, repairs possible.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               },
               {
                 "id": "b3a",
@@ -1890,7 +1890,7 @@
                 "guardian": false,
                 "utility": "kuma",
                 "glimpse": "A boulder blocks the way. KUMA could move it.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               },
               {
                 "id": "b3b",
@@ -1906,7 +1906,7 @@
                 "guardian": true,
                 "utility": null,
                 "glimpse": "A heavy signature waits here.",
-                "dangerLabel": "Elite"
+                "dangerLabel": "THE CORE"
               }
             ]
           },
