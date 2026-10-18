@@ -145,7 +145,7 @@ test('schema: every recorded reply and the stored doc validate; fighter is the #
  // PvP tier is pinned to 0 ("unranked PvP"), so it cannot be read as an Arena tier index by mistake.
  assert.equal(validateReply({...R.seatP1,fighter:{...R.seatP1.fighter,tier:3}}),false);
  assert.equal(validateDoc({...fixture.seatsDoc,byUid:{x:{fighters:{ace:{...R.seatP1.fighter,tier:1}}}}}),false);
- const arena=load('../../Schemas/arena-match-1.json').properties.match.anyOf[1].properties.entrant;
+ const arena=load('../../Schemas/arena-match-1.json').definitions.fighterSnapshot; // The #118 part of the Arena fighter (F10 added combat fields beside it).
  const resolve=p=>p.$ref?schema.definitions[p.$ref.split('/').pop()]:p;
  assert.deepEqual(schema.definitions.fighter.required,arena.required);
  for(const k of arena.required)assert.deepEqual(resolve(schema.definitions.fighter.properties[k]),arena.properties[k],k);
