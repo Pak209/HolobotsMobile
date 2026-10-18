@@ -219,10 +219,10 @@
     {
       "zoneId": "neonforest",
       "displayName": "Neon Forest",
-      "statusLabel": "OPEN",
-      "isOpen": true,
+      "statusLabel": "NOT YET AVAILABLE",
+      "isOpen": false,
       "cardImageId": "neonforest",
-      "sceneName": "HoloZone_NeonForest"
+      "sceneName": null
     },
     {
       "zoneId": "tide_hollow",

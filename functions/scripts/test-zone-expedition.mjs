@@ -30,7 +30,7 @@ test('strict envelopes refuse client seeds, outcomes, grants, HP, unknown schema
  assert.throws(()=>Z.validateExpeditionCommand({schemaVersion:'zone-run-3',operation:'buy',requestId:'x',itemId:'unknown'}),/unknown_item/);
 });
 test('admission refuses locked Act 2, KO, empty squad, empty energy, missing kit/charge',()=>{
- for(const [extra,code] of [[{storyFlags:undefined},'arena_arc_required'],[{holobotVitals:{ace:{currentHealth:0,maxHealth:100}}},'holobot_ko'],[{travelSquad:{schemaVersion:'travel-squad-1',revision:1,holobotIds:[]}},'squad_required'],[{expeditionSupplies:{energy:0,extractionCharges:1}},'no_energy'],[{itemStocks:{repair_kit:0}},'no_kit'],[{expeditionSupplies:{energy:100,extractionCharges:0}},'no_extraction_charge']])assert.throws(()=>issued(profile(extra)),new RegExp(code));
+ for(const [extra,code] of [[{storyFlags:undefined},'arena_arc_required'],[{storyFlags:{arenaGatheringSeen:true,tournamentsWon:3,arenaArcBuilt:true,holoZonesArcBuilt:false}},'zone_locked'],[{holobotVitals:{ace:{currentHealth:0,maxHealth:100}}},'holobot_ko'],[{travelSquad:{schemaVersion:'travel-squad-1',revision:1,holobotIds:[]}},'squad_required'],[{expeditionSupplies:{energy:0,extractionCharges:1}},'no_energy'],[{itemStocks:{repair_kit:0}},'no_kit'],[{expeditionSupplies:{energy:100,extractionCharges:0}},'no_extraction_charge']])assert.throws(()=>issued(profile(extra)),new RegExp(code));
 });
 test('purchases use town balances, cap energy, use existing Kit 250/50%, refuse insufficient stock funds',()=>{
  assert.equal(Z.buyExpedition(profile({expeditionSupplies:{energy:80,extractionCharges:0}}),'item.expedition_energy',CONFIG).expeditionSupplies.energy,100);
@@ -71,7 +71,7 @@ test('safe-room kit consumes carried stock and heals 50%; reorder and utility ch
 });
 test('three fixed bands, rare discovery, optional guardian flag, no 13th-bot or story completion grant',()=>{
  const s=state();for(let band=1;band<=3;band++){const at=field(s,band);assert.equal(Z.threat(s.r,at).level,CONFIG.bandLevels[band-1]);step(s,'fight',{playerIntents:['strike','heavy','defend']});step(s,'cache');}
- assert.equal(s.r.guardianDefeated,true);assert.equal(s.r.haul.filter(h=>h.kind==='rare_blueprint_fragment').length,1);step(s,'move',{sectorId:'gate3'});step(s,'extract');assert.equal(s.p.expeditionBank.guardianDefeated,true);assert.equal(s.p.storyFlags.holoZonesArcBuilt,false);assert.equal(s.p.holobots.length,3);
+ assert.equal(s.r.guardianDefeated,true);assert.equal(s.r.haul.filter(h=>h.kind==='rare_blueprint_fragment').length,1);step(s,'move',{sectorId:'gate3'});step(s,'extract');assert.equal(s.p.expeditionBank.guardianDefeated,true);assert.deepEqual(s.p.storyFlags,profile().storyFlags);assert.equal(s.p.holobots.length,3);
 });
 
 test('review: rare discovery is an actual Workshop fragment on extract/protected wipe; bulky loss is unchanged',()=>{

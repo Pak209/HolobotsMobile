@@ -12,7 +12,7 @@ const { transactHoloZoneRun } = require('../lib/holozone/holoZoneStore.js');
 test('deleteUserData removes pilot trees including Arena leases, matches and receipts; other pilots untouched', async () => {
   const uid = `del_${Date.now()}`, other = `${uid}_other`;
   for (const u of [uid, other]) {
-    await db.doc(`users/${u}`).set({ holobots: [], buddyUnits: 0 });
+    await db.doc(`users/${u}`).set({ holobots: [], buddyUnits: 0, storyFlags: { arenaGatheringSeen: false, tournamentsWon: 0, arenaArcBuilt: false, holoZonesArcBuilt: true } });
     await db.doc(`users/${u}/fitness_daily/2026-10-01`).set({ steps: 1 });
     await db.doc(`wildEncounterSessions/${u}`).set({ enabled: true });
     await db.doc(`wildEncounterSessions/${u}/receipts/r1`).set({ digest: 'x' });

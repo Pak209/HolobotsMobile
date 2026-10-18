@@ -108,12 +108,36 @@ test('v3 drops entries that are not named records; v1 / v2 keep them verbatim', 
     assert.equal(r.username,'Pilot Actual'); assert.equal(r.syncPoints,0);
     assert.equal(r.pilotPortraitId,null); assert.equal(r.pilotColourwayId,null);
     assert.deepEqual(r.zones.map(z=>z.zoneId),['holocity','neonforest','tide_hollow','sky_reach']);
-    assert.deepEqual(r.zones.map(z=>z.sceneName),['HoloCity_Main','HoloZone_NeonForest',null,null]);
-    assert.deepEqual(r.zones.map(z=>z.isOpen),[true,true,false,false]);
+    // No storyFlags = defaults (holoZonesArcBuilt false): Neon Forest is closed, not travelable (critic review 2026-10-17 #1).
+    assert.deepEqual(r.zones.map(z=>z.sceneName),['HoloCity_Main',null,null,null]);
+    assert.deepEqual(r.zones.map(z=>z.isOpen),[true,false,false,false]);
+    assert.deepEqual(r.zones.map(z=>z.statusLabel),['OPEN','NOT YET AVAILABLE','NOT YET AVAILABLE','NOT YET AVAILABLE']);
     assert.deepEqual(profile,before);
   }
   for (const invalid of [undefined,null,-1,1.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1,'5']) {
     const r=S.buildDesktopAccountReply({username:42,syncPoints:invalid},'uid','desktop-account-3',{light:0,medium:0,heavy:0});
     assert.equal(r.username,null); assert.equal(r.syncPoints,null);
+  }
+});
+
+test('HoloZones arc gate: Neon Forest is open (with its scene) only when storyFlags.holoZonesArcBuilt; the fixtures are the builder output', () => {
+  const { desktopDashboardFields } = require('../lib/desktop/desktopDashboardFields.js');
+  const flags = built => ({ arenaGatheringSeen: true, tournamentsWon: 3, arenaArcBuilt: true, holoZonesArcBuilt: built });
+  for (const version of ['desktop-account-1', 'desktop-account-2', 'desktop-account-3']) {
+    for (const [storyFlags, open] of [[undefined, false], [flags(false), false], [{ holoZonesArcBuilt: false }, false], [flags(true), true], [{ holoZonesArcBuilt: true }, true]]) {
+      const r = S.buildDesktopAccountReply({ storyFlags, zones: [{ zoneId: 'neonforest', isOpen: !open }] }, 'u', version, { light: 0, medium: 0, heavy: 0 });
+      assert.deepEqual(r.zones[1], { zoneId: 'neonforest', displayName: 'Neon Forest', statusLabel: open ? 'OPEN' : 'NOT YET AVAILABLE', isOpen: open, cardImageId: 'neonforest', sceneName: open ? 'HoloZone_NeonForest' : null });
+      assert.deepEqual(r.zones.map(z => z.isOpen), [true, open, false, false], 'the flag never opens a zone without a configured tier');
+    }
+  }
+  // Malformed flags fail closed in the projection (the callable itself refuses them as unavailable).
+  for (const storyFlags of [null, [], 'yes', { holoZonesArcBuilt: 'true' }, { holoZonesArcBuilt: null }, { tournamentsWon: 3 }])
+    assert.equal(desktopDashboardFields({ storyFlags }).zones[1].isOpen, false, JSON.stringify(storyFlags));
+  const dir = '../../Documentation/QA/2026-10-17-desktop-snapshot-identity-1/';
+  for (const [file, open] of [['desktop-account-3.json', false], ['desktop-account-3_holozones-arc-built.json', true]]) {
+    const fixture = require(dir + file);
+    assert.equal(fixture.storyFlags.holoZonesArcBuilt, open);
+    const fields = desktopDashboardFields({ username: fixture.username, syncPoints: fixture.syncPoints, storyFlags: fixture.storyFlags });
+    assert.deepEqual(Object.fromEntries(Object.keys(fields).map(k => [k, fixture[k]])), fields, file);
   }
 });

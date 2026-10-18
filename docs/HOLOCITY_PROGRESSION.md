@@ -291,9 +291,19 @@ Phase 2 zones are added there (lowercase stable id → tier) when they ship; an 
 | `unknown_run` | `not-found` | no such run on the caller's doc (incl. another pilot's run id, or one pushed out of the last 10) |
 | `run_expired` | `failed-precondition` | unsettled and past `expiresAtMs` |
 | `run_closed` | `failed-precondition` | superseded by a later issue |
+| `zone_locked` | `failed-precondition` | issue while the account's host-owned `storyFlags.holoZonesArcBuilt` is false (2026-10-17, below) |
 | `unavailable` | `unavailable` | no profile, malformed stored data or travel squad, a fielded Holobot no longer on the profile |
 
 (`unauthenticated` without auth.)
+
+**HoloZones story gate (2026-10-17, critic review top #1).** Every zone ISSUE — `holozone-run-1` / `-2` here and the
+`zone-run-3` / `-4` expedition issue (after its `arena_arc_required` check) — refuses `zone_locked` while
+`readStoryFlags(profile.storyFlags).holoZonesArcBuilt` is false. It writes nothing and closes no open run; status,
+layout, town purchases and the settle/replay of an already-issued run are unchanged. Malformed story flags are
+`unavailable`. The desktop snapshot's `neonforest` row follows the same flag: `isOpen` / `OPEN` / `HoloZone_NeonForest`
+only when the tier is configured AND the flag is true, otherwise `NOT YET AVAILABLE` / `false` / `sceneName: null`.
+Nothing in the game flips the flag yet; QA and demo accounts get it per uid with the guarded local admin script
+`functions/scripts/admin/story-flags.mjs --holo-zones-arc-built true` (there is no host-side QA exemption).
 
 ### Storage
 

@@ -26,6 +26,7 @@ const bot = () => ({ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 2500
 async function setup(extra = {}) {
   const uid = `arena_r4_${Date.now()}_${serial++}`;
   await db.doc(`users/${uid}`).set({
+    storyFlags: { arenaGatheringSeen: false, tournamentsWon: 0, arenaArcBuilt: false, holoZonesArcBuilt: true },
     holobots: [bot(), { name: 'KUMA', level: 1, experience: 350, nextLevelExp: 400, attributePoints: 0 }],
     travelSquad: { schemaVersion: 'travel-squad-1', revision: 1, holobotIds: ['ace'] },
     buddyUnits: { light: 0, medium: 0, heavy: 0 }, arenaPassses: 3,

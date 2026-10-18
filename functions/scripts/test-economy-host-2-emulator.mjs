@@ -11,7 +11,7 @@ const T0 = Date.UTC(2026, 9, 14, 12);
 let serial = 0;
 const setup = async () => {
   const uid = `econ2_${Date.now()}_${serial++}`;
-  await db.doc(`users/${uid}`).set({ holobots: [{ name: 'ACE', level: 1, experience: 0 }], travelSquad: { schemaVersion: 'travel-squad-1', revision: 1, holobotIds: ['ace'] }, holosTokens: 600 });
+  await db.doc(`users/${uid}`).set({ storyFlags:{arenaGatheringSeen:false,tournamentsWon:0,arenaArcBuilt:false,holoZonesArcBuilt:true}, holobots: [{ name: 'ACE', level: 1, experience: 0 }], travelSquad: { schemaVersion: 'travel-squad-1', revision: 1, holobotIds: ['ace'] }, holosTokens: 600 });
   return uid;
 };
 const call = (uid, data, now = T0) => transactHoloZoneRun(db, uid, { schemaVersion: 'holozone-run-2', ...data }, now);

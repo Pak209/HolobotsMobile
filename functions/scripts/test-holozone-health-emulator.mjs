@@ -24,7 +24,7 @@ const bots = () => [
   { name: 'KUMA', level: 1, experience: 350, nextLevelExp: 400, attributePoints: 0 },
 ];
 const squad = (ids, revision = 1) => ({ schemaVersion: 'travel-squad-1', revision, holobotIds: ids });
-const setup = async (extra = {}) => { const uid = `zh_${Date.now()}_${serial++}`; await db.doc(`users/${uid}`).set({ holobots: bots(), travelSquad: squad(['ace', 'kuma']), buddyUnits: light(0), rivalWins: 0, holosTokens: 0, emergencyPatches: 1, ...extra }); return uid; };
+const setup = async (extra = {}) => { const uid = `zh_${Date.now()}_${serial++}`; await db.doc(`users/${uid}`).set({ storyFlags:{arenaGatheringSeen:false,tournamentsWon:0,arenaArcBuilt:false,holoZonesArcBuilt:true}, holobots: bots(), travelSquad: squad(['ace', 'kuma']), buddyUnits: light(0), rivalWins: 0, holosTokens: 0, emergencyPatches: 1, ...extra }); return uid; };
 const user = async uid => (await db.doc(`users/${uid}`).get()).data();
 const runsDoc = async uid => (await db.doc(`holoZoneRuns/${uid}`).get()).data();
 const rival = (uid, data, now = T0) => transactRivalBattle(db, uid, { schemaVersion: 'rival-battle-3', ...data }, now);
