@@ -1,43 +1,34 @@
 import {withRankHealingReward} from "../lib/rankHealingReward";
+import { Firestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
-import { applyTrainingClaim, type StoredTrainingRecord } from "../lib/progressionEconomy";
+import { applyTrainingClaim } from "../lib/progressionEconomy";
+import { legacyQuestTimersEnabled, resolveTrainingClaim, TimerError } from "../lib/progressionTimers";
+import { timerHttpsError } from "./progressionTimerErrors";
 
 /**
  * Server-authoritative training claim. Stored stat boosts are clamped to
  * the course's legal range and restricted to the course's stat(s); the EXP
  * reward comes from the course table, not the stored record.
+ *
+ * hardening-2 (critic S3): the session must come from startTrainingSession's server-only
+ * users/{uid}.progressionTimers.training record (host-clock elapsed time, host-rolled boosts). The client-written
+ * rewardSystem.activeTraining is accepted ONLY when no server record exists AND HOLOCITY_LEGACY_QUEST_TIMERS=1.
  */
-export const claimTrainingSession = onCall(async (request): Promise<{ claimed: boolean }> => {
-  const uid = request.auth?.uid;
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "You must be signed in to claim training.");
-  }
+export async function transactClaimTrainingSession(firestore: Firestore, uid: string, nowMs = Date.now(),
+  options: { legacyTimers?: boolean } = {}): Promise<{ claimed: boolean }> {
+  const legacyTimers = options.legacyTimers ?? legacyQuestTimersEnabled();
+  const userRef = firestore.doc(`users/${uid}`);
 
-  const userRef = db.doc(`users/${uid}`);
-
-  return db.runTransaction(async (transaction) => {
+  return firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(userRef);
     if (!snapshot.exists) {
       throw new HttpsError("not-found", "User profile not found.");
     }
 
     const userData = snapshot.data() ?? {};
-    const rewardSystem =
-      userData.rewardSystem && typeof userData.rewardSystem === "object"
-        ? (userData.rewardSystem as Record<string, unknown>)
-        : {};
-    const record = rewardSystem.activeTraining as StoredTrainingRecord | null | undefined;
-
-    if (!record || typeof record !== "object") {
-      throw new HttpsError("failed-precondition", "No training session is active.");
-    }
-
-    const endsAtMs = new Date(String(record.endsAt || "")).getTime();
-    if (!Number.isFinite(endsAtMs) || endsAtMs > Date.now()) {
-      throw new HttpsError("failed-precondition", "That training session is not complete yet.");
-    }
+    const { record, timerUpdates } = resolveTrainingClaim(userData, nowMs, legacyTimers);
 
     const result = applyTrainingClaim(userData, record);
     if (!result) {
@@ -45,7 +36,20 @@ export const claimTrainingSession = onCall(async (request): Promise<{ claimed: b
     }
 
     transaction.set(userRef, withRankHealingReward(userData,result.updates), { merge: true });
+    if (Object.keys(timerUpdates).length) transaction.update(userRef, timerUpdates);
 
     return { claimed: true };
   });
+}
+
+export const claimTrainingSession = onCall(async (request): Promise<{ claimed: boolean }> => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "You must be signed in to claim training.");
+  }
+  try {
+    return await transactClaimTrainingSession(db, uid);
+  } catch (error) {
+    throw error instanceof TimerError ? timerHttpsError(error) : error;
+  }
 });
