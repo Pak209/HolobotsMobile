@@ -11,6 +11,20 @@ There are two client PRs. Neither touches `functions/`, `firestore.rules`, deplo
 
 Hard rule 1 holds: the City (host) starts, times, rolls and pays. The client sends a request (`{questId | courseId, holobotName, requestId}`) and shows what the City recorded. Every new player string is marked PLACEHOLDER (Lex) and says "the City", never "host" (DECISIONS #71).
 
+## Update after the deploy (2026-10-18)
+
+- **#145 merged** (`c379317`; final head `c110c3e` differs from the `e9091f0` built against only by a test-script sha re-pin). **The hardening set is deployed** to `holobots-24046` from main `a90d061`, with `HOLOCITY_LEGACY_QUEST_TIMERS=1` still ON.
+- **The deployed host matches every assumption here.** Between `e9091f0` and `a90d061` the contract files are byte-identical: `progressionTimers.ts`, the four start/claim callables and their errors, `progressionEconomy.ts`, `economy.ts`, `desktopAccountReply.ts`, `arenaMatchStore.ts` / `arenaMatchHost.ts`, `firestore.rules`, and the two schemas. Only `index.ts` gained #136's 3 lines. In addition:
+  - The four callables are exported in the default region (`us-central1`, as the client uses).
+  - `users/{uid}` is owner-readable.
+  - `dailyMissionLedger` is on every desktop-account version.
+  - The flag test is exactly `"1"`.
+  - The fixtures equal `a90d061`'s bytes: admitted-lifecycle `9bdedb40`, ledger `ab42c552`.
+- **#146 merged the lite tip `0756650`** (#144 squash `d14e1d3` at head `c1e4a8c`, plus #148). #144's final tree equals the `1badad3` this lane replayed, so every conflict was history-only and the merge added only #148's README. Lite: vitest 1271 pass / 4 skip, tsc 0.
+- **#147 on main `a90d061`:** a trial merge (not committed) gives vitest 942 pass / 4 skip (main alone: 912 / 4), with the same 2 known local load failures and tsc errors. The #145 parity check now runs against main's own host code and passes (30/30). #147 is left as is (MERGEABLE).
+- **Re-pin: done separately** in https://github.com/Pak209/HolobotsMobile/pull/151 (`claude/lite-host-repin-a90d061`), so this PR is not delayed.
+- The "HELD on #145" items below are history. What remains: turn the legacy flag off after #146/#147 ship, and Daily Missions on main's gated tree (proposed as its own task).
+
 ## Base and holds
 
 - **Lite PR.** The base is the GitHub-verified `mobile-holocity-lite` tip `038038b`. #137, #141 and #142 squash-merged while this lane ran. The lane first built on #144's head `1badad3`, which merged those three locally (#141 `b0c43fc`, #142 `bbc323d`, #137 `e828c21`). `038038b`'s tree equals that local merge base (`b4f0bc7`, tree `a54f52f`), so #144's five commits and this lane's commits were replayed onto it with an identical final tree (`a8079bd`). #144 is still open: until it lands, the PR diff also shows its commits. **Rebase once #144 lands.** Commit map: `f1f21b8`→`af8eab9`, `1aac2ab`→`a25c4aa`, `933118b`→`7cc6b63`.
