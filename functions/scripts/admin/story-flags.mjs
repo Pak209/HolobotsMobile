@@ -41,39 +41,106 @@ export function validateResult(data,updates){
  for(const [path,value] of Object.entries(updates))if(path.startsWith('storyFlags.'))flags[path.slice(11)]=value;
  if(flags.arenaArcBuilt!==(flags.tournamentsWon===3))fail('arenaArcBuilt must match tournamentsWon===3; Arena disable requires an already-consistent win count');
 }
-export async function updateStoryFlags(db,options){
+/* Transport: plain Firestore REST v1 over fetch.
+ * Why not @google-cloud/firestore: this script resolves google-auth-library 10.x, whose
+ * getRequestHeaders() returns a WHATWG Headers object; google-gax 4 / grpc-js 1.14 (used by
+ * @google-cloud/firestore 7) copy auth headers with Object.keys()/object spread, which yields {}
+ * for a Headers instance. Every request therefore went out with NO Authorization header on both
+ * the gRPC and preferRest transports, was evaluated by security rules as unauthenticated, and
+ * failed "7 PERMISSION_DENIED: Missing or insufficient permissions." even for the project owner.
+ * Here the bearer token is attached explicitly and the request is the same one `curl` makes.
+ */
+const READ_MASK=['storyFlags','pilotRank'];
+export function documentsBase(mode,project,env=process.env){
+ if(mode==='emulator')return `http://${env.FIRESTORE_EMULATOR_HOST}/v1/projects/${project}/databases/(default)/documents`;
+ if(mode==='user-adc')return `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents`;
+ fail('Unknown transport mode');
+}
+/** Build the REST client. Emulator: loopback + demo- project + `Bearer owner`. Real: verified authorized_user ADC only. */
+export async function createRestClient({project,env=process.env,rawAdc,fetchImpl=globalThis.fetch}){
+ const mode=credentialMode(env,project);let authClient=null;
+ if(mode==='user-adc'){
+  const credentials=validateUserAdc(rawAdc);
+  const {UserRefreshClient}=await import('google-auth-library');
+  authClient=new UserRefreshClient(credentials.clientId,credentials.clientSecret,credentials.refreshToken);
+ }else if(rawAdc!==undefined)fail('Emulator mode must not load user credentials');
+ const client={mode,project,authClient,base:documentsBase(mode,project,env),
+  async token(){if(mode==='emulator')return 'owner';const {token}=await client.authClient.getAccessToken();if(typeof token!=='string'||!token)fail('User ADC produced no access token');return token;},
+  async request(method,url,body){
+   const headers={authorization:`Bearer ${await client.token()}`};if(body!==undefined)headers['content-type']='application/json';
+   const res=await fetchImpl(url,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+   const text=await res.text();let json=null;try{json=text?JSON.parse(text):null;}catch{json=null;}
+   return {status:res.status,ok:res.ok,json};
+  }};
+ return client;
+}
+export function decodeValue(v){
+ if(!v||typeof v!=='object')fail('Malformed Firestore value');
+ if('nullValue' in v)return null;if('booleanValue' in v)return v.booleanValue;
+ if('integerValue' in v){const n=Number(v.integerValue);return Number.isSafeInteger(n)?n:v.integerValue;}
+ if('doubleValue' in v)return Number(v.doubleValue);
+ for(const k of ['stringValue','timestampValue','bytesValue','referenceValue'])if(k in v)return v[k];
+ if('geoPointValue' in v)return {...v.geoPointValue};
+ if('arrayValue' in v)return (v.arrayValue.values??[]).map(decodeValue);
+ if('mapValue' in v)return decodeFields(v.mapValue.fields);
+ fail('Unsupported Firestore value');
+}
+export function decodeFields(fields={}){return Object.fromEntries(Object.entries(fields??{}).map(([k,v])=>[k,decodeValue(v)]));}
+export function encodeValue(v){
+ if(typeof v==='boolean')return {booleanValue:v};
+ if(Number.isSafeInteger(v))return {integerValue:String(v)};
+ fail('Only boolean and safe-integer updates are encodable');
+}
+/** {'storyFlags.a':true,pilotRank:9} -> REST fields body (only the masked paths are applied). */
+export function encodeUpdates(updates){
+ const fields={};
+ for(const [path,value] of Object.entries(updates)){
+  const parts=path.split('.');if(parts.length>2||parts.some(p=>!/^[A-Za-z][A-Za-z0-9]*$/.test(p)))fail('Unapproved update field path');
+  if(parts.length===1)fields[parts[0]]=encodeValue(value);
+  else{fields[parts[0]]??={mapValue:{fields:{}}};fields[parts[0]].mapValue.fields[parts[1]]=encodeValue(value);}
+ }
+ return fields;
+}
+const restError=(what,r)=>`Firestore REST ${what} failed: HTTP ${r.status} ${r.json?.error?.status??''} ${r.json?.error?.message??''}`.trim();
+async function readUser(client,uid){
+ const q=new URLSearchParams();for(const f of READ_MASK)q.append('mask.fieldPaths',f);
+ const r=await client.request('GET',`${client.base}/users/${encodeURIComponent(uid)}?${q}`);
+ if(r.status===404)fail('Unknown UID; refusing upsert');
+ if(!r.ok||!r.json||typeof r.json.updateTime!=='string')fail(restError('read',r));
+ return {data:decodeFields(r.json.fields),updateTime:r.json.updateTime};
+}
+export async function updateStoryFlags(client,options){
  // Validate even programmatic callers, not just the CLI.
  const args=['--uid',options.uid,'--confirm',options.uid,'--project',options.project];
  const names={'storyFlags.arenaArcBuilt':'--arena-arc-built','storyFlags.holoZonesArcBuilt':'--holo-zones-arc-built',pilotRank:'--pilot-rank'};
  for(const [key,value] of Object.entries(options.updates)){if(!names[key])fail('Unapproved update field');args.push(names[key],String(value));}
- const checked=parseOptions(args);const updates=expandArenaEnable(checked.updates);const ref=db.doc(`users/${checked.uid}`);
- return db.runTransaction(async tx=>{const snap=await tx.get(ref);if(!snap.exists)fail('Unknown UID; refusing upsert');const before=snap.data();validateResult(before,updates);
-  const after={...before,...(Object.hasOwn(updates,'pilotRank')?{pilotRank:updates.pilotRank}:{})};
-  const flagUpdates=Object.entries(updates).filter(([k])=>k.startsWith('storyFlags.'));if(flagUpdates.length)after.storyFlags={...before.storyFlags,...Object.fromEntries(flagUpdates.map(([k,v])=>[k.slice(11),v]))};
-  tx.update(ref,updates);return {uid:checked.uid,project:checked.project,before:selectedState(before),after:selectedState(after),changedFields:Object.keys(updates)};
- });
+ const checked=parseOptions(args);if(checked.project!==client.project)fail('Client project does not match --project');
+ const updates=expandArenaEnable(checked.updates);
+ const read=await readUser(client,checked.uid);validateResult(read.data,updates);
+ // One masked update with an optimistic-concurrency precondition, sent through documents:commit so the
+ // precondition travels as a JSON Timestamp. (The Firestore emulator parses a PATCH query-param
+ // currentDocument.updateTime as version 0, so the PATCH form cannot be exercised locally.)
+ // The write only lands on the exact version validated above; the precondition also implies the
+ // document exists, so a delete between read and write cannot turn into an upsert.
+ const w=await client.request('POST',`${client.base}:commit`,{writes:[{
+  update:{name:`${client.base.slice(client.base.indexOf('/v1/')+4)}/users/${checked.uid}`,fields:encodeUpdates(updates)},
+  updateMask:{fieldPaths:Object.keys(updates)},
+  currentDocument:{updateTime:read.updateTime}}]});
+ if(!w.ok){
+  if(w.json?.error?.status==='FAILED_PRECONDITION'||w.status===409)fail('Document changed or vanished since it was read (concurrent write); nothing written, rerun to retry');
+  fail(restError('write',w));
+ }
+ const reread=await readUser(client,checked.uid);
+ return {uid:checked.uid,project:checked.project,before:selectedState(read.data),after:selectedState(reread.data),changedFields:Object.keys(updates)};
 }
-/** Use the installed Google Cloud transport with this exact verified user client.
- * Firebase Admin refreshToken credentials are not accepted by its Firestore adapter.
- * Supplying auth explicitly avoids any second ADC/metadata/key-file discovery.
- */
-export async function createUserFirestore(project, rawAdc) {
- const {Firestore}=await import('@google-cloud/firestore');
- if(rawAdc===undefined){if(credentialMode(process.env,project)!=='emulator')fail('User ADC required');return new Firestore({projectId:project});}
- const credentials=validateUserAdc(rawAdc);
- const {GoogleAuth,UserRefreshClient}=await import('google-auth-library');
- const client=new UserRefreshClient(credentials.clientId,credentials.clientSecret,credentials.refreshToken);
- const auth=new GoogleAuth({projectId:project,authClient:client});
- return new Firestore({projectId:project,auth});
-}
-export async function main(args=process.argv.slice(2),env=process.env){
+export async function main(args=process.argv.slice(2),env=process.env,fetchImpl=globalThis.fetch){
  const options=parseOptions(args);const mode=credentialMode(env,options.project);
- let credentials;
+ let rawAdc;
  if(mode==='user-adc'){
   const adcPath=resolve(env.CLOUDSDK_CONFIG||resolve(homedir(),'.config/gcloud'),'application_default_credentials.json');
-  credentials=JSON.parse(await readFile(adcPath,'utf8'));validateUserAdc(credentials);
+  rawAdc=JSON.parse(await readFile(adcPath,'utf8'));validateUserAdc(rawAdc);
  }
- const db=await createUserFirestore(options.project,credentials);
- try{const result=await updateStoryFlags(db,options);console.log(JSON.stringify(result,null,2));return result;}finally{await db.terminate();}
+ const client=await createRestClient({project:options.project,env,rawAdc,fetchImpl});
+ const result=await updateStoryFlags(client,options);console.log(JSON.stringify(result,null,2));return result;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)main().catch(error=>{console.error(`story-flags: ${error.message}`);process.exitCode=1;});
