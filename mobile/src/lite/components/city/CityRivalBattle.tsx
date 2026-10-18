@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, AppState, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getHolobotFullImageSource, getHolobotHeadshotImageSource } from "@/config/holobots";
 import { CityLiveBattleView } from "./CityLiveBattleView";
 import { ArenaCombatEngine } from "@/lite/features/arena/combatEngine";
 import { getAbility } from "@/features/arena/abilities";
 import { getSignatureFinisher, resolveCombatKit } from "@/features/arena/moveKits";
-import { publishRivalCooldown, publishRivalStatus } from "@/lite/hooks/useRivalStatus";
-import { cityActionMessage, cityRivalCooldownEnd, record, type ArenaCitizen } from "@/lite/lib/cityHub";
-import { CITY_GATHERING_FIXTURE } from "@/lite/lib/cityHubFixtures";
-import { CITY_LIVE_DUEL_HOLD, issueCityRival, settleCityRival } from "@/lite/lib/cityHubClient";
+import { publishRivalCooldown } from "@/lite/hooks/useRivalStatus";
+import { cityActionMessage, cityRivalCooldownEnd, type ArenaCitizen } from "@/lite/lib/cityHub";
+import { CITY_LIVE_DUEL_HOLD, issueCityRival } from "@/lite/lib/cityHubClient";
 import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, type CityRivalIssue } from "@/lite/lib/cityRivalBattle";
 import { DuelPlaybackScreen } from "@/lite/screens/DuelPlaybackScreen";
 import type { BattleState } from "@/lite/types/arena";
@@ -23,11 +22,12 @@ function previewIssue(rival: ArenaCitizen): CityRivalIssue {
   const raw = { schemaVersion: "rival-battle-3", battleId: "rb_000000000000000000000000", expiresAtMs: Date.now() + 7_200_000, playerCombatants: [bot], encounter: { encounterId: "rb_000000000000000000000000", seed: 1, opponentPilot: { pilotId: rival.citizenId }, opponentSquad: [{ ...bot, holobotId: rival.holobotId, attack: 31, defense: 18 }] } };
   return readCityRivalIssue(raw, rival.citizenId, rival.holobotId);
 }
-export function CityRivalCombatPreview({ onClose }: { onClose: () => void }) {
-  return <CityRivalBattle uid="offline-city-preview" rival={CITY_GATHERING_FIXTURE.roster[0]} onClose={onClose} preview initialCombat />;
-}
 
-/** An isolated battle avoids leaking rival outcomes into ArenaScreen's settlement store. */
+/**
+ * An isolated battle avoids leaking rival outcomes into ArenaScreen's settlement store.
+ * Live citizen duels are HELD (DECISIONS #71): issueCityRival refuses, and there is no client settle.
+ * Re-enabling needs the City's resolver path (settleCityResolver), never a client-decided didWin.
+ */
 export function CityRivalBattle({ uid, rival, onClose, preview = false, initialCombat = false, accountSnapshot }: { accountSnapshot?: unknown; uid: string; rival: ArenaCitizen; onClose: () => void; preview?: boolean; initialCombat?: boolean }) {
   const insets = useSafeAreaInsets();
   const [hostPreview, setHostPreview] = useState(false);
@@ -47,7 +47,6 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
   const observed = useRef<BattleState | null>(null);
   const appActive = useRef(AppState.currentState === "active");
   const settlementAttempted = useRef(false);
-  const settlementOutcome = useRef<boolean | null>(null);
 
   function commit(next: BattleState) { observed.current = next; setBattle(next); }
   function enterBattle(admitted: CityRivalIssue) {
@@ -76,21 +75,13 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     if (preview) { enterBattle(previewIssue(rival)); return; }
     if (busy.current || issueAttempted) return;
     busy.current = true; setPending(true); setIssueAttempted(true); setMessage(null);
-    let raw: unknown;
     try {
-      raw = await issueCityRival(uid, rival);
-      const admitted = readCityRivalIssue(raw, rival.citizenId, rival.holobotId);
+      const admitted = readCityRivalIssue(await issueCityRival(uid, rival), rival.citizenId, rival.holobotId);
       if (!alive.current) return;
       enterBattle(admitted);
     } catch (error) {
       const cooldownEnd = cityRivalCooldownEnd(error, Date.now());
       if (cooldownEnd !== null) publishRivalCooldown(uid, rival.citizenId, cooldownEnd);
-      // A verified issuance that cannot be played must be closed without a win/XP claim.
-      const rawId = record(raw)?.battleId;
-      if (typeof rawId === "string" && /^rb_[a-f0-9]{24}$/.test(rawId)) {
-        try { await settleCityRival(uid, rawId, false, []); }
-        catch { /* Keep the original compatibility error; admission expires server-side. */ }
-      }
       if (alive.current) setMessage(cityActionMessage(error));
     } finally { busy.current = false; if (alive.current) setPending(false); }
   }
@@ -128,33 +119,20 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     return () => clearInterval(timer);
   }, [issue, receipt]);
 
-  async function settle(didWin: boolean) {
-    if (!issue || busy.current || receipt) return;
-    if (preview) { settlementAttempted.current = true; setReceipt({ battleId: "offline-city-duel", didWin }); return; }
-    busy.current = true; settlementAttempted.current = true; settlementOutcome.current = didWin; setPending(true); setMessage(null);
-    try {
-      const confirmed = await settleCityRival(uid, issue.battleId, didWin, observed.current?.actionHistory.length ? [issue.player.holobotId] : []);
-      // The host reply has no settledAtMs. Do not restart an observed clock on receipt replay.
-      if (confirmed.alreadyProcessed === false) publishRivalCooldown(uid, rival.citizenId, Date.now() + 300_000);
-      publishRivalStatus(uid, confirmed.status);
-      if (alive.current) setReceipt(confirmed);
-    } catch (error) { if (alive.current) setMessage(cityActionMessage(error)); }
-    finally { busy.current = false; if (alive.current) setPending(false); }
+  function settle(didWin: boolean) {
+    // Only the offline preview settles here. A live duel has no client settle (HELD; see above).
+    if (!issue || receipt || !preview) return;
+    settlementAttempted.current = true; setReceipt({ battleId: "offline-city-duel", didWin });
   }
   useEffect(() => {
     if (!battle || battle.status !== "completed" || settlementAttempted.current || receipt) return;
     const result = ArenaCombatEngine.checkWinCondition(battle);
     const didWin = result.winnerId === battle.player.holobotId;
-    if (preview || !didWin || Date.now() >= receivedAt.current + 20_000) void settle(didWin);
+    if (preview || !didWin || Date.now() >= receivedAt.current + 20_000) settle(didWin);
   }, [battle, receipt, waitSeconds]);
 
-  function forfeit() {
-    if (preview) { onClose(); return; }
-    Alert.alert("Leave this duel?", "Leaving records a loss with the rival host.", [
-      { text: "Keep battling", style: "cancel" },
-      { text: "Forfeit", style: "destructive", onPress: () => { if (observed.current) commit({ ...observed.current, status: "abandoned" }); void settle(false); } },
-    ]);
-  }
+  // Leaving records nothing: only the offline preview can be in a battle while live duels are held.
+  function forfeit() { onClose(); }
   const replayReceipt = useMemo(() => ({ issue: issue?.raw, settlement: receipt }), [issue, receipt]);
   const replayRounds = useMemo(() => cityBattleRounds(battle?.actionHistory ?? []), [battle?.actionHistory]);
   if (__DEV__ && preview && hostPreview && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1") {
@@ -173,10 +151,10 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     {!issue ? <Text style={styles.body}>{preview ? "Your first travel-squad Holobot enters this offline duel." : CITY_LIVE_DUEL_HOLD}</Text> : <Text style={styles.title}>{battle?.status === "completed" ? "DUEL COMPLETE" : "DUEL ENDED"}</Text>}
     {pending ? <ActivityIndicator size="large" color={theme.colors.accent} /> : null}
     {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
-    {__DEV__ && preview && !issue && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1" ? <Pressable accessibilityRole="button" accessibilityLabel="Play offline host receipt" onPress={() => setHostPreview(true)} style={styles.primary}><Text style={styles.primaryText}>OFFLINE ACE / WOLF RECEIPT · NO REWARDS</Text></Pressable> : null}
+    {/* PLACEHOLDER copy (Lex, DECISIONS #71): the QA receipt button's label. */}
+    {__DEV__ && preview && !issue && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1" ? <Pressable accessibilityRole="button" accessibilityLabel="Play offline City receipt" onPress={() => setHostPreview(true)} style={styles.primary}><Text style={styles.primaryText}>OFFLINE ACE / WOLF RECEIPT · NO REWARDS</Text></Pressable> : null}
     {preview && !issue && !issueAttempted ? <Pressable accessibilityRole="button" onPress={() => void start()} style={styles.primary}><Text style={styles.primaryText}>START RIVAL DUEL</Text></Pressable> : null}
     {issue && !pending && !receipt && battle?.status === "completed" && !settlementAttempted.current ? <Text style={styles.body}>Confirming the match · {waitSeconds}s</Text> : null}
-    {issue && message && settlementAttempted.current && !pending ? <Pressable accessibilityRole="button" onPress={() => void settle(settlementOutcome.current === true)} style={styles.primary}><Text style={styles.primaryText}>RETRY HOST CONFIRMATION</Text></Pressable> : null}
     {(!issue || battle?.status === "abandoned") && !pending ? <Pressable accessibilityRole="button" onPress={onClose} style={styles.leave}><Text style={styles.leaveText}>RETURN TO CITY</Text></Pressable> : null}
   </View>;
 }

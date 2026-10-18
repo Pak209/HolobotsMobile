@@ -7,6 +7,8 @@ import {
   listingPurchase, presentCityMarket, readVendorCatalog, refusalNotice, type CityMarketState, type VendorCatalog,
 } from "../cityMarket";
 
+import { listingBlock } from "../cityMarket";
+
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const catalog = () => readVendorCatalog(clone(hostMarket.catalog), "marketplace");
 const ready = (value: VendorCatalog = catalog()): CityMarketState => cityMarketReducer(initialCityMarketState(true), { type: "loaded", catalog: value });
@@ -68,13 +70,28 @@ describe("readVendorCatalog fail-closed", () => {
 describe("listing purchase calls", () => {
   it("sends the listing's own call; only <client-generated> is replaced", () => {
     const c = catalog();
-    expect(listingPurchase(listing(c, "item.arena_pass"))).toEqual({ callable: "purchaseMarketplaceItem", request: { itemName: "Arena Pass" } });
-    expect(listingPurchase(listing(c, "booster.rare"))).toEqual({ callable: "purchaseMarketplaceBooster", request: { packId: "rare" } });
     expect(listingNeedsRequestId(listing(c, "buddy.medium"))).toBe(true);
     expect(listingPurchase(listing(c, "buddy.medium"), "req_1")).toEqual({ callable: "purchaseBuddyUnit", request: { tierId: "buddy_medium", requestId: "req_1" } });
     expect(listingPurchase(listing(c, "item.repair_kit"), "req_2")).toEqual({ callable: "desktopItemsHost", request: { schemaVersion: "desktop-items-2", operation: "buy", itemId: "item.repair_kit", requestId: "req_2" } });
     expect(listingPurchase(listing(c, "buddy.medium"))).toBeNull();
     expect(listingPurchase(listing(c, "buddy.medium"), "bad id!")).toBeNull();
+  });
+  it("S12: never sends a listing whose host purchase takes no requestId (legacy itemName / packId calls are not idempotent)", () => {
+    const c = catalog();
+    const legacy = c.listings.filter((entry) => !listingNeedsRequestId(entry));
+    expect(legacy.map((entry) => entry.listingId)).toEqual([
+      "item.arena_pass", "item.gacha_ticket", "item.energy_refill", "item.exp_booster", "item.rank_skip", "item.wildcard_blueprints",
+      "booster.champion", "booster.common", "booster.elite", "booster.rare",
+    ]);
+    for (const entry of legacy) {
+      expect(listingBlock(entry)).toBe("not_idempotent");
+      expect(listingPurchasable(entry)).toBe(false);
+      expect(listingPurchase(entry)).toBeNull();
+      expect(listingPurchase(entry, "req_1")).toBeNull();
+      expect(row(ready(c), entry.listingId).action).toEqual({ label: CITY_MARKET_COPY.notSoldHere, enabled: false });
+      expect(cityMarketReducer(ready(c), { type: "select", listingId: entry.listingId }).confirming).toBeNull();
+    }
+    expect(c.listings.filter(listingPurchasable).map((entry) => entry.listingId)).toEqual(["item.emergency_patch", "item.repair_kit", "item.full_restore", "buddy.medium", "buddy.heavy"]);
   });
   it("never sends an unlisted callable or a non-buy operation", () => {
     const c = clone(hostMarket.catalog) as Record<string, any>;
@@ -94,18 +111,27 @@ describe("presentCityMarket renders the host reply only", () => {
     const state = ready();
     expect(row(state, "buddy.medium")).toMatchObject({ title: "MEDIUM BUDDY UNIT", priceText: "300 HOLOS", metaText: "OWNED 0 · IN STOCK", action: { label: "BUY", enabled: true } });
     expect(row(state, "item.repair_kit")).toMatchObject({ priceText: "250 HOLOS", metaText: "OWNED 2 · IN STOCK", detailText: "HEALS 50% HP" });
-    expect(row(state, "item.wildcard_blueprints")).toMatchObject({ priceText: "300 HOLOS · ×5 PER BUY", metaText: "OWNED 5", action: { label: "RESTOCKING", enabled: false } });
+    expect(row(state, "item.wildcard_blueprints")).toMatchObject({ priceText: "300 HOLOS · ×5 PER BUY", metaText: "OWNED 5", action: { label: "NOT SOLD HERE", enabled: false } });
     expect(row(state, "booster.elite")).toMatchObject({ metaText: "IN STOCK", detailText: "BONUS · EXP BOOSTER" });
-    expect(row(state, "item.rank_skip").action).toEqual({ label: "BUY", enabled: true });
+    expect(row(state, "item.full_restore").action).toEqual({ label: "BUY", enabled: true });
+  });
+  it("a sellable listing out of stock reads RESTOCKING (with a restock time) or SOLD OUT", () => {
+    const stock = clone(hostMarket.catalog) as Record<string, any>;
+    Object.assign(stock.listings.find((r: any) => r.listingId === "buddy.heavy"), { available: false, availableAtMs: 1_900_000_000_000 });
+    Object.assign(stock.listings.find((r: any) => r.listingId === "item.full_restore"), { available: false, availableAtMs: 0 });
+    const state = ready(readVendorCatalog(stock, "marketplace"));
+    expect(row(state, "buddy.heavy").action).toEqual({ label: "RESTOCKING", enabled: false });
+    expect(row(state, "item.full_restore").action).toEqual({ label: "SOLD OUT", enabled: false });
+    expect(cityMarketReducer(state, { type: "select", listingId: "buddy.heavy" }).confirming).toBeNull();
   });
   it("uses the host's affordable flag, never a local Holos comparison", () => {
     const poor = clone(hostMarket.catalog) as Record<string, any>;
     poor.listings.find((r: any) => r.listingId === "buddy.heavy").affordable = false;
-    poor.listings.find((r: any) => r.listingId === "item.rank_skip").affordable = true;
+    poor.listings.find((r: any) => r.listingId === "item.full_restore").affordable = true;
     poor.holosTokens = 0;
     const state = ready(readVendorCatalog(poor, "marketplace"));
     expect(row(state, "buddy.heavy").action).toEqual({ label: "NEED HOLOS", enabled: false });
-    expect(row(state, "item.rank_skip").action).toEqual({ label: "BUY", enabled: true });
+    expect(row(state, "item.full_restore").action).toEqual({ label: "BUY", enabled: true });
     expect(presentCityMarket(state).holosText).toBe("0 HOLOS");
   });
   it("after a purchase shows the re-read catalog's Holos and owned count, not before minus price", () => {
@@ -116,9 +142,9 @@ describe("presentCityMarket renders the host reply only", () => {
     expect(row(ready(readVendorCatalog(after, "marketplace")), "buddy.medium").metaText).toBe("OWNED 1 · IN STOCK");
   });
   it("signed-out and unavailable plates", () => {
-    expect(presentCityMarket(initialCityMarketState(false))).toMatchObject({ plate: { title: "SIGN IN FIRST", refresh: false }, sections: [], holosText: "— HOLOS" });
+    expect(presentCityMarket(initialCityMarketState(false))).toMatchObject({ plate: { title: "SIGN IN FIRST", refresh: false }, sections: [], holosText: null });
     const failed = cityMarketReducer(ready(), { type: "loadFailed", text: CATALOG_INVALID_TEXT });
-    expect(presentCityMarket(failed)).toMatchObject({ plate: { title: "UNAVAILABLE", body: CATALOG_INVALID_TEXT, refresh: true }, sections: [], holosText: "— HOLOS", refreshEnabled: true });
+    expect(presentCityMarket(failed)).toMatchObject({ plate: { title: "UNAVAILABLE", body: CATALOG_INVALID_TEXT, refresh: true }, sections: [], holosText: null, refreshEnabled: true });
   });
 });
 
@@ -138,11 +164,14 @@ describe("cityMarketReducer BUY → CONFIRM", () => {
     state = cityMarketReducer(state, { type: "purchaseFinished", notice: { tone: "ok", text: "PURCHASE CONFIRMED · Medium Buddy Unit" } });
     expect(presentCityMarket(state)).toMatchObject({ confirm: null, notice: { tone: "ok" } });
   });
-  it("prints the host's refusal code", () => {
+  it("L20: maps the City's refusal code to player copy and never prints the code", () => {
     const c = catalog();
-    expect(refusalNotice(listing(c, "buddy.heavy"), { code: "functions/failed-precondition", details: { rejectionCode: "not_enough_holos" } }).text).toBe("REFUSED · not_enough_holos — Not enough Holos.");
-    expect(refusalNotice(listing(c, "item.arena_pass"), { code: "functions/invalid-argument", details: { rejectionCode: "on_cooldown" } }).text).toContain("REFUSED · on_cooldown");
-    expect(refusalNotice(listing(c, "item.arena_pass"), new Error("timed out")).text).toBe("The host did not confirm this purchase. Check the stalls below before buying again.");
+    const refusal = (code: string) => refusalNotice(listing(c, "buddy.heavy"), { code: "functions/failed-precondition", details: { rejectionCode: code } });
+    expect(refusal("not_enough_holos")).toEqual({ tone: "refused", text: "Not enough Holos." });
+    expect(refusal("on_cooldown").text).toBe("This stall restocks weekly.");
+    for (const code of ["mystery_code", "constructor", "to_string"]) expect(refusal(code)).toEqual({ tone: "refused", text: "The City refused this purchase." });
+    expect(refusalNotice(listing(c, "buddy.heavy"), { code: "functions/permission-denied", message: "raw server text" }).text).toBe("The City refused this purchase.");
+    expect(refusalNotice(listing(c, "item.arena_pass"), new Error("timed out")).text).toBe("The City did not confirm this purchase. Check the stalls below before buying again.");
     expect(refusalNotice(listing(c, "buddy.medium"), { code: "functions/unavailable" }).text).toContain("resends the same receipt");
     expect(refusalNotice(listing(c, "buddy.medium"), { code: "functions/unauthenticated" }).text).toBe("Sign in first, then reopen the market.");
   });

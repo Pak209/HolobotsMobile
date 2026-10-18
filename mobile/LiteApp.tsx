@@ -1,4 +1,5 @@
 import { isLiteEnabled, isLitePreviewEnabled } from "./src/config/liteFeature";
+import { useRef } from "react";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useFonts } from "expo-font";
@@ -27,7 +28,8 @@ import { theme } from "./src/lite/theme";
 
 export type RootTabs = {
   CityHub: undefined;
-  CityMarket: undefined;
+  /** `from` decides where the market's back button returns (Home's MARKET or the city's Vendor). */
+  CityMarket: { from?: "Home" | "CityHub" } | undefined;
   Arena: undefined;
   Home: undefined;
   Fitness: undefined;
@@ -55,13 +57,25 @@ const navTheme = {
 };
 
 function AuthedApp() {
-  const { bootLoading, profile, profileLoading, sessionLocked, user } = useAuth();
+  const { bootLoading, profile, profileError, profileLoading, sessionLocked, user } = useAuth();
+  // HELD on main (lite-main-port-2): lite #142 starts the profile read in the same AuthContext update as the sign-in.
+  // That hunk edits the shared AuthContext, which still sets the user one render before the read starts. Track which
+  // account's read has started, so no render shows Home (or its CAN'T LOAD roster) before that read begins.
+  const profileReadFor = useRef<string | null>(null);
+  if (!user) profileReadFor.current = null;
+  else if (profileLoading || profile || profileError) profileReadFor.current = user.uid;
+  const profileReadPending = !!user && profileReadFor.current !== user.uid;
   const watchRewardsSync = useWatchBridge(
     user?.uid,
     (profile?.holobots || []).map((holobot) => holobot.name),
   );
 
-  if (bootLoading || (user && profileLoading && !profile)) {
+  // Only a first profile read covers the app; a retry after an error stays on Home (LOADING ROSTER…).
+  if (bootLoading || (user && profileLoading && !profile && !profileError)) {
+    return <AppLoadingScreen />;
+  }
+
+  if (profileReadPending) {
     return <AppLoadingScreen />;
   }
 

@@ -2,18 +2,20 @@ import { theme } from "@/lite/theme";
 import { ReactNode, useState } from "react";
 import { View, useWindowDimensions, StyleSheet } from "react-native";
 
-import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH } from "@/config/figmaAssets";
+import { fitArtboard } from "@/lite/config/homeLayout";
 
-export function FigmaCanvas({ children, fillHeight = false }: { children: ReactNode; fillHeight?: boolean }) {
-  const [availableHeight, setAvailableHeight] = useState(0);
-  const { width, height } = useWindowDimensions();
-  const portraitRatio = ARTBOARD_WIDTH / ARTBOARD_HEIGHT;
-  const canvasWidth = Math.min(width, height * portraitRatio);
-  const canvasHeight = fillHeight && availableHeight ? availableHeight : Math.min(height, width / portraitRatio);
+/**
+ * The artboard at one scale for both axes, centred in the space this page is given; the rest is
+ * carbon letterbox. Overlays positioned in artboard percent stay on their art at every phone size.
+ */
+export function FigmaCanvas({ children }: { children: ReactNode }) {
+  const window = useWindowDimensions();
+  const [page, setPage] = useState<{ width: number; height: number } | null>(null);
+  const frame = fitArtboard(page?.width ?? window.width, page?.height ?? window.height);
 
   return (
-    <View style={styles.page} onLayout={event => setAvailableHeight(event.nativeEvent.layout.height)}>
-      <View style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}>
+    <View style={styles.page} onLayout={event => { const { width, height } = event.nativeEvent.layout; setPage({ width, height }); }}>
+      <View style={[styles.canvas, { width: frame.width, height: frame.height }]}>
         {children}
       </View>
     </View>
