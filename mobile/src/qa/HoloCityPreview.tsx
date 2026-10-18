@@ -2,6 +2,7 @@ import { previewInitialScreen, ARENA_CAPTURE_ROUTES } from "./previewRoutes";
 import { ArenaAdmittedRoundPreview, ArenaAdmittedResultPreview, ArenaAdmittedKnownBadPreview } from "./ArenaAdmittedPreview";
 import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaHostLevelsPreview";
 import { cityMarketPreviewScreens } from "./CityMarketPreview";
+import { arenaBenchPreviewScreens } from "./ArenaBenchPreview";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
@@ -108,6 +109,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ArenaAdmittedKnownBad: ArenaAdmittedKnownBadPreview,
   ArenaAdmittedResult: ArenaAdmittedResultPreview, ArenaHostLevelsKnownBad: ArenaHostLevelsKnownBadPreview,
   CityBattle: CityBattlePreview, RivalEntry: RivalEntryPreview,
+  ...arenaBenchPreviewScreens,
 };
 
 /** Opt-in __DEV__ harness only; no account provider is mounted. */

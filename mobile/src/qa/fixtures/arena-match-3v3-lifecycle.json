@@ -1,0 +1,2591 @@
+{
+  "schemaVersion": "arena-match-3v3-1",
+  "status": "PROPOSAL",
+  "provenance": "Hand-authored contract proposal fixture for lane lite-3v3-prep-1. NO host produced it, and the arena-match-3v3-1 runtime is HELD for a later lane. Default decision (producer, pending Pak's override): client-asserted bout HP is not accepted; bout steps use the current report wire shape, but their HP values are hand-authored stand-ins for host-resolved bouts (arena-host-resolver-1), not client reports the host accepted. The report HP refusals are a defensive shape check, not the authority. All prices, reward numbers, voluntarySwapLimit, CPU HP values and the EXP and blueprint rules are placeholders that need Pak calls. Each refusal is a callable error (HttpsError code, message and details), not a success object, and leaves the previous accepted reply unchanged.",
+  "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+  "steps": [
+    {
+      "name": "resume-empty",
+      "nowMs": 1792299999000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "resume"
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": null,
+        "alreadyProcessed": true,
+        "intent": null,
+        "match": null
+      },
+      "note": "Fresh account: no arena lease."
+    },
+    {
+      "name": "issue",
+      "nowMs": 1792300000000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "issue",
+        "requestId": "lite3v3_fixture_01",
+        "tierId": "rookie",
+        "paymentMethod": "tokens",
+        "holobotIds": [
+          "ace",
+          "kuma",
+          "shadow"
+        ]
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": null,
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "issued",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": null,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 172,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 205,
+                "maxHealth": 220
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 150,
+                "maxHealth": 150
+              },
+              "status": "bench"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 248,
+                "maxHealth": 248
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 236,
+                "maxHealth": 236
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "bench"
+            }
+          ],
+          "battle": {
+            "turn": 0,
+            "phase": "ready",
+            "activeSlot": 0,
+            "opponentActiveSlot": 0,
+            "voluntarySwapsUsed": 0,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Three owned bots, each frozen as a #118 snapshot with HP from the account ledger (KUMA enters damaged at 205/220). The host picks the CPU team from the rookie pool. ONE charge of 50 Holos."
+    },
+    {
+      "name": "refused-swap-before-start",
+      "nowMs": 1792300000020,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_00",
+        "turn": 0,
+        "holobotId": "kuma"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_state",
+        "details": {
+          "rejectionCode": "invalid_state"
+        }
+      },
+      "note": "Phase ready: no swap until start."
+    },
+    {
+      "name": "start",
+      "nowMs": 1792300000060,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "start",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7"
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": null,
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 172,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 205,
+                "maxHealth": 220
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 150,
+                "maxHealth": 150
+              },
+              "status": "bench"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 248,
+                "maxHealth": 248
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 236,
+                "maxHealth": 236
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "bench"
+            }
+          ],
+          "battle": {
+            "turn": 0,
+            "phase": "command",
+            "activeSlot": 0,
+            "opponentActiveSlot": 0,
+            "voluntarySwapsUsed": 0,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      }
+    },
+    {
+      "name": "refused-swap-without-turn",
+      "nowMs": 1792300000900,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x1",
+        "holobotId": "kuma"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      },
+      "note": "KNOWN-BAD: a swap that carries no host turn. The request schema refuses it, and the host refuses it as invalid_request. Nothing changes."
+    },
+    {
+      "name": "refused-report-hp-above-host",
+      "nowMs": 1792300001200,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x6",
+        "turn": 0,
+        "activeHealth": 200,
+        "opponentHealth": 248
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      },
+      "note": "KNOWN-BAD: reported ACE HP 200 is above the host's stored 172. Refused as invalid_request by the defensive shape check (1v1 parity: arenaMatchStore refuses playerFinalHealth above the entrant's HP). Not the authority. Nothing changes."
+    },
+    {
+      "name": "refused-report-both-ko",
+      "nowMs": 1792300001400,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x7",
+        "turn": 0,
+        "activeHealth": 0,
+        "opponentHealth": 0
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      },
+      "note": "KNOWN-BAD: both active fighters reported at 0. Refused as invalid_request by the defensive shape check (1v1 parity: a both-zero settle is refused). Not the authority. Nothing changes."
+    },
+    {
+      "name": "report-1-opponent-ko",
+      "nowMs": 1792300004000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_01",
+        "turn": 0,
+        "activeHealth": 120,
+        "opponentHealth": 0
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_01",
+          "operation": "report",
+          "appliedTurn": 0
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 205,
+                "maxHealth": 220
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 150,
+                "maxHealth": 150
+              },
+              "status": "bench"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 236,
+                "maxHealth": 236
+              },
+              "status": "active"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "bench"
+            }
+          ],
+          "battle": {
+            "turn": 1,
+            "phase": "command",
+            "activeSlot": 0,
+            "opponentActiveSlot": 1,
+            "voluntarySwapsUsed": 0,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Host-resolved bout stand-in (not a client decision): HARE KO. The host sends in WAKE (next living CPU slot). ACE drops to 120."
+    },
+    {
+      "name": "swap-1-voluntary",
+      "nowMs": 1792300005000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_02",
+        "turn": 1,
+        "holobotId": "kuma"
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_02",
+          "operation": "swap",
+          "appliedTurn": 1
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 205,
+                "maxHealth": 220
+              },
+              "status": "active"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 150,
+                "maxHealth": 150
+              },
+              "status": "bench"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 236,
+                "maxHealth": 236
+              },
+              "status": "active"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "bench"
+            }
+          ],
+          "battle": {
+            "turn": 2,
+            "phase": "command",
+            "activeSlot": 1,
+            "opponentActiveSlot": 1,
+            "voluntarySwapsUsed": 1,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Voluntary swap (1 of 2). ACE goes to the bench at its host HP of 120. No bench regen."
+    },
+    {
+      "name": "swap-1-replay",
+      "nowMs": 1792300005200,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_02",
+        "turn": 1,
+        "holobotId": "kuma"
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": true,
+        "intent": {
+          "intentId": "lite3v3_intent_02",
+          "operation": "swap",
+          "appliedTurn": 1
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 205,
+                "maxHealth": 220
+              },
+              "status": "active"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 150,
+                "maxHealth": 150
+              },
+              "status": "bench"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 236,
+                "maxHealth": 236
+              },
+              "status": "active"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "bench"
+            }
+          ],
+          "battle": {
+            "turn": 2,
+            "phase": "command",
+            "activeSlot": 1,
+            "opponentActiveSlot": 1,
+            "voluntarySwapsUsed": 1,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Retry of the same intentId after a lost reply: the host returns the current match and the same echo, and the turn does not move."
+    },
+    {
+      "name": "refused-stale-turn",
+      "nowMs": 1792300005400,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x2",
+        "turn": 1,
+        "holobotId": "ace"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "turn_mismatch",
+        "details": {
+          "rejectionCode": "turn_mismatch"
+        }
+      },
+      "note": "A new intent with a stale turn (host turn is 2). Nothing changes."
+    },
+    {
+      "name": "report-2-active-ko",
+      "nowMs": 1792300009000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_03",
+        "turn": 2,
+        "activeHealth": 0,
+        "opponentHealth": 90
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_03",
+          "operation": "report",
+          "appliedTurn": 2
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 150,
+                "maxHealth": 150
+              },
+              "status": "bench"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 90,
+                "maxHealth": 236
+              },
+              "status": "active"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "bench"
+            }
+          ],
+          "battle": {
+            "turn": 3,
+            "phase": "send_in",
+            "activeSlot": 1,
+            "opponentActiveSlot": 1,
+            "voluntarySwapsUsed": 1,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Host-resolved bout stand-in (not a client decision): KUMA KO. ACE and SHADOW are alive on the bench, so the phase becomes send_in."
+    },
+    {
+      "name": "refused-swap-to-ko",
+      "nowMs": 1792300009300,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x3",
+        "turn": 3,
+        "holobotId": "kuma"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "fighter_ko",
+        "details": {
+          "rejectionCode": "fighter_ko"
+        }
+      },
+      "note": "KNOWN-BAD: swapping to a KO'd fighter. Nothing changes."
+    },
+    {
+      "name": "refused-report-during-send-in",
+      "nowMs": 1792300009400,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x4",
+        "turn": 3,
+        "activeHealth": 0,
+        "opponentHealth": 90
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "send_in_required",
+        "details": {
+          "rejectionCode": "send_in_required"
+        }
+      },
+      "note": "In send_in, a swap is the only legal intent."
+    },
+    {
+      "name": "swap-2-forced-send-in",
+      "nowMs": 1792300009800,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_04",
+        "turn": 3,
+        "holobotId": "shadow"
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_04",
+          "operation": "swap",
+          "appliedTurn": 3
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 150,
+                "maxHealth": 150
+              },
+              "status": "active"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 90,
+                "maxHealth": 236
+              },
+              "status": "active"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "bench"
+            }
+          ],
+          "battle": {
+            "turn": 4,
+            "phase": "command",
+            "activeSlot": 2,
+            "opponentActiveSlot": 1,
+            "voluntarySwapsUsed": 1,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Forced send-in after a KO. It does not use a voluntary swap."
+    },
+    {
+      "name": "report-3-opponent-ko",
+      "nowMs": 1792300014000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_05",
+        "turn": 4,
+        "activeHealth": 80,
+        "opponentHealth": 0
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_05",
+          "operation": "report",
+          "appliedTurn": 4
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 80,
+                "maxHealth": 150
+              },
+              "status": "active"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 236
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 262,
+                "maxHealth": 262
+              },
+              "status": "active"
+            }
+          ],
+          "battle": {
+            "turn": 5,
+            "phase": "command",
+            "activeSlot": 2,
+            "opponentActiveSlot": 2,
+            "voluntarySwapsUsed": 1,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Host-resolved bout stand-in (not a client decision): WAKE KO. The host sends in GAMA."
+    },
+    {
+      "name": "refused-settle-before-over",
+      "nowMs": 1792300014200,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "settle",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "combosCompleted": 0,
+        "perfectDefenses": 0
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "not_over",
+        "details": {
+          "rejectionCode": "not_over"
+        }
+      },
+      "note": "Settle is legal only in phase over."
+    },
+    {
+      "name": "report-4-active-ko",
+      "nowMs": 1792300019000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_06",
+        "turn": 5,
+        "activeHealth": 0,
+        "opponentHealth": 40
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_06",
+          "operation": "report",
+          "appliedTurn": 5
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "bench"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              },
+              "status": "ko"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 236
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 40,
+                "maxHealth": 262
+              },
+              "status": "active"
+            }
+          ],
+          "battle": {
+            "turn": 6,
+            "phase": "send_in",
+            "activeSlot": 2,
+            "opponentActiveSlot": 2,
+            "voluntarySwapsUsed": 1,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Host-resolved bout stand-in (not a client decision): SHADOW KO. ACE (120, unchanged on the bench) is the last fighter left, so: send_in."
+    },
+    {
+      "name": "swap-3-forced-send-in",
+      "nowMs": 1792300019400,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_07",
+        "turn": 6,
+        "holobotId": "ace"
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_07",
+          "operation": "swap",
+          "appliedTurn": 6
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 120,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              },
+              "status": "ko"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 236
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 40,
+                "maxHealth": 262
+              },
+              "status": "active"
+            }
+          ],
+          "battle": {
+            "turn": 7,
+            "phase": "command",
+            "activeSlot": 0,
+            "opponentActiveSlot": 2,
+            "voluntarySwapsUsed": 1,
+            "winner": null
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "ACE returns at exactly its benched host HP of 120."
+    },
+    {
+      "name": "report-5-match-over",
+      "nowMs": 1792300023000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_08",
+        "turn": 7,
+        "activeHealth": 64,
+        "opponentHealth": 0
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": {
+          "intentId": "lite3v3_intent_08",
+          "operation": "report",
+          "appliedTurn": 7
+        },
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "active",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": null,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 64,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              },
+              "status": "ko"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 236
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 262
+              },
+              "status": "ko"
+            }
+          ],
+          "battle": {
+            "turn": 8,
+            "phase": "over",
+            "activeSlot": 0,
+            "opponentActiveSlot": 2,
+            "voluntarySwapsUsed": 1,
+            "winner": "player"
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": null
+        }
+      },
+      "note": "Host-resolved bout stand-in (not a client decision): GAMA KO: every CPU fighter is KO'd. Phase over, winner player."
+    },
+    {
+      "name": "refused-swap-after-over",
+      "nowMs": 1792300023200,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x5",
+        "turn": 8,
+        "holobotId": "kuma"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_state",
+        "details": {
+          "rejectionCode": "invalid_state"
+        }
+      },
+      "note": "Phase over: the host has decided. No report or swap can reopen the match; the phase check comes before the target check."
+    },
+    {
+      "name": "refused-cancel-after-over",
+      "nowMs": 1792300023400,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "cancel",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "settle_required",
+        "details": {
+          "rejectionCode": "settle_required"
+        }
+      },
+      "note": "Phase over: a decided result cannot be turned into a forfeit. Only settle closes it."
+    },
+    {
+      "name": "settle",
+      "nowMs": 1792300023600,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "settle",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "combosCompleted": 2,
+        "perfectDefenses": 1
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": false,
+        "intent": null,
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "settled",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": 1792300023600,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 64,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              },
+              "status": "ko"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 236
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 262
+              },
+              "status": "ko"
+            }
+          ],
+          "battle": {
+            "turn": 8,
+            "phase": "over",
+            "activeSlot": 0,
+            "opponentActiveSlot": 2,
+            "voluntarySwapsUsed": 1,
+            "winner": "player"
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "outcome": "win",
+            "refunded": false,
+            "settlement": {
+              "exp": 118,
+              "awardedExp": 118,
+              "holos": 100,
+              "syncPoints": 43,
+              "blueprints": {
+                "holobotKey": "hare",
+                "amount": 5
+              },
+              "experience": [
+                {
+                  "holobotId": "ace",
+                  "awardedExp": 118
+                },
+                {
+                  "holobotId": "kuma",
+                  "awardedExp": 118
+                },
+                {
+                  "holobotId": "shadow",
+                  "awardedExp": 118
+                }
+              ]
+            },
+            "report": {
+              "combosCompleted": 2,
+              "perfectDefenses": 1
+            },
+            "finalVitals": {
+              "ace": {
+                "currentHealth": 64,
+                "maxHealth": 172
+              },
+              "kuma": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "shadow": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              }
+            },
+            "closedAtMs": 1792300023600
+          }
+        }
+      },
+      "note": "The host settles from its own vitals and winner. One reward quote, no extra charge, and all three bots' host HP is written to the ledger."
+    },
+    {
+      "name": "settle-replay",
+      "nowMs": 1792300024000,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "settle",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "combosCompleted": 2,
+        "perfectDefenses": 1
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": true,
+        "intent": null,
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "settled",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": 1792300023600,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 64,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              },
+              "status": "ko"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 236
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 262
+              },
+              "status": "ko"
+            }
+          ],
+          "battle": {
+            "turn": 8,
+            "phase": "over",
+            "activeSlot": 0,
+            "opponentActiveSlot": 2,
+            "voluntarySwapsUsed": 1,
+            "winner": "player"
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "outcome": "win",
+            "refunded": false,
+            "settlement": {
+              "exp": 118,
+              "awardedExp": 118,
+              "holos": 100,
+              "syncPoints": 43,
+              "blueprints": {
+                "holobotKey": "hare",
+                "amount": 5
+              },
+              "experience": [
+                {
+                  "holobotId": "ace",
+                  "awardedExp": 118
+                },
+                {
+                  "holobotId": "kuma",
+                  "awardedExp": 118
+                },
+                {
+                  "holobotId": "shadow",
+                  "awardedExp": 118
+                }
+              ]
+            },
+            "report": {
+              "combosCompleted": 2,
+              "perfectDefenses": 1
+            },
+            "finalVitals": {
+              "ace": {
+                "currentHealth": 64,
+                "maxHealth": 172
+              },
+              "kuma": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "shadow": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              }
+            },
+            "closedAtMs": 1792300023600
+          }
+        }
+      },
+      "note": "Terminal replay pays nothing twice."
+    },
+    {
+      "name": "resume-terminal",
+      "nowMs": 1792300024400,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "resume"
+      },
+      "reply": {
+        "schemaVersion": "arena-match-3v3-1",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "alreadyProcessed": true,
+        "intent": null,
+        "match": {
+          "schemaVersion": "arena-match-3v3-1",
+          "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+          "requestId": "lite3v3_fixture_01",
+          "format": "3v3",
+          "state": "settled",
+          "tierId": "rookie",
+          "issuedAtMs": 1792300000000,
+          "expiresAtMs": 1792301800000,
+          "startedAtMs": 1792300000060,
+          "closedAtMs": 1792300023600,
+          "team": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "ace",
+                "level": 4,
+                "displayName": "ACE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 64,
+                "maxHealth": 172
+              },
+              "status": "active"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "kuma",
+                "level": 3,
+                "displayName": "KUMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "shadow",
+                "level": 2,
+                "displayName": "SHADOW",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              },
+              "status": "ko"
+            }
+          ],
+          "opponentTeam": [
+            {
+              "slot": 0,
+              "fighter": {
+                "holobotId": "hare",
+                "level": 12,
+                "displayName": "HARE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 248
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 1,
+              "fighter": {
+                "holobotId": "wake",
+                "level": 12,
+                "displayName": "WAKE",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 236
+              },
+              "status": "ko"
+            },
+            {
+              "slot": 2,
+              "fighter": {
+                "holobotId": "gama",
+                "level": 12,
+                "displayName": "GAMA",
+                "tier": 0
+              },
+              "vitals": {
+                "currentHealth": 0,
+                "maxHealth": 262
+              },
+              "status": "ko"
+            }
+          ],
+          "battle": {
+            "turn": 8,
+            "phase": "over",
+            "activeSlot": 0,
+            "opponentActiveSlot": 2,
+            "voluntarySwapsUsed": 1,
+            "winner": "player"
+          },
+          "entryReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "method": "tokens",
+            "amount": 50,
+            "balanceBefore": 1000,
+            "balanceAfter": 950,
+            "chargedAtMs": 1792300000000
+          },
+          "rules": {
+            "version": "arena-3v3-rules-1",
+            "teamSize": 3,
+            "entryFeeHolos": 50,
+            "entryFeePasses": 1,
+            "exp": 95,
+            "holos": 100,
+            "syncPoints": 35,
+            "blueprints": 5,
+            "comboBonus": 0.1,
+            "perfectDefenseBonus": 0.05,
+            "lossExpFraction": 0.3,
+            "lossSyncFraction": 0.2,
+            "maxPerformanceEvents": 25,
+            "expBoosterMultiplier": 2,
+            "voluntarySwapLimit": 2,
+            "benchRegen": "none",
+            "sendIn": "forced_on_ko",
+            "opponentSendIn": "next_alive_slot"
+          },
+          "settlementReceipt": {
+            "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+            "outcome": "win",
+            "refunded": false,
+            "settlement": {
+              "exp": 118,
+              "awardedExp": 118,
+              "holos": 100,
+              "syncPoints": 43,
+              "blueprints": {
+                "holobotKey": "hare",
+                "amount": 5
+              },
+              "experience": [
+                {
+                  "holobotId": "ace",
+                  "awardedExp": 118
+                },
+                {
+                  "holobotId": "kuma",
+                  "awardedExp": 118
+                },
+                {
+                  "holobotId": "shadow",
+                  "awardedExp": 118
+                }
+              ]
+            },
+            "report": {
+              "combosCompleted": 2,
+              "perfectDefenses": 1
+            },
+            "finalVitals": {
+              "ace": {
+                "currentHealth": 64,
+                "maxHealth": 172
+              },
+              "kuma": {
+                "currentHealth": 0,
+                "maxHealth": 220
+              },
+              "shadow": {
+                "currentHealth": 0,
+                "maxHealth": 150
+              }
+            },
+            "closedAtMs": 1792300023600
+          }
+        }
+      }
+    }
+  ]
+}
