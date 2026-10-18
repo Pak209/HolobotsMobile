@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { buildBuddyUnitPurchase, buildCatalog } from "../../../../functions/src/lib/vendors";
-import { ZONE_EXPEDITION_DEFAULT_SELECTOR } from "../../../../functions/src/config/zoneExpedition";
+import { buildBuddyUnitPurchase, buildCatalog } from "../../../test-fixtures/host-pin/src/lib/vendors";
+import { ZONE_EXPEDITION_DEFAULT_SELECTOR } from "../../../test-fixtures/host-pin/src/config/zoneExpedition";
 import hostMarket from "../../qa/fixtures/city-market-vendor-3.json";
 import {
   CATALOG_INVALID_TEXT, CITY_MARKET_COPY, cityMarketReducer, initialCityMarketState, listingNeedsRequestId, listingPurchasable,

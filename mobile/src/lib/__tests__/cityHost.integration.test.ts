@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { cityDistrictAccess, readArenaGathering, record } from "../cityHub";
 import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, readCityRivalSettlement } from "../cityRivalBattle";
@@ -8,17 +8,39 @@ import { normalizeDuelReceipt } from "../bots/duelPlayback";
 import { ArenaCombatEngine } from "../../features/arena/combatEngine";
 import { resolveCombatKit } from "../../features/arena/moveKits";
 
-// Optional integration lane; the regular mobile suite needs no server credentials or emulator.
+import { directoryReader, driftFromPin, readPin } from "../../../test-fixtures/hostPin.mjs";
+
+// Opt-in integration lane: a BUILT host functions/ dir (HOLOCITY_TEST_HOST_ROOT) against a loopback
+// Firestore emulator with a demo- project. The regular suite needs neither, so by default this skips
+// with the reason logged; HOLOCITY_REQUIRE_HOST_INTEGRATION=1 (CI, a release check) turns any missing
+// prerequisite into a failure. Command: Documentation/QA/2026-10-17-lite-test-parity-1/README.md.
 const hostRoot = process.env.HOLOCITY_TEST_HOST_ROOT;
+const required = process.env.HOLOCITY_REQUIRE_HOST_INTEGRATION === "1";
+const unmet = [
+  !hostRoot && "HOLOCITY_TEST_HOST_ROOT is not set (a built host functions/ dir)",
+  hostRoot && !existsSync(path.join(hostRoot, "lib", "admin.js")) && `HOLOCITY_TEST_HOST_ROOT=${hostRoot} has no lib/admin.js (build it first)`,
+  !/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? "") && "FIRESTORE_EMULATOR_HOST is not 127.0.0.1:<port>",
+  !process.env.GCLOUD_PROJECT?.startsWith("demo-") && "GCLOUD_PROJECT is not a demo- project",
+].filter((reason): reason is string => typeof reason === "string");
+const skip = unmet.length > 0 && !required;
+if (skip) {
+  console.warn(`[cityHost.integration] SKIPPED (opt-in): ${unmet.join("; ")}. HOLOCITY_REQUIRE_HOST_INTEGRATION=1 makes this a failure.`);
+}
 type EmulatorDocument = { set(value: unknown): Promise<unknown>; get(): Promise<{ data(): Record<string, unknown> | undefined }> };
 type EmulatorDb = { doc(path: string): EmulatorDocument; recursiveDelete(document: EmulatorDocument): Promise<unknown>; terminate(): Promise<unknown> };
-describe.skipIf(!hostRoot)("HoloCity mobile against #80 host + loopback Firestore", () => {
+describe.skipIf(skip)("HoloCity mobile against the real host + loopback Firestore", () => {
   let host: ReturnType<typeof createRequire>;
   let db: EmulatorDb;
   let uid: string;
   const captures: Record<string, unknown> = {};
   beforeAll(async () => {
+    if (unmet.length) throw new Error(`HOLOCITY_REQUIRE_HOST_INTEGRATION=1 but: ${unmet.join("; ")}`);
     if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST ?? "") || !process.env.GCLOUD_PROJECT?.startsWith("demo-")) throw new Error("Loopback demo emulator only. Production is forbidden.");
+    // Which host this is, by content: its src/ against the pinned deployed host (HOST_PIN.json).
+    const pin = readPin();
+    const drift = driftFromPin(pin, directoryReader(path.join(hostRoot!, "src")));
+    console.info(`[cityHost.integration] host ${hostRoot}: ${drift.length ? `src/ differs from the pinned deployed host ${pin.sha}: ${drift.join(", ")}` : `src/ matches the pinned deployed host ${pin.sha}`}`);
+    captures.host = { root: hostRoot, pinnedSha: pin.sha, driftFromPin: drift };
     host = createRequire(path.join(hostRoot!, "package.json"));
     db = host("./lib/admin.js").db;
     uid = `mobile_city_throwaway_${Date.now()}`;

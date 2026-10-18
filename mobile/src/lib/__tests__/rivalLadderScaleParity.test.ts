@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 import { getHolobotBattleStats } from "@/lib/progression";
 import * as client from "@/lib/rivalTierStats";
 
-import * as serverLadder from "../../../../functions/src/lib/rivalLadder";
-import * as serverProgression from "../../../../functions/src/lib/progression";
-import * as server from "../../../../functions/src/lib/rivalTierStats";
+import * as serverLadder from "../../../test-fixtures/host-pin/src/lib/rivalLadder";
+import * as serverProgression from "../../../test-fixtures/host-pin/src/lib/progression";
+import * as server from "../../../test-fixtures/host-pin/src/lib/rivalTierStats";
 
 /**
  * DECISIONS #53 amendment 1 (Pak, 2026-10-06): rival tier t fields WOLF's own

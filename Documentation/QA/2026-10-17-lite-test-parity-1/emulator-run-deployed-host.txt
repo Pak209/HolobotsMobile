@@ -1,0 +1,47 @@
+
+ RUN  v3.2.4 <scratch>/lite/mobile
+
+stdout | src/lib/__tests__/cityHost.integration.test.ts > HoloCity mobile against the real host + loopback Firestore
+[cityHost.integration] host <scratch>/main/functions: src/ matches the pinned deployed host 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f
+
+ ❯ src/lib/__tests__/cityHost.integration.test.ts (3 tests | 2 failed) 1465ms
+   ✓ HoloCity mobile against the real host + loopback Firestore > parses the real callable gathering, unlocks Arena and keeps Zone hidden 140ms
+   × HoloCity mobile against the real host + loopback Firestore > plays every assigned citizen from real issue stats and parses settlement/replay/cooldown replies 85ms
+     → The rival host did not return a playable squad. Check your travel squad and try again.
+   × HoloCity mobile against the real host + loopback Firestore > heals and crafts through the actual workshop hosts without duplicate grants 51ms
+     → battle_open
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/cityHost.integration.test.ts > HoloCity mobile against the real host + loopback Firestore > plays every assigned citizen from real issue stats and parses settlement/replay/cooldown replies
+Error: The rival host did not return a playable squad. Check your travel squad and try again.
+ ❯ readCityRivalIssue src/lib/cityRivalBattle.ts:35:92
+     33|       typeof reply.expiresAtMs !== "number" || !Number.isFinite(reply.…
+     34|       encounter?.encounterId !== reply.battleId || pilot?.pilotId !== …
+     35|       !Array.isArray(reply.playerCombatants) || reply.playerCombatants…
+       |                                                                                            ^
+     36|   const player = combatant(reply.playerCombatants[0]), opponent = comb…
+     37|   if (opponent.holobotId !== expectedBotId) throw new Error("The rival…
+ ❯ src/lib/__tests__/cityHost.integration.test.ts:79:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/__tests__/cityHost.integration.test.ts > HoloCity mobile against the real host + loopback Firestore > heals and crafts through the actual workshop hosts without duplicate grants
+Error: battle_open
+ ❯ ../../main/functions/src/workshop/workshopHealHost.ts:32:79
+ ❯ src/lib/__tests__/cityHost.integration.test.ts:104:18
+    102|     const { workshopHealHost } = host("./lib/workshop/workshopHealHost…
+    103|     const { workshopCraftHost } = host("./lib/workshop/workshopCraftHo…
+    104|     const heal = await workshopHealHost.run({ auth: { uid }, data: { s…
+       |                  ^
+    105|     expect(heal.cost).toBe(0); expect(heal.holobotIds).toEqual(["ace"]…
+    106|     const command = { auth: { uid }, data: { schemaVersion: "healing-w…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  21:41:44
+   Duration  2.62s (transform 156ms, setup 0ms, collect 567ms, tests 1.47s, environment 1ms, prepare 184ms)
+

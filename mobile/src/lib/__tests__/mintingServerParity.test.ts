@@ -9,7 +9,7 @@ import {
 } from "@/lib/minting";
 import type { UserProfile } from "@/types/profile";
 
-import * as server from "../../../../functions/src/lib/mintingEconomy";
+import * as server from "../../../test-fixtures/host-pin/src/lib/mintingEconomy";
 
 const HOLOBOT_PARITY_FIELDS = [
   "attributePoints",

@@ -10,7 +10,7 @@ import {
 import { getSyncRank } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
-import * as serverProgression from "../../../../functions/src/lib/progression";
+import * as serverProgression from "../../../test-fixtures/host-pin/src/lib/progression";
 
 function makeHolobot(overrides: Partial<UserHolobot> = {}): UserHolobot {
   return {

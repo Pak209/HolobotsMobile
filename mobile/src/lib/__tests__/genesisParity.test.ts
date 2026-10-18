@@ -19,11 +19,11 @@ import {
   ROOKIE_ROTATION,
 } from "@/lib/arenaEconomy";
 
-import * as serverReferrals from "../../../../functions/src/lib/referrals";
-import * as serverMinting from "../../../../functions/src/lib/mintingEconomy";
-import * as serverEconomy from "../../../../functions/src/lib/economy";
+import * as serverReferrals from "../../../test-fixtures/host-pin/src/lib/referrals";
+import * as serverMinting from "../../../test-fixtures/host-pin/src/lib/mintingEconomy";
+import * as serverEconomy from "../../../test-fixtures/host-pin/src/lib/economy";
 import { buildPackGrantUpdates, buildPackRewards, LEGENDARY_BLUEPRINT_DROP_CHANCE } from "@/lib/gacha";
-import * as serverArena from "../../../../functions/src/lib/arenaEconomy";
+import * as serverArena from "../../../test-fixtures/host-pin/src/lib/arenaEconomy";
 
 describe("genesis client/server parity", () => {
   it("constants match", () => {

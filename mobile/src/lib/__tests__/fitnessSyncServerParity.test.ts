@@ -7,7 +7,7 @@ import {
   DAILY_WORKOUT_CAP,
   sanitizeFitnessSyncRequest,
   WORKOUT_COOLDOWN_MS,
-} from "../../../../functions/src/lib/fitnessSyncOutcome";
+} from "../../../test-fixtures/host-pin/src/lib/fitnessSyncOutcome";
 
 const NOW = new Date("2026-07-07T12:00:00.000Z");
 

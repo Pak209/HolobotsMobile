@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
 import { calculateExperience, computeLeaderboardScore, getHolobotRank, normalizeUserHolobot } from "@/lib/progression";
 
-import * as server from "../../../../functions/src/lib/genesisSignup";
+import * as server from "../../../test-fixtures/host-pin/src/lib/genesisSignup";
 
 /**
  * HoloCity desktop sign-up creates its profile through the createGenesisProfile
@@ -120,6 +120,7 @@ describe("genesis sign-up client/server parity", () => {
  * users/{uid} documents field by field with the admin SDK.
  */
 const emulatorProof = process.env.HOLOBOTS_SIGNUP_EMULATOR === "1";
+if (!emulatorProof) console.warn("[genesisSignupParity] SKIPPED emulator proof (opt-in): HOLOBOTS_SIGNUP_EMULATOR is not 1; needs a desktop-created HOLOBOTS_DESKTOP_UID.");
 describe.skipIf(!emulatorProof)("genesis sign-up emulator: desktop account equals a mobile account", () => {
   it("field-by-field equal except the per-account timestamps", async () => {
     const { createRequire } = await import("node:module");

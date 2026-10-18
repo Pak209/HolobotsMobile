@@ -10,7 +10,7 @@ import {
 } from "@/lib/progression";
 import type { UserHolobot } from "@/types/profile";
 
-import * as server from "../../../../functions/src/lib/progression";
+import * as server from "../../../test-fixtures/host-pin/src/lib/progression";
 
 /**
  * DECISIONS #53-2: boostHolobotAttribute applies exactly the InventoryScreen

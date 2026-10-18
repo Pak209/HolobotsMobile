@@ -1,0 +1,97 @@
+
+ RUN  v3.2.4 <scratch>/lite/mobile
+
+stdout | src/lib/__tests__/hostPin.test.ts
+[host-pin] parity imports resolve to ../functions/src (HOLOCITY_HOST_ROOT override; pin is 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f)
+
+ ❯ src/lib/__tests__/hostPin.test.ts (7 tests | 1 failed) 573ms
+   ✓ host pin: the parity tests run against the deployed host > the manifest names one full commit and stamps every file 9ms
+   ✓ host pin: the parity tests run against the deployed host > the vendored snapshot is byte-identical to the manifest (no hand edits, no strays) 185ms
+   ✓ host pin: the parity tests run against the deployed host > the snapshot is exactly what the tests import, plus its import closure 81ms
+   ✓ host pin: the parity tests run against the deployed host > no test reaches the branch's own functions/ copy 53ms
+   × host pin: the parity tests run against the deployed host > the resolved host serves exactly the pinned bytes (fails on host drift) 127ms
+     → <scratch>/lite/functions/src has drifted from the pin 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f; re-pin with scripts/pin-host.mjs: expected [ …(10) ] to deeply equal []
+   ✓ host pin: the parity tests run against the deployed host > the manifest matches the pinned commit's git objects, when this clone has them 116ms
+   ✓ host pin: the parity tests run against the deployed host > gitBlobSha agrees with git's blob id 0ms
+ ❯ src/lib/__tests__/desktopAccountParity.test.ts (5 tests | 1 failed) 481ms
+   ✓ getHolobotDisplayStats lives in the lib pair > client lib = server lib = the pre-move formula for every bot, level and boost set 54ms
+   ✓ getHolobotDisplayStats lives in the lib pair > config/holobots.ts re-exports the lib copy instead of defining its own 1ms
+   ✓ desktop-account-3 holobots > battleStats = arenaConfig.buildPlayerFighter (no parts); displayStats = getHolobotDisplayStats  390ms
+   ✓ desktop-account-3 holobots > records with missing XP / points fields get the mobile normalizeUserHolobot defaults 2ms
+   × desktop-account-3 holobots > the reply: v3 normalises + adds stats; v1 / v2 return the stored records untouched 28ms
+     → expected [ 'attributePoints', …(9) ] to deeply equal [ 'attributePoints', …(10) ]
+   ✓ battleSettlement byte-identical pair > client and server agree for every kind, tier, outcome and count  452ms
+   ✓ arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid  1191ms
+stderr | src/lib/__tests__/genesisSignupParity.test.ts
+[genesisSignupParity] SKIPPED emulator proof (opt-in): HOLOBOTS_SIGNUP_EMULATOR is not 1; needs a desktop-created HOLOBOTS_DESKTOP_UID.
+
+stderr | src/lib/__tests__/cityHost.integration.test.ts
+[cityHost.integration] SKIPPED (opt-in): HOLOCITY_TEST_HOST_ROOT is not set (a built host functions/ dir); FIRESTORE_EMULATOR_HOST is not 127.0.0.1:<port>; GCLOUD_PROJECT is not a demo- project. HOLOCITY_REQUIRE_HOST_INTEGRATION=1 makes this a failure.
+
+ ↓ src/lib/__tests__/cityHost.integration.test.ts (3 tests | 3 skipped)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/desktopAccountParity.test.ts > desktop-account-3 holobots > the reply: v3 normalises + adds stats; v1 / v2 return the stored records untouched
+AssertionError: expected [ 'attributePoints', …(9) ] to deeply equal [ 'attributePoints', …(10) ]
+
+- Expected
++ Received
+
+@@ -1,9 +1,8 @@
+  [
+    "attributePoints",
+    "battleStats",
+-   "battlefieldMovement",
+    "boostedAttributes",
+    "career",
+    "displayStats",
+    "experience",
+    "level",
+
+ ❯ src/lib/__tests__/desktopAccountParity.test.ts:150:45
+    148|     // The deployed host's real key set, order-insensitive (readers lo…
+    149|     // record, the mobile normalisation defaults, both stat scales, an…
+    150|     expect(Object.keys(holobots[0]).sort()).toEqual([
+       |                                             ^
+    151|       "attributePoints", "battleStats", "battlefieldMovement", "booste…
+    152|       "experience", "level", "name", "nextLevelExp", "rank",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/__tests__/hostPin.test.ts > host pin: the parity tests run against the deployed host > the resolved host serves exactly the pinned bytes (fails on host drift)
+AssertionError: <scratch>/lite/functions/src has drifted from the pin 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f; re-pin with scripts/pin-host.mjs: expected [ …(10) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "differs   config/zoneExpedition.ts",
++   "differs   desktop/desktopAccountReply.ts",
++   "missing   desktop/desktopDashboardFields.ts",
++   "differs   holozone/expedition.ts",
++   "missing   lib/battlefieldMovement.ts",
++   "differs   lib/rivalLadder.ts",
++   "differs   lib/rivalTierStats.ts",
++   "missing   sim/movement.ts",
++   "missing   sim/types.ts",
++   "missing   story/tournamentUnlocks.ts",
++ ]
+
+ ❯ src/lib/__tests__/hostPin.test.ts:86:103
+     84|   it("the resolved host serves exactly the pinned bytes (fails on host…
+     85|     const drift = driftFromPin(pin, directoryReader(hostSrc));
+     86|     expect(drift, `${hostSrc} has drifted from the pin ${pin.sha}; re-…
+       |                                                                                                       ^
+     87|   });
+     88| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 74 passed | 1 skipped (77)
+      Tests  2 failed | 692 passed | 4 skipped (698)
+   Start at  21:44:08
+   Duration  8.56s (transform 5.84s, setup 0ms, collect 19.99s, tests 5.36s, environment 13ms, prepare 14.48s)
+

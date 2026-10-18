@@ -24,8 +24,8 @@ import {
 } from "@/lib/progression";
 import type { UserHolobot } from "@/types/profile";
 
-import * as snapshot from "../../../../functions/src/desktop/desktopAccountReply";
-import * as serverProgression from "../../../../functions/src/lib/progression";
+import * as snapshot from "../../../test-fixtures/host-pin/src/desktop/desktopAccountReply";
+import * as serverProgression from "../../../test-fixtures/host-pin/src/lib/progression";
 
 /**
  * DECISIONS #53 amendment 1 + 2: desktop-account-3 holobots carry
@@ -145,7 +145,12 @@ describe("desktop-account-3 holobots", () => {
     const holobots = v3.holobots as Array<Record<string, unknown>>;
     expect(holobots).toHaveLength(1);
     expect(holobots[0].career).toEqual({ workouts: 2 });
-    expect(Object.keys(holobots[0]).slice(-2)).toEqual(["battleStats", "displayStats"]);
+    // The deployed host's real key set, order-insensitive (readers look fields up by name): the stored
+    // record, the mobile normalisation defaults, both stat scales, and a fleet bot's host-derived movement.
+    expect(Object.keys(holobots[0]).sort()).toEqual([
+      "attributePoints", "battleStats", "battlefieldMovement", "boostedAttributes", "career", "displayStats",
+      "experience", "level", "name", "nextLevelExp", "rank",
+    ]);
     expect(v3.buddyUnits).toEqual(units);
     for (const version of ["desktop-account-1", "desktop-account-2"] as const) {
       const reply = snapshot.buildDesktopAccountReply(structuredClone(profile), "uid-1", version, units);
