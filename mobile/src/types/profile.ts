@@ -53,6 +53,8 @@ export type HolobotCareer = {
 export type UserProfile = {
   /** Server-owned #80 city progression; mobile never writes these fields. */
   storyFlags?: import("@/lib/cityHub").CityStoryFlags;
+  /** Server-owned HP ledger (host-written on settles); read only for the Arena KO guard. */
+  holobotVitals?: import("@/lib/arenaVitals").HostVitals | null;
   id: string;
   username: string;
   holobots: UserHolobot[];

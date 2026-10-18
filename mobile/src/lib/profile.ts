@@ -1,3 +1,4 @@
+import { readHostVitals } from "./arenaVitals";
 import { Timestamp } from "firebase/firestore";
 
 import { doc, getDoc, onSnapshot, updateDoc, db, type Unsubscribe } from "@/config/firebase";
@@ -40,6 +41,7 @@ const DEFAULT_USER_PROFILE = {
 
 type FirestoreUserDocument = {
   storyFlags?: unknown;
+  holobotVitals?: unknown;
   username?: string;
   dailyEnergy?: number;
   maxDailyEnergy?: number;
@@ -137,6 +139,7 @@ function stripUndefinedDeep(value: unknown): unknown {
 export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDocument): UserProfile {
   return {
     storyFlags: readCityStoryFlags(data.storyFlags),
+    holobotVitals: readHostVitals(data.holobotVitals),
     id: userId,
     username: data.username || `pilot_${userId.slice(0, 8)}`,
     holobots: data.holobots || [],

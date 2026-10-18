@@ -22,9 +22,9 @@ export function FighterHud({ name, state, level, rival = false }: { name: string
       {resolveBotId(name) ? <Image source={getHolobotHeadshotImageSource(name)} resizeMode="contain" style={[styles.portrait, { borderColor: accent }]} /> : <View style={[styles.portrait, { borderColor: accent, alignItems: 'center', justifyContent: 'center' }]}><Text style={styles.statLabel}>?</Text></View>}
       <View style={styles.nameRow}><Text numberOfLines={1} style={[styles.name, { color: accent }]}>{name.toUpperCase()}</Text>{badge && <Text testID={`fighter-level-${name.toLowerCase()}`} style={styles.levelBadge}>{badge}</Text>}</View>
     </View>
-    <View style={styles.statLine}><Text style={styles.statLabel}>HP</Text><Text style={styles.statValue}>{state?.hp !== undefined ? `${state.hp}/${state.maxHp}` : '—'}</Text></View>
+    <View style={styles.statLine}><Text style={styles.statLabel}>HP</Text>{state?.hp !== undefined ? <Text style={styles.statValue}>{`${state.hp}/${state.maxHp}`}</Text> : null}</View>
     <View style={styles.hpTrack}><View style={[styles.hpFill, { width: `${ratio * 100}%`, backgroundColor: rival ? theme.colors.danger : theme.colors.success }]} /></View>
-    <View style={styles.stamina}><Text style={styles.statLabel}>STA</Text>{state?.stamina !== undefined ? Array.from({ length: Math.min(12, state.maxStamina) }, (_, i) => <View key={i} style={[styles.pip, { backgroundColor: i < state.stamina! ? accent : theme.plates.keycap, borderColor: accent }]} />) : <Text style={styles.statValue}>—</Text>}</View>
+    <View style={styles.stamina}><Text style={styles.statLabel}>STA</Text>{state?.stamina !== undefined ? Array.from({ length: Math.min(12, state.maxStamina) }, (_, i) => <View key={i} style={[styles.pip, { backgroundColor: i < state.stamina! ? accent : theme.plates.keycap, borderColor: accent }]} />) : null}</View>
   </View>;
 }
 
@@ -82,7 +82,8 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
     return () => { clearInterval(timer); subscription.remove(); };
   }, [ready, paused, complete, duration, cues, player, rival, replay, isSynthetic, captureRound, actors, normalized, holdCues]);
   const result = normalized.didWin === null ? 'AWAITING RESULT' : normalized.didWin ? 'VICTORY' : 'DEFEAT';
-  const traceLabel = normalized.synthetic ? 'SYNTHETIC RECEIPT · NO REWARDS' : fixture ? normalized.traceSource === 'client' ? 'OFFLINE CLIENT TRACE · NO REWARDS' : 'OFFLINE FIXTURE · NO REWARDS' : normalized.traceSource === 'client' ? 'CLIENT TRACE · HOST SETTLEMENT' : normalized.traceSource === 'host' ? 'RECORDED RECEIPT' : 'HOST SETTLEMENT · NO ROUND TRACE';
+  // PLACEHOLDER copy until Lex. DECISIONS #71: the authority on screen is "the City", never "host".
+  const traceLabel = normalized.synthetic ? 'SYNTHETIC RECEIPT · NO REWARDS' : fixture ? normalized.traceSource === 'client' ? 'OFFLINE CLIENT TRACE · NO REWARDS' : 'OFFLINE FIXTURE · NO REWARDS' : normalized.traceSource === 'client' ? 'CLIENT TRACE · CITY SETTLEMENT' : normalized.traceSource === 'host' ? 'RECORDED RECEIPT' : 'CITY SETTLEMENT · NO ROUND TRACE';
   const commands = HOLOCITY_COMMANDS.map(command => {
     const action = command.label[0] + command.label.slice(1).toLowerCase();
     const cost = normalized.commandCosts?.[action as keyof typeof normalized.commandCosts];
@@ -99,12 +100,12 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
       <View style={styles.toolbar}><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel="Return to city" onPress={onClose} hitSlop={4}><Text style={styles.utility}>‹ CITY</Text></Pressable><Text style={styles.arenaLabel}>HOLOCITY / PARK ARENA</Text><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel={complete ? "Replay battle" : paused ? "Resume battle replay" : "Pause battle replay"} onPress={() => complete ? setReplay(v => v + 1) : setPaused(v => !v)} hitSlop={12}><Text style={styles.utility}>{complete ? 'REPLAY ↻' : paused ? 'PLAY ▷' : 'PAUSE Ⅱ'}</Text></Pressable></View>
       <View style={styles.hud}>
         <FighterHud name={player ?? attackerBotId ?? 'PLAYER'} state={snapshot?.player} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'player', actors.player, accountSnapshot)} />
-        <View style={styles.roundPlate}><Text style={styles.roundLabel}>{complete && !round ? 'RESULT' : 'ROUND'}</Text><Text style={styles.roundNumber}>{round ? String(round.roundNumber ?? currentRound + 1).padStart(2, '0') : '—'}</Text><Text style={styles.roundLabel}>OF {normalized.roundCount || '—'}</Text></View>
+        <View style={styles.roundPlate}><Text style={styles.roundLabel}>{complete && !round ? 'RESULT' : 'ROUND'}</Text>{round ? <Text style={styles.roundNumber}>{String(round.roundNumber ?? currentRound + 1).padStart(2, '0')}</Text> : null}{normalized.roundCount ? <Text style={styles.roundLabel}>OF {normalized.roundCount}</Text> : null}</View>
         <FighterHud name={rival ?? defenderBotId ?? 'RIVAL'} state={snapshot?.rival} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'rival', actors.rival)} rival />
       </View>
     </View>
     {(normalized.receiptError || stageError || !player || !rival) && <View style={styles.warning}><Text style={styles.notice}>{normalized.receiptError ?? '3D presentation unavailable. The recorded result is preserved.'}</Text></View>}
-    {complete && <View style={styles.result} testID="duel-result-card"><Text style={styles.resultEyebrow}>RECORDED RESULT</Text><Text style={[styles.resultTitle, normalized.didWin === false && { color: theme.colors.danger }]}>{result}</Text>{!isSynthetic && normalized.holosGranted !== null && <Text style={styles.reward}>+{normalized.holosGranted} HOLOS</Text>}{!normalized.rounds.length && <Text style={styles.notice}>This host reply contains no round trace.</Text>}<Pressable style={styles.returnButton} accessibilityRole="button" onPress={onClose}><Text style={styles.returnLabel}>RETURN TO CITY</Text></Pressable></View>}
+    {complete && <View style={styles.result} testID="duel-result-card"><Text style={styles.resultEyebrow}>RECORDED RESULT</Text><Text style={[styles.resultTitle, normalized.didWin === false && { color: theme.colors.danger }]}>{result}</Text>{!isSynthetic && normalized.holosGranted !== null && <Text style={styles.reward}>+{normalized.holosGranted} HOLOS</Text>}{!normalized.rounds.length && <Text style={styles.notice}>This City reply contains no round trace.</Text>}<Pressable style={styles.returnButton} accessibilityRole="button" onPress={onClose}><Text style={styles.returnLabel}>RETURN TO CITY</Text></Pressable></View>}
     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
       <View style={styles.actionLog}><View style={styles.logAccent} /><Text numberOfLines={1} style={styles.logText}>{!ready && player && rival ? 'LOADING ARENA' : actionLog}</Text></View>
       {!complete && <HoloCityCommandBar compact commands={commands} selected={round?.action?.toLowerCase() ?? null} />}

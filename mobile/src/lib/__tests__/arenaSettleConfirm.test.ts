@@ -1,0 +1,163 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ArenaMatchFlow, type ArenaIssue, type ArenaPendingSettle } from '../arenaMatchFlow';
+import { ARENA_SETTLE_BACKOFF_MS, ArenaSettleConfirmer, type ArenaSettlePhase } from '../arenaSettleConfirm';
+import { ARENA_SCREEN_COPY, arenaErrorCopy, arenaScreenPhase } from '../arenaCopy';
+import { ARENA_SETTLE_REPORT, ARENA_SETTLED, ARENA_STARTED, arenaRefusal, tooFast } from '../../qa/arenaPolishFixtures';
+
+/** Host #143 too_fast as the SDK surfaces it, plus the ANTICIPATED retryAfterMs hint. */
+type Reply = unknown;
+function harness(script: Array<Reply | Error>, storage: { settle: ArenaPendingSettle | null } = { settle: null }) {
+    const calls: Array<Record<string, unknown>> = [];
+    const call = vi.fn(async (request: Record<string, unknown>) => {
+        calls.push(request);
+        if (request.operation === 'resume') return ARENA_STARTED;
+        const next = script.shift();
+        if (next instanceof Error) throw next;
+        return next;
+    });
+    let issue: ArenaIssue | null = null;
+    const flow = new ArenaMatchFlow(call, { get: async () => issue, set: async v => { issue = v; } }, () => true, undefined, {
+        settles: { get: async () => storage.settle, set: async v => { storage.settle = v; } },
+    });
+    const phases: ArenaSettlePhase[] = [];
+    const confirmer = new ArenaSettleConfirmer(flow, p => phases.push(p));
+    const settles = () => calls.filter(c => c.operation === 'settle');
+    return { flow, confirmer, phases, calls, settles, storage, last: () => phases[phases.length - 1] };
+}
+const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
+
+describe('too_fast is PENDING, never an error (host #143 settle floor)', () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('honours details.retryAfterMs exactly, then settles with the identical body', async () => {
+        const h = harness([tooFast(2_500), ARENA_SETTLED]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.last()).toEqual({ kind: 'waiting', attempt: 1, resendInMs: 2_500, hinted: true, reason: 'too_fast' });
+        expect(h.storage.settle).toEqual({ matchId: ARENA_STARTED.matchId, report: ARENA_SETTLE_REPORT });
+        await vi.advanceTimersByTimeAsync(2_499);
+        expect(h.settles()).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(1);
+        await flush();
+        expect(h.settles()).toHaveLength(2);
+        expect(h.settles()[1]).toEqual(h.settles()[0]);
+        expect(h.settles()[0]).toEqual({ schemaVersion: 'arena-match-1', operation: 'settle', matchId: ARENA_STARTED.matchId, ...ARENA_SETTLE_REPORT });
+        expect(h.last()).toMatchObject({ kind: 'settled', reply: { match: { state: 'settled' } } });
+        expect(h.storage.settle).toBeNull();
+    });
+
+    it('without a hint uses the bounded backoff (1 s, 2 s, ...) and never a hardcoded floor', async () => {
+        const h = harness([tooFast(), tooFast(), ARENA_SETTLED]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.last()).toMatchObject({ kind: 'waiting', resendInMs: ARENA_SETTLE_BACKOFF_MS[0], hinted: false });
+        await vi.advanceTimersByTimeAsync(1_000); await flush();
+        expect(h.last()).toMatchObject({ kind: 'waiting', resendInMs: ARENA_SETTLE_BACKOFF_MS[1] });
+        await vi.advanceTimersByTimeAsync(1_999); await flush();
+        expect(h.settles()).toHaveLength(2);
+        await vi.advanceTimersByTimeAsync(1); await flush();
+        expect(h.settles()).toHaveLength(3);
+        expect(new Set(h.settles().map(c => JSON.stringify(c))).size).toBe(1);
+        expect(h.last().kind).toBe('settled');
+    });
+
+    it('gives up after the bounded budget (~31 s) and shows TRY AGAIN, which resends the same stored body', async () => {
+        const refusals = Array.from({ length: 1 + ARENA_SETTLE_BACKOFF_MS.length }, () => tooFast());
+        const h = harness([...refusals, ARENA_SETTLED]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        for (const ms of ARENA_SETTLE_BACKOFF_MS) { await vi.advanceTimersByTimeAsync(ms); await flush(); }
+        expect(ARENA_SETTLE_BACKOFF_MS.reduce((a, b) => a + b, 0)).toBe(31_000);
+        expect(h.settles()).toHaveLength(6);
+        expect(h.last()).toEqual({ kind: 'stalled', reason: 'too_fast' });
+        expect(h.storage.settle).not.toBeNull();
+        await vi.advanceTimersByTimeAsync(120_000); await flush();
+        expect(h.settles()).toHaveLength(6); // nothing automatic after the give-up
+        const phase = arenaScreenPhase({ reply: ARENA_STARTED, acknowledged: false, hasCheckpoint: true, settle: h.last(), pendingIssue: false, error: null });
+        expect(phase).toEqual({ kind: 'stalled' });
+        expect(ARENA_SCREEN_COPY.tryAgain).toBe('TRY AGAIN');
+        h.confirmer.retryNow(); await flush();
+        expect(h.settles()).toHaveLength(7);
+        expect(h.settles()[6]).toEqual(h.settles()[0]);
+        expect(h.last().kind).toBe('settled');
+    });
+
+    it('a hint counts against the same budget (a host that keeps saying "not yet" cannot loop forever)', async () => {
+        const h = harness(Array.from({ length: 10 }, () => tooFast(500)));
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        for (let i = 0; i < 8; i++) { await vi.advanceTimersByTimeAsync(500); await flush(); }
+        expect(h.settles()).toHaveLength(6);
+        expect(h.last()).toEqual({ kind: 'stalled', reason: 'too_fast' });
+    });
+
+    it('survives a kill: a new flow on the same storage resends the stored body byte-for-byte', async () => {
+        const storage = { settle: null as ArenaPendingSettle | null };
+        const first = harness([tooFast()], storage);
+        await first.flow.resume();
+        first.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        first.confirmer.stop(); first.flow.close(); // app killed while waiting
+        expect(storage.settle).toEqual({ matchId: ARENA_STARTED.matchId, report: ARENA_SETTLE_REPORT });
+        const second = harness([ARENA_SETTLED], storage);
+        await second.flow.resume();
+        expect(await second.flow.pendingSettle()).toEqual(storage.settle);
+        second.confirmer.resume(); await flush();
+        expect(second.settles()[0]).toEqual(first.settles()[0]);
+        expect(second.last().kind).toBe('settled');
+        expect(storage.settle).toBeNull();
+    });
+
+    it('a new settle() for the same match never rebuilds the report while one is pending', async () => {
+        const storage = { settle: { matchId: ARENA_STARTED.matchId!, report: ARENA_SETTLE_REPORT } };
+        const h = harness([ARENA_SETTLED], storage);
+        await h.flow.resume();
+        await h.flow.settle({ ...ARENA_SETTLE_REPORT, combosCompleted: 25 });
+        expect(h.settles()[0].combosCompleted).toBe(ARENA_SETTLE_REPORT.combosCompleted);
+    });
+
+    it('stop() cancels the armed resend (background, unmount)', async () => {
+        const h = harness([tooFast(), ARENA_SETTLED]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        h.confirmer.stop();
+        await vi.advanceTimersByTimeAsync(60_000); await flush();
+        expect(h.settles()).toHaveLength(1);
+    });
+
+    it('another definite refusal ends the loop with its code and retires the body; an unknown outcome keeps it', async () => {
+        const h = harness([arenaRefusal('match_expired')]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.last()).toEqual({ kind: 'refused', code: 'match_expired' });
+        expect(h.storage.settle).toBeNull();
+        const t = harness([Object.assign(Error('Arena confirmation delayed.'), {}), ARENA_SETTLED]);
+        await t.flow.resume();
+        t.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(t.last()).toMatchObject({ kind: 'waiting', reason: 'unknown' });
+        expect(t.storage.settle).not.toBeNull();
+        await vi.advanceTimersByTimeAsync(1_000); await flush();
+        expect(t.last().kind).toBe('settled');
+    });
+
+    it('too_fast never surfaces raw: no refused phase, City copy, and the screen shows the confirming state', async () => {
+        const h = harness([tooFast(), tooFast()]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.phases.some(p => p.kind === 'refused')).toBe(false);
+        const phase = arenaScreenPhase({ reply: ARENA_STARTED, acknowledged: false, hasCheckpoint: true, settle: h.last(), pendingIssue: false, error: null });
+        expect(phase).toEqual({ kind: 'confirming' });
+        expect(ARENA_SCREEN_COPY.confirmingTitle).toBe('The City is confirming your win…');
+        const copy = arenaErrorCopy(tooFast());
+        expect(JSON.stringify(copy)).not.toMatch(/too_fast|host/i);
+    });
+});

@@ -18,7 +18,26 @@ import { getActionSides, getCompletedVisualStates, type FighterVisualStates } fr
 
 import { ArenaCombatEngine } from "../../features/arena/combatEngine";
 import { FINISHER_POLICY, type FinisherPower } from "../../features/arena/finisherPolicy";
-const CARD_SLOTS = 4;
+/** Real moves only: at most 3 command cards plus the signature (when this battle has one). L7: no empty ghost slots. */
+const COMMAND_SLOTS = 3;
+/** L5: the Arena stage backdrop (the city park, as in city battles and duels), under a carbon scrim for HUD contrast. */
+const ARENA_STAGE = require("../../../assets/battle/holocity-park.jpg");
+const STAGE_SCRIM = `${theme.colors.carbon}B8`;
+/** L8: the card-bay frame with FIXED 10 pt chamfers measured from its own layout. The shared 360x140 GameSurfaceFrame
+ * stretched non-uniformly over the tall bay, so its corner ornaments ran through the SYNC label and the deck hint. */
+function BayFrame({ accent }: { accent: string }) {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const c = 10, { w, h } = size;
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      {w > 2 * c && h > 2 * c ? (
+        <Svg width={w} height={h}>
+          <Path d={`M${c} 1 H${w - c} L${w - 1} ${c} V${h - c} L${w - c} ${h - 1} H${c} L1 ${h - c} V${c} Z`} fill={theme.plates.navy} stroke={accent} strokeWidth={1.5} />
+        </Svg>
+      ) : null}
+    </View>
+  );
+}
 const arenaMoveIcons: Record<CardType, number> = {
   strike: require("../../../assets/game/arena-moves/strike.png"),
   defense: require("../../../assets/game/arena-moves/defend.png"),
@@ -204,21 +223,13 @@ function ArenaCard({
   bonusLabel,
   onPress,
 }: {
-  card?: ActionCard;
+  card: ActionCard;
   disabled: boolean;
   isPlayable: boolean;
   reasonLabel: string | null;
   bonusLabel?: string | null;
   onPress: () => void;
 }) {
-  if (!card) {
-    return (
-      <View style={[styles.cardSlot, styles.cardSlotEmpty]}>
-        <View style={styles.emptyCardCore} />
-      </View>
-    );
-  }
-
   const colors = getCardColors(card.type);
 
   const effect = card.type === "finisher" ? "SIGNATURE" : card.baseDamage > 0 ? `${card.baseDamage} DMG` : card.type === "defense" ? "BLOCK" : "UTILITY";
@@ -377,11 +388,12 @@ export function BattleArenaView({
   const finisherAvailability = ArenaCombatEngine.getSignatureAvailability(battle, "player", finisherPower);
   const visualStates = getCompletedVisualStates(battle) ?? transientVisualStates;
   const visibleCards = useMemo(() => {
-    const slots = playerCards.filter(card => card.type !== "finisher").slice(0, CARD_SLOTS - 1);
-    while (slots.length < CARD_SLOTS - 1) slots.push(undefined as never);
-    slots.push(battle.hostSnapshot ? undefined as never : ArenaCombatEngine.buildSignatureCard(battle.player, finisherPower));
+    const slots = playerCards.filter(card => card.type !== "finisher").slice(0, COMMAND_SLOTS).map(card => ({ card, signature: false }));
+    // A City-issued CPU match has no signature move: no slot at all instead of an empty ghost card.
+    if (!battle.hostSnapshot) slots.push({ card: ArenaCombatEngine.buildSignatureCard(battle.player, finisherPower), signature: true });
     return slots;
-  }, [playerCards, battle.player, finisherPower]);
+  }, [playerCards, battle.player, battle.hostSnapshot, finisherPower]);
+  const abilitySides = (["player", "opponent"] as const).filter(side => !!battle[side].ability);
 
   const playerCanAct = playableCardIds.length > 0 && !isAnimating;
   const chainLength = battle.player.comboCounter;
@@ -398,10 +410,9 @@ export function BattleArenaView({
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.screenContent, { paddingTop: embedded ? 0 : insets.top, paddingBottom: embedded ? 0 : insets.bottom }]} bounces={false}>
-      <View style={styles.backgroundAngles}>
-        <View style={styles.angleOne} />
-        <View style={styles.angleTwo} />
-        <View style={styles.angleThree} />
+      <View pointerEvents="none" style={styles.backgroundAngles}>
+        <Image source={ARENA_STAGE} style={styles.stageBackdrop} resizeMode="cover" />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: STAGE_SCRIM }]} />
       </View>
 
       <View style={styles.topHud}>
@@ -498,7 +509,7 @@ export function BattleArenaView({
         <View style={styles.battleStage}>
           <View style={styles.battleFloor}>
             <Svg pointerEvents="none" width="100%" height="100%" viewBox="0 0 360 180" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-              <Path d="M18 124 L180 65 L342 124 L180 177 Z" fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={1} />
+              <Path d="M18 124 L180 65 L342 124 L180 177 Z" fill={theme.plates.navy} fillOpacity={0.72} stroke={theme.colors.border} strokeWidth={1} />
               <Path d="M58 138 L220 79 M99 151 L261 94 M139 164 L301 109 M58 109 L220 164 M99 94 L261 151 M139 79 L301 138" fill="none" stroke={theme.colors.border} strokeOpacity={0.5} strokeWidth={0.7} />
               <Path d="M18 124 L180 177 L342 124 M18 130 L180 183 L342 130" fill="none" stroke={theme.colors.accent} strokeOpacity={0.5} strokeWidth={1} />
               <Ellipse cx={100} cy={126} rx={42} ry={15} fill="none" stroke={slotAccent(false, team?.playerChips.find(chip => chip.isActive)?.index ?? 0)} strokeWidth={2} />
@@ -606,7 +617,7 @@ export function BattleArenaView({
       ) : null}
 
       <View style={styles.cardBay}>
-        <GameSurfaceFrame accent={theme.colors.accent} strong />
+        <BayFrame accent={theme.colors.accent} />
         {team ? (
           <View style={styles.switchDock}>
             {team.playerChips.map((chip) => {
@@ -686,18 +697,17 @@ export function BattleArenaView({
         </View>
 
         <View style={styles.cardRow}>
-          {visibleCards.map((card, index) => {
-            const isSignature = index === CARD_SLOTS - 1;
-            const isPlayable = !!card && (isSignature ? !battle.hostSnapshot && finisherAvailability.playable : playableCardIds.includes(card.id)) && !team?.entryLocked;
+          {visibleCards.map(({ card, signature: isSignature }) => {
+            const isPlayable = (isSignature ? !battle.hostSnapshot && finisherAvailability.playable : playableCardIds.includes(card.id)) && !team?.entryLocked;
             return (
               <ArenaCard
-                key={card?.id ?? `empty-${index}`}
+                key={card.id}
                 card={card}
-                disabled={!card || isAnimating || !isPlayable}
+                disabled={isAnimating || !isPlayable}
                 isPlayable={isPlayable}
-                reasonLabel={isSignature ? (finisherAvailability.playable ? null : finisherAvailability.reason === "stamina" ? `NEED ${finisherAvailability.staminaCost} STA` : finisherAvailability.reason === "special_meter" ? `NEED ${finisherAvailability.syncCost}% SYNC` : "NOT READY") : card ? getAvailabilityLabel(cardAvailability[card.id], card) : null}
+                reasonLabel={isSignature ? (finisherAvailability.playable ? null : finisherAvailability.reason === "stamina" ? `NEED ${finisherAvailability.staminaCost} STA` : finisherAvailability.reason === "special_meter" ? `NEED ${finisherAvailability.syncCost}% SYNC` : "NOT READY") : getAvailabilityLabel(cardAvailability[card.id], card)}
                 bonusLabel={
-                  card?.type === "finisher" && isPlayable && chainLength >= 1
+                  card.type === "finisher" && isPlayable && chainLength >= 1
                     ? `CHAIN ENDER ×${chainLength}`
                     : null
                 }
@@ -712,15 +722,18 @@ export function BattleArenaView({
           })}
         </View>
 
-        <View style={styles.abilityDock}>
-          {(["player", "opponent"] as const).map(side => (
-            <Pressable key={side} accessibilityRole="button" accessibilityLabel={`${battle[side].name} passive details`}
-              disabled={!!battle.hostSnapshot} onPress={() => setPassiveDetail(side)} style={styles.abilityPanel}>
-              <GameSurfaceFrame accent={side === "player" ? theme.colors.accent : theme.colors.border} />
-              <Text numberOfLines={1} style={styles.abilityPanelName}>{battle[side].name} · {battle[side].ability?.name ?? (battle.hostSnapshot ? "EXTRAS UNAVAILABLE" : "Combat routine")}</Text>
-            </Pressable>
-          ))}
-        </View>
+        {/* L2: a panel only for a fighter that actually has a passive; none at all for a City-issued CPU match. */}
+        {abilitySides.length > 0 ? (
+          <View style={styles.abilityDock}>
+            {abilitySides.map(side => (
+              <Pressable key={side} accessibilityRole="button" accessibilityLabel={`${battle[side].name} passive details`}
+                onPress={() => setPassiveDetail(side)} style={styles.abilityPanel}>
+                <GameSurfaceFrame accent={side === "player" ? theme.colors.accent : theme.colors.border} />
+                <Text numberOfLines={1} style={styles.abilityPanelName}>{battle[side].name} · {battle[side].ability!.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
         <Modal visible={passiveDetail !== null} transparent animationType={reduceMotion ? "none" : "fade"} onRequestClose={() => setPassiveDetail(null)}>
           <View style={styles.detailBackdrop}><View style={styles.detailPanel}>
             <Text style={styles.abilityPanelName}>{passiveDetail ? battle[passiveDetail].ability?.name : ""}</Text>
@@ -741,7 +754,7 @@ const styles = StyleSheet.create({
   cardCopy: { flex: 1, minWidth: 0 },
   specialGaugeGroup: { flex: 1, gap: 5 },
   meterLabel: { ...theme.type.micro, color: theme.colors.warning },
-  detailBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.75)" },
+  detailBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: theme.plates.overlay },
   detailPanel: { padding: 20, backgroundColor: theme.plates.navy, borderWidth: 1, borderColor: theme.colors.accent },
   detailCopy: { color: theme.colors.text, fontFamily: "HoloBody", fontSize: theme.type.body.fontSize, lineHeight: 20, marginVertical: 10 },
   actionTicker: { alignItems: "center", marginHorizontal: 12, marginBottom: 6, minHeight: 28, justifyContent: "center", paddingHorizontal: 8, position: "relative", },
@@ -753,33 +766,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textAlign: "center",
   },
-  angleOne: {
-    backgroundColor: "rgba(0,0,0,0.06)",
-    height: 74,
-    left: -20,
-    position: "absolute",
-    top: 112,
-    transform: [{ skewX: "-35deg" }],
-    width: 180,
-  },
-  angleThree: {
-    backgroundColor: "rgba(0,0,0,0.05)",
-    height: 64,
-    left: 72,
-    position: "absolute",
-    top: 362,
-    transform: [{ skewX: "-35deg" }],
-    width: 126,
-  },
-  angleTwo: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    height: 86,
-    position: "absolute",
-    right: -28,
-    top: 20,
-    transform: [{ skewX: "-35deg" }],
-    width: 184,
-  },
+  stageBackdrop: { height: "100%", width: "100%" },
   backgroundAngles: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -924,7 +911,7 @@ const styles = StyleSheet.create({
   },
   sendInOverlay: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.82)",
+    backgroundColor: theme.plates.overlay,
     bottom: 0,
     justifyContent: "center",
     left: 0,
@@ -945,9 +932,9 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 4,
   },
-  cardBay: { flexShrink: 0, marginHorizontal: 12, marginBottom: 8, padding: 10, position: "relative", },
+  cardBay: { flexShrink: 0, marginHorizontal: 12, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 12, position: "relative", },
   cardBayHeader: { alignItems: "center", flexDirection: "row", marginBottom: 6, minHeight: 14, },
-  cardBayTopBar: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 4, },
+  cardBayTopBar: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 6, paddingHorizontal: 2, },
   abilityBadge: {
     alignSelf: "flex-start",
     backgroundColor: theme.plates.navy,
@@ -968,8 +955,8 @@ const styles = StyleSheet.create({
   },
   trapChip: {
     alignSelf: "flex-start",
-    backgroundColor: "#123a6b",
-    borderColor: "#2d8fff",
+    backgroundColor: theme.plates.navy,
+    borderColor: theme.colors.blue,
     borderWidth: 1.5,
     marginTop: 4,
     paddingHorizontal: 7,
@@ -979,7 +966,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
   },
   trapChipText: {
-    color: "#9cd0ff",
+    color: theme.colors.text,
     fontFamily: "HoloBody",
     fontSize: theme.type.caption.fontSize,
     fontWeight: "900",
@@ -1015,21 +1002,8 @@ const styles = StyleSheet.create({
   powerChoiceSelected: { opacity: 1, borderBottomWidth: 2, borderBottomColor: theme.colors.accent },
   cardRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, },
   cardSlot: { flexBasis: "48%", flexGrow: 1, minWidth: 0, minHeight: 88, paddingHorizontal: 9, paddingVertical: 7, gap: 3, },
-  cardSlotEmpty: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: theme.colors.carbon,
-  },
   cardTypeLabel: { fontFamily: "HoloBody", fontSize: 10, fontWeight: "900", letterSpacing: 0.7, },
   deckHint: { color: theme.colors.muted, flex: 1, fontFamily: "HoloBody", fontSize: 9, letterSpacing: 0.2, },
-  emptyCardCore: {
-    backgroundColor: theme.colors.carbon,
-    borderColor: "#282828",
-    borderRadius: 10,
-    borderWidth: 2,
-    height: "82%",
-    marginTop: 12,
-    width: "72%",
-  },
   specialCluster: { alignItems: "center", flexDirection: "row", gap: 4, },
   specialGaugeFill: { backgroundColor: theme.colors.warning, height: "100%", },
   specialGaugeTrack: { backgroundColor: theme.plates.keycap, height: 8, overflow: "hidden", },
