@@ -45,6 +45,23 @@ describe("progression timers are server-only", () => {
     await assertFails(setDoc(aliceDoc, { progressionTimers: { training: null } }, { merge: true }));
   });
 
+  // training-reward-replay-proof-1: the claim ledger (progressionTimers.claimed) is read before every payout; a client
+  // that could delete or rewrite an entry could replay a paid run.
+  it("denies the owner writing, deleting or forging the claim ledger", async () => {
+    const claimed = { [`t:attack:ACE:${STARTED}`]: { kind: "training", source: "legacy", runId: "", subject: "attack", holobotName: "ACE", startedAtMs: STARTED, claimedAtMs: STARTED + 30 * 60 * 1000 } };
+    await seedUser(env, "alice", buildUserDoc({ progressionTimers: { ...timers(), claimed }, rewardSystem: { activeQuests: [], activeTraining: null } }));
+    const aliceDoc = doc(authedDb(env, "alice"), "users/alice");
+    await assertFails(updateDoc(aliceDoc, { "progressionTimers.claimed": {} }));
+    await assertFails(updateDoc(aliceDoc, { "progressionTimers.claimed": deleteField() }));
+    await assertFails(updateDoc(aliceDoc, { [`progressionTimers.claimed.t:attack:ACE:${STARTED}`]: deleteField() }));
+    await assertFails(updateDoc(aliceDoc, { [`progressionTimers.claimed.t:attack:ACE:${STARTED}.claimedAtMs`]: 0 }));
+    await assertFails(updateDoc(aliceDoc, { progressionTimers: timers() }));
+    await assertFails(setDoc(aliceDoc, { progressionTimers: { claimed: {} } }, { merge: true }));
+    await assertFails(setDoc(doc(authedDb(env, "dave"), "users/dave"), buildUserDoc({ progressionTimers: { schemaVersion: "progression-timers-1", quests: {}, training: null, claimed } })));
+    // The display copy stays the owner's: restoring a paid run there is allowed (the host replays it, pays nothing).
+    await assertSucceeds(updateDoc(aliceDoc, { "rewardSystem.activeTraining": { courseId: "attack", holobotName: "ACE", statBoosts: { attack: 12 }, expReward: 70, startedAt: new Date(STARTED).toISOString(), endsAt: new Date(STARTED + 30 * 60 * 1000).toISOString() } }));
+  });
+
   it("denies a client creating a profile that already carries start records", async () => {
     await assertFails(setDoc(doc(authedDb(env, "bob"), "users/bob"), buildUserDoc({ progressionTimers: timers() })));
     await assertSucceeds(setDoc(doc(authedDb(env, "carol"), "users/carol"), buildUserDoc()));

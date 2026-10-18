@@ -54,7 +54,8 @@ test('a host-started quest pays once at its real end from the recorded power; th
   assert.deepEqual(u.progressionTimers.quests, {}); assert.deepEqual(u.rewardSystem.activeQuests, []);
   assert.deepEqual(u.rewardSystem.availableQuestIds, ['forest_patrol', 'factory_raid']); assert.equal(u.rewardSystem.syncBoostEnabled, true);
   assert.equal(u.syncPoints, 15); assert.equal(u.holobots[0].experience, 50);
-  await assert.rejects(() => transactClaimQuestRun(db, uid, { questRunId: r.questRun.id }, r.questRun.endsAtMs + 1, { legacyTimers: false }), rejection('not_started_on_host'));
+  // training-reward-replay-proof-1: a second claim replays the stored receipt (was: refused not_started_on_host).
+  assert.deepEqual(await transactClaimQuestRun(db, uid, { questRunId: r.questRun.id }, r.questRun.endsAtMs + 1, { legacyTimers: false }, 0.99), { ...claim, alreadyProcessed: true });
   assert.equal((await user(uid)).syncPoints, 15, 'a second claim pays nothing');
 });
 
@@ -89,7 +90,10 @@ test('training: host roll recorded; a forged display copy (past endsAt, max boos
   const u = await user(uid);
   assert.equal(u.holobots[0].boostedAttributes.attack, 10); assert.equal(u.progressionTimers.training, null); assert.equal(u.rewardSystem.activeTraining, null);
   assert.equal(u.rewardSystem.syncBoostEnabled, true);
-  await assert.rejects(() => transactClaimTrainingSession(db, uid, T + 31 * MIN, { legacyTimers: false }), rejection('not_started_on_host'));
+  // training-reward-replay-proof-1: a retry right after the claim replays it (was: refused not_started_on_host); pays nothing.
+  assert.deepEqual(await transactClaimTrainingSession(db, uid, T + 31 * MIN, { legacyTimers: false }), { claimed: true, alreadyProcessed: true });
+  assert.equal((await user(uid)).holobots[0].boostedAttributes.attack, 10);
+  await assert.rejects(() => transactClaimTrainingSession(db, uid, T + 46 * MIN, { legacyTimers: false }), rejection('not_started_on_host'));
 });
 
 test('start refusals write nothing: energy, slots, unknown holobot, unauthenticated; the callable starts training with host RNG', async () => {

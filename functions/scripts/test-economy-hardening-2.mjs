@@ -159,3 +159,63 @@ test('item 5: every desktop-account version carries the summary for the host day
   assert.equal(fixture.reply.dailyMissionLedger.boosterPacksToday, 1);
   assert.equal(fixture.tamperedMirror.boosterPacksToday, 99, 'the fixture account had a forged mirror the summary ignored');
 });
+
+// ---- training-reward-replay-proof-1: the server-only claim ledger (progressionTimers.claimed) ----
+const legacyT = (startMs, extra = {}) => ({ courseId: 'attack', holobotName: 'KUMA', statBoosts: { attack: 12 }, expReward: 70, startedAt: new Date(startMs).toISOString(), endsAt: new Date(startMs + 30 * MIN).toISOString(), ...extra });
+const paidT = (profile, now) => { const r = PT.resolveTrainingClaim(profile, now, true); return { ...profile, progressionTimers: PT.settleTrainingClaim(r, now).progressionTimers, rewardSystem: { ...profile.rewardSystem, activeTraining: null } }; };
+
+test('replay-proof: a paid legacy training is in the ledger by course + holobot + start; the same copy replays, a pre-claim start is refused (5 min skew)', () => {
+  const p = pilot({ rewardSystem: { ...questKeys, activeQuests: [], activeTraining: legacyT(T0) } });
+  const r = PT.resolveTrainingClaim(p, T0 + 30 * MIN, true);
+  assert.equal(r.source, 'legacy');
+  const after = paidT(p, T0 + 30 * MIN);
+  assert.deepEqual(after.progressionTimers.claimed, { [`t:attack:KUMA:${T0}`]: { kind: 'training', source: 'legacy', runId: '', subject: 'attack', holobotName: 'KUMA', startedAtMs: T0, claimedAtMs: T0 + 30 * MIN } });
+  const restored = { ...after, rewardSystem: { ...after.rewardSystem, activeTraining: legacyT(T0) } };
+  for (const flag of [true, false]) {
+    const replay = PT.resolveTrainingClaim(restored, T0 + 90 * MIN, flag);
+    assert.equal(replay.source, 'replay'); assert.deepEqual(replay.displayUpdates, { 'rewardSystem.activeTraining': null });
+  }
+  const claimAt = T0 + 30 * MIN, skew = PT.LEGACY_CLOCK_SKEW_MS;
+  assert.equal(PT.resolveTrainingClaim({ ...after, rewardSystem: { activeTraining: legacyT(claimAt - skew) } }, T0 + 90 * MIN, true).source, 'legacy');
+  assert.throws(() => PT.resolveTrainingClaim({ ...after, rewardSystem: { activeTraining: legacyT(claimAt - skew - 1) } }, T0 + 90 * MIN, true), code('not_started_on_host'));
+  // No record + nothing claimed recently: the old refusals.
+  assert.throws(() => PT.resolveTrainingClaim(after, claimAt + PT.TRAINING_REPLAY_WINDOW_MS + 1, true), code('not_active'));
+  assert.equal(PT.resolveTrainingClaim(after, claimAt + PT.TRAINING_REPLAY_WINDOW_MS, false).source, 'replay');
+});
+
+test('replay-proof: starts keep the ledger, and a profile without one gains no key; a malformed ledger fails closed', () => {
+  const after = paidT(pilot({ rewardSystem: { ...questKeys, activeQuests: [], activeTraining: legacyT(T0) } }), T0 + 30 * MIN);
+  const ledger = after.progressionTimers.claimed;
+  assert.deepEqual(PT.buildTrainingStart(after, { courseId: 'attack', holobotName: 'ACE', requestId: 'req_train_0101' }, T0 + 40 * MIN, 0).updates.progressionTimers.claimed, ledger);
+  assert.deepEqual(startQ(after, 'forest_patrol', 'ACE', 'req_quest_0101', T0 + 40 * MIN).updates.progressionTimers.claimed, ledger);
+  assert.equal('claimed' in startQ(pilot(), 'forest_patrol', 'ACE', 'req_quest_0102').updates.progressionTimers, false);
+  const [key, run] = Object.entries(ledger)[0];
+  for (const bad of [[], 'x', { [key]: { ...run, kind: 'nope' } }, { [key]: { ...run, startedAtMs: T0 + 1 } }, { [key]: { ...run, holobotName: 'kuma' } },
+    { [`q:forest_patrol:KUMA:${T0}`]: { ...run, kind: 'quest', subject: 'forest_patrol' } }, { [key]: { ...run, succeeded: true } }])
+    assert.throws(() => PT.readProgressionTimers({ ...after.progressionTimers, claimed: bad }), code('unavailable'), JSON.stringify(bad).slice(0, 80));
+});
+
+test('replay-proof: the ledger keeps the most recent MAX_CLAIMED_RUNS claims', () => {
+  let timers = PT.readProgressionTimers(undefined);
+  for (let i = 0; i < PT.MAX_CLAIMED_RUNS + 5; i += 1)
+    timers = PT.withClaimedRun(timers, { kind: 'quest', source: 'legacy', runId: `quest_${i}`, subject: 'forest_patrol', holobotName: 'ACE', startedAtMs: T0 + i * 20 * MIN, claimedAtMs: T0 + i * 20 * MIN + 15 * MIN, succeeded: true });
+  const kept = Object.values(timers.claimed).map((r) => r.runId);
+  assert.equal(kept.length, PT.MAX_CLAIMED_RUNS); assert.equal(kept.includes('quest_4'), false); assert.equal(kept.includes('quest_5'), true);
+  assert.deepEqual(PT.readProgressionTimers(timers), timers);
+});
+
+test('replay-proof: quests replay by run id or identity; a qr_ copy with no server record never pays; legacy slots and holobots follow the original app', () => {
+  const q = (id, startMs, holobotName = 'ACE') => ({ id, questId: 'forest_patrol', holobotName, holobotPower: 900, startedAt: new Date(startMs).toISOString(), endsAt: new Date(startMs + 15 * MIN).toISOString() });
+  const pay = (profile, id, now) => { const r = PT.resolveQuestClaim(profile, id, now, true); assert.equal(r.source, 'legacy', id); return { ...profile, progressionTimers: PT.settleQuestClaim(r, true, now).progressionTimers, rewardSystem: { ...profile.rewardSystem, activeQuests: profile.rewardSystem.activeQuests.filter((e) => e.id !== id) } }; };
+  let p = pilot({ rewardSystem: { ...questKeys, activeQuests: [q('quest_a', T0), q('quest_b', T0, 'KUMA'), q('quest_c', T0, 'WOLF'), q('quest_d', T0, 'HARE')] } });
+  for (const id of ['quest_a', 'quest_b', 'quest_c']) p = pay(p, id, T0 + 15 * MIN);
+  assert.throws(() => PT.resolveQuestClaim(p, 'quest_d', T0 + 15 * MIN, true), code('not_started_on_host'), 'a 4th concurrent legacy quest');
+  const byId = PT.resolveQuestClaim(p, 'quest_a', T0 + 16 * MIN, false);
+  assert.equal(byId.source, 'replay'); assert.equal(byId.prior.succeeded, true); assert.deepEqual(byId.displayUpdates, {});
+  const renamed = { ...p, rewardSystem: { ...p.rewardSystem, activeQuests: [q('quest_a_copy', T0)] } };
+  assert.deepEqual(PT.resolveQuestClaim(renamed, 'quest_a_copy', T0 + 16 * MIN, true).displayUpdates, { 'rewardSystem.activeQuests': [] }, 'a re-id\'d copy of a paid run replays by identity and is pruned');
+  assert.throws(() => PT.resolveQuestClaim({ ...p, rewardSystem: { activeQuests: [q('quest_e', T0 + 5 * MIN)] } }, 'quest_e', T0 + 30 * MIN, true), code('not_started_on_host'), 'ACE was busy until its claim');
+  assert.equal(PT.resolveQuestClaim({ ...p, rewardSystem: { activeQuests: [q('quest_f', T0 + 15 * MIN)] } }, 'quest_f', T0 + 30 * MIN, true).source, 'legacy', 'ACE again after its claim');
+  assert.throws(() => PT.resolveQuestClaim(pilot({ rewardSystem: { activeQuests: [{ ...q('qr_req_quest_0999', T0), id: 'qr_req_quest_0999' }] } }), 'qr_req_quest_0999', T0 + 15 * MIN, true), code('not_active'));
+  assert.equal(PT.resolveQuestClaim(pilot({ rewardSystem: { activeQuests: [{ id: 'q_x', questId: 'nope', endsAt: '2020-01-01T00:00:00.000Z' }] } }), 'q_x', T0, true).claim, null, 'unknown quest: applyQuestClaim refuses it');
+});
