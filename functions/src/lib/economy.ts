@@ -101,14 +101,27 @@ function missionState(value: unknown, date: Date, bump: DailyMissionCounter | nu
   };
 }
 
-/** The two writes every counter-bumping callable adds: the authoritative ledger and the display mirror. */
+/** The stored rewardSystem map's own keys (quest / training state: activeQuests, activeTraining, availableQuestIds,
+ * lastQuestRefreshDate, questRefreshesRemaining, syncBoostEnabled, ...); {} when absent or not a map. */
+function rewardSystemKeys(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+/**
+ * The two writes every counter-bumping callable adds: the authoritative ledger and the display mirror.
+ * hardening-2: the mirror is MERGED into the rewardSystem read in the same transaction ({...stored, ...missionState}),
+ * never a 4-key replacement. The arena settle and the desktop cache pack write with tx.update, which replaces a whole
+ * top-level map, so a bare missionState wiped activeQuests / activeTraining / availableQuestIds. The spread is also
+ * correct under set(..., {merge: true}) (gacha, booster); dotted `rewardSystem.<key>` paths would not be (merge-set
+ * treats a dotted key as a literal field name).
+ */
 export function dailyMissionCounterUpdates(
   userData: Record<string, unknown>,
   counter: DailyMissionCounter,
   date = new Date(),
 ): Record<string, unknown> {
   return {
-    rewardSystem: missionState(userData.rewardSystem, date, counter),
+    rewardSystem: { ...rewardSystemKeys(userData.rewardSystem), ...missionState(userData.rewardSystem, date, counter) },
     [DAILY_MISSION_LEDGER_FIELD]: missionState(userData[DAILY_MISSION_LEDGER_FIELD], date, counter),
   };
 }
@@ -160,7 +173,7 @@ export function buildMissionClaimUpdatesRaw(
       gachaTickets: Number(userData.gachaTickets || 0) + mission.reward.gachaTickets,
       holosTokens: Number(userData.holosTokens || 0) + mission.reward.holosTokens,
       [DAILY_MISSION_LEDGER_FIELD]: next,
-      rewardSystem: { ...next, missionClaims: { ...mirrorClaims, ...next.missionClaims } },
+      rewardSystem: { ...rewardSystemKeys(userData.rewardSystem), ...next, missionClaims: { ...mirrorClaims, ...next.missionClaims } },
     },
   };
 }
