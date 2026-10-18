@@ -1,6 +1,6 @@
 # PvP room fighter snapshots — `pvp-room-fighters-1`
 
-Host half of lane `lite-pvp-fighters-1`. Base: main 3b1e790 (#129). Additive Contract-Change. **No deploy.** The producer owns deploy and Pak merges. **No `firestore.rules` change:** the producer's `host-economy-hardening-1` lane owns that file. **Scope:** this closes the *room-level forgery* behind the LIVE PVP cell held by lite-arena-levels-1 (#119/#121): no client can forge the stored seat. It **leaves S4 open**: ownership and level still come from the owner-writable profile. So the LIVE PVP cell is not fully closed until S4 is (see "Trust boundary" and "Gate").
+Host half of lane `lite-pvp-fighters-1`. Base: main 3b1e790 (#129), with main daa90f0 merged in (#143/#140/#135). Additive Contract-Change. **No deploy.** The producer owns deploy and Pak merges. **No `firestore.rules` change:** the producer's `host-economy-hardening-1` lane owns that file. **Scope:** this closes the *room-level forgery* behind the LIVE PVP cell held by lite-arena-levels-1 (#119/#121): no client can forge the stored seat. It **leaves S4 open**: ownership and level still come from the owner-writable profile. So the LIVE PVP cell is not fully closed until S4 is (see "Trust boundary" and "Gate").
 
 ## Problem
 
@@ -119,11 +119,11 @@ Function only; there are no rules to deploy for this contract. The lite client w
 ## Data lifecycle
 
 - `pvpRoomSeats/{roomId}` docs outlive their room: a participant may delete `battle_rooms/{roomId}`, but nothing deletes the seats doc. Orphans are inert (no client access; a reused id shows only its new occupants' entries). **Follow-up:** a scheduled sweep or Firestore TTL policy, e.g. a `mintedAtMs` field plus TTL.
-- **Account deletion:** `deleteUserData` (functions/src/account/deleteUserAccount.ts) purges per-uid trees, but a deleted uid survives as a `byUid` map key inside `pvpRoomSeats` docs, holding only bot ids, levels and tier 0. **Follow-up:** purge `byUid.{uid}` in `deleteUserData` (query `where(new FieldPath('byUid', uid, 'fighters'), '!=', null)`), or rely on the TTL above. Not done here, because open #143 (host-economy-hardening-1) edits `deleteUserAccount.ts`.
+- **Account deletion:** `deleteUserData` (functions/src/account/deleteUserAccount.ts) purges per-uid trees, but a deleted uid survives as a `byUid` map key inside `pvpRoomSeats` docs, holding only bot ids, levels and tier 0. **Follow-up:** purge `byUid.{uid}` in `deleteUserData` (query `where(new FieldPath('byUid', uid, 'fighters'), '!=', null)`), or rely on the TTL above. Not done here, because `deleteUserAccount.ts` is owned by host-economy-hardening (#143, now merged); the purge belongs with that owner's S4 phases.
 
 ## Merge note
 
-#136 conflicts with #134 in `functions/package.json`: both add to the `test` list and the scripts map. Resolve by keeping both. Whoever merges second must confirm that both `scripts/test-pvp-room-fighters.mjs` and #134's test file are in `test`. #143 also edits `functions/package.json`.
+#136 conflicts with #134 in `functions/package.json`: both add to the `test` list and the scripts map. Resolve by keeping both. Whoever merges second must confirm that both `scripts/test-pvp-room-fighters.mjs` and #134's test file are in `test`. The #143 conflict in the same file is already resolved: main daa90f0 was merged into this branch, keeping main's lines plus this lane's two entries.
 
 ## Files
 
@@ -139,9 +139,9 @@ Function only; there are no rules to deploy for this contract. The lite client w
 
 These ran in a scratch worktree with node_modules symlinked: no installs, no network, no real account, and no `git fetch` into `origin/*`. Branch tips were checked against `gh api`. The locally available functions `node_modules` predates main's `ajv` devDependency, so `NODE_PATH` pointed at the cached rules-tests `node_modules` for `ajv`. CI's `npm ci` installs it.
 
-- `git diff 3b1e790 -- firestore.rules rules-tests/tests/battle-collections.test.ts rules-tests/src` is **empty**: no rules or existing rules-test change.
+- `git diff daa90f0 -- firestore.rules rules-tests/tests/battle-collections.test.ts rules-tests/src` is **empty**: no rules or existing rules-test change against current main. That includes #143's new rules.
 - `npm run build`: green. `npm run check:shared`: 3 shared files in sync.
-- `npm test`: **322 tests, 321 passed, 0 failed, 1 skipped**. Base main 3b1e790 gives 312 / 311 / 0 / 1; this branch adds 10 tests in `test-pvp-room-fighters.mjs`:
+- `npm test` on the merged branch: **323 tests, 322 passed, 0 failed, 1 skipped**. That is main daa90f0's 313 plus this branch's 10 tests in `test-pvp-room-fighters.mjs`:
   - fixture premise;
   - fixture replay with caller-only writes;
   - **S4 open**: an owner-added WOLF LV 99 is minted;
@@ -153,7 +153,7 @@ These ran in a scratch worktree with node_modules symlinked: no installs, no net
   - request guard;
   - schema, including the tier pin.
 - Emulator, functions: `test-pvp-room-fighters-emulator.mjs` **6/6**. It covers the premise; create → seat → join → seat → read with the room doc unchanged by the host; refusals with no writes; 3v3; reused room id; and seat-swap tampering. Its recorded output is identical to the committed fixture apart from the auto room id. Setup: cached Firestore v1.19.8 (no download), project `demo-holobots-pvp-fighters`, 127.0.0.1:8293 scratch config, fixed disposable demo uids deleted after the run.
-- Emulator, rules: the full rules-tests suite gives **19 files, 107/107** against the existing rules. The new `pvp-room-seats.test.ts` has 3 tests:
+- Emulator, rules: the full rules-tests suite on the merged branch gives **20 files, 110/110**, running against main's current rules (#143). The new `pvp-room-seats.test.ts` has 3 tests:
   - the known-bad room-doc forge succeeds (a real check: it fails if `battle_rooms` were ever locked down);
   - every client write to `pvpRoomSeats` is denied;
   - every client read and list is denied.
