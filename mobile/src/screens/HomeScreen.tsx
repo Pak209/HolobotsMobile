@@ -13,6 +13,7 @@ import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
 import { UnityLaunchButton } from "@/components/dashboard/UnityLaunchButton";
 import { TravelSquadPanel } from "@/components/dashboard/TravelSquadPanel";
 import { HologramPlatform } from "@/components/dashboard/HologramPlatform";
+import { DashboardZonesPanel } from "@/components/dashboard/DashboardZonesPanel";
 import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
 import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/partStats";
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
@@ -22,6 +23,8 @@ import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@
 import { theme } from "@/theme";
 import { useRivalStatus, type RivalHudPreview } from "@/hooks/useRivalStatus";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHostDashboard } from "@/hooks/useHostDashboard";
+import { presentHostDashboard, type HostDashboardState } from "@/lib/hostDashboard";
 import type { RootTabs } from "../../App";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
@@ -210,11 +213,15 @@ function ArtImage({
   );
 }
 
-export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } = {}) {
+/** `rivalPreview` / `dashboardPreview` are the offline QA harness only (no session, no network). */
+export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: RivalHudPreview; dashboardPreview?: HostDashboardState } = {}) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const insets = useSafeAreaInsets();
   const { profile, updateProfile, user } = useAuth();
   const rival = useRivalStatus(user?.uid, rivalPreview);
+  // Header pilot / SYNC / HOLOS, squad LV and zone rows: host reads only (desktopAccountSnapshot + desktopItemsHost).
+  const host = useHostDashboard(user?.uid, dashboardPreview);
+  const dashboard = useMemo(() => presentHostDashboard(host.state), [host.state]);
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
@@ -222,7 +229,9 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
   const [selectedPartSlot, setSelectedPartSlot] = useState<DashboardSlot | null>(null);
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots, "full"), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
-  const expProgressWidth = 460.193 * getExpProgress(selectedHolobot);
+  // Signed in with no owned Holobot (profile read failed / empty): never present the catalog fallback as the account's bot.
+  const rosterAvailable = !user || roster.some((holobot) => holobot.owned);
+  const expProgressWidth = rosterAvailable ? 460.193 * getExpProgress(selectedHolobot) : 0;
   const equippedParts =
     (profile?.equippedParts?.[selectedHolobot.name] as Record<string, { id?: string; name?: string; slot?: string }> | undefined) ??
     (profile?.equippedParts?.[selectedHolobot.name.toLowerCase()] as Record<string, { id?: string; name?: string; slot?: string }> | undefined) ??
@@ -264,7 +273,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
   // Equipped-part boosts feed both real combat (buildPlayerFighter) and
   // this chart — same numbers, no display-only fiction.
   const partBoosts = getEquippedPartBoosts(equippedParts);
-  const attributeValues = {
+  const attributeValues = !rosterAvailable ? { ATK: 0, DEF: 0, SPECIAL: 0, HP: 0, SPEED: 0 } : {
     ATK: Math.min(100, selectedHolobot.stats.attack + partBoosts.attack),
     DEF: Math.min(100, selectedHolobot.stats.defense + partBoosts.defense),
     SPECIAL: Math.min(100, selectedHolobot.stats.special + partBoosts.special),
@@ -363,15 +372,17 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
             d={`M 110.2 ${HOME_INFO_CARD_Y} H 814.6 V ${HOME_INFO_CARD_Y + 231.1} L 699.7 ${HOME_INFO_CARD_Y + 347.1} H 110.2 Z`}
             fill={theme.colors.carbon}
           />
-          <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={49.915}>{selectedHolobot.name}</Text>
+          <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={rosterAvailable ? 49.915 : 34}>{rosterAvailable ? selectedHolobot.name : "ROSTER UNAVAILABLE"}</Text>
           {/* Ranking tag: the Holobot's ACTUAL rank with its star tier. */}
-          <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={3} />
-          <Text x={677} y={HOME_INFO_CARD_Y + 62} fill={theme.colors.accent} fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
-          <Text x={677} y={HOME_INFO_CARD_Y + 106} fill={theme.colors.accent} fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
+          {rosterAvailable ? <G>
+            <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={3} />
+            <Text x={677} y={HOME_INFO_CARD_Y + 62} fill={theme.colors.accent} fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
+            <Text x={677} y={HOME_INFO_CARD_Y + 106} fill={theme.colors.accent} fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
+          </G> : null}
           <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill={theme.plates.raised} />
           <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill={theme.colors.accent} />
-          <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
-          <Text x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
+          <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{rosterAvailable ? `EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}` : "EXP —"}</Text>
+          <Text x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{rosterAvailable ? `Lv ${selectedHolobot.level}` : "Lv —"}</Text>
 
           <Path
             d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
@@ -519,9 +530,9 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
             </View>
           </Pressable>
         </View>
-        <View pointerEvents="none" style={styles.holobotPortrait}>
+        {rosterAvailable ? <View pointerEvents="none" style={styles.holobotPortrait}>
           <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" />
-        </View>
+        </View> : null}
         {abilitySlots.map(({ part, x }, index) => {
           const source = getPartImageSource(part?.name, part?.slot);
 
@@ -559,13 +570,21 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
           />
         ))}
         <View style={styles.statusStrip}>
-          <RNText style={styles.statusText}>TIER {rival.status?.tier ?? "—"} · {(profile?.holosTokens ?? 0).toLocaleString()} HOLOS</RNText>
-          <Pressable accessibilityRole="button" accessibilityLabel="Explore HoloCity and rivals" onPress={() => navigation.navigate("CityHub")}>
-            <RNText style={styles.cityText}>CITY › {rival.countdown || "RIVALS"}</RNText>
+          <View style={styles.statusRow}>
+            {/* HOLOS = desktopItemsHost read; SYNC = desktopAccountSnapshot.syncPoints. PLACEHOLDER copy. */}
+            <RNText testID="dashboard-header-counters" style={[styles.statusText, styles.statusCounters]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>TIER {rival.status?.tier ?? "—"} · {dashboard.holos} · {dashboard.sync}</RNText>
+            <Pressable accessibilityRole="button" accessibilityLabel="Explore HoloCity and rivals" hitSlop={8} onPress={() => navigation.navigate("CityHub")}>
+              <RNText style={styles.cityText}>CITY › {rival.countdown || "RIVALS"}</RNText>
+            </Pressable>
+          </View>
+          {/* desktopAccountSnapshot.username; a failed read offers a retry, never a fallback name. PLACEHOLDER copy. */}
+          <Pressable disabled={!dashboard.unavailable} accessibilityRole={dashboard.unavailable ? "button" : "text"} accessibilityLabel={dashboard.unavailable ? `${dashboard.pilot}. Retry account read` : dashboard.pilot} hitSlop={6} onPress={host.retry} style={styles.pilotRow}>
+            <RNText testID="dashboard-header-pilot" style={[styles.statusText, styles.pilotText]} numberOfLines={1}>{dashboard.pilot}{dashboard.unavailable ? " · RETRY" : ""}</RNText>
           </Pressable>
         </View>
         <View style={styles.nativeCityEntry}><UnityLaunchButton inline compact /></View>
-        <TravelSquadPanel uid={user?.uid} roster={roster} />
+        <TravelSquadPanel uid={user?.uid} roster={roster} levels={dashboard.levels} />
+        <DashboardZonesPanel summary={dashboard.zonesSummary} zones={dashboard.zones} onRetry={host.retry} />
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
           onSelect={(index) => {
@@ -587,6 +606,7 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
             navigation.navigate("Leaderboard");
           }}
           profile={profile}
+          hostAccount={dashboard}
           visible={isStatsOpen}
         />
         <DashboardSettingsModal
@@ -672,9 +692,13 @@ export function HomeScreen({ rivalPreview }: { rivalPreview?: RivalHudPreview } 
 
 const styles = StyleSheet.create({
   nativeCityEntry: { position: "absolute", left: "69%", right: "5%", top: "4.5%", height: 32, zIndex: 35 },
-  statusStrip: { position: "absolute", left: "7%", right: "7%", top: "9.5%", flexDirection: "row", justifyContent: "space-between", alignItems: "center", zIndex: 30 },
+  statusStrip: { position: "absolute", left: "7%", right: "7%", top: "9.5%", zIndex: 30 },
+  statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   statusText: { color: theme.colors.muted, fontSize: 10, fontWeight: "700" },
-  cityText: { color: theme.colors.accent, fontSize: 10, fontWeight: "800", paddingVertical: 4 },
+  statusCounters: { flexShrink: 1 },
+  pilotRow: { alignSelf: "flex-start", maxWidth: "70%", marginTop: 1 },
+  pilotText: { color: theme.colors.text },
+  cityText: { color: theme.colors.accent, fontSize: 10, fontWeight: "800", paddingVertical: 2 },
   artImageFrame: {
     position: "absolute",
   },

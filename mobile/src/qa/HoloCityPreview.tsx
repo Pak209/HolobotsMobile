@@ -34,6 +34,8 @@ import { mergeHolobotRoster } from "@/config/holobots";
 import { previewProfile, previewLeaderboard } from "./previewProfile";
 import { DUEL_PREVIEW_RECEIPT } from "./duelFixture";
 import hostDuelFixture from "./fixtures/duel-receipt-1.json";
+import identityFixture from "./fixtures/desktop-account-3-identity.json";
+import { readDashboardAccount, UNAVAILABLE_DASHBOARD_STATE, type HostDashboardState } from "@/lib/hostDashboard";
 
 const Tab = createBottomTabNavigator();
 const noop = () => {};
@@ -48,9 +50,16 @@ function DetailPreview() {
 function SettingsPreview() { return <DashboardSettingsModal visible onClose={noop} />; }
 function WebPreview() { return <WebSectionScreen uri="https://offline-preview.invalid" />; }
 function LeaderboardPreview() { return <LeaderboardScreen previewEntries={previewLeaderboard} />; }
+/** Host desktop-account-3 identity fixture (#124) through the real reader; Holos is synthetic offline data. */
+const PREVIEW_DASHBOARD: HostDashboardState = { account: readDashboardAccount(identityFixture, identityFixture.uid), accountStatus: "ready", holos: 2480, holosStatus: "ready" };
 function HomePreview() {
   const [rivalPreview] = useState(() => ({ status: { tier: 2, tierLabel: "Champion", rivalWins: 24, winsToNextTier: 6 }, cooldowns: [{ pilotId: "fixture-citizen", endsAtMs: Date.now() + 300000 }] }));
-  return <HomeScreen rivalPreview={rivalPreview} />;
+  return <HomeScreen rivalPreview={rivalPreview} dashboardPreview={PREVIEW_DASHBOARD} />;
+}
+/** Known-bad control: both host reads failed. Must read UNAVAILABLE, never a profile default. */
+function HomeUnavailablePreview() {
+  const [rivalPreview] = useState(() => ({ status: { tier: 2, tierLabel: "Champion", rivalWins: 24, winsToNextTier: 6 } }));
+  return <HomeScreen rivalPreview={rivalPreview} dashboardPreview={UNAVAILABLE_DASHBOARD_STATE} />;
 }
 function DuelPreview() { return <DuelPlaybackScreen fixture receipt={DUEL_PREVIEW_RECEIPT} onClose={noop} showMetrics />; }
 const hostDuelEnvelope = { issue: { duel: { mode: "resolver", player: hostDuelFixture.input.player, opponent: hostDuelFixture.input.opponent } }, duelReceipt: hostDuelFixture.receipt };
@@ -81,7 +90,7 @@ const cityScreens = Object.fromEntries(Object.entries(cityHubFixtures).map(([nam
 function CityPreview() { return <CityHubScreen fixture={cityHubFixtures.night} />; }
 
 const screens: Record<string, React.ComponentType<any>> = {
-  Home: HomePreview, Inventory: InventoryScreen, Roster: RosterPreview, Detail: DetailPreview,
+  Home: HomePreview, HomeUnavailable: HomeUnavailablePreview, Inventory: InventoryScreen, Roster: RosterPreview, Detail: DetailPreview,
   Fitness: FitnessScreen, Marketplace: MarketplaceScreen, Arena: ArenaScreen, Gacha: GachaScreen,
   Training: TrainingScreen, Quests: QuestsScreen, Login: LoginScreen, Overworld: OverworldScreen,
   WebSection: WebPreview, Settings: SettingsPreview, Leaderboard: LeaderboardPreview,
