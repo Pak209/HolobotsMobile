@@ -179,7 +179,7 @@ The sweep is not part of `npm test`.
 | `resume` | always | optional `matchId` | Returns the current projection, `alreadyProcessed: true`. |
 | `report` | `phase: command` | `intentId, turn, activeHealth, opponentHealth` | **Defensive shape check only. Not the authority, and HELD with the runtime.** A value above the host's stored HP for an active fighter, or both values at 0, is **refused** as `invalid_request`. This is the 1v1 shape rule: `arenaMatchStore` refuses `playerFinalHealth` above the entrant's HP, and a both-zero settle, the same way. Under the default decision the bout itself is resolved by the host (`arena-host-resolver-1`). The host then stores **its own** vitals, increments `turn` and resolves KOs (below). Only the two active slots change. |
 | `swap` | `phase: command` (voluntary) or `send_in` (forced) | `intentId, turn, holobotId` | The target must be on the team, alive and not active. A voluntary swap benches the active fighter at its host HP and uses one of `voluntarySwapLimit`. A forced send-in uses none. `phase` returns to `command`. `turn` increments. **No HP changes.** |
-| `settle` | `phase: over` (also after `expiresAtMs`; see "Expiry"), and at least `ARENA_MIN_SETTLE_MS` (1000 ms) after start (otherwise `too_fast`, the same #120 plausibility floor, not proof of combat) | `combosCompleted, perfectDefenses` (client-asserted, 0..`maxPerformanceEvents`) | Outcome from the host `winner`. One reward quote, scaled by the asserted counts. Writes `finalVitals` for all three bots. Terminal replay pays nothing twice. |
+| `settle` | `phase: over` (also after `expiresAtMs`; see "Expiry"), and at least `ARENA_MIN_SETTLE_MS` after start. On `main` since #143 (S1 bounded mitigation), that floor is 20,000 ms: a win sooner is `too_fast`, and a loss that soon closes but pays nothing. It is a plausibility floor, not proof of combat. | `combosCompleted, perfectDefenses` (client-asserted, 0..`maxPerformanceEvents`) | Outcome from the host `winner`. One reward quote, scaled by the asserted counts. Writes `finalVitals` for all three bots. Terminal replay pays nothing twice. |
 | `cancel` | `issued`, or `active` in `command` or `send_in` | `matchId` | Before start: one refund of the one charge. After start, before a winner exists: a forfeit that writes the host-held vitals. In `over` it is refused as `settle_required`: a decided result cannot become a forfeit. No client HP. |
 
 **KO resolution after a host-resolved bout step:**
@@ -268,10 +268,19 @@ the winner from it, without proving that the combat happened. That would
 require a contract amendment and an explicit Pak sign-off.
 
 `combosCompleted` and `perfectDefenses` are client-asserted reward multipliers,
-capped at `maxPerformanceEvents`. With the fixture rules, 25 and 25 scale EXP
-and SYNC by up to 4.75x. That is the same mechanism and cap as the 1v1
-`rewards()`. The only plausibility check is the `too_fast` floor, which settle
-keeps from #120. Whether 3v3 keeps them is Pak call 8.
+capped at `maxPerformanceEvents`. Unbounded, 25 and 25 would scale EXP and SYNC by
+up to 4.75x with the fixture rules.
+
+Since #143, `main`'s 1v1 host applies S1 bounded mitigations:
+
+- the 20 s floor;
+- a performance clamp by receipt length: at most one combo per 2 s and one
+  perfect defense per 3 s;
+- a daily cap of 10 paid CPU settles per account. A settle past the cap closes
+  the match and writes HP, but pays nothing (`settlement.payoutWithheld`).
+
+The 3v3 runtime must apply the same bounds or stricter. Whether 3v3 keeps the
+counts at all is Pak call 8.
 
 What the host does decide:
 
@@ -381,7 +390,7 @@ produced it.**
    bouts?
 8. **Performance counts in 3v3.** Keep the client-asserted 0..25 multipliers
    (the 1v1 parity shown here), make them host-derived, or drop them for 3v3?
-   Is the 1000 ms `too_fast` floor enough for a three-bout match? Should a
+   Is `main`'s 20 s S1 floor right for a three-bout match? Should a
    late settle after expiry honor the asserted counts, or zero them? The
    proposal is to zero them.
 9. **Buddy.** DECISIONS #71 places a BUDDY strip above the bench. Should the 3v3
@@ -397,6 +406,11 @@ produced it.**
   record validator (three `finalVitals` entries, plus every coherence rule
   above) and an `a3_` id generator.
 - Pin a closed `combat` shape for the bout sim in a contract amendment.
+- Apply `main`'s S1 bounded mitigations (#143), or stricter ones: the 20 s settle
+  floor, the per-duration performance clamp and the daily paid-settle cap.
+- Amend the settlement shape with `payoutWithheld` (`daily_cap` /
+  `under_floor`), as the hardened 1v1 settlement now carries. This proposal's
+  closed settlement does not yet carry it.
 - Use the shared lease and activity guards, and `requireLivingVitals` for all
   three bots.
 - Store intents for replay under `arenaMatches/{uid}/intents/{intentId}`, with
