@@ -4,24 +4,32 @@
 stdout | src/lib/__tests__/hostPin.test.ts
 [host-pin] parity imports resolve to ../functions/src (HOLOCITY_HOST_ROOT override; pin is 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f)
 
- ❯ src/lib/__tests__/hostPin.test.ts (7 tests | 1 failed) 573ms
-   ✓ host pin: the parity tests run against the deployed host > the manifest names one full commit and stamps every file 9ms
-   ✓ host pin: the parity tests run against the deployed host > the vendored snapshot is byte-identical to the manifest (no hand edits, no strays) 185ms
-   ✓ host pin: the parity tests run against the deployed host > the snapshot is exactly what the tests import, plus its import closure 81ms
-   ✓ host pin: the parity tests run against the deployed host > no test reaches the branch's own functions/ copy 53ms
-   × host pin: the parity tests run against the deployed host > the resolved host serves exactly the pinned bytes (fails on host drift) 127ms
-     → <scratch>/lite/functions/src has drifted from the pin 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f; re-pin with scripts/pin-host.mjs: expected [ …(10) ] to deeply equal []
-   ✓ host pin: the parity tests run against the deployed host > the manifest matches the pinned commit's git objects, when this clone has them 116ms
-   ✓ host pin: the parity tests run against the deployed host > gitBlobSha agrees with git's blob id 0ms
- ❯ src/lib/__tests__/desktopAccountParity.test.ts (5 tests | 1 failed) 481ms
-   ✓ getHolobotDisplayStats lives in the lib pair > client lib = server lib = the pre-move formula for every bot, level and boost set 54ms
-   ✓ getHolobotDisplayStats lives in the lib pair > config/holobots.ts re-exports the lib copy instead of defining its own 1ms
-   ✓ desktop-account-3 holobots > battleStats = arenaConfig.buildPlayerFighter (no parts); displayStats = getHolobotDisplayStats  390ms
-   ✓ desktop-account-3 holobots > records with missing XP / points fields get the mobile normalizeUserHolobot defaults 2ms
-   × desktop-account-3 holobots > the reply: v3 normalises + adds stats; v1 / v2 return the stored records untouched 28ms
+ ❯ src/lib/__tests__/desktopAccountParity.test.ts (5 tests | 1 failed) 207ms
+   ✓ getHolobotDisplayStats lives in the lib pair > client lib = server lib = the pre-move formula for every bot, level and boost set 22ms
+   ✓ getHolobotDisplayStats lives in the lib pair > config/holobots.ts re-exports the lib copy instead of defining its own 0ms
+   ✓ desktop-account-3 holobots > battleStats = arenaConfig.buildPlayerFighter (no parts); displayStats = getHolobotDisplayStats 165ms
+   ✓ desktop-account-3 holobots > records with missing XP / points fields get the mobile normalizeUserHolobot defaults 0ms
+   × desktop-account-3 holobots > the reply: v3 normalises + adds stats; v1 / v2 return the stored records untouched 18ms
      → expected [ 'attributePoints', …(9) ] to deeply equal [ 'attributePoints', …(10) ]
-   ✓ battleSettlement byte-identical pair > client and server agree for every kind, tier, outcome and count  452ms
-   ✓ arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid  1191ms
+ ❯ src/lib/__tests__/rivalLadderScaleParity.test.ts (5 tests | 1 failed) 14ms
+   × rival ladder rescale parity > the pair is byte-identical, except the deployed host's known host-only addition 9ms
+     → the deployed host's rivalTierStats.ts suffix beyond the client copy: expected [] to deeply equal [ 'RIVAL_NAMED_PROFILES' ]
+   ✓ rival ladder rescale parity > client and server agree for tiers 0-40 and equal WOLF's getHolobotBattleStats at level 1 + 4t 3ms
+   ✓ rival ladder rescale parity > tier 0 is a fresh L1 WOLF, tier 9 is L37, capped at L99 0ms
+   ✓ rival ladder rescale parity > invalid tiers throw on both sides 0ms
+   ✓ rival ladder rescale parity > the rival host's rival-battle-3 opponents are exactly these stats; v2 keeps the #43 baseline 1ms
+   ✓ arena settlement unchanged by the extraction > client and server computeArenaSettlement equal the pre-extraction formula on the whole grid  522ms
+ ❯ src/lib/__tests__/hostPin.test.ts (8 tests | 2 failed) 1182ms
+   ✓ host pin: the parity tests run against the deployed host > the manifest names one full commit and stamps every file 2ms
+   ✓ host pin: the parity tests run against the deployed host > the vendored snapshot is byte-identical to the manifest (no hand edits, no strays) 74ms
+   ✓ host pin: the parity tests run against the deployed host > the snapshot is exactly what mobile/src imports, plus its import closure 25ms
+   ✓ host pin: the parity tests run against the deployed host > no source under mobile/src names the branch's own functions/ copy  891ms
+   × host pin: the parity tests run against the deployed host > loading a module from the branch's functions/ copy is refused (vitest.config.ts) 41ms
+     → promise resolved "{ …(17), …(1) }" instead of rejecting
+   × host pin: the parity tests run against the deployed host > the resolved host serves exactly the pinned bytes (fails on host drift) 11ms
+     → <scratch>/lite/functions/src has drifted from the pin 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f; re-pin with scripts/pin-host.mjs: expected [ …(10) ] to deeply equal []
+   ✓ host pin: the parity tests run against the deployed host > the manifest matches the pinned commit's git objects 137ms
+   ✓ host pin: the parity tests run against the deployed host > gitBlobSha agrees with git's blob id 0ms
 stderr | src/lib/__tests__/genesisSignupParity.test.ts
 [genesisSignupParity] SKIPPED emulator proof (opt-in): HOLOBOTS_SIGNUP_EMULATOR is not 1; needs a desktop-created HOLOBOTS_DESKTOP_UID.
 
@@ -30,7 +38,7 @@ stderr | src/lib/__tests__/cityHost.integration.test.ts
 
  ↓ src/lib/__tests__/cityHost.integration.test.ts (3 tests | 3 skipped)
 
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
 
  FAIL  src/lib/__tests__/desktopAccountParity.test.ts > desktop-account-3 holobots > the reply: v3 normalises + adds stats; v1 / v2 return the stored records untouched
 AssertionError: expected [ 'attributePoints', …(9) ] to deeply equal [ 'attributePoints', …(10) ]
@@ -57,7 +65,203 @@ AssertionError: expected [ 'attributePoints', …(9) ] to deeply equal [ 'attrib
     151|       "attributePoints", "battleStats", "battlefieldMovement", "booste…
     152|       "experience", "level", "name", "nextLevelExp", "rank",
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/__tests__/hostPin.test.ts > host pin: the parity tests run against the deployed host > loading a module from the branch's functions/ copy is refused (vitest.config.ts)
+AssertionError: promise resolved "{ …(17), …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "ATTRIBUTE_BOOST_AMOUNTS": {
++     "attack": 1,
++     "defense": 1,
++     "health": 10,
++     "speed": 1,
++   },
++   "BOOSTABLE_ATTRIBUTES": [
++     "attack",
++     "defense",
++     "speed",
++     "health",
++   ],
++   "HOLOBOT_ARCHETYPES": {
++     "ACE": "balanced",
++     "ERA": "balanced",
++     "GAMA": "grappler",
++     "HARE": "striker",
++     "KEN": "technical",
++     "KUMA": "grappler",
++     "KURAI": "grappler",
++     "SHADOW": "technical",
++     "TORA": "striker",
++     "TSUIN": "balanced",
++     "WAKE": "balanced",
++     "WOLF": "striker",
++   },
++   "HOLOBOT_BASE_STATS": {
++     "ACE": {
++       "attack": 8,
++       "defense": 6,
++       "hp": 150,
++       "intelligence": 5,
++       "speed": 7,
++     },
++     "ERA": {
++       "attack": 5,
++       "defense": 4,
++       "hp": 165,
++       "intelligence": 4,
++       "speed": 6,
++     },
++     "GAMA": {
++       "attack": 6,
++       "defense": 5,
++       "hp": 180,
++       "intelligence": 4,
++       "speed": 3,
++     },
++     "HARE": {
++       "attack": 4,
++       "defense": 5,
++       "hp": 160,
++       "intelligence": 3,
++       "speed": 4,
++     },
++     "KEN": {
++       "attack": 7,
++       "defense": 3,
++       "hp": 150,
++       "intelligence": 5,
++       "speed": 6,
++     },
++     "KUMA": {
++       "attack": 7,
++       "defense": 5,
++       "hp": 200,
++       "intelligence": 4,
++       "speed": 3,
++     },
++     "KURAI": {
++       "attack": 4,
++       "defense": 6,
++       "hp": 190,
++       "intelligence": 3,
++       "speed": 3,
++     },
++     "SHADOW": {
++       "attack": 5,
++       "defense": 7,
++       "hp": 170,
++       "intelligence": 3,
++       "speed": 4,
++     },
++     "TORA": {
++       "attack": 5,
++       "defense": 4,
++       "hp": 180,
++       "intelligence": 4,
++       "speed": 6,
++     },
++     "TSUIN": {
++       "attack": 6,
++       "defense": 4,
++       "hp": 160,
++       "intelligence": 4,
++       "speed": 5,
++     },
++     "WAKE": {
++       "attack": 6,
++       "defense": 3,
++       "hp": 170,
++       "intelligence": 4,
++       "speed": 4,
++     },
++     "WOLF": {
++       "attack": 5,
++       "defense": 5,
++       "hp": 175,
++       "intelligence": 4,
++       "speed": 5,
++     },
++   },
++   "HOLOBOT_RANK_TIERS": [
++     {
++       "rank": "Rookie",
++       "startLevel": 1,
++     },
++     {
++       "rank": "Starter",
++       "startLevel": 2,
++     },
++     {
++       "rank": "Champion",
++       "startLevel": 11,
++     },
++     {
++       "rank": "Rare",
++       "startLevel": 21,
++     },
++     {
++       "rank": "Elite",
++       "startLevel": 31,
++     },
++     {
++       "rank": "Legendary",
++       "startLevel": 41,
++     },
++   ],
++   "SYNC_RANK_THRESHOLDS": [
++     {
++       "min": 50000,
++       "rank": "Legend",
++     },
++     {
++       "min": 25000,
++       "rank": "Champion",
++     },
++     {
++       "min": 12000,
++       "rank": "Strider",
++     },
++     {
++       "min": 5000,
++       "rank": "Pilot",
++     },
++     {
++       "min": 1000,
++       "rank": "Walker",
++     },
++     {
++       "min": 0,
++       "rank": "Rookie",
++     },
++   ],
++   "applyAttributeBoost": [Function applyAttributeBoost],
++   "applyHolobotExperience": [Function applyHolobotExperience],
++   "applyWorkoutCareer": [Function applyWorkoutCareer],
++   "calculateExperience": [Function calculateExperience],
++   "computeLeaderboardScore": [Function computeLeaderboardScore],
++   "getHolobotBattleStats": [Function getHolobotBattleStats],
++   "getHolobotDisplayStats": [Function getHolobotDisplayStats],
++   "getHolobotRank": [Function getHolobotRank],
++   "getSyncRank": [Function getSyncRank],
++   "isBoostableAttribute": [Function isBoostableAttribute],
++   "normalizeUserHolobot": [Function normalizeUserHolobot],
+  }
+
+ ❯ src/lib/__tests__/hostPin.test.ts:81:57
+     79|   it("loading a module from the branch's functions/ copy is refused (v…
+     80|     const branchModule = path.join(BRANCH_HOST_DIR, "src", "lib", "pro…
+     81|     await expect(import(/* @vite-ignore */ branchModule)).rejects.toTh…
+       |                                                         ^
+     82|   });
+     83| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
 
  FAIL  src/lib/__tests__/hostPin.test.ts > host pin: the parity tests run against the deployed host > the resolved host serves exactly the pinned bytes (fails on host drift)
 AssertionError: <scratch>/lite/functions/src has drifted from the pin 3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f; re-pin with scripts/pin-host.mjs: expected [ …(10) ] to deeply equal []
@@ -87,11 +291,32 @@ AssertionError: <scratch>/lite/functions/src has drifted from the pin 3b1e790d80
      87|   });
      88| 
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/lib/__tests__/rivalLadderScaleParity.test.ts > rival ladder rescale parity > the pair is byte-identical, except the deployed host's known host-only addition
+AssertionError: the deployed host's rivalTierStats.ts suffix beyond the client copy: expected [] to deeply equal [ 'RIVAL_NAMED_PROFILES' ]
+
+- Expected
++ Received
+
+- [
+-   "RIVAL_NAMED_PROFILES",
+- ]
++ []
+
+ ❯ src/lib/__tests__/rivalLadderScaleParity.test.ts:38:93
+     36|       ts.isVariableStatement(statement) ? statement.declarationList.de…
+     37|     );
+     38|     expect(declared, "the deployed host's rivalTierStats.ts suffix bey…
+       |                                                                                             ^
+     39|     console.warn("[rivalLadderScaleParity] KNOWN DRIFT: the client riv…
+     40|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
 
 
- Test Files  2 failed | 74 passed | 1 skipped (77)
-      Tests  2 failed | 692 passed | 4 skipped (698)
-   Start at  21:44:08
-   Duration  8.56s (transform 5.84s, setup 0ms, collect 19.99s, tests 5.36s, environment 13ms, prepare 14.48s)
+ Test Files  3 failed | 73 passed | 1 skipped (77)
+      Tests  4 failed | 691 passed | 4 skipped (699)
+   Start at  22:02:27
+   Duration  3.60s (transform 2.50s, setup 0ms, collect 8.61s, tests 3.30s, environment 13ms, prepare 5.90s)
 
