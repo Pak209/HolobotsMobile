@@ -11,6 +11,7 @@ import { AppLoadingScreen } from "./src/components/AppLoadingScreen";
 import { WatchRewardsSyncModal } from "./src/components/WatchRewardsSyncModal";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { CityHubScreen } from "./src/screens/CityHubScreen";
+import { CityMarketplaceScreen } from "./src/screens/CityMarketplaceScreen";
 import { FitnessScreen } from "./src/screens/FitnessScreen";
 import { InventoryScreen } from "./src/screens/InventoryScreen";
 import { LeaderboardScreen } from "./src/screens/LeaderboardScreen";
@@ -25,6 +26,7 @@ import { theme } from "./src/theme";
 
 export type RootTabs = {
   CityHub: undefined;
+  CityMarket: undefined;
   Arena: undefined;
   Home: undefined;
   Fitness: undefined;
@@ -83,6 +85,7 @@ function AuthedApp() {
         >
           <Tab.Screen name="Home" component={HomeScreen} />
           <Tab.Screen name="CityHub" component={CityHubScreen} />
+          <Tab.Screen name="CityMarket" component={CityMarketplaceScreen} />
           <Tab.Screen name="Fitness" component={FitnessScreen} />
           <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
           <Tab.Screen name="Inventory" component={InventoryScreen} />

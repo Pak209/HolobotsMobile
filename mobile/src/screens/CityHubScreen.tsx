@@ -11,6 +11,7 @@ import { CityWorkshopPanel } from "@/components/city/CityWorkshopPanel";
 import { CityRivalBattle } from "@/components/city/CityRivalBattle";
 import { CITY_DISTRICTS, CITY_RIVAL_PIN_POINTS, cityActionMessage, cityDistrictAccess, cityMapPoint, cityTimeOfDay, readCityStoryFlags, type ArenaCitizen, type ArenaGathering, type CityDistrict } from "@/lib/cityHub";
 import { loadCityHub, meetCityPilots } from "@/lib/cityHubClient";
+import { CITY_MARKET_COPY } from "@/lib/cityMarket";
 import type { CityHubFixture } from "@/lib/cityHubFixtures";
 import { useCityRivalCooldowns } from "@/hooks/useRivalStatus";
 import { theme } from "@/theme";
@@ -99,7 +100,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
   }
   function browseSupplies() {
     setPanel(null);
-    if (fixture) fixture.onNavigate?.("Marketplace"); else navigation.navigate("Marketplace");
+    if (fixture) fixture.onNavigate?.("CityMarket"); else navigation.navigate("CityMarket");
   }
 
   return <View style={styles.screen}>
@@ -149,7 +150,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
       {message ? <Text accessibilityRole="alert" style={styles.message}>{message}</Text> : null}
       <View style={styles.quickRow}>
         <Pressable accessibilityRole="button" onPress={() => setPanel("workshop")} style={styles.quick}><Text style={styles.quickTitle}>WORKSHOP</Text><Text style={styles.caption}>HEAL / CRAFT</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={browseSupplies} style={styles.quick}><Text style={styles.quickTitle}>VENDOR</Text><Text style={styles.caption}>ITEM CATALOG</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={browseSupplies} style={styles.quick}><Text style={styles.quickTitle}>VENDOR</Text><Text style={styles.caption}>{CITY_MARKET_COPY.hubCaption}</Text></Pressable>
       </View>
     </ScrollView>
     <Modal animationType="slide" visible={panel !== null} onRequestClose={() => { if (!fighting) setPanel(null); }}>
