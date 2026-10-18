@@ -132,7 +132,7 @@
         },
         "operation": {
           "const": "report",
-          "description": "Client-observed bout checkpoint for the two ACTIVE fighters only. The host clamps it against its own vitals: HP can only go down, never above the host's current value, and never both to zero. This is the same trust boundary as arena-match-1 settle. A host-simulated bout can replace it later without changing the swap shape."
+          "description": "Client-asserted bout checkpoint for the two ACTIVE fighters only. The host clamps it against its own vitals: HP can only go down, never above the host's current value, and never both to zero. This is the same trust boundary as arena-match-1 settle. A host-simulated bout can replace it later without changing the swap shape."
         },
         "matchId": {
           "$ref": "#/definitions/matchId"
@@ -200,7 +200,7 @@
         },
         "operation": {
           "const": "settle",
-          "description": "Legal only in phase over. The host already holds the outcome and every fighter's vitals, so settle carries no HP and no outcome."
+          "description": "Legal only in phase over and not too_fast. The host already holds the winner and every fighter's vitals, so settle carries no HP and no outcome. The two counts are client-asserted reward multipliers capped at rules.maxPerformanceEvents, as in arena-match-1."
         },
         "matchId": {
           "$ref": "#/definitions/matchId"
@@ -231,7 +231,7 @@
         },
         "operation": {
           "const": "cancel",
-          "description": "Before start: one refund of the one entry charge. After start: a forfeit that writes the host-held vitals. Carries no client HP."
+          "description": "Before start: one refund of the one entry charge. After start and before the host decides a winner (phase command or send_in): a forfeit that writes the host-held vitals. In phase over it is refused (settle_required); only settle closes a decided match. Carries no client HP."
         },
         "matchId": {
           "$ref": "#/definitions/matchId"

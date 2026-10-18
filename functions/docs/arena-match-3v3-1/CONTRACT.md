@@ -12,9 +12,19 @@ Files:
 - `functions/scripts/fixtures/arena-match-3v3/lifecycle.json`: one hand-authored lifecycle with known-bad refusals.
 - `functions/scripts/test-arena-match-3v3-contract.mjs`: Ajv validation and lifecycle invariants. It runs in `npm test` and uses the functions-local `ajv`.
 
-Rule 1 holds: **the host decides.** The host owns every fighter's vitals, the
-active slot, the turn, the phase, the CPU send-in, the outcome, the one entry
-charge and the reward quote. Clients send intents and render the reply.
+Rule 1, and exactly where it stops: **the host decides** every fighter's
+vitals ledger, the active slot, the turn, the phase, the legality of every swap,
+the CPU send-in, the one entry charge and the frozen reward quote. Clients send
+intents and render the reply.
+
+Two inputs are **client-asserted**, exactly as in arena-match-1 (#120). The host
+clamps them but does not prove them:
+
+- **Bout HP**, from `report`. The host derives the winner from it.
+- **Performance counts**, from `settle`. They scale the reward quote.
+
+See "Trust boundary" below. This proposal does not make a reported victory
+authoritative.
 
 ## Decision: a new version pair, not an extension of arena-match-1
 
@@ -63,25 +73,60 @@ decide whether that stays fail-closed or becomes a typed `activity_conflict`.
   - `vitals`: `{currentHealth, maxHealth}`. **There is no STA field.**
   - `status`: one of `active`, `bench` or `ko`. `ko` requires
     `currentHealth === 0`; `active` and `bench` require HP > 0.
-  - Optional `combat`: frozen stats for the client-observed bout sim. The
-    runtime lane pins this shape. Presentation never reads HP from it.
+  - There is no `combat` bag in this version. The client-observed bout sim
+    needs frozen combat stats. The runtime lane adds them as a **closed** shape
+    in an amendment, so no open object can smuggle STA, HP, level or a charge
+    past the schema.
 - **`battle`.** `{turn, phase, activeSlot, opponentActiveSlot, voluntarySwapsUsed, winner}`.
   `phase` is one of `ready`, `command`, `send_in` or `over`. `winner` is
   non-null exactly in `over`.
 - **`entryReceipt`.** One object: the **one** entry charge for the whole match.
-  There is no per-fighter charge field. The schema is `additionalProperties:
-  false` at the match and slot level, so an `entryReceipts` array or a slot-level
-  receipt fails validation.
-- **`rules`** (`arena-3v3-rules-1`). The frozen quote: fee, rewards, bonuses,
-  `voluntarySwapLimit`, and three constant policies:
-  - `benchRegen: "none"`: benched HP never changes.
-  - `sendIn: "forced_on_ko"`.
-  - `opponentSendIn: "next_alive_slot"`.
+  Its `amount` equals the frozen `rules.entryFeeHolos` (tokens) or
+  `rules.entryFeePasses` (pass). The client never assumes a price. There is no
+  per-fighter charge field. The schema is `additionalProperties: false` at the
+  match and slot level, so an `entryReceipts` array or a slot-level receipt fails
+  validation.
+- **`rules`** (`arena-3v3-rules-1`). The frozen quote:
+  - the Holos fee and the pass price;
+  - the rewards and bonuses;
+  - `voluntarySwapLimit`;
+  - three constant policies:
+    - `benchRegen: "none"`: benched HP never changes.
+    - `sendIn: "forced_on_ko"`.
+    - `opponentSendIn: "next_alive_slot"`.
 - **`settlementReceipt`.** Null until the match is terminal. It then holds the
   outcome, one settlement or refund, and `finalVitals` with all three team bots,
   which are written to the account's `holobotVitals` ledger.
 - **Top-level `intent`.** For `report` and `swap`, an echo
   `{intentId, operation, appliedTurn}`. Null for every other operation.
+
+**Coherence the schema enforces** (each rule has a targeted negative probe in
+the test, and deleting any rule makes the suite fail):
+
+- **KO and HP:** `ko` exactly when HP is 0.
+- **Winner and phase:** `winner` is non-null exactly in `over`.
+- **Active slots:**
+  - In `ready` and `command`, `team[activeSlot]` is the only active fighter.
+  - In `send_in`, `team[activeSlot]` is KO'd, no fighter is active, and a
+    living bench fighter remains.
+  - While the match is undecided, `opponentTeam[opponentActiveSlot]` is the
+    CPU's only active fighter.
+- **Winner and KO:** `winner: player` means every CPU fighter is KO'd;
+  `winner: opponent` means every player fighter is.
+- **State and phase:**
+  - `issued` means `ready` and turn 0.
+  - `active` is never `ready`.
+  - A terminal state carries `closedAtMs` and a receipt.
+  - `settled` means `over`.
+- **Outcome:**
+  - A settled outcome is the host winner (`player` → `win`, `opponent` →
+    `loss`), and a loss pays no Holos and no blueprint.
+  - `cancelled` and `expired` close only as `forfeit` or
+    `cancelled_before_start`.
+  - `cancelled_before_start` is unstarted (`ready`, turn 0) and refunds.
+  - `forfeit` is after start and before any winner, in `command` or `send_in`.
+- **Receipts:** win and loss carry a settlement and a report; any other outcome
+  carries no settlement.
 
 ## Operations
 
@@ -90,10 +135,10 @@ decide whether that stays fail-closed or becomes a typed `activity_conflict`.
 | `issue` | no open Arena lease and no other activity | `requestId, tierId, paymentMethod, holobotIds[3]` | Validates 3 distinct, uniquely owned, living bots and freezes each as a snapshot with ledger HP (no full-HP default). Picks the CPU team from the tier pool. Charges **once**. `state: issued`, `phase: ready`, `turn: 0`. |
 | `start` | `issued`, not expired | `matchId` | `state: active`, `phase: command`. |
 | `resume` | always | optional `matchId` | Returns the current projection, `alreadyProcessed: true`. |
-| `report` | `phase: command` | `intentId, turn, activeHealth, opponentHealth` | A client-observed checkpoint for the two **active** fighters. Each value must be ≤ the host's current HP, and both must not be 0. The host applies them, increments `turn` and resolves KOs (below). |
+| `report` | `phase: command` | `intentId, turn, activeHealth, opponentHealth` | A **client-asserted** checkpoint for the two **active** fighters. Each value must be ≤ the host's current HP, and both must not be 0. The host applies them, increments `turn` and resolves KOs (below). It touches no other slot. |
 | `swap` | `phase: command` (voluntary) or `send_in` (forced) | `intentId, turn, holobotId` | The target must be on the team, alive and not active. A voluntary swap benches the active fighter at its host HP and uses one of `voluntarySwapLimit`. A forced send-in uses none. `phase` returns to `command`. `turn` increments. **No HP changes.** |
-| `settle` | `phase: over`, not expired | `combosCompleted, perfectDefenses` | Outcome from the host `winner`. One reward quote. Writes `finalVitals` for all three bots. Terminal replay pays nothing twice. |
-| `cancel` | `issued` or `active` | `matchId` | Before start: one refund of the one charge. After start: a forfeit that writes the host-held vitals. No client HP. |
+| `settle` | `phase: over`, not expired, and at least `ARENA_MIN_SETTLE_MS` (1000 ms) after start (otherwise `too_fast`, the same #120 plausibility floor, not proof of combat) | `combosCompleted, perfectDefenses` (client-asserted, 0..`maxPerformanceEvents`) | Outcome from the host `winner`. One reward quote, scaled by the asserted counts. Writes `finalVitals` for all three bots. Terminal replay pays nothing twice. |
+| `cancel` | `issued`, or `active` in `command` or `send_in` | `matchId` | Before start: one refund of the one charge. After start, before a winner exists: a forfeit that writes the host-held vitals. In `over` it is refused as `settle_required`: a decided result cannot become a forfeit. No client HP. |
 
 **KO resolution after a `report`:**
 
@@ -113,7 +158,8 @@ decide whether that stays fail-closed or becomes a typed `activity_conflict`.
    **current** match, `alreadyProcessed: true` and the original echo. The same
    `intentId` with a different body is refused as `request_conflict`.
 2. **Phase checks:**
-   - `ready`, or a terminal state: `invalid_state`.
+   - `ready`, `over` (the winner is decided), or a terminal state:
+     `invalid_state`.
    - Expired: `match_expired`.
    - `report` during `send_in`: `send_in_required`.
 3. **Turn check:** a turn other than `battle.turn` is refused as
@@ -121,8 +167,9 @@ decide whether that stays fail-closed or becomes a typed `activity_conflict`.
 4. **Swap target checks**, in order: `not_on_team`, `fighter_ko`,
    `fighter_active`, `swap_limit`.
 
-`settle` before `over` is refused as `not_over`. A refusal never changes any
-host state, and the turn does not move.
+`settle` before `over` is refused as `not_over`. `cancel` in `over` is refused
+as `settle_required`. A refusal never changes any host state, and the turn does
+not move.
 
 **Idempotency:**
 
@@ -137,14 +184,32 @@ applies a swap or report locally before the host replies.
 
 ## Trust boundary (stated plainly)
 
-`report` has the same trust model as arena-match-1 `settle`: the bout is a
-client-observed CPU sim, and the host binds and clamps what the client reports.
+`report` has the same trust model as arena-match-1 `settle`. The bout is a
+client-observed CPU sim, and the host binds and clamps what the client reports:
 HP can only go down, never above the host value, and never both sides to zero.
-The host does **not** prove that the combat happened. This proposal does not
-claim more than #120 does.
+Nothing bounds damage per report. A modified client can report
+`opponentHealth: 0` three times and keep its own HP, and the host will derive
+`winner: player` from that. The host does **not** prove that the combat
+happened.
 
-The roster (`swap`), the bench vitals, the CPU send-in, the turn, the outcome,
-the charge and the rewards are all decided by the host. A later lane can replace
+`combosCompleted` and `perfectDefenses` are client-asserted reward multipliers,
+capped at `maxPerformanceEvents`. With the fixture rules, 25 and 25 scale EXP
+and SYNC by up to 4.75x. That is the same mechanism and cap as the 1v1
+`rewards()`. The only plausibility check is the `too_fast` floor, which settle
+keeps from #120. This proposal claims no more than #120 does, which is that
+reported victory is not authoritative.
+
+What the host does decide:
+
+- the roster (every `swap` is legality-checked);
+- the bench vitals (frozen; no regen);
+- the CPU send-in;
+- the turn and the phase;
+- the one entry charge;
+- the frozen reward quote;
+- the winner, derived only from its own clamped vitals.
+
+A later lane can replace
 `report` with host simulation over `duel-inputs-1` command logs (`duel-sim-1`
 already models 2–6 actors with bench and deploy) without changing the
 team/slot/swap shape. In duel-sim-1 vocabulary, a forced send-in is a "deploy"
@@ -154,7 +219,7 @@ bench, but this contract says `benchRegen: none` until Pak rules otherwise.
 
 ## Fixture
 
-`lifecycle.json` (21 steps: 15 accepted, 6 refused) is **hand-authored. No host
+`lifecycle.json` (23 steps: 15 accepted, 8 refused) is **hand-authored. No host
 produced it.**
 
 - **The path:** resume (empty) → issue → start → report (opponent KO, host sends
@@ -169,6 +234,8 @@ produced it.**
   - **swap to a KO'd fighter**: `fighter_ko`
   - report during send_in: `send_in_required`
   - settle before over: `not_over`
+  - swap after the match is decided: `invalid_state`
+  - cancel after the match is decided: `settle_required`
 
 **The test asserts:**
 
@@ -183,8 +250,17 @@ produced it.**
 - The CPU send-in is the next living slot.
 - Settle writes all three bots' host vitals.
 - The schema refuses client HP, STA or level fields, `benchIndex` swaps, wrong
-  team sizes, duplicate bots, client-named opponents, per-fighter charges and
-  incoherent states.
+  team sizes, duplicate bots, client-named opponents and per-fighter charges.
+- The schema refuses every coherence violation listed above. Each has one
+  targeted probe; deleting any of the 23 conditional rules fails the suite.
+- Positive controls build the paths the lifecycle does not walk: a player wipe,
+  a settled loss, a mid-match forfeit, and a refund before start.
+- Every accepted step is checked with the previous accepted state:
+  - Only a report moves HP, and it touches only the two active slots.
+  - A swap never touches the CPU team.
+  - The CPU switches only on a KO.
+  - In send_in, a swap is the only accepted intent.
+  - A reused `intentId` is only ever a byte-identical replay.
 - The arena-match-1 schemas and fixture are unchanged, and the two versions
   never cross.
 
@@ -195,8 +271,8 @@ produced it.**
    CPU a free hit?
 2. **Bench regen.** The proposal is `none`. Any regen would be a host-owned rule
    with a new rules version, never client-side.
-3. **3v3 entry price.** The fixture uses the 1v1 rookie fee (50 Holos, or 1
-   pass), charged once.
+3. **3v3 entry price.** The fixture uses the 1v1 rookie fee (50 Holos) and
+   `entryFeePasses: 1`, charged once. Both are host-frozen in `rules`.
 4. **Rewards.**
    - The reward quote (the fixture reuses rookie 1v1 numbers).
    - Who gets EXP (the fixture gives each bot that took the field the full
@@ -205,11 +281,20 @@ produced it.**
 5. **CPU team selection.** Who is on it from the tier pool, and in what order.
 6. **STA.** It is not in the contract. Should the host ever carry STA across
    bouts?
+7. **Performance counts in 3v3.** Keep the client-asserted 0..25 multipliers
+   (the 1v1 parity shown here), make them host-derived, or drop them for 3v3?
+   Is the 1000 ms `too_fast` floor enough for a three-bout match?
+8. **Buddy.** DECISIONS #71 places a BUDDY strip above the bench. Should the 3v3
+   admission freeze a Buddy Unit snapshot from the account's host `buddyUnits`
+   inventory into the reply? Today the reply carries none, and the lite client
+   shows an honest empty strip.
 
 ## The runtime lane must still
 
 - Implement `arena-match-3v3-1` dispatch in `transactArenaMatch`, with its own
-  record validator (three `finalVitals` entries) and an `a3_` id generator.
+  record validator (three `finalVitals` entries, plus every coherence rule
+  above) and an `a3_` id generator.
+- Pin a closed `combat` shape for the bout sim in a contract amendment.
 - Use the shared lease and activity guards, and `requireLivingVitals` for all
   three bots.
 - Store intents for replay under `arenaMatches/{uid}/intents/{intentId}`, with

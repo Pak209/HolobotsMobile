@@ -16,10 +16,11 @@ const fixture=load('./fixtures/arena-match-3v3/lifecycle.json');
 const v1=load('./fixtures/arena-match/admitted-lifecycle.json');
 const steps=fixture.steps,step=n=>steps.find(s=>s.name===n),matches=steps.filter(s=>s.reply?.match).map(s=>s.reply.match);
 const HTTPS={invalid_request:'invalid-argument',unknown_match:'not-found',unavailable:'unavailable'};
-const DOCUMENTED=['invalid_request','invalid_state','turn_mismatch','fighter_ko','fighter_active','not_on_team','swap_limit','send_in_required','not_over','match_expired','request_conflict','activity_conflict','insufficient_funds','holobot_ko','unknown_match','unavailable'];
+const DOCUMENTED=['invalid_request','invalid_state','turn_mismatch','fighter_ko','fighter_active','not_on_team','swap_limit','send_in_required','not_over','settle_required','too_fast','match_expired','request_conflict','activity_conflict','insufficient_funds','holobot_ko','unknown_match','unavailable'];
 const ids=team=>team.map(s=>s.fighter.holobotId);
-const vitalsOf=m=>[...m.team,...m.opponentTeam].map(s=>s.vitals);
-/** Walk the lifecycle: each step with the last accepted match before it. */
+const slots=m=>[...m.team,...m.opponentTeam];
+const vitalsOf=m=>slots(m).map(s=>s.vitals);
+/** Walk the lifecycle: each step with the last accepted (non-replay) match before it. */
 function walk(){const out=[];let last=null;for(const s of steps){out.push({s,last});if(s.reply?.match&&!s.reply.alreadyProcessed)last=s.reply.match;}return out;}
 
 test('3v3 fixture: every accepted request/reply validates; refusals are callable errors with documented codes',()=>{
@@ -31,12 +32,18 @@ test('3v3 fixture: every accepted request/reply validates; refusals are callable
   // Only the turn-less swap is structurally invalid; every other refusal is a host ruling on a well-formed request.
   assert.equal(request(s.request),s.name!=='refused-swap-without-turn',s.name);
  }
- assert.deepEqual(steps.filter(s=>s.refusal).map(s=>s.refusal.details.rejectionCode),['invalid_state','invalid_request','turn_mismatch','fighter_ko','send_in_required','not_over']);
+ assert.deepEqual(steps.filter(s=>s.refusal).map(s=>s.refusal.details.rejectionCode),['invalid_state','invalid_request','turn_mismatch','fighter_ko','send_in_required','not_over','invalid_state','settle_required']);
 });
 
-test('one match, ONE entry charge, three issued bots frozen as #118 snapshots',()=>{
+test('one match, ONE entry charge at the frozen quote, three issued bots frozen as #118 snapshots',()=>{
  const issue=step('issue');assert.deepEqual(issue.request.holobotIds,['ace','kuma','shadow']);
- assert.equal(new Set(steps.map(s=>s.reply?.matchId).filter(Boolean)).size,1);
+ for(const s of steps){
+  const m=s.reply?.match;
+  if(s.request.matchId!==undefined)assert.equal(s.request.matchId,fixture.matchId,s.name);
+  if(!m)continue;
+  assert.equal(s.reply.matchId,fixture.matchId);assert.equal(m.matchId,fixture.matchId);assert.equal(m.entryReceipt.matchId,fixture.matchId);
+  if(m.settlementReceipt)assert.equal(m.settlementReceipt.matchId,fixture.matchId);
+ }
  const first=matches[0];
  for(const m of matches){
   assert.deepEqual(m.entryReceipt,first.entryReceipt);assert.deepEqual(m.rules,first.rules);
@@ -47,14 +54,23 @@ test('one match, ONE entry charge, three issued bots frozen as #118 snapshots',(
    assert.equal(s.slot,i);assert.deepEqual(Object.keys(s).sort(),['fighter','slot','status','vitals']);
   });
  }
- const r=first.entryReceipt;assert.equal(r.method,'tokens');assert.equal(r.amount,first.rules.entryFeeHolos);assert.equal(r.balanceBefore-r.balanceAfter,r.amount);assert.equal(r.chargedAtMs,first.issuedAtMs);
+ const r=first.entryReceipt;assert.equal(r.method,'tokens');
+ assert.equal(r.amount,r.method==='pass'?first.rules.entryFeePasses:first.rules.entryFeeHolos); // both prices are host-frozen quotes
+ assert.equal(r.balanceBefore-r.balanceAfter,r.amount);assert.equal(r.chargedAtMs,first.issuedAtMs);
  assert.equal(JSON.stringify(fixture).match(/"entryReceipt"/g).length,matches.length); // one receipt per projection, none per fighter
  assert.deepEqual(first.battle,{turn:0,phase:'ready',activeSlot:0,opponentActiveSlot:0,voluntarySwapsUsed:0,winner:null});
  assert.deepEqual(first.team[1].vitals,{currentHealth:205,maxHealth:220}); // ledger HP, not a full-HP default
 });
 
-test('turn: +1 per accepted intent; replays echo the original intent; refusals and replays change nothing',()=>{
+test('turn: +1 per accepted intent; intentIds are unique; replays echo the original intent; refusals and replays change nothing',()=>{
+ const seen=new Map();
  for(const {s,last} of walk()){
+  if(s.request.intentId!==undefined){
+   const prior=seen.get(s.request.intentId);
+   // A reused intentId is only ever a byte-identical replay; never a fresh, state-changing intent.
+   if(prior){assert.deepEqual(s.request,prior,s.name);assert.equal(s.reply?.alreadyProcessed,true,s.name);}
+   else seen.set(s.request.intentId,s.request);
+  }
   if(s.refusal){
    if(s.name==='refused-swap-without-turn')assert.equal(Object.hasOwn(s.request,'turn'),false);
    else if(s.refusal.message==='turn_mismatch')assert.notEqual(s.request.turn,last.battle.turn);
@@ -72,42 +88,59 @@ test('turn: +1 per accepted intent; replays echo the original intent; refusals a
 });
 
 test('host vitals: no bench regen, HP never rises, KO is final, KO forces a send-in, CPU send-in is host-picked',()=>{
- const everActive=new Set(['ace']);
+ const everActive=new Set(['ace']);let reports=0,swaps=0;
  for(const {s,last} of walk()){
   if(!last)continue;
   const b=last.battle;
   if(s.refusal){
    if(s.refusal.message==='fighter_ko')assert.equal(last.team.find(x=>x.fighter.holobotId===s.request.holobotId).status,'ko');
-   if(s.refusal.message==='invalid_state')assert.equal(b.phase,'ready');
+   if(s.refusal.message==='invalid_state')assert.ok(['ready','over'].includes(b.phase),s.name);
    if(s.refusal.message==='send_in_required')assert.equal(b.phase,'send_in');
    if(s.refusal.message==='not_over')assert.notEqual(b.phase,'over');
+   if(s.refusal.message==='settle_required')assert.deepEqual([s.request.operation,b.phase],['cancel','over']);
    continue;
   }
   if(s.reply.alreadyProcessed)continue;
-  const m=s.reply.match,n=m.battle;
+  const m=s.reply.match,n=m.battle,op=s.request.operation;
   vitalsOf(m).forEach((v,i)=>{const was=vitalsOf(last)[i];assert.ok(v.currentHealth<=was.currentHealth,`${s.name} HP rose`);assert.equal(v.maxHealth,was.maxHealth);});
-  [...last.team,...last.opponentTeam].forEach((x,i)=>{if(x.status==='ko')assert.equal([...m.team,...m.opponentTeam][i].status,'ko');});
+  slots(last).forEach((x,i)=>{
+   const now=slots(m)[i];
+   if(x.status==='ko')assert.equal(now.status,'ko');
+   if(x.status==='bench'&&now.status==='bench')assert.deepEqual(now.vitals,x.vitals,`${s.name}: benched HP is frozen (benchRegen none)`);
+  });
+  if(op!=='report')assert.deepEqual(vitalsOf(m),vitalsOf(last),`${s.name}: only a report moves HP`);
   if(n.phase!=='over')for(const [team,at] of [[m.team,n.activeSlot],[m.opponentTeam,n.opponentActiveSlot]]){
    assert.equal(team.filter(x=>x.status==='active').length,n.phase==='send_in'&&team===m.team?0:1,s.name);
    if(!(n.phase==='send_in'&&team===m.team))assert.equal(team[at].status,'active');
   }
-  if(s.request.operation==='swap'){
+  if(b.phase==='send_in')assert.equal(op,'swap',`${s.name}: in send_in a swap is the only legal intent`);
+  if(op==='swap'){
+   swaps++;
    const to=last.team.findIndex(x=>x.fighter.holobotId===s.request.holobotId);
    assert.equal(last.team[to].status,'bench');assert.ok(['command','send_in'].includes(b.phase));
-   assert.deepEqual(vitalsOf(m),vitalsOf(last),'a swap never changes any HP');
    assert.equal(n.activeSlot,to);assert.equal(n.phase,'command');everActive.add(s.request.holobotId);
    assert.equal(n.voluntarySwapsUsed,b.voluntarySwapsUsed+(b.phase==='command'?1:0));assert.ok(n.voluntarySwapsUsed<=m.rules.voluntarySwapLimit);
    if(b.phase==='command')assert.equal(m.team[b.activeSlot].status,'bench');
+   assert.deepEqual(m.opponentTeam,last.opponentTeam,'a swap never touches the CPU team');assert.equal(n.opponentActiveSlot,b.opponentActiveSlot);
   }
-  if(s.request.operation==='report'){
+  if(op==='report'){
+   reports++;
+   assert.equal(b.phase,'command',`${s.name}: report is legal only in command`);
    const me=m.team[b.activeSlot],them=m.opponentTeam[b.opponentActiveSlot];
    assert.equal(me.vitals.currentHealth,s.request.activeHealth);assert.equal(them.vitals.currentHealth,s.request.opponentHealth);
-   last.team.forEach((x,i)=>{if(i!==b.activeSlot)assert.deepEqual(m.team[i].vitals,x.vitals,'bench HP is frozen');});
-   if(s.request.activeHealth===0)assert.equal(n.phase,last.team.some(x=>x.status==='bench')?'send_in':'over');
+   assert.equal(n.activeSlot,b.activeSlot,'a report never moves the player\'s active slot');
+   m.team.forEach((x,i)=>{if(i!==b.activeSlot)assert.deepEqual(x,last.team[i],'a report touches only the active player slot');});
+   m.opponentTeam.forEach((x,i)=>{if(i!==b.opponentActiveSlot&&!(s.request.opponentHealth===0&&i===n.opponentActiveSlot))assert.deepEqual(x,last.opponentTeam[i]);});
+   if(s.request.opponentHealth>0)assert.equal(n.opponentActiveSlot,b.opponentActiveSlot,'the CPU switches only on a KO');
+   if(s.request.activeHealth===0){
+    if(last.team.some(x=>x.status==='bench'))assert.equal(n.phase,'send_in');
+    else assert.deepEqual([n.phase,n.winner],['over','opponent']);
+   }
    if(s.request.opponentHealth===0){const next=last.opponentTeam.findIndex(x=>x.status==='bench');
     if(next>=0)assert.equal(n.opponentActiveSlot,next);else assert.deepEqual([n.phase,n.winner],['over','player']);}
   }
  }
+ assert.deepEqual([reports,swaps],[5,3]);
  assert.deepEqual([...everActive].sort(),['ace','kuma','shadow']);
  assert.deepEqual(step('swap-3-forced-send-in').reply.match.team[0].vitals,step('report-1-opponent-ko').reply.match.team[0].vitals); // ACE back at its benched 120
 });
@@ -116,14 +149,42 @@ test('settle: host-derived outcome, one reward quote, all three bots written to 
  const before=step('report-5-match-over').reply.match,s=step('settle'),m=s.reply.match,rec=m.settlementReceipt;
  assert.deepEqual(Object.keys(s.request).sort(),['combosCompleted','matchId','operation','perfectDefenses','schemaVersion']);
  assert.deepEqual([before.battle.phase,before.battle.winner],['over','player']);assert.equal(m.state,'settled');assert.equal(rec.outcome,'win');
- assert.deepEqual(rec.finalVitals,Object.fromEntries(before.team.map(x=>[x.fighter.holobotId,x.vitals])));
+ assert.deepEqual(rec.finalVitals,Object.fromEntries(m.team.map(x=>[x.fighter.holobotId,x.vitals])));
+ assert.deepEqual(m.team,before.team);
  assert.deepEqual(rec.finalVitals,{ace:{currentHealth:64,maxHealth:172},kuma:{currentHealth:0,maxHealth:220},shadow:{currentHealth:0,maxHealth:150}});
+ assert.deepEqual(rec.report,{combosCompleted:s.request.combosCompleted,perfectDefenses:s.request.perfectDefenses});
  const r=m.rules,bonus=1+r.comboBonus*s.request.combosCompleted+r.perfectDefenseBonus*s.request.perfectDefenses;
  assert.deepEqual(rec.settlement,{exp:Math.floor(r.exp*bonus),awardedExp:Math.floor(r.exp*bonus),holos:r.holos,syncPoints:Math.floor(r.syncPoints*bonus),
   blueprints:{holobotKey:'hare',amount:r.blueprints},experience:['ace','kuma','shadow'].map(holobotId=>({holobotId,awardedExp:Math.floor(r.exp*bonus)}))});
  assert.equal(rec.refunded,false);assert.equal(rec.refund,undefined);assert.deepEqual(m.entryReceipt,matches[0].entryReceipt);
  assert.deepEqual(step('settle-replay').reply,{...s.reply,alreadyProcessed:true});assert.deepEqual(step('resume-terminal').reply.match,m);
 });
+
+/** Synthetic projections built from fixture steps, for paths the hand-authored lifecycle does not walk. */
+function lossOver(){
+ const r=structuredClone(step('report-4-active-ko').reply),m=r.match;
+ Object.assign(m.team[0],{status:'ko',vitals:{...m.team[0].vitals,currentHealth:0}});
+ Object.assign(m.battle,{turn:7,phase:'over',winner:'opponent'});r.intent={...r.intent,appliedTurn:6};return r;
+}
+function settledLoss(){
+ const r=lossOver(),m=r.match,closed=m.issuedAtMs+30000;
+ Object.assign(m,{state:'settled',closedAtMs:closed,settlementReceipt:{matchId:m.matchId,outcome:'loss',refunded:false,
+  settlement:{exp:28,awardedExp:28,holos:0,syncPoints:7,blueprints:null,experience:[{holobotId:'ace',awardedExp:28}]},
+  report:{combosCompleted:0,perfectDefenses:0},finalVitals:Object.fromEntries(m.team.map(x=>[x.fighter.holobotId,x.vitals])),closedAtMs:closed}});
+ r.intent=null;r.alreadyProcessed=false;return r;
+}
+function forfeit(){
+ const r=structuredClone(step('report-2-active-ko').reply),m=r.match,closed=m.issuedAtMs+9500;
+ Object.assign(m,{state:'cancelled',closedAtMs:closed,settlementReceipt:{matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:null,
+  finalVitals:Object.fromEntries(m.team.map(x=>[x.fighter.holobotId,x.vitals])),closedAtMs:closed}});
+ r.intent=null;return r;
+}
+function cancelledBeforeStart(){
+ const r=structuredClone(step('issue').reply),c=r.match,e=c.entryReceipt;
+ Object.assign(c,{state:'cancelled',closedAtMs:c.issuedAtMs+500,settlementReceipt:{matchId:c.matchId,outcome:'cancelled_before_start',refunded:true,
+  refund:{method:e.method,amount:e.amount,balanceBefore:e.balanceAfter,balanceAfter:e.balanceBefore},settlement:null,report:null,finalVitals:null,closedAtMs:c.issuedAtMs+500}});
+ return r;
+}
 
 test('schema refuses wrong team size, duplicate bots, client HP/STA, per-fighter charges and incoherent states',()=>{
  const issue=step('issue').request,swap=step('swap-1-voluntary').request,settle=step('settle').request;
@@ -136,14 +197,18 @@ test('schema refuses wrong team size, duplicate bots, client HP/STA, per-fighter
  for(const extra of [{playerFinalHealth:64},{didWin:true},{opponentFinalHealth:0}])assert.equal(request({...settle,...extra}),false,JSON.stringify(extra));
  assert.equal(request({schemaVersion:'arena-match-3v3-1',operation:'cancel',matchId:swap.matchId,playerFinalHealth:1}),false);
  assert.equal(request({...swap,matchId:'am_'+'0'.repeat(32)}),false,'3v3 ids never collide with arena-match-1 am_ ids');
- const bad=(name,edit)=>{const r=structuredClone(step(name).reply);edit(r.match,r);assert.equal(reply(r),false,edit.toString());};
+ // Positive controls for paths the lifecycle does not walk: a player wipe, a settled loss, a mid-match forfeit, a refund before start.
+ for(const [name,r] of [['loss over',lossOver()],['settled loss',settledLoss()],['forfeit',forfeit()],['cancelled before start',cancelledBeforeStart()]])assert.ok(reply(r),`${name} ${JSON.stringify(reply.errors)}`);
+ const bad=(base,edit)=>{const r=typeof base==='string'?structuredClone(step(base).reply):base;edit(r.match,r);assert.equal(reply(r),false,edit.toString());};
  bad('start',m=>{m.team.pop();});
  bad('start',m=>{m.team[1].vitals.stamina=110;});
+ bad('start',m=>{m.team[1].combat={stamina:110,maxStamina:110};}); // no open combat bag can smuggle STA
  bad('start',m=>{m.team[1].fighter.currentHealth=205;});
  bad('start',m=>{m.team[1].entryReceipt=m.entryReceipt;});
  bad('start',m=>{m.entryReceipts=[m.entryReceipt,m.entryReceipt,m.entryReceipt];});
  bad('start',m=>{[m.team[0],m.team[1]]=[m.team[1],m.team[0]];});
  bad('start',m=>{m.team[1].vitals.currentHealth=0;});
+ bad('start',m=>{delete m.rules.entryFeePasses;});
  bad('report-2-active-ko',m=>{m.team[1].vitals.currentHealth=5;});
  bad('report-5-match-over',m=>{m.battle.winner=null;});
  bad('start',m=>{m.battle.winner='player';});
@@ -152,17 +217,44 @@ test('schema refuses wrong team size, duplicate bots, client HP/STA, per-fighter
  bad('settle',m=>{m.settlementReceipt.outcome='forfeit';});
  bad('settle',m=>{delete m.settlementReceipt.finalVitals.shadow;});
  bad('settle',(m,r)=>{r.intent={intentId:'lite3v3_intent_99',operation:'settle',appliedTurn:8};});
- // A cancel-before-start receipt (one refund of the one charge) is expressible; without the refund it is not.
- const cancelled=structuredClone(step('issue').reply),c=cancelled.match,e=c.entryReceipt;
- Object.assign(c,{state:'cancelled',closedAtMs:c.issuedAtMs+500,settlementReceipt:{matchId:c.matchId,outcome:'cancelled_before_start',refunded:true,
-  refund:{method:e.method,amount:e.amount,balanceBefore:e.balanceAfter,balanceAfter:e.balanceBefore},settlement:null,report:null,finalVitals:null,closedAtMs:c.issuedAtMs+500}});
- assert.ok(reply(cancelled),JSON.stringify(reply.errors));delete c.settlementReceipt.refund;assert.equal(reply(cancelled),false);
+ // Active slot, status and winner are coupled (CON6).
+ bad('swap-1-voluntary',m=>{m.battle.activeSlot=0;});                                 // activeSlot on a benched fighter
+ bad('start',m=>{m.team[1].status='active';});                                       // two actives in command
+ bad('start',m=>{m.team[0].status='bench';});                                        // no active in command
+ bad('report-2-active-ko',m=>{m.battle.phase='command';});                           // active slot is KO'd in command
+ bad('swap-2-forced-send-in',m=>{m.battle.phase='send_in';});                        // send_in while the active fighter lives
+ bad('report-4-active-ko',m=>{m.team[0].status='ko';m.team[0].vitals.currentHealth=0;}); // send_in with no living bench
+ bad('report-1-opponent-ko',m=>{m.battle.opponentActiveSlot=0;});                    // CPU active slot on a KO'd fighter
+ bad('report-5-match-over',m=>{m.opponentTeam[2]={...m.opponentTeam[2],status:'bench',vitals:{...m.opponentTeam[2].vitals,currentHealth:40}};}); // player wins with a CPU alive
+ bad(lossOver(),m=>{m.battle.winner='player';});                                     // wipe recorded as a player win
+ // Terminal state, outcome, winner and start are coupled (CON3, CON4, CON5).
+ bad('settle',m=>{m.state='cancelled';});                                            // cancelled match paying a win
+ bad(settledLoss(),m=>{m.settlementReceipt.outcome='win';});                         // win paid against the host's opponent winner
+ bad(settledLoss(),m=>{m.settlementReceipt.settlement.holos=100;});                  // a loss paying win-only Holos
+ bad(settledLoss(),m=>{m.settlementReceipt.settlement.blueprints={holobotKey:'hare',amount:5};});
+ bad(cancelledBeforeStart(),m=>{m.startedAtMs=m.issuedAtMs+60;m.battle.phase='command';}); // refund after start
+ bad(forfeit(),m=>{m.startedAtMs=null;Object.assign(m.battle,{phase:'ready',turn:0,activeSlot:0});m.team[0].status='active';}); // forfeit before start keeps the charge
+ bad(forfeit(),m=>{Object.assign(m,structuredClone(lossOver().match),{state:'cancelled',closedAtMs:m.closedAtMs,settlementReceipt:m.settlementReceipt});}); // forfeit over a decided result
+ const noRefund=cancelledBeforeStart();delete noRefund.match.settlementReceipt.refund;assert.equal(reply(noRefund),false);
+ bad('settle',m=>{m.settlementReceipt.outcome='loss';Object.assign(m.settlementReceipt.settlement,{holos:0,blueprints:null});}); // loss recorded against a player win
+ bad(lossOver(),m=>{m.team[0]={...m.team[0],status:'bench',vitals:{...m.team[0].vitals,currentHealth:10}};}); // opponent wins while a player fighter lives
+ bad('start',m=>{m.battle.phase='ready';});                                         // active state never returns to ready
+ bad('settle',m=>{m.closedAtMs=null;});                                             // terminal without a close time
+ bad('settle',m=>{Object.assign(m.battle,{phase:'command',winner:null});m.opponentTeam[2]={...m.opponentTeam[2],status:'active',vitals:{...m.opponentTeam[2].vitals,currentHealth:40}};}); // settled before the match is over
+ bad('settle',m=>{m.settlementReceipt.settlement=null;});                            // a win with no settlement
+ bad(forfeit(),m=>{m.settlementReceipt.settlement={exp:1,awardedExp:1,holos:0,syncPoints:0,blueprints:null,experience:[{holobotId:'ace',awardedExp:1}]};}); // a forfeit that pays
+ // One targeted violation per slot index for each slot-coupled rule (only that rule can refuse it).
+ const roster=(team,statusOf)=>team.map((x,i)=>{const st=statusOf(i);return {...x,status:st,vitals:{...x.vitals,currentHealth:st==='ko'?0:x.vitals.maxHealth}};});
+ for(const k of [0,1,2]){
+  bad('start',m=>{m.battle.activeSlot=k;m.team=roster(m.team,i=>i===(k+1)%3?'active':'bench');});              // command: team[activeSlot] is not the active one
+  bad('report-2-active-ko',m=>{m.battle.activeSlot=k;m.team=roster(m.team,i=>i===(k+1)%3?'ko':'bench');});     // send_in: team[activeSlot] is not KO'd
+  bad('start',m=>{m.battle.opponentActiveSlot=k;m.opponentTeam=roster(m.opponentTeam,i=>i===(k+1)%3?'active':'bench');}); // CPU active slot mismatch
+ }
 });
 
-test('arena-match-1 is untouched; the versions never cross; the deployed host refuses 3v3 today',async()=>{
+test('arena-match-1 is untouched; the versions never cross; the deployed host refuses every 3v3 request today',async()=>{
  for(const s of v1.steps){assert.ok(request1(s.request));assert.ok(reply1(s.reply));assert.equal(request(s.request),false);assert.equal(reply(s.reply),false);}
  for(const s of steps){assert.equal(request1(s.request),false,s.name);if(s.reply)assert.equal(reply1(s.reply),false,s.name);}
- // The runtime checks schemaVersion before touching Firestore, so a 3v3 request is refused as invalid_request (HELD, honest).
- for(const s of steps.filter(x=>x.reply&&x.request.operation!=='resume').concat(step('refused-swap-to-ko')))
-  await assert.rejects(transactArenaMatch(null,'uid_fixture',s.request,1792300000000),e=>e.code==='invalid_request',s.name);
+ // The runtime checks schemaVersion before touching Firestore, so every 3v3 request (resume and refusals included) is invalid_request (HELD, honest).
+ for(const s of steps)await assert.rejects(transactArenaMatch(null,'uid_fixture',s.request,1792300000000),e=>e.code==='invalid_request',s.name);
 });

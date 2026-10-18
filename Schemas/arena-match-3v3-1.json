@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://holobots.local/schemas/arena-match-3v3-1.json",
   "title": "PROPOSAL: Arena 3v3 durable lifecycle reply projection (arena-match-3v3-1). No host implements this yet.",
-  "description": "The host owns every fighter's vitals, the active slot, the turn, the phase and the outcome. Clients render this projection and never derive HP, STA, regen, level, rewards or prices locally. The arena-match-1 reply schema is unchanged.",
+  "description": "The host owns every fighter's vitals ledger, the active slot, the turn, the phase, swap legality, the CPU send-in, the one charge and the frozen quote. It derives the winner from client-asserted, host-clamped bout HP (as in arena-match-1). Clients render this projection and never derive HP, STA, regen, level, rewards or prices locally. The arena-match-1 reply schema is unchanged.",
   "definitions": {
     "matchId": {
       "type": "string",
@@ -105,10 +105,6 @@
             "bench",
             "ko"
           ]
-        },
-        "combat": {
-          "description": "Optional frozen combat stats for the client-observed bout sim. The runtime lane pins this shape. Presentation never reads HP from it.",
-          "type": "object"
         }
       },
       "allOf": [
@@ -279,7 +275,7 @@
       ]
     },
     "entryReceipt": {
-      "description": "The ONE entry charge for the whole match. There is no per-fighter charge.",
+      "description": "The ONE entry charge for the whole match: amount equals rules.entryFeeHolos (tokens) or rules.entryFeePasses (pass). There is no per-fighter charge.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -320,6 +316,7 @@
         "version",
         "teamSize",
         "entryFeeHolos",
+        "entryFeePasses",
         "exp",
         "holos",
         "syncPoints",
@@ -346,6 +343,12 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 1000000
+        },
+        "entryFeePasses": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Host-frozen Arena Pass price for a pass-paid entry."
         },
         "exp": {
           "type": "integer",
@@ -661,6 +664,29 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "loss"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlement": {
+                "properties": {
+                  "holos": {
+                    "const": 0
+                  },
+                  "blueprints": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -874,6 +900,700 @@
                       "win",
                       "loss"
                     ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "cancelled",
+                  "expired"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlementReceipt": {
+                "properties": {
+                  "outcome": {
+                    "enum": [
+                      "forfeit",
+                      "cancelled_before_start"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "cancelled_before_start"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "startedAtMs": {
+                "type": "null"
+              },
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "ready"
+                  },
+                  "turn": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "forfeit"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "startedAtMs": {
+                "type": "integer"
+              },
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "winner": {
+                    "const": null
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "settled"
+              },
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "player"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "win"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "settled"
+              },
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "opponent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlementReceipt": {
+                "type": "object",
+                "required": [
+                  "outcome"
+                ],
+                "properties": {
+                  "outcome": {
+                    "const": "loss"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command"
+                    ]
+                  },
+                  "activeSlot": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "send_in"
+                  },
+                  "activeSlot": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "ko"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "const": "bench"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "opponentActiveSlot": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command"
+                    ]
+                  },
+                  "activeSlot": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "send_in"
+                  },
+                  "activeSlot": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "ko"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "const": "bench"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "opponentActiveSlot": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command"
+                    ]
+                  },
+                  "activeSlot": {
+                    "const": 2
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "const": "send_in"
+                  },
+                  "activeSlot": {
+                    "const": 2
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "ko"
+                      }
+                    }
+                  }
+                ],
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "const": "bench"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "phase": {
+                    "enum": [
+                      "ready",
+                      "command",
+                      "send_in"
+                    ]
+                  },
+                  "opponentActiveSlot": {
+                    "const": 2
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": [
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "not": {
+                          "const": "active"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "active"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "player"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opponentTeam": {
+                "items": {
+                  "properties": {
+                    "status": {
+                      "const": "ko"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "battle": {
+                "properties": {
+                  "winner": {
+                    "const": "opponent"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "team": {
+                "items": {
+                  "properties": {
+                    "status": {
+                      "const": "ko"
+                    }
                   }
                 }
               }
