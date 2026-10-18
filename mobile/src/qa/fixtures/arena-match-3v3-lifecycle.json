@@ -159,6 +159,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -332,6 +333,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -511,6 +513,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -670,6 +673,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -829,6 +833,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -1010,6 +1015,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -1212,6 +1218,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -1372,6 +1379,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -1552,6 +1560,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -1711,6 +1720,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -1871,6 +1881,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -1890,6 +1901,45 @@
         }
       },
       "note": "GAMA KO: every CPU fighter is KO'd. Phase over, winner player."
+    },
+    {
+      "name": "refused-swap-after-over",
+      "nowMs": 1792300023200,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "swap",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x5",
+        "turn": 8,
+        "holobotId": "kuma"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_state",
+        "details": {
+          "rejectionCode": "invalid_state"
+        }
+      },
+      "note": "Phase over: the host has decided. No report or swap can reopen the match; the phase check comes before the target check."
+    },
+    {
+      "name": "refused-cancel-after-over",
+      "nowMs": 1792300023400,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "cancel",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "settle_required",
+        "details": {
+          "rejectionCode": "settle_required"
+        }
+      },
+      "note": "Phase over: a decided result cannot be turned into a forfeit. Only settle closes it."
     },
     {
       "name": "settle",
@@ -2025,6 +2075,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -2226,6 +2277,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,
@@ -2424,6 +2476,7 @@
             "version": "arena-3v3-rules-1",
             "teamSize": 3,
             "entryFeeHolos": 50,
+            "entryFeePasses": 1,
             "exp": 95,
             "holos": 100,
             "syncPoints": 35,

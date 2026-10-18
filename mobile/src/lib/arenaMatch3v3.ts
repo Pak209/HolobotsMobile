@@ -2,7 +2,25 @@
  * No host implements 3v3 yet and nothing calls this live. The host owns every vital, the turn, the phase
  * and the outcome. This module only reads the reply and never derives HP, STA, regen or level. */
 export const ARENA_3V3_SCHEMA = 'arena-match-3v3-1';
-export const ARENA_3V3_UNAVAILABLE_COPY = '3v3 isn’t open yet. The Arena host admits one fighter per match today, so 3v3 can’t start and nothing is charged.';
+/** Every player-visible 3v3 string. PLACEHOLDER copy until Lex. Per DECISIONS #71 the on-screen authority is
+ * "the City"; the word "host" never appears on screen (code identifiers and comments may keep it). */
+export const ARENA_3V3_COPY = {
+    unavailable: '3v3 isn’t open yet. The City admits one fighter per match today, so 3v3 can’t start and nothing is charged.',
+    benchLabel: '3v3 bench, City roster',
+    swapIn: 'SWAP IN',
+    asking: 'ASKING THE CITY…',
+    askLabel: (name: string) => `Ask the City to swap in ${name}`,
+    buddyLabel: 'BUDDY',
+    buddyEmpty: 'NO BUDDY UNIT FROM YOUR ACCOUNT YET',
+    admitted: 'ADMITTED · WAITING FOR START',
+    turn: (turn: number) => `TURN ${turn}`,
+    sendIn: 'SEND IN A FIGHTER',
+    swaps: (used: number, limit: number) => `SWAPS ${used}/${limit}`,
+    over: 'MATCH OVER',
+    receipt: (won: boolean) => `CITY RECEIPT · ${won ? 'WIN' : 'LOSS'}`,
+    closed: (state: string) => `CITY CLOSED · ${state.toUpperCase()}`,
+} as const;
+export const ARENA_3V3_UNAVAILABLE_COPY = ARENA_3V3_COPY.unavailable;
 export type Arena3v3Status = 'active' | 'bench' | 'ko';
 export type Arena3v3Phase = 'ready' | 'command' | 'send_in' | 'over';
 export type Arena3v3Slot = {
@@ -27,7 +45,7 @@ export type Arena3v3Match = {
     opponentTeam: Arena3v3Slot[];
     battle: Arena3v3Battle;
     entryReceipt: { matchId: string; method: 'tokens' | 'pass'; amount: number; balanceBefore: number; balanceAfter: number; chargedAtMs: number };
-    rules: Record<string, unknown> & { voluntarySwapLimit: number };
+    rules: Record<string, unknown> & { voluntarySwapLimit: number; entryFeeHolos: number; entryFeePasses: number };
     settlementReceipt: Record<string, unknown> | null;
 };
 export type Arena3v3Intent = { intentId: string; operation: 'report' | 'swap'; appliedTurn: number };
@@ -39,17 +57,20 @@ const record = (v: unknown): Record<string, unknown> => v !== null && typeof v =
 const isRecord = (v: unknown) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const finite = (v: unknown, min = 0): v is number => typeof v === 'number' && Number.isFinite(v) && v >= min;
 const integer = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= min && v <= max;
+const fraction = (v: unknown) => finite(v) && v <= 1;
 const exactKeys = (v: unknown, keys: string[], optional: string[] = []) => isRecord(v) && Object.keys(v as object).every(k => keys.includes(k) || optional.includes(k)) && keys.every(k => Object.hasOwn(v as object, k));
 const ID = /^a3_[a-f0-9]{32}$/, TOKEN = /^[A-Za-z0-9_-]{8,80}$/, BOT = /^[a-z][a-z0-9_]{0,39}$/;
 const MATCH_KEYS = ['schemaVersion', 'matchId', 'requestId', 'format', 'state', 'tierId', 'issuedAtMs', 'expiresAtMs', 'startedAtMs', 'closedAtMs', 'team', 'opponentTeam', 'battle', 'entryReceipt', 'rules', 'settlementReceipt'];
+const QUOTE_KEYS = ['entryFeeHolos', 'exp', 'holos', 'syncPoints', 'blueprints'];
+const RULE_KEYS = ['version', 'teamSize', 'entryFeePasses', ...QUOTE_KEYS, 'comboBonus', 'perfectDefenseBonus', 'lossExpFraction', 'lossSyncFraction', 'maxPerformanceEvents', 'expBoosterMultiplier', 'voluntarySwapLimit', 'benchRegen', 'sendIn', 'opponentSendIn'];
 const fail = (code = 'arena_3v3_reply_invalid'): never => { throw Error(code); };
 
 function team(raw: unknown): Arena3v3Slot[] {
     if (!Array.isArray(raw) || raw.length !== 3) return fail();
     raw.forEach((s, i) => {
-        const f = record(s.fighter), v = record(s.vitals);
-        // `combat` is optional frozen sim input; presentation never reads it. No stamina key is ever accepted.
-        if (!exactKeys(s, ['slot', 'fighter', 'vitals', 'status'], ['combat']) || s.slot !== i || (s.combat !== undefined && !isRecord(s.combat))
+        const f = record(s?.fighter), v = record(s?.vitals);
+        // Exactly the contract keys: no stamina, combat or charge field can ride along on a slot.
+        if (!exactKeys(s, ['slot', 'fighter', 'vitals', 'status']) || s.slot !== i
             || !exactKeys(f, ['holobotId', 'level', 'displayName', 'tier']) || typeof f.holobotId !== 'string' || !BOT.test(f.holobotId)
             || f.displayName !== f.holobotId.toUpperCase() || !integer(f.level, 1, 99) || !integer(f.tier, 0, 1000000)
             || !exactKeys(v, ['currentHealth', 'maxHealth']) || !finite(v.maxHealth) || v.maxHealth <= 0 || !finite(v.currentHealth) || v.currentHealth > v.maxHealth
@@ -57,6 +78,42 @@ function team(raw: unknown): Arena3v3Slot[] {
     });
     if (new Set(raw.map(s => s.fighter.holobotId)).size !== 3) fail();
     return raw as Arena3v3Slot[];
+}
+function rulesQuote(raw: unknown) {
+    const r = record(raw);
+    if (!exactKeys(r, RULE_KEYS) || r.version !== 'arena-3v3-rules-1' || r.teamSize !== 3 || r.benchRegen !== 'none' || r.sendIn !== 'forced_on_ko' || r.opponentSendIn !== 'next_alive_slot'
+        || !integer(r.entryFeeHolos, 1, 1000000) || !integer(r.entryFeePasses, 1, 1000) || !QUOTE_KEYS.every(k => integer(r[k], 0, 1000000))
+        || !['comboBonus', 'perfectDefenseBonus', 'lossExpFraction', 'lossSyncFraction'].every(k => fraction(r[k]))
+        || !integer(r.maxPerformanceEvents, 0, 25) || !integer(r.expBoosterMultiplier, 1, 10) || !integer(r.voluntarySwapLimit, 0, 10)) fail();
+    return r;
+}
+/** Terminal receipt, at parity with the contract's settlementReceipt and its outcome couplings. */
+function receipt(m: Record<string, unknown>, mine: Arena3v3Slot[], b: Record<string, unknown>, entry: Record<string, unknown>) {
+    const r = record(m.settlementReceipt), outcome = String(r.outcome), finalVitals = record(r.finalVitals);
+    const bad = () => fail('arena_receipt_invalid');
+    if (!exactKeys(r, ['matchId', 'outcome', 'refunded', 'settlement', 'report', 'finalVitals', 'closedAtMs'], ['refund']) || r.matchId !== m.matchId
+        || !['win', 'loss', 'forfeit', 'cancelled_before_start'].includes(outcome) || !integer(m.closedAtMs) || r.closedAtMs !== m.closedAtMs || m.closedAtMs < Number(m.issuedAtMs)) bad();
+    if (m.state === 'settled' ? outcome !== (b.winner === 'player' ? 'win' : 'loss') || b.phase !== 'over' : !['forfeit', 'cancelled_before_start'].includes(outcome)) bad();
+    if (outcome === 'cancelled_before_start') {
+        const refund = record(r.refund);
+        if (m.startedAtMs !== null || b.phase !== 'ready' || b.turn !== 0 || r.refunded !== true || r.settlement !== null || r.report !== null || r.finalVitals !== null
+            || !exactKeys(refund, ['method', 'amount', 'balanceBefore', 'balanceAfter']) || refund.method !== entry.method || refund.amount !== entry.amount
+            || !integer(refund.balanceBefore) || !integer(refund.balanceAfter) || refund.balanceAfter - refund.balanceBefore !== refund.amount) bad();
+        return;
+    }
+    // The host writes its own vitals for all three bots; the receipt must agree with the projection.
+    if (r.refunded !== false || Object.hasOwn(r, 'refund') || Object.keys(finalVitals).length !== 3
+        || mine.some(s => { const v = record(finalVitals[s.fighter.holobotId]); return !exactKeys(v, ['currentHealth', 'maxHealth']) || v.currentHealth !== s.vitals.currentHealth || v.maxHealth !== s.vitals.maxHealth; })) bad();
+    if (outcome === 'forfeit') {
+        if (m.startedAtMs === null || b.winner !== null || !['command', 'send_in'].includes(String(b.phase)) || r.settlement !== null || !(r.report === null || isRecord(r.report))) bad();
+        return;
+    }
+    const s = record(r.settlement), rep = record(r.report), blueprint = s.blueprints;
+    if (!exactKeys(s, ['exp', 'awardedExp', 'holos', 'syncPoints', 'blueprints', 'experience']) || !['exp', 'awardedExp', 'holos', 'syncPoints'].every(k => integer(s[k]))
+        || !(blueprint === null || (exactKeys(blueprint, ['holobotKey', 'amount']) && BOT.test(String(record(blueprint).holobotKey)) && integer(record(blueprint).amount, 1)))
+        || !Array.isArray(s.experience) || !s.experience.length || s.experience.length > 3 || !s.experience.every(e => exactKeys(e, ['holobotId', 'awardedExp']) && BOT.test(String(e.holobotId)) && integer(e.awardedExp))
+        || (outcome === 'loss' && (s.holos !== 0 || blueprint !== null))
+        || !exactKeys(rep, ['combosCompleted', 'perfectDefenses']) || !integer(rep.combosCompleted, 0, 25) || !integer(rep.perfectDefenses, 0, 25)) bad();
 }
 /** Strict arena-match-3v3-1 reply reader. Throws instead of falling back to any local or default value. */
 export function readArena3v3Reply(raw: unknown, expect: { matchId?: string; intent?: { intentId: string; operation: 'report' | 'swap' } } = {}): Arena3v3Reply {
@@ -72,9 +129,7 @@ export function readArena3v3Reply(raw: unknown, expect: { matchId?: string; inte
         || !['rookie', 'challenger', 'elite', 'legend'].includes(String(m.tierId)) || !['issued', 'active', 'settled', 'cancelled', 'expired'].includes(String(m.state))
         || !integer(m.issuedAtMs) || !integer(m.expiresAtMs) || m.expiresAtMs <= m.issuedAtMs
         || !(m.startedAtMs === null || integer(m.startedAtMs)) || !(m.closedAtMs === null || integer(m.closedAtMs))) return fail();
-    const mine = team(m.team), theirs = team(m.opponentTeam), b = record(m.battle), rules = record(m.rules), entry = record(m.entryReceipt);
-    if (rules.version !== 'arena-3v3-rules-1' || rules.teamSize !== 3 || rules.benchRegen !== 'none' || rules.sendIn !== 'forced_on_ko' || rules.opponentSendIn !== 'next_alive_slot'
-        || !integer(rules.voluntarySwapLimit, 0, 10) || !integer(rules.entryFeeHolos, 1)) fail();
+    const mine = team(m.team), theirs = team(m.opponentTeam), b = record(m.battle), rules = rulesQuote(m.rules), entry = record(m.entryReceipt);
     if (!exactKeys(b, ['turn', 'phase', 'activeSlot', 'opponentActiveSlot', 'voluntarySwapsUsed', 'winner']) || !integer(b.turn, 0, 1000)
         || !['ready', 'command', 'send_in', 'over'].includes(String(b.phase)) || !integer(b.activeSlot, 0, 2) || !integer(b.opponentActiveSlot, 0, 2)
         || !integer(b.voluntarySwapsUsed, 0, Number(rules.voluntarySwapLimit)) || (b.phase === 'over') !== (b.winner === 'player' || b.winner === 'opponent') || (b.phase !== 'over' && b.winner !== null)) fail();
@@ -86,20 +141,12 @@ export function readArena3v3Reply(raw: unknown, expect: { matchId?: string; inte
     if (b.winner === 'opponent' && mine.some(s => s.status !== 'ko')) fail();
     if (m.state === 'issued' && (b.phase !== 'ready' || b.turn !== 0 || m.startedAtMs !== null)) fail();
     if (m.state === 'active' && (b.phase === 'ready' || m.startedAtMs === null)) fail();
-    // ONE entry charge for the whole match.
+    // ONE entry charge for the whole match, at the host-frozen price (Holos or pass); the client assumes no price.
     if (!exactKeys(entry, ['matchId', 'method', 'amount', 'balanceBefore', 'balanceAfter', 'chargedAtMs']) || entry.matchId !== m.matchId || !['tokens', 'pass'].includes(String(entry.method))
-        || !integer(entry.amount, 1) || entry.amount !== (entry.method === 'pass' ? 1 : rules.entryFeeHolos) || !integer(entry.balanceBefore) || !integer(entry.balanceAfter)
+        || !integer(entry.amount, 1) || entry.amount !== (entry.method === 'pass' ? rules.entryFeePasses : rules.entryFeeHolos) || !integer(entry.balanceBefore) || !integer(entry.balanceAfter)
         || entry.balanceBefore - entry.amount !== entry.balanceAfter || entry.chargedAtMs !== m.issuedAtMs) fail('arena_receipt_invalid');
-    const terminal = ['settled', 'cancelled', 'expired'].includes(String(m.state)), receipt = record(m.settlementReceipt);
-    if (!terminal && (m.settlementReceipt !== null || m.closedAtMs !== null)) fail('arena_receipt_invalid');
-    if (terminal) {
-        const outcome = String(receipt.outcome), finalVitals = record(receipt.finalVitals);
-        if (receipt.matchId !== m.matchId || !['win', 'loss', 'forfeit', 'cancelled_before_start'].includes(outcome) || receipt.closedAtMs !== m.closedAtMs) fail('arena_receipt_invalid');
-        if (m.state === 'settled' && (b.phase !== 'over' || outcome !== (b.winner === 'player' ? 'win' : 'loss'))) fail('arena_receipt_invalid');
-        // The host writes its own vitals for all three bots; the receipt must agree with the projection.
-        if (outcome !== 'cancelled_before_start' && (Object.keys(finalVitals).length !== 3
-            || mine.some(s => { const v = record(finalVitals[s.fighter.holobotId]); return !exactKeys(v, ['currentHealth', 'maxHealth']) || v.currentHealth !== s.vitals.currentHealth || v.maxHealth !== s.vitals.maxHealth; }))) fail('arena_receipt_invalid');
-    }
+    if (['settled', 'cancelled', 'expired'].includes(String(m.state))) receipt(m, mine, b, entry);
+    else if (m.settlementReceipt !== null || m.closedAtMs !== null) fail('arena_receipt_invalid');
     if (r.intent !== null) {
         const i = record(r.intent);
         if (!exactKeys(i, ['intentId', 'operation', 'appliedTurn']) || typeof i.intentId !== 'string' || !TOKEN.test(i.intentId) || !['report', 'swap'].includes(String(i.operation))
@@ -133,13 +180,18 @@ export function arenaBenchCards(match: Arena3v3Match): ArenaBenchCard[] {
         };
     });
 }
-/** One honest line for the bench header, from host phase and turn only. */
+/** One honest line for the bench header, from host state, phase and turn only. */
 export function arenaBenchPhaseLine(match: Arena3v3Match): string {
-    const b = match.battle;
-    if (match.state === 'settled') return `HOST SETTLED · ${b.winner === 'player' ? 'WIN' : 'LOSS'}`;
-    if (match.state === 'cancelled' || match.state === 'expired') return `HOST CLOSED · ${match.state.toUpperCase()}`;
-    if (b.phase === 'ready') return 'ADMITTED · WAITING FOR START';
-    if (b.phase === 'send_in') return `HOST TURN ${b.turn} · SEND IN A FIGHTER`;
-    if (b.phase === 'over') return `HOST TURN ${b.turn} · MATCH OVER · ${b.winner === 'player' ? 'WIN' : 'LOSS'}`;
-    return `HOST TURN ${b.turn} · SWAPS ${b.voluntarySwapsUsed}/${match.rules.voluntarySwapLimit}`;
+    const b = match.battle, c = ARENA_3V3_COPY;
+    if (match.state === 'settled') return c.receipt(b.winner === 'player');
+    if (match.state === 'cancelled' || match.state === 'expired') return c.closed(match.state);
+    if (b.phase === 'ready') return c.admitted;
+    if (b.phase === 'send_in') return `${c.turn(b.turn)} · ${c.sendIn}`;
+    if (b.phase === 'over') return `${c.turn(b.turn)} · ${c.over} · ${b.winner === 'player' ? 'WIN' : 'LOSS'}`;
+    return `${c.turn(b.turn)} · ${c.swaps(b.voluntarySwapsUsed, match.rules.voluntarySwapLimit)}`;
+}
+/** BUDDY strip above the bench (DECISIONS #71). arena-match-3v3-1 carries no Buddy Unit data, and the strict reader
+ * refuses unknown keys, so this is always the honest empty slot. It never shows a local or default buddy. */
+export function arenaBuddySlot(_match: Arena3v3Match): { kind: 'empty'; label: string; line: string } {
+    return { kind: 'empty', label: ARENA_3V3_COPY.buddyLabel, line: ARENA_3V3_COPY.buddyEmpty };
 }

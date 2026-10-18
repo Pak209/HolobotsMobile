@@ -5,8 +5,8 @@ import { applyBenchRegen, createTeamBattle, type TeamBattle } from '@/features/a
 import type { ArenaFighter } from '@/types/arena';
 import fixture from './fixtures/arena-match-3v3-lifecycle.json';
 
-/** Verbatim copy of functions/scripts/fixtures/arena-match-3v3/lifecycle.json (HolobotsMobile #134, commit 240ef83). */
-export const ARENA_3V3_FIXTURE_SHA256 = '05490d02a2efb6fcd42cbae07aa437815bed95872273141f9450c467727734ec';
+/** Verbatim copy of functions/scripts/fixtures/arena-match-3v3/lifecycle.json (HolobotsMobile #134, commit ac4a4af). */
+export const ARENA_3V3_FIXTURE_SHA256 = '9a9ff7e66d66e15dc1833eb8ae1134c83ac805b1e8d6462e25cc1abbe5d1abd1';
 /** Known-bad calibration first, then host cells. */
 export const ARENA_BENCH_PREVIEW_ROUTES = ['ArenaBenchKnownBad', 'ArenaBenchCommand', 'ArenaBenchRefused', 'ArenaBenchSendIn', 'ArenaBenchSettled'] as const;
 type Refusal = { code: string; message: string; details: { rejectionCode: string } };
@@ -52,4 +52,10 @@ export function legacyLocalTeam(ticks = 3): { before: TeamBattle; after: TeamBat
     let after = before;
     for (let i = 0; i < ticks; i++) after = applyBenchRegen(after);
     return { before, after };
+}
+/** KNOWN BAD splice: a real host projection whose bench vitals carry the legacy locally regenerated STA. */
+export function legacyStaSplicedReply(): Record<string, any> {
+    const { after } = legacyLocalTeam(), reply = structuredClone(benchStep('swap-1-voluntary').reply) as Record<string, any>;
+    reply.match.team.forEach((slot: Record<string, any>, i: number) => { slot.vitals.stamina = after.player.slots[i].fighter.stamina; });
+    return reply;
 }
