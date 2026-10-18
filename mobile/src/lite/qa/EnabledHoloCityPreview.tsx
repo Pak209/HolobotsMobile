@@ -1,3 +1,4 @@
+import { previewInitialScreen, ARENA_CAPTURE_ROUTES } from "./previewRoutes";
 import { ArenaAdmittedRoundPreview, ArenaAdmittedResultPreview, ArenaAdmittedKnownBadPreview } from "./ArenaAdmittedPreview";
 import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaHostLevelsPreview";
 import { useEffect, useState } from "react";
@@ -5,6 +6,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
+import { previewScreenFromUrl } from "./previewDeepLink";
 
 import { OfflinePreviewAuthProvider } from "@/contexts/AuthContext";
 import { HomeScreen } from "@/lite/screens/HomeScreen";
@@ -97,12 +99,12 @@ const screens: Record<string, React.ComponentType<any>> = {
 
 /** Opt-in __DEV__ harness only; no account provider is mounted. */
 export function HoloCityPreviewApp() {
-  const [screen, setScreen] = useState("Home");
+  const [screen, setScreen] = useState(() => previewInitialScreen(process.env.EXPO_PUBLIC_HOLOCITY_PREVIEW_SCREEN, screens));
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const open = (url: string | null) => {
-      const name = url?.match(/^holobotsmobile:\/\/qa\/([a-zA-Z0-9-]+)/)?.[1];
-      if (name && name in screens) { setScreen(name); setRevision(value => value + 1); }
+      const name = previewScreenFromUrl(url, screens);
+      if (name) { setScreen(name); setRevision(value => value + 1); }
     };
     void Linking.getInitialURL().then(open);
     const subscription = Linking.addEventListener("url", event => open(event.url));
@@ -122,6 +124,13 @@ export function HoloCityPreviewApp() {
           {Object.entries(screens).map(([name, component]) => <Tab.Screen key={name} name={name} component={component} />)}
         </Tab.Navigator>
       </NavigationContainer>
+      <View style={styles.captureRoutes}>
+        {ARENA_CAPTURE_ROUTES.map(({ name, label }) => <Pressable key={name}
+          accessibilityRole="button" accessibilityLabel={`QA capture ${label}`}
+          style={styles.captureButton} onPress={() => { setScreen(name); setRevision(value => value + 1); }}>
+          <Text style={styles.labelText}>{label}</Text>
+        </Pressable>)}
+      </View>
       <Pressable style={styles.label} onPress={next} accessibilityLabel="Next offline preview screen">
         <Text style={styles.labelText}>OFFLINE FIXTURE · {screen} · NEXT →</Text>
       </Pressable>
@@ -130,6 +139,8 @@ export function HoloCityPreviewApp() {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#101318" },
+  captureRoutes: { flexDirection: "row", justifyContent: "space-around", backgroundColor: "#101318" },
+  captureButton: { padding: 12, minHeight: 44 },
   label: { padding: 8, paddingBottom: 22, backgroundColor: "#101318", alignItems: "center" },
   labelText: { color: "#62DDE8", fontSize: 10, letterSpacing: 1 },
 });
