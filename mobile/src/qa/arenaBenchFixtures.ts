@@ -12,6 +12,8 @@ export const ARENA_BENCH_PREVIEW_ROUTES = ['ArenaBenchKnownBad', 'ArenaBenchComm
 type Refusal = { code: string; message: string; details: { rejectionCode: string } };
 export type ArenaBenchFixtureStep = { name: string; nowMs: number; request: Record<string, unknown>; reply?: unknown; refusal?: Refusal; knownBad?: boolean; note?: string };
 export const ARENA_3V3_FIXTURE_STEPS = fixture.steps as unknown as ArenaBenchFixtureStep[];
+/** Plain-JSON deep copy. Hermes in this app has no structuredClone (the lite-3v3-prep-1 witness caught it). */
+const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 export const benchStep = (name: string): ArenaBenchFixtureStep => {
     const step = ARENA_3V3_FIXTURE_STEPS.find(s => s.name === name);
     if (!step) throw Error(`missing 3v3 fixture step ${name}`);
@@ -23,11 +25,11 @@ export const fixtureRefusal = (refusal: Refusal) => Object.assign(Error(refusal.
  * equal a fixture request exactly (intentId included), or it is refused as unavailable. */
 export function fixtureBenchHost(resumeAt: string) {
     return async (request: Record<string, unknown>): Promise<unknown> => {
-        if (request.operation === 'resume') return structuredClone(benchStep(resumeAt).reply);
+        if (request.operation === 'resume') return copy(benchStep(resumeAt).reply);
         const step = ARENA_3V3_FIXTURE_STEPS.find(s => canonicalArenaValue(s.request) === canonicalArenaValue(request));
         if (!step) throw fixtureRefusal({ code: 'unavailable', message: 'unavailable', details: { rejectionCode: 'unavailable' } });
         if (step.refusal) throw fixtureRefusal(step.refusal);
-        return structuredClone(step.reply);
+        return copy(step.reply);
     };
 }
 /** In-memory stand-in for the per-account AsyncStorage intent key. */
@@ -55,7 +57,7 @@ export function legacyLocalTeam(ticks = 3): { before: TeamBattle; after: TeamBat
 }
 /** KNOWN BAD splice: a real host projection whose bench vitals carry the legacy locally regenerated STA. */
 export function legacyStaSplicedReply(): Record<string, any> {
-    const { after } = legacyLocalTeam(), reply = structuredClone(benchStep('swap-1-voluntary').reply) as Record<string, any>;
+    const { after } = legacyLocalTeam(), reply = copy(benchStep('swap-1-voluntary').reply) as Record<string, any>;
     reply.match.team.forEach((slot: Record<string, any>, i: number) => { slot.vitals.stamina = after.player.slots[i].fighter.stamina; });
     return reply;
 }

@@ -483,6 +483,11 @@ describe('known bad: legacy local teamBattle regen never reaches the bench cards
         const benched = accepted.filter(s => ['swap-1-voluntary', 'report-2-active-ko', 'swap-2-forced-send-in', 'report-3-opponent-ko', 'report-4-active-ko'].includes(s.name));
         for (const s of benched) expect(arenaBenchCards(readArena3v3Reply(s.reply).match!).find(c => c.holobotId === 'ace')).toMatchObject({ role: 'BENCH', currentHealth: 120, hpLabel: '120 / 172' });
     });
+    it('no app-bundled lite 3v3 module uses structuredClone (Hermes here has none; the witness caught it in the QA host)', () => {
+        for (const file of ['lib/arenaMatch3v3.ts', 'lib/arenaMatchFlow.ts', 'lib/arenaMatchClient.ts', 'components/arena/ArenaBenchCards.tsx', 'qa/ArenaBenchPreview.tsx', 'qa/arenaBenchFixtures.ts', 'screens/ArenaScreen.tsx']) {
+            expect(src(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''), file).not.toMatch(/structuredClone/);
+        }
+    });
     it('no lite CPU 3v3 module imports the legacy local-authority team code', () => {
         // Scope: the CPU Arena 3v3 path only. ArenaScreen still renders PvpArenaModal, whose legacy PvP 3v3 (pvpTeamBattle)
         // keeps client-side bench regen. That modal is owned by lite-pvp-fighters-1 and is out of this lane (follow-up).
