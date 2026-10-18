@@ -32,6 +32,11 @@ async function clearUserPresence(uid: string): Promise<void> {
   ).catch(() => undefined);
 }
 
+/**
+ * Identity (critic review 2026-10-17 S11): the callable's verified request.auth, or — only when the callable carried
+ * no auth context — an ID token in the data field verified WITH checkRevoked, so a token from a revoked or
+ * signed-out session cannot delete the account. Nothing is cleared or deleted before the identity resolves.
+ */
 async function handleDeleteUserAccount(request: CallableRequest): Promise<{ success: boolean }> {
   let uid = request.auth?.uid;
 
@@ -42,7 +47,7 @@ async function handleDeleteUserAccount(request: CallableRequest): Promise<{ succ
     }
 
     try {
-      const decoded = await auth.verifyIdToken(idToken);
+      const decoded = await auth.verifyIdToken(idToken, true);
       uid = decoded.uid;
     } catch (error) {
       throw new HttpsError("unauthenticated", "Your session could not be verified. Please sign in again.");
