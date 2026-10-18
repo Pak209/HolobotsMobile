@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
@@ -196,67 +196,6 @@ describe("battle_pool_entries / battle_rooms / default deny", () => {
       await seedDoc(env, "battle_rooms/room9", buildBattleRoom("alice", "bob"));
       await assertFails(deleteDoc(doc(authedDb(env, "carol"), "battle_rooms/room9")));
       await assertSucceeds(deleteDoc(doc(authedDb(env, "alice"), "battle_rooms/room9")));
-    });
-  });
-
-  // pvp-room-fighters-1: hostFighters is minted only by pvpRoomFighterHost
-  // (Admin SDK). A client must never be able to seat its own level badge.
-  describe("battle_rooms hostFighters (host-only)", () => {
-    const snapshot = (level: number) => ({ holobotId: "ace", level, displayName: "ACE", tier: 0 });
-    const hostFighters = {
-      schemaVersion: "pvp-room-fighters-1",
-      p1: { uid: "alice", fighters: { ace: snapshot(21) } },
-    };
-
-    it("denies creating a room that already carries hostFighters (waiting and matchmaking shapes)", async () => {
-      const alice = authedDb(env, "alice");
-
-      await assertFails(setDoc(doc(alice, "battle_rooms/forge1"), buildBattleRoom("alice", "", { hostFighters })));
-      await assertFails(setDoc(doc(alice, "battle_rooms/forge2"), buildBattleRoom("alice", "bob", { hostFighters })));
-      await assertSucceeds(setDoc(doc(alice, "battle_rooms/forge3"), buildBattleRoom("alice", "bob")));
-    });
-
-    it("denies a participant adding hostFighters to a room the host has not minted", async () => {
-      await seedDoc(env, "battle_rooms/forge4", buildBattleRoom("alice", "bob"));
-      const alice = authedDb(env, "alice");
-
-      await assertFails(updateDoc(doc(alice, "battle_rooms/forge4"), { hostFighters }));
-      await assertFails(updateDoc(doc(alice, "battle_rooms/forge4"), { "hostFighters.p1.fighters.ace": snapshot(99) }));
-    });
-
-    it("denies either participant modifying, replacing or deleting host-minted hostFighters", async () => {
-      await seedDoc(env, "battle_rooms/forge5", buildBattleRoom("alice", "bob", { hostFighters }));
-      const alice = authedDb(env, "alice");
-      const bob = authedDb(env, "bob");
-
-      await assertFails(updateDoc(doc(alice, "battle_rooms/forge5"), { "hostFighters.p1.fighters.ace.level": 99 }));
-      await assertFails(updateDoc(doc(bob, "battle_rooms/forge5"), { "hostFighters.p2": { uid: "bob", fighters: { ace: snapshot(99) } } }));
-      await assertFails(updateDoc(doc(alice, "battle_rooms/forge5"), { hostFighters: deleteField() }));
-      // A whole-document replacement that drops the field is a modification too.
-      await assertFails(setDoc(doc(alice, "battle_rooms/forge5"), buildBattleRoom("alice", "bob")));
-    });
-
-    it("denies a joiner forging its own hostFighters seat while filling the open p2 slot", async () => {
-      await seedDoc(env, "battle_rooms/forge6", buildBattleRoom("alice", "", { hostFighters }));
-      const bob = authedDb(env, "bob");
-
-      await assertFails(
-        updateDoc(doc(bob, "battle_rooms/forge6"), {
-          "players.p2.uid": "bob",
-          status: "active",
-          "hostFighters.p2": { uid: "bob", fighters: { kuma: { holobotId: "kuma", level: 99, displayName: "KUMA", tier: 0 } } },
-        }),
-      );
-      await assertSucceeds(updateDoc(doc(bob, "battle_rooms/forge6"), { "players.p2.uid": "bob", status: "active" }));
-    });
-
-    it("still allows ordinary play updates and signed-in reads on a room carrying hostFighters", async () => {
-      await seedDoc(env, "battle_rooms/forge7", buildBattleRoom("alice", "bob", { hostFighters }));
-
-      await assertSucceeds(updateDoc(doc(authedDb(env, "alice"), "battle_rooms/forge7"), { "players.p1.stamina": 5 }));
-      await assertSucceeds(updateDoc(doc(authedDb(env, "bob"), "battle_rooms/forge7"), { "players.p2.isConnected": true }));
-      await assertSucceeds(getDoc(doc(authedDb(env, "carol"), "battle_rooms/forge7")));
-      await assertFails(getDoc(doc(unauthedDb(env), "battle_rooms/forge7")));
     });
   });
 

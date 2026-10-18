@@ -1,37 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://holobots.local/schemas/pvp-room-fighters-1.json",
-  "title": "PvP room host-minted fighter snapshot (pvpRoomFighterHost reply)",
-  "description": "Presentation-only level badge for a PvP room seat, minted by the host from the caller's owned Holobot. The fighter object is the #118 ArenaFighterSnapshot shape. definitions.request is the whole callable body; definitions.roomHostFighters is the host-only battle_rooms/{roomId}.hostFighters field. See Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "roomId",
-    "role",
-    "alreadyProcessed",
-    "fighter"
-  ],
-  "properties": {
-    "schemaVersion": {
-      "const": "pvp-room-fighters-1"
+  "title": "PvP room host-minted fighter snapshots (pvpRoomFighterHost reply)",
+  "description": "Presentation-only level badges for PvP room seats, minted by the host from each caller's owned Holobot and stored in the server-only pvpRoomSeats/{roomId} doc (no client rule; default deny). Each fighter is the #118 ArenaFighterSnapshot shape. `seats` holds only seats minted for the uid currently in that seat. definitions.request is the whole callable body; definitions.seatsDoc is the stored doc. See Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md.",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/seatReply"
     },
-    "roomId": {
-      "$ref": "#/definitions/roomId"
-    },
-    "role": {
-      "enum": [
-        "p1",
-        "p2"
-      ]
-    },
-    "alreadyProcessed": {
-      "type": "boolean"
-    },
-    "fighter": {
-      "$ref": "#/definitions/fighter"
+    {
+      "$ref": "#/definitions/readReply"
     }
-  },
+  ],
   "definitions": {
     "roomId": {
       "type": "string",
@@ -70,23 +49,6 @@
         }
       }
     },
-    "request": {
-      "description": "The whole pvpRoomFighterHost body. The uid comes only from request.auth; level, tier, uid or role in the body is refused as invalid_request.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "roomId",
-        "holobotId"
-      ],
-      "properties": {
-        "roomId": {
-          "$ref": "#/definitions/roomId"
-        },
-        "holobotId": {
-          "$ref": "#/definitions/holobotId"
-        }
-      }
-    },
     "seat": {
       "type": "object",
       "additionalProperties": false,
@@ -110,16 +72,143 @@
         }
       }
     },
-    "roomHostFighters": {
-      "description": "battle_rooms/{roomId}.hostFighters. Written only by pvpRoomFighterHost (Admin SDK); firestore.rules deny every client create/modify/replace/delete of it.",
+    "seats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "p1": {
+          "$ref": "#/definitions/seat"
+        },
+        "p2": {
+          "$ref": "#/definitions/seat"
+        }
+      }
+    },
+    "seatReply": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "schemaVersion"
+        "schemaVersion",
+        "operation",
+        "roomId",
+        "role",
+        "alreadyProcessed",
+        "fighter",
+        "seats"
       ],
       "properties": {
         "schemaVersion": {
           "const": "pvp-room-fighters-1"
+        },
+        "roomId": {
+          "$ref": "#/definitions/roomId"
+        },
+        "role": {
+          "enum": [
+            "p1",
+            "p2"
+          ]
+        },
+        "seats": {
+          "$ref": "#/definitions/seats"
+        },
+        "operation": {
+          "const": "seat"
+        },
+        "alreadyProcessed": {
+          "type": "boolean"
+        },
+        "fighter": {
+          "$ref": "#/definitions/fighter"
+        }
+      }
+    },
+    "readReply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "roomId",
+        "role",
+        "seats"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "pvp-room-fighters-1"
+        },
+        "roomId": {
+          "$ref": "#/definitions/roomId"
+        },
+        "role": {
+          "enum": [
+            "p1",
+            "p2"
+          ]
+        },
+        "seats": {
+          "$ref": "#/definitions/seats"
+        },
+        "operation": {
+          "const": "read"
+        }
+      }
+    },
+    "request": {
+      "description": "The whole pvpRoomFighterHost body. The uid comes only from request.auth; level, tier, uid, role or any other key is refused as invalid_request.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "roomId",
+            "holobotId"
+          ],
+          "properties": {
+            "operation": {
+              "const": "seat"
+            },
+            "roomId": {
+              "$ref": "#/definitions/roomId"
+            },
+            "holobotId": {
+              "$ref": "#/definitions/holobotId"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "roomId"
+          ],
+          "properties": {
+            "operation": {
+              "const": "read"
+            },
+            "roomId": {
+              "$ref": "#/definitions/roomId"
+            }
+          }
+        }
+      ]
+    },
+    "seatsDoc": {
+      "description": "pvpRoomSeats/{roomId}: written only by pvpRoomFighterHost (Admin SDK). No firestore.rules match exists for it, so the default deny refuses every client read and write.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "roomId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "pvp-room-fighters-1"
+        },
+        "roomId": {
+          "$ref": "#/definitions/roomId"
         },
         "p1": {
           "$ref": "#/definitions/seat"

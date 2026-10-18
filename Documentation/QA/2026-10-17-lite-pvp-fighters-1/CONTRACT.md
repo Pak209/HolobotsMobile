@@ -1,119 +1,123 @@
 # PvP room fighter snapshots — `pvp-room-fighters-1`
 
-Host half of lane `lite-pvp-fighters-1`. Base: main 3b1e790 (#129). Additive Contract-Change. **No deploy.** The producer owns deploy and Pak merges. This closes the LIVE PVP cell held by lite-arena-levels-1 (#119/#121): "pending an authoritative opponent snapshot contract".
+Host half of lane `lite-pvp-fighters-1`. Base: main 3b1e790 (#129). Additive Contract-Change. **No deploy.** The producer owns deploy and Pak merges. **No `firestore.rules` change:** the producer's `host-economy-hardening-1` lane owns that file. This closes the LIVE PVP cell held by lite-arena-levels-1 (#119/#121): "pending an authoritative opponent snapshot contract".
 
 ## Problem
 
-PvP is fully client-authored. Each client builds its own fighter doc from its local profile (`mobile/src/hooks/useRealtimeArena.ts` buildOwnFighter → `mobile/src/features/arena/pvpBattle.ts` buildPvpFighterDoc). It writes that doc, including `level`, into `battle_rooms/{roomId}.players.pX`, either directly (createRoom / joinRoom) or through the matchmaking claim (`mobile/src/lib/pvpMatchmaking.ts`). Before this change, no functions/ code touched PvP. So any level shown on a PvP card was a client-decided level.
+PvP is fully client-authored. Each client builds its own fighter doc from its local profile (`mobile/src/hooks/useRealtimeArena.ts` buildOwnFighter → `mobile/src/features/arena/pvpBattle.ts` buildPvpFighterDoc). It writes that doc, including `level`, into `battle_rooms/{roomId}.players.pX`, either directly (createRoom / joinRoom) or through the matchmaking claim (`mobile/src/lib/pvpMatchmaking.ts`). Before this change, no functions/ code touched PvP, so every PvP level shown was client-decided.
 
-## Choice: one callable plus one host-only room field
+## Choice: one callable, a server-only seats doc, and snapshots in the reply
 
-- New authenticated callable **`pvpRoomFighterHost`** (`functions/src/pvp/`).
-- It mints the caller's snapshot into **`battle_rooms/{roomId}.hostFighters`** through the Admin SDK, inside one transaction.
-- `firestore.rules` denies every client attempt to create, add, modify, replace or delete `hostFighters`.
+- New authenticated callable **`pvpRoomFighterHost`** (`functions/src/pvp/`), with two operations:
+  - `seat` mints the caller's snapshot into **`pvpRoomSeats/{roomId}`** inside one Admin SDK transaction.
+  - `read` returns the room's current seats.
+- `pvpRoomSeats` has **no match block** in `firestore.rules`. The existing final default deny (`match /{document=**} { allow read, write: if false; }`) refuses every client read and write, and only the Admin SDK can touch it. No rule is added or changed.
+- Clients get **both** seats' snapshots from the callable **reply**. They never read the collection.
+- The host reads `battle_rooms/{roomId}` with the Admin SDK only to check that the caller is seated, and **never writes it**.
 
 Rejected alternatives:
 
-- **Host-created rooms.** This would move room creation and matchmaking pairing server-side, which is a much larger change.
-- **A separate host-only collection** (`pvpRoomFighters/{roomId}`). Each client would need a second listener and new read rules. The room field rides the `onSnapshot` that both clients already hold, so the opponent's badge arrives with no extra plumbing.
-- **Snapshots on `battle_pool_entries`.** Pool entries are client-written, and any searcher can claim them. They are not a host-owned surface.
+- **A host-only field on `battle_rooms`** (an earlier draft of this lane). It needs a rules change to stop clients forging it, and the rules file is owned elsewhere tonight. Withdrawn before merge.
+- **Host-created rooms.** This would move room creation and matchmaking server-side, which is much larger.
+- **Snapshots on `battle_pool_entries`.** These are client-written and claimable by any searcher.
 
-`battle_pool_entries` and its rules are unchanged.
+## Requests
 
-## Request
-
-The whole body, nothing else:
+The whole body, one of exactly two shapes:
 
 ```json
-{"roomId":"<20-char Firestore auto-ID>","holobotId":"ace"}
+{"operation":"seat","roomId":"<20-char Firestore auto-ID>","holobotId":"ace"}
+{"operation":"read","roomId":"<20-char Firestore auto-ID>"}
 ```
 
-The uid comes **only** from `request.auth`. Any other key is refused as `invalid_request`: `level`, `tier`, `uid`, `role`, even `schemaVersion`. So is a malformed id. Schema: `Schemas/pvp-room-fighters-1.json#/definitions/request`.
+The uid comes **only** from `request.auth`. Anything else is refused as `invalid_request`: `level`, `tier`, `uid`, `role`, `schemaVersion`, a `holobotId` on `read`, a missing or unknown `operation`, or a malformed id. Schema: `Schemas/pvp-room-fighters-1.json#/definitions/request`.
 
-## Ruling (in order, one transaction)
+## `seat` ruling (in order, one transaction over room + profile + seats doc)
 
 1. The room exists (else `unknown_room`). Its `status` is `waiting` or `active` (else `room_closed`).
 2. The caller is seated: `players.p1.uid` or `players.p2.uid` equals the auth uid. A stranger, or one account in both seats, gets `not_participant`. A joiner must fill p2 first (joinRoom's existing client write), then call.
-3. `holobotId` is a bot this seat put in the room. That means `toHolobotKey(players[role].holobotName)`, or, in a `3v3` room, one of `teams[role].members[].holobotName` (at most 3; a longer lineup is `unavailable`). Otherwise `not_seated`. This binds the badge to the fighter actually shown.
-4. **Frozen at first mint.** If this seat already holds a snapshot for that bot, the reply replays it with `alreadyProcessed: true`. A later level-up does not rewrite a room's badge, the same as an Arena admission.
-5. **Owned bot only.** The caller's `users/{uid}.holobots` must hold exactly one record whose key is `holobotId`, and the bot must be in the catalog (`HOLOBOT_BASE_STATS`). Zero records or a non-catalog bot gets `not_owned`; duplicate records get `unavailable`. The stored level must be an integer of at least 1. A missing level is 1, as in arenaMatchStore uniqueEntrant. `null`, strings and fractions are `unavailable`.
-6. The level comes from the **same owned-bot path as Arena issue**: `buildPlayerCombatants(profile, [holobotId])` (rivalLadder.ts) → `arenaFighterSnapshot(combatant, PVP_ROOM_TIER)` (#118, unchanged). A level above 99 throws there, and the ruling is `unavailable`: refused, never clamped.
-7. Write `hostFighters.schemaVersion`, `hostFighters.{role}.uid` and `hostFighters.{role}.fighters.{holobotId}`. Nothing in `players.*`, `teams.*` or any other field is read back or rewritten. No refusal writes anything.
+3. `holobotId` is a bot this seat put in the room. That means `toHolobotKey(players[role].holobotName)`, or, in `3v3`, one of `teams[role].members[].holobotName` (at most 3; a longer lineup is `unavailable`). Otherwise `not_seated`.
+4. **Current seats only.** A stored seat whose `uid` is not the uid now in that seat is dropped. That happens when a room id is reused after a delete. Such a seat is never returned, and the next mint overwrites it.
+5. **Frozen at first mint.** If this seat already holds that bot, the call replays it with `alreadyProcessed: true`. A later level-up does not rewrite this room's badge.
+6. **Owned bot only.** The caller's `users/{uid}.holobots` must hold exactly one record keyed `holobotId`, and the bot must be in the catalog (`HOLOBOT_BASE_STATS`). Zero records or a non-catalog bot gets `not_owned`; duplicates get `unavailable`. The stored level must be an integer of at least 1. A missing level is 1, as in arenaMatchStore uniqueEntrant. `null`, strings and fractions are `unavailable`.
+7. The level comes from the **same owned-bot path as Arena issue**: `buildPlayerCombatants(profile, [holobotId])` → `arenaFighterSnapshot(combatant, PVP_ROOM_TIER)` (#118, unchanged). A level above 99 is refused, never clamped.
+8. `tx.set(pvpRoomSeats/{roomId}, {schemaVersion, roomId, p1?, p2?})`. No refusal writes anything.
 
-## Stored field
+## `read` ruling
+
+The caller must be a participant (else `not_participant`; an unknown room is `unknown_room`). Any room status is allowed, so a result screen can still badge. The reply returns the current seats only, as in seat step 4. A corrupt stored doc fails closed with `unavailable`.
+
+## Stored doc (server-only)
 
 ```json
-"hostFighters": {
-  "schemaVersion": "pvp-room-fighters-1",
+pvpRoomSeats/{roomId} = {
+  "schemaVersion": "pvp-room-fighters-1", "roomId": "<roomId>",
   "p1": { "uid": "<p1 uid>", "fighters": { "ace":  {"holobotId":"ace","level":21,"displayName":"ACE","tier":0} } },
   "p2": { "uid": "<p2 uid>", "fighters": { "kuma": {"holobotId":"kuma","level":12,"displayName":"KUMA","tier":0} } }
 }
 ```
 
-Each fighter is **exactly** #118's `ArenaFighterSnapshot = {holobotId, level, displayName, tier}`. The seat's `uid` sits beside the map, not inside the snapshot, so a reader can check that the snapshot belongs to the uid now in that seat. The host fails closed (`unavailable`) on a malformed stored field. Schema: `#/definitions/roomHostFighters`.
+Each fighter is **exactly** #118's `ArenaFighterSnapshot = {holobotId, level, displayName, tier}`. The seat `uid` sits beside the map, not inside the snapshot. Schema: `#/definitions/seatsDoc`. Orphaned docs (a room deleted after a mint) are inert: no client can read them, and a reused id drops their seats. TTL cleanup is a later, optional ops task.
 
-## Reply
+## Replies
 
 ```json
-{"schemaVersion":"pvp-room-fighters-1","roomId":"…","role":"p1","alreadyProcessed":false,
- "fighter":{"holobotId":"ace","level":21,"displayName":"ACE","tier":0}}
+{"schemaVersion":"pvp-room-fighters-1","operation":"seat","roomId":"…","role":"p1","alreadyProcessed":false,
+ "fighter":{"holobotId":"ace","level":21,"displayName":"ACE","tier":0},
+ "seats":{"p1":{"uid":"…","fighters":{"ace":{…}}}}}
+{"schemaVersion":"pvp-room-fighters-1","operation":"read","roomId":"…","role":"p2",
+ "seats":{"p1":{…},"p2":{…}}}
 ```
 
-Clients should badge from the **room field**, because it is the only way to see the opponent's snapshot. The reply is a convenience for the caller's own seat.
+The client badges a seat only when the reply's `seats[role].uid` matches the uid now in that room seat, **and** the displayed bot has a snapshot. The opponent's snapshot arrives through a later `read` once they have seated.
 
 ## What `tier` means for PvP — Pak call
 
-`tier` is the host constant **`PVP_ROOM_TIER = 0`**, meaning "unranked PvP room". It is never client-supplied. PvP has no host-owned ladder, no stakes and no admission. The #118 meaning (the zero-based Arena tier index of an admitted match) has no PvP counterpart, so no sensible host-owned non-zero value exists today.
-
-**Pak call:** confirm that 0 means unranked, or name a host-owned PvP tier source (for example a future ranked-PvP ladder or pilot rank). A non-zero meaning should ship under a new schema version, so that today's `0` keeps a single meaning.
+`tier` is the host constant **`PVP_ROOM_TIER = 0`**, meaning "unranked PvP room". It is never client-supplied. PvP has no host-owned ladder, no stakes and no admission, and the #118 meaning (the zero-based Arena tier index of an admitted match) has no PvP counterpart. **Pak call:** confirm that 0 means unranked, or name a host-owned PvP tier source under a new schema version.
 
 ## Refusals
 
 | code | callable status | when |
 |---|---|---|
 | `unauthenticated` | unauthenticated | no `request.auth` |
-| `invalid_request` | invalid-argument | body is anything but `{roomId, holobotId}` with valid ids |
+| `invalid_request` | invalid-argument | body is not one of the two exact shapes |
 | `unknown_room` | not-found | no such room |
 | `not_participant` | permission-denied | the caller is in neither seat, or in both |
-| `room_closed` | failed-precondition | status is `completed` / `abandoned` / anything else |
+| `room_closed` | failed-precondition | `seat` on a `completed` / `abandoned` / other room |
 | `not_seated` | failed-precondition | that bot is not the seat's fighter or 3v3 lineup member |
 | `not_owned` | failed-precondition | the caller owns no such catalog bot |
-| `unavailable` | unavailable | corrupt profile record, level outside 1–99, corrupt stored `hostFighters` |
+| `unavailable` | unavailable | corrupt profile record, level outside 1–99, corrupt stored seats doc |
 
 Each refusal error carries `details.rejectionCode`.
 
-## Rules (`firestore.rules`, battle_rooms)
+## Trust boundary — stated plainly
 
-- `create` additionally requires `!('hostFighters' in request.resource.data)`.
-- `update` (participant or open-slot joiner) additionally requires that `diff().affectedKeys()` does not contain `hostFighters`. This covers adds, nested edits, `deleteField()` and whole-document replacements that drop the field.
-- Read and delete are unchanged. Ordinary play updates (heartbeat, stamina, moves, join) are unaffected because they never touch the field.
+- **What is host-minted and unforgeable.** Each snapshot is minted by the host and stored where no client can read or write it. It reaches clients only through the host's reply. At the room level, neither seat can write, edit or fake the other's (or its own) badge level, and the room doc's client-authored `players.*.level` is never a badge source. A new rules-tests file proves the server-only path is closed under the **existing, unchanged** rules.
+- **What stays client-authored, out of scope.** The `battle_rooms` doc itself: seats, `players.*` combat docs (level, stats, moves), turns and results remain client-written and client-resolved (SECURITY_AUDIT.md C4 / S7). The known-bad cell in the rules tests shows that a participant can still forge a level on the room doc. This lane neither fixes nor depends on that. PvP still has no host settlement or rewards.
+- **The level source is still owner-writable (S4).** The snapshot is built from `users/{uid}.holobots`. Under today's rules, `holobots` (including `level`, `experience`, `boostedAttributes`) and `inventory` are client-writable on purpose (firestore.rules economy-freeze comment, ~:86–91; neither is in `protectedFieldsUntouched`, ~:101–112). So a snapshot is only as authoritative as that field. A determined owner can raise their own stored level, and the host will mint it. The same gap already affects the #118 Arena snapshots and the desktop-account-3 level badges.
+- **Follow-up (not this lane):** protect `holobots` in `protectedFieldsUntouched` and move the client-side attribute-point spends to a callable. Protecting `holobots` today would break the web app's client-side attribute spends, and Pak has an open policy decision on that migration. The producer's `host-economy-hardening-1` lane is doing the census and phased plan; no rules change yet.
 
-## Trust boundary: what this does NOT do
+## Deploy (HELD — producer)
 
-- **Presentation only.** `players.*` combat docs, including their `level`, stats and moves, remain client-authored and client-resolved (SECURITY_AUDIT.md C4). PvP still has no host settlement or rewards. The badge level no longer comes from that doc, but combat still uses it.
-- **The level source is the stored account record.** `users/{uid}.holobots` is still owner-writable on purpose (firestore.rules economy-freeze comment: attribute-point spends). That is the same record Arena #118 admission reads. This lane closes **room** authorship and local-profile leakage: neither seat can write a level into the badge field, and a stale or local profile value never reaches it. It does **not** stop a determined owner from editing their own stored level. Freezing `holobots[].level` is a separate decision (Pak call).
-- **Old clients.** Old clients never write `hostFighters`, so they are unaffected. A client that replaced a whole room doc after a mint would now be denied. No current mobile client does that, since every post-create room write is a field update. The holobots-fun web client was not re-audited here.
-
-## Deploy order (HELD — producer)
-
-Deploy the rules **with or before** the function. If the function went live without the rules, its writes would work, but a client could also forge the field. The lite client works when the callable is missing: badges stay pending/absent and the room plays.
+Function only; there are no rules to deploy for this contract. The lite client works when the callable is missing: badges stay pending/absent and rooms play as before.
 
 ## Files
 
-- `functions/src/pvp/pvpRoomFighters.ts`: request guard, pure `mintPvpRoomFighter` ruling, seat reader, `transactPvpRoomFighter`.
+- `functions/src/pvp/pvpRoomFighters.ts`: request guard, pure `mintPvpRoomFighter` / `readPvpRoomFighters`, seats reader, `transactPvpRoomFighter`.
 - `functions/src/pvp/pvpRoomFighterHost.ts`: `onCall` wrapper. Exported from `functions/src/index.ts`.
-- `Schemas/pvp-room-fighters-1.json`: reply, plus `definitions.request` / `fighter` / `seat` / `roomHostFighters`.
+- `Schemas/pvp-room-fighters-1.json`: both replies, plus `definitions.request` / `fighter` / `seat` / `seats` / `seatsDoc`.
 - `functions/scripts/fixtures/pvp-room/room-fighters-1.json`: recorded from the loopback demo emulator run (provenance inside).
 - `functions/scripts/test-pvp-room-fighters.mjs`: unit test, wired into `npm test`.
 - `functions/scripts/test-pvp-room-fighters-emulator.mjs`: transaction test (`npm run test:pvp-room-fighters:emulator`).
-- `rules-tests/tests/battle-collections.test.ts`: the `battle_rooms hostFighters (host-only)` block.
+- `rules-tests/tests/pvp-room-seats.test.ts`: **new, test-only**. No existing rules or rules-tests file is modified.
 
 ## Evidence (cold checks, this branch)
 
-These ran in a scratch worktree with node_modules symlinked: no installs, no network, no real account. The functions `node_modules` available locally predates main's `ajv` devDependency, so `NODE_PATH` pointed at the cached rules-tests `node_modules` for `ajv`. CI's `npm ci` installs it normally.
+These ran in a scratch worktree with node_modules symlinked: no installs, no network, no real account. The locally available functions `node_modules` predates main's `ajv` devDependency, so `NODE_PATH` pointed at the cached rules-tests `node_modules` for `ajv`. CI's `npm ci` installs it.
 
+- `git diff 3b1e790 -- firestore.rules rules-tests/tests/battle-collections.test.ts rules-tests/src` is **empty**: no rules or existing rules-test change.
 - `npm run build`: green. `npm run check:shared`: 3 shared files in sync.
-- `npm test`: **318 tests, 317 passed, 0 failed, 1 skipped**. The base main 3b1e790 gives 312 / 311 / 0 / 1; this branch adds 6 tests in `test-pvp-room-fighters.mjs`. The known-bad control runs first: the client-authored room holds local levels 99 / 50 against host levels ACE 21 / KUMA 12, with no host field.
-- Emulator, functions: `test-pvp-room-fighters-emulator.mjs` **4/4 passed**, about 9 s including emulator startup. It ran twice: the first run recorded the fixture, and the final run used the final code. The final run's recorded output is identical to the committed fixture except for the auto room ID. Setup: cached Firestore emulator v1.19.8 (no download), project `demo-holobots-pvp-fighters`, 127.0.0.1:8293 scratch config, fixed disposable demo uids, rooms and users deleted after the run.
-- Emulator, rules: the full rules-tests suite gives **18 files, 109/109 passed** (battle-collections has 25, 5 of them new). **Known-bad control:** the same battle-collections file against main's unchanged `firestore.rules` gives **4 failed / 21 passed**. The 4 failures are exactly the new forge cases: create-with-field, add, modify/replace/delete, joiner forge. So the old rules let a client forge `hostFighters`. Run on project `demo-holobots-rules-pvp`, same scratch config.
-- Not run: deploy (HELD, producer) and a live two-account witness (HELD, needs deploy and two real accounts).
+- `npm test`: **320 tests, 319 passed, 0 failed, 1 skipped**. Base main 3b1e790 gives 312 / 311 / 0 / 1; this branch adds 8 tests in `test-pvp-room-fighters.mjs`. They cover: known-bad control, fixture replay, frozen replay, stale-seat drop, 23-case seat refusal table, read refusals, request guard, schema.
+- Emulator, functions: `test-pvp-room-fighters-emulator.mjs` **5/5**. It covers known-bad; create → seat → join → seat → read with the room doc unchanged by the host; refusals with no writes; 3v3; and reused room id. The final run's recorded output is identical to the committed fixture apart from the auto room id. Setup: cached Firestore v1.19.8 (no download), project `demo-holobots-pvp-fighters`, 127.0.0.1:8293 scratch config, fixed disposable demo uids, rooms, seats and users deleted after the run.
+- Emulator, rules: the full rules-tests suite gives **19 files, 107/107** against the existing rules. The new `pvp-room-seats.test.ts` has 3 tests: the known-bad room-doc forge succeeds; every client write to `pvpRoomSeats` is denied; every client read and list is denied. Project `demo-holobots-rules-pvp`.
+- Not run: deploy (HELD, producer) and a live two-account witness (HELD, needs the deploy and two real accounts).

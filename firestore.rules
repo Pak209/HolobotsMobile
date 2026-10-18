@@ -311,17 +311,9 @@ service cloud.firestore {
           && resource.data.get(['players', 'p2', 'uid'], '') == ''
           && request.resource.data.get(['players', 'p2', 'uid'], '') == request.auth.uid;
       }
-      // pvp-room-fighters-1: hostFighters holds host-minted level snapshots,
-      // written ONLY by pvpRoomFighterHost (Admin SDK). No client may create
-      // a room carrying it, or add, modify, replace or delete it afterwards.
-      function touchesHostFighters() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasAny(['hostFighters']);
-      }
       allow read: if isSignedIn();
-      allow create: if isParticipant(request.resource.data)
-        && !('hostFighters' in request.resource.data);
-      allow update: if (isParticipant(resource.data) || isJoiningOpenSlot())
-        && !touchesHostFighters();
+      allow create: if isParticipant(request.resource.data);
+      allow update: if isParticipant(resource.data) || isJoiningOpenSlot();
       allow delete: if isParticipant(resource.data);
     }
 
