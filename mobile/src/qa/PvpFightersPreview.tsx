@@ -4,13 +4,13 @@ import { PvpSeatBadges } from "@/components/arena/PvpSeatBadges";
 import { theme } from "@/theme";
 import { pvpFightersFixtures } from "./pvpFightersFixtures";
 
-/** Offline QA routes for lite PvP level badges (holobotsmobile://qa/PvpFighters…). Recorded host replies only; no host call. */
+/** Offline QA routes for lite PvP level badges (holobotsmobile://qa/PvpFighters…). Recorded replies only; no network call. */
 export const pvpFightersPreviewScreens = Object.fromEntries(Object.entries(pvpFightersFixtures).map(([name, cell]) => [
   name,
   function PvpFightersPreview() {
     return (
       <View style={styles.root}>
-        <Text style={styles.banner}>QA / OFFLINE / NO CITY CALL</Text>
+        <Text style={styles.banner}>QA / OFFLINE / RECORDED REPLIES</Text>
         <Text style={styles.title}>{`PVP LEVELS · ${cell.title}`}</Text>
         <Text style={styles.caption}>{cell.caption}</Text>
         <Text style={styles.section}>ROOM PANEL</Text>

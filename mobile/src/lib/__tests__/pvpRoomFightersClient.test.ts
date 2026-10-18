@@ -44,23 +44,23 @@ describe("pvpRoomFighterHost client", () => {
     expect(fake.calls).toEqual([["pvpRoomFighterHost", { operation: "read", roomId: ROOM }]]);
     expect(outcome).toEqual({ status: "ready", reply: R.readP1 });
     const view = fold([R.seatP1, outcome.status === "ready" ? outcome.reply : null]);
-    expect(pvpSeatBadge(view, fixture.knownBad.room, "p2", "KUMA", false)).toMatchObject({ kind: "host", text: "LV 12" });
+    expect(pvpSeatBadge(view, fixture.knownBad.room, "p2", "KUMA", false)).toMatchObject({ kind: "level", text: "LV 12" });
   });
 
-  it("NOT DEPLOYED: a missing callable resolves (never throws), so the room plays on with absent badges", async () => {
+  it("NOT DEPLOYED: a missing callable resolves (never throws), so the room plays on with no level tab", async () => {
     fake.reply = async () => { throw hostError("functions/not-found"); };
     const seat = await seatHostFighters(pvpRoomFighterCallForUid(UID), ROOM, ["ACE"]);
     expect(seat).toEqual({ status: "unavailable", reason: "not_deployed", replies: [] });
     await expect(readHostFighters(pvpRoomFighterCallForUid(UID), ROOM)).resolves.toEqual({ status: "unavailable", reason: "not_deployed" });
-    // What the cards then show for the room the client wrote itself: no host level, and never the local 99 / 50.
+    // What the cards then show for the room the client wrote itself: no tab at all, and never the local 99 / 50.
     for (const [role, name] of [["p1", "ACE"], ["p2", "KUMA"]] as const) {
-      expect(pvpSeatBadge(fold(seat.replies), fixture.knownBad.room, role, name, false)).toMatchObject({ kind: "absent", text: "LV —" });
+      expect(pvpSeatBadge(fold(seat.replies), fixture.knownBad.room, role, name, false)).toBeNull();
     }
   });
 
   it("a refused bot does not stop the lineup, and the City still counts as answering (opponent reads may run)", async () => {
     fake.reply = async (request) => {
-      if ((request as { holobotId?: string }).holobotId === "ace") throw hostError("functions/unavailable", "unavailable"); // e.g. stored level 120
+      if ((request as { holobotId?: string }).holobotId === "ace") throw hostError("functions/failed-precondition", "profile_invalid"); // e.g. stored level 120
       return R.seatP1;
     };
     const outcome = await seatHostFighters(pvpRoomFighterCallForUid(UID), ROOM, ["ACE", "HARE"]);
@@ -78,7 +78,8 @@ describe("pvpRoomFighterHost client", () => {
       [hostError("functions/not-found", "unknown_room"), "refused"],
       [hostError("functions/permission-denied", "not_participant"), "refused"],
       [hostError("functions/failed-precondition", "not_owned"), "refused"],
-      [hostError("functions/unavailable", "unavailable"), "refused"],
+      [hostError("functions/failed-precondition", "profile_invalid"), "refused"],
+      [hostError("functions/data-loss", "seats_invalid"), "refused"],
       [hostError("functions/unavailable"), "offline"],
       [hostError("functions/deadline-exceeded"), "offline"],
       [new Error("network down"), "offline"],

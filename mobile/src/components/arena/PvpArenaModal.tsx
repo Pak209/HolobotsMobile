@@ -375,8 +375,8 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                     <Image source={selectedHolobot.imageSource} style={styles.holobotArt} resizeMode="contain" />
                     <View style={styles.holobotBody}>
                       <Text style={styles.holobotName}>{selectedHolobot.name}</Text>
-                      {/* PLACEHOLDER copy (DECISIONS #71: "the City", never "host"; Lex finalizes). */}
-                      <Text style={styles.holobotMeta}>The City sets your level in the room - Tap to change Holobot</Text>
+                      {/* No level here: a seat snapshot exists only inside a room, and no local level is shown. */}
+                      <Text style={styles.holobotMeta}>Tap to change Holobot</Text>
                     </View>
                   </Pressable>
                 ) : (

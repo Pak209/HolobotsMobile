@@ -1,10 +1,13 @@
-# Lite PvP fighters — host-snapshot level badges
+# Lite PvP fighters — seat-snapshot level badges
 
 Client half of lane `lite-pvp-fighters-1`. Base: mobile-holocity-lite c187921 (after #131/#132/#133).
 
-The host half is the Contract-Change PR into main, [#136](https://github.com/Pak209/HolobotsMobile/pull/136) (`claude/lite-pvp-fighters-1-host`, 4c2d5d4). It adds callable `pvpRoomFighterHost` and is not deployed. Snapshots live in the **server-only** `pvpRoomSeats/{roomId}` doc: there is no client rule, so the default deny applies. Both seats reach clients only in the callable's replies. **No `firestore.rules` change.** Full contract: that PR's `Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md`.
+The host half is the Contract-Change PR into main, [#136](https://github.com/Pak209/HolobotsMobile/pull/136) (`claude/lite-pvp-fighters-1-host`). It adds callable `pvpRoomFighterHost` and is not deployed. Snapshots live in the **server-only** `pvpRoomSeats/{roomId}` doc: there is no client rule, so the default deny applies. Both seats reach clients only in the callable's replies. **No `firestore.rules` change.** Full contract: that PR's `Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md`.
 
-This closes the LIVE PVP cell held by lite-arena-levels-1 (#119/#121): PvP cards now badge their level **only** from host replies.
+**Scope:**
+
+- **Closed:** room-level forgery. PvP cards badge their level only from the seat snapshot the host minted, never from the client-written room doc or the local profile.
+- **Open (S4):** the host mints ownership and level from the owner-writable `users/{uid}.holobots`. So the copy here makes no claim that the City vouches for the level, and the LIVE PvP cell is not fully closed until S4 is.
 
 ## What changed
 
@@ -12,13 +15,18 @@ This closes the LIVE PVP cell held by lite-arena-levels-1 (#119/#121): PvP cards
   - `seatHostFighters` sends `{operation:"seat", roomId, holobotId}` for each distinct lineup bot, one at a time.
   - `readHostFighters` sends `{operation:"read", roomId}`.
   - Neither sends a level, uid, role or tier, and neither throws.
-  - A missing callable (`functions/not-found` without `details.rejectionCode`) becomes `not_deployed`. Host refusals (with a `rejectionCode`, including `unknown_room`) become `refused`. Outages become `offline`.
+  - A missing callable (`functions/not-found` without `details.rejectionCode`) becomes `not_deployed`. Host refusals (with a `rejectionCode`) become `refused`. Outages become `offline`.
+  - A refusal of one lineup bot does not stop the rest.
   - A reply that arrives after a session change is dropped.
-- **Seat refusals.** A refusal of one lineup bot (e.g. a stored level above 99) does not stop the rest. `"ready"` means the City answered every call; only a missing callable, an outage or a session change is `"unavailable"`.
+- **State.** `lib/pvpHostSeatState.ts` is a pure reducer used by the hook:
+  - Late answers for a room I left are dropped.
+  - Replies are never folded after a session change, even ones received before it.
+  - Opponent re-reads are counted per (room, opponent uid, opponent bot): at most 4 (1.5/3/6/12 s), kept across 3v3 switches.
+  - Reads stop at once after a refusal, an outage or a missing host.
+  - `pvpSeatHolobotNames` builds `joinRoomById`'s seat names and never throws on a malformed room.
 - **Hook.** `hooks/useRealtimeArena.ts`:
-  - After each seat write (createRoom, joinRoom, matchmaking `created`, joinRoomById), it seats my lineup fire-and-forget and folds the replies into `hostView`.
-  - The opponent's snapshot exists only once they have seated, so it re-reads at most 4 times (1.5 / 3 / 6 / 12 s). It stops at once if the host refuses, is offline or is missing.
-  - Attempts are counted per (room, opponent uid, opponent bot). Stamina and heartbeat writes do not reset the timer, and a 3v3 switch back to a bot keeps its spent budget.
+  - After each seat write (createRoom, joinRoom, matchmaking `created`, joinRoomById), it seats my lineup fire-and-forget.
+  - The read timer is keyed on stable values only, so stamina and heartbeat writes do not reset it.
   - **The room never waits on or fails because of the host.**
 - **Reader.** `lib/bots/pvpFighterLevel.ts`:
   - `mergePvpHostReply` folds only pvp-room-fighters-1 seat/read replies for this exact room.
@@ -26,82 +34,65 @@ This closes the LIVE PVP cell held by lite-arena-levels-1 (#119/#121): PvP cards
     - the same room id;
     - the view's seat uid equals the uid now in that room seat;
     - an own-property key for the displayed bot;
-    - an exact four-field `{holobotId, level, displayName, tier}` snapshot;
+    - an exact four-field snapshot;
     - an integer tier 0–1000000 and an integer level 1–99.
-  - `players.*.level` (client-authored), the local profile and any field on the room doc are never sources.
-  - `pvpSeatBadge` prints `LV n` from the host, `LV …` while pending (my call out, or opponent reads left), and `LV —` otherwise. There is no local-level fallback.
-- **DECISIONS #71.**
-  - On screen the authority is "the City", never "host". This covers the lobby line ("The City sets your level in the room"), the badge screen-reader labels and the QA captions, all marked PLACEHOLDER until Lex.
-  - The LV badge is a tab on the lower-left corner of each seat card's portrait.
+  - `players.*.level`, the local profile and any field on the room doc are never sources.
+- **Badge.** `pvpSeatBadge` prints `LV n` (screen reader: "Level n") or `LV …` ("Level pending") while a snapshot may still land. Otherwise it renders **no tab at all**: never a bare `—` (lite critic L22, the rule #142 applies to Home). The copy is neutral, with no "host" (DECISIONS #71) and no "from the City" claim (S4). It is PLACEHOLDER until Lex.
 - **UI.**
-  - `components/arena/PvpSeatBadges.tsx` (new) shows YOU and RIVAL seat cards.
-  - `PvpArenaModal.tsx` uses it in the room panel and under the live-battle top bar.
-  - The lobby card's local `Lv ${selectedHolobot.level}` is **removed**; it now reads "Level is set by the host in the room".
-  - `BattleArenaView.tsx` is untouched. Its HUD `HostLevelBadge` gets no PvP host props, so it stays blank in PvP.
-- **QA.** Offline routes `PvpFightersKnownBad` → `PvpFightersPending` → `PvpFightersCity` (`qa/PvpFightersPreview.tsx`, `qa/pvpFightersFixtures.ts`). They are registered with a one-line spread in `HoloCityPreview.tsx`, after the Marketplace routes. They use recorded host replies only and make no host call.
-- **Fixture.** `qa/fixtures/pvp-room-fighters-1.json` is **copied verbatim** from host commit 4c2d5d4, `functions/scripts/fixtures/pvp-room/room-fighters-1.json`. That file was recorded from a loopback demo emulator run of the real host. Pins:
+  - `components/arena/PvpSeatBadges.tsx` shows YOU and RIVAL seat cards. Each has a portrait with the LV tab in its lower-left corner (DECISIONS #71 item 10).
+  - `PvpArenaModal.tsx` uses the cards in the room panel and under the live-battle top bar.
+  - The lobby card's local `Lv ${selectedHolobot.level}` is **removed**; it now reads just "Tap to change Holobot".
+  - `BattleArenaView.tsx` is untouched.
+- **QA.** Offline routes `PvpFightersKnownBad` → `PvpFightersPending` → `PvpFightersSeated` (`qa/PvpFightersPreview.tsx`, `qa/pvpFightersFixtures.ts`), registered with a one-line spread in `HoloCityPreview.tsx`. They use recorded replies only and make no network call.
+- **Fixture.** `qa/fixtures/pvp-room-fighters-1.json` is **copied verbatim** from host commit 4c2d5d4. Host 3f56a22 left it byte-identical. Pins:
   - sha256 `27f2c55082ffcbf31b0efb899671bdac160cd3c20c6e2c288ce471080cfa673c` (asserted by a test)
   - git blob `64463b19e97ab2dcd9144e9b399e5d446f4954a0`
-- `types/battle-room.ts` is unchanged: the room doc carries nothing new, and `BATTLE_ROOM_RULES_VERSION` stays 3.
-
-Untouched on purpose:
-
-- `BattleArenaView.tsx`.
-- `ArenaScreen.tsx`, `arenaMatchFlow.ts`, `arenaMatchClient.ts` and the other files of open #139 (lite-3v3-prep-1).
-- `pvpMatchmaking.ts`, `pvpBattle.ts`.
-- `firestore.rules`.
+- `types/battle-room.ts` is unchanged, and `BATTLE_ROOM_RULES_VERSION` stays 3.
 
 ## Trust boundary
 
-- **Unforgeable at the room level.** Snapshots are host-minted and stored where no client can read or write them. No seat can put a level on the other's badge, or on its own.
-- **Still client-authored, out of scope.** The `battle_rooms` doc itself: `players.*` combat docs, levels and stats (C4/S7).
-- **The level source is still owner-writable (S4).** The host mints from `users/{uid}.holobots`, which owners can edit under today's rules. This is the same source the #118 Arena snapshots and the desktop-account-3 badges read.
-- **Follow-up:** protect `holobots` and move the attribute spends to a callable. The producer's host-economy-hardening-1 lane is doing the census and phased plan; no rules change yet.
+- **Clients cannot forge the stored seat itself.** It is minted by the host into a doc no client can read or write.
+- **Not authoritative yet.** Ownership AND level come from the owner-writable profile (S4). An owner can add a bot or raise a level and the host will mint it.
+- **Follow-up:** protect `holobots` and move attribute spends to a callable (host-economy-hardening-1, #143 census). Deploy and any City-labelled badge are gated on that, or on marking reply provenance owner-profile / unverified. The decision is the producer's.
+- The `battle_rooms` doc itself stays client-authored (C4/S7).
 
 ## Checks
 
 - **Known-bad first.**
-  - The fixture's client-written room carries local levels ACE 99 / KUMA 50. With no City reply, the reader returns `undefined` and every badge is `LV …` or `LV —`, never a digit.
+  - The fixture's client-written room carries local levels ACE 99 / KUMA 50. With no seat reply, the reader returns `undefined` and the card shows no tab.
   - A host-looking field forged onto the room doc is ignored.
-  - The source guard (no `.level` and no `Lv ${` in `PvpArenaModal.tsx` / `PvpSeatBadges.tsx`) failed against the original modal before the change.
-- New vitest: **62 tests**.
-  - `pvpFighterLevel.test.ts` (43): fixture pin, known-bad, accept cases, 33-row refusal table, merge rules, presenter states, bounded re-read pacing, #71 copy and corner tab, source guard.
-  - `pvpRoomFightersClient.test.ts` (7): exact seat/read bodies, the **not-deployed path** (resolves, `LV —`, room unaffected), per-bot refusals, refusal-vs-outage table, session drop, empty inputs.
-  - `pvpFightersPreviewRoutes.test.ts` (12): routes, deep links, cells, #71 copy.
-- Full `npx vitest run`: **78 files passed, 1 skipped; 749 tests passed, 4 skipped, 0 failed** (687 existing + 62 new). `npx tsc --noEmit`: green.
-- **Adversarial self-review** (read-only workflow: 4 lens critics plus 6 skeptics). It produced 8 candidate findings.
-  - Confirmed: this README was stale, and the opponent re-read budget reset on a 3v3 switch. Both are fixed.
-  - Refuted: the own-roster LV in the shared picker, which matches the repo's accepted own-roster pattern (lite-arena-levels-1).
-  - Hardened anyway on the host: seat-swap tampering, now that storage is uid-keyed.
-  - Not verified, but fixed: per-bot seat refusals.
-- These ran in a sparse scratch worktree with symlinked `node_modules`. No installs, no network, no real account.
+  - The source guard (no `.level` and no `Lv ${` in the modal or the seat cards) failed against the original modal before the change.
+- New vitest: **72 tests**.
+  - `pvpFighterLevel.test.ts` (44): fixture pin, known-bad, accept cases, 33-row refusal table, merge, presenter (no tab when absent), pacing, a player-visible-string scan with a control showing it is not vacuous, no bare dash, corner tab, source guard.
+  - `pvpHostSeatState.test.ts` (8): at most 4 reads per (room, uid, bot), a 3v3 switch back keeps the budget, stop on the snapshot, no reads after refused/offline/missing host, late answers dropped, session change never folded, refused bot still counts as answered, never-throw names.
+  - `pvpRoomFightersClient.test.ts` (7): exact bodies, the not-deployed path (resolves, no tab, room unaffected), per-bot refusals, refusal-vs-outage table, session drop, empty inputs.
+  - `pvpFightersPreviewRoutes.test.ts` (13).
+- Full `npx vitest run`: **79 files passed, 1 skipped; 759 tests passed, 4 skipped, 0 failed** (687 existing + 72 new). `npx tsc --noEmit`: green.
+- These ran in a sparse scratch worktree with symlinked `node_modules`. No installs, no network, no real account, and no fetch into `origin/*`. Tips were checked with `gh api`.
+- **Reviews.**
+  - Round 1, a read-only critic workflow: the README was stale and the read budget reset per switch. Both fixed.
+  - Round 2, the coordinator: copy overclaim, the `LV —` absent state, the untested hook loop, and three LOWs. All fixed here.
 
 ## Simulator witness
 
-**PASSED, one bounded attempt.**
+**PASSED at 0ef7903, one bounded attempt (this lane's only one).** iPhone 17 Pro / iOS 26.5, the cached `fun.holobots.mobile.w64` app, offline Metro (`iOS Bundled 8753ms`, no redbox). Cells, known-bad first: LV — / LV —, then LV 21 / LV …, then LV 21 / LV 12. Each tab sat on the portrait's lower-left corner. Evidence: `~/HolobotsVault/QA/2026-10-17-lite-pvp-fighters-1/GATE_SHEET.png`.
 
-- Simulator: iPhone 17 Pro / iOS 26.5, `70B47994-793B-44B3-BCF6-2CBE9519EF36`, already booted.
-- App: the cached `fun.holobots.mobile.w64`, launched once with `simctl launch`. No build, no install, no account.
-- Metro: offline from this branch's tree (`node_modules` symlinked from the lite checkout):
-  - Command: `CI=1 EXPO_OFFLINE=1 EXPO_PUBLIC_HOLOCITY_PREVIEW=1 EXPO_PUBLIC_HOLOCITY_PREVIEW_SCREEN=PvpFightersKnownBad expo start --offline --port 8081 --clear`.
-  - Result: `iOS Bundled 8753ms index.js (1624 modules)`. No redbox.
+**Changed since, and covered by tests only.** No second witness was run, per the one-per-lane rule:
 
-Cells, known-bad first:
-
-1. `PvpFightersKnownBad`: **LV — / LV —**. The room's local 99 / 50 never shows.
-2. `holobotsw64://qa/PvpFightersPending`: **LV 21 / LV …**.
-3. `holobotsw64://qa/PvpFightersCity`: **LV 21 / LV 12**.
-
-Every LV tab sits on the portrait's lower-left corner, and on-screen copy says City. Cleanup: app terminated, Metro stopped, port 8081 clear, simulator left booted as found.
-
-Evidence is in `~/HolobotsVault/QA/2026-10-17-lite-pvp-fighters-1/`: GATE_SHEET.png (1356×1025), inventory.json, the three cells and metro.log. This proves the presentation of recorded City replies, not a live two-account room.
+- The known-bad cell now shows **no tab** instead of `LV —`.
+- The third route is renamed `PvpFightersSeated`.
+- The captions and banner are neutral.
 
 ## HELD
 
-- **Deploy** of #136's function: the producer's. There are no rules to deploy. Until then, every PvP badge shows `LV …` then `LV —`, and rooms play exactly as before.
-- **Live two-account witness** (create → join → both badges from the City): needs the deploy and two real accounts.
+- **Deploy** of #136's function: the producer's. It is gated (see Trust boundary), and there are no rules to deploy. Until then, PvP cards briefly show `LV …`, then no tab, and rooms play exactly as before.
+- **Live two-account witness** (create → join → both badges): needs the deploy and two real accounts.
+
+## Merge notes
+
+`HoloCityPreview.tsx` gets one import plus one spread line here. Open #139 and #142 also edit that file. Resolve the conflict by keeping every import and spread, with this lane's first.
 
 ## Pak calls (from the host contract)
 
-- `tier` for PvP is the host constant `0`, meaning "unranked room". Confirm this, or name a host-owned tier source.
-- Protecting `users/{uid}.holobots` (S4) is a policy decision: the web app's attribute spends need a migration first.
+- PvP `tier` is the host constant `0`, meaning "unranked room". It is pinned in the schema so it cannot be read as the #118 Arena tier 0. Confirm this, or name a host-owned tier source.
+- S4: protecting `users/{uid}.holobots` is a policy decision, because the web app's attribute spends need a migration first.

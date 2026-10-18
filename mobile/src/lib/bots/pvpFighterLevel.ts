@@ -49,17 +49,19 @@ export function pvpFighterLevel(view: unknown, room: unknown, role: PvpSeatRole,
   return fighter.level as number;
 }
 
-/** My seat's host call: idle (no room), pending (asked), ready (host answered), unavailable (not deployed / refused / offline). */
+/** My seat's host call: idle (no room), pending (asked), ready (the host answered), unavailable (not deployed / offline / session changed). */
 export type PvpHostFighterStatus = 'idle' | 'pending' | 'ready' | 'unavailable';
-export type PvpSeatBadge = { kind: 'host' | 'pending' | 'absent'; text: string; accessibilityLabel: string };
+export type PvpSeatBadge = { kind: 'level' | 'pending'; text: string; accessibilityLabel: string };
 
-/** The only PvP level a card may print. Host value, or an honest pending/absent state; never a local level.
- * PLACEHOLDER copy (DECISIONS #71: on screen the authority is "the City", never "host"; Lex finalizes). */
-export function pvpSeatBadge(view: unknown, room: unknown, role: PvpSeatRole, holobotName: string | null | undefined, pending: boolean): PvpSeatBadge {
+/**
+ * The only PvP level a card may print: the seat snapshot's level, a transient "LV …" while it may still land, or
+ * NOTHING (null: no tab at all, never a bare "—"; lite critic L22). Neutral copy on purpose: the minted level comes
+ * from the owner-writable profile until S4 closes, so no string claims the City vouches for it. PLACEHOLDER (Lex).
+ */
+export function pvpSeatBadge(view: unknown, room: unknown, role: PvpSeatRole, holobotName: string | null | undefined, pending: boolean): PvpSeatBadge | null {
   const level = pvpFighterLevel(view, room, role, holobotName);
-  if (level !== undefined) return { kind: 'host', text: levelBadge(level)!, accessibilityLabel: `Level ${level}, from the City` };
-  if (pending) return { kind: 'pending', text: 'LV …', accessibilityLabel: 'Level pending from the City' };
-  return { kind: 'absent', text: 'LV —', accessibilityLabel: 'Level not available from the City' };
+  if (level !== undefined) return { kind: 'level', text: levelBadge(level)!, accessibilityLabel: `Level ${level}` };
+  return pending ? { kind: 'pending', text: 'LV …', accessibilityLabel: 'Level pending' } : null;
 }
 
 /** Bounded re-reads for the opponent's snapshot, which lands only after THEY seat: about 22 s in all, then absent. */

@@ -6,13 +6,14 @@ import { theme } from "@/theme";
 import type { BattleRoom, PlayerRole } from "@/types/battle-room";
 
 /**
- * PvP seat cards: each seat's live Holobot with ONLY the City-minted level (pvp-room-fighters-1 replies).
- * DECISIONS #71 (10): the LV badge is a tab on the portrait's lower-left corner.
+ * PvP seat cards: each seat's live Holobot with ONLY the seat-snapshot level from pvp-room-fighters-1 replies.
+ * DECISIONS #71 (10): the LV badge is a tab on the portrait's lower-left corner. With no snapshot there is no tab
+ * at all (lite critic L22: no bare placeholder).
  */
 export function PvpSeatBadges({ room, myRole, view, pending, compact = false }: {
   room: BattleRoom;
   myRole: PlayerRole;
-  /** Merged pvpRoomFighterHost replies; null until the City answers (or when it is not deployed). */
+  /** Merged pvpRoomFighterHost replies; null until it answers (or while it is not deployed). */
   view: PvpHostView | null;
   pending: Record<PlayerRole, boolean>;
   compact?: boolean;
@@ -28,7 +29,7 @@ export function PvpSeatBadges({ room, myRole, view, pending, compact = false }: 
             <View style={[styles.portrait, compact && styles.portraitCompact]}>
               {name ? <Image source={getHolobotFullImageSource(name)} style={styles.art} resizeMode="contain" /> : null}
               {badge ? (
-                <Text accessibilityLabel={badge.accessibilityLabel} style={[styles.tab, badge.kind !== "host" && styles.tabMuted]}>
+                <Text accessibilityLabel={badge.accessibilityLabel} style={[styles.tab, badge.kind === "pending" && styles.tabMuted]}>
                   {badge.text}
                 </Text>
               ) : null}

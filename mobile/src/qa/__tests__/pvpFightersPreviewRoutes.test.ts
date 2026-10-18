@@ -11,12 +11,12 @@ import { pvpSeatBadge } from "../../lib/bots/pvpFighterLevel";
 const screens = { Home: null, ...Object.fromEntries(PVP_FIGHTERS_PREVIEW_ROUTES.map((name) => [name, null])) };
 const badges = (name: keyof typeof pvpFightersFixtures) => {
   const cell = pvpFightersFixtures[name];
-  return (["p1", "p2"] as const).map((role) => pvpSeatBadge(cell.view, cell.room, role, cell.room.players[role].holobotName, cell.pending[role]).text);
+  return (["p1", "p2"] as const).map((role) => pvpSeatBadge(cell.view, cell.room, role, cell.room.players[role].holobotName, cell.pending[role])?.text ?? null);
 };
 
 describe("lite PvP level-badge offline QA routes", () => {
   it("registers three cells, known-bad first, in the preview registry", () => {
-    expect(PVP_FIGHTERS_PREVIEW_ROUTES).toEqual(["PvpFightersKnownBad", "PvpFightersPending", "PvpFightersCity"]);
+    expect(PVP_FIGHTERS_PREVIEW_ROUTES).toEqual(["PvpFightersKnownBad", "PvpFightersPending", "PvpFightersSeated"]);
     expect(Object.keys(pvpFightersFixtures)).toEqual([...PVP_FIGHTERS_PREVIEW_ROUTES]);
     expect(readFileSync(path.resolve(__dirname, "../HoloCityPreview.tsx"), "utf8")).toContain("...pvpFightersPreviewScreens,");
   });
@@ -25,18 +25,18 @@ describe("lite PvP level-badge offline QA routes", () => {
     expect(previewScreenFromUrl(`holobotsmobile://qa/${name}`, screens)).toBe(name);
     expect(previewScreenFromUrl(`holobotsw64://qa/${name}`, screens)).toBe(name);
   });
-  it.each(["PvpFighters", "pvpfighterscity", "PvpFightersHost", "PvpFightersCity?uid=real", "PvpFightersCity/extra", "__proto__"])("rejects %s", (name) => {
+  it.each(["PvpFighters", "pvpfightersseated", "PvpFightersHost", "PvpFightersCity", "PvpFightersSeated?uid=real", "PvpFightersSeated/extra", "__proto__"])("rejects %s", (name) => {
     expect(previewInitialScreen(name, screens)).toBe("Home");
     expect(previewScreenFromUrl(`holobotsmobile://qa/${name}`, screens)).toBeNull();
   });
-  it("cells: known-bad shows no level at all; pending shows only YOU; host shows both host levels", () => {
+  it("cells: known-bad shows no level tab at all; pending shows YOU and LV … for RIVAL; seated shows both levels", () => {
     expect(pvpFightersFixtures.PvpFightersKnownBad.room.players.p1.level).toBe(99); // The local value the cell must not print.
-    expect(badges("PvpFightersKnownBad")).toEqual(["LV —", "LV —"]);
+    expect(badges("PvpFightersKnownBad")).toEqual([null, null]);
     expect(badges("PvpFightersPending")).toEqual(["LV 21", "LV …"]);
-    expect(badges("PvpFightersCity")).toEqual(["LV 21", "LV 12"]);
+    expect(badges("PvpFightersSeated")).toEqual(["LV 21", "LV 12"]);
   });
-  it("DECISIONS #71: no cell title, caption or banner says host on screen", () => {
-    for (const cell of Object.values(pvpFightersFixtures)) expect(`${cell.title} ${cell.caption}`).not.toMatch(/host/i);
-    expect(readFileSync(path.resolve(__dirname, "../PvpFightersPreview.tsx"), "utf8")).toContain("QA / OFFLINE / NO CITY CALL");
+  it("DECISIONS #71 / S4: no cell title or caption says host or claims City authority", () => {
+    for (const cell of Object.values(pvpFightersFixtures)) expect(`${cell.title} ${cell.caption}`).not.toMatch(/host|city/i);
+    expect(readFileSync(path.resolve(__dirname, "../PvpFightersPreview.tsx"), "utf8")).toContain("QA / OFFLINE / RECORDED REPLIES");
   });
 });

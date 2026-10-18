@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -40,13 +40,12 @@ import {
 } from "@/features/arena/pvpTeamBattle";
 import { claimOpponentAndCreateRoom, isFreshPoolEntry } from "@/lib/pvpMatchmaking";
 import {
-  mergePvpHostReply,
-  pvpOpponentReadDelay,
-  pvpSeatPending,
-  PVP_OPPONENT_READ_DELAYS_MS,
-  type PvpHostFighterStatus,
-  type PvpHostView,
-} from "@/lib/bots/pvpFighterLevel";
+  pvpHostSeatPending,
+  pvpHostSeatReducer,
+  pvpNextOpponentRead,
+  pvpSeatHolobotNames,
+  PVP_HOST_SEAT_IDLE,
+} from "@/lib/pvpHostSeatState";
 import { pvpRoomFighterCallForUid, readHostFighters, seatHostFighters } from "@/lib/pvpRoomFightersClient";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
@@ -126,11 +125,9 @@ export function useRealtimeArena() {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const staminaRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const poolEntryIdRef = useRef<string | null>(null);
-  const [hostFighterStatus, setHostFighterStatus] = useState<PvpHostFighterStatus>("idle");
-  const [hostView, setHostView] = useState<PvpHostView | null>(null);
-  // Re-read attempts per (room, opponent uid, opponent bot): a 3v3 switch back to a bot keeps its spent budget.
-  const [opponentReads, setOpponentReads] = useState<Record<string, number>>({});
-  const hostSeatRoomRef = useRef<string | null>(null);
+  // pvp-room-fighters-1 seat calls, as a pure reducer (lib/pvpHostSeatState.ts): late answers for a room I left
+  // are dropped there, and opponent re-reads are counted per (room, opponent uid, opponent bot).
+  const [hostSeats, dispatchHostSeats] = useReducer(pvpHostSeatReducer, PVP_HOST_SEAT_IDLE);
 
   const findHolobot = useCallback(
     (holobotName: string): UserHolobot => {
@@ -176,15 +173,11 @@ export function useRealtimeArena() {
   // not-yet-deployed host leaves the badges absent and never blocks or fails the room.
   const requestHostFighters = useCallback((roomId: string, holobotNames: string[]) => {
     if (!user) return;
-    hostSeatRoomRef.current = roomId;
-    setHostView(null);
-    setHostFighterStatus("pending");
-    void seatHostFighters(pvpRoomFighterCallForUid(user.uid), roomId, holobotNames).then((outcome) => {
-      if (hostSeatRoomRef.current !== roomId) return;
-      setHostView((view) => outcome.replies.reduce<PvpHostView | null>((next, reply) => mergePvpHostReply(next, reply, roomId), view));
-      // "ready" = the host answered (a refused bot just stays absent), so opponent reads may run.
-      setHostFighterStatus(outcome.status === "ready" || outcome.replies.length > 0 ? "ready" : "unavailable");
-    });
+    dispatchHostSeats({ type: "seat_started", roomId });
+    Promise.resolve()
+      .then(() => seatHostFighters(pvpRoomFighterCallForUid(user.uid), roomId, holobotNames))
+      .catch(() => ({ status: "unavailable" as const, reason: "offline" as const, replies: [] }))
+      .then((outcome) => dispatchHostSeats({ type: "seat_resolved", roomId, outcome }));
   }, [user]);
 
   const cleanup = useCallback(() => {
@@ -199,10 +192,7 @@ export function useRealtimeArena() {
     setRoom(null);
     setMyRole(null);
     setMatchmakingStatus("idle");
-    hostSeatRoomRef.current = null;
-    setHostFighterStatus("idle");
-    setHostView(null);
-    setOpponentReads({});
+    dispatchHostSeats({ type: "reset" });
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
@@ -287,36 +277,35 @@ export function useRealtimeArena() {
     };
   }, [myRole, room?.roomId, user]);
 
-  // The opponent's snapshot exists only once THEY have seated, so re-read a few times (bounded), then
-  // leave their badge absent. Keyed on stable values: stamina/heartbeat writes must not reset the timer.
+  // The opponent's snapshot exists only once THEY have seated, so re-read a few times (bounded), then leave
+  // their badge off. Keyed on stable values only: stamina/heartbeat writes must not reset the timer.
   const opponentSeatRole: PlayerRole | null = myRole === "p1" ? "p2" : myRole === "p2" ? "p1" : null;
   const hostRoomId = room?.roomId ?? "";
   const opponentUid = opponentSeatRole ? room?.players[opponentSeatRole]?.uid ?? "" : "";
   const opponentBot = opponentSeatRole ? room?.players[opponentSeatRole]?.holobotName ?? "" : "";
-  const opponentKey = `${hostRoomId}:${opponentUid}:${opponentBot}`;
-  const opponentAttempts = opponentReads[opponentKey] ?? 0;
+  const seenRoom = useMemo(
+    () => (opponentSeatRole ? { roomId: hostRoomId, players: { [opponentSeatRole]: { uid: opponentUid, holobotName: opponentBot } } } : null),
+    [hostRoomId, opponentBot, opponentSeatRole, opponentUid],
+  );
+  const nextRead = myRole ? pvpNextOpponentRead(hostSeats, seenRoom, myRole) : null;
+  const nextReadKey = nextRead?.key ?? "";
+  const nextReadDelay = nextRead?.delayMs ?? -1;
   useEffect(() => {
-    if (!user || !hostRoomId || !opponentSeatRole) return;
-    const seen = { roomId: hostRoomId, players: { [opponentSeatRole]: { uid: opponentUid, holobotName: opponentBot } } };
-    const delay = pvpOpponentReadDelay(hostFighterStatus, hostView, seen, opponentSeatRole, opponentAttempts);
-    if (delay === null) return;
+    if (!user || !hostRoomId || nextReadDelay < 0) return;
     const timer = setTimeout(() => {
-      void readHostFighters(pvpRoomFighterCallForUid(user.uid), hostRoomId).then((outcome) => {
-        if (hostSeatRoomRef.current !== hostRoomId) return;
-        if (outcome.status === "ready") setHostView((view) => mergePvpHostReply(view, outcome.reply, hostRoomId));
-        // A refused read (not seated / room gone), an outage or a missing host: stop and show absent.
-        setOpponentReads((reads) => ({ ...reads, [opponentKey]: outcome.status === "ready" ? opponentAttempts + 1 : PVP_OPPONENT_READ_DELAYS_MS.length }));
-      });
-    }, delay);
+      void readHostFighters(pvpRoomFighterCallForUid(user.uid), hostRoomId)
+        .catch(() => ({ status: "unavailable" as const, reason: "offline" as const }))
+        .then((outcome) => dispatchHostSeats({ type: "read_resolved", roomId: hostRoomId, key: nextReadKey, outcome }));
+    }, nextReadDelay);
     return () => clearTimeout(timer);
-  }, [hostFighterStatus, hostRoomId, hostView, opponentAttempts, opponentBot, opponentKey, opponentSeatRole, opponentUid, user]);
+  }, [hostRoomId, nextReadDelay, nextReadKey, user]);
 
-  const hostSeatPending = useMemo<Record<PlayerRole, boolean>>(() => {
-    const readsLeft = PVP_OPPONENT_READ_DELAYS_MS.length - opponentAttempts;
-    return myRole
-      ? { p1: pvpSeatPending("p1", myRole, hostFighterStatus, readsLeft), p2: pvpSeatPending("p2", myRole, hostFighterStatus, readsLeft) }
-      : { p1: false, p2: false };
-  }, [hostFighterStatus, myRole, opponentAttempts]);
+  const hostSeatPending = useMemo<Record<PlayerRole, boolean>>(
+    () => (myRole ? pvpHostSeatPending(hostSeats, seenRoom, myRole) : { p1: false, p2: false }),
+    [hostSeats, myRole, seenRoom],
+  );
+  const hostFighterStatus = hostSeats.status;
+  const hostView = hostSeats.roomId && hostSeats.roomId === hostRoomId ? hostSeats.view : null;
 
   const createRoom = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {
     if (!user || !profile) throw new Error("Sign in before creating a room.");
@@ -406,11 +395,8 @@ export function useRealtimeArena() {
     if (!role) throw new Error("You are not part of this room.");
     setMyRole(role);
     subscribeToRoom(roomId);
-    // Matchmaking seats: my live fighter plus any 3v3 lineup the pairing wrote for me.
-    requestHostFighters(roomId, [
-      roomData.players[role].holobotName,
-      ...(roomData.teams?.[role]?.members ?? []).map((member) => member.holobotName),
-    ]);
+    // Matchmaking seats: my live fighter plus any 3v3 lineup the pairing wrote for me (never throws).
+    requestHostFighters(roomId, pvpSeatHolobotNames(roomData, role));
   }, [requestHostFighters, subscribeToRoom, user]);
 
   const enterMatchmaking = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {

@@ -2,9 +2,9 @@ import fixture from "./fixtures/pvp-room-fighters-1.json";
 import { mergePvpHostReply, type PvpHostView } from "@/lib/bots/pvpFighterLevel";
 import type { BattleRoom, PlayerRole } from "@/types/battle-room";
 
-/** Offline PvP level-badge witness cells, known-bad first. Recorded pvpRoomFighterHost replies only; no host call.
- * On-screen copy says "the City" (DECISIONS #71); PLACEHOLDER until Lex. */
-export const PVP_FIGHTERS_PREVIEW_ROUTES = ["PvpFightersKnownBad", "PvpFightersPending", "PvpFightersCity"] as const;
+/** Offline PvP level-badge witness cells, known-bad first. Recorded pvpRoomFighterHost replies only; no network call.
+ * Neutral on-screen copy: never "host" (DECISIONS #71), and no claim that the City vouches for the level (S4 open). */
+export const PVP_FIGHTERS_PREVIEW_ROUTES = ["PvpFightersKnownBad", "PvpFightersPending", "PvpFightersSeated"] as const;
 export type PvpFightersPreviewRoute = (typeof PVP_FIGHTERS_PREVIEW_ROUTES)[number];
 export type PvpFightersPreviewFixture = {
   title: string;
@@ -21,17 +21,17 @@ const fold = (...replies: unknown[]) => replies.reduce<PvpHostView | null>((view
 export const pvpFightersFixtures: Record<PvpFightersPreviewRoute, PvpFightersPreviewFixture> = {
   PvpFightersKnownBad: {
     title: "KNOWN BAD",
-    caption: "Client-written room only; its players carry local levels. No City reply.",
+    caption: "Client-written room only; its players carry local levels. No seat reply, so no level tab.",
     room, view: null, pending: { p1: false, p2: false },
   },
   PvpFightersPending: {
     title: "PENDING",
-    caption: "City seat reply for YOU; RIVAL has not seated with the City yet.",
+    caption: "Seat reply for YOU only; RIVAL has not seated yet.",
     room, view: fold(fixture.replies.seatP1), pending: { p1: false, p2: true },
   },
-  PvpFightersCity: {
-    title: "CITY",
-    caption: "City seat + read replies for both seats (recorded emulator run).",
+  PvpFightersSeated: {
+    title: "SEATED",
+    caption: "Seat + read replies for both seats (recorded emulator run).",
     room, view: fold(fixture.replies.seatP1, fixture.replies.readP1), pending: { p1: false, p2: false },
   },
 };

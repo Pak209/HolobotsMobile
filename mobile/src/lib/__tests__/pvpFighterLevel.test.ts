@@ -15,6 +15,23 @@ import {
 import fixture from "../../qa/fixtures/pvp-room-fighters-1.json";
 
 const read = (relative: string) => readFileSync(path.resolve(__dirname, relative), "utf8");
+/** Player-visible text in a source file: string literals and JSX text, with comments stripped. */
+function onScreenText(source: string): string[] {
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
+  const strings = [...code.matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)].map((m) => m[1] ?? m[2] ?? m[3] ?? "");
+  const jsx = [...code.matchAll(/>([^<>{}]+)</g)].map((m) => m[1].trim()).filter(Boolean);
+  return [...strings, ...jsx];
+}
+const PVP_SCREEN_FILES = [
+  "../../components/arena/PvpArenaModal.tsx",
+  "../../components/arena/PvpSeatBadges.tsx",
+  "../bots/pvpFighterLevel.ts",
+  "../pvpRoomFightersClient.ts",
+  "../pvpHostSeatState.ts",
+  "../../hooks/useRealtimeArena.ts",
+  "../../qa/PvpFightersPreview.tsx",
+  "../../qa/pvpFightersFixtures.ts",
+];
 const room = fixture.knownBad.room, R = fixture.replies, roomId = room.roomId;
 type AnyView = any; // eslint-disable-line @typescript-eslint/no-explicit-any -- tamper copies
 const fold = (...replies: unknown[]) => replies.reduce<PvpHostView | null>((view, reply) => mergePvpHostReply(view, reply, roomId), null);
@@ -39,12 +56,9 @@ describe("pvpFighterLevel (strict host-reply reader)", () => {
     // A host-looking field a client wrote onto the room doc is not a source either (the room is client-authored).
     const forged = { ...room, hostFighters: { schemaVersion: "pvp-room-fighters-1", roomId, seats: { p1: { uid: room.players.p1.uid, fighters: { ace: { holobotId: "ace", level: 99, displayName: "ACE", tier: 0 } } } } } };
     expect(pvpFighterLevel(forged, forged, "p1", "ACE")).toBeUndefined();
-    for (const pending of [true, false]) {
-      for (const [role, name] of [["p1", "ACE"], ["p2", "KUMA"]] as const) {
-        const badge = pvpSeatBadge(null, room, role, name, pending);
-        expect(badge.kind).not.toBe("host");
-        expect(badge.text).not.toMatch(/\d/);
-      }
+    for (const [role, name] of [["p1", "ACE"], ["p2", "KUMA"]] as const) {
+      expect(pvpSeatBadge(null, room, role, name, false)).toBeNull(); // No snapshot, no tab.
+      expect(pvpSeatBadge(null, room, role, name, true)).toEqual({ kind: "pending", text: "LV …", accessibilityLabel: "Level pending" });
     }
   });
 
@@ -109,11 +123,11 @@ describe("mergePvpHostReply", () => {
 });
 
 describe("pvpSeatBadge (the only PvP level a card prints)", () => {
-  it("host value when minted; otherwise pending or absent, never a digit", () => {
-    expect(pvpSeatBadge(view, room, "p1", "ACE", false)).toMatchObject({ kind: "host", text: "LV 21" });
-    expect(pvpSeatBadge(view, room, "p2", "KUMA", true)).toMatchObject({ kind: "host", text: "LV 12" });
+  it("the snapshot level when present; LV … while it may still land; otherwise NO tab (never a bare dash, L22)", () => {
+    expect(pvpSeatBadge(view, room, "p1", "ACE", false)).toEqual({ kind: "level", text: "LV 21", accessibilityLabel: "Level 21" });
+    expect(pvpSeatBadge(view, room, "p2", "KUMA", true)).toMatchObject({ kind: "level", text: "LV 12" });
     expect(pvpSeatBadge(fold(R.seatP1), room, "p2", "KUMA", true)).toMatchObject({ kind: "pending", text: "LV …" });
-    expect(pvpSeatBadge(fold(R.seatP1), room, "p2", "KUMA", false)).toMatchObject({ kind: "absent", text: "LV —" });
+    expect(pvpSeatBadge(fold(R.seatP1), room, "p2", "KUMA", false)).toBeNull();
   });
 });
 
@@ -137,22 +151,34 @@ describe("opponent re-read pacing (bounded)", () => {
   });
 });
 
-describe("DECISIONS #71 on PvP cards", () => {
-  it("badge text and screen-reader labels never say host; the authority is the City", () => {
-    for (const [v, pending] of [[view, false], [null, true], [null, false]] as const) {
+describe("DECISIONS #71 and S4 copy on PvP cards", () => {
+  it("badges are neutral: no host, no City authority claim (the level source is owner-writable until S4 closes)", () => {
+    for (const [v, pending] of [[view, false], [null, true]] as const) {
       for (const [role, name] of [["p1", "ACE"], ["p2", "KUMA"]] as const) {
-        const badge = pvpSeatBadge(v, room, role, name, pending);
-        expect(`${badge.text} ${badge.accessibilityLabel}`).not.toMatch(/host/i);
-        expect(badge.accessibilityLabel).toMatch(/City/);
+        const badge = pvpSeatBadge(v, room, role, name, pending)!;
+        expect(`${badge.text} ${badge.accessibilityLabel}`).not.toMatch(/host|city/i);
       }
     }
   });
-  it("the modal's on-screen PvP text never says host, and the LV tab sits on the portrait's lower-left corner", () => {
-    const modal = read("../../components/arena/PvpArenaModal.tsx");
-    const seats = read("../../components/arena/PvpSeatBadges.tsx");
-    for (const source of [modal, seats]) expect(source).not.toMatch(/>[^<>{}]*\bhost\b[^<>{}]*</i);
-    expect(modal).toContain("The City sets your level in the room");
-    expect(seats).toMatch(/tab: \{[^}]*bottom: 0[^}]*left: 0[^}]*position: "absolute"/);
+  it("no player-visible string or JSX text in any PvP file says host; none claims the City sets or vouches for a level", () => {
+    const seen: string[] = [];
+    for (const file of PVP_SCREEN_FILES) {
+      for (const text of onScreenText(read(file))) {
+        seen.push(text);
+        expect(text, file).not.toMatch(/\bhost\b/i);
+        expect(text, file).not.toMatch(/from the city|city sets|set by the city|city-verified/i);
+      }
+    }
+    // Control: the scanner does see real copy, so an empty scan cannot pass vacuously.
+    expect(seen).toContain("Tap to change Holobot");
+    expect(seen).toContain("Level pending");
+    expect(onScreenText('<Text>Level set by the host</Text>')).toContain("Level set by the host");
+  });
+  it("no bare placeholder dash in PvP badge copy, and the LV tab sits on the portrait's lower-left corner", () => {
+    for (const file of ["../../components/arena/PvpSeatBadges.tsx", "../bots/pvpFighterLevel.ts"]) {
+      for (const text of onScreenText(read(file))) expect(text, file).not.toMatch(/—/);
+    }
+    expect(read("../../components/arena/PvpSeatBadges.tsx")).toMatch(/tab: \{[^}]*bottom: 0[^}]*left: 0[^}]*position: "absolute"/);
   });
 });
 
