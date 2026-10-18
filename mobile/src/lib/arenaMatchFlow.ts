@@ -164,11 +164,17 @@ export class ArenaMatchFlow {
         this.acks = extras.acks;
         this.checkpoints = extras.checkpoints;
     }
-    /** Resolves once no command is in flight (never rejects). A foreground resume or a cancel waits here instead of
-     * colliding with an in-flight settle as `arena_busy`. */
+    /** Resolves once no command is in flight (never rejects). */
     async whenIdle() {
         while (this.flight)
             await this.flight.catch(() => undefined);
+    }
+    /** Run `command` (a flow call such as `() => flow.resume()`) as soon as nothing is in flight. It starts in the same
+     * synchronous step as the final idle check, so two waiters queue instead of colliding as `arena_busy`. */
+    async afterIdle<T>(command: () => Promise<T>): Promise<T> {
+        while (this.flight)
+            await this.flight.catch(() => undefined);
+        return command();
     }
     close() { this.epoch++; this.latest = null; this.team = null; }
     get reply() { return this.latest; }

@@ -159,8 +159,6 @@ describe('too_fast is PENDING, never an error (host #143 settle floor)', () => {
         expect(h.last()).toEqual({ kind: 'idle' });
         await vi.advanceTimersByTimeAsync(60_000); await flush();
         expect(h.settles()).toHaveLength(1);
-        h.confirmer.stop();
-        expect(h.last()).toEqual({ kind: 'idle' });
     });
 
     it('critic #11/#3: a second start while a send is out sends nothing new (double tap, effect + resume)', async () => {
@@ -186,17 +184,49 @@ describe('too_fast is PENDING, never an error (host #143 settle floor)', () => {
         expect(h.settles()).toHaveLength(0);
     });
 
-    it('critic #13: a 0 ms hint is no hint (the backoff applies); request_conflict keeps the body and retries', async () => {
-        const h = harness([tooFast(0), arenaRefusal('request_conflict'), ARENA_SETTLED]);
+    it('critic #13: a 0 ms hint is no hint (the backoff applies)', async () => {
+        const h = harness([tooFast(0), ARENA_SETTLED]);
         await h.flow.resume();
         h.confirmer.start(ARENA_SETTLE_REPORT);
         await flush();
         expect(h.last()).toMatchObject({ kind: 'waiting', resendInMs: 1_000, hinted: false });
         await vi.advanceTimersByTimeAsync(1_000); await flush();
-        expect(h.last()).toMatchObject({ kind: 'waiting', reason: 'unknown' });
-        expect(h.storage.settle).not.toBeNull();
-        await vi.advanceTimersByTimeAsync(2_000); await flush();
         expect(h.last().kind).toBe('settled');
+    });
+
+    it('round 2 #8: request_conflict ends the loop as refused but keeps the stored body for CHECK AGAIN', async () => {
+        const h = harness([arenaRefusal('request_conflict'), ARENA_SETTLED]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.last()).toEqual({ kind: 'refused', code: 'request_conflict' });
+        expect(h.storage.settle).not.toBeNull();
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(h.settles()).toHaveLength(1);
+        h.confirmer.resume(); await flush();
+        expect(h.settles()[1]).toEqual(h.settles()[0]);
+        expect(h.last().kind).toBe('settled');
+    });
+
+    it('round 2 #2: stop() leaves a stalled or refused screen alone (it only disarms an armed resend)', async () => {
+        const h = harness(Array.from({ length: 6 }, () => tooFast(1)));
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        for (let i = 0; i < 6; i++) { await vi.advanceTimersByTimeAsync(1); await flush(); }
+        expect(h.last()).toEqual({ kind: 'stalled', reason: 'too_fast' });
+        h.confirmer.stop();
+        expect(h.last()).toEqual({ kind: 'stalled', reason: 'too_fast' });
+        const r = harness([arenaRefusal('match_expired')]);
+        await r.flow.resume();
+        r.confirmer.start(ARENA_SETTLE_REPORT); await flush();
+        r.confirmer.stop();
+        expect(r.last()).toEqual({ kind: 'refused', code: 'match_expired' });
+        const w = harness([tooFast()]);
+        await w.flow.resume();
+        w.confirmer.start(ARENA_SETTLE_REPORT); await flush();
+        expect(w.last().kind).toBe('waiting');
+        w.confirmer.stop();
+        expect(w.last()).toEqual({ kind: 'idle' });
     });
 
     it('stop() cancels the armed resend (background, unmount)', async () => {

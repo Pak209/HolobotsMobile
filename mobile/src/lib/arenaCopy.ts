@@ -24,6 +24,9 @@ export const ARENA_SCREEN_COPY = {
     /** F3, a lost `start` reply: no fight ever ran here, so it starts from the HP the City admitted. */
     notStartedBody: "This fight never started on this device. Start it from the HP you entered with, or forfeit at that HP.",
     restart: 'START FROM ENTRY HP',
+    /** F3, the fight ended on this device but its result never reached the City. */
+    finishedBody: 'This fight ended on this device before the City got its result. Send it now, or forfeit.',
+    sendResult: 'SEND RESULT',
     forfeit: 'FORFEIT MATCH',
     payoutCapped: 'Daily Arena rewards reached · this match pays no rewards',
     confirmingEyebrow: 'CITY CONFIRMING',
@@ -104,14 +107,16 @@ export function arenaQuitPrompt(input: { state: 'issued' | 'active'; pendingSett
 /** F3: the HP a forfeit reports: the live fight on this device, else the result saved for the City, else the saved
  * checkpoint of a fight that ran here and was cut off, else (the fight never ran here) the HP the City admitted. */
 export function arenaForfeitHp(input: { checkpointHp: number | null; pendingSettleHp: number | null; savedCheckpointHp?: number | null; admissionHp: number }): number {
-    return input.checkpointHp ?? input.pendingSettleHp ?? input.savedCheckpointHp ?? input.admissionHp;
+    // The City accepts a forfeit only at or below the admission HP.
+    return Math.min(input.admissionHp, input.checkpointHp ?? input.pendingSettleHp ?? input.savedCheckpointHp ?? input.admissionHp);
 }
 
 export type ArenaScreenPhase =
     | { kind: 'menu' }
     | { kind: 'pendingIssue' }
-    /** interrupted: active with no live fight here. resumable: this device saved that fight's state (F3). */
-    | { kind: 'admitted'; interrupted: boolean; resumable?: boolean }
+    /** interrupted: active with no live fight here. resumable / finished: this device saved that fight's state, still
+     * running or already over (F3). */
+    | { kind: 'admitted'; interrupted: boolean; resumable?: boolean; finished?: boolean }
     | { kind: 'battle' }
     | { kind: 'confirming' }
     | { kind: 'stalled' }
@@ -121,7 +126,7 @@ export type ArenaScreenPhase =
 const open = (reply: ArenaReply | null) => !!reply?.match && (reply.match.state === 'issued' || reply.match.state === 'active');
 /** One honest screen state from the host reply and local transport state. Terminal receipts the player already dismissed
  * (F4) fall back to the menu. */
-export function arenaScreenPhase(input: { reply: ArenaReply | null; acknowledged: boolean; hasCheckpoint: boolean; savedCheckpoint?: boolean; settle: ArenaSettlePhase; pendingIssue: boolean; error: unknown }): ArenaScreenPhase {
+export function arenaScreenPhase(input: { reply: ArenaReply | null; acknowledged: boolean; hasCheckpoint: boolean; savedCheckpoint?: boolean; settle: ArenaSettlePhase; pendingIssue: boolean; error: unknown; savedCheckpointFinished?: boolean }): ArenaScreenPhase {
     const { reply, settle } = input;
     if (open(reply)) {
         const active = reply!.match!.state === 'active';
@@ -131,7 +136,8 @@ export function arenaScreenPhase(input: { reply: ArenaReply | null; acknowledged
         if (settle.kind === 'refused') return { kind: 'error', copy: COPY[ALIAS[settle.code] ?? 'refused'], matchOpen: true };
         if (input.error) return { kind: 'error', copy: arenaErrorCopy(input.error), matchOpen: true };
         if (input.hasCheckpoint) return { kind: 'battle' };
-        return active ? { kind: 'admitted', interrupted: true, resumable: !!input.savedCheckpoint } : { kind: 'admitted', interrupted: false };
+        if (!active) return { kind: 'admitted', interrupted: false };
+        return input.savedCheckpoint && input.savedCheckpointFinished ? { kind: 'admitted', interrupted: true, finished: true } : { kind: 'admitted', interrupted: true, resumable: !!input.savedCheckpoint };
     }
     if (input.error && arenaErrorCode(input.error) === 'arena_issue_pending') return { kind: 'pendingIssue' };
     if (input.error) return { kind: 'error', copy: arenaErrorCopy(input.error), matchOpen: false };
