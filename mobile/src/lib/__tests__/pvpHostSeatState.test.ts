@@ -53,10 +53,14 @@ describe("pvpHostSeatReducer + pvpNextOpponentRead (the hook's read loop, withou
     expect(pvpFighterLevel(state.view, room, "p2", "KUMA")).toBe(12);
   });
 
-  it("no reads after a refused or offline read, and none at all when the seat call found no host", () => {
+  it("no reads after a refused or offline read (for ANY opponent bot), and none when the seat call found no host", () => {
     for (const reason of ["refused", "offline", "not_deployed", "session_changed"] as const) {
-      const { delays } = drain(seated(), room, { status: "unavailable", reason } as never);
-      expect(delays, reason).toHaveLength(1);
+      const stopped = drain(seated(), room, { status: "unavailable", reason } as never);
+      expect(stopped.delays, reason).toHaveLength(1);
+      // The read names only the room, so a 3v3 rotation must not send it again.
+      const rotated = drain(stopped.state, withOpponentBot("HARE"), readWithoutOpponent);
+      expect(rotated.delays, reason).toEqual([]);
+      expect(pvpHostSeatPending(rotated.state, withOpponentBot("HARE"), "p1"), reason).toEqual({ p1: false, p2: false });
     }
     for (const reason of ["not_deployed", "offline"] as const) {
       const state = run([{ type: "seat_started", roomId: ROOM }, { type: "seat_resolved", roomId: ROOM, outcome: { status: "unavailable", reason, replies: [] } }]);
@@ -71,7 +75,12 @@ describe("pvpHostSeatReducer + pvpNextOpponentRead (the hook's read loop, withou
     expect(pvpHostSeatReducer(inOther, { type: "seat_resolved", roomId: ROOM, outcome: { status: "ready", replies: [R.seatP1], refused: 0 } })).toBe(inOther);
     const key = pvpOpponentReadKey(room, "p1");
     expect(pvpHostSeatReducer(inOther, { type: "read_resolved", roomId: ROOM, key, outcome: { status: "ready", reply: R.readP1 } })).toBe(inOther);
-    expect(pvpNextOpponentRead(inOther, room, "p1")).toBeNull(); // The shown room is not the one being seated.
+    // Room guard, non-vacuous: a READY state seated for another room schedules nothing for the shown room...
+    const readyElsewhere = run([{ type: "seat_started", roomId: OTHER }, { type: "seat_resolved", roomId: OTHER, outcome: { status: "ready", replies: [], refused: 0 } }]);
+    expect(readyElsewhere.status).toBe("ready");
+    expect(pvpNextOpponentRead(readyElsewhere, room, "p1")).toBeNull();
+    // ...while the same shown room, seated for itself, does (control).
+    expect(pvpNextOpponentRead(seated(), room, "p1")).toEqual({ key: pvpOpponentReadKey(room, "p1"), delayMs: 1500 });
     expect(run([{ type: "reset" }], seated())).toEqual(PVP_HOST_SEAT_IDLE);
   });
 

@@ -22,7 +22,7 @@ The host half is the Contract-Change PR into main, [#136](https://github.com/Pak
   - Late answers for a room I left are dropped.
   - Replies are never folded after a session change, even ones received before it.
   - Opponent re-reads are counted per (room, opponent uid, opponent bot): at most 4 (1.5/3/6/12 s), kept across 3v3 switches.
-  - Reads stop at once after a refusal, an outage or a missing host.
+  - Any refused, offline or missing-host read stops ALL opponent reads for the room. A read names only the room, so a 3v3 rotation would get the same answer.
   - `pvpSeatHolobotNames` builds `joinRoomById`'s seat names and never throws on a malformed room.
 - **Hook.** `hooks/useRealtimeArena.ts`:
   - After each seat write (createRoom, joinRoom, matchmaking `created`, joinRoomById), it seats my lineup fire-and-forget.
@@ -53,7 +53,8 @@ The host half is the Contract-Change PR into main, [#136](https://github.com/Pak
 
 - **Clients cannot forge the stored seat itself.** It is minted by the host into a doc no client can read or write.
 - **Not authoritative yet.** Ownership AND level come from the owner-writable profile (S4). An owner can add a bot or raise a level and the host will mint it.
-- **Follow-up:** protect `holobots` and move attribute spends to a callable (host-economy-hardening-1, #143 census). Deploy and any City-labelled badge are gated on that, or on marking reply provenance owner-profile / unverified. The decision is the producer's.
+- **Gate (producer decision, pending Pak's override):** the #136 deploy AND any City-labelled PvP badge are gated on `holobots` / `inventory` protection from the host-economy-hardening plan (S4 phases 1–5; #143 census).
+- **Until the gate clears:** badges stay neutral ("LV n", no City claim), and no tab is shown when absent. **The City label returns once S4 closes.**
 - The `battle_rooms` doc itself stays client-authored (C4/S7).
 
 ## Checks
@@ -72,6 +73,7 @@ The host half is the Contract-Change PR into main, [#136](https://github.com/Pak
 - **Reviews.**
   - Round 1, a read-only critic workflow: the README was stale and the read budget reset per switch. Both fixed.
   - Round 2, the coordinator: copy overclaim, the `LV —` absent state, the untested hook loop, and three LOWs. All fixed here.
+  - Round 2, a read-only critic workflow (4 critics plus 6 skeptics). It confirmed three LOWs, all fixed: reads now stop per room, not per bot; the room-guard test is now non-vacuous; the string scan covers JSX text next to `{…}` and any "City" mention.
 
 ## Simulator witness
 
@@ -85,7 +87,7 @@ The host half is the Contract-Change PR into main, [#136](https://github.com/Pak
 
 ## HELD
 
-- **Deploy** of #136's function: the producer's. It is gated (see Trust boundary), and there are no rules to deploy. Until then, PvP cards briefly show `LV …`, then no tab, and rooms play exactly as before.
+- **Deploy** of #136's function: the producer's, gated on S4 phases 1–5 (see Trust boundary). There are no rules to deploy. Until then, PvP cards briefly show `LV …`, then no tab, and rooms play exactly as before.
 - **Live two-account witness** (create → join → both badges): needs the deploy and two real accounts.
 
 ## Merge notes

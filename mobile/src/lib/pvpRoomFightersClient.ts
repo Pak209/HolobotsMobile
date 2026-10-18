@@ -69,7 +69,7 @@ export function pvpRoomFighterCallForUid(uid: string): PvpHostCall {
     const body: PvpHostRequest = request.operation === "seat"
       ? { operation: "seat", roomId: request.roomId, holobotId: request.holobotId }
       : { operation: "read", roomId: request.roomId };
-    const reply = await withTimeout(call(body), CALLABLE_TIMEOUT_MS, "The City did not answer in time.");
+    const reply = await withTimeout(call(body), CALLABLE_TIMEOUT_MS, "The PvP seat call timed out.");
     if (auth.currentUser?.uid !== uid) throw new Error(SESSION_CHANGED);
     return reply.data;
   };

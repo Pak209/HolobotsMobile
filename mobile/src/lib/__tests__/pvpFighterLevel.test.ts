@@ -19,7 +19,8 @@ const read = (relative: string) => readFileSync(path.resolve(__dirname, relative
 function onScreenText(source: string): string[] {
   const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
   const strings = [...code.matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)].map((m) => m[1] ?? m[2] ?? m[3] ?? "");
-  const jsx = [...code.matchAll(/>([^<>{}]+)</g)].map((m) => m[1].trim()).filter(Boolean);
+  // JSX text, including text next to a {expression}: between > or } and < or {.
+  const jsx = [...code.matchAll(/[>}]([^<>{}]+)[<{]/g)].map((m) => m[1].trim()).filter((text) => /[A-Za-z]/.test(text));
   return [...strings, ...jsx];
 }
 const PVP_SCREEN_FILES = [
@@ -166,13 +167,16 @@ describe("DECISIONS #71 and S4 copy on PvP cards", () => {
       for (const text of onScreenText(read(file))) {
         seen.push(text);
         expect(text, file).not.toMatch(/\bhost\b/i);
-        expect(text, file).not.toMatch(/from the city|city sets|set by the city|city-verified/i);
+        // Until S4 closes no PvP string may mention the City at all (the City label returns with S4).
+        expect(text, file).not.toMatch(/\bcity\b/i);
       }
     }
     // Control: the scanner does see real copy, so an empty scan cannot pass vacuously.
     expect(seen).toContain("Tap to change Holobot");
     expect(seen).toContain("Level pending");
     expect(onScreenText('<Text>Level set by the host</Text>')).toContain("Level set by the host");
+    expect(onScreenText("<Text>LV {n} from the host</Text>")).toContain("from the host");
+    expect(onScreenText("<Text>{label} City</Text>")).toContain("City");
   });
   it("no bare placeholder dash in PvP badge copy, and the LV tab sits on the portrait's lower-left corner", () => {
     for (const file of ["../../components/arena/PvpSeatBadges.tsx", "../bots/pvpFighterLevel.ts"]) {

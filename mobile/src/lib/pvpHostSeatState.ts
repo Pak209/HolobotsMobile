@@ -51,8 +51,9 @@ export function pvpHostSeatReducer(state: PvpHostSeatState, event: PvpHostSeatEv
       if (event.roomId !== state.roomId) return state;
       const spent = state.reads[event.key] ?? 0;
       if (event.outcome.status !== "ready") {
-        // A refused read, an outage, a missing host or a session change: stop reading for this bot.
-        return { ...state, reads: { ...state.reads, [event.key]: PVP_OPPONENT_READ_DELAYS_MS.length } };
+        // A refused read, an outage, a missing host or a session change. A read names only the room, so the next
+        // opponent bot would get the same answer: stop ALL opponent reads for this room, not just this bot's.
+        return { ...state, status: "unavailable", reads: { ...state.reads, [event.key]: PVP_OPPONENT_READ_DELAYS_MS.length } };
       }
       return {
         ...state,
