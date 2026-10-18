@@ -132,7 +132,7 @@
         },
         "operation": {
           "const": "report",
-          "description": "Client-asserted bout checkpoint for the two ACTIVE fighters only. The host does not decide or verify these values; it stores them only if each is at most its stored HP for that fighter and not both are 0, and otherwise refuses the report as invalid_request (the same rule as arena-match-1 settle). A host-simulated bout can replace it later without changing the swap shape."
+          "description": "Defensive shape check only, NOT the authority (HELD with the runtime). Default decision: client-asserted bout HP is not accepted; the host resolver (arena-host-resolver-1) simulates bouts and is expected to replace or amend this request. A value above the host's stored HP for an active fighter, or both at 0, is refused as invalid_request (the arena-match-1 settle shape rule). A report that passes the shape check still decides nothing."
         },
         "matchId": {
           "$ref": "#/definitions/matchId"

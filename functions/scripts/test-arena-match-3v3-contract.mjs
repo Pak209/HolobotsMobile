@@ -89,7 +89,7 @@ test('turn: +1 per accepted intent; intentIds are unique; replays echo the origi
  const replay=step('swap-1-replay');assert.deepEqual(replay.request,step('swap-1-voluntary').request);assert.deepEqual(replay.reply.intent,step('swap-1-voluntary').reply.intent);
 });
 
-test('stored vitals: no bench regen, reported HP above the stored value or both at 0 is refused, KO is final, KO forces a send-in, CPU send-in is host-picked',()=>{
+test('host vitals from host-resolved bout steps: no bench regen, HP never rises, KO is final, KO forces a send-in, CPU send-in is host-picked; impossible reports hit the defensive shape check',()=>{
  const everActive=new Set(['ace']);let reports=0,swaps=0;
  for(const {s,last} of walk()){
   if(!last)continue;
@@ -101,7 +101,7 @@ test('stored vitals: no bench regen, reported HP above the stored value or both 
    if(s.refusal.message==='not_over')assert.notEqual(b.phase,'over');
    if(s.refusal.message==='settle_required')assert.deepEqual([s.request.operation,b.phase],['cancel','over']);
    if(s.request.operation==='report'&&s.refusal.message==='invalid_request'){
-    // Client-asserted HP is stored only if each value is at most the stored HP and not both are 0 (1v1 parity).
+    // Defensive shape check, NOT the authority: an impossible report (above the stored HP, or both at 0) is refused (1v1 parity).
     const mine=last.team[b.activeSlot].vitals.currentHealth,theirs=last.opponentTeam[b.opponentActiveSlot].vitals.currentHealth;
     assert.ok(s.request.activeHealth>mine||s.request.opponentHealth>theirs||(s.request.activeHealth===0&&s.request.opponentHealth===0),s.name);
     assert.equal(request(s.request),true,'structurally valid: the host refuses it on the stored vitals');
@@ -134,18 +134,20 @@ test('stored vitals: no bench regen, reported HP above the stored value or both 
   if(op==='report'){
    reports++;
    assert.equal(b.phase,'command',`${s.name}: report is legal only in command`);
-   const me=m.team[b.activeSlot],them=m.opponentTeam[b.opponentActiveSlot];
-   assert.equal(me.vitals.currentHealth,s.request.activeHealth);assert.equal(them.vitals.currentHealth,s.request.opponentHealth);
-   assert.equal(n.activeSlot,b.activeSlot,'a report never moves the player\'s active slot');
+   // Bout steps are hand-authored stand-ins for host-resolved bouts (default decision: no client-asserted HP).
+   // Every KO and winner below is read from the host projection, never from the request values.
+   const me=m.team[b.activeSlot],them=m.opponentTeam[b.opponentActiveSlot],meKo=me.vitals.currentHealth===0,themKo=them.vitals.currentHealth===0;
+   assert.ok(!(meKo&&themKo),'a bout step never KOs both active fighters');
+   assert.equal(n.activeSlot,b.activeSlot,'a bout step never moves the player\'s active slot');
    m.team.forEach((x,i)=>{if(i!==b.activeSlot)assert.deepEqual(x,last.team[i],'a report touches only the active player slot');});
-   m.opponentTeam.forEach((x,i)=>{if(i!==b.opponentActiveSlot&&!(s.request.opponentHealth===0&&i===n.opponentActiveSlot))assert.deepEqual(x,last.opponentTeam[i]);});
-   slots(m).forEach((x,i)=>{if(i!==b.activeSlot&&i!==3+b.opponentActiveSlot)assert.deepEqual(x.vitals,slots(last)[i].vitals,`${s.name}: only the two reported slots move HP`);});
-   if(s.request.opponentHealth>0)assert.equal(n.opponentActiveSlot,b.opponentActiveSlot,'the CPU switches only on a KO');
-   if(s.request.activeHealth===0){
+   m.opponentTeam.forEach((x,i)=>{if(i!==b.opponentActiveSlot&&!(themKo&&i===n.opponentActiveSlot))assert.deepEqual(x,last.opponentTeam[i]);});
+   slots(m).forEach((x,i)=>{if(i!==b.activeSlot&&i!==3+b.opponentActiveSlot)assert.deepEqual(x.vitals,slots(last)[i].vitals,`${s.name}: only the two active slots move HP`);});
+   if(!themKo)assert.equal(n.opponentActiveSlot,b.opponentActiveSlot,'the CPU switches only on a KO');
+   if(meKo){
     if(last.team.some(x=>x.status==='bench'))assert.equal(n.phase,'send_in');
     else assert.deepEqual([n.phase,n.winner],['over','opponent']);
    }
-   if(s.request.opponentHealth===0){const next=last.opponentTeam.findIndex(x=>x.status==='bench');
+   if(themKo){const next=last.opponentTeam.findIndex(x=>x.status==='bench');
     if(next>=0)assert.equal(n.opponentActiveSlot,next);else assert.deepEqual([n.phase,n.winner],['over','player']);}
   }
  }
@@ -154,7 +156,7 @@ test('stored vitals: no bench regen, reported HP above the stored value or both 
  assert.deepEqual(step('swap-3-forced-send-in').reply.match.team[0].vitals,step('report-1-opponent-ko').reply.match.team[0].vitals); // ACE back at its benched 120
 });
 
-test('settle: outcome from the stored winner (derived from client-asserted bout HP), one reward quote, all three bots written to the ledger',()=>{
+test('settle: outcome from the host winner, one reward quote, all three bots written to the ledger',()=>{
  const before=step('report-5-match-over').reply.match,s=step('settle'),m=s.reply.match,rec=m.settlementReceipt;
  assert.deepEqual(Object.keys(s.request).sort(),['combosCompleted','matchId','operation','perfectDefenses','schemaVersion']);
  assert.deepEqual([before.battle.phase,before.battle.winner],['over','player']);assert.equal(m.state,'settled');assert.equal(rec.outcome,'win');

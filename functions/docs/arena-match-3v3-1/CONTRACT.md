@@ -1,6 +1,12 @@
 # arena-match-3v3-1: Arena 3v3 contract proposal
 
 **Status: PROPOSAL. Schema and fixture only. The runtime is HELD for a later lane.**
+
+**Default decision** (producer, 2026-10-17; Pak may override): **client-asserted
+bout HP is not accepted.** The 3v3 runtime waits for host simulation. It stays
+HELD until a host-resolver lane (`arena-host-resolver-1`) can simulate bouts on
+the host. This is hard rule 1, the same class as security finding S1.
+
 No host code changes in this PR. The deployed `arenaMatchHost` checks
 `schemaVersion` first, so today it refuses every `arena-match-3v3-1` request as
 `invalid_request` before it reads Firestore. The contract test asserts this.
@@ -12,28 +18,32 @@ Files:
 - `functions/scripts/fixtures/arena-match-3v3/lifecycle.json`: one hand-authored lifecycle with known-bad refusals.
 - `functions/scripts/test-arena-match-3v3-contract.mjs`: Ajv validation and lifecycle invariants. It runs in `npm test` and uses the functions-local `ajv`.
 
-Rule 1, and exactly where it stops. **The host decides:**
+Rule 1: **the host decides.**
 
+- every fighter's vitals, and so every KO and the winner (under the default
+  decision, from host-simulated bouts);
 - the active slot, the turn and the phase;
 - the legality of every swap;
 - the CPU send-in;
 - the one entry charge and the frozen reward quote.
 
-The host **stores** every fighter's vitals. Clients send intents and render the
-reply.
+Clients send intents and render the reply. **No client message decides a bout.**
 
-Two inputs are **client-asserted**, exactly as in arena-match-1 (#120). The host
-stores and bounds them but **does not decide or prove** them:
+- **Bout HP.** Under the default decision, bout HP comes only from the host
+  resolver (`arena-host-resolver-1`). The `report` request in this proposal is
+  kept only as a **defensive shape check**, and it is **not the authority**: a
+  value above the host's stored HP, or both sides at 0, is refused as
+  `invalid_request` (the same shape rule as 1v1 settle). A report the shape
+  check accepts still decides nothing. The resolver lane is expected to replace
+  or amend `report`, for example with a `duel-inputs-1` command log the host
+  simulates.
+- **Performance counts**, from `settle`, in 0..`maxPerformanceEvents`, are still
+  client-asserted reward multipliers (#120 parity). Whether 3v3 keeps them is
+  Pak call 8.
 
-- **Bout HP**, from `report`. The host refuses (`invalid_request`) a value above
-  its stored HP for that fighter, or both sides at 0. Otherwise it stores the
-  values as reported, and derives the winner from its stored vitals.
-- **Performance counts**, from `settle`, in 0..`maxPerformanceEvents`. They scale
-  the reward quote.
-
-See "Trust boundary" below, and Pak call 1: whether to accept client-asserted
-bout HP for 3v3 at all. This proposal does not make a reported victory
-authoritative.
+The fixture's bout values are **hand-authored stand-ins for host-resolved
+bouts**. They are not reports the host accepted. See "Default decision and trust
+boundary" below.
 
 ## Decision: a new version pair, not an extension of arena-match-1
 
@@ -167,12 +177,12 @@ The sweep is not part of `npm test`.
 | `issue` | no open Arena lease and no other activity | `requestId, tierId, paymentMethod, holobotIds[3]` | Validates 3 distinct, uniquely owned, living bots and freezes each as a snapshot with ledger HP (no full-HP default). Picks the CPU team from the tier pool. Charges **once**. `state: issued`, `phase: ready`, `turn: 0`. |
 | `start` | `issued`, not expired | `matchId` | `state: active`, `phase: command`. |
 | `resume` | always | optional `matchId` | Returns the current projection, `alreadyProcessed: true`. |
-| `report` | `phase: command` | `intentId, turn, activeHealth, opponentHealth` | A **client-asserted** checkpoint for the two **active** fighters. A value above the host's stored HP for that fighter, or both values at 0, is **refused** as `invalid_request`. This is the 1v1 rule: `arenaMatchStore` refuses `playerFinalHealth` above the entrant's HP, and a both-zero settle, the same way. Otherwise the host stores the values as reported, increments `turn` and resolves KOs (below). It touches no other slot. |
+| `report` | `phase: command` | `intentId, turn, activeHealth, opponentHealth` | **Defensive shape check only. Not the authority, and HELD with the runtime.** A value above the host's stored HP for an active fighter, or both values at 0, is **refused** as `invalid_request`. This is the 1v1 shape rule: `arenaMatchStore` refuses `playerFinalHealth` above the entrant's HP, and a both-zero settle, the same way. Under the default decision the bout itself is resolved by the host (`arena-host-resolver-1`). The host then stores **its own** vitals, increments `turn` and resolves KOs (below). Only the two active slots change. |
 | `swap` | `phase: command` (voluntary) or `send_in` (forced) | `intentId, turn, holobotId` | The target must be on the team, alive and not active. A voluntary swap benches the active fighter at its host HP and uses one of `voluntarySwapLimit`. A forced send-in uses none. `phase` returns to `command`. `turn` increments. **No HP changes.** |
 | `settle` | `phase: over` (also after `expiresAtMs`; see "Expiry"), and at least `ARENA_MIN_SETTLE_MS` (1000 ms) after start (otherwise `too_fast`, the same #120 plausibility floor, not proof of combat) | `combosCompleted, perfectDefenses` (client-asserted, 0..`maxPerformanceEvents`) | Outcome from the host `winner`. One reward quote, scaled by the asserted counts. Writes `finalVitals` for all three bots. Terminal replay pays nothing twice. |
 | `cancel` | `issued`, or `active` in `command` or `send_in` | `matchId` | Before start: one refund of the one charge. After start, before a winner exists: a forfeit that writes the host-held vitals. In `over` it is refused as `settle_required`: a decided result cannot become a forfeit. No client HP. |
 
-**KO resolution after a `report`:**
+**KO resolution after a host-resolved bout step:**
 
 - **Opponent active at 0:** that slot becomes `ko`, and the host sends in the
   CPU team's next living slot. If none is left, `phase: over` and `winner:
@@ -198,9 +208,10 @@ The sweep is not part of `npm test`.
    - `report` during `send_in`: `send_in_required`.
 3. **Turn check:** a turn other than `battle.turn` is refused as
    `turn_mismatch`.
-4. **Report HP check** (`report` only): `activeHealth` above the host's stored
-   HP for the player's active fighter, `opponentHealth` above the stored HP for
-   the CPU's active fighter, or both at 0 is refused as `invalid_request`.
+4. **Report shape check** (`report` only; defensive, not the authority):
+   `activeHealth` above the host's stored HP for the player's active fighter,
+   `opponentHealth` above the stored HP for the CPU's active fighter, or both at
+   0 is refused as `invalid_request`.
 5. **Swap target checks**, in order: `not_on_team`, `fighter_ko`,
    `fighter_active`, `swap_limit`.
 
@@ -235,22 +246,32 @@ settle; that is pending Pak call 8.
 A client persists the pending request and retries the same body. It never
 applies a swap or report locally before the host replies.
 
-## Trust boundary (stated plainly)
+## Default decision and trust boundary (stated plainly)
 
-`report` has the same trust model as arena-match-1 `settle`. The bout is a
-client-observed CPU sim. The host stores what the client reports. It refuses
-only an impossible report: HP above the stored value, or both sides at 0. It
-**does not decide** the reported HP. Nothing bounds damage per report. A modified client can report
-`opponentHealth: 0` three times and keep its own HP, and the host will derive
-`winner: player` from that. The host does **not** prove that the combat
-happened.
+**Default (producer, pending Pak's override): client-asserted bout HP is not
+accepted.** The runtime waits for host simulation (`arena-host-resolver-1`).
+Under this default:
+
+- a client `report` never decides a bout, a KO or the winner;
+- the host derives every KO and the winner only from its own simulated vitals;
+- the `report` shape check (refusing HP above the stored value, or both sides at
+  0) stays as a defensive guard on malformed input, not as authority.
+
+**Why the default.** If the host accepted reported HP, as #120's 1v1 CPU
+practice does, then nothing would bound damage per report. A modified client
+could report `opponentHealth: 0` three times, keep its own HP, and be recorded
+the winner. That is the same class as security finding S1.
+
+**If Pak overrides** and accepts client-asserted HP at #120 parity, that
+weakness applies as stated. The host would store a shape-valid report and derive
+the winner from it, without proving that the combat happened. That would
+require a contract amendment and an explicit Pak sign-off.
 
 `combosCompleted` and `perfectDefenses` are client-asserted reward multipliers,
 capped at `maxPerformanceEvents`. With the fixture rules, 25 and 25 scale EXP
 and SYNC by up to 4.75x. That is the same mechanism and cap as the 1v1
 `rewards()`. The only plausibility check is the `too_fast` floor, which settle
-keeps from #120. This proposal claims no more than #120 does, which is that
-reported victory is not authoritative.
+keeps from #120. Whether 3v3 keeps them is Pak call 8.
 
 What the host does decide:
 
@@ -260,11 +281,10 @@ What the host does decide:
 - the turn and the phase;
 - the one entry charge;
 - the frozen reward quote;
-- the winner, derived from its stored vitals. The host stores and bounds the
-  reported HP, but it does not decide that HP.
+- every KO and the winner, derived from its own vitals. Under the default
+  decision those come from host-simulated bouts, never from a client report.
 
-A later lane can replace
-`report` with host simulation over `duel-inputs-1` command logs (`duel-sim-1`
+`arena-host-resolver-1` is expected to replace `report` with host simulation over `duel-inputs-1` command logs (`duel-sim-1`
 already models 2–6 actors with bench and deploy) without changing the
 team/slot/swap shape. In duel-sim-1 vocabulary, a forced send-in is a "deploy"
 of the first surviving bench actor, and benched fighters are actors with
@@ -276,11 +296,15 @@ bench, but this contract says `benchRegen: none` until Pak rules otherwise.
 `lifecycle.json` (25 steps: 15 accepted, 10 refused) is **hand-authored. No host
 produced it.**
 
-- **The path:** resume (empty) → issue → start → report (opponent KO, host sends
-  in the next CPU slot) → voluntary swap → swap replay → report (player KO,
-  send_in) → forced send-in → report (opponent KO) → report (player KO,
-  send_in) → forced send-in → report (all CPU KO, over) → settle → settle
-  replay → resume.
+- **The path:** resume (empty) → issue → start → bout step (opponent KO, host
+  sends in the next CPU slot) → voluntary swap → swap replay → bout step
+  (player KO, send_in) → forced send-in → bout step (opponent KO) → bout step
+  (player KO, send_in) → forced send-in → bout step (all CPU KO, over) → settle
+  → settle replay → resume.
+- **Bout steps.** These use the current `report` wire shape, but their HP values
+  are **hand-authored stand-ins for host-resolved bouts**. Under the default
+  decision, the host resolver produces these projections; a client report does
+  not.
 - **Known-bad refusals:**
   - swap before start: `invalid_state`
   - **swap without a turn**: `invalid_request` (the schema refuses it too)
@@ -308,8 +332,9 @@ produced it.**
 - Settle writes all three bots' host vitals.
 - The schema refuses client HP, STA or level fields, `benchIndex` swaps, wrong
   team sizes, duplicate bots, client-named opponents and per-fighter charges.
-- Every refused report breaks the stored-HP rule. Both report refusals are
+- Every refused report breaks the defensive shape rule. Both report refusals are
   well-formed requests, so it is the host, not the schema, that refuses them.
+  The shape check is not the authority.
 - The schema refuses every coherence violation listed above. The mutation sweep
   results for its 26 conditional rules are under "Coherence".
 - Positive controls build the paths the lifecycle does not walk:
@@ -320,8 +345,10 @@ produced it.**
   - a late settle after expiry;
   - a pass-paid entry at `entryFeePasses`.
 - Every accepted step is checked with the previous accepted state:
-  - Only a report moves HP, and only on the two reported slots. A CPU fighter
+  - Only a bout step moves HP, and only on the two active slots. A CPU fighter
     sent in on a KO keeps its benched HP.
+  - A KO, send_in or win is read from the host projection, never from request
+    values.
   - A swap never touches the CPU team.
   - The CPU switches only on a KO.
   - In send_in, a swap is the only accepted intent.
@@ -331,10 +358,12 @@ produced it.**
 
 ## Pak calls (placeholders in the fixture)
 
-1. **Rule 1 for 3v3.** Accept client-asserted bout HP for 3v3, matching #120's
-   CPU practice? Or hold the 3v3 runtime until a host sim over `duel-inputs-1`
-   command logs (`duel-sim-1`) decides the bouts? This call gates the runtime
-   lane.
+1. **Rule 1 for 3v3: override the default?** The default (producer, 2026-10-17)
+   is that client-asserted bout HP is not accepted, and the runtime waits for
+   `arena-host-resolver-1` to simulate bouts on the host. Pak may override this
+   to accept #120-parity client-asserted HP. That would need a contract
+   amendment, and it carries the weakness described in the trust-boundary
+   section.
 2. **Swap timing.** Is a voluntary swap allowed at any `command` turn, and what
    is `voluntarySwapLimit`? The fixture uses 2. Does a voluntary swap give the
    CPU a free hit?
@@ -362,6 +391,8 @@ produced it.**
 
 ## The runtime lane must still
 
+- Wait for `arena-host-resolver-1` (the default decision): bouts must be
+  simulated on the host before any 3v3 runtime ships.
 - Implement `arena-match-3v3-1` dispatch in `transactArenaMatch`, with its own
   record validator (three `finalVitals` entries, plus every coherence rule
   above) and an `a3_` id generator.
