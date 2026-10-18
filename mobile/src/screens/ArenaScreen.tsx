@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { View, Pressable, Text, StyleSheet, ActivityIndicator, AppState, Modal, ScrollView } from 'react-native';
+import { View, Pressable, Text, StyleSheet, ActivityIndicator, AppState, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -229,14 +229,14 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
   {result ? <BattleResultsModal visible didWin={result.didWin} receipt={{ kind: 'host', rewards: result.rewards, withheld: result.payoutWithheld }} context={context} hideRematch onRematch={() => { }} onExit={() => void exit()}/> : null}
   {closure && match ? <BattleResultsModal visible didWin={false} receipt={{ kind: 'host', rewards: { exp: 0, syncPoints: 0 } }} closure={{ closure, fighter: match.entrant.displayName }} context={context} hideRematch onRematch={() => { }} onExit={() => void exit()}/> : null}
   {busy || (settlePhase.kind === 'sending' && phase.kind === 'battle') ? <View style={styles.loadingOverlay}><ActivityIndicator color={theme.colors.accent}/></View> : null}
-  <Modal visible={!!quitAsk} transparent animationType="fade" onRequestClose={() => setQuitAsk(null)}>
-    <View style={[styles.overlay, styles.confirm]}>
-      {quitAsk ? <ArenaInterstitial tone="danger" eyebrow={COPY.errorEyebrow} title={quitAsk.prompt.title} body={quitAsk.prompt.body} actions={[
-                { label: quitAsk.prompt.confirm, tone: 'danger', onPress: () => { const hp = quitAsk.hp; setQuitAsk(null); void doCancel(hp ?? undefined); } },
-                { label: quitAsk.prompt.dismiss, tone: 'secondary', onPress: () => setQuitAsk(null) },
-            ]}/> : null}
-    </View>
-  </Modal>
+  {/* An in-tree overlay, not a native Modal: the refund/forfeit receipt modal presents right after a confirm, and iOS
+      drops a Modal presented while another is still dismissing (witness cell 07). */}
+  {quitAsk ? <View style={[styles.overlay, styles.confirm]}>
+      <ArenaInterstitial tone="danger" eyebrow={COPY.errorEyebrow} title={quitAsk.prompt.title} body={quitAsk.prompt.body} actions={[
+            { label: quitAsk.prompt.confirm, tone: 'danger', onPress: () => { const hp = quitAsk.hp; setQuitAsk(null); void doCancel(hp ?? undefined); } },
+            { label: quitAsk.prompt.dismiss, tone: 'secondary', onPress: () => setQuitAsk(null) },
+        ]}/>
+    </View> : null}
   <PvpArenaModal visible={pvp} onClose={() => setPvp(false)} userHolobots={profile?.holobots ?? []}/>
  </View>;
 }
