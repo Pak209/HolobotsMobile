@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildQuestClaimUpdates, buildTrainingClaimUpdates } from "@/lib/progressionClaims";
 import {
+  getHolobotPowerScore,
   QUEST_DEFINITIONS,
   TRAINING_COURSES,
   type ActiveQuestRecord,
@@ -126,6 +127,21 @@ describe("table parity", () => {
         ...(secondaryStat ? { secondaryRequired, secondaryStat } : {}),
       })),
     );
+  });
+});
+
+describe("quest start power (hardening-2: startQuestRun computes it on the host)", () => {
+  it("server getHolobotPowerScore equals the client formula for every bot, level and boost set", () => {
+    const names = ["ACE", "KUMA", "SHADOW", "ERA", "HARE", "TORA", "WAKE", "GAMA", "KEN", "KURAI", "TSUIN", "WOLF"];
+    const boosts = [undefined, {}, { attack: 4 }, { attack: 3, defense: 2, health: 20, special: 1, speed: 5 }];
+    for (const name of names) {
+      for (const level of [1, 2, 11, 25, 50]) {
+        for (const boostedAttributes of boosts) {
+          const holobot = { name, level, experience: 0, rank: "Rookie", boostedAttributes } as never;
+          expect(server.getHolobotPowerScore(holobot)).toBe(getHolobotPowerScore(holobot));
+        }
+      }
+    }
   });
 });
 

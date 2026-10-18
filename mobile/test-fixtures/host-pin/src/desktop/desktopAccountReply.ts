@@ -23,6 +23,7 @@ import { BuddyInventory, totalBuddyUnits } from '../lib/buddyUnits';
 import { BLUEPRINT_TIERS } from '../lib/mintingEconomy';
 import { getHolobotDisplayStats, HolobotDisplayStats, normalizeUserHolobot } from '../lib/progression';
 import { getPlayerBattleStats } from '../lib/progressionEconomy';
+import { dailyMissionLedgerSummary } from '../lib/economy';
 
 /** Deployed 2026-09-30: buddyUnits is an int. Still served to clients that don't ask for a later version. */
 export const DESKTOP_ACCOUNT_V1 = 'desktop-account-1';
@@ -65,8 +66,10 @@ export function desktopHolobotV3(raw: Record<string, unknown>): Record<string, u
  * The reply for `version`. `units` is the read Buddy Unit inventory (readBuddyInventory; the callable persists
  * its starter / migration updates). All versions add the host-owned storyFlags object (DECISIONS #59) and pilotRank (default 0).
  * v3 maps only object entries with a string name (anything else cannot be shown or battled).
+ * All versions also add dailyMissionLedger (hardening-2, additive): the daily-mission-ledger-1 summary of the
+ * server-only ledger for the host's current UTC day (`nowMs`).
  */
-export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: string, version: DesktopAccountVersion, units: BuddyInventory): Record<string, unknown> {
+export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: string, version: DesktopAccountVersion, units: BuddyInventory, nowMs: number = Date.now()): Record<string, unknown> {
   const stored: unknown[] = Array.isArray(profile.holobots) ? profile.holobots : [];
   const holobots = version === DESKTOP_ACCOUNT_V3
     ? stored.filter((h): h is Record<string, unknown> => !!h && typeof h === 'object' && !Array.isArray(h) && typeof (h as { name?: unknown }).name === 'string').map(desktopHolobotV3)
@@ -79,6 +82,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     storyFlags: readStoryFlags(profile.storyFlags),
     pilotRank: readPilotRank(profile.pilotRank),
     tournamentUnlocks: tournamentUnlocks(profile),
+    dailyMissionLedger: dailyMissionLedgerSummary(profile, new Date(nowMs)),
     holobots,
     blueprints: profile.blueprints ?? {},
     travelSquad: readTravelSquad(profile),

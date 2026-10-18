@@ -1,5 +1,5 @@
 import { buildCatalog, ITEM_INVENTORY_FIELD, buildBuddyUnitPurchase, validateBuddyPurchase } from "./vendors";
-import { buildItemPurchaseUpdatesRaw, buildPackGrantUpdatesRaw, buildPackRewards, GACHA_PACKS, incrementBoosterPacksToday } from "./economy";
+import { buildItemPurchaseUpdatesRaw, buildPackGrantUpdatesRaw, buildPackRewards, GACHA_PACKS, dailyMissionCounterUpdates } from "./economy";
 import { buildEnergyRefillUpdates, buildExpBoosterActivationRaw } from "./mintingEconomy";
 import {repairStock,repairGrant,repairUse,RepairError,REPAIR_ITEM,healingItem,healingPurchase} from "./repairItems";
 export const ITEMS_SCHEMA = "desktop-items-2";
@@ -56,7 +56,7 @@ export function applyItemCommand(profile:Record<string,unknown>,favoriteId:strin
   else if(item.useMode==="boost"){const boost=buildExpBoosterActivationRaw(profile,now);if(boost.refusal!==null)throw new ItemError(boost.refusal);updates=boost.updates;}
   else if(item.useMode==="cache"){
    const pack=GACHA_PACKS.find(p=>p.id===c.packId);if(!pack)throw new ItemError("choose_cache");const tickets=Number(profile.gachaTickets||0);if(tickets<pack.price)throw new ItemError("no_item");
-   const rewards=buildPackRewards(pack.id,random);updates={...buildPackGrantUpdatesRaw(profile,rewards),gachaTickets:tickets-pack.price,packHistory:[{id:"desktop_cache_"+c.requestId,items:[...rewards.map(item=>({name:item.label,rarity:item.rarity})),{name:"Emergency Patch",rarity:"common"}],openedAt:new Date(now).toISOString(),packId:pack.id},...(Array.isArray(profile.packHistory)?profile.packHistory:[])].slice(0,50),rewardSystem:incrementBoosterPacksToday(profile.rewardSystem,new Date(now))};result={kind:"cache",items:[...rewards,{id:"repair_"+c.requestId,label:"Emergency Patch",rarity:"common",grant:{type:"repair",amount:1}}]};
+   const rewards=buildPackRewards(pack.id,random);updates={...buildPackGrantUpdatesRaw(profile,rewards),gachaTickets:tickets-pack.price,packHistory:[{id:"desktop_cache_"+c.requestId,items:[...rewards.map(item=>({name:item.label,rarity:item.rarity})),{name:"Emergency Patch",rarity:"common"}],openedAt:new Date(now).toISOString(),packId:pack.id},...(Array.isArray(profile.packHistory)?profile.packHistory:[])].slice(0,50),...dailyMissionCounterUpdates(profile,"boosterPacksToday",new Date(now))};result={kind:"cache",items:[...rewards,{id:"repair_"+c.requestId,label:"Emergency Patch",rarity:"common",grant:{type:"repair",amount:1}}]};
   }else throw new ItemError("context_required");
  }
  return {updates,favoriteId:favorite,reply:{...itemSnapshot({...profile,...updates},favorite,now),result}};
