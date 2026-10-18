@@ -96,7 +96,7 @@ The client badges a seat only when the reply's `seats[role].uid` matches the uid
 | `room_invalid` | failed-precondition | malformed room doc, or a 3v3 lineup longer than 3 |
 | `seats_invalid` | data-loss | the host-written seats doc is corrupt |
 
-Each refusal error carries `details.rejectionCode`. Every refusal is **permanent** for the same inputs. None uses the transient `unavailable` status, so no client is told to retry a data error.
+Each refusal error except `unauthenticated` carries `details.rejectionCode`. `unauthenticated` is thrown before the ruling and has no details. Every refusal is **permanent** for the same inputs. None uses the transient `unavailable` status, so no client is told to retry a data error.
 
 ## Trust boundary — stated plainly
 
@@ -108,12 +108,9 @@ Each refusal error carries `details.rejectionCode`. Every refusal is **permanent
 
 ## Gate (deploy and City-labelled badges)
 
-**Deploy, and any badge that presents this level as City-verified, are gated on one of:**
+**Producer decision, pending Pak's override:** the #136 deploy AND any City-labelled PvP badge are gated on `holobots` / `inventory` protection from the host-economy-hardening plan (S4 phases 1–5; census in #143).
 
-- host-economy-hardening-1 protecting `holobots` (closing S4); or
-- the reply provenance being marked owner-profile / unverified until then.
-
-The deploy decision is the producer's. The lite client (#137) already shows a neutral "LV n" with no City-authority claim, and it shows nothing when no snapshot exists.
+Until that gate clears, the lite client (#137) labels nothing as City-authoritative. It shows a neutral "LV n", and no tab at all when no snapshot exists. **The City label returns once S4 closes.**
 
 ## Deploy (HELD — producer)
 
@@ -162,5 +159,6 @@ These ran in a scratch worktree with node_modules symlinked: no installs, no net
   - every client read and list is denied.
 - Adversarial self-reviews (read-only, no ref writes):
   - Round 1 (4 critics plus 6 skeptics): stale README and the per-switch read budget, both fixed. Seat erasure through room-doc tampering was hardened with uid-keyed, merge-only writes.
-  - Round 2 (coordinator): wording. Both ownership and level are owner-writable (S4), "unforgeable" now refers only to the stored seat, and the LIVE PvP cell is not claimed closed. Also: the gate, tier pin, permanent refusal codes, lifecycle note and premise renames.
-- Not run: deploy (HELD, producer, gated above) and a live two-account witness (HELD, needs the deploy and two real accounts).
+  - Round 2 (coordinator): wording. Both ownership and level are owner-writable (S4), "unforgeable" now refers only to the stored seat, and the LIVE PvP cell is not claimed closed. Also: the gate (now the producer's S4 phases 1–5 decision), tier pin, permanent refusal codes, lifecycle note and premise renames.
+  - Round 2, read-only critic workflow (4 critics plus 6 skeptics). On this host it confirmed one LOW: the `rejectionCode` sentence ignored `unauthenticated`. Reworded. The other confirmed items were client-side (#137).
+- Not run: deploy (HELD, producer; gated on S4 phases 1–5) and a live two-account witness (HELD, needs the deploy and two real accounts).
