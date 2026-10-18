@@ -16,8 +16,8 @@ const CELLS: Record<string, Cell> = {
     ArenaPolishCapped: { title: 'PAYOUT CAPPED (ANTICIPATED)', caption: 'host-economy-hardening-2 payoutCapped on issue: notice before START.', resume: () => arenaPayoutCappedIssue(), payoutCapped: true },
     // Relaunch with a stored settle; the City keeps answering too_fast with a long hint, so the resend stays armed.
     ArenaPolishConfirming: { title: 'PENDING CONFIRM', caption: 'Stored win resent after relaunch; too_fast is shown as "confirming", never raw.', resume: () => ARENA_STARTED, settle: () => { throw tooFast(600_000); }, pendingSettle: true },
-    // Hint 0: the bounded budget is spent at once and the screen hands over TRY AGAIN.
-    ArenaPolishStalled: { title: 'NOT CONFIRMED', caption: 'Budget spent (5 resends): manual TRY AGAIN; the result stays saved.', resume: () => ARENA_STARTED, settle: () => { throw tooFast(0); }, pendingSettle: true },
+    // Hint 1 ms: the bounded budget is spent almost at once and the screen hands over TRY AGAIN.
+    ArenaPolishStalled: { title: 'NOT CONFIRMED', caption: 'Budget spent (5 resends): manual TRY AGAIN; the result stays saved.', resume: () => ARENA_STARTED, settle: () => { throw tooFast(1); }, pendingSettle: true },
     ArenaPolishWithheld: { title: 'WITHHELD RECEIPT', caption: 'host #143 payoutWithheld daily_cap: all-zero receipt with its honest reason.', resume: () => arenaWithheldReply('daily_cap') },
     ArenaPolishRefund: { title: 'REFUND CLOSURE', caption: 'Cancelled before start: the City receipt names the refund (F7).', resume: () => arenaRefundReply() },
     ArenaPolishPaid: { title: 'PAID RECEIPT', caption: 'Recorded paid settle: CITY RECEIPT rows with the bundled reward glyphs (L4, L18).', resume: () => ARENA_SETTLED },
