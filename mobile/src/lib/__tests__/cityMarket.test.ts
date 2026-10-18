@@ -3,9 +3,11 @@ import { buildBuddyUnitPurchase, buildCatalog } from "../../../../functions/src/
 import { ZONE_EXPEDITION_DEFAULT_SELECTOR } from "../../../../functions/src/config/zoneExpedition";
 import hostMarket from "../../qa/fixtures/city-market-vendor-3.json";
 import {
-  CATALOG_INVALID_TEXT, CITY_MARKET_COPY, cityMarketReducer, initialCityMarketState, listingBlock, listingNeedsRequestId, listingPurchasable,
+  CATALOG_INVALID_TEXT, CITY_MARKET_COPY, cityMarketReducer, initialCityMarketState, listingNeedsRequestId, listingPurchasable,
   listingPurchase, presentCityMarket, readVendorCatalog, refusalNotice, type CityMarketState, type VendorCatalog,
 } from "../cityMarket";
+
+import { listingBlock } from "../cityMarket";
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const catalog = () => readVendorCatalog(clone(hostMarket.catalog), "marketplace");
