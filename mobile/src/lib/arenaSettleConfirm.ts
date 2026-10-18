@@ -35,6 +35,9 @@ export class ArenaSettleConfirmer {
     private generation = 0;
     private timer: unknown = null;
     private resends = 0;
+    private inFlight = false;
+    private halted = false;
+    private sendFn: (() => Promise<ArenaReply>) | null = null;
     constructor(private transport: ArenaSettleTransport, private onPhase: (phase: ArenaSettlePhase) => void,
         private timers: Timers = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h) }) { }
     /** First send of a just-finished fight. The flow persists the report before it leaves the device. */
@@ -43,36 +46,53 @@ export class ArenaSettleConfirmer {
     resume() { this.begin(() => this.transport.retrySettle()); }
     /** Manual TRY AGAIN: a fresh automatic budget, same stored body. */
     retryNow() { this.begin(() => this.transport.retrySettle()); }
-    /** Unmount, background, sign-out: cancel the armed resend and ignore any in-flight answer. */
-    stop() { this.generation++; this.clear(); }
+    /** A send is out right now (its answer will arrive as `settled`, `waiting`, `stalled`, `refused` or `idle`). */
+    get busy() { return this.inFlight; }
+    /** Background, quit prompt, cancel, exit: disarm the resend. An answer already in flight is NOT thrown away: a
+     * `settled` reply is the City's truth and is still reported; a failure reports `idle` and arms nothing. */
+    stop() {
+        this.halted = true;
+        this.clear();
+        if (!this.inFlight) this.onPhase({ kind: 'idle' });
+    }
+    /** Unmount: report nothing more. */
+    dispose() { this.generation++; this.halted = true; this.clear(); }
     private clear() { if (this.timer !== null) { this.timers.clearTimeout(this.timer); this.timer = null; } }
     private begin(send: () => Promise<ArenaReply>) {
-        this.stop();
+        // Never two sends at once (double tap, effect + resume on remount): the one already out drives the phase, and it
+        // keeps the loop going if a stop() had disarmed it.
+        if (this.inFlight) { this.halted = false; return; }
+        this.clear();
+        this.halted = false;
         this.resends = 0;
-        void this.send(this.generation, send, 0);
+        this.sendFn = send;
+        void this.attempt(this.generation, 0);
     }
-    private async send(generation: number, send: () => Promise<ArenaReply>, attempt: number) {
-        if (generation !== this.generation) return;
+    private async attempt(generation: number, attempt: number) {
+        if (generation !== this.generation || this.halted || !this.sendFn) return;
+        this.inFlight = true;
         this.onPhase({ kind: 'sending', attempt });
-        try {
-            const reply = await send();
-            if (generation === this.generation) this.onPhase({ kind: 'settled', reply });
-        }
-        catch (e) {
-            if (generation !== this.generation) return;
-            if (e instanceof Error && e.message === 'arena_session_changed') { this.onPhase({ kind: 'idle' }); return; }
-            const rejection = arenaHostRejection(e);
-            const tooFast = rejection === ARENA_SETTLE_TOO_FAST;
-            if (!tooFast && arenaDefiniteRefusal(e)) { this.onPhase({ kind: 'refused', code: rejection ?? arenaCallCode(e) ?? 'unknown' }); return; }
-            const reason = tooFast ? 'too_fast' : 'unknown';
-            if (this.resends >= ARENA_SETTLE_BACKOFF_MS.length) { this.onPhase({ kind: 'stalled', reason }); return; }
-            const hint = tooFast ? arenaRetryAfterMs(e) : null;
-            const resendInMs = hint ?? ARENA_SETTLE_BACKOFF_MS[this.resends];
-            this.resends++;
-            this.onPhase({ kind: 'waiting', attempt: attempt + 1, resendInMs, hinted: hint !== null, reason });
-            // Resend through the SAME path: settle(report) itself resends the stored body unchanged once one exists, and it
-            // still stores the body if the first send never got that far (e.g. arena_busy during a foreground resume).
-            this.timer = this.timers.setTimeout(() => { this.timer = null; void this.send(generation, send, attempt + 1); }, resendInMs);
-        }
+        let reply: ArenaReply | null = null, error: unknown = null;
+        try { reply = await this.sendFn(); }
+        catch (e) { error = e; }
+        finally { this.inFlight = false; }
+        if (generation !== this.generation) return;
+        if (reply) { this.onPhase({ kind: 'settled', reply }); return; }
+        if (this.halted) { this.onPhase({ kind: 'idle' }); return; }
+        const local = error instanceof Error ? error.message : '';
+        // Signed out, or nothing stored for the open match any more (settled/closed elsewhere): nothing to confirm.
+        if (local === 'arena_session_changed' || local === 'arena_no_pending_settle' || local === 'arena_not_admitted') { this.onPhase({ kind: 'idle' }); return; }
+        const rejection = arenaHostRejection(error);
+        const tooFast = rejection === ARENA_SETTLE_TOO_FAST;
+        if (!tooFast && rejection !== 'request_conflict' && arenaDefiniteRefusal(error)) { this.onPhase({ kind: 'refused', code: rejection ?? arenaCallCode(error) ?? 'unknown' }); return; }
+        const reason = tooFast ? 'too_fast' : 'unknown';
+        if (this.resends >= ARENA_SETTLE_BACKOFF_MS.length) { this.onPhase({ kind: 'stalled', reason }); return; }
+        const hint = tooFast ? arenaRetryAfterMs(error) : null;
+        const resendInMs = hint ?? ARENA_SETTLE_BACKOFF_MS[this.resends];
+        this.resends++;
+        this.onPhase({ kind: 'waiting', attempt: attempt + 1, resendInMs, hinted: hint !== null, reason });
+        // Resend through the SAME path: settle(report) itself resends the stored body unchanged once one exists, and it
+        // still stores the body if the first send never got that far (e.g. arena_busy during a foreground resume).
+        this.timer = this.timers.setTimeout(() => { this.timer = null; void this.attempt(generation, attempt + 1); }, resendInMs);
     }
 }

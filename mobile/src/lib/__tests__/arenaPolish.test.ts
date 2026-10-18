@@ -65,7 +65,8 @@ describe('F2: a definite refusal never wedges admission', () => {
 
 describe('F3: a lost start reply never forces a 0-HP forfeit', () => {
     it('an active match with no checkpoint is the "interrupted" admitted state, not an error', () => {
-        expect(phase({ reply: ARENA_STARTED })).toEqual({ kind: 'admitted', interrupted: true });
+        expect(phase({ reply: ARENA_STARTED })).toEqual({ kind: 'admitted', interrupted: true, resumable: false });
+        expect(phase({ reply: ARENA_STARTED, savedCheckpoint: true })).toEqual({ kind: 'admitted', interrupted: true, resumable: true });
         expect(phase({ reply: ARENA_ISSUED })).toEqual({ kind: 'admitted', interrupted: false });
     });
     it('a forfeit reports the checkpoint, else the saved result, else the admission HP (never 0 by default)', () => {
@@ -74,6 +75,36 @@ describe('F3: a lost start reply never forces a 0-HP forfeit', () => {
         expect(arenaForfeitHp({ checkpointHp: null, pendingSettleHp: null, admissionHp })).toBe(admissionHp);
         expect(arenaForfeitHp({ checkpointHp: 12, pendingSettleHp: 30, admissionHp })).toBe(12);
         expect(arenaForfeitHp({ checkpointHp: null, pendingSettleHp: 30, admissionHp })).toBe(30);
+        // Critic #6: a fight that ran here and was cut off forfeits at its saved HP, not the entry HP.
+        expect(arenaForfeitHp({ checkpointHp: null, pendingSettleHp: null, savedCheckpointHp: 9, admissionHp })).toBe(9);
+    });
+    it('the fight state is checkpointed per match and retired with it (no re-roll by force-quit)', async () => {
+        let cp: any = null;
+        const call = vi.fn(async (r: Record<string, unknown>) => r.operation === 'settle' ? ARENA_SETTLED : ARENA_STARTED);
+        const flow = new ArenaMatchFlow(call, { get: async () => null, set: async () => { } }, () => true, undefined, { checkpoints: { get: async () => cp, set: async v => { cp = v; } } });
+        await flow.saveCheckpoint({ playerFinalHealth: 9, opponentFinalHealth: 50, combosCompleted: 2, perfectDefenses: 1 });
+        expect(cp).toBeNull(); // nothing open yet
+        await flow.resume();
+        await flow.saveCheckpoint({ playerFinalHealth: 9, opponentFinalHealth: 50, combosCompleted: 2, perfectDefenses: 1 });
+        expect(await flow.checkpoint()).toEqual({ matchId: ARENA_STARTED.matchId, report: { playerFinalHealth: 9, opponentFinalHealth: 50, combosCompleted: 2, perfectDefenses: 1 } });
+        await flow.settle({ playerFinalHealth: 30, opponentFinalHealth: 0, combosCompleted: 0, perfectDefenses: 0 });
+        expect(cp).toBeNull();
+        const screen = readFileSync(fileURLToPath(new URL('../../screens/ArenaScreen.tsx', import.meta.url) as unknown as string), 'utf8');
+        expect(screen).toContain('prepared.battle.player.currentHP = Math.min(prepared.battle.player.maxHP, cp.report.playerFinalHealth)');
+        expect(screen).toContain("if (cp.report.playerFinalHealth <= 0 || cp.report.opponentFinalHealth <= 0) { runConfirm('start', cp.report); return; }");
+    });
+    it('whenIdle waits out an in-flight command instead of colliding as arena_busy', async () => {
+        let release!: (v: unknown) => void;
+        const call = vi.fn().mockImplementationOnce(() => new Promise(r => { release = r; })).mockResolvedValue(ARENA_STARTED);
+        const flow = new ArenaMatchFlow(call, { get: async () => null, set: async () => { } }, () => true);
+        const first = flow.resume();
+        await Promise.resolve();
+        await expect(flow.resume()).rejects.toThrow('arena_busy');
+        let idle = false; const wait = flow.whenIdle().then(() => { idle = true; });
+        await Promise.resolve(); expect(idle).toBe(false);
+        release(ARENA_STARTED); await first; await wait;
+        expect(idle).toBe(true);
+        await expect(flow.resume()).resolves.toMatchObject({ matchId: ARENA_STARTED.matchId });
     });
     it('the screen source restarts the practice from the admitted snapshot instead of throwing "Interrupted fight"', () => {
         const screen = readFileSync(fileURLToPath(new URL('../../screens/ArenaScreen.tsx', import.meta.url) as unknown as string), 'utf8');
@@ -108,6 +139,8 @@ describe('F7 + (A)2: closures and withheld payouts are receipts with honest reas
         }
         const bp = arenaWithheldReply('daily_cap') as any; bp.match.settlementReceipt.settlement.blueprints = { holobotKey: 'hare', amount: 5 };
         expect(() => arenaReceiptResult(bp)).toThrow('arena_result_unavailable');
+        const nulled = JSON.parse(JSON.stringify(ARENA_SETTLED)); nulled.match.settlementReceipt.settlement.payoutWithheld = null;
+        expect(arenaReceiptResult(nulled)).toMatchObject({ payoutWithheld: null, rewards: { holos: 100 } }); // critic #8
     });
     it('refund and forfeit closures read the City receipt (refund amount; forfeit HP) and route to the closure screen', () => {
         const refund = readArenaReply(arenaRefundReply());
@@ -142,9 +175,13 @@ describe('(A)3 ANTICIPATED payoutCapped on the issue reply', () => {
 
 describe('forfeit while a win is pending asks first', () => {
     it('the prompt names the unconfirmed win and needs an explicit confirm', () => {
-        const p = arenaQuitPrompt({ state: 'active', pendingSettle: true, fighter: 'ACE', forfeitHp: 30 });
+        const p = arenaQuitPrompt({ state: 'active', pendingSettle: true, win: true, fighter: 'ACE', forfeitHp: 30 });
         expect(p.title).toBe('FORFEIT AN UNCONFIRMED WIN?');
         expect(p.body).toMatch(/hasn't confirmed your win/);
+        // Critic #4: without the City's too_fast it is a "result", never a locally asserted win.
+        const r = arenaQuitPrompt({ state: 'active', pendingSettle: true, fighter: 'ACE', forfeitHp: 0 });
+        expect(r.title).toBe('FORFEIT AN UNCONFIRMED RESULT?');
+        expect(r.body).not.toMatch(/\bwin\b/);
         expect(p.body).toContain('ACE keeps 30 HP');
         expect(p.confirm).not.toEqual(p.dismiss);
         expect(arenaQuitPrompt({ state: 'issued', pendingSettle: false, fighter: 'ACE', forfeitHp: null }).body).toMatch(/refunds/);
@@ -169,6 +206,22 @@ describe('L1: player copy, never raw codes', () => {
     it.each(['arena_busy', 'arena_snapshot_unavailable', 'arena_issue_pending', 'arena_session_changed', 'arena_reply_invalid'])('local %s maps to copy', (code) => {
         const copy = arenaErrorCopy(Error(code));
         expect(`${copy.title} ${copy.body}`).not.toMatch(/arena_|_/);
+    });
+    it('critic #10: an unknown code the City sent reads "not accepted"; only a missing answer reads "no answer"', () => {
+        expect(arenaErrorCopy(arenaRefusal('bracket_new_rule')).title).toBe('REQUEST NOT ACCEPTED');
+        expect(arenaErrorCopy(Object.assign(Error('x'), { code: 'functions/failed-precondition' })).title).toBe('REQUEST NOT ACCEPTED');
+        expect(arenaErrorCopy(Error('socket hang up')).title).toBe('NO ANSWER FROM THE CITY');
+    });
+    it('the screen disarms only on a real background, pauses the fight under the quit prompt, and lets in-flight work land', () => {
+        const screen = readFileSync(fileURLToPath(new URL('../../screens/ArenaScreen.tsx', import.meta.url) as unknown as string), 'utf8');
+        expect(screen).toMatch(/if \(state === 'background'\)\s*confirmer\?\.stop\(\);/);
+        expect(screen).toMatch(/const quit = \(\) => \{[\s\S]*?store\.setPaused\(true\);\s*confirmer\?\.stop\(\);/);
+        expect(screen).toMatch(/const doCancel = \(\) => action\(async \(\) => \{[\s\S]*?await flow!\.whenIdle\(\);/);
+        expect(screen).toMatch(/const resumeAll = async \(\) => \{[\s\S]*?await flow\.whenIdle\(\);/);
+        expect(screen).toMatch(/const exit = \(\) => action\(async \(\) => \{\s*confirmer\?\.stop\(\);/);
+        expect(screen).not.toMatch(/confirmer\?\.(start|resume|retryNow)\(/); // one entry point, bound to the open match
+        expect(screen).toContain("settleState.matchId === (reply?.matchId ?? null) ? settleState.phase : { kind: 'idle' }");
+        expect(screen).toContain('title={winPending ? COPY.confirmingTitle : COPY.confirmingResult}');
     });
     it('a timeout message or an SDK error with only an HTTPS code still reads as copy', () => {
         expect(arenaErrorCode(Error('Arena confirmation delayed. Resume or retry the same admission.'))).toBe('unknown');

@@ -153,7 +153,8 @@ export function ArenaPrebattleMenu({
   const canUseTokens = userTokens >= selectedTier.entryFeeHolos;
   const canUsePass = userArenaPasses > 0;
   const teamComplete = teamNames.every(Boolean) && new Set(teamNames).size === 3;
-  // PLACEHOLDER copy. Display only: the City still decides admission.
+  // PLACEHOLDER copy. Mirrors the City's holobot_ko rule to spare a refused entry: it disables PAY / USE PASS for a
+  // fighter the ledger records at 0 HP. The City still decides admission; an unknown ledger never blocks.
   const selectedKo = mode === "1v1" && hostKnockedOut(hostVitals, selectedHolobot.name.toLowerCase());
   const teamReady = (mode === "1v1" && !selectedKo) || (mode === "3v3" && teamComplete);
   const canField3v3 = roster.length >= 3;

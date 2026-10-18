@@ -38,7 +38,7 @@ describe('lite-arena-polish-1 offline QA routes', () => {
             expect(await cellPhase(() => ARENA_ISSUED)).toEqual({ kind: 'admitted', interrupted: false });
             expect(arenaIssuePayoutCapped(arenaPayoutCappedIssue())).toBe(true);
             expect(await cellPhase(() => ARENA_STARTED, () => { throw tooFast(600_000); })).toEqual({ kind: 'confirming' });
-            expect(await cellPhase(() => ARENA_STARTED, () => { throw tooFast(0); })).toEqual({ kind: 'stalled' });
+            expect(await cellPhase(() => ARENA_STARTED, () => { throw tooFast(1); })).toEqual({ kind: 'stalled' });
             expect(await cellPhase(() => arenaWithheldReply('daily_cap'))).toEqual({ kind: 'receipt' });
             expect(await cellPhase(() => arenaRefundReply())).toEqual({ kind: 'closure' });
             expect(await cellPhase(() => ARENA_SETTLED)).toEqual({ kind: 'receipt' });

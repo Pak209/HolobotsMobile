@@ -137,6 +137,68 @@ describe('too_fast is PENDING, never an error (host #143 settle floor)', () => {
         expect(h.last().kind).toBe('settled');
     });
 
+    it('critic #1: stop() during an in-flight send keeps the City\'s settled answer', async () => {
+        let release!: (v: unknown) => void;
+        const h = harness([]);
+        (h.flow as any).call = vi.fn(async (r: Record<string, unknown>) => r.operation === 'resume' ? ARENA_STARTED : new Promise(res => { release = res; }));
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.confirmer.busy).toBe(true);
+        h.confirmer.stop(); // e.g. the app went to the background
+        release(ARENA_SETTLED); await flush();
+        expect(h.last()).toMatchObject({ kind: 'settled' });
+    });
+
+    it('critic #1: stop() during an in-flight send that fails reports idle and arms nothing', async () => {
+        const h = harness([tooFast()]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        h.confirmer.stop();
+        await flush();
+        expect(h.last()).toEqual({ kind: 'idle' });
+        await vi.advanceTimersByTimeAsync(60_000); await flush();
+        expect(h.settles()).toHaveLength(1);
+        h.confirmer.stop();
+        expect(h.last()).toEqual({ kind: 'idle' });
+    });
+
+    it('critic #11/#3: a second start while a send is out sends nothing new (double tap, effect + resume)', async () => {
+        const h = harness([tooFast(), ARENA_SETTLED]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        h.confirmer.retryNow();
+        h.confirmer.resume();
+        await flush();
+        expect(h.settles()).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(1_000); await flush();
+        expect(h.settles()).toHaveLength(2);
+        expect(h.last().kind).toBe('settled');
+    });
+
+    it('critic #2: nothing stored for the open match ends the loop as idle instead of a fake "saved" stall', async () => {
+        const h = harness([]);
+        await h.flow.resume();
+        h.confirmer.resume(); // retrySettle with no stored body
+        await flush();
+        expect(h.last()).toEqual({ kind: 'idle' });
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(h.settles()).toHaveLength(0);
+    });
+
+    it('critic #13: a 0 ms hint is no hint (the backoff applies); request_conflict keeps the body and retries', async () => {
+        const h = harness([tooFast(0), arenaRefusal('request_conflict'), ARENA_SETTLED]);
+        await h.flow.resume();
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.last()).toMatchObject({ kind: 'waiting', resendInMs: 1_000, hinted: false });
+        await vi.advanceTimersByTimeAsync(1_000); await flush();
+        expect(h.last()).toMatchObject({ kind: 'waiting', reason: 'unknown' });
+        expect(h.storage.settle).not.toBeNull();
+        await vi.advanceTimersByTimeAsync(2_000); await flush();
+        expect(h.last().kind).toBe('settled');
+    });
+
     it('stop() cancels the armed resend (background, unmount)', async () => {
         const h = harness([tooFast(), ARENA_SETTLED]);
         await h.flow.resume();

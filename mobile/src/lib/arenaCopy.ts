@@ -4,7 +4,7 @@
  * Presentation only (hard rule 1): nothing here decides an outcome, a reward or an HP value. Codes from the host or
  * the transport are mapped to copy and are never printed raw.
  */
-import { arenaCallCode, arenaClosureResult, arenaHostRejection, arenaReceiptResult, type ArenaReply } from './arenaMatchFlow';
+import { arenaCallCode, arenaClosureResult, arenaDefiniteRefusal, arenaHostRejection, arenaReceiptResult, type ArenaReply } from './arenaMatchFlow';
 import type { ArenaSettlePhase } from './arenaSettleConfirm';
 
 export type ArenaCopyBlock = { title: string; body: string };
@@ -18,8 +18,12 @@ export const ARENA_SCREEN_COPY = {
     cancelRefund: 'CANCEL · REFUND ENTRY',
     interruptedEyebrow: 'MATCH IN PROGRESS',
     interruptedTitle: 'FIGHT INTERRUPTED',
-    interruptedBody: 'This fight stopped on this device. Restart it from the HP you entered with, or forfeit at that HP.',
-    restart: 'RESTART FROM ENTRY HP',
+    /** F3, a fight that ran on this device and was cut off (kill, relaunch): it continues from its saved state. */
+    interruptedBody: 'This fight stopped on this device. Continue from where it stopped, or forfeit at that HP.',
+    resumeFight: 'CONTINUE FIGHT',
+    /** F3, a lost `start` reply: no fight ever ran here, so it starts from the HP the City admitted. */
+    notStartedBody: "This fight never started on this device. Start it from the HP you entered with, or forfeit at that HP.",
+    restart: 'START FROM ENTRY HP',
     forfeit: 'FORFEIT MATCH',
     payoutCapped: 'Daily Arena rewards reached · this match pays no rewards',
     confirmingEyebrow: 'CITY CONFIRMING',
@@ -76,32 +80,38 @@ export function arenaErrorCode(e: unknown): string {
     if (/^arena_[a-z0-9_]+$/.test(message)) return message;
     return arenaCallCode(e) ?? 'unknown';
 }
-/** L1: player copy for any Arena failure. Unknown codes (timeouts, dropped replies) read as "no answer", never raw. */
+/** L1: player copy for any Arena failure, never raw. An unknown code the City sent as a refusal reads "not accepted";
+ * only a missing answer (timeout, dropped reply, no code) reads "no answer". */
 export function arenaErrorCopy(e: unknown): ArenaCopyBlock {
-    return COPY[ALIAS[arenaErrorCode(e)] ?? 'offline'];
+    const alias = ALIAS[arenaErrorCode(e)];
+    if (alias) return COPY[alias];
+    return arenaHostRejection(e) || arenaDefiniteRefusal(e) ? COPY.refused : COPY.offline;
 }
 
 export type ArenaQuitPrompt = { title: string; body: string; confirm: string; dismiss: string };
-/** Every QUIT/CANCEL goes through a confirmation. A forfeit while a win is still unconfirmed says so first; it never
- * silently discards a pending settle. */
-export function arenaQuitPrompt(input: { state: 'issued' | 'active'; pendingSettle: boolean; fighter: string; forfeitHp: number | null }): ArenaQuitPrompt {
+/** Every QUIT/CANCEL goes through a confirmation. A forfeit while a result is still unconfirmed says so first; it never
+ * silently discards a pending settle. It says "win" only when the City has answered too_fast for this match (the floor
+ * refuses only wins); otherwise "result", never a local verdict. */
+export function arenaQuitPrompt(input: { state: 'issued' | 'active'; pendingSettle: boolean; win?: boolean; fighter: string; forfeitHp: number | null }): ArenaQuitPrompt {
     if (input.state === 'issued')
         return { title: 'CANCEL THIS ENTRY?', body: 'The fight has not started. The City refunds your entry in full.', confirm: 'CANCEL ENTRY', dismiss: 'KEEP ENTRY' };
     const hp = input.forfeitHp === null ? '' : ` ${input.fighter} keeps ${input.forfeitHp} HP.`;
+    const what = input.win ? 'win' : 'result';
     if (input.pendingSettle)
-        return { title: 'FORFEIT AN UNCONFIRMED WIN?', body: `The City hasn't confirmed your win yet. Forfeiting closes this match with no rewards and discards the saved result.${hp}`, confirm: 'FORFEIT ANYWAY', dismiss: 'KEEP WAITING' };
+        return { title: `FORFEIT AN UNCONFIRMED ${what.toUpperCase()}?`, body: `The City hasn't confirmed your ${what} yet. Forfeiting closes this match with no rewards and discards the saved result.${hp}`, confirm: 'FORFEIT ANYWAY', dismiss: 'KEEP WAITING' };
     return { title: 'FORFEIT THIS MATCH?', body: `A forfeit pays no rewards and the entry is not refunded.${hp}`, confirm: 'FORFEIT', dismiss: 'KEEP FIGHTING' };
 }
-/** F3: the HP a forfeit reports. The local checkpoint if the fight is on this device, else the result saved for the
- * City, else the HP the City admitted the fighter with. Never 0 for a fight that did not happen here. */
-export function arenaForfeitHp(input: { checkpointHp: number | null; pendingSettleHp: number | null; admissionHp: number }): number {
-    return input.checkpointHp ?? input.pendingSettleHp ?? input.admissionHp;
+/** F3: the HP a forfeit reports: the live fight on this device, else the result saved for the City, else the saved
+ * checkpoint of a fight that ran here and was cut off, else (the fight never ran here) the HP the City admitted. */
+export function arenaForfeitHp(input: { checkpointHp: number | null; pendingSettleHp: number | null; savedCheckpointHp?: number | null; admissionHp: number }): number {
+    return input.checkpointHp ?? input.pendingSettleHp ?? input.savedCheckpointHp ?? input.admissionHp;
 }
 
 export type ArenaScreenPhase =
     | { kind: 'menu' }
     | { kind: 'pendingIssue' }
-    | { kind: 'admitted'; interrupted: boolean }
+    /** interrupted: active with no live fight here. resumable: this device saved that fight's state (F3). */
+    | { kind: 'admitted'; interrupted: boolean; resumable?: boolean }
     | { kind: 'battle' }
     | { kind: 'confirming' }
     | { kind: 'stalled' }
@@ -111,7 +121,7 @@ export type ArenaScreenPhase =
 const open = (reply: ArenaReply | null) => !!reply?.match && (reply.match.state === 'issued' || reply.match.state === 'active');
 /** One honest screen state from the host reply and local transport state. Terminal receipts the player already dismissed
  * (F4) fall back to the menu. */
-export function arenaScreenPhase(input: { reply: ArenaReply | null; acknowledged: boolean; hasCheckpoint: boolean; settle: ArenaSettlePhase; pendingIssue: boolean; error: unknown }): ArenaScreenPhase {
+export function arenaScreenPhase(input: { reply: ArenaReply | null; acknowledged: boolean; hasCheckpoint: boolean; savedCheckpoint?: boolean; settle: ArenaSettlePhase; pendingIssue: boolean; error: unknown }): ArenaScreenPhase {
     const { reply, settle } = input;
     if (open(reply)) {
         const active = reply!.match!.state === 'active';
@@ -121,7 +131,7 @@ export function arenaScreenPhase(input: { reply: ArenaReply | null; acknowledged
         if (settle.kind === 'refused') return { kind: 'error', copy: COPY[ALIAS[settle.code] ?? 'refused'], matchOpen: true };
         if (input.error) return { kind: 'error', copy: arenaErrorCopy(input.error), matchOpen: true };
         if (input.hasCheckpoint) return { kind: 'battle' };
-        return { kind: 'admitted', interrupted: active };
+        return active ? { kind: 'admitted', interrupted: true, resumable: !!input.savedCheckpoint } : { kind: 'admitted', interrupted: false };
     }
     if (input.error && arenaErrorCode(input.error) === 'arena_issue_pending') return { kind: 'pendingIssue' };
     if (input.error) return { kind: 'error', copy: arenaErrorCopy(input.error), matchOpen: false };

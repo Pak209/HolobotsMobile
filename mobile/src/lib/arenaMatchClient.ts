@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, functions, httpsCallable } from '@/config/firebase';
 import { withTimeout, CALLABLE_TIMEOUT_MS } from './async';
-import { ArenaMatchFlow, type ArenaIssue, type ArenaPendingSettle } from './arenaMatchFlow';
+import { ArenaMatchFlow, type ArenaCheckpoint, type ArenaIssue, type ArenaPendingSettle } from './arenaMatchFlow';
 import type { Arena3v3Swap } from './arenaMatch3v3';
 
 const accountStorage = <T>(key: string) => ({
@@ -28,5 +28,7 @@ export function createArenaMatchClient(uid: string) {
         settles: accountStorage<ArenaPendingSettle>(`arena-match-settle-pending-1:${uid}`),
         // F4: the last terminal receipt the player dismissed on this device.
         acks: accountStorage<string>(`arena-match-ack-1:${uid}`),
+        // F3: the local practice fight's last HP/performance for the open match, so an interrupted fight continues.
+        checkpoints: accountStorage<ArenaCheckpoint>(`arena-match-checkpoint-1:${uid}`),
     });
 }

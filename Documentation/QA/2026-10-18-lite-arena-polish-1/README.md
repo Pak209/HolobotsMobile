@@ -8,7 +8,9 @@ Nothing here touches `functions/`, `firestore.rules`, PvP files, the 3v3 bench o
 
 ## Base
 
-When this lane started, #141, #142, #137 and #139 were all still open. The branch starts at the GitHub-verified lite tip `c187921`, with the four heads merged locally in the verified order: #141 `b0c43fc`, #142 `bbc323d`, #137 `d21f78f`, #139 `ae7e71a`. The only conflict was the expected additive import in `mobile/src/qa/HoloCityPreview.tsx`; every line is kept. **Rebase onto the real tip once those four merge.** Baseline on that combined state: vitest 1107 pass / 4 skip, tsc 0.
+The base is the GitHub-verified lite tip `b99187c` (#139 squash-merged at head `ae7e71a`), plus the three PRs that are still open, merged locally in the verified order: #141 `b0c43fc`, #142 `bbc323d` and #137 `e828c21` (#137 already merged `b99187c`). All three merged cleanly. **Rebase onto the real tip once #141, #142 and #137 land.**
+
+The lane began on `c187921` with all four heads merged locally. It moved to `b99187c` when #139 merged. The new base tree is byte-identical to the old one, and the rebased tree equals the pre-rebase tree (`git diff` empty). The witness head `cf6f332` is therefore `15f65e3` here, with the same tree. Baseline on the combined state: vitest 1107 pass / 4 skip, tsc 0. #139's 3v3 entry (`unavailable3v3Copy`, no Alert) is kept, and `arenaMatch3v3.test.ts` pins it.
 
 ## Row → fix → evidence
 
