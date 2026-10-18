@@ -7,9 +7,11 @@ import {readTravelSquad} from '../acquisition/captureOwnership';
 import {arenaOpen,duelOpen} from '../lib/healingGuards';
 import {RepairError} from '../lib/repairItems';
 import {healthRows,Vitals} from '../lib/rivalHealth';
-import {readOpenBattles} from '../lib/rivalLadder';
+import {buildPlayerCombatants,readOpenBattles} from '../lib/rivalLadder';
 import {readHoloZoneRuns} from '../lib/holoZoneRuns';
 export const DUEL_SWITCH_LOCKOUT_MS=3000;
+/** The run's rival-battle binding is host-internal: replies keep the duel-healing-1 wire shape (no new field). */
+function wire<T extends Record<string,unknown>>(record:T){const {rivalBattleId:_bound,...reply}=record;void _bound;return reply;}
 /** Local-duel accounting only. No multiplayer sim/principal/anti-cheat authority is added. */
 export async function transactDuelHealing(firestore:Firestore,uid:string,raw:unknown,now=Date.now()){
  const c=raw as Record<string,unknown>;
@@ -24,10 +26,21 @@ export async function transactDuelHealing(firestore:Firestore,uid:string,raw:unk
    if(c.runId!==undefined||c.health!==undefined)throw new RepairError('invalid_request');
    if(duelOpen(r))throw new RepairError('battle_open');
    const rival=await tx.get(firestore.doc(`rivalBattles/${uid}`)),zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
-   if(expeditionOpen(zone.data())||Object.keys(readOpenBattles(rival.data(),now)).length||readHoloZoneRuns(zone.data()).some(x=>x.settlement===null&&x.closedAtMs===null&&now<=x.expiresAtMs))throw new RepairError('battle_open');
+   if(expeditionOpen(zone.data())||readHoloZoneRuns(zone.data()).some(x=>x.settlement===null&&x.closedAtMs===null&&now<=x.expiresAtMs))throw new RepairError('battle_open');
+   // c1 (duel-healing-host-fix-1): Unity opens the run at engage, AFTER rivalBattleHost issued the pilot duel. That one open
+   // rival battle is the duel's own: the run is bound to it server-side (never on the wire). More than one open = ambiguous.
+   const openBattles=Object.keys(readOpenBattles(rival.data(),now));if(openBattles.length>1)throw new RepairError('battle_open');
+   const rivalBattleId=openBattles[0]??null;
    const squad=readTravelSquad(profile).holobotIds,fielded=deployment(squad),vitals:Vitals={};
-   for(const id of squad){const v=profile.holobotVitals?.[id];if(!v||!Number.isFinite(v.currentHealth)||!Number.isFinite(v.maxHealth)||v.maxHealth<=0||v.currentHealth<0||v.currentHealth>v.maxHealth)throw new RepairError('health_unavailable');if(fielded.includes(id)&&v.currentHealth===0)throw new RepairError("holobot_ko");vitals[id]={...v};}
-   const record={schemaVersion:'duel-healing-1',runId:freshId,open:true,squad,fielded,vitals,heals:[],switchLockedUntilMs:0,issuedAtMs:now};tx.set(ref,record);return record;
+   // c3: a squad bot with NO ledger row is fresh (as rivalHealth.issueVitals reads it): seeded at max on the ledger so the
+   // settle finds it. A present-but-malformed row still fails closed.
+   const stored=profile.holobotVitals;if(stored!==undefined&&(!stored||typeof stored!=='object'||Array.isArray(stored)))throw new RepairError('health_unavailable');
+   const seeded:Vitals={},combatants=buildPlayerCombatants(profile,squad);
+   for(const id of squad){let v=stored?.[id];
+    if(v===undefined){const c=combatants.find(x=>x.holobotId===id);if(!c||!Number.isFinite(c.maxHealth)||c.maxHealth<=0)throw new RepairError('health_unavailable');v=seeded[id]={currentHealth:c.maxHealth,maxHealth:c.maxHealth};}
+    if(!v||!Number.isFinite(v.currentHealth)||!Number.isFinite(v.maxHealth)||v.maxHealth<=0||v.currentHealth<0||v.currentHealth>v.maxHealth)throw new RepairError('health_unavailable');if(fielded.includes(id)&&v.currentHealth===0)throw new RepairError("holobot_ko");vitals[id]={...v};}
+   if(Object.keys(seeded).length)tx.update(userRef,{holobotVitals:{...stored,...seeded}});
+   const record={schemaVersion:'duel-healing-1',runId:freshId,open:true,squad,fielded,vitals,heals:[],switchLockedUntilMs:0,issuedAtMs:now,rivalBattleId};tx.set(ref,record);return wire(record);
   }
   if(!r||c.runId!==r.runId)throw new RepairError('unknown_run');
   if(c.operation==='settle'&&r.open===false)return {...r.settlement,alreadyProcessed:true};
@@ -35,7 +48,7 @@ export async function transactDuelHealing(firestore:Firestore,uid:string,raw:unk
   if(c.operation==='deploy'){
    if(c.health!==undefined)throw new RepairError('invalid_request');if(now<r.switchLockedUntilMs)throw new RepairError('switch_lockout');
    const fielded=deployment(r.squad);if(fielded.some(id=>r.vitals[id].currentHealth===0))throw new RepairError("holobot_ko");
-   const next={...r,fielded,switchLockedUntilMs:now+DUEL_SWITCH_LOCKOUT_MS};tx.set(ref,next);return next;
+   const next={...r,fielded,switchLockedUntilMs:now+DUEL_SWITCH_LOCKOUT_MS};tx.set(ref,next);return wire(next);
   }
   if(c.fielded!==undefined)throw new RepairError('invalid_request');const rows=healthRows(c.health);if(!rows)throw new RepairError('invalid_request');
   if(c.operation==='settle'&&(rows.length!==r.squad.length||r.squad.some((id:string)=>!rows.some(row=>row.holobotId===id))))throw new RepairError('invalid_request');

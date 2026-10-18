@@ -184,7 +184,12 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
         receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:f.currentHealth}))); }
       catch { throw new RivalError('unavailable'); }
-    } else if(r.battleUpdates&&settleCommand.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,settleCommand.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
+    } else if(r.battleUpdates&&settleCommand.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");
+      // duel-healing-host-fix-1 (DECISIONS #57): a duel-healing run bound to THIS battle owns the duel's HP (bench heals settle
+      // with the duel; its settle writes the ledger). The client rows are not applied here, so a healed bench bot presented
+      // above its rival issue neither refuses the settle (invalid_request) nor undoes the heal.
+      const bound=(await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
+      if(bound?.rivalBattleId!==command.battleId){try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,settleCommand.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}}
     if (r.battleUpdates?.settlement?.didWin && isStoryBattle) {
       const nextStory = allyAfterZellVictory(storyState!, { ...issued!, ...r.battleUpdates }, nowMs);
       if (nextStory !== storyState) tx.set(storyRef, nextStory);
