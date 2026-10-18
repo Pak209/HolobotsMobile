@@ -27,11 +27,13 @@ type ArenaPrebattleMenuProps = {
     tier: ArenaTier;
     paymentMethod: "tokens" | "pass";
   }) => void;
-  onStart3v3: (options: {
+  onStart3v3?: (options: {
     teamNames: [string, string, string];
     tier: ArenaTier;
     paymentMethod: "tokens" | "pass";
   }) => void;
+  /** When set, 3v3 is shown disabled with this honest line instead of starting (no host admits a team yet). */
+  unavailable3v3Copy?: string;
   userArenaPasses: number;
   userHolobots: UserHolobot[];
   userTokens: number;
@@ -104,6 +106,7 @@ function FlipPreviewCard({
 export function ArenaPrebattleMenu({
   onStartBattle,
   onStart3v3,
+  unavailable3v3Copy,
   userArenaPasses,
   userHolobots,
   userTokens,
@@ -146,6 +149,7 @@ export function ArenaPrebattleMenu({
   const teamComplete = teamNames.every(Boolean) && new Set(teamNames).size === 3;
   const teamReady = mode === "1v1" || teamComplete;
   const canField3v3 = roster.length >= 3;
+  const threeVThreeOpen = !!onStart3v3 && !unavailable3v3Copy;
 
   const rosterFor = (name: string | null) =>
     name ? roster.find((holobot) => holobot.name === name) ?? null : null;
@@ -174,7 +178,7 @@ export function ArenaPrebattleMenu({
 
   const startPressed = (paymentMethod: "tokens" | "pass") => {
     if (mode === "3v3") {
-      if (!teamComplete) return;
+      if (!teamComplete || !onStart3v3 || !threeVThreeOpen) return;
       onStart3v3({ teamNames: teamNames as [string, string, string], tier: selectedTier, paymentMethod });
       return;
     }
@@ -215,9 +219,10 @@ export function ArenaPrebattleMenu({
               <Text style={[styles.modeButtonText, mode === "1v1" && styles.modeButtonTextActive]}>1V1 RUN</Text>
             </Pressable>
             <Pressable
-              disabled={!canField3v3}
+              disabled={!canField3v3 || !threeVThreeOpen}
+              accessibilityState={{ disabled: !canField3v3 || !threeVThreeOpen }}
               onPress={() => setMode("3v3")}
-              style={[styles.modeButton, mode === "3v3" && styles.modeButtonActive, !canField3v3 && styles.modeButtonDisabled]}
+              style={[styles.modeButton, mode === "3v3" && styles.modeButtonActive, (!canField3v3 || !threeVThreeOpen) && styles.modeButtonDisabled]}
             >
               <ArenaControlFrame accent={theme.colors.accent} selected={mode === "3v3"} />
               <Text style={[styles.modeButtonText, mode === "3v3" && styles.modeButtonTextActive]}>3V3 SHOWDOWN</Text>
@@ -252,7 +257,9 @@ export function ArenaPrebattleMenu({
               })}
             </View>
           ) : null}
-          {!canField3v3 ? (
+          {unavailable3v3Copy ? (
+            <Text style={styles.teamHint}>{unavailable3v3Copy}</Text>
+          ) : !canField3v3 ? (
             <Text style={styles.teamHint}>Own at least 3 Holobots to enter 3v3 Showdown.</Text>
           ) : null}
         </View>
