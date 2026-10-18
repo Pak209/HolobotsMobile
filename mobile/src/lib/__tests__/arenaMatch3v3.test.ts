@@ -252,5 +252,7 @@ describe('3v3 entry stays honestly unavailable', () => {
         const screens = { Home: null, ...Object.fromEntries(ARENA_BENCH_PREVIEW_ROUTES.map(n => [n, null])) };
         for (const name of ARENA_BENCH_PREVIEW_ROUTES) expect(previewInitialScreen(name, screens)).toBe(name);
         expect(src('qa/ArenaBenchPreview.tsx').match(/ArenaBench\w+: \(\)/g)!.map(s => s.slice(0, -4))).toEqual([...ARENA_BENCH_PREVIEW_ROUTES]);
+        // One self-contained spread in the dev-only registry, so sibling route additions merge trivially.
+        expect(src('qa/HoloCityPreview.tsx').match(/\.\.\.arenaBenchPreviewScreens,/g)).toHaveLength(1);
     });
 });
