@@ -17,6 +17,8 @@ export { claimDailyMission } from "./economy/claimDailyMission";
 export { claimGenesisSquad } from "./growth/claimGenesisSquad";
 export { claimQuestRun } from "./progression/claimQuestRun";
 export { claimTrainingSession } from "./progression/claimTrainingSession";
+export { startQuestRun } from "./progression/startQuestRun";
+export { startTrainingSession } from "./progression/startTrainingSession";
 export { clearWorkoutCooldown } from "./fitness/clearWorkoutCooldown";
 export { deleteUserAccountV2 } from "./account/deleteUserAccount";
 export { mintHolobot } from "./progression/mintHolobot";

@@ -94,6 +94,10 @@ service cloud.firestore {
     // claimDailyMission pays from live in dailyMissionLedger, server-only
     // below. rewardSystem itself stays owner-writable until the quest/training
     // starts (QuestsScreen / TrainingScreen, main app + lite) move to callables.
+    // Quest / training timers (S3, hardening-2): claimQuestRun /
+    // claimTrainingSession validate against progressionTimers, server-only
+    // below and written only by startQuestRun / startTrainingSession; the
+    // rewardSystem quest/training entries are a display copy.
     // EVALUATION BUDGET (2026-07-18): rules abort past 1000 expression
     // evaluations per request. The old shape chained ~30 per-field frozen
     // checks whose cost grew with every POPULATED field, so real accounts
@@ -119,7 +123,9 @@ service cloud.firestore {
         // DECISIONS #58 (3): the once-per-bot-per-tier rank Kit record.
         'rankKitTiers', 'storyFlags', 'pilotRank', 'tournamentUnlocks', 'tournamentUnlockAcknowledged', 'expeditionSupplies', 'expeditionBank',
         // 2026-10-17 critic review S2: daily-mission counters + claims.
-        'dailyMissionLedger'
+        'dailyMissionLedger',
+        // 2026-10-17 critic review S3 (hardening-2): host-clock quest / training start records.
+        'progressionTimers'
       ]);
     }
 
@@ -161,6 +167,7 @@ service cloud.firestore {
         && !('expeditionSupplies' in data)
         && !('expeditionBank' in data)
         && !('dailyMissionLedger' in data)
+        && !('progressionTimers' in data)
         && !('expBoosterActiveUntil' in data)
         && !('lastWildcardPackAt' in data)
         && frozenEmptyOnCreate(data, 'parts')
