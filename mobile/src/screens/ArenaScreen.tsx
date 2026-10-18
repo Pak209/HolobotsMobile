@@ -13,6 +13,7 @@ import { createArenaMatchClient } from '@/lib/arenaMatchClient';
 import { arenaReceiptResult, type ArenaReply } from '@/lib/arenaMatchFlow';
 import { arenaHostBattle } from '@/lib/arenaHostBattle';
 import { useArenaBattleStore } from '@/stores/arena-battle-store';
+import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lib/hostDashboard';
 export function ArenaScreen() {
     const { user, profile } = useAuth();
     const uid = user?.uid;
@@ -24,7 +25,11 @@ export function ArenaScreen() {
     const [busy, setBusy] = useState(false), [error, setError] = useState(''), [pvp, setPvp] = useState(false), [showResult, setShowResult] = useState(true);
     const store = useArenaBattleStore();
     const submitted = useRef<string | null>(null);
+    const economySeen = useRef<string | null>(null);
     const apply = (r: ArenaReply) => { if (live.current && currentFlow.current === flow) {
+        // Issue charged / settle paid / cancel-expiry refunded: the dashboard re-reads Holos, SYNC and levels from the host.
+        const economy = arenaEconomyChange(r);
+        if (economy && economy !== economySeen.current) { economySeen.current = economy; notifyHostEconomyChanged(uid); }
         setReply(r);
         setError('');
         setShowResult(true);
