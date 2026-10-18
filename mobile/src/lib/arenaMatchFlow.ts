@@ -237,7 +237,7 @@ export class ArenaMatchFlow {
     }
     start() { return this.operation('start'); }
     /** Persist the exact report before sending. A pending settle for this match is resent unchanged (never rebuilt); a
-     * too_fast refusal keeps it pending, any other host refusal retires it, an unknown outcome keeps it. */
+     * too_fast refusal keeps it pending, any other DEFINITE refusal retires it, an unknown outcome keeps it. */
     settle(report: ArenaSettleReport) {
         return this.run(async (epoch) => {
             const matchId = this.latest?.matchId;

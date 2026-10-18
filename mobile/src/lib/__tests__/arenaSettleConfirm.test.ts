@@ -121,6 +121,22 @@ describe('too_fast is PENDING, never an error (host #143 settle floor)', () => {
         expect(h.settles()[0].combosCompleted).toBe(ARENA_SETTLE_REPORT.combosCompleted);
     });
 
+    it('a first send that never reached storage (arena_busy) is retried through settle(report), not lost', async () => {
+        const h = harness([ARENA_SETTLED]);
+        await h.flow.resume();
+        let release!: () => void;
+        const busy = (h.flow as any).run(() => new Promise<void>(r => { release = r; })); // another single-flight op in flight
+        h.confirmer.start(ARENA_SETTLE_REPORT);
+        await flush();
+        expect(h.storage.settle).toBeNull();
+        expect(h.last()).toMatchObject({ kind: 'waiting', reason: 'unknown' });
+        release(); await busy;
+        await vi.advanceTimersByTimeAsync(1_000); await flush();
+        expect(h.settles()).toHaveLength(1);
+        expect(h.settles()[0]).toMatchObject(ARENA_SETTLE_REPORT);
+        expect(h.last().kind).toBe('settled');
+    });
+
     it('stop() cancels the armed resend (background, unmount)', async () => {
         const h = harness([tooFast(), ARENA_SETTLED]);
         await h.flow.resume();

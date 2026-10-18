@@ -4,7 +4,7 @@
  * Presentation only (hard rule 1): nothing here decides an outcome, a reward or an HP value. Codes from the host or
  * the transport are mapped to copy and are never printed raw.
  */
-import { arenaCallCode, arenaHostRejection, type ArenaReply } from './arenaMatchFlow';
+import { arenaCallCode, arenaClosureResult, arenaHostRejection, arenaReceiptResult, type ArenaReply } from './arenaMatchFlow';
 import type { ArenaSettlePhase } from './arenaSettleConfirm';
 
 export type ArenaCopyBlock = { title: string; body: string };
@@ -125,7 +125,12 @@ export function arenaScreenPhase(input: { reply: ArenaReply | null; acknowledged
     }
     if (input.error && arenaErrorCode(input.error) === 'arena_issue_pending') return { kind: 'pendingIssue' };
     if (input.error) return { kind: 'error', copy: arenaErrorCopy(input.error), matchOpen: false };
-    if (reply?.match && !input.acknowledged) return reply.match.state === 'settled' ? { kind: 'receipt' } : { kind: 'closure' };
+    if (reply?.match && !input.acknowledged) {
+        // Validate here, not in render: a terminal record the readers refuse is "unreadable", never a crash or a guess.
+        try { if (reply.match.state === 'settled') arenaReceiptResult(reply); else arenaClosureResult(reply); }
+        catch { return { kind: 'error', copy: COPY.unreadable, matchOpen: false }; }
+        return reply.match.state === 'settled' ? { kind: 'receipt' } : { kind: 'closure' };
+    }
     if (input.pendingIssue) return { kind: 'pendingIssue' };
     return { kind: 'menu' };
 }

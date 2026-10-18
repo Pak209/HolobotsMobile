@@ -70,7 +70,9 @@ export class ArenaSettleConfirmer {
             const resendInMs = hint ?? ARENA_SETTLE_BACKOFF_MS[this.resends];
             this.resends++;
             this.onPhase({ kind: 'waiting', attempt: attempt + 1, resendInMs, hinted: hint !== null, reason });
-            this.timer = this.timers.setTimeout(() => { this.timer = null; void this.send(generation, () => this.transport.retrySettle(), attempt + 1); }, resendInMs);
+            // Resend through the SAME path: settle(report) itself resends the stored body unchanged once one exists, and it
+            // still stores the body if the first send never got that far (e.g. arena_busy during a foreground resume).
+            this.timer = this.timers.setTimeout(() => { this.timer = null; void this.send(generation, send, attempt + 1); }, resendInMs);
         }
     }
 }

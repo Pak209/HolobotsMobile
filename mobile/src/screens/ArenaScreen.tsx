@@ -196,11 +196,11 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const result = phase.kind === 'receipt' ? arenaReceiptResult(reply!) : null;
     const closure = phase.kind === 'closure' ? arenaClosureResult(reply!) : null;
     const fighters = match ? <View style={styles.fighters}><ArenaFighterCard snapshot={match.entrant} side="entrant"/><ArenaFighterCard snapshot={match.opponent} side="opponent"/></View> : null;
-    const pad = { paddingTop: insets.top + theme.space.md, paddingBottom: insets.bottom + theme.space.md };
+    // L3: below the status bar / Dynamic Island AND the pilot-menu cog (48 pt at insets.top + 10), never a fixed 45/70/90.
+    const pad = { paddingTop: insets.top + 58, paddingBottom: insets.bottom + theme.space.sm };
     const framed = (node: ReactNode) => <ScrollView contentContainerStyle={[styles.framed, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + theme.space.xl }]}>{node}</ScrollView>;
-    const inFight = phase.kind === 'battle' || phase.kind === 'confirming';
     return <View style={styles.page}>
-  {!inFight ? <HomeCogButton onOpenPvp={() => setPvp(true)}/> : null}
+  {phase.kind !== 'confirming' ? <HomeCogButton onOpenPvp={() => setPvp(true)}/> : null}
   {phase.kind === 'menu' && !busy ? <ArenaPrebattleMenu onStartBattle={start} unavailable3v3Copy={ARENA_3V3_UNAVAILABLE_COPY} hostVitals={readHostVitals(profile?.holobotVitals)} userArenaPasses={profile?.arena_passes ?? 0} userHolobots={profile?.holobots ?? []} userTokens={profile?.holosTokens ?? 0}/> : null}
   {phase.kind === 'pendingIssue' ? framed(<ArenaInterstitial tone="warning" eyebrow={COPY.pendingIssueEyebrow} title={COPY.pendingIssueTitle} body={COPY.pendingIssueBody} actions={[
             { label: COPY.retryEntry, onPress: () => void action(async () => { const r = await flow!.retryIssue(); await apply(r); if (arenaIssuePayoutCapped(r)) { setCappedMatchId(r.matchId); return; } await launch(); }) },

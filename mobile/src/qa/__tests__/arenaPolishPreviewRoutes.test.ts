@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { previewInitialScreen } from '../previewRoutes';
 import { previewScreenFromUrl } from '../previewDeepLink';
-import { ARENA_POLISH_PREVIEW_ROUTES, ARENA_SETTLE_REPORT, ARENA_STARTED, arenaPayoutCappedIssue, arenaRefundReply, arenaWithheldReply, tooFast, ARENA_ISSUED } from '../arenaPolishFixtures';
+import { ARENA_POLISH_PREVIEW_ROUTES, ARENA_SETTLED, ARENA_SETTLE_REPORT, ARENA_STARTED, arenaPayoutCappedIssue, arenaRefundReply, arenaWithheldReply, tooFast, ARENA_ISSUED } from '../arenaPolishFixtures';
 import { ArenaMatchFlow, arenaIssuePayoutCapped, type ArenaPendingSettle, type ArenaReply } from '../../lib/arenaMatchFlow';
 import { ArenaSettleConfirmer, type ArenaSettlePhase } from '../../lib/arenaSettleConfirm';
 import { arenaScreenPhase } from '../../lib/arenaCopy';
@@ -41,6 +41,7 @@ describe('lite-arena-polish-1 offline QA routes', () => {
             expect(await cellPhase(() => ARENA_STARTED, () => { throw tooFast(0); })).toEqual({ kind: 'stalled' });
             expect(await cellPhase(() => arenaWithheldReply('daily_cap'))).toEqual({ kind: 'receipt' });
             expect(await cellPhase(() => arenaRefundReply())).toEqual({ kind: 'closure' });
+            expect(await cellPhase(() => ARENA_SETTLED)).toEqual({ kind: 'receipt' });
         } finally { vi.useRealTimers(); }
     });
     it('Hermes safety: no structuredClone call in the QA cells or fixtures; banners say QA / RECORDED', () => {

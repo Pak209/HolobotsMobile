@@ -60,4 +60,4 @@ export function arenaRefusal(rejectionCode: string, httpsCode = 'failed-precondi
 }
 export const tooFast = (retryAfterMs?: number) => arenaRefusal('too_fast', 'failed-precondition', retryAfterMs === undefined ? {} : { retryAfterMs });
 /** holobotsmobile://qa/<name> routes, known-bad control first (src/qa/ArenaPolishPreview.tsx). */
-export const ARENA_POLISH_PREVIEW_ROUTES = ['ArenaPolishKnownBad', 'ArenaPolishAdmitted', 'ArenaPolishCapped', 'ArenaPolishConfirming', 'ArenaPolishStalled', 'ArenaPolishWithheld', 'ArenaPolishRefund'] as const;
+export const ARENA_POLISH_PREVIEW_ROUTES = ['ArenaPolishKnownBad', 'ArenaPolishAdmitted', 'ArenaPolishCapped', 'ArenaPolishConfirming', 'ArenaPolishStalled', 'ArenaPolishWithheld', 'ArenaPolishRefund', 'ArenaPolishPaid'] as const;
