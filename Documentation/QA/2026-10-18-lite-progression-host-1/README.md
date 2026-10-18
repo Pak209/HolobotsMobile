@@ -62,7 +62,7 @@ Full mobile `npx vitest run` and `npx tsc --noEmit`, before and after, on each b
 
 | Branch | Before | After |
 |---|---|---|
-| lite (`claude/lite-progression-host-1`) | vitest 1221 pass / 4 skip (90 files + 1 skipped); tsc 0 | vitest **1270 pass / 4 skip** (93 files + 1 skipped); tsc **0** |
+| lite (`claude/lite-progression-host-1`) | vitest 1221 pass / 4 skip (90 files + 1 skipped); tsc 0 | vitest **1271 pass / 4 skip** (93 files + 1 skipped); tsc **0** |
 | main (`claude/lite-progression-host-1-main`) | vitest 877 pass / 4 skip; 2 files fail to load (no `react-test-renderer` locally: `liteBoundary.test.ts`, `hostState/hooks.test.ts`; known, CI is fine); tsc 2 (the same) | vitest **906 pass / 5 skip** (the new skip is the #145 parity check), the same 2 known load failures; tsc the same 2 |
 
 Main with #145's `progressionTimers.ts` / `progressionEconomy.ts` / `progressionTimerErrors.ts` dropped into the worktree temporarily: `progressionHost.test.ts` 30/30 (parity on). With a perturbed host quest duration: the parity test fails (known-bad control). The files were restored afterwards (`git restore` / `rm`).
