@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -39,6 +39,14 @@ import {
   TEAM_SIZE,
 } from "@/features/arena/pvpTeamBattle";
 import { claimOpponentAndCreateRoom, isFreshPoolEntry } from "@/lib/pvpMatchmaking";
+import {
+  pvpHostSeatPending,
+  pvpHostSeatReducer,
+  pvpNextOpponentRead,
+  pvpSeatHolobotNames,
+  PVP_HOST_SEAT_IDLE,
+} from "@/lib/pvpHostSeatState";
+import { pvpRoomFighterCallForUid, readHostFighters, seatHostFighters } from "@/lib/pvpRoomFightersClient";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
 import {
@@ -117,6 +125,9 @@ export function useRealtimeArena() {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const staminaRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const poolEntryIdRef = useRef<string | null>(null);
+  // pvp-room-fighters-1 seat calls, as a pure reducer (lib/pvpHostSeatState.ts): late answers for a room I left
+  // are dropped there, and opponent re-reads are counted per (room, opponent uid, opponent bot).
+  const [hostSeats, dispatchHostSeats] = useReducer(pvpHostSeatReducer, PVP_HOST_SEAT_IDLE);
 
   const findHolobot = useCallback(
     (holobotName: string): UserHolobot => {
@@ -157,6 +168,18 @@ export function useRealtimeArena() {
     [buildOwnFighter],
   );
 
+  // pvp-room-fighters-1: ask the host to mint my seat's level snapshots (stored server-side, never on the
+  // room doc) and keep the seats its replies return. Presentation only and fire-and-forget: a refusing or
+  // not-yet-deployed host leaves the badges absent and never blocks or fails the room.
+  const requestHostFighters = useCallback((roomId: string, holobotNames: string[]) => {
+    if (!user) return;
+    dispatchHostSeats({ type: "seat_started", roomId });
+    Promise.resolve()
+      .then(() => seatHostFighters(pvpRoomFighterCallForUid(user.uid), roomId, holobotNames))
+      .catch(() => ({ status: "unavailable" as const, reason: "offline" as const, replies: [] }))
+      .then((outcome) => dispatchHostSeats({ type: "seat_resolved", roomId, outcome }));
+  }, [user]);
+
   const cleanup = useCallback(() => {
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
@@ -169,6 +192,7 @@ export function useRealtimeArena() {
     setRoom(null);
     setMyRole(null);
     setMatchmakingStatus("idle");
+    dispatchHostSeats({ type: "reset" });
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
@@ -253,6 +277,36 @@ export function useRealtimeArena() {
     };
   }, [myRole, room?.roomId, user]);
 
+  // The opponent's snapshot exists only once THEY have seated, so re-read a few times (bounded), then leave
+  // their badge off. Keyed on stable values only: stamina/heartbeat writes must not reset the timer.
+  const opponentSeatRole: PlayerRole | null = myRole === "p1" ? "p2" : myRole === "p2" ? "p1" : null;
+  const hostRoomId = room?.roomId ?? "";
+  const opponentUid = opponentSeatRole ? room?.players[opponentSeatRole]?.uid ?? "" : "";
+  const opponentBot = opponentSeatRole ? room?.players[opponentSeatRole]?.holobotName ?? "" : "";
+  const seenRoom = useMemo(
+    () => (opponentSeatRole ? { roomId: hostRoomId, players: { [opponentSeatRole]: { uid: opponentUid, holobotName: opponentBot } } } : null),
+    [hostRoomId, opponentBot, opponentSeatRole, opponentUid],
+  );
+  const nextRead = myRole ? pvpNextOpponentRead(hostSeats, seenRoom, myRole) : null;
+  const nextReadKey = nextRead?.key ?? "";
+  const nextReadDelay = nextRead?.delayMs ?? -1;
+  useEffect(() => {
+    if (!user || !hostRoomId || nextReadDelay < 0) return;
+    const timer = setTimeout(() => {
+      void readHostFighters(pvpRoomFighterCallForUid(user.uid), hostRoomId)
+        .catch(() => ({ status: "unavailable" as const, reason: "offline" as const }))
+        .then((outcome) => dispatchHostSeats({ type: "read_resolved", roomId: hostRoomId, key: nextReadKey, outcome }));
+    }, nextReadDelay);
+    return () => clearTimeout(timer);
+  }, [hostRoomId, nextReadDelay, nextReadKey, user]);
+
+  const hostSeatPending = useMemo<Record<PlayerRole, boolean>>(
+    () => (myRole ? pvpHostSeatPending(hostSeats, seenRoom, myRole) : { p1: false, p2: false }),
+    [hostSeats, myRole, seenRoom],
+  );
+  const hostFighterStatus = hostSeats.status;
+  const hostView = hostSeats.roomId && hostSeats.roomId === hostRoomId ? hostSeats.view : null;
+
   const createRoom = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {
     if (!user || !profile) throw new Error("Sign in before creating a room.");
     setLoading(true);
@@ -287,6 +341,7 @@ export function useRealtimeArena() {
       await setDoc(roomRef, newRoom);
       setMyRole("p1");
       subscribeToRoom(roomRef.id);
+      requestHostFighters(roomRef.id, lineup.map((fighter) => fighter.holobotName));
       return roomCode;
     } catch (createError: any) {
       setError(createError.message);
@@ -294,7 +349,7 @@ export function useRealtimeArena() {
     } finally {
       setLoading(false);
     }
-  }, [buildOwnLineup, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, profile, requestHostFighters, subscribeToRoom, user]);
 
   const joinRoom = useCallback(async (roomCode: string, holobotNames: string[]) => {
     if (!user || !profile) throw new Error("Sign in before joining a room.");
@@ -320,13 +375,14 @@ export function useRealtimeArena() {
       });
       setMyRole("p2");
       subscribeToRoom(roomDoc.id);
+      requestHostFighters(roomDoc.id, lineup.map((fighter) => fighter.holobotName));
     } catch (joinError: any) {
       setError(joinError.message);
       throw joinError;
     } finally {
       setLoading(false);
     }
-  }, [buildOwnLineup, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, profile, requestHostFighters, subscribeToRoom, user]);
 
   const joinRoomById = useCallback(async (roomId: string) => {
     if (!user) throw new Error("Sign in before joining a room.");
@@ -334,11 +390,14 @@ export function useRealtimeArena() {
     if (!roomSnap.exists()) throw new Error("Room not found.");
     const roomData = roomSnap.data() as BattleRoom;
     if (roomData.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
-    if (roomData.players.p1.uid === user.uid) setMyRole("p1");
-    else if (roomData.players.p2.uid === user.uid) setMyRole("p2");
-    else throw new Error("You are not part of this room.");
+    const role: PlayerRole | null =
+      roomData.players.p1.uid === user.uid ? "p1" : roomData.players.p2.uid === user.uid ? "p2" : null;
+    if (!role) throw new Error("You are not part of this room.");
+    setMyRole(role);
     subscribeToRoom(roomId);
-  }, [subscribeToRoom, user]);
+    // Matchmaking seats: my live fighter plus any 3v3 lineup the pairing wrote for me (never throws).
+    requestHostFighters(roomId, pvpSeatHolobotNames(roomData, role));
+  }, [requestHostFighters, subscribeToRoom, user]);
 
   const enterMatchmaking = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {
     if (!user || !profile) throw new Error("Sign in before matchmaking.");
@@ -403,6 +462,7 @@ export function useRealtimeArena() {
         setMatchmakingStatus("matched");
         setMyRole("p1");
         subscribeToRoom(claim.roomId);
+        requestHostFighters(claim.roomId, myLineup.map((fighter) => fighter.holobotName));
         return;
       }
       if (claim.outcome === "alreadyMatched") {
@@ -422,7 +482,7 @@ export function useRealtimeArena() {
       setMatchmakingStatus("matched");
       void joinRoomById(entry.roomId);
     });
-  }, [buildOwnLineup, joinRoomById, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, joinRoomById, profile, requestHostFighters, subscribeToRoom, user]);
 
   const cancelMatchmaking = useCallback(async () => {
     poolUnsubscribeRef.current?.();
@@ -566,6 +626,9 @@ export function useRealtimeArena() {
     createRoom,
     enterMatchmaking,
     error,
+    hostFighterStatus,
+    hostSeatPending,
+    hostView,
     joinRoom,
     leaveRoom,
     loading,

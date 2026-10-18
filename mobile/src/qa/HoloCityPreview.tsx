@@ -2,6 +2,7 @@ import { previewInitialScreen, ARENA_CAPTURE_ROUTES } from "./previewRoutes";
 import { ArenaAdmittedRoundPreview, ArenaAdmittedResultPreview, ArenaAdmittedKnownBadPreview } from "./ArenaAdmittedPreview";
 import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaHostLevelsPreview";
 import { cityMarketPreviewScreens } from "./CityMarketPreview";
+import { pvpFightersPreviewScreens } from "./PvpFightersPreview";
 import { arenaBenchPreviewScreens } from "./ArenaBenchPreview";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
@@ -102,6 +103,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   CityHub: CityPreview,
   ...cityScreens,
   ...cityMarketPreviewScreens,
+  ...pvpFightersPreviewScreens,
   HostDuel: HostDuelPreview, ...hostDuelCaptureScreens, HostDuelPerfSweep: HostDuelPerfSweepPreview,
   Duel: DuelPreview, DuelReceipt: ReceiptPreview, ...duelCaptureScreens,
   ArenaHostLevels: ArenaHostLevelsPreview,
