@@ -1,0 +1,306 @@
+{
+  "schemaVersion": "desktop-account-3",
+  "battlefieldMovement": {
+    "schemaVersion": "battlefield-movement-1",
+    "minRunMmPerSecond": 1600,
+    "maxRunMmPerSecond": 3200,
+    "fleet": [
+      {
+        "holobotId": "ace",
+        "baseRunMmPerSecond": 3200,
+        "preferredRangeMm": 4000,
+        "playerReference": {
+          "referenceSpeedStat": 70,
+          "referenceSourceHolobotId": "ace",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "wolf",
+        "baseRunMmPerSecond": 3000,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "hare",
+        "baseRunMmPerSecond": 3200,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 40,
+          "referenceSourceHolobotId": "hare",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "shadow",
+        "baseRunMmPerSecond": 3000,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 40,
+          "referenceSourceHolobotId": "shadow",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "ken",
+        "baseRunMmPerSecond": 2600,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 60,
+          "referenceSourceHolobotId": "ken",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "tsuin",
+        "baseRunMmPerSecond": 2600,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "tsuin",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "wake",
+        "baseRunMmPerSecond": 2400,
+        "preferredRangeMm": 4000,
+        "playerReference": {
+          "referenceSpeedStat": 40,
+          "referenceSourceHolobotId": "wake",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "jusan",
+        "baseRunMmPerSecond": 2400,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 70,
+          "referenceSourceHolobotId": "ace",
+          "provisional": true
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": true
+        }
+      },
+      {
+        "holobotId": "kurai",
+        "baseRunMmPerSecond": 2400,
+        "preferredRangeMm": 4000,
+        "playerReference": {
+          "referenceSpeedStat": 30,
+          "referenceSourceHolobotId": "kurai",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "era",
+        "baseRunMmPerSecond": 2200,
+        "preferredRangeMm": 4000,
+        "playerReference": {
+          "referenceSpeedStat": 60,
+          "referenceSourceHolobotId": "era",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "gama",
+        "baseRunMmPerSecond": 2000,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 30,
+          "referenceSourceHolobotId": "gama",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "kuma",
+        "baseRunMmPerSecond": 1600,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 30,
+          "referenceSourceHolobotId": "kuma",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      },
+      {
+        "holobotId": "tora",
+        "baseRunMmPerSecond": 1600,
+        "preferredRangeMm": 1500,
+        "playerReference": {
+          "referenceSpeedStat": 60,
+          "referenceSourceHolobotId": "tora",
+          "provisional": false
+        },
+        "rivalReference": {
+          "referenceSpeedStat": 50,
+          "referenceSourceHolobotId": "wolf",
+          "provisional": false
+        }
+      }
+    ]
+  },
+  "uid": "demo-identity-pilot",
+  "storyFlags": {
+    "arenaGatheringSeen": false,
+    "tournamentsWon": 0,
+    "arenaArcBuilt": false,
+    "holoZonesArcBuilt": false
+  },
+  "pilotRank": 0,
+  "tournamentUnlocks": [
+    {
+      "tournamentId": "starter",
+      "requiredLevel": 2,
+      "holobotId": "ace",
+      "level": 2
+    }
+  ],
+  "holobots": [
+    {
+      "name": "ACE",
+      "level": 2,
+      "attributePoints": 2,
+      "experience": 0,
+      "nextLevelExp": 900,
+      "rank": "Starter",
+      "boostedAttributes": {},
+      "battleStats": {
+        "attack": 84,
+        "defense": 63,
+        "maxHP": 157,
+        "speed": 73,
+        "intelligence": 52
+      },
+      "battlefieldMovement": {
+        "holobotId": "ace",
+        "source": "player",
+        "sourceSpeedStat": 73,
+        "referenceSpeedStat": 70,
+        "referenceSourceHolobotId": "ace",
+        "provisional": false,
+        "baseRunMmPerSecond": 3200,
+        "runMmPerSecond": 3200,
+        "runMetersPerSecond": 3.2,
+        "preferredRangeMm": 4000
+      },
+      "displayStats": {
+        "attack": 8,
+        "defense": 6,
+        "hp": 157,
+        "special": 5,
+        "speed": 7
+      }
+    }
+  ],
+  "blueprints": {},
+  "travelSquad": {
+    "schemaVersion": "travel-squad-1",
+    "revision": 0,
+    "holobotIds": []
+  },
+  "blueprintTiers": [
+    {
+      "attributePoints": 10,
+      "key": "common",
+      "label": "Common",
+      "required": 5,
+      "startLevel": 1
+    },
+    {
+      "attributePoints": 10,
+      "key": "champion",
+      "label": "Champion",
+      "required": 10,
+      "startLevel": 11
+    },
+    {
+      "attributePoints": 20,
+      "key": "rare",
+      "label": "Rare",
+      "required": 20,
+      "startLevel": 21
+    },
+    {
+      "attributePoints": 30,
+      "key": "elite",
+      "label": "Elite",
+      "required": 40,
+      "startLevel": 31
+    },
+    {
+      "attributePoints": 40,
+      "key": "legendary",
+      "label": "Legendary",
+      "required": 80,
+      "startLevel": 41
+    }
+  ],
+  "buddyUnits": {
+    "light": 1,
+    "medium": 0,
+    "heavy": 0
+  }
+}

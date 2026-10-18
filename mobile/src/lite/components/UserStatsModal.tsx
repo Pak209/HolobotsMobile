@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRefillAuthoritative } from "@/lib/progressionClient";
 import { getDailyMissionSummary } from "@/lib/dailyMissions";
 import type { UserProfile } from "@/types/profile";
+import type { DashboardPresentation } from "@/lite/lib/hostDashboard";
 
 function getPlayerRank(profile: UserProfile | null) {
   if (!profile) return "Rookie";
@@ -29,6 +30,8 @@ type UserStatsModalProps = {
   onOpenGacha: () => void;
   onOpenLeaderboard: () => void;
   profile: UserProfile | null;
+  /** Dashboard only: pilot / SYNC / HOLOS from the host reads (UNAVAILABLE on failure) instead of profile defaults. */
+  hostAccount?: Pick<DashboardPresentation, "pilot" | "sync" | "holos">;
   visible: boolean;
 };
 
@@ -102,6 +105,7 @@ export function UserStatsModal({
   onOpenGacha,
   onOpenLeaderboard,
   profile,
+  hostAccount,
   visible,
 }: UserStatsModalProps) {
   const { updateProfile } = useAuth();
@@ -180,7 +184,7 @@ export function UserStatsModal({
             ) : (
               <>
                 <Text style={styles.eyebrow}>PILOT DATA</Text>
-                <Text style={styles.title}>{profile?.username || "Pilot"}</Text>
+                <Text style={styles.title}>{hostAccount ? hostAccount.pilot : profile?.username || "Pilot"}</Text>
 
                 <View style={styles.grid}>
                   <View style={styles.statTile}>
@@ -203,14 +207,14 @@ export function UserStatsModal({
                     <Text style={styles.statLabel}>Sync Points</Text>
                     <View style={styles.valueRow}>
                       <RNImage source={itemIcons.item_sync_shard} style={styles.currencyIcon} resizeMode="contain" />
-                      <Text style={styles.statValue}>{`${profile?.syncPoints || 0}`}</Text>
+                      <Text style={styles.statValue}>{hostAccount ? hostAccount.sync : `${profile?.syncPoints || 0}`}</Text>
                     </View>
                   </View>
                   <View style={styles.statTile}>
                     <Text style={styles.statLabel}>Holos</Text>
                     <View style={styles.valueRow}>
                       <RNImage source={itemIcons.item_holos_chip} style={styles.currencyIcon} resizeMode="contain" />
-                      <Text style={styles.statValue}>{`${profile?.holosTokens || 0}`}</Text>
+                      <Text style={styles.statValue}>{hostAccount ? hostAccount.holos : `${profile?.holosTokens || 0}`}</Text>
                     </View>
                   </View>
                 </View>
