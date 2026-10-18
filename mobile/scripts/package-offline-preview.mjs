@@ -11,7 +11,7 @@ if (location.startsWith('..') || isAbsolute(location) || !app.endsWith('.app')) 
 const info = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :DTPlatformName', resolve(app, 'Info.plist')], { encoding: 'utf8' });
 if (info.status !== 0 || info.stdout.trim() !== 'iphonesimulator') throw new Error('Only iOS simulator bundles are supported.');
 const result = spawnSync(process.execPath, [resolve(mobile, 'node_modules/expo/bin/cli'), 'export:embed',
-  '--entry-file', 'node_modules/expo/AppEntry.js', '--platform', 'ios', '--dev', 'true', '--minify', 'false',
+  '--entry-file', 'index.js', '--platform', 'ios', '--dev', 'true', '--minify', 'false',
   '--bundle-output', resolve(app, 'main.jsbundle'), '--assets-dest', app,
 ], { cwd: mobile, stdio: 'inherit', env: { ...process.env, EXPO_PUBLIC_HOLOCITY_PREVIEW: '1', EXPO_NO_TELEMETRY: '1', EXPO_OFFLINE: '1' } });
 if (result.status !== 0) process.exit(result.status ?? 1);
