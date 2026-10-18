@@ -1,0 +1,24 @@
+{
+  "provenance": "Offline demo emulator: openGachaPack, claimDailyMission daily_login + open_booster_pack, then the owner forged the rewardSystem mirror counters; desktopAccountSnapshot desktop-account-3 reply excerpt.",
+  "request": {
+    "schemaVersion": "desktop-account-3"
+  },
+  "tamperedMirror": {
+    "arenaBattlesToday": 99,
+    "boosterPacksToday": 99
+  },
+  "reply": {
+    "schemaVersion": "desktop-account-3",
+    "dailyMissionLedger": {
+      "schemaVersion": "daily-mission-ledger-1",
+      "day": "2026-10-18",
+      "arenaBattlesToday": 0,
+      "boosterPacksToday": 1,
+      "claimed": {
+        "daily_login": true,
+        "arena_v2_battle": false,
+        "open_booster_pack": true
+      }
+    }
+  }
+}

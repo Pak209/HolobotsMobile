@@ -113,3 +113,49 @@ test('item 4: HOLOCITY_LEGACY_QUEST_TIMERS is on only for exactly "1"; the power
   const s = require('../lib/lib/progression.js').getHolobotBattleStats('ACE', 5, { attack: 4 });
   assert.equal(PE.getHolobotPowerScore({ name: 'ACE', level: 5, boostedAttributes: { attack: 4 } }), Math.round(s.maxHP * 4 + s.attack * 6 + s.defense * 5 + s.speed * 4 + s.intelligence * 5));
 });
+
+// ---- item 5: dailyMissionLedger summary on desktop-account replies ----
+const { default: Ajv } = require('ajv');
+const S = require('../lib/desktop/desktopAccountReply.js');
+const validateSummary = new Ajv({ strict: false }).compile(require('../../Schemas/daily-mission-ledger-1.json'));
+const TODAY = '2026-10-17';
+const ledger = (fields = {}) => ({ arenaBattlesToday: 2, boosterPacksToday: 1, lastDailyMissionReset: TODAY, missionClaims: { daily_login: TODAY }, ...fields });
+
+test('item 5: the summary reads counts from the server-only ledger only; claimed matches the claim refusal rule (ledger OR mirror)', () => {
+  const summary = E.dailyMissionLedgerSummary({ dailyMissionLedger: ledger(), rewardSystem: { arenaBattlesToday: 99, boosterPacksToday: 99, lastDailyMissionReset: TODAY, missionClaims: { open_booster_pack: TODAY } } }, DAY);
+  assert.deepEqual(summary, { schemaVersion: 'daily-mission-ledger-1', day: TODAY, arenaBattlesToday: 2, boosterPacksToday: 1, claimed: { daily_login: true, arena_v2_battle: false, open_booster_pack: true } });
+  assert.ok(validateSummary(summary), JSON.stringify(validateSummary.errors));
+  // The summary's claimed flags agree with what claimDailyMission would rule for the same account.
+  const account = { dailyMissionLedger: ledger({ arenaBattlesToday: 3 }), rewardSystem: { missionClaims: { open_booster_pack: TODAY } } };
+  const s = E.dailyMissionLedgerSummary(account, DAY);
+  for (const id of ['daily_login', 'arena_v2_battle', 'open_booster_pack'])
+    assert.equal(s.claimed[id], E.buildMissionClaimUpdatesRaw(account, id, DAY).refusal === 'already_claimed', id);
+  // Another UTC day, no ledger, or junk: zero counts, nothing claimed.
+  for (const profile of [{ dailyMissionLedger: ledger({ lastDailyMissionReset: '2026-10-16' }) }, {}, { dailyMissionLedger: 'x', rewardSystem: [] }, { dailyMissionLedger: ledger({ arenaBattlesToday: -4, boosterPacksToday: 1.5 }) }]) {
+    const z = E.dailyMissionLedgerSummary(profile, DAY);
+    assert.ok(validateSummary(z), JSON.stringify(validateSummary.errors));
+    assert.equal(z.claimed.arena_v2_battle, false);
+  }
+  const yesterday = { dailyMissionLedger: ledger({ lastDailyMissionReset: '2026-10-16', missionClaims: { daily_login: '2026-10-16', arena_v2_battle: '2026-10-16' } }) };
+  assert.deepEqual(E.dailyMissionLedgerSummary(yesterday, DAY), { schemaVersion: 'daily-mission-ledger-1', day: TODAY, arenaBattlesToday: 0, boosterPacksToday: 0, claimed: { daily_login: false, arena_v2_battle: false, open_booster_pack: false } });
+  assert.equal(E.dailyMissionLedgerSummary({ dailyMissionLedger: ledger({ arenaBattlesToday: -4 }) }, DAY).arenaBattlesToday, 0);
+  // Known-bad control: the schema refuses a client-ish shape (extra field, string count).
+  assert.equal(validateSummary({ ...summary, missionClaims: {} }), false);
+  assert.equal(validateSummary({ ...summary, arenaBattlesToday: '2' }), false);
+});
+
+test('item 5: every desktop-account version carries the summary for the host day; the stored profile is untouched; the frozen fixture validates', () => {
+  const profile = { dailyMissionLedger: ledger(), rewardSystem: { activeQuests: [] } };
+  const before = structuredClone(profile);
+  for (const version of ['desktop-account-1', 'desktop-account-2', 'desktop-account-3']) {
+    const r = S.buildDesktopAccountReply(profile, 'uid-1', version, { light: 0, medium: 0, heavy: 0 }, DAY.getTime());
+    assert.deepEqual(r.dailyMissionLedger, E.dailyMissionLedgerSummary(profile, DAY), version);
+  }
+  assert.deepEqual(profile, before);
+  const fixture = require('./fixtures/desktop-account/daily-mission-ledger.json');
+  assert.ok(validateSummary(fixture.reply.dailyMissionLedger), JSON.stringify(validateSummary.errors));
+  assert.equal(fixture.reply.schemaVersion, 'desktop-account-3');
+  assert.deepEqual(fixture.reply.dailyMissionLedger.claimed, { daily_login: true, arena_v2_battle: false, open_booster_pack: true });
+  assert.equal(fixture.reply.dailyMissionLedger.boosterPacksToday, 1);
+  assert.equal(fixture.tamperedMirror.boosterPacksToday, 99, 'the fixture account had a forged mirror the summary ignored');
+});

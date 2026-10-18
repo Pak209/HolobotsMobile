@@ -126,6 +126,29 @@ export function dailyMissionCounterUpdates(
   };
 }
 
+export const DAILY_MISSION_LEDGER_SUMMARY_SCHEMA = "daily-mission-ledger-1";
+export type DailyMissionId = (typeof DAILY_MISSION_TABLE)[number]["id"];
+
+/**
+ * hardening-2: the read-only summary desktopAccountSnapshot serves as `dailyMissionLedger` (Schemas/daily-mission-ledger-1.json),
+ * so the main app / lite / Unity render daily missions from the host instead of the client-writable rewardSystem copy.
+ * Counts come from the server-only ledger only (0 when it is from another UTC day). `claimed[id]` is true exactly when
+ * claimDailyMission would refuse already_claimed today (the ledger OR the rewardSystem mirror records it).
+ */
+export function dailyMissionLedgerSummary(userData: Record<string, unknown>, date = new Date()) {
+  const day = getTodayMissionKey(date);
+  const ledger = missionState(userData[DAILY_MISSION_LEDGER_FIELD], date, null);
+  const ledgerClaims = ledger.missionClaims as Record<string, unknown>;
+  const mirrorClaims = missionState(userData.rewardSystem, date, null).missionClaims as Record<string, unknown>;
+  return {
+    schemaVersion: DAILY_MISSION_LEDGER_SUMMARY_SCHEMA,
+    day,
+    arenaBattlesToday: ledger.arenaBattlesToday as number,
+    boosterPacksToday: ledger.boosterPacksToday as number,
+    claimed: Object.fromEntries(DAILY_MISSION_TABLE.map((m) => [m.id, ledgerClaims[m.id] === day || mirrorClaims[m.id] === day])) as Record<DailyMissionId, boolean>,
+  };
+}
+
 export type MissionClaimRefusal = "unknown_mission" | "not_completed" | "already_claimed";
 
 /**

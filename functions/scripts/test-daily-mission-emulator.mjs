@@ -138,3 +138,29 @@ test('KNOWN-BAD control: the #143 mirror shape (four mission keys only) through 
   assert.equal(wiped.activeQuests, undefined); assert.equal(wiped.activeTraining, undefined); assert.equal(wiped.availableQuestIds, undefined);
   assert.throws(() => assertQuestStateSurvives(wiped, 'control'));
 });
+
+// ---- hardening-2 item 5: desktopAccountSnapshot serves the ledger summary (clients stop reading the mirror). ----
+const { writeFileSync } = require('node:fs');
+const { desktopAccountSnapshot } = require('../lib/desktop/desktopAccountSnapshot.js');
+const AjvRules = createRequire(new URL('../../rules-tests/package.json', import.meta.url))('ajv');
+const validateLedgerSummary = new AjvRules({ strict: false }).compile(require('../../Schemas/daily-mission-ledger-1.json'));
+test('hardening-2: every desktop-account version carries dailyMissionLedger from the server-only ledger; a forged mirror changes no count or claim', async () => {
+  const uid = await setup({ gachaTickets: 1 });
+  await openGachaPack.run({ auth: { uid }, data: { packId: 'basic' } });
+  await claim(uid, 'daily_login'); await claim(uid, 'open_booster_pack');
+  const tamperedMirror = { arenaBattlesToday: 99, boosterPacksToday: 99 };
+  await db.doc(`users/${uid}`).update({ 'rewardSystem.arenaBattlesToday': 99, 'rewardSystem.boosterPacksToday': 99 });
+  const expected = { schemaVersion: 'daily-mission-ledger-1', day: getTodayMissionKey(), arenaBattlesToday: 0, boosterPacksToday: 1, claimed: { daily_login: true, arena_v2_battle: false, open_booster_pack: true } };
+  let v3;
+  for (const data of [{}, { schemaVersion: 'desktop-account-2' }, { schemaVersion: 'desktop-account-3' }]) {
+    const r = await desktopAccountSnapshot.run({ auth: { uid }, data });
+    assert.ok(validateLedgerSummary(r.dailyMissionLedger), JSON.stringify(validateLedgerSummary.errors));
+    assert.deepEqual(r.dailyMissionLedger, expected, r.schemaVersion);
+    v3 = r;
+  }
+  assert.equal((await user(uid)).dailyMissionLedger.boosterPacksToday, 1, 'a snapshot read writes no ledger');
+  if (process.env.DAILY_MISSION_LEDGER_FIXTURE_OUT) writeFileSync(process.env.DAILY_MISSION_LEDGER_FIXTURE_OUT, JSON.stringify({
+    provenance: 'Offline demo emulator: openGachaPack, claimDailyMission daily_login + open_booster_pack, then the owner forged the rewardSystem mirror counters; desktopAccountSnapshot desktop-account-3 reply excerpt.',
+    request: { schemaVersion: 'desktop-account-3' }, tamperedMirror, reply: { schemaVersion: v3.schemaVersion, dailyMissionLedger: v3.dailyMissionLedger },
+  }, null, 2) + '\n');
+});
