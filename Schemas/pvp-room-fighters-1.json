@@ -1,0 +1,256 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/pvp-room-fighters-1.json",
+  "title": "PvP room host-minted fighter snapshots (pvpRoomFighterHost reply)",
+  "description": "Presentation-only level badges for PvP room seats, minted by the host from each caller's owned Holobot and stored by minting uid in the server-only pvpRoomSeats/{roomId} doc (no client rule; default deny). Each fighter is the #118 ArenaFighterSnapshot shape with tier pinned to 0 (unranked PvP; not the Arena rookie index). Ownership and level come from the owner-writable users/{uid}.holobots until S4 is closed. `seats` holds only seats minted for the uid currently in that seat. definitions.request is the whole callable body; definitions.seatsDoc is the stored doc. See Documentation/QA/2026-10-17-lite-pvp-fighters-1/CONTRACT.md.",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/seatReply"
+    },
+    {
+      "$ref": "#/definitions/readReply"
+    }
+  ],
+  "definitions": {
+    "roomId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]{20}$"
+    },
+    "holobotId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,39}$"
+    },
+    "fighter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holobotId",
+        "level",
+        "displayName",
+        "tier"
+      ],
+      "properties": {
+        "holobotId": {
+          "$ref": "#/definitions/holobotId"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      }
+    },
+    "seat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uid",
+        "fighters"
+      ],
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fighters": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/definitions/holobotId"
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/pvpFighter"
+          }
+        }
+      }
+    },
+    "seats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "p1": {
+          "$ref": "#/definitions/seat"
+        },
+        "p2": {
+          "$ref": "#/definitions/seat"
+        }
+      }
+    },
+    "seatReply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "roomId",
+        "role",
+        "alreadyProcessed",
+        "fighter",
+        "seats"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "pvp-room-fighters-1"
+        },
+        "roomId": {
+          "$ref": "#/definitions/roomId"
+        },
+        "role": {
+          "enum": [
+            "p1",
+            "p2"
+          ]
+        },
+        "seats": {
+          "$ref": "#/definitions/seats"
+        },
+        "operation": {
+          "const": "seat"
+        },
+        "alreadyProcessed": {
+          "type": "boolean"
+        },
+        "fighter": {
+          "$ref": "#/definitions/pvpFighter"
+        }
+      }
+    },
+    "readReply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "roomId",
+        "role",
+        "seats"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "pvp-room-fighters-1"
+        },
+        "roomId": {
+          "$ref": "#/definitions/roomId"
+        },
+        "role": {
+          "enum": [
+            "p1",
+            "p2"
+          ]
+        },
+        "seats": {
+          "$ref": "#/definitions/seats"
+        },
+        "operation": {
+          "const": "read"
+        }
+      }
+    },
+    "request": {
+      "description": "The whole pvpRoomFighterHost body. The uid comes only from request.auth; level, tier, uid, role or any other key is refused as invalid_request.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "roomId",
+            "holobotId"
+          ],
+          "properties": {
+            "operation": {
+              "const": "seat"
+            },
+            "roomId": {
+              "$ref": "#/definitions/roomId"
+            },
+            "holobotId": {
+              "$ref": "#/definitions/holobotId"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "roomId"
+          ],
+          "properties": {
+            "operation": {
+              "const": "read"
+            },
+            "roomId": {
+              "$ref": "#/definitions/roomId"
+            }
+          }
+        }
+      ]
+    },
+    "seatsDoc": {
+      "description": "pvpRoomSeats/{roomId}: written only by pvpRoomFighterHost (Admin SDK, set-merge of the caller's own byUid entry). Snapshots are keyed by the MINTING uid, never by role; replies project p1/p2 from the uids currently in the room seats. No firestore.rules match exists for it, so the default deny refuses every client read and write.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "roomId",
+        "byUid"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "pvp-room-fighters-1"
+        },
+        "roomId": {
+          "$ref": "#/definitions/roomId"
+        },
+        "byUid": {
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fighters"
+            ],
+            "properties": {
+              "fighters": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/definitions/holobotId"
+                },
+                "additionalProperties": {
+                  "$ref": "#/definitions/pvpFighter"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pvpFighter": {
+      "description": "A PvP seat snapshot: the #118 `fighter` shape with tier pinned to 0. Here tier 0 means 'unranked PvP room', NOT the Arena rookie tier index 0 of #118; read tier together with schemaVersion.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/fighter"
+        },
+        {
+          "properties": {
+            "tier": {
+              "const": 0
+            }
+          }
+        }
+      ]
+    }
+  }
+}

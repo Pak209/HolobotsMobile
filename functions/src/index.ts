@@ -68,3 +68,6 @@ export { arenaGatheringHost } from "./story/arenaGatheringHost";
 export { tournamentResultHost } from "./story/tournamentResultHost";
 
 export { tournamentBracketHost } from "./story/tournamentBracketHost";
+
+// pvp-room-fighters-1: host-minted PvP room fighter snapshots (presentation only).
+export { pvpRoomFighterHost } from "./pvp/pvpRoomFighterHost";
