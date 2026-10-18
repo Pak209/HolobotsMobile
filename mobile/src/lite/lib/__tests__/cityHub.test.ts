@@ -1,6 +1,6 @@
 import { formatRivalCountdown } from "../rivalHud";
 import { describe, expect, it } from "vitest";
-import { cityRivalCooldownEnd, CITY_DISTRICTS, CITY_RING_COLORS, EMPTY_CITY_FLAGS, cityDistrictAccess, cityMapPoint, cityTimeOfDay, readArenaGathering, readCityStoryFlags } from "../../../lib/cityHub";
+import { cityRivalCooldownEnd, CITY_DISTRICTS, CITY_RING_COLORS, EMPTY_CITY_FLAGS, cityDistrictAccess, cityMapPoint, cityTimeOfDay, readArenaGathering, readCityStoryFlags } from "../cityHub";
 import { CITY_GATHERING_FIXTURE } from "../cityHubFixtures";
 import { theme } from "../../theme";
 

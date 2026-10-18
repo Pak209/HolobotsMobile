@@ -1,6 +1,7 @@
 import { previewInitialScreen, ARENA_CAPTURE_ROUTES } from "./previewRoutes";
 import { ArenaAdmittedRoundPreview, ArenaAdmittedResultPreview, ArenaAdmittedKnownBadPreview } from "./ArenaAdmittedPreview";
 import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaHostLevelsPreview";
+import { cityMarketPreviewScreens } from "./CityMarketPreview";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
@@ -88,6 +89,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ...botScreens,
   CityHub: CityPreview,
   ...cityScreens,
+  ...cityMarketPreviewScreens,
   HostDuel: HostDuelPreview, ...hostDuelCaptureScreens,
   Duel: DuelPreview, DuelReceipt: ReceiptPreview, ...duelCaptureScreens,
   ArenaHostLevels: ArenaHostLevelsPreview,

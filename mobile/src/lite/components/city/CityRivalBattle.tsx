@@ -7,7 +7,7 @@ import { ArenaCombatEngine } from "@/lite/features/arena/combatEngine";
 import { getAbility } from "@/features/arena/abilities";
 import { getSignatureFinisher, resolveCombatKit } from "@/features/arena/moveKits";
 import { publishRivalCooldown, publishRivalStatus } from "@/lite/hooks/useRivalStatus";
-import { cityActionMessage, cityRivalCooldownEnd, record, type ArenaCitizen } from "@/lib/cityHub";
+import { cityActionMessage, cityRivalCooldownEnd, record, type ArenaCitizen } from "@/lite/lib/cityHub";
 import { CITY_GATHERING_FIXTURE } from "@/lite/lib/cityHubFixtures";
 import { CITY_LIVE_DUEL_HOLD, issueCityRival, settleCityRival } from "@/lite/lib/cityHubClient";
 import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, type CityRivalIssue } from "@/lite/lib/cityRivalBattle";

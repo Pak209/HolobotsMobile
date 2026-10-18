@@ -9,7 +9,7 @@ vi.mock("react-native", () => ({ AppState: {} }));
 vi.mock("@react-navigation/native", () => ({ useFocusEffect: vi.fn() }));
 vi.mock("@/config/firebase", () => ({ functions: {}, httpsCallable: () => harness.calls }));
 import { publishRivalCooldown, useCityRivalCooldowns } from "../useRivalStatus";
-import { cityRivalCooldownEnd } from "@/lib/cityHub";
+import { cityRivalCooldownEnd } from "@/lite/lib/cityHub";
 afterEach(() => { harness.cleanups.splice(0).forEach(cleanup => cleanup()); vi.useRealTimers(); });
 it("reads only this pilot's refusal clocks, expires them, and keeps fixtures isolated", () => {
   vi.useFakeTimers(); vi.setSystemTime(1000);

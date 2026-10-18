@@ -1,5 +1,5 @@
 import { normalizeDuelReceipt, type DuelReceipt } from './duelPlayback';
-import { record } from '../../../lib/cityHub';
+import { record } from '../cityHub';
 import { readCityRivalSettlement } from '../cityRivalBattle';
 
 /** Admission pins the mode for the battle's lifetime, including after a server rollback. */

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 import { writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { cityDistrictAccess, readArenaGathering, record } from "../../../lib/cityHub";
+import { cityDistrictAccess, readArenaGathering, record } from "../cityHub";
 import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, readCityRivalSettlement } from "../cityRivalBattle";
 import { normalizeDuelReceipt } from "../bots/duelPlayback";
 import { ArenaCombatEngine } from "../../features/arena/combatEngine";

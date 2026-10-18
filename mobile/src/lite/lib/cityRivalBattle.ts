@@ -1,4 +1,4 @@
-import { CITY_BOT_IDS, record } from "../../lib/cityHub";
+import { CITY_BOT_IDS, record } from "./cityHub";
 import type { ArenaFighter, BattleAction } from "@/lite/types/arena";
 import type { DuelRound } from "./bots/duelPlayback";
 

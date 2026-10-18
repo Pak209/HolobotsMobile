@@ -1,5 +1,5 @@
 import { auth, functions, httpsCallable } from "@/config/firebase";
-import { GATHERING_SCHEMA, readArenaGathering, readCityStoryFlags, record, type ArenaCitizen } from "../../lib/cityHub";
+import { GATHERING_SCHEMA, readArenaGathering, readCityStoryFlags, record, type ArenaCitizen } from "./cityHub";
 import type { CityHubFixture } from "./cityHubFixtures";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "../../lib/async";
 import { rivalIssueMode, readLiveRivalPlayback } from "./bots/liveRivalPlayback";
