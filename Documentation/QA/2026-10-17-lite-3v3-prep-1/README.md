@@ -9,9 +9,10 @@
 
 ## PRs
 
-- **Contract** [Pak209/HolobotsMobile#134](https://github.com/Pak209/HolobotsMobile/pull/134), into `main`, branch `claude/lite-3v3-prep-1-contract`, head `a2628ac`.
+- **Contract** [Pak209/HolobotsMobile#134](https://github.com/Pak209/HolobotsMobile/pull/134), into `main`, branch `claude/lite-3v3-prep-1-contract`, head `6bd0204`.
   - `Schemas/arena-match-3v3-1.json` and `Schemas/arena-match-request-3v3-1.json`.
-  - A hand-authored fixture, `functions/scripts/fixtures/arena-match-3v3/lifecycle.json`: 23 steps (15 accepted, 8 refused), sha256 `9a9ff7e66d66e15dc1833eb8ae1134c83ac805b1e8d6462e25cc1abbe5d1abd1`.
+  - A hand-authored fixture, `functions/scripts/fixtures/arena-match-3v3/lifecycle.json`: 25 steps (15 accepted, 10 refused), sha256 `70b1543d3c117607c1df722909f64f67b973f5f8f17b9167c6a83fc093a60195`.
+  - A report with HP above the host's stored value, or with both sides at 0, is **refused** (`invalid_request`, matching 1v1). The host stores and bounds client-asserted HP but does not decide it; whether 3v3 should accept that at all is Pak call 1.
   - `functions/scripts/test-arena-match-3v3-contract.mjs`, which runs in `npm test`.
   - `functions/docs/arena-match-3v3-1/CONTRACT.md`.
   - `functions/src` is untouched.
@@ -23,6 +24,7 @@
   - unknown keys, STA, and a combat bag;
   - client prices (the pass price comes from `rules.entryFeePasses`);
   - incoherent active, KO, winner or outcome states, including a double wipe with a winner;
+  - a forfeit carrying a report, and a settled match with no start time;
   - malformed receipts.
 - **Swap.** `ArenaMatchFlow.swap(holobotId)` persists the exact `{schemaVersion, operation:'swap', matchId, intentId, turn, holobotId}` body under `arena-match-3v3-pending-1:<uid>` before sending it through the same `arenaMatchHost` callable.
   - Nothing changes locally until the host replies.
@@ -32,6 +34,8 @@
   - Nothing calls this live yet.
 - **Bench cards.** `ArenaBenchCards` sits outside BattleArenaView. It shows an empty BUDDY strip, then the active card, then two bench cards.
   - The cards show host HP and the host LV badge, as a lower-left corner tab. There is no STA, no regen, and no local HP arithmetic.
+  - Bench tags read BENCH 1 and BENCH 2 by bench position (1-indexed).
+  - Retry and discard are single-flight, and a resume reply is never adopted after the session ends.
   - SWAP IN appears only on an active match.
   - On-screen copy says "City", never "host" (DECISIONS #71; PLACEHOLDER until Lex).
 - **3v3 entry.** The 3V3 SHOWDOWN button is disabled, with one honest line ("…nothing is charged"). The Alert is gone. #132's economy-signal calls in ArenaScreen are untouched.
@@ -44,18 +48,28 @@
 | functions `npm run build` | OK |
 | functions `npm test` | **319 tests: 318 pass, 0 fail, 1 skipped** (the 3v3 contract suite has 7) |
 | functions `npm run check:shared` | 3 shared files in sync |
-| mobile `npx vitest run` | **77 files (76 passed, 1 skipped); 898 tests: 894 pass, 4 skipped** (`arenaMatch3v3.test.ts` has 207) |
+| mobile `npx vitest run` | **78 files (77 passed, 1 skipped); 920 tests: 916 pass, 4 skipped**. `arenaMatch3v3.test.ts` has 212 and the `arenaBenchCards.render.test.ts` render test has 17. |
 | mobile `npx tsc --noEmit` | exit 0 |
 
 **Mutation checks** (one-off; not part of `npm test`):
 
-- **Contract.** Deleting any of the 23 conditional schema rules, or either winner survivor clause, fails the suite.
-- **Client reader.** Deleting a clause kills 131 of 135 mutants. The 4 survivors are equivalent mutants, where a stricter check always fires first:
+- **Contract.** The reply schema has 26 if-rules. A sweep deleted each rule, then each `then`/`else` branch, then each clause: 118 mutants, of which **113 fail the suite**. The 5 survivors are equivalent and are listed in CONTRACT.md.
+- **Client reader.** Deleting a clause kills 132 of 136 mutants. The 4 survivors are equivalent mutants, where a stricter check always fires first:
   - the outcome enum;
   - the integer close time;
   - the forfeit `winner` check;
   - the integer entry amount.
-- **Client flow.** 20 of 21 are killed. The survivor is `retrySwap`'s stale check, which `swap()` repeats.
+- **Client flow.** 20 of 23 are killed. The 3 survivors are equivalent:
+  - the post-call epoch checks in `teamRequest` and `resumeTeam`, which back each other up;
+  - `retrySwap`'s stale check, which `swapIn` repeats.
+- **Bench render test.** These component mutations each fail it:
+  - derived HP text;
+  - a bar width other than the host's current/max;
+  - an extra LV text;
+  - SWAP IN on every card, or on closed matches;
+  - a slot-indexed bench label;
+  - a moved LV tab;
+  - the BUDDY strip below the bench.
 - **Other client mutations** that the suite catches:
   - both optimistic-swap variants;
   - an on-screen "host" string;
@@ -75,6 +89,10 @@
   - Reader checks were unpinned by tests. Every clause is now targeted.
 
   Its 7 lows were also fixed: double-wipe winners, the sent-in CPU HP, clause probes, a pass control, two type gaps, and the cold-start retry error code.
+
+- **Round 3** was the coordinator's refute-first review. It found **no blockers**, and every item is fixed:
+  - **#134:** the report-HP limit was unspecified and is now a refusal with known-bad steps. The mutation claim was overstated: there are 26 rules, not 23, and the probes now cover them. The rule-1 framing is fixed, with a new Pak call 1. Lows: start time required when settled, a null forfeit report, `turn_limit`, a {0,0} late-settle control, and sha-pinned v1 schemas.
+  - **#139:** the fixture is re-copied and its sha re-pinned. The bench render test is added. Lows: 1-indexed bench labels, single-flight retry and discard, and no resume adopted after close.
 
 ## Simulator witness: HELD
 
@@ -97,13 +115,18 @@ Evidence is in `~/HolobotsVault/QA/2026-10-17-lite-3v3-prep-1/`: `GATE_SHEET.png
 - PvP 3v3 inside PvpArenaModal, which is reachable from ArenaScreen. It still uses legacy local authority (`pvpTeamBattle` bench regen). It is owned by lite-pvp-fighters-1 and outside this lane.
 - ArenaScreen's one pre-existing on-screen "host" string ("RESUME HOST MATCH", line 120) breaks the DECISIONS #71 rule. It is left for lite-arena-polish-1.
 
+## Merge note
+
+#139 conflicts textually with #137 on one import line in `mobile/src/qa/HoloCityPreview.tsx`. To resolve it, keep both imports, with #137's first.
+
 ## Pak calls
 
-1. **Swap timing.** What is `voluntarySwapLimit` (placeholder 2)? Does a voluntary swap give the CPU a free hit?
-2. **Bench regen.** The proposal is `none`.
-3. **3v3 entry price.** Placeholders: 50 Holos, `entryFeePasses` 1, charged once.
-4. **Rewards.** The reward quote, who gets EXP, and which blueprint drops.
-5. **CPU team selection.**
-6. **STA.** Should the host ever carry STA across bouts?
-7. **Performance counts.** Client-asserted 0..25 in 3v3, as in 1v1? Is the 1000 ms `too_fast` floor enough? Should a late settle zero the counts (the proposal says yes)?
-8. **Buddy.** Should the 3v3 admission freeze a Buddy Unit snapshot from the account's `buddyUnits`? Today the strip is empty.
+1. **Rule 1 for 3v3.** Accept client-asserted bout HP for 3v3, matching #120? Or hold the runtime until a host sim over `duel-inputs-1` decides the bouts?
+2. **Swap timing.** What is `voluntarySwapLimit` (placeholder 2)? Does a voluntary swap give the CPU a free hit?
+3. **Bench regen.** The proposal is `none`.
+4. **3v3 entry price.** Placeholders: 50 Holos, `entryFeePasses` 1, charged once.
+5. **Rewards.** The reward quote, who gets EXP, and which blueprint drops.
+6. **CPU team selection.**
+7. **STA.** Should the host ever carry STA across bouts?
+8. **Performance counts.** Client-asserted 0..25 in 3v3, as in 1v1? Is the 1000 ms `too_fast` floor enough? Should a late settle zero the counts (the proposal says yes)?
+9. **Buddy.** Should the 3v3 admission freeze a Buddy Unit snapshot from the account's `buddyUnits`? Today the strip is empty.
