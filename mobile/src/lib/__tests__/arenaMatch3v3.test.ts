@@ -57,8 +57,8 @@ describe('arena-match-3v3-1 fixture copy', () => {
     it('is the contract fixture verbatim (sha256 pinned to HolobotsMobile #134)', () => {
         const bytes = readFileSync(path.resolve(__dirname, '../../qa/fixtures/arena-match-3v3-lifecycle.json'));
         expect(createHash('sha256').update(bytes).digest('hex')).toBe(ARENA_3V3_FIXTURE_SHA256);
-        expect(ARENA_3V3_FIXTURE_SHA256).toBe('9a9ff7e66d66e15dc1833eb8ae1134c83ac805b1e8d6462e25cc1abbe5d1abd1');
-        expect([steps.length, accepted.length]).toEqual([23, 15]);
+        expect(ARENA_3V3_FIXTURE_SHA256).toBe('70b1543d3c117607c1df722909f64f67b973f5f8f17b9167c6a83fc093a60195');
+        expect([steps.length, accepted.length]).toEqual([25, 15]);
     });
 });
 
@@ -181,6 +181,10 @@ describe('strict 3v3 reply reader: accept/refuse table', () => {
         ['forfeit with a refund', forfeit, r => { r.match.settlementReceipt.refund = { method: 'tokens', amount: 50, balanceBefore: 950, balanceAfter: 1000 }; }, RC],
         ['forfeit with an out-of-contract report', forfeit, r => { r.match.settlementReceipt.report = { combosCompleted: 99, perfectDefenses: 0 }; }, RC],
         ['forfeit with an arbitrary report bag', forfeit, r => { r.match.settlementReceipt.report = {}; }, RC],
+        ['forfeit with a zero performance report', forfeit, r => { r.match.settlementReceipt.report = { combosCompleted: 0, perfectDefenses: 0 }; }, RC],
+        ['settled but never started', 'settle', r => { r.match.startedAtMs = null; }, RC],
+        ['settled as a loss while still in command', 'settle', r => { Object.assign(r.match.battle, { phase: 'command', winner: null }); r.match.opponentTeam[2] = { ...r.match.opponentTeam[2], status: 'active', vitals: { ...r.match.opponentTeam[2].vitals, currentHealth: 40 } };
+            Object.assign(r.match.settlementReceipt, { outcome: 'loss' }); Object.assign(r.match.settlementReceipt.settlement, { holos: 0, blueprints: null }); }, RC],
         ['empty reply that is not alreadyProcessed', 'resume-empty', r => { r.alreadyProcessed = false; }, R],
     ];
     it.each(refuse)('refuses %s', (_label, base, edit, code) => {
@@ -407,6 +411,26 @@ describe('swap goes through the host and is never applied locally first', () => 
         expect(flow.teamReply).toEqual(before);
         expect(intents.peek()).toEqual(fixtureSwap('swap-2-forced-send-in'));
     });
+    it('retry and discard are single-flight: neither runs while a swap is in flight', async () => {
+        let done!: (v: unknown) => void;
+        const { flow, intents } = setup(host('report-2-active-ko', () => new Promise(resolve => { done = resolve; })), fixtureSwap('swap-2-forced-send-in'));
+        await flow.resumeTeam();
+        const p = flow.swap('shadow');
+        for (let i = 0; i < 50 && !done; i++) await Promise.resolve();
+        await expect(flow.retrySwap()).rejects.toThrow('arena_busy');
+        await expect(flow.discardPendingSwap()).rejects.toThrow('arena_busy');
+        expect(intents.peek()).toEqual(fixtureSwap('swap-2-forced-send-in')); // the in-flight intent was not discarded
+        done(reply('swap-2-forced-send-in'));
+        await expect(p).resolves.toMatchObject({ intent: { intentId: 'lite3v3_intent_04' } });
+        expect(intents.peek()).toBeNull();
+    });
+    it('a resume reply is not adopted if the session ends after the request returns', async () => {
+        let checks = 0;
+        // run() checks twice and teamRequest once; the session ends right after, before the reply is adopted.
+        const flow = new ArenaMatchFlow(async () => reply('start'), { get: async () => null, set: async () => { } }, () => ++checks <= 3, memoryIntents());
+        await expect(flow.resumeTeam()).rejects.toThrow('arena_session_changed');
+        expect(flow.teamReply).toBeNull();
+    });
     it('retry and discard name their real precondition', async () => {
         const bare = new ArenaMatchFlow(vi.fn(), { get: async () => null, set: async () => { } }, () => true);
         await expect(bare.retrySwap()).rejects.toThrow('arena_3v3_unavailable');
@@ -469,7 +493,7 @@ describe('known bad: legacy local teamBattle regen never reaches the bench cards
             const m = readArena3v3Reply(s.reply).match!, cards = arenaBenchCards(m);
             expect(cards).toHaveLength(3);
             for (const c of cards) {
-                expect(Object.keys(c).sort()).toEqual(['currentHealth', 'holobotId', 'hpLabel', 'levelBadge', 'maxHealth', 'name', 'role', 'slot']);
+                expect(Object.keys(c).sort()).toEqual(['currentHealth', 'holobotId', 'hpLabel', 'label', 'levelBadge', 'maxHealth', 'name', 'role', 'slot']);
                 const slot = m.team[c.slot];
                 expect([c.currentHealth, c.maxHealth]).toEqual([slot.vitals.currentHealth, slot.vitals.maxHealth]);
                 expect(c.levelBadge).toBe(`LV ${slot.fighter.level}`);
@@ -502,6 +526,10 @@ describe('bench presentation (DECISIONS #71)', () => {
     it('active first, then the bench in slot order; KO is shown, never hidden', () => {
         expect(arenaBenchCards(reply('start').match!).map(c => [c.name, c.levelBadge, c.role, c.hpLabel])).toEqual([['ACE', 'LV 4', 'ACTIVE', '172 / 172'], ['KUMA', 'LV 3', 'BENCH', '205 / 220'], ['SHADOW', 'LV 2', 'BENCH', '150 / 150']]);
         expect(arenaBenchCards(reply('report-2-active-ko').match!).map(c => [c.name, c.role])).toEqual([['KUMA', 'KO'], ['ACE', 'BENCH'], ['SHADOW', 'BENCH']]);
+        // Labels are 1-indexed by bench position, never a slot index ("BENCH 0" can not appear).
+        expect(arenaBenchCards(reply('swap-1-voluntary').match!).map(c => [c.name, c.label])).toEqual([['KUMA', 'ACTIVE'], ['ACE', 'BENCH 1'], ['SHADOW', 'BENCH 2']]);
+        expect(arenaBenchCards(reply('report-4-active-ko').match!).map(c => [c.name, c.label])).toEqual([['SHADOW', 'KO'], ['ACE', 'BENCH 1'], ['KUMA', 'KO']]);
+        for (const s of projections) expect(arenaBenchCards(readArena3v3Reply(s.reply).match!).map(c => c.label).join()).not.toMatch(/BENCH 0|BENCH 3/);
         expect(arenaBenchPhaseLine(reply('report-2-active-ko').match!)).toBe('TURN 3 · SEND IN A FIGHTER');
         expect(arenaBenchPhaseLine(reply('swap-1-voluntary').match!)).toBe('TURN 2 · SWAPS 1/2');
         expect(arenaBenchPhaseLine(reply('settle').match!)).toBe('CITY RECEIPT · WIN');
@@ -510,7 +538,7 @@ describe('bench presentation (DECISIONS #71)', () => {
     it('the word "host" never appears on screen: every player-visible 3v3 string says City', () => {
         const visible = [
             ...Object.values(ARENA_3V3_COPY).map(v => typeof v === 'function' ? (v as (...a: any[]) => string)('ACE', 2) : v),
-            ...projections.flatMap(s => { const m = readArena3v3Reply(s.reply).match!; return [arenaBenchPhaseLine(m), ...arenaBenchCards(m).flatMap(c => [c.name, c.levelBadge, c.role, c.hpLabel]), ...Object.values(arenaBuddySlot(m))]; }),
+            ...projections.flatMap(s => { const m = readArena3v3Reply(s.reply).match!; return [arenaBenchPhaseLine(m), ...arenaBenchCards(m).flatMap(c => [c.name, c.levelBadge, c.role, c.label, c.hpLabel]), ...Object.values(arenaBuddySlot(m))]; }),
         ];
         expect(visible.filter(v => /host/i.test(String(v)))).toEqual([]);
         expect(ARENA_3V3_UNAVAILABLE_COPY).toBe(ARENA_3V3_COPY.unavailable);

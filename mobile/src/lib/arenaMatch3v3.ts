@@ -94,7 +94,7 @@ function receipt(m: Record<string, unknown>, mine: Arena3v3Slot[], b: Record<str
     const bad = () => fail('arena_receipt_invalid');
     if (!exactKeys(r, ['matchId', 'outcome', 'refunded', 'settlement', 'report', 'finalVitals', 'closedAtMs'], ['refund']) || r.matchId !== m.matchId
         || !['win', 'loss', 'forfeit', 'cancelled_before_start'].includes(outcome) || !integer(m.closedAtMs) || r.closedAtMs !== m.closedAtMs || m.closedAtMs < Number(m.issuedAtMs)) bad();
-    if (m.state === 'settled' ? outcome !== (b.winner === 'player' ? 'win' : 'loss') || b.phase !== 'over' : !['forfeit', 'cancelled_before_start'].includes(outcome)) bad();
+    if (m.state === 'settled' ? outcome !== (b.winner === 'player' ? 'win' : 'loss') || b.phase !== 'over' || m.startedAtMs === null : !['forfeit', 'cancelled_before_start'].includes(outcome)) bad();
     if (outcome === 'cancelled_before_start') {
         const refund = record(r.refund);
         if (m.startedAtMs !== null || b.phase !== 'ready' || b.turn !== 0 || r.refunded !== true || r.settlement !== null || r.report !== null || r.finalVitals !== null
@@ -106,7 +106,8 @@ function receipt(m: Record<string, unknown>, mine: Arena3v3Slot[], b: Record<str
     if (r.refunded !== false || Object.hasOwn(r, 'refund') || Object.keys(finalVitals).length !== 3
         || mine.some(s => { const v = record(finalVitals[s.fighter.holobotId]); return !exactKeys(v, ['currentHealth', 'maxHealth']) || v.currentHealth !== s.vitals.currentHealth || v.maxHealth !== s.vitals.maxHealth; })) bad();
     if (outcome === 'forfeit') {
-        if (m.startedAtMs === null || b.winner !== null || !['command', 'send_in'].includes(String(b.phase)) || r.settlement !== null || !(r.report === null || counts(r.report))) bad();
+        // A forfeit writes vitals only: no settlement and no performance report.
+        if (m.startedAtMs === null || b.winner !== null || !['command', 'send_in'].includes(String(b.phase)) || r.settlement !== null || r.report !== null) bad();
         return;
     }
     const s = record(r.settlement), blueprint = s.blueprints, bot = (v: unknown) => typeof v === 'string' && BOT.test(v);
@@ -165,6 +166,8 @@ export type ArenaBenchCard = {
     /** Host #118 level badge only ("LV 4"). */
     levelBadge: string;
     role: 'ACTIVE' | 'BENCH' | 'KO';
+    /** On-card tag: ACTIVE, KO, or BENCH 1 / BENCH 2 by position on the bench (1-indexed, never a slot index). */
+    label: string;
     /** Host HP, copied. The bar width is the host's own current/max ratio; no HP is derived or regenerated. */
     currentHealth: number;
     maxHealth: number;
@@ -173,11 +176,11 @@ export type ArenaBenchCard = {
 /** Three cards, the active slot first and then the bench in slot order. Pure function of the host projection. */
 export function arenaBenchCards(match: Arena3v3Match): ArenaBenchCard[] {
     const at = match.battle.activeSlot, order = [at, ...[0, 1, 2].filter(i => i !== at)];
-    return order.map(i => {
-        const s = match.team[i];
+    return order.map((i, position) => {
+        const s = match.team[i], role = s.status === 'ko' ? 'KO' : s.status === 'active' ? 'ACTIVE' : 'BENCH';
         return {
             slot: s.slot, holobotId: s.fighter.holobotId, name: s.fighter.displayName, levelBadge: `LV ${s.fighter.level}`,
-            role: s.status === 'ko' ? 'KO' : s.status === 'active' ? 'ACTIVE' : 'BENCH',
+            role, label: role === 'BENCH' ? `BENCH ${position}` : role,
             currentHealth: s.vitals.currentHealth, maxHealth: s.vitals.maxHealth, hpLabel: `${s.vitals.currentHealth} / ${s.vitals.maxHealth}`,
         };
     });

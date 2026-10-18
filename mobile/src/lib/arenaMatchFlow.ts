@@ -183,68 +183,76 @@ export class ArenaMatchFlow {
     resumeTeam() {
         return this.run(async (epoch) => {
             const matchId = this.team?.matchId ?? undefined;
-            this.team = await this.teamRequest({ schemaVersion: ARENA_3V3_SCHEMA, operation: 'resume', ...(matchId ? { matchId } : {}) }, epoch, { matchId });
-            return this.team;
-        });
-    }
-    /** Swap intent THROUGH THE HOST. The exact body is persisted before sending and retried unchanged.
-     * Nothing changes locally until the host replies; a host refusal clears the intent and leaves the state as it was. */
-    swap(holobotId: string) {
-        return this.run(async (epoch) => {
-            const intents = this.intents, current = this.team?.match;
-            if (!intents)
-                throw Error('arena_3v3_unavailable');
-            if (!current)
-                throw Error('arena_not_admitted');
-            const pending = await intents.get();
-            // Never drop or rewrite an unresolved intent implicitly: one for another match fails closed, sends nothing,
-            // and needs an explicit discardPendingSwap() (the next host resume shows what was actually applied).
-            if (pending && pending.matchId !== current.matchId)
-                throw Error('arena_intent_stale');
-            if (pending && pending.holobotId !== holobotId)
-                throw Error('arena_intent_pending');
-            const request: Arena3v3Swap = pending ?? { schemaVersion: ARENA_3V3_SCHEMA, operation: 'swap', matchId: current.matchId, intentId: `lite3v3_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, turn: current.battle.turn, holobotId };
-            if (!pending)
-                await intents.set(request);
-            if (epoch !== this.epoch || !this.active())
-                throw Error('arena_session_changed');
-            let reply: Arena3v3Reply;
-            try {
-                reply = await this.teamRequest({ ...request }, epoch, { matchId: current.matchId, intent: { intentId: request.intentId, operation: 'swap' } });
-            }
-            catch (e) {
-                if (arenaHostRejection(e))
-                    await intents.set(null);
-                throw e;
-            }
-            if (reply.intent?.appliedTurn !== request.turn)
-                throw Error('arena_3v3_intent_mismatch');
-            await intents.set(null);
+            const reply = await this.teamRequest({ schemaVersion: ARENA_3V3_SCHEMA, operation: 'resume', ...(matchId ? { matchId } : {}) }, epoch, { matchId });
             if (epoch !== this.epoch || !this.active())
                 throw Error('arena_session_changed');
             this.team = reply;
             return reply;
         });
     }
-    /** Resend the stored swap body unchanged, or fail. Never builds a new intent. */
-    async retrySwap() {
-        const pending = this.intents ? await this.intents.get() : null;
-        if (!this.intents)
+    /** Swap intent THROUGH THE HOST. The exact body is persisted before sending and retried unchanged.
+     * Nothing changes locally until the host replies; a host refusal clears the intent and leaves the state as it was. */
+    swap(holobotId: string) { return this.run(epoch => this.swapIn(epoch, holobotId)); }
+    private async swapIn(epoch: number, holobotId: string): Promise<Arena3v3Reply> {
+        const intents = this.intents, current = this.team?.match;
+        if (!intents)
             throw Error('arena_3v3_unavailable');
-        if (!pending)
-            throw Error('arena_no_pending_intent');
-        // Cold start: resume first. Only a KNOWN current match that differs makes the stored intent stale.
-        if (!this.team?.match)
+        if (!current)
             throw Error('arena_not_admitted');
-        if (pending.matchId !== this.team.match.matchId)
+        const pending = await intents.get();
+        // Never drop or rewrite an unresolved intent implicitly: one for another match fails closed, sends nothing,
+        // and needs an explicit discardPendingSwap() (the next host resume shows what was actually applied).
+        if (pending && pending.matchId !== current.matchId)
             throw Error('arena_intent_stale');
-        return this.swap(pending.holobotId);
+        if (pending && pending.holobotId !== holobotId)
+            throw Error('arena_intent_pending');
+        const request: Arena3v3Swap = pending ?? { schemaVersion: ARENA_3V3_SCHEMA, operation: 'swap', matchId: current.matchId, intentId: `lite3v3_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`, turn: current.battle.turn, holobotId };
+        if (!pending)
+            await intents.set(request);
+        if (epoch !== this.epoch || !this.active())
+            throw Error('arena_session_changed');
+        let reply: Arena3v3Reply;
+        try {
+            reply = await this.teamRequest({ ...request }, epoch, { matchId: current.matchId, intent: { intentId: request.intentId, operation: 'swap' } });
+        }
+        catch (e) {
+            if (arenaHostRejection(e))
+                await intents.set(null);
+            throw e;
+        }
+        if (reply.intent?.appliedTurn !== request.turn)
+            throw Error('arena_3v3_intent_mismatch');
+        await intents.set(null);
+        if (epoch !== this.epoch || !this.active())
+            throw Error('arena_session_changed');
+        this.team = reply;
+        return reply;
     }
-    /** Explicitly abandon an unresolved swap intent. The host state stays the truth on the next resume. */
-    async discardPendingSwap() {
-        if (!this.intents)
-            throw Error('arena_3v3_unavailable');
-        await this.intents.set(null);
+    /** Resend the stored swap body unchanged, or fail. Never builds a new intent. Single-flight like every operation. */
+    retrySwap() {
+        return this.run(async (epoch) => {
+            const intents = this.intents;
+            if (!intents)
+                throw Error('arena_3v3_unavailable');
+            const pending = await intents.get();
+            if (!pending)
+                throw Error('arena_no_pending_intent');
+            // Cold start: resume first. Only a KNOWN current match that differs makes the stored intent stale.
+            if (!this.team?.match)
+                throw Error('arena_not_admitted');
+            if (pending.matchId !== this.team.match.matchId)
+                throw Error('arena_intent_stale');
+            return this.swapIn(epoch, pending.holobotId);
+        });
+    }
+    /** Explicitly abandon an unresolved swap intent. The host state stays the truth on the next resume. Single-flight:
+     * it cannot clear an intent while a swap or retry is in flight. */
+    discardPendingSwap() {
+        return this.run(async () => {
+            if (!this.intents)
+                throw Error('arena_3v3_unavailable');
+            await this.intents.set(null);
+        });
     }
     cancel(playerFinalHealth?: number) { return this.operation('cancel', playerFinalHealth === undefined ? {} : { playerFinalHealth }); }
     private operation(op: string, fields: Record<string, unknown> = {}) { return this.run(epoch => { const matchId = this.latest?.matchId; if (!matchId)

@@ -29,7 +29,7 @@ function Card({ card, wide = false, onSwap, busy = false }: { card: ArenaBenchCa
     <Image source={getHolobotFullImageSource(card.holobotId)} style={wide ? styles.artWide : styles.art} resizeMode="contain"/>
     <View style={styles.body}>
       <Text numberOfLines={1} style={styles.name}>{card.name}</Text>
-      <Text style={[styles.role, { color: accent }]}>{card.role === 'ACTIVE' ? 'ACTIVE' : ko ? 'KO' : `BENCH ${card.slot}`}</Text>
+      <Text style={[styles.role, { color: accent }]}>{card.label}</Text>
       <View style={styles.hpTrack}><View style={[styles.hpFill, { flex: card.currentHealth, backgroundColor: ko ? theme.colors.danger : theme.colors.success }]}/><View style={{ flex: card.maxHealth - card.currentHealth }}/></View>
       <Text style={styles.hp}>{`HP ${card.hpLabel}`}</Text>
       {onSwap ? <Pressable disabled={busy} onPress={onSwap} accessibilityRole="button" accessibilityLabel={ARENA_3V3_COPY.askLabel(card.name)} style={[styles.swap, busy && styles.swapBusy]}>

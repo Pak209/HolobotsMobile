@@ -5,8 +5,8 @@ import { applyBenchRegen, createTeamBattle, type TeamBattle } from '@/features/a
 import type { ArenaFighter } from '@/types/arena';
 import fixture from './fixtures/arena-match-3v3-lifecycle.json';
 
-/** Verbatim copy of functions/scripts/fixtures/arena-match-3v3/lifecycle.json (HolobotsMobile #134; unchanged from ac4a4af through a2628ac). */
-export const ARENA_3V3_FIXTURE_SHA256 = '9a9ff7e66d66e15dc1833eb8ae1134c83ac805b1e8d6462e25cc1abbe5d1abd1';
+/** Verbatim copy of functions/scripts/fixtures/arena-match-3v3/lifecycle.json (HolobotsMobile #134, commit 6bd0204). */
+export const ARENA_3V3_FIXTURE_SHA256 = '70b1543d3c117607c1df722909f64f67b973f5f8f17b9167c6a83fc093a60195';
 /** Known-bad calibration first, then host cells. */
 export const ARENA_BENCH_PREVIEW_ROUTES = ['ArenaBenchKnownBad', 'ArenaBenchCommand', 'ArenaBenchRefused', 'ArenaBenchSendIn', 'ArenaBenchSettled'] as const;
 type Refusal = { code: string; message: string; details: { rejectionCode: string } };
