@@ -41,6 +41,34 @@ export const ZONE_EXPEDITION_RULES = Object.freeze({
   extraction: Object.freeze({ channelMs: 8000, carriedCharges: 1, normalExit: 'beacon', emergencyKeeps: 'small-blueprints',
     emergencyDrops: 'bulky-salvage', unresolvedFight: 'refuse-encounter_pending', chargeConsumedOnRefusal: false }),
   healing: Object.freeze({ location: 'safe-room', stock: 'carried-repair-kit', freeHeal: false }),
+  /** zone-run-4 companion utility points (2026-10-17 proposal). The daily layout places the utility; this table says
+   * what it does. One use per run+sector; a spent use starts one run-wide host-clock cooldown. cooldownMs is a
+   * PROPOSED value awaiting Pak's tuning, like the rest of this table. */
+  utility: Object.freeze({
+    cooldownMs: 30000,
+    oneShot: 'per-run-sector',
+    effects: Object.freeze({ ace: 'route', shadow: 'cache', kuma: 'clear' } as const),
+    route: 'deeper-band-gate-neighbor-without-sector-clear',
+    cache: 'one-unbanked-haul-row-from-private-seed',
+    clear: 'sector-encounter-cleared-no-loot',
+    noEffect: 'not-spent-no-cooldown',
+  }),
+  /** zone-run-4 layout preview copy (Holocity #53). PLACEHOLDER strings for Lex/Pak; presentation text only, never a
+   * ruling. dangerLabels[i] names band i+1 (the band whose WOLF level is bandLevels[i]); glimpse is keyed by the
+   * sector's host role in the daily layout table. */
+  layoutCopy: Object.freeze({
+    dangerLabels: Object.freeze(['Rookie', 'Veteran', 'Elite'] as const),
+    glimpse: Object.freeze({
+      entry: 'The portal clearing. The beacon hums behind you.',
+      gate: 'A safe room. Beacon online, repairs possible.',
+      cache: 'Something glints past the threat.',
+      rareDiscovery: 'A rare signal pulses past the threat.',
+      guardian: 'A heavy signature waits here.',
+      ace: 'A high ledge. ACE could boost across.',
+      shadow: 'A sealed hatch. SHADOW could slip inside.',
+      kuma: 'A boulder blocks the way. KUMA could move it.',
+    }),
+  }),
 });
 
 /** Reuse the existing catalog amounts; this table cannot silently reprice healing. */

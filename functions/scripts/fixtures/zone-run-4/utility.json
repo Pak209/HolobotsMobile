@@ -1,0 +1,3146 @@
+{
+  "provenance": "Offline HolobotsMobile host rulings (functions/src/holozone/expedition.ts advanceExpedition/advanceReply/layoutView) and callable refusal mapper (expeditionErrors.ts) along one deterministic run: TEST-ONLY tuning (zone-expedition-fixtures.mjs CONFIG, rareBlueprintChanceBasisPoints 10000), privateSeed 7, day 2026-10-14. Not production tuning. Refusals are callable errors (HttpsError code/message/details), not success objects.",
+  "schemaVersion": "zone-run-4",
+  "utilityCooldownMs": 30000,
+  "cases": {
+    "layout": {
+      "request": {
+        "schemaVersion": "zone-run-4",
+        "operation": "layout"
+      },
+      "nowMs": 1792022399000,
+      "reply": {
+        "schemaVersion": "zone-run-4",
+        "layout": {
+          "day": "2026-10-14",
+          "seed": 2818554173,
+          "sectors": [
+            {
+              "id": "entry",
+              "band": 0,
+              "safe": true,
+              "beacon": true,
+              "neighbors": [
+                "gate1"
+              ],
+              "cache": false,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": null,
+              "glimpse": "The portal clearing. The beacon hums behind you."
+            },
+            {
+              "id": "gate1",
+              "band": 1,
+              "safe": true,
+              "beacon": true,
+              "neighbors": [
+                "entry",
+                "b1a",
+                "b1b"
+              ],
+              "cache": false,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": null,
+              "glimpse": "A safe room. Beacon online, repairs possible.",
+              "dangerLabel": "Rookie"
+            },
+            {
+              "id": "b1a",
+              "band": 1,
+              "safe": false,
+              "beacon": false,
+              "neighbors": [
+                "gate1",
+                "gate2"
+              ],
+              "cache": true,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": null,
+              "glimpse": "Something glints past the threat.",
+              "dangerLabel": "Rookie"
+            },
+            {
+              "id": "b1b",
+              "band": 1,
+              "safe": false,
+              "beacon": false,
+              "neighbors": [
+                "gate1",
+                "gate2"
+              ],
+              "cache": false,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": "ace",
+              "glimpse": "A high ledge. ACE could boost across.",
+              "dangerLabel": "Rookie"
+            },
+            {
+              "id": "gate2",
+              "band": 2,
+              "safe": true,
+              "beacon": true,
+              "neighbors": [
+                "b1a",
+                "b1b",
+                "b2a",
+                "b2b"
+              ],
+              "cache": false,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": null,
+              "glimpse": "A safe room. Beacon online, repairs possible.",
+              "dangerLabel": "Veteran"
+            },
+            {
+              "id": "b2a",
+              "band": 2,
+              "safe": false,
+              "beacon": false,
+              "neighbors": [
+                "gate2",
+                "gate3",
+                "b2b"
+              ],
+              "cache": false,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": "shadow",
+              "glimpse": "A sealed hatch. SHADOW could slip inside.",
+              "dangerLabel": "Veteran"
+            },
+            {
+              "id": "b2b",
+              "band": 2,
+              "safe": false,
+              "beacon": false,
+              "neighbors": [
+                "gate2",
+                "gate3",
+                "b2a"
+              ],
+              "cache": true,
+              "rareDiscovery": true,
+              "guardian": false,
+              "utility": null,
+              "glimpse": "A rare signal pulses past the threat.",
+              "dangerLabel": "Veteran"
+            },
+            {
+              "id": "gate3",
+              "band": 3,
+              "safe": true,
+              "beacon": true,
+              "neighbors": [
+                "b2a",
+                "b2b",
+                "b3a",
+                "b3b"
+              ],
+              "cache": false,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": null,
+              "glimpse": "A safe room. Beacon online, repairs possible.",
+              "dangerLabel": "Elite"
+            },
+            {
+              "id": "b3a",
+              "band": 3,
+              "safe": false,
+              "beacon": false,
+              "neighbors": [
+                "gate3",
+                "b3b"
+              ],
+              "cache": false,
+              "rareDiscovery": false,
+              "guardian": false,
+              "utility": "kuma",
+              "glimpse": "A boulder blocks the way. KUMA could move it.",
+              "dangerLabel": "Elite"
+            },
+            {
+              "id": "b3b",
+              "band": 3,
+              "safe": false,
+              "beacon": false,
+              "neighbors": [
+                "gate3",
+                "b3a"
+              ],
+              "cache": true,
+              "rareDiscovery": false,
+              "guardian": true,
+              "utility": null,
+              "glimpse": "A heavy signature waits here.",
+              "dangerLabel": "Elite"
+            }
+          ]
+        },
+        "config": {
+          "version": "zone-config-test-only",
+          "energyCapacity": 100,
+          "energyPackUnits": 50,
+          "energyPackPrice": 100,
+          "sectorEnergyCost": 5,
+          "fightEnergyCost": 10,
+          "extractionChargePrice": 100,
+          "bandLevels": [
+            1,
+            11,
+            21
+          ],
+          "cacheFragments": 1,
+          "bulkySalvageUnits": 1,
+          "rareBlueprintChanceBasisPoints": 10000
+        }
+      }
+    },
+    "acceptedRoute": {
+      "request": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "requestId": "fixture_req_3",
+        "runId": "fixture_run",
+        "utility": "ace"
+      },
+      "nowMs": 1792022399000,
+      "reply": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "run": {
+          "schemaVersion": "zone-run-4",
+          "runId": "fixture_run",
+          "state": "open",
+          "issuedAtMs": 1792022399000,
+          "config": {
+            "version": "zone-config-test-only",
+            "energyCapacity": 100,
+            "energyPackUnits": 50,
+            "energyPackPrice": 100,
+            "sectorEnergyCost": 5,
+            "fightEnergyCost": 10,
+            "extractionChargePrice": 100,
+            "bandLevels": [
+              1,
+              11,
+              21
+            ],
+            "cacheFragments": 1,
+            "bulkySalvageUnits": 1,
+            "rareBlueprintChanceBasisPoints": 10000
+          },
+          "layout": {
+            "day": "2026-10-14",
+            "seed": 2818554173,
+            "sectors": [
+              {
+                "id": "entry",
+                "band": 0,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "gate1"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "The portal clearing. The beacon hums behind you."
+              },
+              {
+                "id": "gate1",
+                "band": 1,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "entry",
+                  "b1a",
+                  "b1b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "b1a",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "Something glints past the threat.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "b1b",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "ace",
+                "glimpse": "A high ledge. ACE could boost across.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "gate2",
+                "band": 2,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b1a",
+                  "b1b",
+                  "b2a",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "b2a",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "shadow",
+                "glimpse": "A sealed hatch. SHADOW could slip inside.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "b2b",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2a"
+                ],
+                "cache": true,
+                "rareDiscovery": true,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A rare signal pulses past the threat.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "gate3",
+                "band": 3,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b2a",
+                  "b2b",
+                  "b3a",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Elite"
+              },
+              {
+                "id": "b3a",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "kuma",
+                "glimpse": "A boulder blocks the way. KUMA could move it.",
+                "dangerLabel": "Elite"
+              },
+              {
+                "id": "b3b",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3a"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": true,
+                "utility": null,
+                "glimpse": "A heavy signature waits here.",
+                "dangerLabel": "Elite"
+              }
+            ]
+          },
+          "opponents": {
+            "b1a": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b1b": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2a": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2b": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3a": {
+              "holobotId": "neon_beast",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3b": {
+              "holobotId": "zell_guardian_placeholder",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          },
+          "sectorId": "b1b",
+          "visited": [
+            "entry",
+            "gate1",
+            "b1b"
+          ],
+          "cleared": [],
+          "looted": [],
+          "squad": [
+            {
+              "holobotId": "ace",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 885,
+              "currentHealth": 885,
+              "attack": 472,
+              "defense": 354,
+              "speed": 413,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "kuma",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1180,
+              "currentHealth": 1180,
+              "attack": 413,
+              "defense": 295,
+              "speed": 177,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "shadow",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1003,
+              "currentHealth": 1003,
+              "attack": 295,
+              "defense": 413,
+              "speed": 236,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          ],
+          "energy": 90,
+          "kits": 2,
+          "charge": 1,
+          "haul": [],
+          "guardianDefeated": false,
+          "extraction": null,
+          "receipt": null,
+          "revision": 3,
+          "utilityUsed": [
+            "b1b"
+          ],
+          "seed": 2818554173,
+          "band": 1,
+          "sector": "b1b",
+          "protectedSlot": null
+        },
+        "receipt": null,
+        "utilityResult": {
+          "sectorId": "b1b",
+          "utility": "ace",
+          "effect": "route",
+          "opensSectorId": "gate2",
+          "haul": [],
+          "spent": true,
+          "cooldownMs": 30000
+        },
+        "alreadyProcessed": false
+      }
+    },
+    "refusedCooling": {
+      "request": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "requestId": "fixture_req_6",
+        "runId": "fixture_run",
+        "utility": "shadow"
+      },
+      "nowMs": 1792022400000,
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "utility_cooling",
+        "details": {
+          "rejectionCode": "utility_cooling",
+          "retryAfterMs": 29000
+        }
+      }
+    },
+    "acceptedCache": {
+      "request": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "requestId": "fixture_req_7",
+        "runId": "fixture_run",
+        "utility": "shadow"
+      },
+      "nowMs": 1792022429000,
+      "reply": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "run": {
+          "schemaVersion": "zone-run-4",
+          "runId": "fixture_run",
+          "state": "open",
+          "issuedAtMs": 1792022399000,
+          "config": {
+            "version": "zone-config-test-only",
+            "energyCapacity": 100,
+            "energyPackUnits": 50,
+            "energyPackPrice": 100,
+            "sectorEnergyCost": 5,
+            "fightEnergyCost": 10,
+            "extractionChargePrice": 100,
+            "bandLevels": [
+              1,
+              11,
+              21
+            ],
+            "cacheFragments": 1,
+            "bulkySalvageUnits": 1,
+            "rareBlueprintChanceBasisPoints": 10000
+          },
+          "layout": {
+            "day": "2026-10-14",
+            "seed": 2818554173,
+            "sectors": [
+              {
+                "id": "entry",
+                "band": 0,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "gate1"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "The portal clearing. The beacon hums behind you."
+              },
+              {
+                "id": "gate1",
+                "band": 1,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "entry",
+                  "b1a",
+                  "b1b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "b1a",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "Something glints past the threat.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "b1b",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "ace",
+                "glimpse": "A high ledge. ACE could boost across.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "gate2",
+                "band": 2,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b1a",
+                  "b1b",
+                  "b2a",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "b2a",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "shadow",
+                "glimpse": "A sealed hatch. SHADOW could slip inside.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "b2b",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2a"
+                ],
+                "cache": true,
+                "rareDiscovery": true,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A rare signal pulses past the threat.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "gate3",
+                "band": 3,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b2a",
+                  "b2b",
+                  "b3a",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Elite"
+              },
+              {
+                "id": "b3a",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "kuma",
+                "glimpse": "A boulder blocks the way. KUMA could move it.",
+                "dangerLabel": "Elite"
+              },
+              {
+                "id": "b3b",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3a"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": true,
+                "utility": null,
+                "glimpse": "A heavy signature waits here.",
+                "dangerLabel": "Elite"
+              }
+            ]
+          },
+          "opponents": {
+            "b1a": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b1b": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2a": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2b": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3a": {
+              "holobotId": "neon_beast",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3b": {
+              "holobotId": "zell_guardian_placeholder",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          },
+          "sectorId": "b2a",
+          "visited": [
+            "entry",
+            "gate1",
+            "b1b",
+            "gate2",
+            "b2a"
+          ],
+          "cleared": [],
+          "looted": [],
+          "squad": [
+            {
+              "holobotId": "ace",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 885,
+              "currentHealth": 885,
+              "attack": 472,
+              "defense": 354,
+              "speed": 413,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "kuma",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1180,
+              "currentHealth": 1180,
+              "attack": 413,
+              "defense": 295,
+              "speed": 177,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "shadow",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1003,
+              "currentHealth": 1003,
+              "attack": 295,
+              "defense": 413,
+              "speed": 236,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          ],
+          "energy": 80,
+          "kits": 2,
+          "charge": 1,
+          "haul": [
+            {
+              "id": "b2a_utility",
+              "kind": "rare_blueprint_fragment",
+              "amount": 1,
+              "protected": false
+            }
+          ],
+          "guardianDefeated": false,
+          "extraction": null,
+          "receipt": null,
+          "revision": 6,
+          "utilityUsed": [
+            "b1b",
+            "b2a"
+          ],
+          "seed": 2818554173,
+          "band": 2,
+          "sector": "b2a",
+          "protectedSlot": null
+        },
+        "receipt": null,
+        "utilityResult": {
+          "sectorId": "b2a",
+          "utility": "shadow",
+          "effect": "cache",
+          "opensSectorId": null,
+          "haul": [
+            {
+              "id": "b2a_utility",
+              "kind": "rare_blueprint_fragment",
+              "amount": 1,
+              "protected": false
+            }
+          ],
+          "spent": true,
+          "cooldownMs": 30000
+        },
+        "alreadyProcessed": false
+      }
+    },
+    "refusedSpent": {
+      "request": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "requestId": "fixture_req_8",
+        "runId": "fixture_run",
+        "utility": "shadow"
+      },
+      "nowMs": 1792022429001,
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "utility_spent",
+        "details": {
+          "rejectionCode": "utility_spent"
+        }
+      }
+    },
+    "acceptedClear": {
+      "request": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "requestId": "fixture_req_12",
+        "runId": "fixture_run",
+        "utility": "kuma"
+      },
+      "nowMs": 1792022459000,
+      "reply": {
+        "schemaVersion": "zone-run-4",
+        "operation": "utility",
+        "run": {
+          "schemaVersion": "zone-run-4",
+          "runId": "fixture_run",
+          "state": "open",
+          "issuedAtMs": 1792022399000,
+          "config": {
+            "version": "zone-config-test-only",
+            "energyCapacity": 100,
+            "energyPackUnits": 50,
+            "energyPackPrice": 100,
+            "sectorEnergyCost": 5,
+            "fightEnergyCost": 10,
+            "extractionChargePrice": 100,
+            "bandLevels": [
+              1,
+              11,
+              21
+            ],
+            "cacheFragments": 1,
+            "bulkySalvageUnits": 1,
+            "rareBlueprintChanceBasisPoints": 10000
+          },
+          "layout": {
+            "day": "2026-10-14",
+            "seed": 2818554173,
+            "sectors": [
+              {
+                "id": "entry",
+                "band": 0,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "gate1"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "The portal clearing. The beacon hums behind you."
+              },
+              {
+                "id": "gate1",
+                "band": 1,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "entry",
+                  "b1a",
+                  "b1b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "b1a",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "Something glints past the threat.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "b1b",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "ace",
+                "glimpse": "A high ledge. ACE could boost across.",
+                "dangerLabel": "Rookie"
+              },
+              {
+                "id": "gate2",
+                "band": 2,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b1a",
+                  "b1b",
+                  "b2a",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "b2a",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "shadow",
+                "glimpse": "A sealed hatch. SHADOW could slip inside.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "b2b",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2a"
+                ],
+                "cache": true,
+                "rareDiscovery": true,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A rare signal pulses past the threat.",
+                "dangerLabel": "Veteran"
+              },
+              {
+                "id": "gate3",
+                "band": 3,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b2a",
+                  "b2b",
+                  "b3a",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null,
+                "glimpse": "A safe room. Beacon online, repairs possible.",
+                "dangerLabel": "Elite"
+              },
+              {
+                "id": "b3a",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "kuma",
+                "glimpse": "A boulder blocks the way. KUMA could move it.",
+                "dangerLabel": "Elite"
+              },
+              {
+                "id": "b3b",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3a"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": true,
+                "utility": null,
+                "glimpse": "A heavy signature waits here.",
+                "dangerLabel": "Elite"
+              }
+            ]
+          },
+          "opponents": {
+            "b1a": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b1b": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2a": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2b": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3a": {
+              "holobotId": "neon_beast",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3b": {
+              "holobotId": "zell_guardian_placeholder",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          },
+          "sectorId": "b3a",
+          "visited": [
+            "entry",
+            "gate1",
+            "b1b",
+            "gate2",
+            "b2a",
+            "gate3",
+            "b3a"
+          ],
+          "cleared": [
+            "b2a",
+            "b3a"
+          ],
+          "looted": [],
+          "squad": [
+            {
+              "holobotId": "ace",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 885,
+              "currentHealth": 885,
+              "attack": 472,
+              "defense": 354,
+              "speed": 413,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "kuma",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1180,
+              "currentHealth": 1180,
+              "attack": 413,
+              "defense": 295,
+              "speed": 177,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "shadow",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1003,
+              "currentHealth": 1003,
+              "attack": 295,
+              "defense": 413,
+              "speed": 236,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          ],
+          "energy": 60,
+          "kits": 2,
+          "charge": 1,
+          "haul": [
+            {
+              "id": "b2a_utility",
+              "kind": "rare_blueprint_fragment",
+              "amount": 1,
+              "protected": false
+            }
+          ],
+          "guardianDefeated": false,
+          "extraction": null,
+          "receipt": null,
+          "revision": 10,
+          "utilityUsed": [
+            "b1b",
+            "b2a",
+            "b3a"
+          ],
+          "seed": 2818554173,
+          "band": 3,
+          "sector": "b3a",
+          "protectedSlot": null
+        },
+        "receipt": null,
+        "utilityResult": {
+          "sectorId": "b3a",
+          "utility": "kuma",
+          "effect": "clear",
+          "opensSectorId": null,
+          "haul": [],
+          "spent": true,
+          "cooldownMs": 30000
+        },
+        "alreadyProcessed": false
+      }
+    },
+    "v3Control": {
+      "request": {
+        "schemaVersion": "zone-run-3",
+        "operation": "utility",
+        "requestId": "fixture_req_103",
+        "runId": "fixture_run",
+        "utility": "ace"
+      },
+      "nowMs": 1792022399000,
+      "reply": {
+        "schemaVersion": "zone-run-3",
+        "operation": "utility",
+        "run": {
+          "schemaVersion": "zone-run-3",
+          "runId": "fixture_run",
+          "state": "open",
+          "issuedAtMs": 1792022399000,
+          "config": {
+            "version": "zone-config-test-only",
+            "energyCapacity": 100,
+            "energyPackUnits": 50,
+            "energyPackPrice": 100,
+            "sectorEnergyCost": 5,
+            "fightEnergyCost": 10,
+            "extractionChargePrice": 100,
+            "bandLevels": [
+              1,
+              11,
+              21
+            ],
+            "cacheFragments": 1,
+            "bulkySalvageUnits": 1,
+            "rareBlueprintChanceBasisPoints": 10000
+          },
+          "layout": {
+            "day": "2026-10-14",
+            "seed": 2818554173,
+            "sectors": [
+              {
+                "id": "entry",
+                "band": 0,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "gate1"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null
+              },
+              {
+                "id": "gate1",
+                "band": 1,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "entry",
+                  "b1a",
+                  "b1b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null
+              },
+              {
+                "id": "b1a",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null
+              },
+              {
+                "id": "b1b",
+                "band": 1,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate1",
+                  "gate2"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "ace"
+              },
+              {
+                "id": "gate2",
+                "band": 2,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b1a",
+                  "b1b",
+                  "b2a",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null
+              },
+              {
+                "id": "b2a",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "shadow"
+              },
+              {
+                "id": "b2b",
+                "band": 2,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate2",
+                  "gate3",
+                  "b2a"
+                ],
+                "cache": true,
+                "rareDiscovery": true,
+                "guardian": false,
+                "utility": null
+              },
+              {
+                "id": "gate3",
+                "band": 3,
+                "safe": true,
+                "beacon": true,
+                "neighbors": [
+                  "b2a",
+                  "b2b",
+                  "b3a",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": null
+              },
+              {
+                "id": "b3a",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3b"
+                ],
+                "cache": false,
+                "rareDiscovery": false,
+                "guardian": false,
+                "utility": "kuma"
+              },
+              {
+                "id": "b3b",
+                "band": 3,
+                "safe": false,
+                "beacon": false,
+                "neighbors": [
+                  "gate3",
+                  "b3a"
+                ],
+                "cache": true,
+                "rareDiscovery": false,
+                "guardian": true,
+                "utility": null
+              }
+            ]
+          },
+          "opponents": {
+            "b1a": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b1b": {
+              "holobotId": "neon_beast",
+              "level": 1,
+              "tier": 0,
+              "maxHealth": 175,
+              "attack": 50,
+              "defense": 50,
+              "speed": 50,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2a": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b2b": {
+              "holobotId": "neon_beast",
+              "level": 11,
+              "tier": 1,
+              "maxHealth": 262,
+              "attack": 75,
+              "defense": 75,
+              "speed": 75,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3a": {
+              "holobotId": "neon_beast",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            "b3b": {
+              "holobotId": "zell_guardian_placeholder",
+              "level": 21,
+              "tier": 2,
+              "maxHealth": 350,
+              "attack": 100,
+              "defense": 100,
+              "speed": 100,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          },
+          "sectorId": "b1b",
+          "visited": [
+            "entry",
+            "gate1",
+            "b1b"
+          ],
+          "cleared": [],
+          "looted": [],
+          "squad": [
+            {
+              "holobotId": "ace",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 885,
+              "currentHealth": 885,
+              "attack": 472,
+              "defense": 354,
+              "speed": 413,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "kuma",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1180,
+              "currentHealth": 1180,
+              "attack": 413,
+              "defense": 295,
+              "speed": 177,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            },
+            {
+              "holobotId": "shadow",
+              "level": 99,
+              "tier": 0,
+              "maxHealth": 1003,
+              "currentHealth": 1003,
+              "attack": 295,
+              "defense": 413,
+              "speed": 236,
+              "maxStamina": 7,
+              "staminaRegen": 0.5,
+              "moveset": {
+                "strike": {
+                  "moveId": "gap_closer",
+                  "staminaCost": 1,
+                  "damageScale": 1.35,
+                  "syncGain": 10,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "heavy": {
+                  "moveId": "break_heavy",
+                  "staminaCost": 2,
+                  "damageScale": 1.55,
+                  "syncGain": 14,
+                  "syncCost": 0,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "issued-move"
+                },
+                "finisher": {
+                  "moveId": "derived_finisher",
+                  "staminaCost": 4,
+                  "damageScale": 3.1,
+                  "syncGain": 0,
+                  "syncCost": 100,
+                  "staminaRestore": 0,
+                  "guardReduction": 0,
+                  "source": "derived-host-heavy"
+                },
+                "defend": {
+                  "moveId": "defend",
+                  "staminaCost": 0,
+                  "damageScale": 0,
+                  "syncGain": 6,
+                  "syncCost": 0,
+                  "staminaRestore": 2,
+                  "guardReduction": 0.5,
+                  "source": "host-policy-fallback"
+                }
+              }
+            }
+          ],
+          "energy": 90,
+          "kits": 2,
+          "charge": 1,
+          "haul": [],
+          "guardianDefeated": false,
+          "extraction": null,
+          "receipt": null,
+          "revision": 3,
+          "seed": 2818554173,
+          "band": 1,
+          "sector": "b1b",
+          "protectedSlot": null
+        },
+        "receipt": null,
+        "alreadyProcessed": false
+      }
+    }
+  }
+}

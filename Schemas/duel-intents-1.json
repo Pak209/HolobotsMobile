@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "duel-intents-1",
+  "title": "rivalBattleHost settle request.playerIntents",
+  "description": "The array itself, not a callable envelope. Public resolver settles require 1\u2013120 intent strings. The host repeats shorter lists by round modulo list length. Schema identity is documentation only: do not send schemaVersion=duel-intents-1. No client stats, damage or outcomes are accepted through this value.",
+  "type": "array",
+  "minItems": 1,
+  "maxItems": 120,
+  "items": {
+    "enum": [
+      "strike",
+      "heavy",
+      "defend",
+      "finisher"
+    ]
+  },
+  "examples": [
+    [
+      "strike",
+      "heavy",
+      "defend"
+    ],
+    [
+      "defend"
+    ]
+  ]
+}

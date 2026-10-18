@@ -1,0 +1,1013 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "zone-run-3",
+  "title": "zone-run-3 holoZoneHost request or successful reply",
+  "description": "Mirror of HolobotsMobile #89 7ee81868 and #92 eba0c342. Validate transport request/reply via $defs/request or $defs/reply. Firebase callable data/result envelope excluded; refusals are callable errors, not success objects. Register both zone schemas and duel-intents-1 / duel-receipt-1. Shape checks do not authenticate or resolve gameplay. Cross-field host invariants remain authoritative.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/reply"
+    }
+  ],
+  "$defs": {
+    "haul": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "blueprint_fragment",
+            "rare_blueprint_fragment",
+            "bulky_salvage"
+          ]
+        },
+        "amount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "protected": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "amount",
+        "protected"
+      ]
+    },
+    "supplies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "energy": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "extractionCharges": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "energy",
+        "extractionCharges"
+      ]
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^zone-config-[a-zA-Z0-9_-]{1,64}$"
+        },
+        "energyCapacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "energyPackUnits": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "energyPackPrice": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "sectorEnergyCost": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "fightEnergyCost": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "extractionChargePrice": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "cacheFragments": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "bulkySalvageUnits": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "rareBlueprintChanceBasisPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "bandLevels": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "version",
+        "energyCapacity",
+        "energyPackUnits",
+        "energyPackPrice",
+        "sectorEnergyCost",
+        "fightEnergyCost",
+        "extractionChargePrice",
+        "cacheFragments",
+        "bulkySalvageUnits",
+        "rareBlueprintChanceBasisPoints",
+        "bandLevels"
+      ]
+    },
+    "sector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "band": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "safe": {
+          "type": "boolean"
+        },
+        "beacon": {
+          "type": "boolean"
+        },
+        "neighbors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cache": {
+          "type": "boolean"
+        },
+        "rareDiscovery": {
+          "type": "boolean"
+        },
+        "guardian": {
+          "type": "boolean"
+        },
+        "utility": {
+          "enum": [
+            "ace",
+            "shadow",
+            "kuma",
+            null
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "band",
+        "safe",
+        "beacon",
+        "neighbors",
+        "cache",
+        "rareDiscovery",
+        "guardian",
+        "utility"
+      ]
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "sectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sector"
+          },
+          "minItems": 10,
+          "maxItems": 10
+        }
+      },
+      "required": [
+        "day",
+        "seed",
+        "sectors"
+      ]
+    },
+    "move": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "moveId": {
+          "type": "string"
+        },
+        "staminaCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "damageScale": {
+          "type": "number",
+          "minimum": 0
+        },
+        "syncGain": {
+          "type": "number",
+          "minimum": 0
+        },
+        "syncCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "staminaRestore": {
+          "type": "number",
+          "minimum": 0
+        },
+        "guardReduction": {
+          "type": "number",
+          "minimum": 0
+        },
+        "source": {
+          "enum": [
+            "issued-move",
+            "host-policy-fallback",
+            "derived-host-heavy"
+          ]
+        }
+      },
+      "required": [
+        "moveId",
+        "staminaCost",
+        "damageScale",
+        "syncGain",
+        "syncCost",
+        "staminaRestore",
+        "guardReduction",
+        "source"
+      ]
+    },
+    "fighter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "holobotId": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currentHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "attack": {
+          "type": "number",
+          "minimum": 0
+        },
+        "defense": {
+          "type": "number",
+          "minimum": 0
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxStamina": {
+          "type": "number",
+          "minimum": 0
+        },
+        "staminaRegen": {
+          "type": "number",
+          "minimum": 0
+        },
+        "moveset": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strike": {
+              "$ref": "#/$defs/move"
+            },
+            "heavy": {
+              "$ref": "#/$defs/move"
+            },
+            "defend": {
+              "$ref": "#/$defs/move"
+            },
+            "finisher": {
+              "$ref": "#/$defs/move"
+            }
+          },
+          "required": [
+            "strike",
+            "heavy",
+            "defend",
+            "finisher"
+          ]
+        }
+      },
+      "required": [
+        "holobotId",
+        "level",
+        "tier",
+        "maxHealth",
+        "attack",
+        "defense",
+        "speed",
+        "maxStamina",
+        "staminaRegen",
+        "moveset"
+      ]
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "zone-run-3"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "issuedAtMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "config": {
+          "$ref": "#/$defs/config"
+        },
+        "layout": {
+          "$ref": "#/$defs/layout"
+        },
+        "opponents": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/fighter"
+          }
+        },
+        "sectorId": {
+          "type": "string"
+        },
+        "visited": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        },
+        "cleared": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        },
+        "looted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        },
+        "squad": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fighter"
+          },
+          "minItems": 1,
+          "maxItems": 3
+        },
+        "energy": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "charge": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "haul": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/haul"
+          },
+          "maxItems": 9
+        },
+        "guardianDefeated": {
+          "type": "boolean"
+        },
+        "extraction": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "startedAtMs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "startedAtMs"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "zone-extract-1#/$defs/receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "band": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "sector": {
+          "type": "string"
+        },
+        "protectedSlot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/haul"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "state",
+        "issuedAtMs",
+        "config",
+        "layout",
+        "opponents",
+        "sectorId",
+        "visited",
+        "cleared",
+        "looted",
+        "squad",
+        "energy",
+        "kits",
+        "charge",
+        "haul",
+        "guardianDefeated",
+        "extraction",
+        "receipt",
+        "revision",
+        "seed",
+        "band",
+        "sector",
+        "protectedSlot"
+      ]
+    },
+    "request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "status"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "layout"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "buy"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "itemId": {
+              "enum": [
+                "item.expedition_energy",
+                "item.extraction_charge",
+                "item.repair_kit"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "itemId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "issue"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "repairKits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 99
+            },
+            "carryExtractionCharge": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "repairKits",
+            "carryExtractionCharge"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "move"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "sectorId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "sectorId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "fight"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "playerIntents": {
+              "$ref": "duel-intents-1"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "playerIntents"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "cache"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "protect"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "haulId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "haulId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "heal"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "holobotId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "holobotId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "reorder"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "order": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+              },
+              "minItems": 1,
+              "maxItems": 3,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "order"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "utility"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "utility": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "utility"
+          ]
+        }
+      ]
+    },
+    "reply": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "layout": {
+              "$ref": "#/$defs/layout"
+            },
+            "config": {
+              "$ref": "#/$defs/config"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "layout",
+            "config"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "supplies": {
+              "$ref": "#/$defs/supplies"
+            },
+            "repairKits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "run": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/run"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "enabled",
+            "supplies",
+            "repairKits",
+            "run"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "buy"
+            },
+            "itemId": {
+              "enum": [
+                "item.expedition_energy",
+                "item.extraction_charge",
+                "item.repair_kit"
+              ]
+            },
+            "holosTokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "supplies": {
+              "$ref": "#/$defs/supplies"
+            },
+            "repairKits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "itemId",
+            "holosTokens",
+            "supplies",
+            "repairKits",
+            "alreadyProcessed"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "const": "issue"
+            },
+            "run": {
+              "$ref": "#/$defs/run"
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "run",
+            "alreadyProcessed"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-3"
+            },
+            "operation": {
+              "enum": [
+                "move",
+                "fight",
+                "cache",
+                "protect",
+                "heal",
+                "reorder",
+                "utility",
+                "emergency_start"
+              ]
+            },
+            "run": {
+              "$ref": "#/$defs/run"
+            },
+            "receipt": {
+              "type": "null"
+            },
+            "duelReceipt": {
+              "$ref": "duel-receipt-1"
+            },
+            "interrupted": {
+              "const": true
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "run",
+            "receipt",
+            "alreadyProcessed"
+          ]
+        }
+      ]
+    }
+  }
+}
