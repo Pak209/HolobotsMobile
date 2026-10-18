@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://holobots.local/schemas/arena-match-3v3-1.json",
   "title": "PROPOSAL: Arena 3v3 durable lifecycle reply projection (arena-match-3v3-1). No host implements this yet.",
-  "description": "The host owns every fighter's vitals ledger, the active slot, the turn, the phase, swap legality, the CPU send-in, the one charge and the frozen quote. It derives the winner from client-asserted, host-clamped bout HP (as in arena-match-1). Clients render this projection and never derive HP, STA, regen, level, rewards or prices locally. The arena-match-1 reply schema is unchanged.",
+  "description": "The host owns every fighter's vitals ledger, the active slot, the turn, the phase, swap legality, the CPU send-in, the one charge and the frozen quote. Bout HP is client-asserted (as in arena-match-1): the host stores a report only if each value is at most its stored HP for that fighter and not both are 0 (otherwise invalid_request), and derives the winner from its stored vitals. It does not decide or verify the reported HP. Clients render this projection and never derive HP, STA, regen, level, rewards or prices locally. The arena-match-1 reply schema is unchanged.",
   "definitions": {
     "matchId": {
       "type": "string",
@@ -902,6 +902,9 @@
                     ]
                   }
                 }
+              },
+              "startedAtMs": {
+                "type": "integer"
               }
             }
           }
@@ -997,6 +1000,13 @@
                   },
                   "winner": {
                     "const": null
+                  }
+                }
+              },
+              "settlementReceipt": {
+                "properties": {
+                  "report": {
+                    "type": "null"
                   }
                 }
               }

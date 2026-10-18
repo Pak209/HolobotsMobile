@@ -132,7 +132,7 @@
         },
         "operation": {
           "const": "report",
-          "description": "Client-asserted bout checkpoint for the two ACTIVE fighters only. The host clamps it against its own vitals: HP can only go down, never above the host's current value, and never both to zero. This is the same trust boundary as arena-match-1 settle. A host-simulated bout can replace it later without changing the swap shape."
+          "description": "Client-asserted bout checkpoint for the two ACTIVE fighters only. The host does not decide or verify these values; it stores them only if each is at most its stored HP for that fighter and not both are 0, and otherwise refuses the report as invalid_request (the same rule as arena-match-1 settle). A host-simulated bout can replace it later without changing the swap shape."
         },
         "matchId": {
           "$ref": "#/definitions/matchId"

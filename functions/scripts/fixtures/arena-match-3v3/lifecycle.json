@@ -374,6 +374,50 @@
       "note": "KNOWN-BAD: a swap that carries no host turn. The request schema refuses it, and the host refuses it as invalid_request. Nothing changes."
     },
     {
+      "name": "refused-report-hp-above-host",
+      "nowMs": 1792300001200,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x6",
+        "turn": 0,
+        "activeHealth": 200,
+        "opponentHealth": 248
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      },
+      "note": "KNOWN-BAD: reported ACE HP 200 is above the host's stored 172. Refused as invalid_request (1v1 parity: arenaMatchStore refuses playerFinalHealth above the entrant's HP). Nothing changes."
+    },
+    {
+      "name": "refused-report-both-ko",
+      "nowMs": 1792300001400,
+      "knownBad": true,
+      "request": {
+        "schemaVersion": "arena-match-3v3-1",
+        "operation": "report",
+        "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
+        "intentId": "lite3v3_intent_x7",
+        "turn": 0,
+        "activeHealth": 0,
+        "opponentHealth": 0
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      },
+      "note": "KNOWN-BAD: both active fighters reported at 0. Refused as invalid_request (1v1 parity: a both-zero settle is refused). Nothing changes."
+    },
+    {
       "name": "report-1-opponent-ko",
       "nowMs": 1792300004000,
       "request": {
