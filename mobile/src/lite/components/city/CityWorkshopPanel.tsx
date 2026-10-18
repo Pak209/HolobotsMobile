@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { cityActionMessage } from "@/lib/cityHub";
+import { cityActionMessage } from "@/lite/lib/cityHub";
 import { cityRequestId, craftCityItem, healCitySquad, type WorkshopCraftItem } from "@/lite/lib/cityHubClient";
 import { theme } from "@/lite/theme";
 import { createCityRequestJournal } from "@/lite/lib/cityRequestJournal";

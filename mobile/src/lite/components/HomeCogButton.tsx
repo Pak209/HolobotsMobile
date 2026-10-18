@@ -6,9 +6,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DashboardSettingsModal } from "@/lite/components/DashboardSettingsModal";
 import { UserStatsModal } from "@/lite/components/UserStatsModal";
 import { GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
+import { isStoryOverworldAvailable } from "@/lite/config/storyMode";
 import { useAuth } from "@/contexts/AuthContext";
 import { theme } from "@/lite/theme";
 import type { RootTabs } from "../../../LiteApp";
+
+// Build-time config: a release build without an allowed overworld host never offers STORY (L10).
+const STORY_AVAILABLE = isStoryOverworldAvailable();
 
 type HomeCogButtonProps = { onOpenPvp?: () => void; showSettings?: boolean; showStats?: boolean; topOffset?: number };
 
@@ -28,7 +32,7 @@ export function HomeCogButton({ onOpenPvp, showSettings = true, showStats = true
     { label: "HOLOCITY", accessibility: "Explore HoloCity", action: () => navigation.navigate("CityHub") },
     ...(showStats ? [{ label: "PILOT STATS", accessibility: "Open pilot stats", action: () => setIsStatsOpen(true) }] : []),
     ...(showSettings ? [{ label: "SETTINGS", accessibility: "Open dashboard settings", action: () => setIsDashboardSettingsOpen(true) }] : []),
-    { label: "STORY", accessibility: "Open story mode overworld", action: () => navigation.navigate("Overworld") },
+    ...(STORY_AVAILABLE ? [{ label: "STORY", accessibility: "Open story mode overworld", action: () => navigation.navigate("Overworld") }] : []),
     ...(onOpenPvp ? [{ label: "PVP ARENA", accessibility: "Open PVP arena menu", action: onOpenPvp }] : []),
   ];
   return <>

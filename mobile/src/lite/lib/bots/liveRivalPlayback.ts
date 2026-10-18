@@ -1,5 +1,5 @@
 import { normalizeDuelReceipt, type DuelReceipt } from './duelPlayback';
-import { record } from '../../../lib/cityHub';
+import { record } from '../cityHub';
 import { readCityRivalSettlement } from '../cityRivalBattle';
 
 /** Admission pins the mode for the battle's lifetime, including after a server rollback. */
@@ -15,6 +15,7 @@ export function rivalIssueMode(raw: unknown): 'legacy' | 'resolver' {
 
 /** Live replies never inherit client traces or the synthetic preview format. */
 export function readLiveRivalPlayback(rawIssue: unknown, rawSettlement: unknown): DuelReceipt {
+  // Player-visible receiptError copy: PLACEHOLDER until Lex (DECISIONS #71, "the City").
   const invalid = (message: string): DuelReceipt => ({ ...normalizeDuelReceipt({}), receiptError: message });
   try {
     const mode = rivalIssueMode(rawIssue), issue = record(rawIssue)!;
@@ -23,9 +24,9 @@ export function readLiveRivalPlayback(rawIssue: unknown, rawSettlement: unknown)
       // Explicitly project result fields: do not accept incidental rounds, duelReceipt or QA metadata.
       return normalizeDuelReceipt({ issue: { battleId: issue.battleId, playerCombatants: issue.playerCombatants, encounter: issue.encounter }, settlement: { didWin: settlement.didWin, holosGranted: settlement.holosGranted } });
     }
-    if (!Object.hasOwn(settlement, 'duelReceipt')) return invalid('Resolver settlement is missing its host receipt. Retry the same battle.');
+    if (!Object.hasOwn(settlement, 'duelReceipt')) return invalid('This result is missing its City receipt. Retry the same battle.');
     const receipt = record(settlement.duelReceipt), duel = record(issue.duel)!;
-    if (receipt && (receipt.winner === 'player' || receipt.winner === 'opponent') && settlement.didWin !== (receipt.winner === 'player')) return invalid('The host result conflicts with its receipt. Retry the same battle.');
+    if (receipt && (receipt.winner === 'player' || receipt.winner === 'opponent') && settlement.didWin !== (receipt.winner === 'player')) return invalid('The City result conflicts with its receipt. Retry the same battle.');
     for (const [initial, final] of [[duel.player, receipt?.playerFinal], [duel.opponent, receipt?.opponentFinal]]) {
       if (!Array.isArray(initial) || !Array.isArray(final) || initial.length !== final.length || initial.some((bot, i) => record(bot)?.holobotId !== record(final[i])?.holobotId)) return invalid('The receipt squad does not match this admission.');
     }

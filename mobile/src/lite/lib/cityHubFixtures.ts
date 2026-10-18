@@ -1,4 +1,4 @@
-import { ArenaGathering, ArenaCitizen, CityStoryFlags } from "../../lib/cityHub";
+import { ArenaGathering, ArenaCitizen, CityStoryFlags } from "./cityHub";
 
 export type CityHubFixture = {
   roster: ArenaCitizen[];
