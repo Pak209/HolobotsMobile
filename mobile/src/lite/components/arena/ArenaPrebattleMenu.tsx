@@ -1,6 +1,8 @@
 import { slotAccent, theme } from "@/lite/theme";
 import { useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { hostKnockedOut, type HostVitals } from "@/lite/lib/arenaVitals";
 
 import {
   ARENA_TIERS,
@@ -27,11 +29,15 @@ type ArenaPrebattleMenuProps = {
     tier: ArenaTier;
     paymentMethod: "tokens" | "pass";
   }) => void;
-  onStart3v3: (options: {
+  onStart3v3?: (options: {
     teamNames: [string, string, string];
     tier: ArenaTier;
     paymentMethod: "tokens" | "pass";
   }) => void;
+  /** When set, 3v3 is shown disabled with this honest line instead of starting (no host admits a team yet). */
+  unavailable3v3Copy?: string;
+  /** F2 KO guard: the City's HP ledger. A fighter it records at 0 HP cannot start (the City would refuse holobot_ko). */
+  hostVitals?: HostVitals | null;
   userArenaPasses: number;
   userHolobots: UserHolobot[];
   userTokens: number;
@@ -104,10 +110,13 @@ function FlipPreviewCard({
 export function ArenaPrebattleMenu({
   onStartBattle,
   onStart3v3,
+  unavailable3v3Copy,
+  hostVitals,
   userArenaPasses,
   userHolobots,
   userTokens,
 }: ArenaPrebattleMenuProps) {
+  const insets = useSafeAreaInsets();
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [selectedTierId, setSelectedTierId] = useState(ARENA_TIERS[0].id);
   // What the picker modal is choosing for: the 1v1 fighter, or a team slot.
@@ -144,8 +153,12 @@ export function ArenaPrebattleMenu({
   const canUseTokens = userTokens >= selectedTier.entryFeeHolos;
   const canUsePass = userArenaPasses > 0;
   const teamComplete = teamNames.every(Boolean) && new Set(teamNames).size === 3;
-  const teamReady = mode === "1v1" || teamComplete;
+  // PLACEHOLDER copy. Mirrors the City's holobot_ko rule to spare a refused entry: it disables PAY / USE PASS for a
+  // fighter the ledger records at 0 HP. The City still decides admission; an unknown ledger never blocks.
+  const selectedKo = mode === "1v1" && hostKnockedOut(hostVitals, selectedHolobot.name.toLowerCase());
+  const teamReady = (mode === "1v1" && !selectedKo) || (mode === "3v3" && teamComplete);
   const canField3v3 = roster.length >= 3;
+  const threeVThreeOpen = !!onStart3v3 && !unavailable3v3Copy;
 
   const rosterFor = (name: string | null) =>
     name ? roster.find((holobot) => holobot.name === name) ?? null : null;
@@ -174,7 +187,7 @@ export function ArenaPrebattleMenu({
 
   const startPressed = (paymentMethod: "tokens" | "pass") => {
     if (mode === "3v3") {
-      if (!teamComplete) return;
+      if (!teamComplete || !onStart3v3 || !threeVThreeOpen) return;
       onStart3v3({ teamNames: teamNames as [string, string, string], tier: selectedTier, paymentMethod });
       return;
     }
@@ -185,7 +198,7 @@ export function ArenaPrebattleMenu({
 
   return (
     <View style={styles.page}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <Text style={styles.eyebrow}>ARENA</Text>
       </View>
 
@@ -198,7 +211,7 @@ export function ArenaPrebattleMenu({
               <Image source={selectedHolobot.imageSource} style={styles.changeHolobotArt} resizeMode="contain" />
               <View style={styles.changeHolobotBody}>
                 <Text style={styles.changeHolobotName}>{selectedHolobot.name}</Text>
-                <Text style={styles.changeHolobotMeta}>{`Lv ${selectedHolobot.level} • Tap to change`}</Text>
+                <Text style={[styles.changeHolobotMeta, selectedKo && styles.koMeta]}>{selectedKo ? "KO · heal it before entering · Tap to change" : `Lv ${selectedHolobot.level} • Tap to change`}</Text>
               </View>
             </Pressable>
           </View>
@@ -215,9 +228,10 @@ export function ArenaPrebattleMenu({
               <Text style={[styles.modeButtonText, mode === "1v1" && styles.modeButtonTextActive]}>1V1 RUN</Text>
             </Pressable>
             <Pressable
-              disabled={!canField3v3}
+              disabled={!canField3v3 || !threeVThreeOpen}
+              accessibilityState={{ disabled: !canField3v3 || !threeVThreeOpen }}
               onPress={() => setMode("3v3")}
-              style={[styles.modeButton, mode === "3v3" && styles.modeButtonActive, !canField3v3 && styles.modeButtonDisabled]}
+              style={[styles.modeButton, mode === "3v3" && styles.modeButtonActive, (!canField3v3 || !threeVThreeOpen) && styles.modeButtonDisabled]}
             >
               <ArenaControlFrame accent={theme.colors.accent} selected={mode === "3v3"} />
               <Text style={[styles.modeButtonText, mode === "3v3" && styles.modeButtonTextActive]}>3V3 SHOWDOWN</Text>
@@ -252,7 +266,9 @@ export function ArenaPrebattleMenu({
               })}
             </View>
           ) : null}
-          {!canField3v3 ? (
+          {unavailable3v3Copy ? (
+            <Text style={styles.teamHint}>{unavailable3v3Copy}</Text>
+          ) : !canField3v3 ? (
             <Text style={styles.teamHint}>Own at least 3 Holobots to enter 3v3 Showdown.</Text>
           ) : null}
         </View>
@@ -355,7 +371,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   actionButtonMeta: {
-    color: "#9aa1ad",
+    color: theme.colors.muted,
     fontFamily: "HoloBody",
     fontSize: 8,
     fontWeight: "800",
@@ -437,7 +453,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     paddingBottom: 6,
     paddingHorizontal: 22,
-    paddingTop: 64,
+  },
+  koMeta: {
+    color: theme.colors.danger,
   },
   lineupChip: {
     alignItems: "center",
@@ -653,7 +671,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   progressTrack: {
-    backgroundColor: "#423f31",
+    backgroundColor: theme.colors.graphite,
     height: 8,
     marginTop: 10,
     overflow: "hidden",

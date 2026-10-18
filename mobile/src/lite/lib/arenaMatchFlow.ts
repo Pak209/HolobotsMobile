@@ -1,4 +1,5 @@
 /** Durable CPU Arena transport. No combat simulation or local reward writes. */
+import type { Arena3v3Swap } from './arenaMatch3v3';
 export type ArenaIssue = {
     requestId: string;
     tierId: string;
@@ -91,15 +92,92 @@ export interface ArenaFlowStorage {
     get(): Promise<ArenaIssue | null>;
     set(value: ArenaIssue | null): Promise<void>;
 }
+/** Pending arena-match-3v3-1 swap, persisted per account before it is sent. */
+export interface Arena3v3IntentStorage {
+    get(): Promise<Arena3v3Swap | null>;
+    set(value: Arena3v3Swap | null): Promise<void>;
+}
+/** The four reported fields of one CPU settle, exactly as sent. */
+export type ArenaSettleReport = {
+    playerFinalHealth: number;
+    opponentFinalHealth: number;
+    combosCompleted: number;
+    perfectDefenses: number;
+};
+/** A settle persisted per account BEFORE it is sent, so a refused-for-now (too_fast) or lost settle is resent byte-for-byte. */
+export type ArenaPendingSettle = { matchId: string; report: ArenaSettleReport };
+export interface ArenaSettleStorage {
+    get(): Promise<ArenaPendingSettle | null>;
+    set(value: ArenaPendingSettle | null): Promise<void>;
+}
+/** F3: the local practice fight's last state for the open match, written as HP changes, so an interrupted fight (kill,
+ * relaunch) continues from where it stopped instead of re-rolling from entry HP. Local sim state only: the City still
+ * receives nothing but the eventual settle or cancel report. */
+export type ArenaCheckpoint = { matchId: string; report: ArenaSettleReport };
+export interface ArenaCheckpointStorage {
+    get(): Promise<ArenaCheckpoint | null>;
+    set(value: ArenaCheckpoint | null): Promise<void>;
+}
+/** The last terminal matchId whose receipt the player dismissed (F4): it is not re-opened on mount or foreground. */
+export interface ArenaAckStorage {
+    get(): Promise<string | null>;
+    set(value: string | null): Promise<void>;
+}
+/** A callable error carrying a host rejectionCode is a final ruling: the intent was not applied. */
+export function arenaHostRejection(e: unknown): string | null {
+    const code = record(record(e).details).rejectionCode;
+    return typeof code === 'string' ? code : null;
+}
+/** The callable's HTTPS code without the SDK prefix ('functions/failed-precondition' -> 'failed-precondition'), or null
+ * for a local error (timeout, session change, reply validation). */
+export function arenaCallCode(e: unknown): string | null {
+    const code = record(e).code;
+    return typeof code === 'string' && code.length > 0 ? code.replace(/^functions\//, '') : null;
+}
+/** HTTPS codes that mean the host refused the request and wrote nothing. Anything else (unavailable, deadline-exceeded,
+ * internal, a timeout or a dropped reply) leaves the outcome unknown, so the exact request is kept for an identical retry. */
+export const ARENA_DEFINITE_REFUSALS = ['invalid-argument', 'failed-precondition', 'not-found', 'permission-denied'] as const;
+export function arenaDefiniteRefusal(e: unknown): boolean {
+    return (ARENA_DEFINITE_REFUSALS as readonly string[]).includes(arenaCallCode(e) ?? '');
+}
+/** The CPU settle floor refusal. The host wrote nothing and the match stays active: it is a "not yet", not an error. */
+export const ARENA_SETTLE_TOO_FAST = 'too_fast';
+/** Optional host retry hint on a too_fast refusal (details.retryAfterMs, the holoZoneHost convention). Honoured exactly
+ * when it is a sane wait (0..10 min, inside the 30 min match TTL); otherwise null and the caller uses its own backoff. */
+export function arenaRetryAfterMs(e: unknown): number | null {
+    const v = record(record(e).details).retryAfterMs;
+    // 0 ("retry now" right after refusing) would spend the whole budget in milliseconds: treated as no hint.
+    return typeof v === 'number' && Number.isFinite(v) && v >= 1 && v <= 600_000 ? Math.ceil(v) : null;
+}
+const terminalState = (state: unknown) => ['settled', 'cancelled', 'expired'].includes(String(state));
 /** One in-flight command. Unknown issue outcome retains its exact persisted request. */
 export class ArenaMatchFlow {
     private epoch = 0;
-    private flight: Promise<ArenaReply> | null = null;
+    private flight: Promise<unknown> | null = null;
     private latest: ArenaReply | null = null;
-    constructor(private call: (request: Record<string, unknown>) => Promise<unknown>, private storage: ArenaFlowStorage, private active: () => boolean) { }
+    private settles?: ArenaSettleStorage;
+    private acks?: ArenaAckStorage;
+    private checkpoints?: ArenaCheckpointStorage;
+    constructor(private call: (request: Record<string, unknown>) => Promise<unknown>, private storage: ArenaFlowStorage, private active: () => boolean, private intents?: Arena3v3IntentStorage, extras: { settles?: ArenaSettleStorage; acks?: ArenaAckStorage; checkpoints?: ArenaCheckpointStorage } = {}) {
+        this.settles = extras.settles;
+        this.acks = extras.acks;
+        this.checkpoints = extras.checkpoints;
+    }
+    /** Resolves once no command is in flight (never rejects). */
+    async whenIdle() {
+        while (this.flight)
+            await this.flight.catch(() => undefined);
+    }
+    /** Run `command` (a flow call such as `() => flow.resume()`) as soon as nothing is in flight. It starts in the same
+     * synchronous step as the final idle check, so two waiters queue instead of colliding as `arena_busy`. */
+    async afterIdle<T>(command: () => Promise<T>): Promise<T> {
+        while (this.flight)
+            await this.flight.catch(() => undefined);
+        return command();
+    }
     close() { this.epoch++; this.latest = null; }
     get reply() { return this.latest; }
-    private run(work: (epoch: number) => Promise<ArenaReply>): Promise<ArenaReply> {
+    private run<T>(work: (epoch: number) => Promise<T>): Promise<T> {
         if (this.flight)
             return Promise.reject(Error('arena_busy'));
         const epoch = this.epoch;
@@ -125,9 +203,26 @@ export class ArenaMatchFlow {
                     throw Error('arena_snapshot_changed');
         }
         this.latest = reply;
+        await this.reconcileSettle(reply);
         return reply;
     }
-    resume() { return this.run(epoch => {const matchId=this.latest?.matchId;return this.request('resume', matchId?{matchId}:{}, epoch, matchId??undefined);}); }
+    /** A pending settle lives only while ITS match is the account's open match. A terminal reply for it, or a reply naming
+     * another match (one open match per account), retires it; the host's receipt is the truth from then on. */
+    private async reconcileSettle(reply: ArenaReply) {
+        const pending = this.settles ? await this.settles.get() : null;
+        if (pending && (reply.matchId !== pending.matchId || !reply.match || terminalState(reply.match.state)))
+            await this.settles!.set(null);
+        const cp = this.checkpoints ? await this.checkpoints.get() : null;
+        if (cp && (reply.matchId !== cp.matchId || !reply.match || terminalState(reply.match.state)))
+            await this.checkpoints!.set(null);
+        // A stored issue whose exact requestId the host has admitted is resolved, whichever call surfaced it.
+        const issue = reply.match ? await this.storage.get() : null;
+        if (issue && reply.match?.requestId === issue.requestId)
+            await this.storage.set(null);
+    }
+    /** Pinned to the known OPEN match; with none open (nothing known, or the known one is terminal) it discovers the
+     * account's latest match, so an admission whose reply was lost or whose stored request was discarded surfaces. */
+    resume() { return this.run(epoch => {const known=this.latest?.match&&!terminalState(this.latest.match.state)?this.latest.matchId:null;return this.request('resume', known?{matchId:known}:{}, epoch, known??undefined);}); }
     issue(input: ArenaIssue) {
         return this.run(async (epoch) => {
             const pending = await this.storage.get();
@@ -137,25 +232,108 @@ export class ArenaMatchFlow {
                 await this.storage.set(input);
             if (epoch !== this.epoch || !this.active())
                 throw Error('arena_session_changed');
-            const reply = await this.request('issue', input, epoch, undefined, input);
+            let reply: ArenaReply;
+            try {
+                reply = await this.request('issue', input, epoch, undefined, input);
+            }
+            catch (e) {
+                // F2: a definite host refusal (insufficient_funds, holobot_ko, activity_conflict, ...) admitted nothing, so the
+                // stored request must not wedge every later Start. Unknown outcomes keep it for an identical retry.
+                if (arenaDefiniteRefusal(e))
+                    await this.storage.set(null);
+                throw e;
+            }
             await this.storage.set(null);
             return reply;
         });
     }
     retryIssue() { return this.storage.get().then(p => { if (!p)
         throw Error('arena_no_pending_issue'); return this.issue(p); }); }
+    /** The stored issue request whose outcome is unknown, if any. */
+    pendingIssue() { return this.storage.get(); }
+    /** Explicitly drop an unresolved issue request (F2). Safe: the request was charged only if the host admitted it, and a
+     * discovery resume (no matchId) then shows that admission. Single-flight: never while an issue is in flight. */
+    discardPendingIssue() {
+        return this.run(async () => {
+            await this.storage.set(null);
+        });
+    }
     start() { return this.operation('start'); }
-    settle(report: {
-        playerFinalHealth: number;
-        opponentFinalHealth: number;
-        combosCompleted: number;
-        perfectDefenses: number;
-    }) { return this.operation('settle', report); }
+    /** Persist the exact report before sending. A pending settle for this match is resent unchanged (never rebuilt); a
+     * too_fast refusal keeps it pending, any other DEFINITE refusal retires it, an unknown outcome keeps it. */
+    settle(report: ArenaSettleReport) {
+        return this.run(async (epoch) => {
+            const matchId = this.latest?.matchId;
+            if (!matchId)
+                throw Error('arena_not_admitted');
+            const fresh: ArenaPendingSettle = { matchId, report: { playerFinalHealth: report.playerFinalHealth, opponentFinalHealth: report.opponentFinalHealth, combosCompleted: report.combosCompleted, perfectDefenses: report.perfectDefenses } };
+            const pending = this.settles ? await this.settles.get() : null;
+            const body = pending?.matchId === matchId ? pending : fresh;
+            if (this.settles && body === fresh)
+                await this.settles.set(fresh);
+            return this.settleIn(epoch, body);
+        });
+    }
+    /** Resend the stored settle body unchanged, or fail. Needs the stored match to be the current one (resume first). */
+    retrySettle() {
+        return this.run(async (epoch) => {
+            const pending = this.settles ? await this.settles.get() : null;
+            if (!pending)
+                throw Error('arena_no_pending_settle');
+            if (this.latest?.matchId !== pending.matchId)
+                throw Error('arena_not_admitted');
+            return this.settleIn(epoch, pending);
+        });
+    }
+    /** The stored settle for the CURRENT match, if any. */
+    async pendingSettle(): Promise<ArenaPendingSettle | null> {
+        const pending = this.settles ? await this.settles.get() : null;
+        return pending && pending.matchId === this.latest?.matchId ? pending : null;
+    }
+    private async settleIn(epoch: number, body: ArenaPendingSettle) {
+        if (epoch !== this.epoch || !this.active())
+            throw Error('arena_session_changed');
+        try {
+            return await this.request('settle', { matchId: body.matchId, ...body.report }, epoch, body.matchId);
+        }
+        catch (e) {
+            // Only a definite refusal other than the floor retires the body (e.g. match_expired, invalid_state). too_fast and
+            // unknown outcomes (unavailable, timeout, dropped reply) keep it for an identical resend.
+            const code = arenaHostRejection(e);
+            if (this.settles && arenaDefiniteRefusal(e) && code !== ARENA_SETTLE_TOO_FAST && code !== 'request_conflict')
+                await this.settles.set(null);
+            throw e;
+        }
+    }
+    /** F3: remember the local fight state for the CURRENT open match (no call, not single-flight). */
+    async saveCheckpoint(report: ArenaSettleReport) {
+        const matchId = this.latest?.matchId;
+        if (this.checkpoints && matchId && this.latest?.match?.state === 'active')
+            await this.checkpoints.set({ matchId, report: { playerFinalHealth: report.playerFinalHealth, opponentFinalHealth: report.opponentFinalHealth, combosCompleted: report.combosCompleted, perfectDefenses: report.perfectDefenses } });
+    }
+    /** F3: the saved local fight state for the CURRENT match, if this device ever ran its fight. */
+    async checkpoint(): Promise<ArenaCheckpoint | null> {
+        const cp = this.checkpoints ? await this.checkpoints.get() : null;
+        return cp && cp.matchId === this.latest?.matchId ? cp : null;
+    }
+    /** F4: has the player already dismissed this terminal match's receipt on this device? */
+    async acknowledged(reply: ArenaReply | null): Promise<boolean> {
+        return !!reply?.matchId && !!this.acks && (await this.acks.get()) === reply.matchId;
+    }
+    /** F4: remember the dismissed receipt so the next mount or foreground does not re-open it. */
+    async acknowledge(matchId: string) {
+        if (this.acks)
+            await this.acks.set(matchId);
+    }
     cancel(playerFinalHealth?: number) { return this.operation('cancel', playerFinalHealth === undefined ? {} : { playerFinalHealth }); }
     private operation(op: string, fields: Record<string, unknown> = {}) { return this.run(epoch => { const matchId = this.latest?.matchId; if (!matchId)
         throw Error('arena_not_admitted'); return this.request(op, { matchId, ...fields }, epoch, matchId); }); }
 }
-/** Display only the recorded host receipt; no local estimated rewards or outcome. */
+/** Why the host paid nothing on a settled match (host #143): the per-account UTC-day payout cap, or a loss reported
+ * under the settle floor. Display only; the host already decided. */
+export type ArenaPayoutWithheld = 'daily_cap' | 'under_floor';
+/** Display only the recorded host receipt; no local estimated rewards or outcome. A payoutWithheld receipt is accepted
+ * only with its two known reasons AND an all-zero settlement; anything else is unavailable, never guessed. */
 export function arenaReceiptResult(reply: ArenaReply) {
     const receipt = record(reply.match?.settlementReceipt), settlement = record(receipt.settlement);
     if (reply.match?.state !== 'settled' || !['win', 'loss'].includes(String(receipt.outcome)) || !['awardedExp', 'syncPoints', 'holos'].every(k => integer(settlement[k])))
@@ -163,5 +341,44 @@ export function arenaReceiptResult(reply: ArenaReply) {
     const blueprint = record(settlement.blueprints);
     if (settlement.blueprints !== null && (typeof blueprint.holobotKey !== 'string' || !integer(blueprint.amount)))
         throw Error('arena_result_unavailable');
-    return { didWin: receipt.outcome === 'win', rewards: { exp: Number(settlement.awardedExp), syncPoints: Number(settlement.syncPoints), holos: Number(settlement.holos), blueprintRewards: settlement.blueprints === null ? [] : [{ holobotKey: String(blueprint.holobotKey), amount: Number(blueprint.amount) }] } };
+    let payoutWithheld: ArenaPayoutWithheld | null = null;
+    // Absent or null: paid normally (host #143 omits the key when nothing is withheld).
+    if (settlement.payoutWithheld !== undefined && settlement.payoutWithheld !== null) {
+        if (!['daily_cap', 'under_floor'].includes(String(settlement.payoutWithheld)) || settlement.blueprints !== null
+            || !['exp', 'awardedExp', 'syncPoints', 'holos'].every(k => settlement[k] === 0))
+            throw Error('arena_result_unavailable');
+        payoutWithheld = settlement.payoutWithheld as ArenaPayoutWithheld;
+    }
+    return { didWin: receipt.outcome === 'win', payoutWithheld, rewards: { exp: Number(settlement.awardedExp), syncPoints: Number(settlement.syncPoints), holos: Number(settlement.holos), blueprintRewards: settlement.blueprints === null ? [] : [{ holobotKey: String(blueprint.holobotKey), amount: Number(blueprint.amount) }] } };
+}
+/** F7: the host receipt of a match closed WITHOUT a settle: a refund before start, or a forfeit with the HP it recorded. */
+export type ArenaClosure =
+    | { kind: 'refund'; method: 'tokens' | 'pass'; amount: number; expired: boolean }
+    | { kind: 'forfeit'; holobotId: string; finalHealth: number | null; maxHealth: number | null; expired: boolean };
+export function arenaClosureResult(reply: ArenaReply): ArenaClosure {
+    const m = reply.match, receipt = record(m?.settlementReceipt);
+    if (!m || !['cancelled', 'expired'].includes(m.state))
+        throw Error('arena_result_unavailable');
+    const expired = m.state === 'expired';
+    if (receipt.outcome === 'cancelled_before_start') {
+        const refund = record(receipt.refund);
+        if (receipt.refunded !== true || !['tokens', 'pass'].includes(String(refund.method)) || !integer(refund.amount))
+            throw Error('arena_result_unavailable');
+        return { kind: 'refund', method: refund.method as 'tokens' | 'pass', amount: Number(refund.amount), expired };
+    }
+    if (receipt.outcome !== 'forfeit')
+        throw Error('arena_result_unavailable');
+    const vitals = record(record(receipt.finalVitals)[m.entrant.holobotId]);
+    const known = number(vitals.currentHealth) && number(vitals.maxHealth, 1);
+    return { kind: 'forfeit', holobotId: m.entrant.holobotId, finalHealth: known ? Number(vitals.currentHealth) : null, maxHealth: known ? Number(vitals.maxHealth) : null, expired };
+}
+/**
+ * ANTICIPATED (host-economy-hardening-2, PR not open yet): an additive `payoutCapped` flag on the ISSUE reply when this
+ * account already reached the daily CPU payout cap. Tolerant: only a literal `true` (on the reply or its match) means
+ * capped; absent or anything else is UNKNOWN and is never read as "rewards available" or "capped".
+ * TODO(host-economy-hardening-2): pin the exact field location once the host PR lands.
+ */
+export function arenaIssuePayoutCapped(reply: ArenaReply | null): boolean {
+    const r = record(reply);
+    return r.payoutCapped === true || record(r.match).payoutCapped === true;
 }

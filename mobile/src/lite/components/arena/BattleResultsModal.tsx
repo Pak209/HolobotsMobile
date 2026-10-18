@@ -7,12 +7,23 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
+  Image,
+  type ImageSourcePropType,
 } from 'react-native';
-import { ARENA_RESULT_BUTTON, presentArenaResult, type ArenaResultReceipt } from './arenaResultPresenter';
+import type { ArenaClosure } from '@/lite/lib/arenaMatchFlow';
+import { fitnessAssets } from '@/lite/config/figmaAssets';
+import { ARENA_RESULT_BUTTON, presentArenaClosure, presentArenaResult, type ArenaResultReceipt, type ArenaRewardGlyph } from './arenaResultPresenter';
 import { ArenaControlFrame } from './ArenaTierFrames';
 import { GameDialogFrame, GameSurfaceFrame } from '../ui/GameSurfaceFrame';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+/** L18: bundled reward art per row; the rating delta (PvP) has no art and keeps a short text tag. */
+const REWARD_GLYPHS: Record<Exclude<ArenaRewardGlyph, 'rating'>, ImageSourcePropType> = {
+  exp: fitnessAssets.rewardExp,
+  sync: fitnessAssets.rewardSync,
+  holos: fitnessAssets.rewardHolos,
+  blueprint: require('../../../../assets/game/Blueprint.png'),
+};
 
 export type RunTotals = {
   exp: number;
@@ -34,6 +45,8 @@ interface BattleResultsModalProps {
   context?: string;
   /** When there is no rematch path (3v3), show a single primary EXIT. */
   hideRematch?: boolean;
+  /** F7: a match the City closed without a settle (refund or forfeit). Replaces the VICTORY/DEFEAT presentation. */
+  closure?: { closure: ArenaClosure; fighter: string } | null;
   onRematch: () => void;
   onExit: () => void;
 }
@@ -46,10 +59,12 @@ export function BattleResultsModal({
   continueLabel,
   context,
   hideRematch,
+  closure,
   onRematch,
   onExit,
 }: BattleResultsModalProps) {
-  const view = presentArenaResult({ didWin, receipt, context });
+  const view = closure ? presentArenaClosure({ ...closure, context }) : presentArenaResult({ didWin, receipt, context });
+  const frame = view.tone === 'win' ? theme.colors.accent : view.tone === 'loss' ? theme.colors.danger : theme.colors.border;
   return (
     <Modal
       visible={visible}
@@ -59,25 +74,22 @@ export function BattleResultsModal({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <GameDialogFrame accent={didWin ? theme.colors.accent : "#ef2b23"} fill={theme.colors.carbon} />
-          <View style={[
-            styles.resultHeader,
-            didWin ? styles.victoryHeader : styles.defeatHeader,
-          ]}>
-            <View style={styles.headerRail}>
-              <View style={[styles.headerRailFill, didWin ? styles.headerRailVictory : styles.headerRailDefeat]} />
-            </View>
+          <GameDialogFrame accent={frame} fill={theme.colors.carbon} />
+          <View style={styles.resultHeader}>
+            {/* L18: a plain divider; the old 62 % "progress" fill measured nothing. */}
+            <View style={[styles.headerRule, { backgroundColor: frame }]} />
             <Text style={styles.resultEyebrow}>ARENA RESULT</Text>
             <Text style={[
               styles.resultText,
-              didWin ? styles.victoryText : styles.defeatText,
+              view.tone === 'loss' ? styles.defeatText : styles.victoryText,
             ]}>
-              {didWin ? 'VICTORY!' : 'DEFEAT'}
+              {view.headline}
             </Text>
           </View>
 
           <View style={styles.rewardsSection}>
             <Text style={styles.subtitle}>{view.subtitle}</Text>
+            {view.notice ? <Text style={styles.notice}>{view.notice}</Text> : null}
             {view.rowsTitle ? (
               <Text style={styles.rewardsTitle}>{view.rowsTitle}</Text>
             ) : null}
@@ -87,7 +99,9 @@ export function BattleResultsModal({
                 {view.rows.map((row) => (
                   <View key={row.key} style={styles.rewardItem}>
                     <GameSurfaceFrame accent={row.frameAccent} />
-                    <Text style={styles.rewardIcon}>{row.icon}</Text>
+                    {row.glyph === 'rating'
+                      ? <Text style={styles.rewardIcon}>±</Text>
+                      : <Image accessibilityIgnoresInvertColors resizeMode="contain" source={REWARD_GLYPHS[row.glyph]} style={styles.rewardGlyph} />}
                     <Text style={styles.rewardLabel}>{row.label}</Text>
                     <Text style={[styles.rewardValue, valueTone[row.tone]]}>{row.value}</Text>
                   </View>
@@ -145,7 +159,7 @@ const styles = StyleSheet.create({
   ...ARENA_RESULT_BUTTON,
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    backgroundColor: theme.plates.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -165,28 +179,13 @@ const styles = StyleSheet.create({
     gap: 6,
     position: 'relative',
   },
-  victoryHeader: {
-  },
-  defeatHeader: {
-  },
-  headerRail: {
-    backgroundColor: '#17191d',
+  headerRule: {
     bottom: 0,
-    height: 3,
+    height: 1,
     left: 24,
-    overflow: 'hidden',
+    opacity: 0.6,
     position: 'absolute',
     right: 24,
-  },
-  headerRailFill: {
-    height: '100%',
-    width: '62%',
-  },
-  headerRailVictory: {
-    backgroundColor: theme.colors.accent,
-  },
-  headerRailDefeat: {
-    backgroundColor: '#ef2b23',
   },
   resultEyebrow: {
     color: theme.colors.accent,
@@ -214,7 +213,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   runTotalsLine: {
-    color: '#d8dbe2',
+    color: theme.colors.muted,
     fontFamily: "HoloBody",
     fontSize: 13,
     fontWeight: '700',
@@ -240,6 +239,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.6,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  notice: {
+    color: theme.colors.cursor,
+    fontFamily: "HoloBody",
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.4,
     marginBottom: 10,
     textAlign: 'center',
   },
@@ -271,6 +279,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     marginRight: 12,
     minWidth: 32,
+  },
+  rewardGlyph: {
+    height: 24,
+    marginRight: 12,
+    width: 32,
   },
   rewardLabel: {
     flex: 1,

@@ -12,7 +12,14 @@ const FILES = [
   "../../components/city/CityRivalBattle.tsx", "../../components/dashboard/UnityLaunchButton.tsx", "../../components/dashboard/TravelSquadPanel.tsx",
   "../../components/dashboard/DashboardZonesPanel.tsx", "../cityHub.ts", "../cityHubClient.ts", "../cityRivalBattle.ts", "../cityMarket.ts",
   "../cityMarketClient.ts", "../hostDashboard.ts", "../unity/nativeUnitySession.ts", "../homeRoster.ts",
+  // lite-arena-polish-1 (D): the CPU Arena and duel surfaces.
+  "../../screens/ArenaScreen.tsx", "../../components/arena/ArenaInterstitial.tsx", "../../components/arena/BattleArenaView.tsx",
+  "../../components/arena/BattleResultsModal.tsx", "../../components/arena/arenaResultPresenter.ts", "../../components/arena/ArenaPrebattleMenu.tsx",
+  "../arenaCopy.ts", "../arenaMatchFlow.ts", "../arenaSettleConfirm.ts", "../arenaHostBattle.ts", "../../screens/EnabledDuelPlaybackScreen.tsx",
+  "../bots/liveRivalPlayback.ts", "../bots/hostDuelReceipt.ts", "../bots/duelPlayback.ts",
 ] as const;
+/** Type tags that never reach the screen: the receipt/trace discriminator `"host"` and the move template id prefix. */
+const NOT_ON_SCREEN = new Set(["'host'", '"host"', "`host.${id}`"]);
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url) as unknown as string), "utf8");
 /** Source with comments removed, then every string literal and JSX text run. */
 function onScreenText(source: string): string[] {
@@ -24,7 +31,11 @@ function onScreenText(source: string): string[] {
 
 describe("lite copy rules (DECISIONS #71)", () => {
   it.each(FILES)("never puts the word host on screen: %s", (path) => {
-    expect(onScreenText(read(path)).filter((text) => /\bhost\b/i.test(text))).toEqual([]);
+    expect(onScreenText(read(path)).filter((text) => /\bhost\b/i.test(text) && !NOT_ON_SCREEN.has(text))).toEqual([]);
+  });
+  it("known-bad control: the allowlist is exact-match only, so pre-fix Arena copy is still caught", () => {
+    const caught = onScreenText(`receipt={{ kind: 'host' }} <Text>RESUME HOST MATCH</Text> subtitle("HOST RECEIPT")`).filter((text) => /\bhost\b/i.test(text) && !NOT_ON_SCREEN.has(text));
+    expect(caught).toEqual(['"HOST RECEIPT"', "RESUME HOST MATCH"]);
   });
   it("known-bad control: the pre-fix hub copy is caught", () => {
     expect(onScreenText('<Text>{loading ? "REFRESHING…" : "REFRESH HOST ROSTER"}</Text>').filter((text) => /\bhost\b/i.test(text))).toEqual(['"REFRESH HOST ROSTER"']);

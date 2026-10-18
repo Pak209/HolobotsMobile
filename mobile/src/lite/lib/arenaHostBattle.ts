@@ -16,7 +16,7 @@ export function arenaHostBattle(match: ArenaMatch, uid: string) {
         const move = s.moves.find(m => m.moveId === id);
         if (!move || ![cost, sync].every(k => Number.isFinite(s.commandRules[k])) || s.commandRules[cost] > s.commandRules.maxStamina)
             throw Error('arena_moves_unavailable');
-        return { id, templateId: `host.${id}`, name: id.replaceAll('_', ' ').toUpperCase(), type: type as 'strike' | 'combo', staminaCost: s.commandRules[cost], requirements: [], baseDamage: s.attack * move.damageScale, hostDamageScale: move.damageScale, speedModifier: 0, hostSyncGain: s.commandRules[sync], effects: [], animationId: id, description: 'Issued host move; client practice simulation' };
+        return { id, templateId: `host.${id}`, name: id.replaceAll('_', ' ').toUpperCase(), type: type as 'strike' | 'combo', staminaCost: s.commandRules[cost], requirements: [], baseDamage: s.attack * move.damageScale, hostDamageScale: move.damageScale, speedModifier: 0, hostSyncGain: s.commandRules[sync], effects: [], animationId: id, description: 'City-issued move; client practice simulation' };
     });
     const playerMoves = cards(match.entrant), opponentMoves = cards(match.opponent);
     const battle: BattleState = ArenaCombatEngine.initializeBattle(fighter(match.entrant, 'player'), fighter(match.opponent, 'rival'), { battleType: 'pve', allowPlayerControl: true, potentialRewards: { exp: 0, syncPoints: 0 } });
