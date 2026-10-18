@@ -12,8 +12,9 @@ import {
 } from "@/lib/arenaEconomy";
 import * as client from "@/lib/battleSettlement";
 
-import * as serverArena from "../../../../functions/src/lib/arenaEconomy";
-import * as server from "../../../../functions/src/lib/battleSettlement";
+import * as serverArena from "../../../test-fixtures/host-pin/src/lib/arenaEconomy";
+import * as server from "../../../test-fixtures/host-pin/src/lib/battleSettlement";
+import { hostSourceFile } from "../../../test-fixtures/hostPin.mjs";
 
 /**
  * DECISIONS #53-1: one battle XP table. The client and server copies of
@@ -97,10 +98,7 @@ function arenaGrid(): ArenaSettlementInput[] {
 describe("battleSettlement byte-identical pair", () => {
   it("mobile and functions copies are byte-identical", () => {
     const mobileCopy = readFileSync(path.resolve(__dirname, "../battleSettlement.ts"), "utf8");
-    const functionsCopy = readFileSync(
-      path.resolve(__dirname, "../../../../functions/src/lib/battleSettlement.ts"),
-      "utf8",
-    );
+    const functionsCopy = readFileSync(hostSourceFile("lib/battleSettlement.ts"), "utf8");
     expect(functionsCopy).toBe(mobileCopy);
   });
 

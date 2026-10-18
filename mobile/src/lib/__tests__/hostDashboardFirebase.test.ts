@@ -10,7 +10,7 @@ vi.mock("@/config/firebase", () => ({
 import identityFixture from "../../qa/fixtures/desktop-account-3-identity.json";
 import { presentHostDashboard } from "../hostDashboard";
 import { hostDashboardStoreForUid } from "../hostDashboardFirebase";
-import { itemSnapshot } from "../../../../functions/src/lib/desktopItems";
+import { itemSnapshot } from "../../../test-fixtures/host-pin/src/lib/desktopItems";
 
 const UID = identityFixture.uid;
 

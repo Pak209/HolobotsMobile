@@ -9,8 +9,8 @@ import {
   IAP_PRODUCT_GENESIS_SQUAD_EARLY,
 } from "@/lib/monetization";
 
-import * as serverMonetization from "../../../../functions/src/lib/monetization";
-import * as serverReferrals from "../../../../functions/src/lib/referrals";
+import * as serverMonetization from "../../../test-fixtures/host-pin/src/lib/monetization";
+import * as serverReferrals from "../../../test-fixtures/host-pin/src/lib/referrals";
 
 function battlePassEvent(overrides: Partial<serverMonetization.RevenueCatEvent> = {}) {
   return {

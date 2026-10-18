@@ -13,7 +13,7 @@ import {
 import { ArenaCombatEngine } from "@/features/arena/combatEngine";
 import type { BattleState } from "@/types/arena";
 
-import * as serverArena from "../../../../functions/src/lib/arenaEconomy";
+import * as serverArena from "../../../test-fixtures/host-pin/src/lib/arenaEconomy";
 
 const NOW = new Date("2026-07-07T18:00:00.000Z");
 

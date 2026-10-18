@@ -1,0 +1,31 @@
+
+ RUN  v3.2.4 <scratch>/lite/mobile
+
+stdout | src/lib/__tests__/cityHost.integration.test.ts > HoloCity mobile against the real host + loopback Firestore
+[cityHost.integration] host <scratch>/lite/functions: src/ tree 53c0bedb5b20691ab401fe655613724997a2947c is not the pinned deployed host's 006b1c7ba2aedbe34774343dbb82abd47d75400c (3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f)
+
+ ❯ src/lib/__tests__/cityHost.integration.test.ts (3 tests | 3 skipped) 27ms
+   ↓ HoloCity mobile against the real host + loopback Firestore > parses the real callable gathering, unlocks Arena and keeps Zone hidden
+   ↓ HoloCity mobile against the real host + loopback Firestore > plays every assigned citizen from real issue stats and parses settlement/replay/cooldown replies
+   ↓ HoloCity mobile against the real host + loopback Firestore > heals and crafts through the actual workshop hosts without duplicate grants
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/cityHost.integration.test.ts > HoloCity mobile against the real host + loopback Firestore
+Error: HOLOCITY_REQUIRE_HOST_INTEGRATION=1 but src/ tree 53c0bedb5b20691ab401fe655613724997a2947c is not the pinned deployed host's 006b1c7ba2aedbe34774343dbb82abd47d75400c (3b1e790d80f2ef8067bdcb7b1e94c6aa0047b04f)
+ ❯ src/lib/__tests__/cityHost.integration.test.ts:60:44
+     58|     console.info(`[cityHost.integration] host ${hostRoot}: ${problems.…
+     59|     captures.host = { root: hostRoot, pinnedSha: pin.sha, pinnedSrcTre…
+     60|     if (required && problems.length) throw new Error(`HOLOCITY_REQUIRE…
+       |                                            ^
+     61|     host = createRequire(path.join(hostRoot!, "package.json"));
+     62|     db = host("./lib/admin.js").db;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 skipped (3)
+   Start at  22:01:48
+   Duration  564ms (transform 90ms, setup 0ms, collect 273ms, tests 27ms, environment 0ms, prepare 106ms)
+
