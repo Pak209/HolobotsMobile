@@ -11,7 +11,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { ActivityError, arenaOpen, duelOpen } from '../lib/arenaActivity';
 import { withRankHealingReward } from '../lib/rankHealingReward';
-import { ARENA_TIERS, getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, incrementArenaBattlesToday, ArenaTierId } from '../lib/arenaEconomy';
+import { ARENA_TIERS, getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, ArenaTierId } from '../lib/arenaEconomy';
+import { dailyMissionCounterUpdates } from '../lib/economy';
 import { BATTLE_COMBO_BONUS, BATTLE_PERFECT_DEFENSE_BONUS, BATTLE_LOSS_EXP_FRACTION, BATTLE_LOSS_SYNC_FRACTION, MAX_PERFORMANCE_EVENTS, EXP_BOOSTER_MULTIPLIER } from '../lib/battleSettlement';
 import { buildPlayerCombatants, playerCombatant, readOpenBattles, RivalError } from '../lib/rivalLadder';
 import { readHoloZoneRuns, HoloZoneError } from '../lib/holoZoneRuns';
@@ -208,7 +209,8 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
     holosTokens: counter(profile,'holosTokens') + holos,
     wins: counter(profile,'wins') + (won ? 1 : 0), losses: counter(profile,'losses') + (won ? 0 : 1),
     syncPoints: counter(profile,'syncPoints') + syncPoints,
-    rewardSystem: incrementArenaBattlesToday(profile.rewardSystem, new Date(now)),
+    // S2: the server-only daily-mission ledger + the rewardSystem display mirror.
+    ...dailyMissionCounterUpdates(profile, 'arenaBattlesToday', new Date(now)),
   };
   assertFiniteTree(updates);
   return { updates, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint }, outcome: won ? 'win' : 'loss' };
