@@ -12,6 +12,7 @@ import { OfflinePreviewAuthProvider } from "@/contexts/AuthContext";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { CityHubScreen } from "@/screens/CityHubScreen";
 import { DuelPlaybackScreen } from "@/screens/DuelPlaybackScreen";
+import { DuelPerfSweepPreview } from "./DuelPerfSweepPreview";
 import { cityHubFixtures, CITY_GATHERING_FIXTURE } from "@/lib/cityHubFixtures";
 import { CityRivalBattle, CityRivalCombatPreview } from "@/components/city/CityRivalBattle";
 import { InventoryScreen } from "@/screens/InventoryScreen";
@@ -55,6 +56,7 @@ function HomePreview() {
 function DuelPreview() { return <DuelPlaybackScreen fixture receipt={DUEL_PREVIEW_RECEIPT} onClose={noop} showMetrics />; }
 const hostDuelEnvelope = { issue: { duel: { mode: "resolver", player: hostDuelFixture.input.player, opponent: hostDuelFixture.input.opponent } }, duelReceipt: hostDuelFixture.receipt };
 function HostDuelPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelEnvelope} onClose={noop} />; }
+function HostDuelPerfSweepPreview() { return <DuelPerfSweepPreview receipt={hostDuelEnvelope} />; }
 const hostDuelCaptureScreens = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [
   `HostDuelRound${i + 1}`, function HostRoundPreview() { return <DuelPlaybackScreen fixture receipt={hostDuelEnvelope} onClose={noop} captureRound={i + 1} />; },
 ]));
@@ -88,7 +90,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ...botScreens,
   CityHub: CityPreview,
   ...cityScreens,
-  HostDuel: HostDuelPreview, ...hostDuelCaptureScreens,
+  HostDuel: HostDuelPreview, ...hostDuelCaptureScreens, HostDuelPerfSweep: HostDuelPerfSweepPreview,
   Duel: DuelPreview, DuelReceipt: ReceiptPreview, ...duelCaptureScreens,
   ArenaHostLevels: ArenaHostLevelsPreview,
   ArenaAdmittedRound: ArenaAdmittedRoundPreview,

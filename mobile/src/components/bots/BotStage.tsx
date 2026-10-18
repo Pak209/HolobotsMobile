@@ -9,16 +9,26 @@ import { BOT_MANIFEST, type BotId } from '../../../assets/bots';
 import { disposeBot, loadBot } from '../../lib/bots/loadBot';
 import { resolveClipName } from '../../lib/bots/animationClips';
 import { prepareBotMaterials, type BotMaterialQuality } from '../../lib/bots/materials';
+import { knobSignature, PERF_ARM_MEASURE_MS, PERF_ARM_WARMUP_MS, summarizeArm, throttledMixerStep, type PerfArmSummary, type PerfFrame, type StagePerfKnobs } from '../../lib/bots/stagePerf';
+import { probeGl, stageInventory } from '../../lib/bots/stageProbe';
 
 export type BotMetrics = { botId: string; loadMs: number; fps: number; frames: number; assetBytes: number; platform: string; drawWidth: number; drawHeight: number; contextId: number; materialQuality: BotMaterialQuality; renderScale: number };
 export type StageBot = { id: BotId; side: string };
 export type BotStageHandle = { play(side: string, clipName: string): boolean; strike(side: string): void; hit(side: string): void; guard(side: string): void };
-type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean };
+export type PerfArmResult = { arm: string; knobs: StagePerfKnobs; contextId: number; drawWidth: number; drawHeight: number; loadMs: number; renderer: unknown; defaultFramebufferSamples: unknown; reactRendersPerSecond: number; glCallsByNamePerFrame: Record<string, number>; summary: PerfArmSummary };
+/** Dev-only cost knobs (ignored outside __DEV__). Production callers never pass this. */
+export type BotStagePerf = { arm: string; knobs: StagePerfKnobs; onArmDone?: (result: PerfArmResult) => void };
+type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf };
 type Actor = { id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial> };
 
-export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false }, ref) {
-  const scale = Math.max(0.25, Math.min(1, renderScale));
-  const signature = `${variant}:${transparentBackdrop}:${scale}:${materialQuality}:` + bots.map(bot => `${bot.side}:${bot.id}`).join('|');
+export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf }, ref) {
+  const perfRun = __DEV__ ? perf : undefined;
+  const scale = Math.max(0.25, Math.min(1, renderScale)) * (perfRun?.knobs.resolution ?? 1);
+  const signature = `${variant}:${transparentBackdrop}:${scale}:${materialQuality}:` + bots.map(bot => `${bot.side}:${bot.id}`).join('|') + (perfRun ? `:perf:${perfRun.arm}:${knobSignature(perfRun.knobs)}` : '');
+  const perfRef = useRef(perfRun);
+  perfRef.current = perfRun;
+  const renderCount = useRef(0);
+  if (perfRun) renderCount.current++;
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const drawSize = useRef({ width: 1, height: 1 });
   drawSize.current = { width: Math.max(1, Math.round(layout.width * scale * PixelRatio.get())), height: Math.max(1, Math.round(layout.height * scale * PixelRatio.get())) };
@@ -85,6 +95,12 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
     let phase = 'renderer';
     let lastFrame = performance.now();
     let appActive = AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
+    // Dev-only: captured once per context; any knob change changes the signature and remounts the GLView.
+    const perfArm = perfRef.current;
+    const knobs = perfArm?.knobs;
+    let glCalls = 0;
+    const glCallNames: Record<string, number> = {};
+    let mixerPendingMs = 0;
     const scene = new THREE.Scene();
     scene.background = transparentBackdrop ? null : new THREE.Color(theme.colors.carbon);
     const camera = new THREE.PerspectiveCamera(35, drawSize.current.width / drawSize.current.height, 0.05, 50);
@@ -118,6 +134,14 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           pixelStore(parameter, value);
         };
       }
+      if (knobs) {
+        // Count JS->GL bridge calls. Methods live on the shared prototype, so shadow them on this context only.
+        for (const name in gl) {
+          const method = (gl as unknown as Record<string, unknown>)[name];
+          if (typeof method !== 'function' || name.startsWith('__')) continue;
+          (gl as unknown as Record<string, unknown>)[name] = (...args: unknown[]) => { glCalls++; glCallNames[name] = (glCallNames[name] ?? 0) + 1; return (method as (...values: unknown[]) => unknown).apply(gl, args); };
+        }
+      }
       renderer = new Renderer({ gl, antialias: true, alpha: transparentBackdrop });
       phase = 'renderer configuration';
       // Expo's drawingBuffer dimensions are initial values, not live layout getters.
@@ -126,6 +150,9 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.setClearColor(theme.colors.carbon, transparentBackdrop ? 0 : 1);
       renderer.debug.onShaderError = (context, program, vertex, fragment) => { if (__DEV__) console.warn('[HolobotViewer:shader] ' + JSON.stringify({ program: context.getProgramInfoLog(program), vertex: context.getShaderInfoLog(vertex), fragment: context.getShaderInfoLog(fragment) })); };
+      if (knobs?.shadowsOff) renderer.shadowMap.enabled = false;
+      const probe = knobs ? probeGl(gl, renderer, knobs.msaaSamples) : null;
+      if (probe) console.info('[HolobotViewer:probe] ' + JSON.stringify({ arm: perfArm!.arm, contextId: gl.contextId, ...probe }));
       scene.add(new THREE.HemisphereLight('#D9F9FF', '#182330', 2.5));
       const key = new THREE.DirectionalLight('#FFFFFF', 3);
       key.position.set(2, 4, 4); scene.add(key);
@@ -143,6 +170,10 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         const gltf = await loadBot(bot.id, nextPhase => { phase = `${bot.id}: ${nextPhase}`; });
         if (!alive || ticket !== generation.current || !mounted.current) { disposeBot(gltf.scene); return; }
         prepareBotMaterials(gltf.scene, materialQuality);
+        if (knobs?.cullBack) gltf.scene.traverse(object => {
+          if (!(object instanceof THREE.Mesh)) return;
+          for (const material of Array.isArray(object.material) ? object.material : [object.material]) { material.side = THREE.FrontSide; material.needsUpdate = true; }
+        });
         // Outer wrapper is deliberately separate: ACE animates its Armature scale.
         const root = new THREE.Group(); root.add(gltf.scene);
         root.position.x = isDuel ? index === 0 ? -0.9 : 0.9 : 0;
@@ -155,6 +186,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         const mixer = new THREE.AnimationMixer(gltf.scene);
         const actor: Actor = { id: bot.id, root, mixer, animations: gltf.animations, base: root.position.clone(), away: new THREE.Vector3(root.position.x, 0, root.position.z).normalize() };
         localActors.set(bot.side, actor); scene.add(root); ownedRoots.push(root);
+        if (knobs?.hideRival && bot.side === 'rival') root.visible = false;
         mixer.addEventListener('finished', event => { if (event.action === actor.current) play(bot.side, 'Idle'); });
       }));
       if (!alive || ticket !== generation.current || !mounted.current) return;
@@ -199,6 +231,8 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       let frames = 0;
       let sampleFrames = 0;
       let sampleStart = performance.now();
+      const perfFrames: PerfFrame[] = [];
+      const perfWindow = { start: Infinity, end: Infinity, renders: 0, names: {} as Record<string, number>, armed: false, done: false };
 
       let loadMs = 0;
       const cameraHome = camera.position.clone();
@@ -222,8 +256,12 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           renderer!.setSize(renderWidth, renderHeight);
           camera.aspect = renderWidth / renderHeight; camera.updateProjectionMatrix();
         }
+        const glCallsAtFrame = glCalls;
+        const step = knobs?.animHz ? throttledMixerStep(mixerPendingMs, elapsed, knobs.animHz) : null;
+        if (step) mixerPendingMs = step.pendingMs;
         localActors.forEach(actor => {
-          actor.mixer.update(elapsed / 1000);
+          if (!step) actor.mixer.update(elapsed / 1000);
+          else if (step.applyMs !== null) actor.mixer.update(step.applyMs / 1000);
           const hitElapsed = actor.hitAt === undefined ? Infinity : now - actor.hitAt;
           // The source fleet has no HitLight take; a short additive recoil is presentation only.
           actor.root.position.copy(actor.base).addScaledVector(actor.away, hitElapsed < 280 ? Math.sin(hitElapsed / 280 * Math.PI) * 0.08 : 0);
@@ -239,14 +277,30 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         if (cameraCue.current.shakeFrames > 0) { camera.position.x += cameraCue.current.shakeFrames === 2 ? 0.012 : -0.012; cameraCue.current.shakeFrames--; }
         // Expo's native presentation can leave another framebuffer bound between frames.
         // Three caches its null binding, so restore Expo's current default explicitly.
+        const prepEnd = knobs ? performance.now() : 0;
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         renderer!.render(scene, camera);
+        const renderEnd = knobs ? performance.now() : 0;
         // Bound native work to one frame. endFrameEXP alone queues asynchronously,
         // which can report 60 JS fps while a software GPU builds an unbounded backlog.
         if (Platform.OS !== 'web') gl.finish();
         gl.endFrameEXP();
         if (Platform.OS !== 'web') gl.flushEXP();
         frames++; sampleFrames++;
+        if (knobs && !perfWindow.done) {
+          const completed = performance.now();
+          perfFrames.push({ atMs: completed, prepMs: prepEnd - now, renderMs: renderEnd - prepEnd, barrierMs: completed - renderEnd, drawCalls: renderer!.info.render.calls, triangles: renderer!.info.render.triangles, glCalls: glCalls - glCallsAtFrame });
+          if (!perfWindow.armed && completed >= perfWindow.start) { perfWindow.armed = true; perfWindow.renders = renderCount.current; perfWindow.names = { ...glCallNames }; }
+          if (completed >= perfWindow.end) {
+            perfWindow.done = true;
+            const summary = summarizeArm(perfFrames, perfWindow.start, perfWindow.end);
+            const perFrame: Record<string, number> = {};
+            for (const [name, count] of Object.entries(glCallNames)) { const delta = count - (perfWindow.names[name] ?? 0); if (delta > 0 && summary.frames) perFrame[name] = Math.round(delta / summary.frames * 10) / 10; }
+            const result: PerfArmResult = { arm: perfArm!.arm, knobs: knobs, contextId: gl.contextId, drawWidth: renderWidth, drawHeight: renderHeight, loadMs, renderer: probe?.renderer, defaultFramebufferSamples: probe?.defaultFramebufferSamples, reactRendersPerSecond: Math.round((renderCount.current - perfWindow.renders) / (PERF_ARM_MEASURE_MS / 1000) * 10) / 10, glCallsByNamePerFrame: perFrame, summary };
+            console.info('[HolobotViewer:perfArm] ' + JSON.stringify(result));
+            perfRef.current?.onArmDone?.(result);
+          }
+        }
         if (now - sampleStart >= 2000) { emit(sampleFrames * 1000 / (now - sampleStart)); sampleFrames = 0; sampleStart = now; }
       };
       phase = 'first render';
@@ -256,6 +310,10 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       gl.endFrameEXP();
       if (Platform.OS !== 'web') gl.flushEXP();
       loadMs = Math.round(performance.now() - start);
+      if (knobs) {
+        console.info('[HolobotViewer:inventory] ' + JSON.stringify({ arm: perfArm!.arm, contextId: gl.contextId, drawWidth: renderWidth, drawHeight: renderHeight, loadMs, ...stageInventory(scene, renderer, [...localActors].map(([side, actor]) => ({ side, mixer: actor.mixer, clips: actor.animations.length }))) }));
+        perfWindow.start = performance.now() + PERF_ARM_WARMUP_MS; perfWindow.end = perfWindow.start + PERF_ARM_MEASURE_MS;
+      }
       setLoaded(true); callbacks.current.onReady?.(); emit(0);
       sampleStart = lastFrame = performance.now(); frameId = requestAnimationFrame(render);
     } catch (cause) {
@@ -268,7 +326,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
   }, [signature, play, showMetrics]);
 
   return <View collapsable={false} onLayout={({ nativeEvent }) => { const { width, height } = nativeEvent.layout; if (width > 0 && height > 0) setLayout(current => current.width === width && current.height === height ? current : { width, height }); }} style={[styles.container, transparentBackdrop && { backgroundColor: 'transparent' }, StyleSheet.flatten(style)?.position !== 'absolute' && { height: 260 }, style]} accessibilityLabel={bots.map(bot => bot.id.toUpperCase()).join(' versus ') + ' 3D Holobot viewer'}>
-    {layout.width > 0 && layout.height > 0 && <GLView key={signature} collapsable={false} style={{ position: 'absolute', width: layout.width * scale, height: layout.height * scale, left: layout.width * (1 - scale) / 2, top: layout.height * (1 - scale) / 2, transform: [{ scale: 1 / scale }] }} onContextCreate={createContext} msaaSamples={1} />}
+    {layout.width > 0 && layout.height > 0 && <GLView key={signature} collapsable={false} style={{ position: 'absolute', width: layout.width * scale, height: layout.height * scale, left: layout.width * (1 - scale) / 2, top: layout.height * (1 - scale) / 2, transform: [{ scale: 1 / scale }] }} onContextCreate={createContext} msaaSamples={perfRun ? perfRun.knobs.msaaSamples : 1} />}
     {!loaded && !error && <View style={styles.overlay}><ActivityIndicator color={theme.colors.accent} /><Text style={styles.loading} numberOfLines={2}>LOADING</Text></View>}
     {error && <View style={styles.overlay}><Text style={styles.error}>3D preview unavailable</Text><Text style={styles.errorDetail}>{showMetrics ? error : 'Try opening this preview again.'}</Text></View>}
     {showMetrics && metrics && <Text style={styles.metrics}>{metrics.loadMs} ms · {metrics.fps ? `${metrics.fps} fps` : 'warming up'} · {(metrics.assetBytes / 1e6).toFixed(2)} MB</Text>}
