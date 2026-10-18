@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ArenaScreen } from '@/screens/ArenaScreen';
 import { ArenaMatchFlow, type ArenaIssue, type ArenaPendingSettle, type ArenaReply } from '@/lib/arenaMatchFlow';
 import { theme } from '@/theme';
-import { ARENA_ISSUED, ARENA_SETTLE_REPORT, ARENA_STARTED, arenaPayoutCappedIssue, arenaRefundReply, arenaWithheldReply, tooFast } from './arenaPolishFixtures';
+import { ARENA_ISSUED, ARENA_SETTLED, ARENA_SETTLE_REPORT, ARENA_STARTED, arenaPayoutCappedIssue, arenaRefundReply, arenaWithheldReply, tooFast } from './arenaPolishFixtures';
 
 /**
  * Offline QA routes for lite-arena-polish-1 (holobotsmobile://qa/ArenaPolish…). Each cell mounts the REAL ArenaScreen on
@@ -20,6 +20,7 @@ const CELLS: Record<string, Cell> = {
     ArenaPolishStalled: { title: 'NOT CONFIRMED', caption: 'Budget spent (5 resends): manual TRY AGAIN; the result stays saved.', resume: () => ARENA_STARTED, settle: () => { throw tooFast(0); }, pendingSettle: true },
     ArenaPolishWithheld: { title: 'WITHHELD RECEIPT', caption: 'host #143 payoutWithheld daily_cap: all-zero receipt with its honest reason.', resume: () => arenaWithheldReply('daily_cap') },
     ArenaPolishRefund: { title: 'REFUND CLOSURE', caption: 'Cancelled before start: the City receipt names the refund (F7).', resume: () => arenaRefundReply() },
+    ArenaPolishPaid: { title: 'PAID RECEIPT', caption: 'Recorded paid settle: CITY RECEIPT rows with the bundled reward glyphs (L4, L18).', resume: () => ARENA_SETTLED },
 };
 
 function cellFlow(cell: Cell) {

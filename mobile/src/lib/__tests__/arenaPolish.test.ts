@@ -116,6 +116,9 @@ describe('F7 + (A)2: closures and withheld payouts are receipts with honest reas
         const forfeit = readArenaReply(arenaForfeitReply(44));
         expect(arenaClosureResult(forfeit)).toMatchObject({ kind: 'forfeit', finalHealth: 44, maxHealth: ARENA_STARTED.match!.entrant.maxHealth });
         expect(() => arenaClosureResult(ARENA_SETTLED)).toThrow('arena_result_unavailable');
+        // A terminal record the readers refuse is the unreadable interstitial, never a render-time throw.
+        const odd = arenaRefundReply() as any; odd.match.settlementReceipt.outcome = 'win';
+        expect(phase({ reply: odd })).toMatchObject({ kind: 'error', matchOpen: false, copy: { title: 'MATCH UNREADABLE' } });
     });
 });
 
