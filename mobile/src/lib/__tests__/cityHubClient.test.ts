@@ -1,8 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as { uid: string } | null }, call: vi.fn(), callable: vi.fn() }));
 vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
-import { readHostLevelAccount, loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad } from "../cityHubClient";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { readHostLevelAccount, loadCityHub, meetCityPilots, issueCityRival, settleCityRival, craftCityItem, healCitySquad, CITY_LIVE_DUEL_HOLD, CITY_LIVE_DUELS_HELD, cityChallengeEnabled } from "../cityHubClient";
 import { CITY_GATHERING_FIXTURE } from "../cityHubFixtures";
+describe("live citizen duel hold (L11)", () => {
+  beforeEach(() => { vi.clearAllMocks(); fixture.auth.currentUser = { uid: "pilot-a" }; });
+  it("closes every live Challenge CTA while held; the offline preview keeps its fixture duel", () => {
+    expect(CITY_LIVE_DUELS_HELD).toBe(true);
+    expect(cityChallengeEnabled(false)).toBe(false);
+    expect(cityChallengeEnabled(true)).toBe(true);
+    expect(cityChallengeEnabled(false, false)).toBe(true);
+  });
+  it("keeps the CTA closed exactly while issueCityRival refuses: one switch for both", async () => {
+    fixture.call.mockResolvedValue({ data: {} });
+    const refuses = await issueCityRival("pilot-a", CITY_GATHERING_FIXTURE.roster[0])
+      .then(() => false, (error) => error instanceof Error && error.message === CITY_LIVE_DUEL_HOLD);
+    expect(cityChallengeEnabled(false)).toBe(!refuses);
+    fixture.call.mockReset();
+  });
+  it("wires both hub Challenge CTAs (map pins and roster rows) to the hold", () => {
+    const hub = readFileSync(fileURLToPath(new URL("../../screens/CityHubScreen.tsx", import.meta.url) as unknown as string), "utf8");
+    expect(hub).toContain("const challengeOpen = cityChallengeEnabled(!!fixture);");
+    expect(hub.split("onPress={() => pickRival(rival)}")).toHaveLength(3);
+    expect(hub.split("disabled={!challengeOpen || !!cooldowns[rival.citizenId]}")).toHaveLength(3);
+    expect(hub).toContain("if (!challengeOpen) return;");
+  });
+});
+
 describe("city authenticated host actions", () => {
   beforeEach(() => { vi.clearAllMocks(); fixture.auth.currentUser = { uid: "pilot-a" }; });
   afterEach(() => vi.useRealTimers());

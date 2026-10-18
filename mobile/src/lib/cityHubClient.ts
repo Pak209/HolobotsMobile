@@ -19,7 +19,17 @@ export async function meetCityPilots(uid: string) {
   return readArenaGathering(await cityCall(uid, "arenaGatheringHost", { schemaVersion: GATHERING_SCHEMA }));
 }
 export const CITY_LIVE_DUEL_HOLD = "Live citizen duels aren’t available in this build. You can still meet the pilots.";
-/** #94 omits playerCombatants. Never open a battle this legacy client would auto-forfeit. */
+/**
+ * The live-duel hold, one switch: while true issueCityRival refuses and the hub disables every
+ * Challenge CTA. Lifting it means flipping this and giving issueCityRival a playerCombatants-aware
+ * issue in the same change (cityHubClient.test pins the two together).
+ */
+export const CITY_LIVE_DUELS_HELD: boolean = true;
+/** Whether a city Challenge CTA may open a duel. The offline QA preview always plays its local fixture duel. */
+export function cityChallengeEnabled(preview: boolean, held: boolean = CITY_LIVE_DUELS_HELD): boolean {
+  return preview || !held;
+}
+/** Held (CITY_LIVE_DUELS_HELD): #94 omits playerCombatants. Never open a battle this legacy client would auto-forfeit. */
 export async function issueCityRival(_uid: string, _rival: ArenaCitizen): Promise<unknown> {
   throw new Error(CITY_LIVE_DUEL_HOLD);
 }

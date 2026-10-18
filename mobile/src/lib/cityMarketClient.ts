@@ -2,9 +2,10 @@ import { auth, functions, httpsCallable } from "@/config/firebase";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "./async";
 import {
   CITY_MARKET_VENDOR, VENDOR_CATALOG_CALLABLE, isSignedOutError, isUncertainOutcome, listingNeedsRequestId, listingPurchasable,
-  listingPurchase, marketUnavailableText, purchaseNotice, readVendorCatalog, refusalNotice,
+  listingPurchase, marketUnavailableText, purchaseConfirmed, purchaseNotice, readVendorCatalog, refusalNotice,
   type CityMarketEvent, type MarketNotice, type VendorListing,
 } from "./cityMarket";
+import { notifyHostEconomyChanged } from "./hostDashboard";
 
 /** The two host reads/writes the market page makes. Live = Firebase callables; fixture = offline QA. */
 export type CityMarketHost = { readCatalog(): Promise<unknown>; buy(listing: VendorListing): Promise<unknown> };
@@ -30,6 +31,8 @@ const journalAction = (listing: VendorListing) => `vendor:${CITY_MARKET_VENDOR}:
  * journaled requestId: kept after an uncertain outcome (so a resend replays the same receipt and
  * never buys twice), cleared after any host verdict. Other listings are sent exactly as named and
  * are never retried automatically (the legacy purchase callables are not idempotent).
+ * Only a confirmed purchase reply publishes the economy-change signal, so the dashboard re-reads its
+ * Holos; a refusal, an uncertain outcome or an unreadable reply never does.
  */
 export function liveCityMarketHost(uid: string, journal: CityMarketRequestJournal): CityMarketHost {
   return {
@@ -49,6 +52,7 @@ export function liveCityMarketHost(uid: string, journal: CityMarketRequestJourna
         throw error;
       }
       await settle();
+      if (purchaseConfirmed(reply)) notifyHostEconomyChanged(uid);
       return reply;
     },
   };

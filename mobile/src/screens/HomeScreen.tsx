@@ -17,7 +17,11 @@ import { DashboardZonesPanel } from "@/components/dashboard/DashboardZonesPanel"
 import { getRarity, getRarityShortLabel } from "@/components/dashboard/holobotPresentation";
 import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/partStats";
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
-import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, homeAssets } from "@/config/figmaAssets";
+import { homeAssets } from "@/config/figmaAssets";
+import {
+  ARTBOARD_HEIGHT, ARTBOARD_WIDTH, FOOTER_LABEL_SIZE, FOOTER_LABEL_Y, HEADER_PLATE_PATH, HOME_FOOTER_ITEMS, HOME_PAGE_PADDING, HOME_STATUS_STRIP,
+  PART_OVERLAY, PART_SLOT_HEIGHT, PART_SLOT_WIDTH, PART_SLOT_XS, PART_SLOT_Y, artboardPercentX, artboardPercentY, type HomeFooterKey,
+} from "@/config/homeLayout";
 import { getPartImageSource } from "@/config/gameAssets";
 import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { theme } from "@/theme";
@@ -36,6 +40,12 @@ const iconAccent = [1, 3, 5].map(offset => {
 });
 const ICON_PALETTE = `0 0 0 0 ${iconAccent[0]}  0 0 0 0 ${iconAccent[1]}  0 0 0 0 ${iconAccent[2]}  0 3 -3 0 0`;
 
+// Every SVG label on Home uses the HUD face (L16); without it they fell back to the system font.
+const HUD_FONT = theme.type.display.fontFamily;
+const FOOTER_ICONS: Record<HomeFooterKey, ImageSourcePropType> = {
+  arena: homeAssets.arenaIcon, inventory: homeAssets.inventoryIcon, sync: homeAssets.syncIcon, market: homeAssets.marketplaceIcon,
+};
+
 const ATTRIBUTE_LABELS = ["ATK", "DEF", "SPECIAL", "HP", "SPEED"] as const;
 const ATTRIBUTE_CENTER_X = 415;
 const ATTRIBUTE_CENTER_Y = 1055;
@@ -43,20 +53,13 @@ const ATTRIBUTE_RADIUS = 252;
 const ATTRIBUTE_LABEL_RADIUS = 330;
 const HOME_INFO_CARD_Y = 1638;
 const HOME_CHANGE_BAR_Y = 1878;
-const DASHBOARD_SLOT_Y = 2216;
-const DASHBOARD_SLOT_WIDTH = 248;
-const DASHBOARD_SLOT_HEIGHT = 260;
-const DASHBOARD_SLOT_OVERLAY_WIDTH = 208;
-// Shortened + lowered so the part icon sits clear of the star row above it
-// and the rarity plate below it.
-const DASHBOARD_SLOT_OVERLAY_HEIGHT = 138;
 
 /** Angular corner-cut frame for the equipped-part slots (JRPG handoff). */
 function buildPartFramePath(x: number, inset = 0) {
   const left = x + inset;
-  const top = DASHBOARD_SLOT_Y + inset;
-  const right = x + DASHBOARD_SLOT_WIDTH - inset;
-  const bottom = DASHBOARD_SLOT_Y + DASHBOARD_SLOT_HEIGHT - inset;
+  const top = PART_SLOT_Y + inset;
+  const right = x + PART_SLOT_WIDTH - inset;
+  const bottom = PART_SLOT_Y + PART_SLOT_HEIGHT - inset;
   const cut = 26;
 
   return `M ${left + cut} ${top} H ${right - cut} L ${right} ${top + cut} V ${bottom - cut} L ${right - cut} ${bottom} H ${left + cut} L ${left} ${bottom - cut} V ${top + cut} Z`;
@@ -239,11 +242,11 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
   const dashboardParts = resolveDashboardParts(equippedParts);
   const rarity = getRarity(selectedHolobot.rank);
   const abilitySlots = [
-    { part: dashboardParts[0], slot: "head", x: 68 },
-    { part: dashboardParts[1], slot: "torso", x: 338 },
-    { part: dashboardParts[2], slot: "arms", x: 608 },
-    { part: dashboardParts[3], slot: "legs", x: 878 },
-    { part: dashboardParts[4], slot: "core", x: 1148 },
+    { part: dashboardParts[0], slot: "head", x: PART_SLOT_XS[0] },
+    { part: dashboardParts[1], slot: "torso", x: PART_SLOT_XS[1] },
+    { part: dashboardParts[2], slot: "arms", x: PART_SLOT_XS[2] },
+    { part: dashboardParts[3], slot: "legs", x: PART_SLOT_XS[3] },
+    { part: dashboardParts[4], slot: "core", x: PART_SLOT_XS[4] },
   ] as const;
   const inventoryParts = useMemo(
     () =>
@@ -281,8 +284,8 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
     SPEED: Math.min(100, selectedHolobot.stats.speed + partBoosts.speed),
   };
   return (
-    <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12, backgroundColor: theme.colors.carbon }}>
-    <FigmaCanvas fillHeight>
+    <View style={{ flex: 1, paddingTop: insets.top + HOME_PAGE_PADDING.top, paddingBottom: insets.bottom + HOME_PAGE_PADDING.bottom, backgroundColor: theme.colors.carbon }}>
+    <FigmaCanvas>
       <View style={StyleSheet.absoluteFill}>
         <ArtImage tintColor={theme.colors.carbon} source={homeAssets.backgroundBase} x={0} y={0} width={1800} height={3200} />
         <ArtImage tintColor={theme.plates.navy} source={homeAssets.backgroundDetail} x={0} y={0} width={1800} height={3200} />
@@ -292,13 +295,13 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             key={`ability-bg-${part?.name || "empty"}:${index}`}
             source={index % 2 === 0 ? homeAssets.abilityChipBackground1 : homeAssets.abilityChipBackground3}
             x={x}
-            y={DASHBOARD_SLOT_Y}
-            width={DASHBOARD_SLOT_WIDTH}
-            height={DASHBOARD_SLOT_HEIGHT}
+            y={PART_SLOT_Y}
+            width={PART_SLOT_WIDTH}
+            height={PART_SLOT_HEIGHT}
             zIndex={2}
           />
         ))}
-        <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
+        <Svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`} style={styles.vectorLayer}>
           <G fill="none" stroke={theme.colors.accent} strokeWidth={5}>
 
             <Path d="M20 910 L280 650 H810 V1350 L580 1570 H20 M40 925 L295 675 H790 V1340 L570 1545 H40" />
@@ -307,7 +310,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
 
           </G>
           {/* Layered header plate follows the original silhouette. */}
-          <Path d="M0 100 H145 L168 124 H995 L1045 170 H1800 V300 H1530 L1410 425 H260 L230 450 H0 Z" fill={theme.plates.navy} fillOpacity={0.88} />
+          <Path d={HEADER_PLATE_PATH} fill={theme.plates.navy} fillOpacity={0.88} />
           <G fill="none" stroke={theme.colors.accent}>
             <Path d="M0 100 H145 L168 124 H995 L1045 170 H1800 M0 450 H230 L260 425 H1410 L1530 300 H1800" strokeWidth={5} />
             <Path d="M0 118 H140 L165 142 H986 L1035 188 H1470 M0 468 H237 L268 443 H1120 M1450 400 L1550 282 H1740" strokeWidth={2} opacity={0.55} />
@@ -315,7 +318,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             <Path d="M0 360 H36 L75 400 H205 L235 425 M1250 170 L1320 105 H1720" strokeWidth={2} opacity={0.45} />
           </G>
           {[1185,1206,1227,1248].map(x => <Rect key={`header-dot-${x}`} x={x} y={145} width={8} height={8} fill={theme.colors.accent} opacity={0.7} />)}
-          <Text x={126} y={268} fill={theme.colors.text} fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
+          <Text fontFamily={HUD_FONT} x={126} y={268} fill={theme.colors.text} fontSize={114} fontStyle="italic" fontWeight="900">HOLOBOTS</Text>
 
           {/* Hologram glow centered under the Holobot (portrait is zIndex 20,
               this vector layer is zIndex 10, so the bot stands on it). */}
@@ -355,6 +358,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
               return (
                 <Text
                   key={label}
+                  fontFamily={HUD_FONT}
                   x={position.x}
                   y={position.y}
                   fill={theme.colors.muted}
@@ -372,23 +376,23 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             d={`M 110.2 ${HOME_INFO_CARD_Y} H 814.6 V ${HOME_INFO_CARD_Y + 231.1} L 699.7 ${HOME_INFO_CARD_Y + 347.1} H 110.2 Z`}
             fill={theme.colors.carbon}
           />
-          <Text x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={rosterAvailable ? 49.915 : 34}>{rosterAvailable ? selectedHolobot.name : "ROSTER UNAVAILABLE"}</Text>
+          <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 67.62} fill={theme.colors.text} fontSize={rosterAvailable ? 49.915 : 34}>{rosterAvailable ? selectedHolobot.name : "ROSTER UNAVAILABLE"}</Text>
           {/* Ranking tag: the Holobot's ACTUAL rank with its star tier. */}
           {rosterAvailable ? <G>
             <Rect x={560} y={HOME_INFO_CARD_Y + 18} width={235} height={112} fill={theme.plates.navy} stroke={theme.colors.border} strokeWidth={3} />
-            <Text x={677} y={HOME_INFO_CARD_Y + 62} fill={theme.colors.accent} fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
-            <Text x={677} y={HOME_INFO_CARD_Y + 106} fill={theme.colors.accent} fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
+            <Text fontFamily={HUD_FONT} x={677} y={HOME_INFO_CARD_Y + 62} fill={theme.colors.accent} fontSize={30} fontWeight="800" textAnchor="middle">{rarity.label.toUpperCase()}</Text>
+            <Text fontFamily={HUD_FONT} x={677} y={HOME_INFO_CARD_Y + 106} fill={theme.colors.accent} fontSize={34} textAnchor="middle">{"★".repeat(rarity.stars)}</Text>
           </G> : null}
           <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill={theme.plates.raised} />
           <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill={theme.colors.accent} />
-          <Text x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{rosterAvailable ? `EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}` : "EXP —"}</Text>
-          <Text x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{rosterAvailable ? `Lv ${selectedHolobot.level}` : "Lv —"}</Text>
+          <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{rosterAvailable ? `EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}` : "EXP —"}</Text>
+          <Text fontFamily={HUD_FONT} x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{rosterAvailable ? `Lv ${selectedHolobot.level}` : "Lv —"}</Text>
 
           <Path
             d={`M 932 ${HOME_CHANGE_BAR_Y} H 1677.5 L 1625.5 ${HOME_CHANGE_BAR_Y + 112.5} H 815 Z`}
             fill={theme.colors.carbon}
           />
-          <Text x={902} y={HOME_CHANGE_BAR_Y + 62.5} fill={theme.colors.text} fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
+          <Text fontFamily={HUD_FONT} x={902} y={HOME_CHANGE_BAR_Y + 62.5} fill={theme.colors.text} fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
 
           {/* JRPG part frames: rarity-tinted corner-cut outline, star tier,
               and a level plate. Icons render above at zIndex 20. */}
@@ -400,13 +404,13 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
               <G key={`part-frame-${x}`}>
                 {strong ? <Path d={buildPartFramePath(x)} fill="none" stroke={theme.colors.warning} strokeWidth={18} opacity={0.18} /> : null}
                 <Path d={buildPartFramePath(x)} fill={theme.plates.navy} stroke={borderColor} strokeWidth={strong ? 7 : 4} />
-                {!part ? <Text x={x + 124} y={DASHBOARD_SLOT_Y + 150} fill={theme.colors.subtle} fontSize={64} textAnchor="middle">+</Text> : null}
+                {!part ? <Text fontFamily={HUD_FONT} x={x + 124} y={PART_SLOT_Y + 150} fill={theme.colors.subtle} fontSize={64} textAnchor="middle">+</Text> : null}
                 <Path d={buildPartFramePath(x, 12)} fill="none" stroke={theme.colors.border} strokeWidth={2} opacity={0.9} />
                 {/* Star tier centered ABOVE the part art. */}
-                <Text x={x + 124} y={DASHBOARD_SLOT_Y + 42} fill={borderColor} fontSize={30} fontWeight="800" textAnchor="middle">{"★".repeat(stars)}</Text>
+                <Text fontFamily={HUD_FONT} x={x + 124} y={PART_SLOT_Y + 42} fill={borderColor} fontSize={30} fontWeight="800" textAnchor="middle">{"★".repeat(stars)}</Text>
                 {/* Rarity plate: every part carries its tier label. */}
-                <Path d={`M ${x + 22} ${DASHBOARD_SLOT_Y + 198} H ${x + 226} V ${DASHBOARD_SLOT_Y + 250} H ${x + 38} L ${x + 22} ${DASHBOARD_SLOT_Y + 236} Z`} fill={theme.colors.carbon} stroke={borderColor} strokeWidth={2} />
-                <Text x={x + 124} y={DASHBOARD_SLOT_Y + 236} fill={borderColor} fontSize={31} fontWeight="800" textAnchor="middle">{getRarityShortLabel(part?.rarity)}</Text>
+                <Path d={`M ${x + 22} ${PART_SLOT_Y + 198} H ${x + 226} V ${PART_SLOT_Y + 250} H ${x + 38} L ${x + 22} ${PART_SLOT_Y + 236} Z`} fill={theme.colors.carbon} stroke={borderColor} strokeWidth={2} />
+                <Text fontFamily={HUD_FONT} x={x + 124} y={PART_SLOT_Y + 236} fill={borderColor} fontSize={31} fontWeight="800" textAnchor="middle">{getRarityShortLabel(part?.rarity)}</Text>
               </G>
             );
           })}
@@ -423,45 +427,37 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
           </G>
           {[2680,2702,2724,2746].map(y => <Rect key={`footer-dot-${y}`} x={34} y={y} width={7} height={7} fill={theme.colors.accent} opacity={0.6} />)}
           {[575,597,619,641].map(x => <Rect key={`footer-dot-${x}`} x={x} y={3186} width={7} height={7} fill={theme.colors.accent} opacity={0.6} />)}
-          <Text x={210} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">ARENA</Text>
-          <Text x={622} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">INVENTORY</Text>
-          <Text x={1008} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">SYNC</Text>
-          <Text x={1398} y={3072} fill={theme.colors.text} fontSize={50} textAnchor="middle">MARKET</Text>
+          {HOME_FOOTER_ITEMS.map((item) => (
+            <Text key={`footer-label-${item.key}`} fontFamily={HUD_FONT} x={item.labelX} y={FOOTER_LABEL_Y} fill={theme.colors.text} fontSize={FOOTER_LABEL_SIZE} textAnchor="middle">{item.label}</Text>
+          ))}
         </Svg>
-        <ArtImage recolorGold source={homeAssets.arenaIcon} x={-50} y={2638} width={432} height={392} resizeMode="contain" zIndex={11} />
-        <ArtImage recolorGold source={homeAssets.inventoryIcon} x={462} y={2680} width={320} height={320} resizeMode="contain" zIndex={11} />
-        <ArtImage tintColor={theme.colors.accent} source={homeAssets.syncIcon} x={858} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
-        <ArtImage recolorGold source={homeAssets.marketplaceIcon} x={1248} y={2690} width={300} height={300} resizeMode="contain" zIndex={11} />
+        {HOME_FOOTER_ITEMS.map((item) => (
+          <ArtImage
+            key={`footer-icon-${item.key}`}
+            recolorGold={item.key !== "sync"}
+            tintColor={item.key === "sync" ? theme.colors.accent : undefined}
+            source={FOOTER_ICONS[item.key]}
+            {...item.icon}
+            resizeMode="contain"
+            zIndex={11}
+          />
+        ))}
 
-        <Pressable
-          style={styles.syncHotspot}
-          onPress={() => navigation.navigate("Fitness")}
-          accessibilityRole="button"
-          accessibilityLabel="Open Sync fitness page"
-        />
+        {/* Each footer hotspot is its own column: icon art and label, never a neighbour's (homeLayout.ts). */}
+        {HOME_FOOTER_ITEMS.map((item) => (
+          <Pressable
+            key={`footer-hotspot-${item.key}`}
+            style={[styles.footerHotspot, getArtboardFrame(item.hotspot.x, item.hotspot.y, item.hotspot.width, item.hotspot.height)]}
+            accessibilityRole="button"
+            accessibilityLabel={item.accessibilityLabel}
+            onPress={() => navigation.navigate(item.route)}
+          />
+        ))}
         <Pressable
           style={styles.changeHolobotHotspot}
           onPress={() => setIsPickerOpen(true)}
           accessibilityRole="button"
           accessibilityLabel="Change active holobot"
-        />
-        <Pressable
-          style={styles.marketplaceHotspot}
-          accessibilityRole="button"
-          accessibilityLabel="Open marketplace portal"
-          onPress={() => navigation.navigate("Marketplace")}
-        />
-        <Pressable
-          style={styles.inventoryHotspot}
-          accessibilityRole="button"
-          accessibilityLabel="Open inventory portal"
-          onPress={() => navigation.navigate("Inventory")}
-        />
-        <Pressable
-          style={styles.arenaHotspot}
-          accessibilityRole="button"
-          accessibilityLabel="Open arena portal"
-          onPress={() => navigation.navigate("Arena")}
         />
         <View style={styles.utilityStack}>
           <Pressable
@@ -546,7 +542,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
               style={[
                 styles.partOverlay,
                 {
-                  left: `${((x + 18) / ARTBOARD_WIDTH) * 100}%`,
+                  left: artboardPercentX(x + PART_OVERLAY.dx),
                 },
               ]}
               pointerEvents="none"
@@ -564,7 +560,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             style={[
               styles.partHotspot,
               {
-                left: `${(x / ARTBOARD_WIDTH) * 100}%`,
+                left: artboardPercentX(x),
               },
             ]}
           />
@@ -692,13 +688,14 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
 
 const styles = StyleSheet.create({
   nativeCityEntry: { position: "absolute", left: "69%", right: "5%", top: "4.5%", height: 32, zIndex: 35 },
-  statusStrip: { position: "absolute", left: "7%", right: "7%", top: "9.5%", zIndex: 30 },
+  // Ends left of the header plate's diagonal (L14); it used to run under it to x 1674.
+  statusStrip: { position: "absolute", left: artboardPercentX(HOME_STATUS_STRIP.left), right: artboardPercentX(ARTBOARD_WIDTH - HOME_STATUS_STRIP.right), top: artboardPercentY(HOME_STATUS_STRIP.top), zIndex: 30 },
   statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  statusText: { color: theme.colors.muted, fontSize: 10, fontWeight: "700" },
+  statusText: { color: theme.colors.muted, fontFamily: HUD_FONT, fontSize: 10, fontWeight: "700" },
   statusCounters: { flexShrink: 1 },
   pilotRow: { alignSelf: "flex-start", maxWidth: "70%", marginTop: 1 },
   pilotText: { color: theme.colors.text },
-  cityText: { color: theme.colors.accent, fontSize: 10, fontWeight: "800", paddingVertical: 2 },
+  cityText: { color: theme.colors.accent, fontFamily: HUD_FONT, fontSize: 10, fontWeight: "800", paddingVertical: 2 },
   artImageFrame: {
     position: "absolute",
   },
@@ -706,12 +703,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     zIndex: 10,
   },
-  arenaHotspot: {
+  footerHotspot: {
     position: "absolute",
-    left: "4%",
-    top: "82%",
-    width: "20%",
-    height: "12%",
     zIndex: 20,
   },
   changeHolobotHotspot: {
@@ -720,30 +713,6 @@ const styles = StyleSheet.create({
     top: "55.9375%",
     width: "48.3333%",
     height: "10.625%",
-    zIndex: 20,
-  },
-  inventoryHotspot: {
-    position: "absolute",
-    left: "24.5%",
-    top: "82%",
-    width: "20%",
-    height: "12%",
-    zIndex: 20,
-  },
-  marketplaceHotspot: {
-    position: "absolute",
-    left: "66.5%",
-    top: "82%",
-    width: "24%",
-    height: "12%",
-    zIndex: 20,
-  },
-  syncHotspot: {
-    left: "46.5%",
-    top: "82%",
-    width: "18%",
-    height: "12%",
-    position: "absolute",
     zIndex: 20,
   },
   utilityStack: {
@@ -780,16 +749,16 @@ const styles = StyleSheet.create({
   },
   partOverlay: {
     position: "absolute",
-    top: `${((DASHBOARD_SLOT_Y + 54) / ARTBOARD_HEIGHT) * 100}%`,
-    width: `${(DASHBOARD_SLOT_OVERLAY_WIDTH / ARTBOARD_WIDTH) * 100}%`,
-    height: `${(DASHBOARD_SLOT_OVERLAY_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
+    top: artboardPercentY(PART_SLOT_Y + PART_OVERLAY.dy),
+    width: `${(PART_OVERLAY.width / ARTBOARD_WIDTH) * 100}%`,
+    height: `${(PART_OVERLAY.height / ARTBOARD_HEIGHT) * 100}%`,
     zIndex: 20,
   },
   partHotspot: {
     position: "absolute",
-    top: `${(DASHBOARD_SLOT_Y / ARTBOARD_HEIGHT) * 100}%`,
-    width: `${(DASHBOARD_SLOT_WIDTH / ARTBOARD_WIDTH) * 100}%`,
-    height: `${(DASHBOARD_SLOT_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
+    top: `${(PART_SLOT_Y / ARTBOARD_HEIGHT) * 100}%`,
+    width: `${(PART_SLOT_WIDTH / ARTBOARD_WIDTH) * 100}%`,
+    height: `${(PART_SLOT_HEIGHT / ARTBOARD_HEIGHT) * 100}%`,
     zIndex: 20,
   },
   fillImage: {

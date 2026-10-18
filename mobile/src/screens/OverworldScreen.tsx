@@ -260,7 +260,8 @@ export function OverworldScreen() {
       {showBlockedOverlay ? (
         <View style={styles.overlay}>
           <Text style={styles.errorTitle}>Overworld Blocked</Text>
-          <Text style={styles.errorCopy}>{`The overworld address is not on the allowed origin list.\n${STORY_OVERWORLD_URL}`}</Text>
+          {/* Never print the configured address (L10): it is build config, not player copy. */}
+          <Text style={styles.errorCopy}>The overworld address is not on the allowed origin list.</Text>
         </View>
       ) : null}
       {loadError ? (

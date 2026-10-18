@@ -192,6 +192,10 @@ const REFUSAL_TEXT: Record<string, string> = {
 };
 export type MarketNotice = { tone: "ok" | "refused" | "info"; text: string };
 
+/** A purchase reply the app reads as the host's confirmation (a fresh charge or the replayed receipt of one); purchaseNotice's "ok". */
+export function purchaseConfirmed(reply: unknown): boolean {
+  return record(reply) !== null;
+}
 export function purchaseNotice(listing: VendorListing, reply: unknown): MarketNotice {
   const body = record(reply);
   if (!body) return { tone: "info", text: "The host reply could not be verified. Check the stalls before buying again." };
