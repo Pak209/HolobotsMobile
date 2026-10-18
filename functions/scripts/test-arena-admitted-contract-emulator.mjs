@@ -6,6 +6,7 @@ const require=createRequire(import.meta.url);
 if(!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||'')||!process.env.GCLOUD_PROJECT?.startsWith('demo-'))throw Error('Loopback demo emulator required');
 const {db}=require('../lib/admin');
 const {arenaMatchHost}=require('../lib/arena/arenaMatchHost');
+const {ARENA_MIN_SETTLE_MS}=require('../lib/arena/arenaMatchStore');
 const {chargeArenaEntry}=require('../lib/arena/chargeArenaEntry');
 const Ajv=createRequire(new URL('../../rules-tests/package.json',import.meta.url))('ajv');
 const ajv=new Ajv({strict:false});
@@ -32,7 +33,7 @@ test('callable lifecycle uses one paid ID and frozen snapshots across recovery a
  assert.deepEqual((await call('issue',issue)).match,a.match);
  assert.deepEqual((await call('resume')).match,a.match);
  await call('start',{matchId});
- await new Promise(resolve=>setTimeout(resolve,1050));
+ await new Promise(resolve=>setTimeout(resolve,ARENA_MIN_SETTLE_MS+50)); // S1 win floor (was 1,050 ms past the old 1 s floor)
  const done=await call('settle',{matchId,playerFinalHealth:30,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0});
  assert.equal(done.match.state,'settled');assert.equal(done.match.settlementReceipt.outcome,'win');
  const account=(await db.doc(`users/${uid}`).get()).data();assert.equal(account.holosTokens,1050);assert.equal(account.wins,1);

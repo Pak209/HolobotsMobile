@@ -9,7 +9,7 @@ const { createGenesisProfile } = require('../lib/account/createGenesisProfile.js
 const { desktopAccountSnapshot } = require('../lib/desktop/desktopAccountSnapshot.js');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
 const { transactArenaGathering } = require('../lib/story/arenaGathering.js');
-const { transactArenaMatch } = require('../lib/arena/arenaMatchStore.js');
+const { transactArenaMatch, ARENA_MIN_SETTLE_MS } = require('../lib/arena/arenaMatchStore.js');
 const { transactTournamentResult } = require('../lib/story/tournamentResultStore.js');
 const { calculateExperience } = require('../lib/lib/progression.js');
 const { RIVAL_MIN_WIN_MS, RIVAL_COOLDOWN_MS } = require('../lib/lib/rivalLadder.js');
@@ -150,9 +150,9 @@ test('admission snapshots rank once, replay and terminal result keep it after ac
   await ref.update({tournament:FieldValue.delete()});
   await arena(uid,'start',{matchId:issued.matchId});
   const outcome={matchId:issued.matchId,playerFinalHealth:issued.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0};
-  await arena(uid,'settle',outcome,T0+1500);
+  await arena(uid,'settle',outcome,T0+1500+ARENA_MIN_SETTLE_MS);
   await ref.update({tournament:issued.match.tournament});
-  const settled=await arena(uid,'settle',outcome,T0+2000);
+  const settled=await arena(uid,'settle',outcome,T0+2000+ARENA_MIN_SETTLE_MS);
   assert.equal(settled.alreadyProcessed,true);
   assert.equal(settled.match.tournament.pilotRankAtAdmission,7);
   await transactTournamentResult(db,uid,{schemaVersion:'arena-tournament-1',tournamentId:'starter',matchId:issued.matchId});

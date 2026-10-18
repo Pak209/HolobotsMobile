@@ -9,7 +9,7 @@ if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '') || !pr
   throw new Error('Loopback demo Firestore emulator required; production is forbidden');
 }
 const { db } = require('../lib/admin.js');
-const { transactArenaMatch } = require('../lib/arena/arenaMatchStore.js');
+const { transactArenaMatch, ARENA_MIN_SETTLE_MS, ARENA_MS_PER_COMBO, ARENA_MS_PER_PERFECT_DEFENSE, ARENA_CPU_DAILY_PAYOUT_CAP, ARENA_CPU_PAYOUTS_SCHEMA } = require('../lib/arena/arenaMatchStore.js');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
 const { transactHoloZoneRun } = require('../lib/holozone/holoZoneStore.js');
 const { transactDesktopItems } = require('../lib/vendors/desktopItemsHost.js');
@@ -47,6 +47,7 @@ async function state(uid) {
     user: await user(uid), arena: await doc(`arenaMatches/${uid}`),
     matches: await tree(`arenaMatches/${uid}/matches`), requests: await tree(`arenaMatches/${uid}/requests`),
     arenaReceipts: await tree(`arenaMatches/${uid}/receipts`),
+    cpuPayouts: await tree(`arenaMatches/${uid}/ledger`),
     rivals: await doc(`rivalBattles/${uid}`), rivalBattles: await tree(`rivalBattles/${uid}/battles`),
     zones: await doc(`holoZoneRuns/${uid}`), items: await doc(`itemInventories/${uid}`),
     itemReceipts: await tree(`itemInventories/${uid}/receipts`),
@@ -185,7 +186,9 @@ test('repair during open Arena never consumes inventory, heals, or writes a rece
 
 const start = (uid, matchId, now = T0 + 1) => call(uid, { operation: 'start', matchId }, now);
 const settleData = (matchId, overrides = {}) => ({ operation: 'settle', matchId, playerFinalHealth: 30, opponentFinalHealth: 0, combosCompleted: 0, perfectDefenses: 0, ...overrides });
-const settle = (uid, matchId, overrides = {}, now = T0 + 2000) => call(uid, settleData(matchId, overrides), now);
+// S1 (2026-10-17): a win needs ARENA_MIN_SETTLE_MS after start (T0 + 1); the default keeps the old 1,999 ms margin past it.
+const SETTLED = T0 + 1 + ARENA_MIN_SETTLE_MS + 1999;
+const settle = (uid, matchId, overrides = {}, now = SETTLED) => call(uid, settleData(matchId, overrides), now);
 const match = (uid, matchId) => doc(`arenaMatches/${uid}/matches/${matchId}`);
 
 test('valid issue binds cost, entrant and opponent; start/settle writes stable receipt and downward HP', async () => {
@@ -218,7 +221,7 @@ test('five concurrent settlements award once and every retry returns the durable
   assert.equal((await user(uid)).wins, 1);
   for (const reply of results) assert.deepEqual(reply.match.settlementReceipt, results[0].match.settlementReceipt);
   const before = await state(uid);
-  const replay = await settle(uid, issued.matchId, {}, T0 + 6000);
+  const replay = await settle(uid, issued.matchId, {}, SETTLED + 4000);
   assert.equal(replay.alreadyProcessed, true);
   assert.deepEqual(replay.match.settlementReceipt, results[0].match.settlementReceipt);
   assert.deepEqual(await state(uid), before);
@@ -227,14 +230,14 @@ test('five concurrent settlements award once and every retry returns the durable
 test('paid A → paid B → A replay cannot repay A, overwrite B lease, or erase A receipt', async () => {
   const uid = await setup(); const a = await issue(uid, 'paid_match_a'); await start(uid, a.matchId);
   const first = await settle(uid, a.matchId);
-  const b = await issue(uid, 'paid_match_b', {}, T0 + 3000);
+  const b = await issue(uid, 'paid_match_b', {}, SETTLED + 1000);
   const before = await state(uid);
-  const replay = await settle(uid, a.matchId, {}, T0 + 4000);
+  const replay = await settle(uid, a.matchId, {}, SETTLED + 2000);
   assert.equal(replay.alreadyProcessed, true);
   assert.deepEqual(replay.match.settlementReceipt, first.match.settlementReceipt);
   assert.deepEqual(await state(uid), before);
   assert.equal((await doc(`arenaMatches/${uid}`)).matchId, b.matchId);
-  const resume = await call(uid, { operation: 'resume', matchId: a.matchId }, T0 + 5000);
+  const resume = await call(uid, { operation: 'resume', matchId: a.matchId }, SETTLED + 3000);
   assert.deepEqual(resume.match.settlementReceipt, first.match.settlementReceipt);
   assert.deepEqual(await state(uid), before);
 });
@@ -566,8 +569,10 @@ test('admission numeric quote remains binding after a later tier fee/reward tabl
 
 test('minimum elapsed and performance upper bounds accept their exact legal boundary', async () => {
   const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
-  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + 1000), /too_fast/);
-  const reply = await settle(uid, issued.matchId, { combosCompleted: 25, perfectDefenses: 25 }, T0 + 1001);
+  // S1: the win floor is exact at ARENA_MIN_SETTLE_MS after start (T0 + 1); 25 / 25 needs 75 s of receipt.
+  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + ARENA_MIN_SETTLE_MS), /too_fast/);
+  const longest = 25 * Math.max(ARENA_MS_PER_COMBO, ARENA_MS_PER_PERFECT_DEFENSE);
+  const reply = await settle(uid, issued.matchId, { combosCompleted: 25, perfectDefenses: 25 }, T0 + 1 + longest);
   assert.equal(reply.match.settlementReceipt.report.combosCompleted, 25);
   assert.equal(reply.match.settlementReceipt.report.perfectDefenses, 25);
   assert.equal(reply.match.state, 'settled');
@@ -633,15 +638,15 @@ test('malformed current entrant progression fails before the XP loop or any sett
 test('altered valid-shaped terminal report replays the original ruling without touching a newer lease', async () => {
   const uid = await setup(); const a = await issue(uid, 'terminal_report_a'); await start(uid, a.matchId);
   const original = await settle(uid, a.matchId);
-  const b = await issue(uid, 'terminal_report_b', {}, T0 + 3000);
+  const b = await issue(uid, 'terminal_report_b', {}, SETTLED + 1000);
   const before = await state(uid);
-  const changed = await settle(uid, a.matchId, { playerFinalHealth: 0, opponentFinalHealth: 1, combosCompleted: 25, perfectDefenses: 25 }, T0 + 4000);
+  const changed = await settle(uid, a.matchId, { playerFinalHealth: 0, opponentFinalHealth: 1, combosCompleted: 25, perfectDefenses: 25 }, SETTLED + 2000);
   assert.equal(changed.alreadyProcessed, true);
   assert.equal(changed.match.settlementReceipt.outcome, 'win');
   assert.deepEqual(changed.match.settlementReceipt, original.match.settlementReceipt);
   assert.deepEqual(await state(uid), before);
   assert.equal((await doc(`arenaMatches/${uid}`)).matchId, b.matchId);
-  const paidRetry = await call(uid, issueData('terminal_report_a'), T0 + 5000);
+  const paidRetry = await call(uid, issueData('terminal_report_a'), SETTLED + 3000);
   assert.equal(paidRetry.matchId, a.matchId); assert.equal(paidRetry.match.state, 'settled');
   assert.deepEqual(await state(uid), before, 'lost old issue reply cannot spend again after a later match');
 });
@@ -671,8 +676,8 @@ test('fresh-client resume without IDs discovers absent, open, expired and latest
   const b = await issue(uid, 'discovery_match_b', {}, expired + 2);
   await discover(expired + 3, b.matchId, 'issued');
   await start(uid, b.matchId, expired + 4);
-  const settled = await settle(uid, b.matchId, { playerFinalHealth: 20 }, expired + 2000);
-  const latest = await discover(expired + 2001, b.matchId, 'settled');
+  const settled = await settle(uid, b.matchId, { playerFinalHealth: 20 }, expired + 4 + ARENA_MIN_SETTLE_MS);
+  const latest = await discover(expired + 5 + ARENA_MIN_SETTLE_MS, b.matchId, 'settled');
   assert.deepEqual(latest.match.settlementReceipt, settled.match.settlementReceipt);
 
   for (const lease of [
@@ -702,7 +707,7 @@ async function settledKits(level) {
   const uid = await setup({ holobots: [{ name: 'ACE', level, experience: exp - 1, nextLevelExp: exp, rank: 'Starter', attributePoints: 0 }], itemStocks: { repair_kit: 1 } });
   const { matchId } = await issue(uid, `rank_kit_${level}`);
   await call(uid, { operation: 'start', matchId }, T0 + 1);
-  await call(uid, { operation: 'settle', matchId, playerFinalHealth: 10, opponentFinalHealth: 0, combosCompleted: 0, perfectDefenses: 0 }, T0 + 5000);
+  await call(uid, { operation: 'settle', matchId, playerFinalHealth: 10, opponentFinalHealth: 0, combosCompleted: 0, perfectDefenses: 0 }, SETTLED);
   const after = await user(uid);
   return { level: after.holobots[0].level, kits: after.itemStocks.repair_kit };
 }
@@ -723,4 +728,88 @@ test('open duel-healing run refuses rival and zone issue with no write', async (
   await refused(uid, () => rival(uid, { operation: 'issue' }, T0 + 1), /too_many_open/);
   await refused(uid, () => zone(uid, { operation: 'issue', zoneId: 'neonforest' }, T0 + 1), /unavailable/);
   await refused(uid, () => call(uid, issueData('duel_blocks_arena'), T0 + 1), /activity_conflict/);
+});
+
+// ---- Critic review 2026-10-17 S1: bounded CPU arena mitigation (floor, performance clamp, daily payout cap). ----
+const payouts = async uid => doc(`arenaMatches/${uid}/ledger/cpuPayouts`);
+async function played(uid, requestId, report = {}, elapsed = ARENA_MIN_SETTLE_MS, startAt = T0 + 1) {
+  const issued = await issue(uid, requestId, {}, startAt - 1);
+  await start(uid, issued.matchId, startAt);
+  return { issued, reply: await settle(uid, issued.matchId, report, startAt + elapsed) };
+}
+
+test('S1 floor: a win under ARENA_MIN_SETTLE_MS is too_fast with nothing written and settles later; a fast loss settles but pays nothing', async () => {
+  const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
+  const before = await state(uid);
+  await refused(uid, () => settle(uid, issued.matchId, {}, T0 + ARENA_MIN_SETTLE_MS), /too_fast/);
+  assert.deepEqual(await state(uid), before, 'too_fast writes nothing');
+  const win = await settle(uid, issued.matchId, {}, T0 + 1 + ARENA_MIN_SETTLE_MS);
+  assert.equal(win.match.settlementReceipt.outcome, 'win'); assert.equal(win.match.settlementReceipt.settlement.holos, issued.record.rules.holos);
+
+  const lossUid = await setup(); const l = await issue(lossUid); await start(lossUid, l.matchId);
+  const lossBefore = await user(lossUid);
+  const loss = await settle(lossUid, l.matchId, { playerFinalHealth: 0, opponentFinalHealth: 1, combosCompleted: 25, perfectDefenses: 25 }, T0 + 1 + 1000);
+  const s = loss.match.settlementReceipt;
+  assert.equal(s.outcome, 'loss');
+  assert.deepEqual(s.settlement, { exp: 0, awardedExp: 0, holos: 0, syncPoints: 0, blueprints: null, payoutWithheld: 'under_floor' });
+  assert.equal(s.report.combosCompleted, 0, 'clamped to the 1 s receipt'); assert.equal(s.report.perfectDefenses, 0);
+  const lossAfter = await user(lossUid);
+  assert.equal(lossAfter.holosTokens, lossBefore.holosTokens); assert.equal(lossAfter.syncPoints, lossBefore.syncPoints);
+  assert.deepEqual(lossAfter.holobots, lossBefore.holobots); assert.equal(lossAfter.holobotVitals.ace.currentHealth, 0);
+  assert.equal(lossAfter.losses, lossBefore.losses + 1);
+  assert.equal(await payouts(lossUid), undefined, 'a withheld settle does not count toward the cap');
+  const replay = await settle(lossUid, l.matchId, {}, T0 + 1 + ARENA_MIN_SETTLE_MS);
+  assert.equal(replay.alreadyProcessed, true); assert.deepEqual(replay.match.settlementReceipt, s);
+});
+
+test('S1 clamp: combos / perfect defenses are bounded by the recorded receipt length; the stored report and EXP use the clamped values', async () => {
+  const uid = await setup();
+  const { issued, reply } = await played(uid, 'clamp_floor', { combosCompleted: 25, perfectDefenses: 25 });
+  const combos = Math.floor(ARENA_MIN_SETTLE_MS / ARENA_MS_PER_COMBO), perfects = Math.floor(ARENA_MIN_SETTLE_MS / ARENA_MS_PER_PERFECT_DEFENSE);
+  const r = issued.record.rules, receipt = reply.match.settlementReceipt;
+  assert.deepEqual([receipt.report.combosCompleted, receipt.report.perfectDefenses], [combos, perfects]);
+  assert.equal(receipt.settlement.exp, Math.floor(r.exp * (1 + r.comboBonus * combos + r.perfectDefenseBonus * perfects)));
+  assert.ok(receipt.settlement.exp < Math.floor(r.exp * (1 + r.comboBonus * 25 + r.perfectDefenseBonus * 25)));
+  // An honest report inside the bound is untouched.
+  const honest = await played(uid, 'clamp_honest', { combosCompleted: 3, perfectDefenses: 2 }, ARENA_MIN_SETTLE_MS, SETTLED + 1000);
+  assert.deepEqual([honest.reply.match.settlementReceipt.report.combosCompleted, honest.reply.match.settlementReceipt.report.perfectDefenses], [3, 2]);
+  const replay = await settle(uid, issued.matchId, { combosCompleted: 0 }, SETTLED + 999999);
+  assert.deepEqual(replay.match.settlementReceipt, receipt, 'replay returns the stored receipt');
+});
+
+test('S1 cap: ARENA_CPU_DAILY_PAYOUT_CAP paid settles per UTC day; the next settle closes with HP but pays nothing; the next UTC day pays again', async () => {
+  const uid = await setup({ holosTokens: 5000 });
+  const first = await played(uid, 'cap_first');
+  assert.deepEqual(await payouts(uid), { schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day: new Date(T0).toISOString().slice(0, 10), paidSettles: 1 });
+  assert.equal(first.reply.match.settlementReceipt.settlement.payoutWithheld, undefined);
+  // Fast-forward the server-only ledger to the cap boundary (the loop itself is covered above).
+  await db.doc(`arenaMatches/${uid}/ledger/cpuPayouts`).set({ schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day: new Date(T0).toISOString().slice(0, 10), paidSettles: ARENA_CPU_DAILY_PAYOUT_CAP - 1 });
+  const last = await played(uid, 'cap_last', {}, ARENA_MIN_SETTLE_MS, SETTLED + 1000);
+  assert.equal(last.reply.match.settlementReceipt.settlement.holos, last.issued.record.rules.holos, 'the cap-th settle still pays');
+  assert.equal((await payouts(uid)).paidSettles, ARENA_CPU_DAILY_PAYOUT_CAP);
+  const before = await user(uid);
+  const capped = await played(uid, 'cap_over', { playerFinalHealth: 20 }, ARENA_MIN_SETTLE_MS, SETTLED + 60000);
+  const receipt = capped.reply.match.settlementReceipt;
+  assert.equal(receipt.outcome, 'win');
+  assert.deepEqual(receipt.settlement, { exp: 0, awardedExp: 0, holos: 0, syncPoints: 0, blueprints: null, payoutWithheld: 'daily_cap' });
+  const after = await user(uid);
+  assert.equal(after.holosTokens, before.holosTokens - capped.issued.record.entryReceipt.amount, 'only the entry fee moved');
+  assert.deepEqual(after.blueprints, before.blueprints); assert.deepEqual(after.holobots, before.holobots); assert.equal(after.syncPoints, before.syncPoints);
+  assert.equal(after.holobotVitals.ace.currentHealth, 20, 'HP from the report is still written');
+  assert.equal((await payouts(uid)).paidSettles, ARENA_CPU_DAILY_PAYOUT_CAP);
+  const replay = await settle(uid, capped.issued.matchId, {}, SETTLED + 120000);
+  assert.equal(replay.alreadyProcessed, true); assert.deepEqual(replay.match.settlementReceipt, receipt);
+  // Next UTC day: T0 is 22:00 UTC, so +3 h is tomorrow.
+  const tomorrow = T0 + 3 * 60 * 60 * 1000;
+  const next = await played(uid, 'cap_tomorrow', { playerFinalHealth: 20 }, ARENA_MIN_SETTLE_MS, tomorrow);
+  assert.equal(next.reply.match.settlementReceipt.settlement.payoutWithheld, undefined);
+  assert.deepEqual(await payouts(uid), { schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day: new Date(tomorrow).toISOString().slice(0, 10), paidSettles: 1 });
+});
+
+test('S1 cap: a malformed payout ledger fails closed with nothing written', async () => {
+  const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
+  await db.doc(`arenaMatches/${uid}/ledger/cpuPayouts`).set({ schemaVersion: ARENA_CPU_PAYOUTS_SCHEMA, day: 'today', paidSettles: -1 });
+  const before = await state(uid);
+  await refused(uid, () => settle(uid, issued.matchId), /unavailable/);
+  assert.deepEqual(await state(uid), before);
 });

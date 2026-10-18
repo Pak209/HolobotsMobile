@@ -9,7 +9,7 @@ const Ajv=createRequire(new URL('../../rules-tests/package.json',import.meta.url
 const ajv=new Ajv({strict:false});
 const validateMatch=ajv.compile(JSON.parse(readFileSync(new URL('../../Schemas/arena-match-1.json',import.meta.url))));
 const validateBracket=ajv.compile(JSON.parse(readFileSync(new URL('../../Schemas/arena-bracket-1.json',import.meta.url))));
-const {transactArenaMatch}=require('../lib/arena/arenaMatchStore');
+const {transactArenaMatch,ARENA_MIN_SETTLE_MS}=require('../lib/arena/arenaMatchStore');
 const {transactTournamentBracket}=require('../lib/story/tournamentBracketStore');
 const {calculateExperience}=require('../lib/lib/progression');
 const T=Date.UTC(2026,9,17,20);let serial=0;const users=[];
@@ -31,7 +31,7 @@ test('match issue/start/resume/retry/cancel publish frozen snapshots; legacy sav
  assertMatch(await arena(uid,'cancel',{matchId:a.matchId,playerFinalHealth:a.match.entrant.currentHealth},T+2000));
  assertMatch(await arena(uid,'resume',{}));
  const b=await issue(uid);assertMatch(b);await arena(uid,'start',{matchId:b.matchId});
- const result=await arena(uid,'settle',{matchId:b.matchId,playerFinalHealth:b.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},T+2000);assertMatch(result);
+ const result=await arena(uid,'settle',{matchId:b.matchId,playerFinalHealth:b.match.entrant.currentHealth,opponentFinalHealth:0,combosCompleted:0,perfectDefenses:0},T+2000+ARENA_MIN_SETTLE_MS);assertMatch(result);
  if(process.env.ARENA_SNAPSHOT_FIXTURE_OUT)writeFileSync(process.env.ARENA_SNAPSHOT_FIXTURE_OUT,JSON.stringify({provenance:'Throwaway loopback demo emulator; arenaMatchHost transaction issue reply.',reply:b},null,2)+'\n');
 });
 test('all eight citizen entrants plus player project same fighter identity/stats on every bracket reply',async()=>{
