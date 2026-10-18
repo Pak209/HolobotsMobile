@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ auth: { currentUser: { uid: "pilot-a" } as { uid: string } | null }, call: vi.fn(), callable: vi.fn() }));
 vi.mock("@/config/firebase", () => ({ auth: fixture.auth, functions: {}, httpsCallable: (...args: unknown[]) => { fixture.callable(...args); return fixture.call; } }));
 import { createCityMarketController, fixtureCityMarketHost, liveCityMarketHost, NOT_SOLD_HERE_TEXT, NOT_SOLD_IN_LITE_TEXT, type CityMarketFixture, type CityMarketHost } from "../cityMarketClient";
-import { CATALOG_INVALID_TEXT, cityMarketReducer, initialCityMarketState, presentCityMarket, readVendorCatalog, refusalNotice, SESSION_SWITCHED_CODE, type CityMarketEvent, type CityMarketState } from "../cityMarket";
+import { CATALOG_INVALID_TEXT, cityMarketReducer, initialCityMarketState, presentCityMarket, readVendorCatalog, refusalNotice, SESSION_SWITCHED_CODE, UNVERIFIED_REPLY_CODE, type CityMarketEvent, type CityMarketState } from "../cityMarket";
 import { createCityRequestJournal } from "../cityRequestJournal";
 import { subscribeHostEconomyChanged } from "../hostDashboard";
 import { cityMarketFixtures, CITY_MARKET_HOST_FIXTURE as hostMarket, NOT_ENOUGH_HOLOS_REFUSAL } from "../../qa/cityMarketFixtures";
@@ -57,7 +57,7 @@ describe("live market host (vendorCatalogHost + the listing's own purchase call)
     expect(store.size).toBe(0);
   });
   it("buys a healing item through desktopItemsHost buy with a fresh requestId", async () => {
-    fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "desktop-items-2" } });
+    fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "desktop-items-2", result: { kind: "buy", itemId: "item.repair_kit" } } });
     const { journal } = memoryJournal();
     await liveCityMarketHost("pilot-a", journal).buy(listing("item.repair_kit"));
     expect(fixture.callable).toHaveBeenLastCalledWith({}, "desktopItemsHost");
@@ -96,22 +96,53 @@ describe("economy-change signal (#132) from the live buy path", () => {
     expect(seenBeforeReply).toBe(0);
     expect(seen).toEqual(["pilot-a"]);
   });
-  it("publishes for a desktopItemsHost buy receipt, and never for an object that is not this purchase's confirmation", async () => {
+  it("publishes for a desktopItemsHost buy receipt; anything else is no verdict: rejected as unverified, requestId kept, nothing published", async () => {
     const seen = listen();
-    const { journal } = memoryJournal();
+    const { journal, store } = memoryJournal();
     const host = liveCityMarketHost("pilot-a", journal);
     fixture.call.mockResolvedValueOnce({ data: { schemaVersion: "desktop-items-2", items: [], result: { kind: "buy", itemId: "item.repair_kit" } } });
     await host.buy(listing("item.repair_kit"));
     expect(seen).toEqual(["pilot-a"]);
+    expect(store.size).toBe(0);
     const notConfirmations = [
-      {}, { schemaVersion: "desktop-items-2" }, { schemaVersion: "desktop-items-2", result: { kind: "use", itemId: "item.repair_kit" } },
+      null, {}, { schemaVersion: "desktop-items-2" }, { schemaVersion: "desktop-items-2", result: { kind: "use", itemId: "item.repair_kit" } },
       { schemaVersion: "desktop-items-2", result: { kind: "buy", itemId: "item.full_restore" } },
     ];
-    for (const data of notConfirmations) { fixture.call.mockResolvedValueOnce({ data }); await host.buy(listing("item.repair_kit")); }
-    for (const data of [{ ...hostMarket.purchaseReply, requestId: "someone_elses" }, { ...hostMarket.purchaseReply, requestId: "req_9", tierId: "buddy_heavy" }]) {
-      fixture.call.mockResolvedValueOnce({ data }); await host.buy(listing("buddy.medium"));
+    for (const data of notConfirmations) {
+      fixture.call.mockResolvedValueOnce({ data });
+      await expect(host.buy(listing("item.repair_kit"))).rejects.toEqual({ code: UNVERIFIED_REPLY_CODE });
+    }
+    // Every unverified retry resent the SAME kept requestId, so a real charge can only be replayed.
+    const sent = fixture.call.mock.calls.slice(1).map(([request]) => (request as { requestId: string }).requestId);
+    expect(new Set(sent)).toEqual(new Set(["req_2"]));
+    expect([...store.values()]).toEqual(["req_2"]);
+    for (const data of [{ ...hostMarket.purchaseReply, requestId: "someone_elses" }, { ...hostMarket.purchaseReply, requestId: "req_3", tierId: "buddy_heavy" }]) {
+      fixture.call.mockResolvedValueOnce({ data });
+      await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: UNVERIFIED_REPLY_CODE });
     }
     expect(seen).toEqual(["pilot-a"]);
+    // The page reads it as "did not confirm", never as a confirmation (critic: notice and signal agree).
+    expect(refusalNotice(listing("buddy.medium"), { code: UNVERIFIED_REPLY_CODE }).tone).toBe("info");
+  });
+  it("a stale session at tap time sends nothing and keeps an earlier kept requestId", async () => {
+    const { journal, store } = memoryJournal();
+    const host = liveCityMarketHost("pilot-a", journal);
+    fixture.call.mockRejectedValueOnce({ code: "functions/deadline-exceeded" });
+    await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: "functions/deadline-exceeded" });
+    expect([...store.values()]).toEqual(["req_1"]);
+    fixture.call.mockClear();
+    fixture.auth.currentUser = null;
+    await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: "unauthenticated" });
+    expect(fixture.call).not.toHaveBeenCalled();
+    expect([...store.values()]).toEqual(["req_1"]);
+  });
+  it("fails closed on a desktop-items row whose receipt this app cannot verify (schema bump)", async () => {
+    const bumped = clone(hostMarket.catalog) as Record<string, any>;
+    bumped.listings.find((row: any) => row.listingId === "item.repair_kit").purchase.request.schemaVersion = "desktop-items-3";
+    const { journal, store } = memoryJournal();
+    await expect(liveCityMarketHost("pilot-a", journal).buy(listing("item.repair_kit", bumped))).rejects.toThrow(NOT_SOLD_HERE_TEXT);
+    expect(fixture.call).not.toHaveBeenCalled();
+    expect(store.size).toBe(0);
   });
   it("critic F6: a throwing listener never turns a real charge into a refusal", async () => {
     const seen = listen();
@@ -149,7 +180,7 @@ describe("economy-change signal (#132) from the live buy path", () => {
     fixture.call.mockRejectedValueOnce({ code: "functions/deadline-exceeded" });
     await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: "functions/deadline-exceeded" });
     fixture.call.mockResolvedValueOnce({ data: null });
-    await host.buy(listing("item.repair_kit"));
+    await expect(host.buy(listing("item.repair_kit"))).rejects.toEqual({ code: UNVERIFIED_REPLY_CODE });
     fixture.call.mockImplementationOnce(async () => { fixture.auth.currentUser = { uid: "pilot-b" }; return { data: hostMarket.purchaseReply }; });
     await expect(host.buy(listing("buddy.medium"))).rejects.toEqual({ code: SESSION_SWITCHED_CODE });
     fixture.auth.currentUser = { uid: "pilot-a" };

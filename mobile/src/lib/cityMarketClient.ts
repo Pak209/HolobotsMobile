@@ -2,7 +2,7 @@ import { auth, functions, httpsCallable } from "@/config/firebase";
 import { CALLABLE_TIMEOUT_MS, withTimeout } from "./async";
 import {
   CITY_MARKET_VENDOR, VENDOR_CATALOG_CALLABLE, isSignedOutError, isUncertainOutcome, listingBlock,
-  listingPurchase, marketUnavailableText, purchaseConfirmed, purchaseNotice, readVendorCatalog, refusalNotice, SESSION_SWITCHED_CODE,
+  listingPurchase, marketUnavailableText, purchaseConfirmed, purchaseNotice, readVendorCatalog, refusalNotice, SESSION_SWITCHED_CODE, UNVERIFIED_REPLY_CODE,
   type CityMarketEvent, type MarketNotice, type VendorListing,
 } from "./cityMarket";
 import { notifyHostEconomyChanged } from "./hostDashboard";
@@ -47,6 +47,8 @@ export function liveCityMarketHost(uid: string, journal: CityMarketRequestJourna
     async buy(listing) {
       const block = listingBlock(listing);
       if (block) throw new Error(block === "desktop_only" ? NOT_SOLD_IN_LITE_TEXT : NOT_SOLD_HERE_TEXT);
+      // A stale session sends nothing and leaves the journal alone (a kept requestId must survive).
+      if (!uid || auth.currentUser?.uid !== uid) throw { code: "unauthenticated" };
       const action = journalAction(listing);
       const requestId = await journal.acquire(uid, action);
       const call = listingPurchase(listing, requestId);
@@ -56,12 +58,16 @@ export function liveCityMarketHost(uid: string, journal: CityMarketRequestJourna
       try {
         reply = await marketCall(uid, call.callable, call.request, true);
       } catch (error) {
-        if (!isUncertainOutcome(error)) await settle();
+        // Only the City's verdict clears the requestId; no verdict (timeout, switch, sign-out) keeps it.
+        if (!isUncertainOutcome(error) && !isSignedOutError(error)) await settle();
         throw error;
       }
+      // Anything but this purchase's own receipt is no verdict either: keep the requestId (a resend
+      // replays the receipt), publish nothing, and let the page say the City did not confirm.
+      if (!purchaseConfirmed(listing, reply, requestId)) throw { code: UNVERIFIED_REPLY_CODE };
       await settle();
       // A listener must never turn a real charge into a refusal: the signal is best-effort.
-      if (purchaseConfirmed(listing, reply, requestId)) { try { notifyHostEconomyChanged(uid); } catch { /* listeners re-read on focus */ } }
+      try { notifyHostEconomyChanged(uid); } catch { /* listeners re-read on focus */ }
       return reply;
     },
   };

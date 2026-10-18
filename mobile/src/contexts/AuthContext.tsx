@@ -103,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileRevision, setProfileRevision] = useState(0);
+  const profileUidRef = useRef<string | null>(null);
   const manualLoginRef = useRef(false);
 
   useEffect(() => {
@@ -177,6 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (manualLoginRef.current) {
         manualLoginRef.current = false;
+        // Same batch as the user: no render ever sees a signed-in user whose profile read has not started.
+        setProfileLoading(true);
         setUser(nextUser);
         setSessionLocked(false);
         setBootLoading(false);
@@ -194,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      setProfileLoading(true);
       setUser(nextUser);
       setSessionLocked(authPreferences.faceId && faceIdAvailable);
       setBootLoading(false);
@@ -205,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) {
+      profileUidRef.current = null;
       setProfile(null);
       setProfileLoading(false);
       setProfileError(null);
@@ -212,12 +217,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfileLoading(true);
-    setProfileError(null);
+    // A new account starts clean. A retry keeps the last error until the read answers, so the app stays
+    // mounted (App.tsx shows its loading screen only for a first read) and Home shows LOADING ROSTER.
+    if (profileUidRef.current !== user.uid) setProfileError(null);
+    profileUidRef.current = user.uid;
 
     const unsubscribe = subscribeToUserProfile(
       user.uid,
       (nextProfile) => {
         setProfile(nextProfile);
+        setProfileError(null);
         setProfileLoading(false);
       },
       (error) => {

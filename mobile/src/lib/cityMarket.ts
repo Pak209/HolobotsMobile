@@ -152,11 +152,19 @@ export function readVendorCatalog(value: unknown, expectedVendor: VendorId): Ven
 export function listingNeedsRequestId(listing: VendorListing): boolean {
   return Object.values(listing.purchase.request).some((value) => value === REQUEST_ID_PLACEHOLDER);
 }
-/** Why this app will not send a listing's purchase call, or null when it may. A capability check, never an economy rule. */
-export function listingBlock(listing: VendorListing): "desktop_only" | "not_idempotent" | null {
+/** The desktop-items schema whose buy receipt this app can verify (purchaseConfirmed). */
+export const DESKTOP_ITEMS_SCHEMA = "desktop-items-2";
+/**
+ * Why this app will not send a listing's purchase call, or null when it may. A capability check, never
+ * an economy rule. "unverifiable": a request schema whose receipt this app cannot check, so a real charge
+ * would read as unconfirmed; it fails closed until the app learns the new receipt.
+ */
+export function listingBlock(listing: VendorListing): "desktop_only" | "not_idempotent" | "unverifiable" | null {
   const rule = own(LITE_PURCHASE_CALLABLES, listing.purchase.callable) ? LITE_PURCHASE_CALLABLES[listing.purchase.callable] : undefined;
   if (!rule || (rule.operation !== undefined && listing.purchase.request.operation !== rule.operation)) return "desktop_only";
-  return listingNeedsRequestId(listing) ? null : "not_idempotent";
+  if (!listingNeedsRequestId(listing)) return "not_idempotent";
+  if (listing.purchase.callable === "desktopItemsHost" && listing.purchase.request.schemaVersion !== DESKTOP_ITEMS_SCHEMA) return "unverifiable";
+  return null;
 }
 /** True when this app may send the listing's own purchase call: a known callable with a host-idempotent requestId. */
 export function listingPurchasable(listing: VendorListing): boolean {
@@ -184,7 +192,9 @@ export function isSignedOutError(error: unknown): boolean {
 }
 /** The account changed while a purchase reply was in flight: it may have charged the previous pilot. */
 export const SESSION_SWITCHED_CODE = "session-switched";
-const UNCERTAIN_CODES = new Set(["functions/unavailable", "functions/deadline-exceeded", "functions/internal", "functions/unknown", "functions/cancelled", SESSION_SWITCHED_CODE]);
+/** A purchase reply that is not this purchase's own receipt: treated like no verdict at all. */
+export const UNVERIFIED_REPLY_CODE = "unverified-reply";
+const UNCERTAIN_CODES = new Set(["functions/unavailable", "functions/deadline-exceeded", "functions/internal", "functions/unknown", "functions/cancelled", SESSION_SWITCHED_CODE, UNVERIFIED_REPLY_CODE]);
 /** No verdict reached this session (timeout, network, crash, account switch): the purchase may or may not have happened. */
 export function isUncertainOutcome(error: unknown): boolean {
   if (hostRejectionCode(error) || isSignedOutError(error)) return false;
@@ -220,7 +230,7 @@ export function purchaseConfirmed(listing: VendorListing, reply: unknown, reques
   }
   if (listing.purchase.callable === "desktopItemsHost") {
     const result = record(body.result);
-    return body.schemaVersion === "desktop-items-2" && result?.kind === "buy" && result.itemId === request.itemId;
+    return body.schemaVersion === DESKTOP_ITEMS_SCHEMA && result?.kind === "buy" && result.itemId === request.itemId;
   }
   return false;
 }
