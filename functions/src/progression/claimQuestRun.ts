@@ -3,13 +3,15 @@ import { Firestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
-import { applyQuestClaim } from "../lib/progressionEconomy";
-import { legacyQuestTimersEnabled, resolveQuestClaim, TimerError } from "../lib/progressionTimers";
+import { applyQuestClaim, getQuestEconomy } from "../lib/progressionEconomy";
+import { legacyQuestTimersEnabled, resolveQuestClaim, settleQuestClaim, TimerError } from "../lib/progressionTimers";
 import { timerHttpsError } from "./progressionTimerErrors";
 
 type ClaimQuestResponse = {
   rewards: { exp: number; itemAmount?: number; itemKey?: string; syncPoints: number };
   succeeded: boolean;
+  /** training-reward-replay-proof-1: present (true) when this run was already paid; the stored receipt, nothing paid. */
+  alreadyProcessed?: true;
 };
 
 /**
@@ -21,6 +23,10 @@ type ClaimQuestResponse = {
  * elapsed time is checked against its host-clock startedAtMs + the quest duration, and the success roll uses its
  * host-computed holobotPower. A client-written rewardSystem.activeQuests record is accepted ONLY when no server record
  * exists AND HOLOCITY_LEGACY_QUEST_TIMERS=1 (in-flight legacy clients on deploy day; default off).
+ *
+ * training-reward-replay-proof-1: every paid claim is recorded in the server-only progressionTimers.claimed ledger and
+ * the ledger is read first, so a run pays exactly once (a restored / resurrected / second-device copy, a retry or a
+ * reinstall replays the stored receipt with alreadyProcessed: true and pays nothing).
  */
 export async function transactClaimQuestRun(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now(),
   options: { legacyTimers?: boolean } = {}, roll = Math.random()): Promise<ClaimQuestResponse> {
@@ -38,16 +44,21 @@ export async function transactClaimQuestRun(firestore: Firestore, uid: string, r
     }
 
     const userData = snapshot.data() ?? {};
-    const { record, timerUpdates } = resolveQuestClaim(userData, questRunId, nowMs, legacyTimers);
+    const resolved = resolveQuestClaim(userData, questRunId, nowMs, legacyTimers);
+    if (resolved.source === "replay") {
+      // Already paid: prune the stale display copy, pay nothing, replay the receipt (rewards are the table's).
+      if (Object.keys(resolved.displayUpdates).length) transaction.update(userRef, resolved.displayUpdates);
+      return { rewards: getQuestEconomy(resolved.prior.subject)!.rewards, succeeded: resolved.prior.succeeded === true, alreadyProcessed: true };
+    }
 
-    const result = applyQuestClaim(userData, record, roll);
+    const result = applyQuestClaim(userData, resolved.record, roll);
     if (!result) {
       throw new HttpsError("invalid-argument", "Unknown quest.");
     }
 
     transaction.set(userRef, withRankHealingReward(userData,result.updates), { merge: true });
     // update(), not merge-set: a merge-set would deep-merge the quests map and keep the claimed run.
-    if (Object.keys(timerUpdates).length) transaction.update(userRef, timerUpdates);
+    transaction.update(userRef, settleQuestClaim(resolved, result.succeeded, nowMs));
 
     return { rewards: result.rewards, succeeded: result.succeeded };
   });

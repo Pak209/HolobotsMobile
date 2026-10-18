@@ -145,6 +145,10 @@ every request.
   be claimed (longest quest 4 h, training 1 h). Once the clients call `startQuestRun` / `startTrainingSession`,
   remove the line and redeploy those two functions (`.env*` files are git-ignored; every later deploy must carry or
   omit it deliberately). With the flag on, a client-written record is trusted exactly as before this change.
+- **The flag STAYS ON** (2026-10-18) until the original app ships the start callables (`startQuestRun` /
+  `startTrainingSession`) and store adoption retires the client-timer builds. Under it every claim pays exactly once:
+  the server-only claim ledger `progressionTimers.claimed` is read before any payout, and a replay returns the stored
+  receipt (`alreadyProcessed: true`) (training-reward-replay-proof-1, `scripts/test-progression-replay-emulator.mjs`).
 - Tests: pass `{ legacyTimers: true }` to `transactClaimQuestRun` / `transactClaimTrainingSession`, or set
   `process.env.HOLOCITY_LEGACY_QUEST_TIMERS = '1'` before `claimQuestRun.run(...)`
   (`scripts/test-progression-timers-emulator.mjs`).
