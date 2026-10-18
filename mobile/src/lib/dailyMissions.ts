@@ -1,3 +1,4 @@
+import type { DailyMissionLedger } from "@/lib/hostDashboard";
 import type { UserProfile } from "@/types/profile";
 
 export type MobileRewardSystem = {
@@ -15,6 +16,8 @@ export type MobileDailyMission = {
   progress: number;
   completed: boolean;
   claimed: boolean;
+  /** CLAIM is offered only from the City's ledger (host #145 dailyMissionLedger), never from the device copy. */
+  claimable: boolean;
   reward: {
     gachaTickets: number;
     holosTokens?: number;
@@ -77,47 +80,59 @@ export const DAILY_MISSION_TABLE = [
 function getMissionProgress(
   missionId: string,
   profile: UserProfile | null,
-  rewardSystem: MobileRewardSystem,
+  counts: { arenaBattlesToday: number; boosterPacksToday: number },
 ): number {
+  // daily_login: always 1 for a signed-in pilot (Schemas/daily-mission-ledger-1.json).
   if (missionId === "daily_login") return profile ? 1 : 0;
-  if (missionId === "arena_v2_battle") return rewardSystem.arenaBattlesToday;
-  if (missionId === "open_booster_pack") return rewardSystem.boosterPacksToday;
+  if (missionId === "arena_v2_battle") return counts.arenaBattlesToday;
+  if (missionId === "open_booster_pack") return counts.boosterPacksToday;
   return 0;
 }
 
-export function buildDailyMissions(profile: UserProfile | null, date = new Date()): MobileDailyMission[] {
+/**
+ * Daily missions from the City's ledger summary (desktopAccountSnapshot `dailyMissionLedger`, host #145) when the reply
+ * carries it: counts and claimed flags are the host's, and CLAIM is offered only then. Without it (an older host, a read
+ * still loading or failed), progress falls back to the client-writable rewardSystem copy for DISPLAY only: nothing is
+ * claimable from it.
+ */
+export function buildDailyMissions(profile: UserProfile | null, date = new Date(), ledger: DailyMissionLedger | null = null): MobileDailyMission[] {
   const todayKey = getTodayMissionKey(date);
   const rewardSystem = normalizeRewardSystem(profile?.rewardSystem, date);
+  const counts = ledger ?? rewardSystem;
   const claimedToday = rewardSystem.missionClaims || {};
 
-  const missions: Omit<MobileDailyMission, "claimed" | "completed">[] = DAILY_MISSION_TABLE.map(
-    (mission) => ({
-      ...mission,
-      reward: { ...mission.reward },
-      progress: getMissionProgress(mission.id, profile, rewardSystem),
-    }),
-  );
-
-  return missions.map((mission) => {
-    const completed = mission.progress >= mission.target;
-    const claimed = claimedToday[mission.id] === todayKey;
+  return DAILY_MISSION_TABLE.map((mission) => {
+    const progress = getMissionProgress(mission.id, profile, counts);
+    const completed = progress >= mission.target;
+    const claimed = ledger ? ledger.claimed[mission.id] === true : claimedToday[mission.id] === todayKey;
 
     return {
       ...mission,
+      reward: { ...mission.reward },
       completed,
       claimed,
-      progress: Math.min(mission.progress, mission.target),
+      claimable: ledger !== null && profile !== null && completed && !claimed,
+      progress: Math.min(progress, mission.target),
     };
   });
 }
 
-export function getDailyMissionSummary(profile: UserProfile | null, date = new Date()) {
-  const missions = buildDailyMissions(profile, date);
+export function getDailyMissionSummary(profile: UserProfile | null, date = new Date(), ledger: DailyMissionLedger | null = null) {
+  const missions = buildDailyMissions(profile, date, ledger);
   return {
     available: missions.length,
     completed: missions.filter((mission) => mission.completed).length,
-    unclaimed: missions.filter((mission) => mission.completed && !mission.claimed).length,
+    /** Claimable now: from the City's ledger only. */
+    unclaimed: missions.filter((mission) => mission.claimable).length,
   };
+}
+
+/** PLACEHOLDER copy (Lex): why CLAIM is unavailable when the City's ledger is not in hand. Null when it is. */
+export function missionLedgerNote(status: "idle" | "loading" | "ready" | "unavailable", ledger: DailyMissionLedger | null): string | null {
+  if (ledger) return null;
+  if (status === "idle" || status === "loading") return "Checking today's progress with the City…";
+  if (status === "ready") return "The City hasn't confirmed today's progress yet. Showing this device's count; claims open once it does.";
+  return "Couldn't reach the City. Showing this device's count; claims are paused.";
 }
 
 export function markMissionClaimed(

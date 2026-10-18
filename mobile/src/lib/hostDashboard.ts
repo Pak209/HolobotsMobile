@@ -21,6 +21,15 @@ export type DashboardZone = Readonly<{
   isOpen: boolean;
   sceneName: string | null;
 }>;
+/** Host #145 (daily-mission-ledger-1): the server-only mission ledger summarised for the host's current UTC day. */
+export const DAILY_MISSION_LEDGER_SCHEMA = "daily-mission-ledger-1";
+export const DAILY_MISSION_LEDGER_IDS = ["daily_login", "arena_v2_battle", "open_booster_pack"] as const;
+export type DailyMissionLedger = Readonly<{
+  day: string;
+  arenaBattlesToday: number;
+  boosterPacksToday: number;
+  claimed: Readonly<Record<(typeof DAILY_MISSION_LEDGER_IDS)[number], boolean>>;
+}>;
 export type DashboardAccount = Readonly<{
   uid: string;
   schemaVersion: DashboardAccountVersion;
@@ -32,6 +41,8 @@ export type DashboardAccount = Readonly<{
   zones: readonly DashboardZone[] | null;
   /** Holobot id (lowercase) -> host level. Bots without a valid level are absent. */
   levels: Readonly<Record<string, number>>;
+  /** The reply's additive `dailyMissionLedger` (host #145); null when absent (older host) or malformed. */
+  dailyMissionLedger: DailyMissionLedger | null;
 }>;
 
 function record(raw: unknown): Record<string, unknown> | null {
@@ -80,6 +91,22 @@ function readLevels(raw: unknown): Readonly<Record<string, number>> {
   return Object.freeze(levels);
 }
 
+/** Schemas/daily-mission-ledger-1.json, strictly: any extra, missing or mistyped key reads as absent (null), never as zero. */
+export function readDailyMissionLedger(raw: unknown): DailyMissionLedger | null {
+  const r = record(raw);
+  const claimed = record(r?.claimed);
+  if (!r || !claimed || r.schemaVersion !== DAILY_MISSION_LEDGER_SCHEMA) return null;
+  if (Object.keys(r).sort().join() !== "arenaBattlesToday,boosterPacksToday,claimed,day,schemaVersion") return null;
+  if (typeof r.day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(r.day)) return null;
+  const arenaBattlesToday = safeCount(r.arenaBattlesToday);
+  const boosterPacksToday = safeCount(r.boosterPacksToday);
+  if (arenaBattlesToday === null || boosterPacksToday === null) return null;
+  if (Object.keys(claimed).sort().join() !== [...DAILY_MISSION_LEDGER_IDS].sort().join()) return null;
+  if (DAILY_MISSION_LEDGER_IDS.some(id => typeof claimed[id] !== "boolean")) return null;
+  const flags = Object.freeze(Object.fromEntries(DAILY_MISSION_LEDGER_IDS.map(id => [id, claimed[id] as boolean])) as Record<(typeof DAILY_MISSION_LEDGER_IDS)[number], boolean>);
+  return Object.freeze({ day: r.day, arenaBattlesToday, boosterPacksToday, claimed: flags });
+}
+
 /**
  * Throws only when the reply is not this session's account (wrong uid / unknown version / not an object).
  * Old replies without the #124 identity fields are accepted: those fields read as null (UNAVAILABLE).
@@ -97,6 +124,7 @@ export function readDashboardAccount(raw: unknown, uid: string): DashboardAccoun
     syncPoints: safeCount(r.syncPoints),
     zones: readDashboardZones(r.zones),
     levels: readLevels(r.holobots),
+    dailyMissionLedger: readDailyMissionLedger(r.dailyMissionLedger),
   });
 }
 

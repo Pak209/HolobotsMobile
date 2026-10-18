@@ -1,5 +1,5 @@
 import { theme } from "@/theme";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
@@ -7,17 +7,31 @@ import { HomeCogButton } from "@/components/HomeCogButton";
 import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCityProgressionTimers } from "@/hooks/useCityProgressionTimers";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
-import { claimQuestRunAuthoritative } from "@/lib/progressionClient";
+import {
+  buildQuestCards,
+  canTryClaim,
+  CITY_QUEST_SLOTS,
+  cityBusyHolobots,
+  createStartRequestMemo,
+  legacyRefusals,
+  markLegacyRefused,
+  progressionRefusalCopy,
+  questStartBlock,
+  runStatusLine,
+  START_BLOCK_COPY,
+  type CityTimers,
+  type QuestCard,
+} from "@/lib/progressionHost";
+import { claimQuestRunInCity, startQuestRunInCity, updateRewardSystemKeys } from "@/lib/progressionHostClient";
 import {
   getEligibleQuestHolobots,
   getHolobotPowerScore,
   getQuestDefinition,
-  isSessionComplete,
   normalizeProgressionSystem,
   QUEST_DEFINITIONS,
   refreshQuestBoard,
-  startQuestRun,
 } from "@/lib/progressionSystems";
 
 function formatQuestDuration(minutes: number) {
@@ -26,22 +40,30 @@ function formatQuestDuration(minutes: number) {
   return Number.isInteger(hours) ? `${hours} hr` : `${hours.toFixed(1)} hr`;
 }
 
-function formatRemaining(endsAt: string, nowTick: number) {
-  const remainingMs = Math.max(0, new Date(endsAt).getTime() - nowTick);
-  const totalMinutes = Math.floor(remainingMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m`;
-}
-
-export function QuestsScreen() {
-  const { profile, updateProfile } = useAuth();
+/**
+ * Quests run through the City (host #145): SEND asks startQuestRun, which stamps the run with the City's clock and
+ * debits the energy; the cards show the City's end time; CLAIM asks claimQuestRun against the City's record. Nothing
+ * here writes a run, a timer, a power score or the energy. `timersPreview` is the offline QA harness only.
+ */
+export function QuestsScreen({ timersPreview }: { timersPreview?: CityTimers } = {}) {
+  const { profile, user } = useAuth();
   useEnergyRegen();
+  const uid = user?.uid ?? null;
+  const timers = useCityProgressionTimers(uid, timersPreview);
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [busy, setBusy] = useState(false);
+  const [refusedRevision, setRefusedRevision] = useState(0);
+  const starts = useRef(createStartRequestMemo()).current;
   const progression = useMemo(() => normalizeProgressionSystem(profile?.rewardSystem), [profile?.rewardSystem]);
-  const eligibleHolobots = useMemo(() => getEligibleQuestHolobots(profile), [profile]);
+  const cards = useMemo(
+    () => buildQuestCards(timers, profile?.rewardSystem, legacyRefusals(uid), nowTick),
+    // refusedRevision: a legacy refusal changes legacyRefusals(uid) outside React state.
+    [timers, profile?.rewardSystem, uid, nowTick, refusedRevision],
+  );
+  const cityRuns = timers.status === "ready" ? timers.quests.length : 0;
+  const eligibleHolobots = useMemo(() => getEligibleQuestHolobots(profile, cityBusyHolobots(timers)), [profile, timers]);
   const eligibleRoster = useMemo(
     () =>
       mergeHolobotRoster(eligibleHolobots).filter((holobot) =>
@@ -51,6 +73,7 @@ export function QuestsScreen() {
   );
   const selectedHolobot = eligibleRoster[selectedHolobotIndex] ?? eligibleRoster[0];
   const availableQuests = progression.availableQuestIds.map((questId) => getQuestDefinition(questId));
+  const timersNote = timers.status === "ready" ? null : START_BLOCK_COPY[timers.status === "loading" ? "checking" : "unavailable"];
 
   useEffect(() => {
     const timer = setInterval(() => setNowTick(Date.now()), 1000);
@@ -67,63 +90,63 @@ export function QuestsScreen() {
   }, [eligibleRoster, selectedHolobot]);
 
   const handleRefreshBoard = async () => {
-    if (!profile) return;
-    if (progression.questRefreshesRemaining <= 0) {
+    if (!profile || !uid) return;
+    const board = refreshQuestBoard(profile.rewardSystem);
+    if (!board) {
       Alert.alert("No Refreshes Left", "Come back tomorrow for more quest refreshes.");
       return;
     }
 
     try {
-      await updateProfile({
-        rewardSystem: refreshQuestBoard(profile.rewardSystem),
-      });
+      // The board is a client preference: only its three keys are written, never the run copies or mission counters.
+      await updateRewardSystemKeys(uid, board);
     } catch (error) {
       Alert.alert("Refresh Failed", error instanceof Error ? error.message : "Please try again.");
     }
   };
 
   const handleSendQuest = async (questId: (typeof QUEST_DEFINITIONS)[number]["id"]) => {
-    if (!profile || !selectedHolobot) {
-      Alert.alert("Select a Holobot", "Choose a Holobot to send on this quest first.");
-      return;
-    }
-
-    if (progression.activeQuests.length >= 3) {
-      Alert.alert("Quest Slots Full", "Complete or claim an active quest before sending another Holobot.");
+    if (busy || !profile || !uid) return;
+    const quest = getQuestDefinition(questId);
+    const block = questStartBlock(timers, selectedHolobot?.name ?? null, profile.dailyEnergy || 0, quest.energyCost);
+    if (block || !selectedHolobot) {
+      Alert.alert("Quest not sent", START_BLOCK_COPY[block ?? "no_holobot"]);
       return;
     }
 
     const ownedHolobot = profile.holobots.find((holobot) => holobot.name.toUpperCase() === selectedHolobot.name.toUpperCase());
     if (!ownedHolobot) return;
-    const quest = getQuestDefinition(questId);
-
-    if ((profile.dailyEnergy || 0) < quest.energyCost) {
-      Alert.alert("Not Enough Energy", `You need ${quest.energyCost} energy to send this quest.`);
-      return;
-    }
-
+    const key = `quest:${questId}:${ownedHolobot.name.toUpperCase()}`;
+    setBusy(true);
     try {
-      await updateProfile({
-        dailyEnergy: Math.max(0, (profile.dailyEnergy || 0) - quest.energyCost),
-        rewardSystem: startQuestRun(profile.rewardSystem, ownedHolobot, questId),
-      });
+      // The City validates the bot, the slots and the energy, debits the energy and stamps the run with its clock.
+      await startQuestRunInCity({ questId, holobotName: ownedHolobot.name, requestId: starts.requestIdFor(key) });
+      starts.settle(key);
     } catch (error) {
-      Alert.alert("Quest Failed", error instanceof Error ? error.message : "Please try again.");
+      const copy = progressionRefusalCopy(error, "quest_start");
+      // Unknown outcome: keep the request id so a retry is the identical request (the City replays it, never twice).
+      if (copy.outcome !== "unknown") starts.settle(key);
+      Alert.alert(copy.title, copy.body);
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleClaimQuest = async (questIndex: number) => {
-    if (!profile?.holobots) return;
-    const quest = progression.activeQuests[questIndex];
-    if (!quest || !isSessionComplete(quest.endsAt, new Date(nowTick))) {
-      return;
-    }
-
+  const handleClaimQuest = async (card: QuestCard) => {
+    if (busy || !canTryClaim(card)) return;
+    setBusy(true);
     try {
-      // Server rolls the outcome at claim time and pays from the quest table.
-      await claimQuestRunAuthoritative(profile, updateProfile, quest);
+      // The City rolls the outcome at claim time against its own record (a legacy run: only while it still honours them).
+      await claimQuestRunInCity(card.runId);
     } catch (error) {
-      Alert.alert("Claim Failed", error instanceof Error ? error.message : "Please try again.");
+      const copy = progressionRefusalCopy(error, "quest_claim");
+      if (copy.outcome === "legacy_refused" && card.source === "legacy") {
+        markLegacyRefused(uid, card.runId);
+        setRefusedRevision((value) => value + 1);
+      }
+      Alert.alert(copy.title, copy.body);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -162,7 +185,7 @@ export function QuestsScreen() {
           <View style={styles.questCounterCard}>
             <GameSurfaceFrame />
             <Text style={styles.questCounterLabel}>ACTIVE QUESTS</Text>
-            <Text style={styles.questCounterValue}>{`${progression.activeQuests.length}/3`}</Text>
+            <Text style={styles.questCounterValue}>{timers.status === "ready" ? `${cityRuns}/${CITY_QUEST_SLOTS}` : "…"}</Text>
             <Pressable
               disabled={progression.questRefreshesRemaining <= 0}
               onPress={handleRefreshBoard}
@@ -173,13 +196,15 @@ export function QuestsScreen() {
           </View>
         </View>
 
-        {progression.activeQuests.length ? (
+        {timersNote ? <Text style={styles.cityNote}>{timersNote}</Text> : null}
+
+        {cards.length ? (
           <View style={styles.activeQuestStack}>
-            {progression.activeQuests.map((quest, index) => {
+            {cards.map((quest) => {
               const questDefinition = getQuestDefinition(quest.questId);
-              const isReady = isSessionComplete(quest.endsAt, new Date(nowTick));
+              const canClaim = canTryClaim(quest) && !busy;
               return (
-                <View key={quest.id} style={styles.activeQuestCard}>
+                <View key={quest.runId} style={styles.activeQuestCard}>
                   <GameSurfaceFrame accent={questDefinition.accent} />
                   <View style={[styles.questBadge, styles.activeQuestBadge, { borderColor: questDefinition.accent }]}>
                     <Text style={[styles.questBadgeText, { color: questDefinition.accent }]}>{questDefinition.difficulty}</Text>
@@ -189,16 +214,14 @@ export function QuestsScreen() {
                       {questDefinition.title}
                     </Text>
                     <Text numberOfLines={1} style={styles.activeSlotMeta}>{quest.holobotName}</Text>
-                    <Text style={styles.activeSlotMeta}>
-                      {isReady ? "READY TO CLAIM" : `TIME ${formatRemaining(quest.endsAt, nowTick)}`}
-                    </Text>
+                    <Text style={styles.activeSlotMeta}>{runStatusLine(quest, nowTick)}</Text>
                   </View>
                   <Pressable
-                    disabled={!isReady}
-                    onPress={() => handleClaimQuest(index)}
-                    style={[styles.claimQuestButton, !isReady ? styles.disabledAction : null]}
+                    disabled={!canClaim}
+                    onPress={() => void handleClaimQuest(quest)}
+                    style={[styles.claimQuestButton, !canClaim ? styles.disabledAction : null]}
                   >
-                    <Text style={styles.claimQuestText}>{isReady ? "CLAIM" : "RUNNING"}</Text>
+                    <Text style={styles.claimQuestText}>{canTryClaim(quest) ? "CLAIM" : quest.state === "legacy_refused" ? "CLOSED" : "RUNNING"}</Text>
                   </Pressable>
                 </View>
               );
@@ -222,6 +245,8 @@ export function QuestsScreen() {
                   rank: selectedHolobot.rank,
                 })
               : 0;
+            // A hint from the City's last record; the City still decides the start.
+            const sendBlocked = busy || questStartBlock(timers, selectedHolobot?.name ?? null, profile?.dailyEnergy || 0, quest.energyCost) !== null;
 
             return (
               <View key={quest.id} style={styles.questCard}>
@@ -253,14 +278,9 @@ export function QuestsScreen() {
                     </Text>
                     <Text style={styles.questEnergyCost}>{`${quest.energyCost} ENERGY`}</Text>
                     <Pressable
-                      disabled={!selectedHolobot || progression.activeQuests.length >= 3 || (profile?.dailyEnergy || 0) < quest.energyCost}
-                      onPress={() => handleSendQuest(quest.id)}
-                      style={[
-                        styles.sendButton,
-                        (!selectedHolobot || progression.activeQuests.length >= 3 || (profile?.dailyEnergy || 0) < quest.energyCost)
-                          ? styles.disabledAction
-                          : null,
-                      ]}
+                      disabled={sendBlocked}
+                      onPress={() => void handleSendQuest(quest.id)}
+                      style={[styles.sendButton, sendBlocked ? styles.disabledAction : null]}
                     >
                       <Text style={styles.sendButtonText}>SEND</Text>
                     </Pressable>
@@ -309,6 +329,12 @@ const styles = StyleSheet.create({
   },
   activeQuestStack: {
     gap: 6,
+  },
+  cityNote: {
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
+    textAlign: "center",
   },
   activeQuestTitle: {
     fontFamily: "HoloBody",

@@ -4,7 +4,7 @@ import { ARENA_SETTLE_BACKOFF_MS, ArenaSettleConfirmer, type ArenaSettlePhase } 
 import { ARENA_SCREEN_COPY, arenaErrorCopy, arenaScreenPhase } from '../arenaCopy';
 import { ARENA_SETTLE_REPORT, ARENA_SETTLED, ARENA_STARTED, arenaRefusal, tooFast } from '../../qa/arenaPolishFixtures';
 
-/** Host #143 too_fast as the SDK surfaces it, plus the ANTICIPATED retryAfterMs hint. */
+/** Host too_fast as the SDK surfaces it, with #145's details.retryAfterMs hint (recorded in the lifecycle fixture's refusals). */
 type Reply = unknown;
 function harness(script: Array<Reply | Error>, storage: { settle: ArenaPendingSettle | null } = { settle: null }) {
     const calls: Array<Record<string, unknown>> = [];

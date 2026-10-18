@@ -2,27 +2,30 @@ import { theme } from "@/theme";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { buildDailyMissions } from "@/lib/dailyMissions";
+import type { MobileDailyMission } from "@/lib/dailyMissions";
 import { claimDailyMissionAuthoritative } from "@/lib/economyClient";
+import { notifyHostEconomyChanged } from "@/lib/hostDashboard";
 
 type DailyMissionsModalProps = {
   onClose: () => void;
+  /** From buildDailyMissions(profile, date, ledger): claimable only from the City's ledger. */
+  missions: MobileDailyMission[];
+  /** missionLedgerNote(): set when the City's ledger is not in hand (claims are paused). */
+  ledgerNote: string | null;
+  onRetry: () => void;
 };
 
-export function DailyMissionsModal({ onClose }: DailyMissionsModalProps) {
-  const { profile } = useAuth();
-  const missions = buildDailyMissions(profile);
+export function DailyMissionsModal({ onClose, missions, ledgerNote, onRetry }: DailyMissionsModalProps) {
+  const { user } = useAuth();
   const completed = missions.filter((mission) => mission.completed).length;
-  const unclaimed = missions.filter((mission) => mission.completed && !mission.claimed).length;
+  const unclaimed = missions.filter((mission) => mission.claimable).length;
 
   const handleClaim = async (missionId: string) => {
-    if (!profile) return;
-
     try {
-      // Server validates completion (against server-incremented counters)
-      // and pays from the mission table; the profile snapshot listener
-      // reflects the payout.
+      // Server validates completion (against its own ledger) and pays from the mission table; the ledger summary
+      // is read again so the City's claimed flag replaces this one.
       await claimDailyMissionAuthoritative(missionId);
+      notifyHostEconomyChanged(user?.uid);
     } catch (error) {
       Alert.alert("Claim failed", error instanceof Error ? error.message : "Please try again.");
     }
@@ -41,12 +44,17 @@ export function DailyMissionsModal({ onClose }: DailyMissionsModalProps) {
             <Text style={[styles.summaryPillText, styles.summaryPillActiveText]}>{`${unclaimed} Tickets`}</Text>
           </View>
         </View>
+        {ledgerNote ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Check mission progress again" onPress={onRetry}>
+            <Text style={styles.ledgerNote}>{`${ledgerNote}  RETRY`}</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.list}>
         {missions.map((mission) => {
           const progressPercent = Math.max(0, Math.min(100, (mission.progress / mission.target) * 100));
-          const canClaim = mission.completed && !mission.claimed;
+          const canClaim = mission.claimable;
 
           return (
             <View key={mission.id} style={[styles.missionCard, mission.completed ? styles.missionCardDone : null]}>
@@ -115,6 +123,12 @@ const styles = StyleSheet.create({
     fontSize: theme.type.header.fontSize,
     fontWeight: "900",
     marginTop: 6,
+  },
+  ledgerNote: {
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
+    marginTop: 10,
   },
   summaryRow: {
     flexDirection: "row",

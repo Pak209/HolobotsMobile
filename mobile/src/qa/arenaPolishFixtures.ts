@@ -1,13 +1,13 @@
 /**
  * lite-arena-polish-1 offline cells. Every reply is DERIVED from the recorded host lifecycle
- * (fixtures/arena-admitted-lifecycle.json, byte-identical to main's functions/scripts/fixtures/arena-match/admitted-lifecycle.json)
- * by the minimum edit the host code makes, and says so:
+ * (fixtures/arena-admitted-lifecycle.json, byte-identical to host #145's functions/scripts/fixtures/arena-match/admitted-lifecycle.json,
+ * blob 9bdedb40; sha256 pinned in lib/__tests__/hostHardening2Contract.test.ts) by the minimum edit the host code makes, and says so:
  *  - payoutWithheld: host #143 `rewards()` returns an all-zero settlement plus `payoutWithheld` (arenaMatchStore.ts ~:257).
  *  - closures: host cancel writes `cancelled_before_start` + refund (~:355) or `forfeit` + finalVitals (~:380-384).
- *  - too_fast: host #143 refuses a WIN under ARENA_MIN_SETTLE_MS as HttpsError failed-precondition with
- *    details.rejectionCode 'too_fast' (~:367; arenaMatchHost.ts:8). `retryAfterMs` is ANTICIPATED (asked of
- *    host-economy-hardening-2; holoZoneHost already uses that key).
- *  - payoutCapped: ANTICIPATED additive flag on the ISSUE reply (host-economy-hardening-2, PR not open at authoring).
+ *  - too_fast: host #145 refuses a WIN under ARENA_MIN_SETTLE_MS_CPU (3 s) as HttpsError failed-precondition with
+ *    details {rejectionCode: 'too_fast', retryAfterMs: floor - elapsed} (arenaMatchHost.ts:8). The recorded refusal is
+ *    the fixture's `refusals[0]` (retryAfterMs 2976); `tooFast(ms)` varies only the hint.
+ *  - payoutCapped: host #145 puts a TOP-LEVEL boolean on every issue reply (recorded `false`); the capped cell flips it.
  * Offline QA and tests only; never a live fallback. JSON copies only (Hermes has no structured clone).
  */
 import lifecycle from './fixtures/arena-admitted-lifecycle.json';
@@ -50,7 +50,7 @@ export function arenaForfeitReply(hp: number): ArenaReply {
     m.settlementReceipt = { matchId: m.matchId, outcome: 'forfeit', refunded: false, settlement: null, report: { playerFinalHealth: hp }, closedAtMs: m.closedAtMs, finalVitals: { [m.entrant.holobotId]: { currentHealth: hp, maxHealth: m.entrant.maxHealth } } };
     return r as ArenaReply;
 }
-/** ANTICIPATED: the issue reply with host-economy-hardening-2's additive payoutCapped flag. */
+/** The recorded issue reply with host #145's top-level payoutCapped flipped to true (the cap is reached). */
 export function arenaPayoutCappedIssue(): ArenaReply {
     return { ...step('issue'), payoutCapped: true } as ArenaReply;
 }

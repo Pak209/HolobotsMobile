@@ -17,6 +17,9 @@ const FILES = [
   "../../components/arena/BattleResultsModal.tsx", "../../components/arena/arenaResultPresenter.ts", "../../components/arena/ArenaPrebattleMenu.tsx",
   "../arenaCopy.ts", "../arenaMatchFlow.ts", "../arenaSettleConfirm.ts", "../arenaHostBattle.ts", "../../screens/DuelPlaybackScreen.tsx",
   "../bots/liveRivalPlayback.ts", "../bots/hostDuelReceipt.ts", "../bots/duelPlayback.ts",
+  // lite-progression-host-1: quests, training and daily missions through the City.
+  "../../screens/QuestsScreen.tsx", "../../screens/TrainingScreen.tsx", "../../components/DailyMissionsModal.tsx",
+  "../../components/UserStatsModal.tsx", "../progressionHost.ts", "../progressionHostClient.ts", "../dailyMissions.ts",
 ] as const;
 /** Type tags that never reach the screen: the receipt/trace discriminator `"host"` and the move template id prefix. */
 const NOT_ON_SCREEN = new Set(["'host'", '"host"', "`host.${id}`"]);

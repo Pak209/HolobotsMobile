@@ -1,41 +1,55 @@
 import { theme } from "@/theme";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
-import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
+import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCityProgressionTimers } from "@/hooks/useCityProgressionTimers";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
-import { claimTrainingSessionAuthoritative, useEnergyRefillAuthoritative } from "@/lib/progressionClient";
+import { useEnergyRefillAuthoritative } from "@/lib/progressionClient";
 import {
-  getTrainingCourse,
-  isSessionComplete,
-  normalizeProgressionSystem,
-  startTrainingSession,
-  TRAINING_COURSES,
-} from "@/lib/progressionSystems";
+  buildTrainingCard,
+  canTryClaim,
+  createStartRequestMemo,
+  legacyRefusals,
+  markLegacyRefused,
+  progressionRefusalCopy,
+  runStatusLine,
+  START_BLOCK_COPY,
+  trainingStartBlock,
+  type CityTimers,
+} from "@/lib/progressionHost";
+import { claimTrainingInCity, startTrainingInCity, updateRewardSystemKeys } from "@/lib/progressionHostClient";
+import { getTrainingCourse, normalizeProgressionSystem, TRAINING_COURSES } from "@/lib/progressionSystems";
 
-function formatCountdown(endsAt: string, nowTick: number) {
-  const remainingMs = Math.max(0, new Date(endsAt).getTime() - nowTick);
-  const totalSeconds = Math.floor(remainingMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-export function TrainingScreen() {
-  const { profile, updateProfile } = useAuth();
+/**
+ * Training runs through the City (host #145): SELECT asks startTrainingSession, which rolls the boost, debits the
+ * energy and stamps the session with its clock; the panel shows the City's end time and boost; CLAIM asks
+ * claimTrainingSession against the City's record. `timersPreview` is the offline QA harness only.
+ */
+export function TrainingScreen({ timersPreview }: { timersPreview?: CityTimers } = {}) {
+  const { profile, updateProfile, user } = useAuth();
   useEnergyRegen();
+  const uid = user?.uid ?? null;
+  const timers = useCityProgressionTimers(uid, timersPreview);
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [busy, setBusy] = useState(false);
+  const [refusedRevision, setRefusedRevision] = useState(0);
+  const starts = useRef(createStartRequestMemo()).current;
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots).filter((holobot) => holobot.owned), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
   const progression = useMemo(() => normalizeProgressionSystem(profile?.rewardSystem), [profile?.rewardSystem]);
-  const activeTraining = progression.activeTraining;
-  const trainingComplete = activeTraining ? isSessionComplete(activeTraining.endsAt, new Date(nowTick)) : false;
+  const activeTraining = useMemo(
+    () => buildTrainingCard(timers, profile?.rewardSystem, legacyRefusals(uid), nowTick),
+    // refusedRevision: a legacy refusal changes legacyRefusals(uid) outside React state.
+    [timers, profile?.rewardSystem, uid, nowTick, refusedRevision],
+  );
+  const timersNote = timers.status === "ready" ? null : START_BLOCK_COPY[timers.status === "loading" ? "checking" : "unavailable"];
   const canRefill = (profile?.energy_refills || 0) > 0 && (profile?.dailyEnergy || 0) < (profile?.maxDailyEnergy || 100);
   const actualStats = selectedHolobot
     ? getHolobotDisplayStats(selectedHolobot.name, selectedHolobot.level, selectedHolobot.boostedAttributes)
@@ -53,12 +67,14 @@ export function TrainingScreen() {
   }, [selectedHolobot]);
 
   const handleStartTraining = async (courseId: (typeof TRAINING_COURSES)[number]["id"]) => {
-    if (!profile || !selectedHolobot) {
+    if (busy || !profile || !uid) {
       return;
     }
 
-    if (activeTraining && !trainingComplete) {
-      Alert.alert("Training In Progress", "Finish the current training session before starting another course.");
+    const course = getTrainingCourse(courseId);
+    const block = trainingStartBlock(timers, activeTraining, selectedHolobot?.name ?? null, profile.dailyEnergy || 0, course.energyCost);
+    if (block || !selectedHolobot) {
+      Alert.alert("Training not started", START_BLOCK_COPY[block ?? "no_holobot"]);
       return;
     }
 
@@ -67,47 +83,51 @@ export function TrainingScreen() {
       return;
     }
 
-    const course = getTrainingCourse(courseId);
-    if ((profile.dailyEnergy || 0) < course.energyCost) {
-      Alert.alert("Not Enough Energy", `You need ${course.energyCost} energy for ${course.attributeLabel} training.`);
-      return;
-    }
-
+    const key = `training:${courseId}:${ownedHolobot.name.toUpperCase()}`;
+    setBusy(true);
     try {
-      await updateProfile({
-        dailyEnergy: Math.max(0, (profile.dailyEnergy || 0) - course.energyCost),
-        rewardSystem: startTrainingSession(profile.rewardSystem, normalizeUserHolobot(ownedHolobot), courseId),
-      });
+      // The City rolls the boost, debits the energy and stamps the session with its clock.
+      await startTrainingInCity({ courseId, holobotName: ownedHolobot.name, requestId: starts.requestIdFor(key) });
+      starts.settle(key);
     } catch (error) {
-      Alert.alert("Training Failed", error instanceof Error ? error.message : "Please try again.");
+      const copy = progressionRefusalCopy(error, "training_start");
+      // Unknown outcome: keep the request id so a retry is the identical request (the City replays it, never twice).
+      if (copy.outcome !== "unknown") starts.settle(key);
+      Alert.alert(copy.title, copy.body);
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleClaimTraining = async () => {
-    if (!profile?.holobots || !activeTraining || !trainingComplete) {
+    if (busy || !activeTraining || !canTryClaim(activeTraining)) {
       return;
     }
 
+    setBusy(true);
     try {
-      // Server clamps boosts to the course's legal range and pays table EXP.
-      await claimTrainingSessionAuthoritative(profile, updateProfile, activeTraining);
+      // The City pays its own record's boosts and the course's EXP (a legacy session: only while it still honours them).
+      await claimTrainingInCity();
     } catch (error) {
-      Alert.alert("Claim Failed", error instanceof Error ? error.message : "Please try again.");
+      const copy = progressionRefusalCopy(error, "training_claim");
+      if (copy.outcome === "legacy_refused" && activeTraining.source === "legacy") {
+        markLegacyRefused(uid, activeTraining.runId);
+        setRefusedRevision((value) => value + 1);
+      }
+      Alert.alert(copy.title, copy.body);
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleToggleSyncBoost = async () => {
-    if (!profile) {
+    if (!profile || !uid) {
       return;
     }
 
     try {
-      await updateProfile({
-        rewardSystem: {
-          ...progression,
-          syncBoostEnabled: !progression.syncBoostEnabled,
-        },
-      });
+      // One preference key, never the whole rewardSystem map (run copies and mission counters stay the City's).
+      await updateRewardSystemKeys(uid, { syncBoostEnabled: !progression.syncBoostEnabled });
     } catch (error) {
       Alert.alert("Update Failed", error instanceof Error ? error.message : "Please try again.");
     }
@@ -185,6 +205,8 @@ export function TrainingScreen() {
           </Pressable>
         ) : null}
 
+        {timersNote ? <Text style={styles.cityNote}>{timersNote}</Text> : null}
+
         {activeTraining ? (
           <View style={styles.activePanel}>
             <GameSurfaceFrame strong />
@@ -192,17 +214,15 @@ export function TrainingScreen() {
             <Text style={styles.activeCopy}>
               {`${activeTraining.holobotName} is in ${getTrainingCourse(activeTraining.courseId).attributeLabel} training.`}
             </Text>
-            <Text style={styles.activeCountdown}>
-              {trainingComplete ? "READY TO CLAIM" : formatCountdown(activeTraining.endsAt, nowTick)}
-            </Text>
+            <Text style={styles.activeCountdown}>{runStatusLine(activeTraining, nowTick)}</Text>
             <Text style={styles.activeRewards}>
               {`EXP +${activeTraining.expReward}  •  BOOST ${Object.entries(activeTraining.statBoosts)
                 .filter(([, value]) => value)
                 .map(([key, value]) => `${key.toUpperCase()} +${value}`)
                 .join("  •  ")}`}
             </Text>
-            {trainingComplete ? (
-              <Pressable style={styles.claimButton} onPress={handleClaimTraining}>
+            {canTryClaim(activeTraining) ? (
+              <Pressable disabled={busy} style={[styles.claimButton, busy ? styles.disabledAction : null]} onPress={() => void handleClaimTraining()}>
                 <Text style={styles.claimButtonText}>CLAIM TRAINING</Text>
               </Pressable>
             ) : null}
@@ -214,7 +234,10 @@ export function TrainingScreen() {
         </View>
 
         <View style={styles.courseStack}>
-          {TRAINING_COURSES.map((course) => (
+          {TRAINING_COURSES.map((course) => {
+            // A hint from the City's last record; the City still decides the start.
+            const selectBlocked = busy || trainingStartBlock(timers, activeTraining, selectedHolobot?.name ?? null, profile?.dailyEnergy || 0, course.energyCost) !== null;
+            return (
             <View key={course.id} style={styles.courseCard}>
               <GameSurfaceFrame accent={course.accent} />
               <View style={[styles.courseIcon, { borderColor: course.accent }]}>
@@ -239,18 +262,16 @@ export function TrainingScreen() {
                   <Text style={styles.courseMetaValue}>{course.energyCost}</Text>
                 </View>
                 <Pressable
-                  style={[
-                    styles.selectButton,
-                    ((profile?.dailyEnergy || 0) < course.energyCost || (activeTraining && !trainingComplete)) ? styles.disabledAction : null,
-                  ]}
-                  disabled={(profile?.dailyEnergy || 0) < course.energyCost || Boolean(activeTraining && !trainingComplete)}
-                  onPress={() => handleStartTraining(course.id)}
+                  style={[styles.selectButton, selectBlocked ? styles.disabledAction : null]}
+                  disabled={selectBlocked}
+                  onPress={() => void handleStartTraining(course.id)}
                 >
                   <Text style={styles.selectButtonText}>SELECT</Text>
                 </Pressable>
               </View>
             </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={styles.syncBoostRow}>
@@ -288,6 +309,12 @@ export function TrainingScreen() {
 }
 
 const styles = StyleSheet.create({
+  cityNote: {
+    color: theme.colors.muted,
+    fontFamily: "HoloBody",
+    fontSize: theme.type.caption.fontSize,
+    textAlign: "center",
+  },
   activeCopy: {
     color: theme.colors.muted,
     fontFamily: "HoloBody",
