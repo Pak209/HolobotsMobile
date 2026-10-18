@@ -20,7 +20,7 @@ import {
   type MarketplaceBoosterId,
 } from "@/lib/marketplace";
 
-import * as serverEconomy from "../../../../functions/src/lib/economy";
+import * as serverEconomy from "../../../test-fixtures/host-pin/src/lib/economy";
 
 function seededRandom(seed: number) {
   let state = seed >>> 0;

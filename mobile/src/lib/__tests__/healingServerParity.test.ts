@@ -1,11 +1,11 @@
 import {describe,it,expect} from 'vitest';
 import contract from '../../../../docs/contracts/healing-items-1.json';
-import {HEALING_ITEMS,repairUse} from '../../../../functions/src/lib/repairItems';
-import {buildCatalog} from '../../../../functions/src/lib/vendors';
-import {arenaOpen,duelOpen} from '../../../../functions/src/lib/healingGuards';
-import {withRankHealingReward} from '../../../../functions/src/lib/rankHealingReward';
-import {HEALING_RECIPES} from '../../../../functions/src/lib/healingRecipes';
-import {issueVitals} from '../../../../functions/src/lib/rivalHealth';
+import {HEALING_ITEMS,repairUse} from '../../../test-fixtures/host-pin/src/lib/repairItems';
+import {buildCatalog} from '../../../test-fixtures/host-pin/src/lib/vendors';
+import {arenaOpen,duelOpen} from '../../../test-fixtures/host-pin/src/lib/healingGuards';
+import {withRankHealingReward} from '../../../test-fixtures/host-pin/src/lib/rankHealingReward';
+import {HEALING_RECIPES} from '../../../test-fixtures/host-pin/src/lib/healingRecipes';
+import {issueVitals} from '../../../test-fixtures/host-pin/src/lib/rivalHealth';
 export const HEALING_PARITY_KEYS=contract.parityKeys;
 describe('healing-items-1 client contract',()=>{
  it('healingCatalogServerParity',()=>{const catalog=buildCatalog({holosTokens:1000},'marketplace',0);expect(catalog.listings.filter(l=>l.details.healFraction).map(l=>({itemId:l.listingId,price:l.price,fraction:Number(l.details.healFraction)}))).toEqual(contract.items);});

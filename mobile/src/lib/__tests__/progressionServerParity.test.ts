@@ -15,7 +15,7 @@ import {
 } from "@/lib/syncProgression";
 import type { UserProfile } from "@/types/profile";
 
-import * as server from "../../../../functions/src/lib/progressionEconomy";
+import * as server from "../../../test-fixtures/host-pin/src/lib/progressionEconomy";
 
 const HOLOBOT_PARITY_FIELDS = [
   "attributePoints",

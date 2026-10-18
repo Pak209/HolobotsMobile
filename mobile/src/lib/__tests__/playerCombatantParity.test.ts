@@ -16,8 +16,8 @@ import { calculateExperience, getHolobotBattleStats, HOLOBOT_BASE_STATS, HOLOBOT
 import { calculateSyncBattleModifiers } from "@/lib/syncProgression";
 import type { UserHolobot } from "@/types/profile";
 
-import * as serverProgression from "../../../../functions/src/lib/progression";
-import * as serverEconomy from "../../../../functions/src/lib/progressionEconomy";
+import * as serverProgression from "../../../test-fixtures/host-pin/src/lib/progression";
+import * as serverEconomy from "../../../test-fixtures/host-pin/src/lib/progressionEconomy";
 
 /**
  * DECISIONS #53-2/3: the rival host builds the player's combatants from the

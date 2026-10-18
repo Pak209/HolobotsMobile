@@ -23,7 +23,7 @@ import {
   UNAVAILABLE_DASHBOARD_STATE,
   type HostDashboardState,
 } from "../hostDashboard";
-import { itemSnapshot } from "../../../../functions/src/lib/desktopItems";
+import { itemSnapshot } from "../../../test-fixtures/host-pin/src/lib/desktopItems";
 
 /**
  * Fixtures are byte copies of the host's #124 unit fixtures (Pak209/HolobotsMobile origin/main, commit 46bf0c3,

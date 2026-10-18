@@ -1,9 +1,9 @@
 import {describe,it,expect} from 'vitest';
 import contract from '../../../../docs/contracts/economy-host-1.json';
-import {BATTLE_LOSS_HOLOS,BATTLE_WIN_HOLOS,RIVAL_COOLDOWN_MS,RIVAL_MIN_XP_MS,requireRivalOffCooldown} from '../../../../functions/src/lib/rivalLadder';
-import {BLUEPRINT_FRAGMENT_STOCK,HOLOZONE_CLEAR_BLUEPRINT_FRAGMENTS,HOLOZONE_MIN_XP_MS} from '../../../../functions/src/lib/holoZoneRuns';
-import {HOLOBOT_RANK_TIERS} from '../../../../functions/src/lib/progression';
-import {withRankHealingReward} from '../../../../functions/src/lib/rankHealingReward';
+import {BATTLE_LOSS_HOLOS,BATTLE_WIN_HOLOS,RIVAL_COOLDOWN_MS,RIVAL_MIN_XP_MS,requireRivalOffCooldown} from '../../../test-fixtures/host-pin/src/lib/rivalLadder';
+import {BLUEPRINT_FRAGMENT_STOCK,HOLOZONE_CLEAR_BLUEPRINT_FRAGMENTS,HOLOZONE_MIN_XP_MS} from '../../../test-fixtures/host-pin/src/lib/holoZoneRuns';
+import {HOLOBOT_RANK_TIERS} from '../../../test-fixtures/host-pin/src/lib/progression';
+import {withRankHealingReward} from '../../../test-fixtures/host-pin/src/lib/rankHealingReward';
 import {getHolobotRank} from '../progression';
 /** economy-host-1 (DECISIONS #58): the host numbers the client may display, pinned to the shared fixture. */
 export const ECONOMY_PARITY_KEYS=contract.parityKeys;

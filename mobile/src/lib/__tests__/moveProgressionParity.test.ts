@@ -8,7 +8,7 @@ import {
   MOVE_RANK_SP_COSTS,
 } from "@/features/arena/moveProgression";
 
-import * as serverMoves from "../../../../functions/src/lib/moveProgression";
+import * as serverMoves from "../../../test-fixtures/host-pin/src/lib/moveProgression";
 
 function playerState() {
   const holobot = {
