@@ -2,6 +2,307 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://holobots.local/schemas/arena-match-1.json",
   "title": "Arena match durable lifecycle reply projection",
+  "definitions": {
+    "fighterSnapshot": {
+      "description": "Frozen #118 presentation snapshot (functions/src/lib/arenaFighterSnapshot.ts): displayName is holobotId upper-cased; level and tier are the issued combat values.",
+      "type": "object",
+      "required": [
+        "holobotId",
+        "level",
+        "displayName",
+        "tier"
+      ],
+      "properties": {
+        "holobotId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,39}$"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      }
+    },
+    "commandRules": {
+      "description": "Host-owned practice command profile, desktopPracticeCommands(holobotId) in functions/src/lib/desktopPracticeCommands.ts, copied into the match at issue. Every key the host sends is required.",
+      "type": "object",
+      "required": [
+        "version",
+        "maxStamina",
+        "staminaRegen",
+        "strikeCost",
+        "comboCost",
+        "defendThreshold",
+        "defendRestore",
+        "halfCost",
+        "fullCost",
+        "halfSync",
+        "fullSync",
+        "halfEffect",
+        "fullEffect",
+        "guardSeconds",
+        "guardCooldown",
+        "braceSeconds",
+        "guardReduction",
+        "stackReduction",
+        "maxGuardStacks",
+        "guardCharges",
+        "strikeSync",
+        "comboSync",
+        "blockedSyncScale",
+        "guardSync",
+        "syncFloor",
+        "comboExpiry",
+        "regenPause"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "maxStamina": {
+          "type": "number",
+          "minimum": 1
+        },
+        "staminaRegen": {
+          "type": "number",
+          "minimum": 0
+        },
+        "strikeCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "comboCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "defendThreshold": {
+          "type": "number",
+          "minimum": 0
+        },
+        "defendRestore": {
+          "type": "number",
+          "minimum": 0
+        },
+        "halfCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fullCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "halfSync": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fullSync": {
+          "type": "number",
+          "minimum": 0
+        },
+        "halfEffect": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fullEffect": {
+          "type": "number",
+          "minimum": 0
+        },
+        "guardSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "guardCooldown": {
+          "type": "number",
+          "minimum": 0
+        },
+        "braceSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "guardReduction": {
+          "type": "number",
+          "minimum": 0
+        },
+        "stackReduction": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxGuardStacks": {
+          "type": "number",
+          "minimum": 0
+        },
+        "guardCharges": {
+          "type": "number",
+          "minimum": 0
+        },
+        "strikeSync": {
+          "type": "number",
+          "minimum": 0
+        },
+        "comboSync": {
+          "type": "number",
+          "minimum": 0
+        },
+        "blockedSyncScale": {
+          "type": "number",
+          "minimum": 0
+        },
+        "guardSync": {
+          "type": "number",
+          "minimum": 0
+        },
+        "syncFloor": {
+          "type": "number",
+          "minimum": 0
+        },
+        "comboExpiry": {
+          "type": "number",
+          "minimum": 0
+        },
+        "regenPause": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "move": {
+      "type": "object",
+      "required": [
+        "moveId",
+        "staminaCost",
+        "damageScale",
+        "breakPower",
+        "chargeable"
+      ],
+      "properties": {
+        "moveId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "staminaCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "damageScale": {
+          "type": "number",
+          "minimum": 0
+        },
+        "breakPower": {
+          "type": "number",
+          "minimum": 0
+        },
+        "chargeable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "fighter": {
+      "description": "F10 (critic review 2026-10-17): the combatant the host froze at issue (playerCombatant in functions/src/lib/rivalLadder.ts plus name, and currentHealth for the entrant) with the #118 snapshot on top. Required here is everything the lite reader (mobile arenaMatchFlow.ts snapshot(), arenaHostBattle.ts) and the Unity reader (ArenaMatchClient.cs) refuse a reply without. The host also sends maxStamina, staminaRegen, deployment, experience, nextLevelExp, attributePoints and boostedAttributes; no client reader requires them, so they stay unspecified.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/fighterSnapshot"
+        },
+        {
+          "type": "object",
+          "required": [
+            "name",
+            "rank",
+            "maxHealth",
+            "attack",
+            "defense",
+            "speed",
+            "intelligence",
+            "commandRules",
+            "moves"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rank": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxHealth": {
+              "type": "number",
+              "minimum": 1
+            },
+            "currentHealth": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Issued HP; required (and above 0) on the entrant only. Never above maxHealth."
+            },
+            "attack": {
+              "type": "number",
+              "minimum": 1
+            },
+            "defense": {
+              "type": "number",
+              "minimum": 1
+            },
+            "speed": {
+              "type": "number",
+              "minimum": 1
+            },
+            "intelligence": {
+              "type": "number",
+              "minimum": 1
+            },
+            "commandRules": {
+              "$ref": "#/definitions/commandRules"
+            },
+            "moves": {
+              "description": "The host sends RIVAL_BASELINE.moves. The lite practice battle needs gap_closer and break_heavy.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/move"
+              },
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "required": [
+                      "moveId"
+                    ],
+                    "properties": {
+                      "moveId": {
+                        "const": "gap_closer"
+                      }
+                    }
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "required": [
+                      "moveId"
+                    ],
+                    "properties": {
+                      "moveId": {
+                        "const": "break_heavy"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
   "type": "object",
   "required": [
     "schemaVersion",
@@ -51,62 +352,25 @@
           ],
           "properties": {
             "entrant": {
-              "type": "object",
-              "required": [
-                "holobotId",
-                "level",
-                "displayName",
-                "tier"
-              ],
-              "properties": {
-                "holobotId": {
-                  "type": "string",
-                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              "allOf": [
+                {
+                  "$ref": "#/definitions/fighter"
                 },
-                "level": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 99
-                },
-                "displayName": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "tier": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 1000000
+                {
+                  "required": [
+                    "currentHealth"
+                  ],
+                  "properties": {
+                    "currentHealth": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
                 }
-              }
+              ]
             },
             "opponent": {
-              "type": "object",
-              "required": [
-                "holobotId",
-                "level",
-                "displayName",
-                "tier"
-              ],
-              "properties": {
-                "holobotId": {
-                  "type": "string",
-                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
-                },
-                "level": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 99
-                },
-                "displayName": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "tier": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 1000000
-                }
-              }
+              "$ref": "#/definitions/fighter"
             },
             "schemaVersion": {
               "const": "arena-match-1"
