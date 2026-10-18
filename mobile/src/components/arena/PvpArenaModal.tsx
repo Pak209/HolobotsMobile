@@ -20,6 +20,7 @@ import {
 } from "@/components/arena/BattleArenaView";
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
+import { PvpSeatBadges } from "@/components/arena/PvpSeatBadges";
 import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { roomToBattleState } from "@/features/arena/pvpBattle";
@@ -50,6 +51,8 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     createRoom,
     enterMatchmaking,
     error,
+    hostSeatPending,
+    hostView,
     joinRoom,
     leaveRoom,
     loading,
@@ -285,6 +288,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                 <Text style={styles.closeChipText}>X</Text>
               </Pressable>
             </View>
+            <PvpSeatBadges room={room!} myRole={myRole!} view={hostView} pending={hostSeatPending} compact />
             <BattleArenaView
               battle={battleState}
               roundProgress={null}
@@ -371,7 +375,8 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                     <Image source={selectedHolobot.imageSource} style={styles.holobotArt} resizeMode="contain" />
                     <View style={styles.holobotBody}>
                       <Text style={styles.holobotName}>{selectedHolobot.name}</Text>
-                      <Text style={styles.holobotMeta}>{`Lv ${selectedHolobot.level} - Tap to change Holobot`}</Text>
+                      {/* PLACEHOLDER copy (DECISIONS #71: "the City", never "host"; Lex finalizes). */}
+                      <Text style={styles.holobotMeta}>The City sets your level in the room - Tap to change Holobot</Text>
                     </View>
                   </Pressable>
                 ) : (
@@ -442,6 +447,8 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
                         : "Connecting to battle"}
                   </Text>
                 </View>
+
+                {myRole ? <PvpSeatBadges room={room} myRole={myRole} view={hostView} pending={hostSeatPending} /> : null}
 
                 {isWaiting ? (
                   <View style={styles.waitingPanel}>

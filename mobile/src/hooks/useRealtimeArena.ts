@@ -39,6 +39,15 @@ import {
   TEAM_SIZE,
 } from "@/features/arena/pvpTeamBattle";
 import { claimOpponentAndCreateRoom, isFreshPoolEntry } from "@/lib/pvpMatchmaking";
+import {
+  mergePvpHostReply,
+  pvpOpponentReadDelay,
+  pvpSeatPending,
+  PVP_OPPONENT_READ_DELAYS_MS,
+  type PvpHostFighterStatus,
+  type PvpHostView,
+} from "@/lib/bots/pvpFighterLevel";
+import { pvpRoomFighterCallForUid, readHostFighters, seatHostFighters } from "@/lib/pvpRoomFightersClient";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ArenaCardAvailability } from "@/features/arena/arenaCards";
 import {
@@ -117,6 +126,11 @@ export function useRealtimeArena() {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const staminaRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const poolEntryIdRef = useRef<string | null>(null);
+  const [hostFighterStatus, setHostFighterStatus] = useState<PvpHostFighterStatus>("idle");
+  const [hostView, setHostView] = useState<PvpHostView | null>(null);
+  // Re-read attempts per (room, opponent uid, opponent bot): a 3v3 switch back to a bot keeps its spent budget.
+  const [opponentReads, setOpponentReads] = useState<Record<string, number>>({});
+  const hostSeatRoomRef = useRef<string | null>(null);
 
   const findHolobot = useCallback(
     (holobotName: string): UserHolobot => {
@@ -157,6 +171,22 @@ export function useRealtimeArena() {
     [buildOwnFighter],
   );
 
+  // pvp-room-fighters-1: ask the host to mint my seat's level snapshots (stored server-side, never on the
+  // room doc) and keep the seats its replies return. Presentation only and fire-and-forget: a refusing or
+  // not-yet-deployed host leaves the badges absent and never blocks or fails the room.
+  const requestHostFighters = useCallback((roomId: string, holobotNames: string[]) => {
+    if (!user) return;
+    hostSeatRoomRef.current = roomId;
+    setHostView(null);
+    setHostFighterStatus("pending");
+    void seatHostFighters(pvpRoomFighterCallForUid(user.uid), roomId, holobotNames).then((outcome) => {
+      if (hostSeatRoomRef.current !== roomId) return;
+      setHostView((view) => outcome.replies.reduce<PvpHostView | null>((next, reply) => mergePvpHostReply(next, reply, roomId), view));
+      // "ready" = the host answered (a refused bot just stays absent), so opponent reads may run.
+      setHostFighterStatus(outcome.status === "ready" || outcome.replies.length > 0 ? "ready" : "unavailable");
+    });
+  }, [user]);
+
   const cleanup = useCallback(() => {
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
@@ -169,6 +199,10 @@ export function useRealtimeArena() {
     setRoom(null);
     setMyRole(null);
     setMatchmakingStatus("idle");
+    hostSeatRoomRef.current = null;
+    setHostFighterStatus("idle");
+    setHostView(null);
+    setOpponentReads({});
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
@@ -253,6 +287,37 @@ export function useRealtimeArena() {
     };
   }, [myRole, room?.roomId, user]);
 
+  // The opponent's snapshot exists only once THEY have seated, so re-read a few times (bounded), then
+  // leave their badge absent. Keyed on stable values: stamina/heartbeat writes must not reset the timer.
+  const opponentSeatRole: PlayerRole | null = myRole === "p1" ? "p2" : myRole === "p2" ? "p1" : null;
+  const hostRoomId = room?.roomId ?? "";
+  const opponentUid = opponentSeatRole ? room?.players[opponentSeatRole]?.uid ?? "" : "";
+  const opponentBot = opponentSeatRole ? room?.players[opponentSeatRole]?.holobotName ?? "" : "";
+  const opponentKey = `${hostRoomId}:${opponentUid}:${opponentBot}`;
+  const opponentAttempts = opponentReads[opponentKey] ?? 0;
+  useEffect(() => {
+    if (!user || !hostRoomId || !opponentSeatRole) return;
+    const seen = { roomId: hostRoomId, players: { [opponentSeatRole]: { uid: opponentUid, holobotName: opponentBot } } };
+    const delay = pvpOpponentReadDelay(hostFighterStatus, hostView, seen, opponentSeatRole, opponentAttempts);
+    if (delay === null) return;
+    const timer = setTimeout(() => {
+      void readHostFighters(pvpRoomFighterCallForUid(user.uid), hostRoomId).then((outcome) => {
+        if (hostSeatRoomRef.current !== hostRoomId) return;
+        if (outcome.status === "ready") setHostView((view) => mergePvpHostReply(view, outcome.reply, hostRoomId));
+        // A refused read (not seated / room gone), an outage or a missing host: stop and show absent.
+        setOpponentReads((reads) => ({ ...reads, [opponentKey]: outcome.status === "ready" ? opponentAttempts + 1 : PVP_OPPONENT_READ_DELAYS_MS.length }));
+      });
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [hostFighterStatus, hostRoomId, hostView, opponentAttempts, opponentBot, opponentKey, opponentSeatRole, opponentUid, user]);
+
+  const hostSeatPending = useMemo<Record<PlayerRole, boolean>>(() => {
+    const readsLeft = PVP_OPPONENT_READ_DELAYS_MS.length - opponentAttempts;
+    return myRole
+      ? { p1: pvpSeatPending("p1", myRole, hostFighterStatus, readsLeft), p2: pvpSeatPending("p2", myRole, hostFighterStatus, readsLeft) }
+      : { p1: false, p2: false };
+  }, [hostFighterStatus, myRole, opponentAttempts]);
+
   const createRoom = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {
     if (!user || !profile) throw new Error("Sign in before creating a room.");
     setLoading(true);
@@ -287,6 +352,7 @@ export function useRealtimeArena() {
       await setDoc(roomRef, newRoom);
       setMyRole("p1");
       subscribeToRoom(roomRef.id);
+      requestHostFighters(roomRef.id, lineup.map((fighter) => fighter.holobotName));
       return roomCode;
     } catch (createError: any) {
       setError(createError.message);
@@ -294,7 +360,7 @@ export function useRealtimeArena() {
     } finally {
       setLoading(false);
     }
-  }, [buildOwnLineup, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, profile, requestHostFighters, subscribeToRoom, user]);
 
   const joinRoom = useCallback(async (roomCode: string, holobotNames: string[]) => {
     if (!user || !profile) throw new Error("Sign in before joining a room.");
@@ -320,13 +386,14 @@ export function useRealtimeArena() {
       });
       setMyRole("p2");
       subscribeToRoom(roomDoc.id);
+      requestHostFighters(roomDoc.id, lineup.map((fighter) => fighter.holobotName));
     } catch (joinError: any) {
       setError(joinError.message);
       throw joinError;
     } finally {
       setLoading(false);
     }
-  }, [buildOwnLineup, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, profile, requestHostFighters, subscribeToRoom, user]);
 
   const joinRoomById = useCallback(async (roomId: string) => {
     if (!user) throw new Error("Sign in before joining a room.");
@@ -334,11 +401,17 @@ export function useRealtimeArena() {
     if (!roomSnap.exists()) throw new Error("Room not found.");
     const roomData = roomSnap.data() as BattleRoom;
     if (roomData.rulesVersion !== BATTLE_ROOM_RULES_VERSION) throw new Error(VERSION_MISMATCH_MESSAGE);
-    if (roomData.players.p1.uid === user.uid) setMyRole("p1");
-    else if (roomData.players.p2.uid === user.uid) setMyRole("p2");
-    else throw new Error("You are not part of this room.");
+    const role: PlayerRole | null =
+      roomData.players.p1.uid === user.uid ? "p1" : roomData.players.p2.uid === user.uid ? "p2" : null;
+    if (!role) throw new Error("You are not part of this room.");
+    setMyRole(role);
     subscribeToRoom(roomId);
-  }, [subscribeToRoom, user]);
+    // Matchmaking seats: my live fighter plus any 3v3 lineup the pairing wrote for me.
+    requestHostFighters(roomId, [
+      roomData.players[role].holobotName,
+      ...(roomData.teams?.[role]?.members ?? []).map((member) => member.holobotName),
+    ]);
+  }, [requestHostFighters, subscribeToRoom, user]);
 
   const enterMatchmaking = useCallback(async (holobotNames: string[], mode: BattleMode = "1v1") => {
     if (!user || !profile) throw new Error("Sign in before matchmaking.");
@@ -403,6 +476,7 @@ export function useRealtimeArena() {
         setMatchmakingStatus("matched");
         setMyRole("p1");
         subscribeToRoom(claim.roomId);
+        requestHostFighters(claim.roomId, myLineup.map((fighter) => fighter.holobotName));
         return;
       }
       if (claim.outcome === "alreadyMatched") {
@@ -422,7 +496,7 @@ export function useRealtimeArena() {
       setMatchmakingStatus("matched");
       void joinRoomById(entry.roomId);
     });
-  }, [buildOwnLineup, joinRoomById, profile, subscribeToRoom, user]);
+  }, [buildOwnLineup, joinRoomById, profile, requestHostFighters, subscribeToRoom, user]);
 
   const cancelMatchmaking = useCallback(async () => {
     poolUnsubscribeRef.current?.();
@@ -566,6 +640,9 @@ export function useRealtimeArena() {
     createRoom,
     enterMatchmaking,
     error,
+    hostFighterStatus,
+    hostSeatPending,
+    hostView,
     joinRoom,
     leaveRoom,
     loading,
