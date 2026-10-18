@@ -316,7 +316,7 @@ test('schema refuses wrong team size, duplicate bots, client HP/STA, per-fighter
 
 test('arena-match-1 schemas are byte-pinned and untouched; the versions never cross; the deployed host refuses every 3v3 request today',async()=>{
  const sha=n=>createHash('sha256').update(readFileSync(new URL(`../../Schemas/${n}.json`,import.meta.url))).digest('hex');
- assert.equal(sha('arena-match-1'),'4cfd9a37520d1b1079b36dd8f8179a16f60ffc6073f5593601b2e70a1eb77219'); // origin/main 3b1e790
+ assert.equal(sha('arena-match-1'),'6b728fdab068a7624eec51fa3605e0d427500687015b90275d8d6da514f5aa33'); // #145 host-economy-hardening-2: additive optional payoutCapped on the issue reply
  assert.equal(sha('arena-match-request-1'),'26a90ffcd880c3026632ee95d32a6f7d2842a767ed50ab291bd38c17eaea0ac6');
  for(const s of v1.steps){assert.ok(request1(s.request));assert.ok(reply1(s.reply));assert.equal(request(s.request),false);assert.equal(reply(s.reply),false);}
  for(const s of steps){assert.equal(request1(s.request),false,s.name);if(s.reply)assert.equal(reply1(s.reply),false,s.name);}
