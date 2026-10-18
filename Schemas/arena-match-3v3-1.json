@@ -1570,6 +1570,17 @@
                     }
                   }
                 }
+              },
+              "team": {
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "not": {
+                        "const": "ko"
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -1593,6 +1604,17 @@
                   "properties": {
                     "status": {
                       "const": "ko"
+                    }
+                  }
+                }
+              },
+              "opponentTeam": {
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "not": {
+                        "const": "ko"
+                      }
                     }
                   }
                 }

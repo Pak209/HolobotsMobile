@@ -100,8 +100,11 @@ decide whether that stays fail-closed or becomes a typed `activity_conflict`.
 - **Top-level `intent`.** For `report` and `swap`, an echo
   `{intentId, operation, appliedTurn}`. Null for every other operation.
 
-**Coherence the schema enforces** (each rule has a targeted negative probe in
-the test, and deleting any rule makes the suite fail):
+**Coherence the schema enforces.** Each of the 23 conditional (`if`/`then`)
+rules, and the survivor clause inside each winner rule, has at least one
+targeted negative probe in the test. Deleting any one of them makes the suite
+fail. A one-off mutation sweep checked this during review; the sweep is not
+part of `npm test`.
 
 - **KO and HP:** `ko` exactly when HP is 0.
 - **Winner and phase:** `winner` is non-null exactly in `over`.
@@ -111,8 +114,11 @@ the test, and deleting any rule makes the suite fail):
     living bench fighter remains.
   - While the match is undecided, `opponentTeam[opponentActiveSlot]` is the
     CPU's only active fighter.
-- **Winner and KO:** `winner: player` means every CPU fighter is KO'd;
-  `winner: opponent` means every player fighter is.
+- **Winner and KO:**
+  - `winner: player` means every CPU fighter is KO'd and at least one player
+    fighter lives.
+  - `winner: opponent` means the mirror.
+  - A double wipe can never carry a winner.
 - **State and phase:**
   - `issued` means `ready` and turn 0.
   - `active` is never `ready`.
@@ -137,7 +143,7 @@ the test, and deleting any rule makes the suite fail):
 | `resume` | always | optional `matchId` | Returns the current projection, `alreadyProcessed: true`. |
 | `report` | `phase: command` | `intentId, turn, activeHealth, opponentHealth` | A **client-asserted** checkpoint for the two **active** fighters. Each value must be ≤ the host's current HP, and both must not be 0. The host applies them, increments `turn` and resolves KOs (below). It touches no other slot. |
 | `swap` | `phase: command` (voluntary) or `send_in` (forced) | `intentId, turn, holobotId` | The target must be on the team, alive and not active. A voluntary swap benches the active fighter at its host HP and uses one of `voluntarySwapLimit`. A forced send-in uses none. `phase` returns to `command`. `turn` increments. **No HP changes.** |
-| `settle` | `phase: over`, not expired, and at least `ARENA_MIN_SETTLE_MS` (1000 ms) after start (otherwise `too_fast`, the same #120 plausibility floor, not proof of combat) | `combosCompleted, perfectDefenses` (client-asserted, 0..`maxPerformanceEvents`) | Outcome from the host `winner`. One reward quote, scaled by the asserted counts. Writes `finalVitals` for all three bots. Terminal replay pays nothing twice. |
+| `settle` | `phase: over` (also after `expiresAtMs`; see "Expiry"), and at least `ARENA_MIN_SETTLE_MS` (1000 ms) after start (otherwise `too_fast`, the same #120 plausibility floor, not proof of combat) | `combosCompleted, perfectDefenses` (client-asserted, 0..`maxPerformanceEvents`) | Outcome from the host `winner`. One reward quote, scaled by the asserted counts. Writes `finalVitals` for all three bots. Terminal replay pays nothing twice. |
 | `cancel` | `issued`, or `active` in `command` or `send_in` | `matchId` | Before start: one refund of the one charge. After start, before a winner exists: a forfeit that writes the host-held vitals. In `over` it is refused as `settle_required`: a decided result cannot become a forfeit. No client HP. |
 
 **KO resolution after a `report`:**
@@ -167,9 +173,23 @@ the test, and deleting any rule makes the suite fail):
 4. **Swap target checks**, in order: `not_on_team`, `fighter_ko`,
    `fighter_active`, `swap_limit`.
 
-`settle` before `over` is refused as `not_over`. `cancel` in `over` is refused
-as `settle_required`. A refusal never changes any host state, and the turn does
-not move.
+`settle` before `over` is refused as `not_over` before expiry and as
+`match_expired` after it. `cancel` in `over` is refused as `settle_required`.
+A refusal never changes any host state, and the turn does not move.
+
+**Expiry.** `report`, `swap` and `start` after `expiresAtMs` are refused as
+`match_expired`, so no bout outcome can change after expiry.
+
+A match that reached `over` before expiry already has its winner. `settle`
+therefore stays legal for it after expiry, and records `state: settled` with
+`closedAtMs > expiresAtMs`. That keeps the account's shared Arena lease from
+being stranded open: cancel is refused in `over`, and a decided result can
+never expire into a forfeit.
+
+An undecided match that expires is closed by `cancel`. That gives a forfeit
+(`state: expired`) after start, or a refund before start, as in 1v1.
+
+The test's late-settle positive control pins this.
 
 **Idempotency:**
 
@@ -253,10 +273,16 @@ produced it.**
   team sizes, duplicate bots, client-named opponents and per-fighter charges.
 - The schema refuses every coherence violation listed above. Each has one
   targeted probe; deleting any of the 23 conditional rules fails the suite.
-- Positive controls build the paths the lifecycle does not walk: a player wipe,
-  a settled loss, a mid-match forfeit, and a refund before start.
+- Positive controls build the paths the lifecycle does not walk:
+  - a player wipe (ACE KO'd from the last send-in state);
+  - a settled loss;
+  - a mid-match forfeit;
+  - a refund before start;
+  - a late settle after expiry;
+  - a pass-paid entry at `entryFeePasses`.
 - Every accepted step is checked with the previous accepted state:
-  - Only a report moves HP, and it touches only the two active slots.
+  - Only a report moves HP, and only on the two reported slots. A CPU fighter
+    sent in on a KO keeps its benched HP.
   - A swap never touches the CPU team.
   - The CPU switches only on a KO.
   - In send_in, a swap is the only accepted intent.
@@ -283,7 +309,9 @@ produced it.**
    bouts?
 7. **Performance counts in 3v3.** Keep the client-asserted 0..25 multipliers
    (the 1v1 parity shown here), make them host-derived, or drop them for 3v3?
-   Is the 1000 ms `too_fast` floor enough for a three-bout match?
+   Is the 1000 ms `too_fast` floor enough for a three-bout match? Should a
+   late settle after expiry honor the asserted counts, or zero them? The
+   proposal is to zero them.
 8. **Buddy.** DECISIONS #71 places a BUDDY strip above the bench. Should the 3v3
    admission freeze a Buddy Unit snapshot from the account's host `buddyUnits`
    inventory into the reply? Today the reply carries none, and the lite client

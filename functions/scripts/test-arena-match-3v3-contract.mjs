@@ -20,6 +20,8 @@ const DOCUMENTED=['invalid_request','invalid_state','turn_mismatch','fighter_ko'
 const ids=team=>team.map(s=>s.fighter.holobotId);
 const slots=m=>[...m.team,...m.opponentTeam];
 const vitalsOf=m=>slots(m).map(s=>s.vitals);
+/** ONE entry charge at the host-frozen price for its method (Holos or pass). */
+const assertCharge=m=>{const r=m.entryReceipt;assert.equal(r.amount,r.method==='pass'?m.rules.entryFeePasses:m.rules.entryFeeHolos);assert.equal(r.balanceBefore-r.balanceAfter,r.amount);assert.equal(r.chargedAtMs,m.issuedAtMs);};
 /** Walk the lifecycle: each step with the last accepted (non-replay) match before it. */
 function walk(){const out=[];let last=null;for(const s of steps){out.push({s,last});if(s.reply?.match&&!s.reply.alreadyProcessed)last=s.reply.match;}return out;}
 
@@ -54,9 +56,8 @@ test('one match, ONE entry charge at the frozen quote, three issued bots frozen 
    assert.equal(s.slot,i);assert.deepEqual(Object.keys(s).sort(),['fighter','slot','status','vitals']);
   });
  }
- const r=first.entryReceipt;assert.equal(r.method,'tokens');
- assert.equal(r.amount,r.method==='pass'?first.rules.entryFeePasses:first.rules.entryFeeHolos); // both prices are host-frozen quotes
- assert.equal(r.balanceBefore-r.balanceAfter,r.amount);assert.equal(r.chargedAtMs,first.issuedAtMs);
+ assert.equal(first.entryReceipt.method,'tokens');assertCharge(first);
+ const pass=passIssued();assert.ok(reply(pass),JSON.stringify(reply.errors));assertCharge(pass.match);assert.equal(pass.match.entryReceipt.amount,1); // the pass price is a frozen quote too
  assert.equal(JSON.stringify(fixture).match(/"entryReceipt"/g).length,matches.length); // one receipt per projection, none per fighter
  assert.deepEqual(first.battle,{turn:0,phase:'ready',activeSlot:0,opponentActiveSlot:0,voluntarySwapsUsed:0,winner:null});
  assert.deepEqual(first.team[1].vitals,{currentHealth:205,maxHealth:220}); // ledger HP, not a full-HP default
@@ -131,6 +132,7 @@ test('host vitals: no bench regen, HP never rises, KO is final, KO forces a send
    assert.equal(n.activeSlot,b.activeSlot,'a report never moves the player\'s active slot');
    m.team.forEach((x,i)=>{if(i!==b.activeSlot)assert.deepEqual(x,last.team[i],'a report touches only the active player slot');});
    m.opponentTeam.forEach((x,i)=>{if(i!==b.opponentActiveSlot&&!(s.request.opponentHealth===0&&i===n.opponentActiveSlot))assert.deepEqual(x,last.opponentTeam[i]);});
+   slots(m).forEach((x,i)=>{if(i!==b.activeSlot&&i!==3+b.opponentActiveSlot)assert.deepEqual(x.vitals,slots(last)[i].vitals,`${s.name}: only the two reported slots move HP`);});
    if(s.request.opponentHealth>0)assert.equal(n.opponentActiveSlot,b.opponentActiveSlot,'the CPU switches only on a KO');
    if(s.request.activeHealth===0){
     if(last.team.some(x=>x.status==='bench'))assert.equal(n.phase,'send_in');
@@ -162,9 +164,19 @@ test('settle: host-derived outcome, one reward quote, all three bots written to 
 
 /** Synthetic projections built from fixture steps, for paths the hand-authored lifecycle does not walk. */
 function lossOver(){
- const r=structuredClone(step('report-4-active-ko').reply),m=r.match;
+ const r=structuredClone(step('swap-3-forced-send-in').reply),m=r.match;
  Object.assign(m.team[0],{status:'ko',vitals:{...m.team[0].vitals,currentHealth:0}});
- Object.assign(m.battle,{turn:7,phase:'over',winner:'opponent'});r.intent={...r.intent,appliedTurn:6};return r;
+ m.opponentTeam[2].vitals.currentHealth=30;
+ Object.assign(m.battle,{turn:8,phase:'over',winner:'opponent'});r.intent={intentId:'lite3v3_intent_l1',operation:'report',appliedTurn:7};return r;
+}
+/** CONF1: a match decided before expiry is still settled after expiresAtMs (state settled, no forfeit). */
+function lateSettle(){
+ const r=structuredClone(step('settle').reply),m=r.match,closed=m.expiresAtMs+60000;
+ m.closedAtMs=closed;m.settlementReceipt.closedAtMs=closed;return r;
+}
+function passIssued(){
+ const r=structuredClone(step('issue').reply),e=r.match.entryReceipt;
+ Object.assign(e,{method:'pass',amount:r.match.rules.entryFeePasses,balanceBefore:3,balanceAfter:3-r.match.rules.entryFeePasses});return r;
 }
 function settledLoss(){
  const r=lossOver(),m=r.match,closed=m.issuedAtMs+30000;
@@ -198,7 +210,7 @@ test('schema refuses wrong team size, duplicate bots, client HP/STA, per-fighter
  assert.equal(request({schemaVersion:'arena-match-3v3-1',operation:'cancel',matchId:swap.matchId,playerFinalHealth:1}),false);
  assert.equal(request({...swap,matchId:'am_'+'0'.repeat(32)}),false,'3v3 ids never collide with arena-match-1 am_ ids');
  // Positive controls for paths the lifecycle does not walk: a player wipe, a settled loss, a mid-match forfeit, a refund before start.
- for(const [name,r] of [['loss over',lossOver()],['settled loss',settledLoss()],['forfeit',forfeit()],['cancelled before start',cancelledBeforeStart()]])assert.ok(reply(r),`${name} ${JSON.stringify(reply.errors)}`);
+ for(const [name,r] of [['loss over',lossOver()],['settled loss',settledLoss()],['forfeit',forfeit()],['cancelled before start',cancelledBeforeStart()],['late settle after expiry',lateSettle()],['pass-paid issue',passIssued()]])assert.ok(reply(r),`${name} ${JSON.stringify(reply.errors)}`);
  const bad=(base,edit)=>{const r=typeof base==='string'?structuredClone(step(base).reply):base;edit(r.match,r);assert.equal(reply(r),false,edit.toString());};
  bad('start',m=>{m.team.pop();});
  bad('start',m=>{m.team[1].vitals.stamina=110;});
@@ -227,6 +239,9 @@ test('schema refuses wrong team size, duplicate bots, client HP/STA, per-fighter
  bad('report-1-opponent-ko',m=>{m.battle.opponentActiveSlot=0;});                    // CPU active slot on a KO'd fighter
  bad('report-5-match-over',m=>{m.opponentTeam[2]={...m.opponentTeam[2],status:'bench',vitals:{...m.opponentTeam[2].vitals,currentHealth:40}};}); // player wins with a CPU alive
  bad(lossOver(),m=>{m.battle.winner='player';});                                     // wipe recorded as a player win
+ bad('report-5-match-over',m=>{m.team[0]={...m.team[0],status:'ko',vitals:{...m.team[0].vitals,currentHealth:0}};}); // double wipe recorded as a player win
+ bad(lossOver(),m=>{m.opponentTeam[2]={...m.opponentTeam[2],status:'ko',vitals:{...m.opponentTeam[2].vitals,currentHealth:0}};}); // double wipe recorded as a CPU win
+ bad(lateSettle(),m=>{m.state='expired';m.settlementReceipt.outcome='forfeit';m.settlementReceipt.settlement=null;}); // a decided result never expires into a forfeit
  // Terminal state, outcome, winner and start are coupled (CON3, CON4, CON5).
  bad('settle',m=>{m.state='cancelled';});                                            // cancelled match paying a win
  bad(settledLoss(),m=>{m.settlementReceipt.outcome='win';});                         // win paid against the host's opponent winner
@@ -239,6 +254,10 @@ test('schema refuses wrong team size, duplicate bots, client HP/STA, per-fighter
  bad('settle',m=>{m.settlementReceipt.outcome='loss';Object.assign(m.settlementReceipt.settlement,{holos:0,blueprints:null});}); // loss recorded against a player win
  bad(lossOver(),m=>{m.team[0]={...m.team[0],status:'bench',vitals:{...m.team[0].vitals,currentHealth:10}};}); // opponent wins while a player fighter lives
  bad('start',m=>{m.battle.phase='ready';});                                         // active state never returns to ready
+ bad('issue',m=>{m.battle.turn=4;});                                                 // issued means turn 0
+ bad(forfeit(),m=>{m.settlementReceipt=null;});                                     // a cancelled match carries a receipt
+ bad(cancelledBeforeStart(),m=>{m.settlementReceipt.refunded=false;});               // a refund is marked refunded
+ bad('settle',m=>{m.settlementReceipt.report=null;});                                // a win carries its report
  bad('settle',m=>{m.closedAtMs=null;});                                             // terminal without a close time
  bad('settle',m=>{Object.assign(m.battle,{phase:'command',winner:null});m.opponentTeam[2]={...m.opponentTeam[2],status:'active',vitals:{...m.opponentTeam[2].vitals,currentHealth:40}};}); // settled before the match is over
  bad('settle',m=>{m.settlementReceipt.settlement=null;});                            // a win with no settlement
