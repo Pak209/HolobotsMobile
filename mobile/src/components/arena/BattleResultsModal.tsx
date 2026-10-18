@@ -8,7 +8,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import type { BattleRewards } from '../../types/arena';
+import { ARENA_RESULT_BUTTON, presentArenaResult, type ArenaResultReceipt } from './arenaResultPresenter';
 import { ArenaControlFrame } from './ArenaTierFrames';
 import { GameDialogFrame, GameSurfaceFrame } from '../ui/GameSurfaceFrame';
 
@@ -25,11 +25,13 @@ export type RunTotals = {
 interface BattleResultsModalProps {
   visible: boolean;
   didWin: boolean;
-  rewards: BattleRewards;
+  /** Host receipt (rows = exactly what it carries) or the QA stand-in (no rows). */
+  receipt: ArenaResultReceipt;
   /** Accumulated rewards across the tier run; shown after round 1. */
   runTotals?: RunTotals | null;
   continueLabel?: string;
-  subtitle?: string;
+  /** Match line prepended/appended to the presenter's subtitle. */
+  context?: string;
   /** When there is no rematch path (3v3), show a single primary EXIT. */
   hideRematch?: boolean;
   onRematch: () => void;
@@ -39,14 +41,15 @@ interface BattleResultsModalProps {
 export function BattleResultsModal({
   visible,
   didWin,
-  rewards,
+  receipt,
   runTotals,
   continueLabel,
-  subtitle,
+  context,
   hideRematch,
   onRematch,
   onExit,
 }: BattleResultsModalProps) {
+  const view = presentArenaResult({ didWin, receipt, context });
   return (
     <Modal
       visible={visible}
@@ -74,64 +77,25 @@ export function BattleResultsModal({
           </View>
 
           <View style={styles.rewardsSection}>
-            {subtitle ? (
-              <Text style={styles.subtitle}>{subtitle}</Text>
+            <Text style={styles.subtitle}>{view.subtitle}</Text>
+            {view.rowsTitle ? (
+              <Text style={styles.rewardsTitle}>{view.rowsTitle}</Text>
             ) : null}
-            <Text style={styles.rewardsTitle}>
-              {didWin ? 'REWARDS' : 'CONSOLATION'}
-            </Text>
 
-            <View style={styles.rewardsList}>
-              <View style={styles.rewardItem}>
-                <GameSurfaceFrame accent={theme.colors.border} />
-                <Text style={styles.rewardIcon}>EXP</Text>
-                <Text style={styles.rewardLabel}>EXP</Text>
-                <Text style={styles.rewardValue}>+{rewards.exp}</Text>
+            {view.rows.length > 0 ? (
+              <View style={styles.rewardsList}>
+                {view.rows.map((row) => (
+                  <View key={row.key} style={styles.rewardItem}>
+                    <GameSurfaceFrame accent={row.frameAccent} />
+                    <Text style={styles.rewardIcon}>{row.icon}</Text>
+                    <Text style={styles.rewardLabel}>{row.label}</Text>
+                    <Text style={[styles.rewardValue, valueTone[row.tone]]}>{row.value}</Text>
+                  </View>
+                ))}
               </View>
+            ) : null}
 
-              <View style={styles.rewardItem}>
-                <GameSurfaceFrame accent={theme.colors.accent} />
-                <Text style={styles.rewardIcon}>SP</Text>
-                <Text style={styles.rewardLabel}>Sync Points</Text>
-                <Text style={styles.rewardValue}>+{rewards.syncPoints}</Text>
-              </View>
-
-              {typeof rewards.holos === "number" && rewards.holos > 0 ? (
-                <View style={[styles.rewardItem, styles.rareReward]}>
-                  <GameSurfaceFrame accent={theme.colors.accent} />
-                  <Text style={styles.rewardIcon}>H</Text>
-                  <Text style={styles.rewardLabel}>HOLOS</Text>
-                  <Text style={[styles.rewardValue, styles.rareValue]}>
-                    +{rewards.holos}
-                  </Text>
-                </View>
-              ) : null}
-
-              {rewards.blueprintRewards?.map((reward) => (
-                <View key={reward.holobotKey} style={[styles.rewardItem, styles.rareReward]}>
-                  <GameSurfaceFrame accent={theme.colors.accent} />
-                  <Text style={styles.rewardIcon}>BP</Text>
-                  <Text style={styles.rewardLabel}>{`${reward.holobotKey.toUpperCase()} BLUEPRINT`}</Text>
-                  <Text style={[styles.rewardValue, styles.rareValue]}>+{reward.amount}</Text>
-                </View>
-              ))}
-
-              {rewards.eloChange !== undefined && (
-                <View style={styles.rewardItem}>
-                  <GameSurfaceFrame accent={rewards.eloChange >= 0 ? theme.colors.accent : theme.colors.danger} />
-                  <Text style={styles.rewardIcon}>RT</Text>
-                  <Text style={styles.rewardLabel}>Rating</Text>
-                  <Text style={[
-                    styles.rewardValue,
-                    rewards.eloChange >= 0 ? styles.positiveValue : styles.negativeValue,
-                  ]}>
-                    {rewards.eloChange >= 0 ? '+' : ''}{rewards.eloChange}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {runTotals && runTotals.rounds > 1 ? (
+            {receipt.kind === 'host' && runTotals && runTotals.rounds > 1 ? (
               <View style={styles.runTotals}>
                 <Text style={styles.runTotalsTitle}>
                   {`RUN TOTAL • ${runTotals.rounds} ROUNDS`}
@@ -151,20 +115,22 @@ export function BattleResultsModal({
           <View style={styles.buttonsContainer}>
             {!hideRematch ? (
               <TouchableOpacity
-                style={[styles.button, styles.rematchButton]}
+                accessibilityRole="button"
+                style={styles.plate}
                 onPress={onRematch}
               >
                 <ArenaControlFrame accent={theme.colors.accent} selected />
-                <Text style={styles.rematchButtonText}>{continueLabel || 'REMATCH'}</Text>
+                <Text style={styles.primaryLabel}>{continueLabel || 'REMATCH'}</Text>
               </TouchableOpacity>
             ) : null}
 
             <TouchableOpacity
-              style={[styles.button, hideRematch ? styles.rematchButton : styles.exitButton]}
+              accessibilityRole="button"
+              style={styles.plate}
               onPress={onExit}
             >
               <ArenaControlFrame accent={hideRematch ? theme.colors.accent : theme.colors.border} selected={hideRematch} />
-              <Text style={hideRematch ? styles.rematchButtonText : styles.exitButtonText}>
+              <Text style={hideRematch ? styles.primaryLabel : styles.secondaryLabel}>
                 EXIT ARENA
               </Text>
             </TouchableOpacity>
@@ -176,6 +142,7 @@ export function BattleResultsModal({
 }
 
 const styles = StyleSheet.create({
+  ...ARENA_RESULT_BUTTON,
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.88)',
@@ -296,8 +263,6 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     position: 'relative',
   },
-  rareReward: {
-  },
   rewardIcon: {
     color: theme.colors.accent,
     fontFamily: "HoloBody",
@@ -334,28 +299,11 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 10,
   },
-  button: {
-    justifyContent: 'center',
-    minHeight: 48,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  rematchButton: {
-  },
-  rematchButtonText: {
-    color: theme.colors.carbon,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.label.fontSize,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  exitButton: {
-  },
-  exitButtonText: {
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.body.fontSize,
-    fontWeight: '900',
-    letterSpacing: 0.7,
-  },
 });
+
+const valueTone = {
+  plain: null,
+  rare: styles.rareValue,
+  positive: styles.positiveValue,
+  negative: styles.negativeValue,
+} as const;
