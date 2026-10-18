@@ -107,7 +107,10 @@ export function buyExpedition(profile:Record<string,unknown>,item:string,config:
   return {...updates,holosTokens:holos-price,expeditionSupplies:supplies};
 }
 export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionCommand,id:string,seed:number,now:number,config:ExpeditionConfig):{run:ExpeditionRun;updates:Record<string,unknown>}{
-  if(!readStoryFlags(profile.storyFlags).arenaArcBuilt)return fail('arena_arc_required');
+  const flags=readStoryFlags(profile.storyFlags);
+  if(!flags.arenaArcBuilt)return fail('arena_arc_required');
+  // The HoloZones portal gate (critic review 2026-10-17 #1): no expedition until the host flips holoZonesArcBuilt.
+  if(!flags.holoZonesArcBuilt)return fail('zone_locked');
   const ids=readTravelSquad(profile).holobotIds;if(!ids.length)return fail('squad_required');
   requireLivingVitals(profile,ids);
   const players=buildPlayerCombatants(profile,ids);if(players.length!==ids.length)return fail('unavailable');

@@ -19,8 +19,10 @@ const bots = () => [
   { name: 'KUMA', level: 1, experience: 350, nextLevelExp: 400, attributePoints: 0 },
   { name: 'WOLF', level: 12, experience: 16000, nextLevelExp: 16900, attributePoints: 4 },
 ];
+// Every pilot here has built the HoloZones arc (issue is gated on it; critic review 2026-10-17 #1).
+const OPEN_FLAGS = () => ({ arenaGatheringSeen: false, tournamentsWon: 0, arenaArcBuilt: false, holoZonesArcBuilt: true });
 const squad = (ids, revision = 1) => ({ schemaVersion: 'travel-squad-1', revision, holobotIds: ids });
-const setup = async (fields = {}) => { const uid = `hz_${Date.now()}_${serial++}`; await db.doc(`users/${uid}`).set({ holobots: bots(), travelSquad: squad(['ace', 'kuma']), ...fields }); return uid; };
+const setup = async (fields = {}) => { const uid = `hz_${Date.now()}_${serial++}`; await db.doc(`users/${uid}`).set({ storyFlags: OPEN_FLAGS(),  holobots: bots(), travelSquad: squad(['ace', 'kuma']), ...fields }); return uid; };
 const user = async uid => (await db.doc(`users/${uid}`).get()).data();
 const runsDoc = async uid => (await db.doc(`holoZoneRuns/${uid}`).get()).data();
 const call = (uid, data, now = T0) => transactHoloZoneRun(db, uid, { schemaVersion: 'holozone-run-1', ...data }, now);
@@ -33,7 +35,7 @@ test('issue → settle → replay: server uuid, travel squad snapshot, XP writte
   assert.match(i.runId, Z.HOLOZONE_RUN_ID); assert.equal(i.tier, 0); assert.deepEqual(i.squad, ['ace', 'kuma']);
   assert.equal(i.issuedAtMs, ISSUED); assert.equal(i.expiresAtMs, ISSUED + Z.HOLOZONE_RUN_TTL_MS);
   assert.deepEqual((await call(uid, { operation: 'status' })).run, { runId: i.runId, zoneId: 'neonforest', tier: 0, squad: ['ace', 'kuma'], issuedAtMs: ISSUED, expiresAtMs: i.expiresAtMs });
-  assert.deepEqual(await user(uid), { holobots: bots(), travelSquad: squad(['ace', 'kuma']) }, 'issue writes nothing on users/{uid}');
+  assert.deepEqual(await user(uid), { storyFlags: OPEN_FLAGS(), holobots: bots(), travelSquad: squad(['ace', 'kuma']) }, 'issue writes nothing on users/{uid}');
   const results = await Promise.all(Array.from({ length: 5 }, () => call(uid, { operation: 'settle', runId: i.runId, kills: 3, bossDefeated: false, fielded: ['ace', 'kuma'] })));
   assert.equal(results.filter(r => !r.alreadyProcessed).length, 1, 'exactly one first settle');
   const s = results.find(r => !r.alreadyProcessed);
@@ -139,4 +141,31 @@ test('holozone-run-2: issue / status carry the population by zone and tier; v1 r
   const before = await runsDoc(uid);
   await assert.rejects(() => holoZoneHost.run({ auth: { uid }, data: { schemaVersion: 'holozone-run-3', operation: 'status' } }), e => e.code === 'invalid-argument' && e.details.rejectionCode === 'invalid_request');
   assert.deepEqual(await runsDoc(uid), before);
+});
+
+test('HoloZones arc gate (critic review 2026-10-17 #1): issue refuses zone_locked (failed-precondition) for v1 and v2 with nothing written; an open run still settles; malformed flags are unavailable', async () => {
+  const locked = { arenaGatheringSeen: false, tournamentsWon: 0, arenaArcBuilt: false, holoZonesArcBuilt: false };
+  for (const storyFlags of [undefined, locked]) {
+    const uid = await setup(storyFlags ? { storyFlags } : {});
+    if (!storyFlags) await db.doc(`users/${uid}`).update({ storyFlags: require('firebase-admin/firestore').FieldValue.delete() });
+    const before = await user(uid);
+    for (const schemaVersion of ['holozone-run-1', 'holozone-run-2']) {
+      await assert.rejects(() => holoZoneHost.run({ auth: { uid }, data: { schemaVersion, operation: 'issue', zoneId: 'neonforest' } }),
+        e => e.code === 'failed-precondition' && e.details.rejectionCode === 'zone_locked');
+      await assert.rejects(() => transactHoloZoneRun(db, uid, { schemaVersion, operation: 'issue', zoneId: 'neonforest' }, T0), /zone_locked/);
+    }
+    assert.deepEqual(await user(uid), before, 'nothing written to the account');
+    assert.equal(await runsDoc(uid), undefined, 'no run document');
+    assert.equal((await call(uid, { operation: 'status' })).run, null, 'status still answers');
+  }
+  // A run issued while the arc was open (or before this gate deployed) still settles once; only ISSUE is gated.
+  const uid = await setup();
+  const issued = await call(uid, { operation: 'issue', zoneId: 'neonforest' }, ISSUED);
+  await db.doc(`users/${uid}`).update({ storyFlags: locked });
+  const settled = await call(uid, { operation: 'settle', runId: issued.runId, kills: 1, bossDefeated: false, fielded: ['ace'] });
+  assert.equal(settled.alreadyProcessed, false);
+  await assert.rejects(() => call(uid, { operation: 'issue', zoneId: 'neonforest' }), /zone_locked/);
+  const bad = await setup({ storyFlags: { holoZonesArcBuilt: 'yes' } });
+  await assert.rejects(() => holoZoneHost.run({ auth: { uid: bad }, data: { schemaVersion: 'holozone-run-1', operation: 'issue', zoneId: 'neonforest' } }),
+    e => e.code === 'unavailable' && e.details.rejectionCode === 'unavailable');
 });

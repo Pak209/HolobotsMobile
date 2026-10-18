@@ -20,7 +20,7 @@ let serial = 0;
 const retry = async f => { for (let k = 0; ; k++) { try { return await f(); } catch (e) { if (k < 4 && /Transaction is invalid or closed/.test(String(e?.message))) continue; throw e; } } };
 const bots = () => [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 2500, attributePoints: 1 }, { name: 'KUMA', level: 1, experience: 0, nextLevelExp: 400, attributePoints: 0 }];
 const squad = ids => ({ schemaVersion: 'travel-squad-1', revision: 1, holobotIds: ids });
-const setup = async (fields = {}) => { const uid = `econ_${Date.now()}_${serial++}`; await db.doc(`users/${uid}`).set({ holobots: bots(), travelSquad: squad(['ace', 'kuma']), holosTokens: 600, buddyUnits: { light: 0, medium: 0, heavy: 0 }, ...fields }); return uid; };
+const setup = async (fields = {}) => { const uid = `econ_${Date.now()}_${serial++}`; await db.doc(`users/${uid}`).set({ storyFlags:{arenaGatheringSeen:false,tournamentsWon:0,arenaArcBuilt:false,holoZonesArcBuilt:true}, holobots: bots(), travelSquad: squad(['ace', 'kuma']), holosTokens: 600, buddyUnits: { light: 0, medium: 0, heavy: 0 }, ...fields }); return uid; };
 const user = async uid => (await db.doc(`users/${uid}`).get()).data();
 const rival = (uid, data, now) => transactRivalBattle(db, uid, { schemaVersion: 'rival-battle-3', ...data }, now);
 const zone = (uid, data, now, v = 'holozone-run-2') => transactHoloZoneRun(db, uid, { schemaVersion: v, ...data }, now);

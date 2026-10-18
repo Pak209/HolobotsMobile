@@ -1,11 +1,18 @@
 import { HOLOZONE_ZONE_TIERS } from '../lib/holoZoneRuns';
+import { readStoryFlags } from '../story/storyFlags';
 
 /** Dashboard catalog mirrored from Unity db265127c dashboard-preview.json; not its fabricated pilot data.
  * zoneId is the stable destination identity. PortalTravel routes by sceneName and has no separate portal ID.
  * These are destination availability flags, never permission to issue a run or bypass its host gates.
+ * A non-town zone is open only when its tier is configured (HOLOZONE_ZONE_TIERS) AND the account's host-owned
+ * storyFlags.holoZonesArcBuilt is true (critic review 2026-10-17 top #1; DECISIONS #59 am. 1: the HoloZones portal
+ * stays shut until the arc is built). A closed row carries sceneName null (not travelable). Malformed story flags
+ * fail closed here; the snapshot callable refuses them as unavailable before this runs.
  */
 export function desktopDashboardFields(profile: Record<string, unknown>) {
-  const available = (id: string) => Object.prototype.hasOwnProperty.call(HOLOZONE_ZONE_TIERS, id);
+  let holoZonesArcBuilt = false;
+  try { holoZonesArcBuilt = readStoryFlags(profile.storyFlags).holoZonesArcBuilt; } catch { holoZonesArcBuilt = false; }
+  const open = (id: string) => holoZonesArcBuilt && Object.prototype.hasOwnProperty.call(HOLOZONE_ZONE_TIERS, id);
   return {
     username: typeof profile.username === 'string' && profile.username.trim().length > 0 ? profile.username : null,
     // Wardrobe recipes are not portrait/colourway IDs. No authoritative catalog currently supplies these.
@@ -14,7 +21,7 @@ export function desktopDashboardFields(profile: Record<string, unknown>) {
     syncPoints: typeof profile.syncPoints === 'number' && Number.isSafeInteger(profile.syncPoints) && profile.syncPoints >= 0 ? profile.syncPoints : null,
     zones: [
       { zoneId: 'holocity', displayName: 'HoloCity', statusLabel: 'OPEN', isOpen: true, cardImageId: 'holocity', sceneName: 'HoloCity_Main' },
-      { zoneId: 'neonforest', displayName: 'Neon Forest', statusLabel: available('neonforest') ? 'OPEN' : 'NOT YET AVAILABLE', isOpen: available('neonforest'), cardImageId: 'neonforest', sceneName: available('neonforest') ? 'HoloZone_NeonForest' : null },
+      { zoneId: 'neonforest', displayName: 'Neon Forest', statusLabel: open('neonforest') ? 'OPEN' : 'NOT YET AVAILABLE', isOpen: open('neonforest'), cardImageId: 'neonforest', sceneName: open('neonforest') ? 'HoloZone_NeonForest' : null },
       { zoneId: 'tide_hollow', displayName: 'Tide Hollow', statusLabel: 'NOT YET AVAILABLE', isOpen: false, cardImageId: 'tide_hollow', sceneName: null },
       { zoneId: 'sky_reach', displayName: 'Sky Reach', statusLabel: 'NOT YET AVAILABLE', isOpen: false, cardImageId: 'sky_reach', sceneName: null },
     ],

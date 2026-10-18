@@ -3,6 +3,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { db } from "../admin";
 import {
   buildBoosterPurchaseUpdatesRaw,
+  dailyMissionCounterUpdates,
   MARKETPLACE_BOOSTER_PRICES,
   type MarketplaceBoosterId,
 } from "../lib/economy";
@@ -40,13 +41,15 @@ export const purchaseMarketplaceBooster = onCall(
       }
 
       const userData = snapshot.data() ?? {};
-      const result = buildBoosterPurchaseUpdatesRaw(userData, packId as MarketplaceBoosterId);
+      const now = new Date();
+      const result = buildBoosterPurchaseUpdatesRaw(userData, packId as MarketplaceBoosterId, { now });
 
       if (!result) {
         throw refusalError(REFUSALS.notEnoughHolos);
       }
 
-      transaction.set(userRef, result.updates, { merge: true });
+      // S2: the server-only daily-mission ledger is bumped with the display mirror.
+      transaction.set(userRef, { ...result.updates, ...dailyMissionCounterUpdates(userData, "boosterPacksToday", now) }, { merge: true });
 
       return {
         granted: result.granted,

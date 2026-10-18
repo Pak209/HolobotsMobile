@@ -304,15 +304,19 @@ describe("daily mission table parity", () => {
   });
 
   it("claims pay the table amount once, then refuse", () => {
+    // Critic review 2026-10-17 S2: progress and claims come from the server-only ledger;
+    // the client-writable rewardSystem is a display mirror only.
+    const counters = {
+      arenaBattlesToday: 3,
+      boosterPacksToday: 0,
+      lastDailyMissionReset: new Date().toISOString().slice(0, 10),
+      missionClaims: {},
+    };
     const userData = {
       gachaTickets: 3,
       holosTokens: 50,
-      rewardSystem: {
-        arenaBattlesToday: 3,
-        boosterPacksToday: 0,
-        lastDailyMissionReset: new Date().toISOString().slice(0, 10),
-        missionClaims: {},
-      },
+      [serverEconomy.DAILY_MISSION_LEDGER_FIELD]: counters,
+      rewardSystem: { ...counters, arenaBattlesToday: 0 },
     };
 
     const claim = serverEconomy.buildMissionClaimUpdatesRaw(userData, "arena_v2_battle");
@@ -322,11 +326,16 @@ describe("daily mission table parity", () => {
       expect(claim.updates.holosTokens).toBe(150);
 
       const again = serverEconomy.buildMissionClaimUpdatesRaw(
-        { ...userData, rewardSystem: claim.updates.rewardSystem },
+        { ...userData, ...claim.updates, rewardSystem: { ...counters, missionClaims: {} } },
         "arena_v2_battle",
       );
       expect(again.refusal).toBe("already_claimed");
     }
+
+    // Forged counters in the client-writable mirror never complete a mission.
+    expect(
+      serverEconomy.buildMissionClaimUpdatesRaw({ ...userData, [serverEconomy.DAILY_MISSION_LEDGER_FIELD]: undefined, rewardSystem: counters }, "arena_v2_battle").refusal,
+    ).toBe("not_completed");
 
     expect(serverEconomy.buildMissionClaimUpdatesRaw(userData, "open_booster_pack").refusal).toBe(
       "not_completed",

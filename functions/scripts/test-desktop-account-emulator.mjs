@@ -8,6 +8,7 @@ const Ajv = createRequire(new URL('../../rules-tests/package.json', import.meta.
 const validateDashboard = new Ajv().compile(require('../../Schemas/desktop-account-dashboard-fields.json'));
 assert.equal(validateDashboard(require('../../Documentation/QA/2026-10-17-desktop-snapshot-identity-1/known-bad-before.json')),false);
 assert.equal(validateDashboard(require('../../Documentation/QA/2026-10-17-desktop-snapshot-identity-1/desktop-account-3.json')),true);
+assert.equal(validateDashboard(require('../../Documentation/QA/2026-10-17-desktop-snapshot-identity-1/desktop-account-3_holozones-arc-built.json')),true);
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulator required; never run against production');
 process.env.GCLOUD_PROJECT ||= 'demo-holobots-desktop-tests';
 const { db } = require('../lib/admin.js');
@@ -52,9 +53,25 @@ test('dashboard projection ignores request overrides and preserves stored accoun
     assert.equal(validateDashboard(r),true,JSON.stringify(validateDashboard.errors));
     assert.equal(r.username,'Throwaway Pilot');assert.equal(r.syncPoints,37);
     assert.equal(r.pilotPortraitId,null);assert.equal(r.pilotColourwayId,null);
-    assert.deepEqual(r.zones.map(z=>z.isOpen),[true,true,false,false]);
+    // A request cannot open a zone, and a pilot without holoZonesArcBuilt sees Neon Forest closed (critic review 2026-10-17 #1).
+    assert.deepEqual(r.zones.map(z=>z.isOpen),[true,false,false,false]);assert.equal(r.zones[1].sceneName,null);
   }
   const stored=(await db.doc(`users/${uid}`).get()).data();
   assert.equal(stored.username,'Throwaway Pilot');assert.equal(stored.syncPoints,37);
   assert.deepEqual(stored.privateSentinel,{keep:true});assert.equal(stored.zones,undefined);
+});
+
+test('HoloZones arc gate through the real callable: closed until storyFlags.holoZonesArcBuilt, then open with its scene; malformed flags refuse', async () => {
+  const flags=built=>({arenaGatheringSeen:true,tournamentsWon:3,arenaArcBuilt:true,holoZonesArcBuilt:built});
+  for(const [storyFlags,open] of [[flags(false),false],[flags(true),true]]){
+    const uid=await setup({storyFlags});
+    for(const schemaVersion of ['desktop-account-1','desktop-account-2','desktop-account-3']){
+      const r=await desktopAccountSnapshot.run({auth:{uid},data:{schemaVersion}});
+      assert.equal(validateDashboard(r),true,JSON.stringify(validateDashboard.errors));
+      assert.deepEqual(r.zones[1],{zoneId:'neonforest',displayName:'Neon Forest',statusLabel:open?'OPEN':'NOT YET AVAILABLE',isOpen:open,cardImageId:'neonforest',sceneName:open?'HoloZone_NeonForest':null});
+      assert.equal(r.storyFlags.holoZonesArcBuilt,open);
+    }
+  }
+  const bad=await setup({storyFlags:{holoZonesArcBuilt:'true'}});
+  await assert.rejects(()=>desktopAccountSnapshot.run({auth:{uid:bad},data:{schemaVersion:'desktop-account-3'}}),e=>e.code==='unavailable');
 });

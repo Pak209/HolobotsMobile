@@ -12,7 +12,8 @@ describe('Arena leases and immutable receipts remain callable-only', () => {
   afterAll(async () => { await env?.cleanup(); });
   for (const actor of ['alice','bob',null]) {
     it(`denies parent/record/request reads and mutation for ${actor ?? 'anonymous'}`, async () => {
-      const paths = ['arenaMatches/alice','arenaMatches/alice/matches/am_test','arenaMatches/alice/requests/request_test'];
+      // 2026-10-17 S1: the CPU daily payout ledger is server-only too.
+      const paths = ['arenaMatches/alice','arenaMatches/alice/matches/am_test','arenaMatches/alice/requests/request_test','arenaMatches/alice/ledger/cpuPayouts'];
       for (const p of paths) {
         await env.withSecurityRulesDisabled(async ctx => setDoc(doc(ctx.firestore(),p),{open:true}));
         const db = actor ? env.authenticatedContext(actor).firestore() : env.unauthenticatedContext().firestore();

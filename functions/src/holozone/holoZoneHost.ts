@@ -24,7 +24,7 @@ export const holoZoneHost = onCall(async request => {
   } catch (error) {
     if(expeditionRequest){const rejection=expeditionRejection(error);if(rejection)throw rejection;}
     if (error instanceof HoloZoneError) {
-      const code = error.code === 'invalid_request' || error.code === 'unknown_zone' ? 'invalid-argument' : error.code === 'unknown_run' ? 'not-found' : error.code === 'run_expired' || error.code === 'run_closed' || error.code === 'holobot_ko' || error.code === 'activity_conflict' || error.code === 'zone_cooldown' ? 'failed-precondition' : 'unavailable';
+      const code = error.code === 'invalid_request' || error.code === 'unknown_zone' ? 'invalid-argument' : error.code === 'unknown_run' ? 'not-found' : error.code === 'run_expired' || error.code === 'run_closed' || error.code === 'holobot_ko' || error.code === 'activity_conflict' || error.code === 'zone_cooldown' || error.code === 'zone_locked' ? 'failed-precondition' : 'unavailable';
       throw new HttpsError(code, error.code, { rejectionCode: error.code, ...(error.retryAfterMs !== undefined ? { retryAfterMs: error.retryAfterMs } : {}) });
     }
     throw error;
