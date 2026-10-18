@@ -95,7 +95,7 @@ Evidence is in `~/HolobotsVault/QA/2026-10-17-lite-3v3-prep-1/`: `GATE_SHEET.png
 - A live witness against a real host.
 - A re-witness of the bench QA routes after `4879400`.
 - PvP 3v3 inside PvpArenaModal, which is reachable from ArenaScreen. It still uses legacy local authority (`pvpTeamBattle` bench regen). It is owned by lite-pvp-fighters-1 and outside this lane.
-- ArenaScreen's own pre-existing strings that say "HOST" ("RESUME HOST MATCH", and others) break the DECISIONS #71 rule. They are left for lite-arena-polish-1.
+- ArenaScreen's one pre-existing on-screen "host" string ("RESUME HOST MATCH", line 120) breaks the DECISIONS #71 rule. It is left for lite-arena-polish-1.
 
 ## Pak calls
 
