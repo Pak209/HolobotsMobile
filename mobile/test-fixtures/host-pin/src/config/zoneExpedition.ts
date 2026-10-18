@@ -53,11 +53,12 @@ export const ZONE_EXPEDITION_RULES = Object.freeze({
     clear: 'sector-encounter-cleared-no-loot',
     noEffect: 'not-spent-no-cooldown',
   }),
-  /** zone-run-4 layout preview copy (Holocity #53). PLACEHOLDER strings for Lex/Pak; presentation text only, never a
-   * ruling. dangerLabels[i] names band i+1 (the band whose WOLF level is bandLevels[i]); glimpse is keyed by the
-   * sector's host role in the daily layout table. */
+  /** zone-run-4 layout preview copy (Holocity #53); presentation text only, never a ruling. dangerLabels[i] names
+   * band i+1 (the band whose WOLF level is bandLevels[i]): PLACE names per Pak DECISIONS #71.3 (2026-10-17), sent
+   * verbatim (Unity shows them as-is with the level range beside them). glimpse lines stay PLACEHOLDER strings for
+   * Lex/Pak, keyed by the sector's host role in the daily layout table. */
   layoutCopy: Object.freeze({
-    dangerLabels: Object.freeze(['Rookie', 'Veteran', 'Elite'] as const),
+    dangerLabels: Object.freeze(['ROOKIE', 'DEEPWOOD', 'THE CORE'] as const),
     glimpse: Object.freeze({
       entry: 'The portal clearing. The beacon hums behind you.',
       gate: 'A safe room. Beacon online, repairs possible.',

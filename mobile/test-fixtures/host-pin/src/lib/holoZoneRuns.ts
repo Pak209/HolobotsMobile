@@ -84,7 +84,8 @@ export const HOLOZONE_RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9
 /** A fielded Holobot id: the travel-squad id rule. */
 export const HOLOZONE_FIELDED_ID = /^[a-z][a-z0-9_]{0,127}$/;
 
-export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "holobot_ko" | "activity_conflict" | "zone_cooldown" | "unavailable";
+/** zone_locked: issue refused while storyFlags.holoZonesArcBuilt is false (holoZoneStore; critic review 2026-10-17 #1). */
+export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "holobot_ko" | "activity_conflict" | "zone_cooldown" | "zone_locked" | "unavailable";
 export class HoloZoneError extends Error {
   constructor(public code: HoloZoneErrorCode, public retryAfterMs?: number) {
     super(code);
