@@ -21,7 +21,8 @@ function team(raw: unknown): Fighter[] | null {
  */
 export function readHostDuelReceipt(raw: unknown, issue: Record<string, unknown>, base: DuelReceipt): DuelReceipt {
   const receipt = object(raw), player = team(receipt.playerFinal), opponent = team(receipt.opponentFinal);
-  const invalid = (): DuelReceipt => ({ ...base, rounds: [], roundCount: 0, initialState: null, didWin: null, holosGranted: null, traceSource: 'none', receiptError: 'Invalid host duel receipt' });
+  // receiptError is shown on the duel screen: PLACEHOLDER copy until Lex (DECISIONS #71, "the City").
+  const invalid = (): DuelReceipt => ({ ...base, rounds: [], roundCount: 0, initialState: null, didWin: null, holosGranted: null, traceSource: 'none', receiptError: 'This City duel receipt cannot be shown. The recorded result is preserved.' });
   if (receipt.schemaVersion !== 'duel-receipt-1' || !['player', 'opponent'].includes(String(receipt.winner)) || !['knockout', 'round_limit'].includes(String(receipt.reason)) || !Number.isSafeInteger(receipt.seed) || Number(receipt.seed) < 0 || Number(receipt.seed) > 0xffffffff || !player || !opponent || !Array.isArray(receipt.rounds) || receipt.rounds.length < 1 || receipt.rounds.length > 240) return invalid();
   const teams = { player, rival: opponent };
   const observed = { player: new Map<string, ObservedDuelState['player']>(), rival: new Map<string, ObservedDuelState['rival']>() };
