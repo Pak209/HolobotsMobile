@@ -1,0 +1,242 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/arena-match-request-3v3-1.json",
+  "title": "PROPOSAL: Arena 3v3 lifecycle requests (arena-match-3v3-1). No host implements this yet.",
+  "description": "Structural validation only. The host also checks ownership of all three bots, living vitals, balances, the current turn, the phase, and every swap target. Clients never send levels, HP for bench fighters, rewards, prices or outcomes. The arena-match-1 request schema is unchanged.",
+  "definitions": {
+    "matchId": {
+      "type": "string",
+      "pattern": "^a3_[a-f0-9]{32}$"
+    },
+    "requestToken": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,80}$"
+    },
+    "holobotId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,39}$"
+    },
+    "turn": {
+      "description": "The host's current battle.turn, echoed back. Every in-match intent must carry it.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "observedHealth": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "requestId",
+        "tierId",
+        "paymentMethod",
+        "holobotIds"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "operation": {
+          "const": "issue"
+        },
+        "requestId": {
+          "$ref": "#/definitions/requestToken"
+        },
+        "tierId": {
+          "enum": [
+            "rookie",
+            "challenger",
+            "elite",
+            "legend"
+          ]
+        },
+        "paymentMethod": {
+          "enum": [
+            "pass",
+            "tokens"
+          ]
+        },
+        "holobotIds": {
+          "description": "Three distinct owned bots in send-out order. Slot 0 leads. The host freezes each one as an arena fighter snapshot (#118). The host picks the CPU team; the client names no opponents.",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/holobotId"
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "operation": {
+          "const": "start"
+        },
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "operation": {
+          "const": "resume"
+        },
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId",
+        "intentId",
+        "turn",
+        "activeHealth",
+        "opponentHealth"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "operation": {
+          "const": "report",
+          "description": "Defensive shape check only, NOT the authority (HELD with the runtime). Default decision: client-asserted bout HP is not accepted; the host resolver (arena-host-resolver-1) simulates bouts and is expected to replace or amend this request. A value above the host's stored HP for an active fighter, or both at 0, is refused as invalid_request (the arena-match-1 settle shape rule). A report that passes the shape check still decides nothing."
+        },
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        },
+        "intentId": {
+          "$ref": "#/definitions/requestToken"
+        },
+        "turn": {
+          "$ref": "#/definitions/turn"
+        },
+        "activeHealth": {
+          "$ref": "#/definitions/observedHealth"
+        },
+        "opponentHealth": {
+          "$ref": "#/definitions/observedHealth"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId",
+        "intentId",
+        "turn",
+        "holobotId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "operation": {
+          "const": "swap",
+          "description": "Roster intent only. It carries no HP, STA or level. The host checks the turn, the phase (a voluntary swap in command, or a forced send-in in send_in), and that the target is on the team, alive and not active."
+        },
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        },
+        "intentId": {
+          "$ref": "#/definitions/requestToken"
+        },
+        "turn": {
+          "$ref": "#/definitions/turn"
+        },
+        "holobotId": {
+          "$ref": "#/definitions/holobotId"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId",
+        "combosCompleted",
+        "perfectDefenses"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "operation": {
+          "const": "settle",
+          "description": "Legal only in phase over and not too_fast. The host already holds the winner and every fighter's vitals, so settle carries no HP and no outcome. The two counts are client-asserted reward multipliers capped at rules.maxPerformanceEvents, as in arena-match-1."
+        },
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        },
+        "combosCompleted": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 25
+        },
+        "perfectDefenses": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 25
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "matchId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "arena-match-3v3-1"
+        },
+        "operation": {
+          "const": "cancel",
+          "description": "Before start: one refund of the one entry charge. After start and before the host decides a winner (phase command or send_in): a forfeit that writes the host-held vitals. In phase over it is refused (settle_required); only settle closes a decided match. Carries no client HP."
+        },
+        "matchId": {
+          "$ref": "#/definitions/matchId"
+        }
+      }
+    }
+  ]
+}
