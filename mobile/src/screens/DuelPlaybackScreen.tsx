@@ -5,12 +5,12 @@ import { theme } from '../theme';
 import { resolveBotId } from '../../assets/bots';
 import { getHolobotHeadshotImageSource } from '../config/holobots';
 import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../components/HoloCityCommandBar';
-import { BotStage, type BotMetrics, type BotStageHandle } from '../components/bots/BotStage';
+import { BotStage, type BotMetrics, type BotStageHandle, type BotStagePerf } from '../components/bots/BotStage';
 import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound, type ObservedDuelState, type ObservedFighterState } from '../lib/bots/duelPlayback';
 import { hostFighterLevel, levelBadge, receiptIssue } from '../lib/bots/hostFighterLevel';
 import { readLiveRivalPlayback } from '../lib/bots/liveRivalPlayback';
 export type { DuelRound } from '../lib/bots/duelPlayback';
-export type DuelPlaybackScreenProps = { receipt: unknown; accountSnapshot?: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number };
+export type DuelPlaybackScreenProps = { receipt: unknown; accountSnapshot?: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number; /** Dev-only stage cost knobs (QA perf sweep). */ perf?: BotStagePerf; /** Dev-only: keep round 1 on screen with idle loops so every knob arm renders the same content. */ holdCues?: boolean };
 
 type FighterSnapshot = ObservedFighterState;
 export function FighterHud({ name, state, level, rival = false }: { name: string; state?: FighterSnapshot; level?: number; rival?: boolean }) {
@@ -29,7 +29,7 @@ export function FighterHud({ name, state, level, rival = false }: { name: string
 }
 
 /** Receipt-only presentation. It never calculates damage, stamina, misses, winners or rewards. */
-export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound }: DuelPlaybackScreenProps) {
+export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound, perf, holdCues = false }: DuelPlaybackScreenProps) {
   const insets = useSafeAreaInsets();
   const normalized = useMemo(() => liveIssue === undefined ? normalizeDuelReceipt(receipt, rounds) : readLiveRivalPlayback(liveIssue, receipt), [receipt, rounds, liveIssue]);
   const [actors, setActors] = useState({ player: normalized.attackerBotId, rival: normalized.defenderBotId });
@@ -53,7 +53,7 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
   useEffect(() => { setReady(false); setStageError(false); }, [player, rival]);
   useEffect(() => { elapsedRef.current = 0; nextCue.current = 0; setElapsed(0); setSnapshot(normalized.initialState); setActors({ player: normalized.attackerBotId, rival: normalized.defenderBotId }); setPaused(false); }, [normalized, replay]);
   useEffect(() => {
-    if ((!ready && player && rival) || paused || complete || duration === 0) return;
+    if ((!ready && player && rival) || paused || complete || duration === 0 || (__DEV__ && holdCues)) return;
     let appActive = AppState.currentState === 'active';
     let previous = performance.now();
     const subscription = AppState.addEventListener('change', state => { appActive = state === 'active'; previous = performance.now(); });
@@ -80,7 +80,7 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
       if (elapsedRef.current >= captureAt) setPaused(true);
     }, 32);
     return () => { clearInterval(timer); subscription.remove(); };
-  }, [ready, paused, complete, duration, cues, player, rival, replay, isSynthetic, captureRound, actors, normalized]);
+  }, [ready, paused, complete, duration, cues, player, rival, replay, isSynthetic, captureRound, actors, normalized, holdCues]);
   const result = normalized.didWin === null ? 'AWAITING RESULT' : normalized.didWin ? 'VICTORY' : 'DEFEAT';
   const traceLabel = normalized.synthetic ? 'SYNTHETIC RECEIPT · NO REWARDS' : fixture ? normalized.traceSource === 'client' ? 'OFFLINE CLIENT TRACE · NO REWARDS' : 'OFFLINE FIXTURE · NO REWARDS' : normalized.traceSource === 'client' ? 'CLIENT TRACE · HOST SETTLEMENT' : normalized.traceSource === 'host' ? 'RECORDED RECEIPT' : 'HOST SETTLEMENT · NO ROUND TRACE';
   const commands = HOLOCITY_COMMANDS.map(command => {
@@ -94,7 +94,7 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
     {player && rival ? <BotStage key={`${player}:${rival}`} ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={styles.stage} active={!paused} onReady={() => setReady(true)} onError={() => { setStageError(true); setReady(true); }} onMetrics={metrics => {
       onMetrics?.(metrics);
       if (__DEV__ && showMetrics) console.info('[DuelPlayback:metrics] ' + JSON.stringify({ ...metrics, round: currentRound + 1, elapsedMs: Math.round(elapsedRef.current), synthetic: isSynthetic }));
-    }} showMetrics={showMetrics} /> : null}
+    }} showMetrics={showMetrics} perf={perf} /> : null}
     <View pointerEvents="box-none" style={[styles.top, { paddingTop: insets.top + 4 }]}>
       <View style={styles.toolbar}><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel="Return to city" onPress={onClose} hitSlop={4}><Text style={styles.utility}>‹ CITY</Text></Pressable><Text style={styles.arenaLabel}>HOLOCITY / PARK ARENA</Text><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel={complete ? "Replay battle" : paused ? "Resume battle replay" : "Pause battle replay"} onPress={() => complete ? setReplay(v => v + 1) : setPaused(v => !v)} hitSlop={12}><Text style={styles.utility}>{complete ? 'REPLAY ↻' : paused ? 'PLAY ▷' : 'PAUSE Ⅱ'}</Text></Pressable></View>
       <View style={styles.hud}>
