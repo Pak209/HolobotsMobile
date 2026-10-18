@@ -1,6 +1,59 @@
 {
   "schemaVersion": "desktop-account-2",
   "uid": "<uid>",
+  "username": null,
+  "pilotPortraitId": null,
+  "pilotColourwayId": null,
+  "syncPoints": null,
+  "zones": [
+    {
+      "zoneId": "holocity",
+      "displayName": "HoloCity",
+      "statusLabel": "OPEN",
+      "isOpen": true,
+      "cardImageId": "holocity",
+      "sceneName": "HoloCity_Main"
+    },
+    {
+      "zoneId": "neonforest",
+      "displayName": "Neon Forest",
+      "statusLabel": "OPEN",
+      "isOpen": true,
+      "cardImageId": "neonforest",
+      "sceneName": "HoloZone_NeonForest"
+    },
+    {
+      "zoneId": "tide_hollow",
+      "displayName": "Tide Hollow",
+      "statusLabel": "NOT YET AVAILABLE",
+      "isOpen": false,
+      "cardImageId": "tide_hollow",
+      "sceneName": null
+    },
+    {
+      "zoneId": "sky_reach",
+      "displayName": "Sky Reach",
+      "statusLabel": "NOT YET AVAILABLE",
+      "isOpen": false,
+      "cardImageId": "sky_reach",
+      "sceneName": null
+    }
+  ],
+  "storyFlags": {
+    "arenaGatheringSeen": false,
+    "tournamentsWon": 0,
+    "arenaArcBuilt": false,
+    "holoZonesArcBuilt": false
+  },
+  "pilotRank": 0,
+  "tournamentUnlocks": [
+    {
+      "tournamentId": "starter",
+      "requiredLevel": 2,
+      "holobotId": "ace",
+      "level": 3
+    }
+  ],
   "holobots": [
     {
       "name": "ACE",
@@ -10,8 +63,10 @@
   "blueprints": {},
   "travelSquad": {
     "schemaVersion": "travel-squad-1",
-    "revision": 0,
-    "holobotIds": []
+    "revision": 1,
+    "holobotIds": [
+      "ace"
+    ]
   },
   "blueprintTiers": [
     {
