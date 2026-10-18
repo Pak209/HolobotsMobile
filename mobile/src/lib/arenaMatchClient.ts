@@ -22,6 +22,6 @@ export function createArenaMatchClient(uid: string) {
             throw Error('arena_session_changed');
         return response.data;
     }, accountStorage<ArenaIssue>(key), () => auth.currentUser?.uid === uid,
-    // arena-match-3v3-1 swap intents: same callable, own key. No live caller until the 3v3 host lands (HELD).
+    // arena-match-3v3-1 swap intents: same callable, own key. Dormant until arena-host-resolver-1 and the 3v3 host land (HELD).
     accountStorage<Arena3v3Swap>(`arena-match-3v3-pending-1:${uid}`));
 }

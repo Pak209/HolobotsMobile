@@ -1,6 +1,10 @@
 # lite-3v3-prep-1: Arena 3v3 bench prep (host runtime HELD)
 
-**Status.** The contract proposal and the client prep are both done. There is **no live 3v3**:
+**Status.** The contract proposal and the client prep are both done. There is **no live 3v3**, and the client prep stays **dormant**.
+
+**Default decision** (producer, pending Pak's override): **client-asserted bout HP is not accepted.** The 3v3 runtime waits for `arena-host-resolver-1` to simulate bouts on the host, and this client prep waits with it. It has no live caller, and the 3v3 entry stays honestly disabled.
+
+Today:
 
 - No host implements `arena-match-3v3-1`.
 - The deployed `arenaMatchHost` refuses every 3v3 request as `invalid_request`.
@@ -9,10 +13,10 @@
 
 ## PRs
 
-- **Contract** [Pak209/HolobotsMobile#134](https://github.com/Pak209/HolobotsMobile/pull/134), into `main`, branch `claude/lite-3v3-prep-1-contract`, head `6bd0204`.
+- **Contract** [Pak209/HolobotsMobile#134](https://github.com/Pak209/HolobotsMobile/pull/134), into `main`, branch `claude/lite-3v3-prep-1-contract`, head `f94f786`.
   - `Schemas/arena-match-3v3-1.json` and `Schemas/arena-match-request-3v3-1.json`.
-  - A hand-authored fixture, `functions/scripts/fixtures/arena-match-3v3/lifecycle.json`: 25 steps (15 accepted, 10 refused), sha256 `70b1543d3c117607c1df722909f64f67b973f5f8f17b9167c6a83fc093a60195`.
-  - A report with HP above the host's stored value, or with both sides at 0, is **refused** (`invalid_request`, matching 1v1). The host stores and bounds client-asserted HP but does not decide it; whether 3v3 should accept that at all is Pak call 1.
+  - A hand-authored fixture, `functions/scripts/fixtures/arena-match-3v3/lifecycle.json`: 25 steps (15 accepted, 10 refused), sha256 `cded7d434e9d318f2571230bd96a7d987ef1e3eb8d18061ce6f8c071341c20cf`. Its bout steps are hand-authored stand-ins for host-resolved bouts.
+  - **No client message decides a bout.** A report with HP above the host's stored value, or with both sides at 0, is refused (`invalid_request`, matching 1v1). That check is a **defensive shape check, not the authority**. Bouts are host-simulated (`arena-host-resolver-1`). Pak call 1 asks whether to override this.
   - `functions/scripts/test-arena-match-3v3-contract.mjs`, which runs in `npm test`.
   - `functions/docs/arena-match-3v3-1/CONTRACT.md`.
   - `functions/src` is untouched.
@@ -121,7 +125,7 @@ Evidence is in `~/HolobotsVault/QA/2026-10-17-lite-3v3-prep-1/`: `GATE_SHEET.png
 
 ## Pak calls
 
-1. **Rule 1 for 3v3.** Accept client-asserted bout HP for 3v3, matching #120? Or hold the runtime until a host sim over `duel-inputs-1` decides the bouts?
+1. **Rule 1 for 3v3: override the default?** The default is no client-asserted bout HP; the runtime waits for `arena-host-resolver-1`. Overriding to accept #120-parity client HP would need a contract amendment.
 2. **Swap timing.** What is `voluntarySwapLimit` (placeholder 2)? Does a voluntary swap give the CPU a free hit?
 3. **Bench regen.** The proposal is `none`.
 4. **3v3 entry price.** Placeholders: 50 Holos, `entryFeePasses` 1, charged once.

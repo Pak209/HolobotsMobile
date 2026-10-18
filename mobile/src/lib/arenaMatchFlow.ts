@@ -179,7 +179,8 @@ export class ArenaMatchFlow {
         }
         return reply;
     }
-    /** Read this account's 3v3 match. No live caller until the host implements arena-match-3v3-1 (HELD). */
+    /** Read this account's 3v3 match. Dormant: no live caller until the 3v3 host runtime lands, which is HELD until
+     * arena-host-resolver-1 can simulate bouts on the host (default decision: no client-asserted bout HP). */
     resumeTeam() {
         return this.run(async (epoch) => {
             const matchId = this.team?.matchId ?? undefined;

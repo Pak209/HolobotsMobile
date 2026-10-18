@@ -57,7 +57,7 @@ describe('arena-match-3v3-1 fixture copy', () => {
     it('is the contract fixture verbatim (sha256 pinned to HolobotsMobile #134)', () => {
         const bytes = readFileSync(path.resolve(__dirname, '../../qa/fixtures/arena-match-3v3-lifecycle.json'));
         expect(createHash('sha256').update(bytes).digest('hex')).toBe(ARENA_3V3_FIXTURE_SHA256);
-        expect(ARENA_3V3_FIXTURE_SHA256).toBe('70b1543d3c117607c1df722909f64f67b973f5f8f17b9167c6a83fc093a60195');
+        expect(ARENA_3V3_FIXTURE_SHA256).toBe('cded7d434e9d318f2571230bd96a7d987ef1e3eb8d18061ce6f8c071341c20cf');
         expect([steps.length, accepted.length]).toEqual([25, 15]);
     });
 });

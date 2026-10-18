@@ -1,7 +1,7 @@
 {
   "schemaVersion": "arena-match-3v3-1",
   "status": "PROPOSAL",
-  "provenance": "Hand-authored contract proposal fixture for lane lite-3v3-prep-1. NO host produced it, and the arena-match-3v3-1 runtime is HELD for a later lane. All prices, reward numbers, voluntarySwapLimit, CPU HP values and the EXP and blueprint rules are placeholders that need Pak calls. Each refusal is a callable error (HttpsError code, message and details), not a success object, and leaves the previous accepted reply unchanged.",
+  "provenance": "Hand-authored contract proposal fixture for lane lite-3v3-prep-1. NO host produced it, and the arena-match-3v3-1 runtime is HELD for a later lane. Default decision (producer, pending Pak's override): client-asserted bout HP is not accepted; bout steps use the current report wire shape, but their HP values are hand-authored stand-ins for host-resolved bouts (arena-host-resolver-1), not client reports the host accepted. The report HP refusals are a defensive shape check, not the authority. All prices, reward numbers, voluntarySwapLimit, CPU HP values and the EXP and blueprint rules are placeholders that need Pak calls. Each refusal is a callable error (HttpsError code, message and details), not a success object, and leaves the previous accepted reply unchanged.",
   "matchId": "a3_5f0c3d2e9b8a4716c0d1e2f3a4b5c6d7",
   "steps": [
     {
@@ -393,7 +393,7 @@
           "rejectionCode": "invalid_request"
         }
       },
-      "note": "KNOWN-BAD: reported ACE HP 200 is above the host's stored 172. Refused as invalid_request (1v1 parity: arenaMatchStore refuses playerFinalHealth above the entrant's HP). Nothing changes."
+      "note": "KNOWN-BAD: reported ACE HP 200 is above the host's stored 172. Refused as invalid_request by the defensive shape check (1v1 parity: arenaMatchStore refuses playerFinalHealth above the entrant's HP). Not the authority. Nothing changes."
     },
     {
       "name": "refused-report-both-ko",
@@ -415,7 +415,7 @@
           "rejectionCode": "invalid_request"
         }
       },
-      "note": "KNOWN-BAD: both active fighters reported at 0. Refused as invalid_request (1v1 parity: a both-zero settle is refused). Nothing changes."
+      "note": "KNOWN-BAD: both active fighters reported at 0. Refused as invalid_request by the defensive shape check (1v1 parity: a both-zero settle is refused). Not the authority. Nothing changes."
     },
     {
       "name": "report-1-opponent-ko",
@@ -576,7 +576,7 @@
           "settlementReceipt": null
         }
       },
-      "note": "HARE KO. The host sends in WAKE (next living CPU slot). ACE drops to 120."
+      "note": "Host-resolved bout stand-in (not a client decision): HARE KO. The host sends in WAKE (next living CPU slot). ACE drops to 120."
     },
     {
       "name": "swap-1-voluntary",
@@ -1078,7 +1078,7 @@
           "settlementReceipt": null
         }
       },
-      "note": "KUMA KO. ACE and SHADOW are alive on the bench, so the phase becomes send_in."
+      "note": "Host-resolved bout stand-in (not a client decision): KUMA KO. ACE and SHADOW are alive on the bench, so the phase becomes send_in."
     },
     {
       "name": "refused-swap-to-ko",
@@ -1442,7 +1442,7 @@
           "settlementReceipt": null
         }
       },
-      "note": "WAKE KO. The host sends in GAMA."
+      "note": "Host-resolved bout stand-in (not a client decision): WAKE KO. The host sends in GAMA."
     },
     {
       "name": "refused-settle-before-over",
@@ -1623,7 +1623,7 @@
           "settlementReceipt": null
         }
       },
-      "note": "SHADOW KO. ACE (120, unchanged on the bench) is the last fighter left, so: send_in."
+      "note": "Host-resolved bout stand-in (not a client decision): SHADOW KO. ACE (120, unchanged on the bench) is the last fighter left, so: send_in."
     },
     {
       "name": "swap-3-forced-send-in",
@@ -1944,7 +1944,7 @@
           "settlementReceipt": null
         }
       },
-      "note": "GAMA KO: every CPU fighter is KO'd. Phase over, winner player."
+      "note": "Host-resolved bout stand-in (not a client decision): GAMA KO: every CPU fighter is KO'd. Phase over, winner player."
     },
     {
       "name": "refused-swap-after-over",
