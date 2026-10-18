@@ -233,7 +233,10 @@ export class ArenaMatchFlow {
             throw Error('arena_3v3_unavailable');
         if (!pending)
             throw Error('arena_no_pending_intent');
-        if (pending.matchId !== this.team?.match?.matchId)
+        // Cold start: resume first. Only a KNOWN current match that differs makes the stored intent stale.
+        if (!this.team?.match)
+            throw Error('arena_not_admitted');
+        if (pending.matchId !== this.team.match.matchId)
             throw Error('arena_intent_stale');
         return this.swap(pending.holobotId);
     }

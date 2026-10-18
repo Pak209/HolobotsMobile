@@ -87,6 +87,7 @@ function rulesQuote(raw: unknown) {
         || !integer(r.maxPerformanceEvents, 0, 25) || !integer(r.expBoosterMultiplier, 1, 10) || !integer(r.voluntarySwapLimit, 0, 10)) fail();
     return r;
 }
+const counts = (v: unknown) => { const c = record(v); return exactKeys(c, ['combosCompleted', 'perfectDefenses']) && integer(c.combosCompleted, 0, 25) && integer(c.perfectDefenses, 0, 25); };
 /** Terminal receipt, at parity with the contract's settlementReceipt and its outcome couplings. */
 function receipt(m: Record<string, unknown>, mine: Arena3v3Slot[], b: Record<string, unknown>, entry: Record<string, unknown>) {
     const r = record(m.settlementReceipt), outcome = String(r.outcome), finalVitals = record(r.finalVitals);
@@ -105,15 +106,15 @@ function receipt(m: Record<string, unknown>, mine: Arena3v3Slot[], b: Record<str
     if (r.refunded !== false || Object.hasOwn(r, 'refund') || Object.keys(finalVitals).length !== 3
         || mine.some(s => { const v = record(finalVitals[s.fighter.holobotId]); return !exactKeys(v, ['currentHealth', 'maxHealth']) || v.currentHealth !== s.vitals.currentHealth || v.maxHealth !== s.vitals.maxHealth; })) bad();
     if (outcome === 'forfeit') {
-        if (m.startedAtMs === null || b.winner !== null || !['command', 'send_in'].includes(String(b.phase)) || r.settlement !== null || !(r.report === null || isRecord(r.report))) bad();
+        if (m.startedAtMs === null || b.winner !== null || !['command', 'send_in'].includes(String(b.phase)) || r.settlement !== null || !(r.report === null || counts(r.report))) bad();
         return;
     }
-    const s = record(r.settlement), rep = record(r.report), blueprint = s.blueprints;
+    const s = record(r.settlement), blueprint = s.blueprints, bot = (v: unknown) => typeof v === 'string' && BOT.test(v);
     if (!exactKeys(s, ['exp', 'awardedExp', 'holos', 'syncPoints', 'blueprints', 'experience']) || !['exp', 'awardedExp', 'holos', 'syncPoints'].every(k => integer(s[k]))
-        || !(blueprint === null || (exactKeys(blueprint, ['holobotKey', 'amount']) && BOT.test(String(record(blueprint).holobotKey)) && integer(record(blueprint).amount, 1)))
-        || !Array.isArray(s.experience) || !s.experience.length || s.experience.length > 3 || !s.experience.every(e => exactKeys(e, ['holobotId', 'awardedExp']) && BOT.test(String(e.holobotId)) && integer(e.awardedExp))
+        || !(blueprint === null || (exactKeys(blueprint, ['holobotKey', 'amount']) && bot(record(blueprint).holobotKey) && integer(record(blueprint).amount, 1)))
+        || !Array.isArray(s.experience) || !s.experience.length || s.experience.length > 3 || !s.experience.every(e => exactKeys(e, ['holobotId', 'awardedExp']) && bot(e.holobotId) && integer(e.awardedExp))
         || (outcome === 'loss' && (s.holos !== 0 || blueprint !== null))
-        || !exactKeys(rep, ['combosCompleted', 'perfectDefenses']) || !integer(rep.combosCompleted, 0, 25) || !integer(rep.perfectDefenses, 0, 25)) bad();
+        || !counts(r.report)) bad();
 }
 /** Strict arena-match-3v3-1 reply reader. Throws instead of falling back to any local or default value. */
 export function readArena3v3Reply(raw: unknown, expect: { matchId?: string; intent?: { intentId: string; operation: 'report' | 'swap' } } = {}): Arena3v3Reply {
@@ -137,8 +138,9 @@ export function readArena3v3Reply(raw: unknown, expect: { matchId?: string; inte
     if (b.phase === 'ready' || b.phase === 'command') { if (actives(mine) !== 1 || mine[Number(b.activeSlot)].status !== 'active') fail(); }
     if (b.phase === 'send_in' && (actives(mine) !== 0 || mine[Number(b.activeSlot)].status !== 'ko' || !mine.some(s => s.status === 'bench'))) fail();
     if (b.phase !== 'over' && (actives(theirs) !== 1 || theirs[Number(b.opponentActiveSlot)].status !== 'active')) fail();
-    if (b.winner === 'player' && theirs.some(s => s.status !== 'ko')) fail();
-    if (b.winner === 'opponent' && mine.some(s => s.status !== 'ko')) fail();
+    // A decided winner: the losing side is all KO'd and the winning side still has a fighter (no double wipe).
+    if (b.winner === 'player' && (theirs.some(s => s.status !== 'ko') || mine.every(s => s.status === 'ko'))) fail();
+    if (b.winner === 'opponent' && (mine.some(s => s.status !== 'ko') || theirs.every(s => s.status === 'ko'))) fail();
     if (m.state === 'issued' && (b.phase !== 'ready' || b.turn !== 0 || m.startedAtMs !== null)) fail();
     if (m.state === 'active' && (b.phase === 'ready' || m.startedAtMs === null)) fail();
     // ONE entry charge for the whole match, at the host-frozen price (Holos or pass); the client assumes no price.
