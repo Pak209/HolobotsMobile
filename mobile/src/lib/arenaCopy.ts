@@ -46,6 +46,8 @@ export const ARENA_SCREEN_COPY = {
     checkAgain: 'CHECK AGAIN',
     back: 'BACK TO ARENA',
     quitInBattle: 'QUIT · FORFEIT',
+    /** lite-arena-stage-1: the round's toolbar caption on the park-arena 3D stage (same as the city duel). */
+    stageCaption: 'HOLOCITY / PARK ARENA',
 } as const;
 
 const COPY: Record<string, ArenaCopyBlock> = {
