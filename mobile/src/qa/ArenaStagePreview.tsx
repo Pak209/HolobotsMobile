@@ -1,0 +1,76 @@
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArenaScreen } from '@/screens/ArenaScreen';
+import { BattleArenaView } from '@/components/arena/BattleArenaView';
+import { ArenaMatchFlow, type ArenaCheckpoint, type ArenaIssue, type ArenaPendingSettle, type ArenaReply } from '@/lib/arenaMatchFlow';
+import { arenaHostBattle } from '@/lib/arenaHostBattle';
+import { theme } from '@/theme';
+import { useArenaBattleStore } from '@/stores/arena-battle-store';
+import { ARENA_SETTLED, ARENA_STARTED, tooFast } from './arenaPolishFixtures';
+
+/**
+ * Offline QA routes for lite-arena-stage-1 (holobotsmobile://qa/ArenaStage…). Each cell mounts the REAL ArenaScreen on a
+ * recorded-reply transport (no callable, no account, nothing charged) with an F3 checkpoint for the started fixture
+ * match, so CONTINUE FIGHT brings up the round on the park-arena 3D stage. Known-bad control first.
+ */
+const match = ARENA_STARTED.match!;
+type Cell = { title: string; caption: string; opponentHp: number; settle: () => ArenaReply };
+const unavailable = () => { throw Object.assign(Error('unavailable'), { code: 'functions/unavailable', details: { rejectionCode: 'unavailable' } }); };
+const CELLS: Record<string, Cell> = {
+    ArenaStageRound: { title: 'ROUND ON 3D STAGE', caption: 'CONTINUE FIGHT: park plate, GLB bots, FighterHud with LV corner tabs, command bar.', opponentHp: match.opponent.maxHealth, settle: unavailable },
+    ArenaStageConfirming: { title: 'CONFIRMING ON STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the City answers too_fast: confirming over the stage.', opponentHp: 1, settle: () => { throw tooFast(600_000); } },
+    ArenaStageReceipt: { title: 'RECEIPT AFTER STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the recorded settle shows the CITY RECEIPT.', opponentHp: 1, settle: () => ARENA_SETTLED },
+};
+
+function cellFlow(cell: Cell) {
+    let issue: ArenaIssue | null = null, ack: string | null = null;
+    let checkpoint: ArenaCheckpoint | null = { matchId: match.matchId, report: { playerFinalHealth: match.entrant.currentHealth ?? match.entrant.maxHealth, opponentFinalHealth: cell.opponentHp, combosCompleted: 0, perfectDefenses: 0 } };
+    let settle: ArenaPendingSettle | null = null;
+    return new ArenaMatchFlow(async (request) => {
+        if (request.operation === 'resume') return ARENA_STARTED;
+        if (request.operation === 'settle') return cell.settle();
+        return unavailable();
+    }, { get: async () => issue, set: async v => { issue = v; } }, () => true, undefined, {
+        settles: { get: async () => settle, set: async v => { settle = v; } },
+        acks: { get: async () => ack, set: async v => { ack = v; } },
+        checkpoints: { get: async () => checkpoint, set: async v => { checkpoint = v; } },
+    });
+}
+/** Sits between the fighter HUD (with its LV tabs) and the command bar. */
+function Banner({ title, caption }: { title: string; caption: string }) {
+    const insets = useSafeAreaInsets();
+    return <View pointerEvents="none" style={[styles.banner, { top: insets.top + 300 }]}><Text style={styles.bannerTitle}>{`QA / OFFLINE / RECORDED REPLIES · ${title}`}</Text><Text style={styles.bannerCaption}>{caption}</Text></View>;
+}
+const noop = () => { };
+/** KNOWN BAD control: the pre-stage Arena round, exactly as ArenaScreen rendered it at b40c2ac (flat 2D cards). */
+function ArenaStageKnownBad() {
+    const insets = useSafeAreaInsets();
+    const prepared = useMemo(() => arenaHostBattle(match, 'offline-fixture'), []);
+    return <View style={styles.root}>
+    <View style={{ flex: 1, paddingTop: insets.top + 58, paddingBottom: insets.bottom + theme.space.sm }}>
+      <BattleArenaView embedded battle={prepared.battle} hostMatchReply={ARENA_STARTED} hostMatchId={match.matchId} roundProgress={{ currentRound: 1, totalRounds: 1 }} playerCards={prepared.playerMoves} playableCardIds={prepared.playerMoves.map(m => m.id)} cardAvailability={{}} lastAction={null} isAnimating={false} onCardPlay={noop} onSignaturePlay={noop}/>
+    </View>
+    <Banner title="KNOWN BAD (OLD FLAT ROUND)" caption="b40c2ac Arena round: 2D cards under a 72% scrim. Not the park duel look."/>
+  </View>;
+}
+export const arenaStagePreviewScreens: Record<string, ComponentType> = {
+    ArenaStageKnownBad,
+    ...Object.fromEntries(Object.entries(CELLS).map(([name, cell]) => [name, function ArenaStageCell() {
+        // The battle store is module scope and every cell shares the fixture matchId: clear it (after commit, never while
+        // rendering) before the screen mounts, so each cell starts without a fight.
+        const flow = useMemo(() => cellFlow(cell), []);
+        const [fresh, setFresh] = useState(false);
+        useEffect(() => { useArenaBattleStore.getState().resetBattle(); setFresh(true); }, []);
+        // Witness probe: the store inputs the stage's commands read, once a second (QA log only).
+        useEffect(() => { const id = setInterval(() => { const g = useArenaBattleStore.getState(), b = g.currentBattle; if (b) console.info('[ArenaStage:store] ' + JSON.stringify({ cell: name, animating: g.isAnimating, paused: g.paused, playable: g.getPlayableMoves().map(m => m.id), moves: g.playerMoves.map(m => m.id), playerHp: b.player.currentHP, opponentHp: b.opponent.currentHP, stamina: b.player.stamina, status: b.status, loop: !!g.gameLoopIntervalId })); }, 1000); return () => clearInterval(id); }, []);
+        if (!fresh) return <View style={styles.root}/>;
+        return <View style={styles.root}><ArenaScreen preview={{ flow, uid: 'offline-fixture', showStageMetrics: true, onStageMetrics: metrics => console.info('[ArenaStage:metrics] ' + JSON.stringify({ cell: name, ...metrics })) }}/><Banner title={cell.title} caption={cell.caption}/></View>;
+    }])),
+};
+const styles = StyleSheet.create({
+    root: { backgroundColor: theme.colors.carbon, flex: 1 },
+    banner: { backgroundColor: theme.plates.overlay, left: 0, paddingHorizontal: theme.space.md, paddingVertical: theme.space.xs, position: 'absolute', right: 0 },
+    bannerTitle: { ...theme.type.micro, color: theme.colors.accent, textAlign: 'center' },
+    bannerCaption: { ...theme.type.micro, color: theme.colors.muted, textAlign: 'center' },
+});

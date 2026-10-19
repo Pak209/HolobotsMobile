@@ -17,6 +17,8 @@ const FILES = [
   "../../components/arena/BattleResultsModal.tsx", "../../components/arena/arenaResultPresenter.ts", "../../components/arena/ArenaPrebattleMenu.tsx",
   "../arenaCopy.ts", "../arenaMatchFlow.ts", "../arenaSettleConfirm.ts", "../arenaHostBattle.ts", "../../screens/DuelPlaybackScreen.tsx",
   "../bots/liveRivalPlayback.ts", "../bots/hostDuelReceipt.ts", "../bots/duelPlayback.ts",
+  // lite-arena-stage-1: the shared park-arena 3D stage the CPU Arena round now renders.
+  "../../components/duel/LiveDuelStage.tsx", "../../components/duel/liveDuelCommands.ts", "../../components/city/CityLiveBattleView.tsx",
   // lite-progression-host-1: quests, training and daily missions through the City.
   "../../screens/QuestsScreen.tsx", "../../screens/TrainingScreen.tsx", "../../components/DailyMissionsModal.tsx",
   "../../components/UserStatsModal.tsx", "../progressionHost.ts", "../progressionHostClient.ts", "../dailyMissions.ts",

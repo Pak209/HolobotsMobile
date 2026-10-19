@@ -5,6 +5,7 @@ import { cityMarketPreviewScreens } from "./CityMarketPreview";
 import { pvpFightersPreviewScreens } from "./PvpFightersPreview";
 import { arenaBenchPreviewScreens } from "./ArenaBenchPreview";
 import { arenaPolishPreviewScreens } from "./ArenaPolishPreview";
+import { arenaStagePreviewScreens } from "./ArenaStagePreview";
 import { progressionHostPreviewScreens } from "./ProgressionHostPreview";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
@@ -116,6 +117,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   CityBattle: CityBattlePreview, RivalEntry: RivalEntryPreview,
   ...arenaBenchPreviewScreens,
   ...arenaPolishPreviewScreens,
+  ...arenaStagePreviewScreens,
   ...progressionHostPreviewScreens,
 };
 
