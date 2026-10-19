@@ -8,6 +8,8 @@ import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
 import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
+import { onboardingAfterEvent, onboardingMentorActive } from '../lib/onboarding';
+import { applyOnboardingMentor, isOnboardingMentorBattle } from './onboardingMentor';
 import { randomBytes, randomInt } from 'node:crypto';
 import { Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
@@ -106,6 +108,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
       const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion));
+      // DECISIONS #72.3 (onboarding D1): Kaz's ordinary issue at host onboarding step <= 3 fields one tier-0 WOLF.
+      const mentor = citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);
+      if (mentor) applyOnboardingMentor(r, rivalLineupScaleFor(command.schemaVersion));
       if (!legacyMode && r.reply.playerCombatants.length === 0) throw new RivalError('squad_required');
       if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{const vitals=issueVitals(profile,r.reply.playerCombatants);r.userUpdates.holobotVitals=vitals;(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
       if (story.issueZell) {
@@ -118,7 +123,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (legacyMode) r.battle.duel = {mode:'legacy'};
       else {
         const input = {seed:resolverSeed,player:r.reply.playerCombatants.map(c=>duelFighterFromCombatant({...c,tier:r.battle.tier})),
-          opponent:r.reply.encounter.opponentSquad.map(c=>duelFighterFromCombatant({...c,tier:r.battle.tier}))};
+          opponent:r.reply.encounter.opponentSquad.map(c=>duelFighterFromCombatant({...c,tier:mentor ? 0 : r.battle.tier}))};
         try { resolveDuel({...input,playerIntents:['defend']}); } catch { throw new RivalError('unavailable'); }
         r.battle.duel = {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,input};
       }
@@ -190,6 +195,18 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // above its rival issue neither refuses the settle (invalid_request) nor undoes the heal.
       const bound=(await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
       if(bound?.rivalBattleId!==command.battleId){try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,settleCommand.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}}
+    // DECISIONS #72.3 (onboarding D1): a LOSS in a mentor-issued battle costs no HP. The squad's ledger rows go back to
+    // their issue-time values (undoing a duel-healing run that settled first); the per-rival cooldown is not started below.
+    const mentorLoss = !!r.battleUpdates && !r.battleUpdates.settlement?.didWin && isOnboardingMentorBattle(issued);
+    if (mentorLoss) {
+      const issuedVitals = (battle.data() as {issuedVitals?: Vitals}).issuedVitals;
+      if (issuedVitals && Object.keys(issuedVitals).length) {
+        const ledgerNow = (profile.holobotVitals ?? {}) as Vitals;
+        r.userUpdates.holobotVitals = {...ledgerNow, ...Object.fromEntries(Object.entries(issuedVitals).map(([id,v]) => [id,{...v}]))};
+      } else delete r.userUpdates.holobotVitals;
+    }
+    // Brief C2 beat 3: the first rival settle (any outcome) completes the mentor-duel beat.
+    if (r.battleUpdates) Object.assign(r.userUpdates, onboardingAfterEvent(profile, 'rival_settle', nowMs));
     if (r.battleUpdates?.settlement?.didWin && isStoryBattle) {
       const nextStory = allyAfterZellVictory(storyState!, { ...issued!, ...r.battleUpdates }, nowMs);
       if (nextStory !== storyState) tx.set(storyRef, nextStory);
@@ -200,7 +217,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       tx.update(battleRef, r.battleUpdates);
       // The cooldown clock starts at the first-time settle; a replay (returned above) never moves it.
       const pilotId = (battle.data() as RivalBattleRecord).lineup.opponentPilot.pilotId;
-      tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId), [RIVAL_LAST_SETTLED_FIELD]: rivalLastSettledAfterSettle(readRivalLastSettled(ledger.data()), pilotId, nowMs) });
+      tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId), [RIVAL_LAST_SETTLED_FIELD]: mentorLoss ? readRivalLastSettled(ledger.data()) : rivalLastSettledAfterSettle(readRivalLastSettled(ledger.data()), pilotId, nowMs) });
     }
     return withStory(withReceipt(rivalReplyForVersion(r.reply, command.schemaVersion),receipt));
   });

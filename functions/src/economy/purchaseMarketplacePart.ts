@@ -6,6 +6,7 @@ import {
   getMarketplacePartOffer,
 } from "../lib/economy";
 import { refusalError, REFUSALS } from "../lib/marketplaceRefusals";
+import { onboardingAfterEvent } from "../lib/onboarding";
 
 type PurchasePartResponse = {
   holosTokens: number;
@@ -42,7 +43,8 @@ export const purchaseMarketplacePart = onCall(async (request): Promise<PurchaseP
       throw refusalError(REFUSALS.notEnoughHolos);
     }
 
-    transaction.set(userRef, result.updates, { merge: true });
+    // onboarding-host-1 (#72.3–#72.5): the first vendor purchase completes the market beat.
+    transaction.set(userRef, { ...result.updates, ...onboardingAfterEvent(snapshot.data() ?? {}, "vendor_purchase", Date.now()) }, { merge: true });
 
     return {
       holosTokens: Number(result.updates.holosTokens),

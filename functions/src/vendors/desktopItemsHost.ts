@@ -9,6 +9,7 @@ import {Firestore} from "firebase-admin/firestore";
 import {HttpsError,onCall} from "firebase-functions/v2/https";
 import {db} from "../admin";
 import {applyItemCommand,itemSnapshot,validateItemCommand,ItemError} from "../lib/desktopItems";
+import {onboardingAfterEvent} from "../lib/onboarding";
 export async function transactDesktopItems(firestore:Firestore,uid:string,raw:unknown,now=Date.now()){
  const c=validateItemCommand(raw);const draws=Array.from({length:100},()=>randomInt(0,0x100000000)/0x100000000);
  const userRef=firestore.doc(`users/${uid}`),stateRef=firestore.doc(`itemInventories/${uid}`);
@@ -41,7 +42,8 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
     const repaired=repairUse({...user.data()!,travelSquad:{holobotIds:d.squad},holobotVitals:d.vitals},c.holobotId,c.itemId);
     const {holobotVitals,...stock}=repaired.updates;const vitals=holobotVitals as Record<string,unknown>;
     const event={requestId:c.requestId,itemId:c.itemId,holobotId:c.holobotId,before:d.vitals[c.holobotId].currentHealth,after:repaired.result.currentHealth,usedAtMs:now};
-    tx.update(userRef,stock);tx.set(duel.ref,{...d,vitals,heals:[...d.heals,event],switchLockedUntilMs:now+DUEL_SWITCH_LOCKOUT_MS});
+    // onboarding-host-1 (#72.3–#72.5): a healing-item use completes the repair beat.
+    tx.update(userRef,{...stock,...onboardingAfterEvent(user.data()!,'repair',now)});tx.set(duel.ref,{...d,vitals,heals:[...d.heals,event],switchLockedUntilMs:now+DUEL_SWITCH_LOCKOUT_MS});
     const reply={...itemSnapshot({...user.data()!,...stock},favorite,now),result:{...repaired.result,kind:"duel_repair",runId:d.runId,switchLockedUntilMs:now+DUEL_SWITCH_LOCKOUT_MS}};
     tx.create(receiptRef!,{identity,reply,createdAtMs:now});return reply;
    }
@@ -59,7 +61,9 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
    if(active.some(x=>x.healthSchema!=="rival-health-1"||!x.issuedVitals||!x.squad.includes(c.holobotId!)))throw new ItemError("health_unavailable");
    if(active.length)tx.set(zone.ref,{...zone.data(),runs:runs.map(x=>active.includes(x)?{...x,issuedVitals:{...x.issuedVitals,[c.holobotId!]:(r.updates.holobotVitals as Record<string,unknown>)[c.holobotId!]},healingItems:[...(x as typeof x & {healingItems?:unknown[]}).healingItems??[],{requestId:c.requestId,itemId:c.itemId,holobotId:c.holobotId,usedAtMs:now}]}:x)});
   }
-  if(Object.keys(r.updates).length)tx.update(userRef,r.updates);
+  // onboarding-host-1 (#72.3–#72.5): the first vendor buy completes the market beat; a healing-item use the repair beat.
+  const onboarding=c.operation==='buy'?onboardingAfterEvent(user.data()!,'vendor_purchase',now):c.operation==='use'&&healingItem(c.itemId!)?onboardingAfterEvent(user.data()!,'repair',now):{};
+  if(Object.keys(r.updates).length)tx.update(userRef,{...r.updates,...onboarding});
   tx.set(stateRef,{schemaVersion:"desktop-items-2",favoriteId:r.favoriteId},{merge:true});
   tx.create(receiptRef!,{identity,reply:r.reply,createdAtMs:now});return r.reply;
  });
