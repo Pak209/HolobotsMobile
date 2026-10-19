@@ -22,6 +22,7 @@ import { readHostVitals } from '@/lite/lib/arenaVitals';
 import { useArenaBattleStore } from '@/lite/stores/arena-battle-store';
 import type { BotMetrics, BotStagePerf } from '@/lite/components/bots/BotStage';
 import { FAST_RENDER_QUALITY } from '@/lite/lib/bots/stagePerf';
+import { holdCpuForStage, releaseCpuForStage } from '@/lite/lib/arenaStageGate';
 import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lite/lib/hostDashboard';
 /** Lite CPU Arena. Presentation and transport only (hard rule 1): the City admits, settles and pays; this screen shows
  * its replies, runs the existing client practice sim between `start` and `settle`, and never decides an outcome. */
@@ -29,7 +30,7 @@ import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lite/lib/hostDas
  * scope, like the battle store it complements, so a remount mid-fight keeps it. */
 const carriedPerformance = new Map<string, { combos: number; perfects: number }>();
 /** Offline QA only (src/qa/ArenaPolishPreview.tsx, __DEV__ harness): a recorded-reply transport instead of the callable. */
-export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean; /** QA fps witness only. */ showStageMetrics?: boolean; onStageMetrics?: (metrics: BotMetrics) => void; /** Dev QA only: #133 knob override. */ stagePerf?: BotStagePerf };
+export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean; /** QA fps witness only. */ showStageMetrics?: boolean; onStageMetrics?: (metrics: BotMetrics) => void; /** Dev QA only: #133 knob override. */ stagePerf?: BotStagePerf; /** QA witness only: false measures the round without the CPU stage gate. */ cpuStageGate?: boolean };
 export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) {
     const { user, profile } = useAuth();
     const uid = preview?.uid ?? user?.uid;
@@ -236,6 +237,16 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const match = reply?.match ?? null;
     const settlePhase: ArenaSettlePhase = settleState.matchId !== null && settleState.matchId === (reply?.matchId ?? null) ? settleState.phase : { kind: 'idle' };
     const phase = arenaScreenPhase({ reply, acknowledged, hasCheckpoint: !!battle, savedCheckpoint: !!savedCheckpoint, savedCheckpointFinished: !!savedCheckpoint && (savedCheckpoint.report.playerFinalHealth <= 0 || savedCheckpoint.report.opponentFinalHealth <= 0), settle: settlePhase, pendingIssue, error });
+    // lite-arena-fast-1: the CPU's first action waits for the round's 3D stage (lib/arenaStageGate). Held once per mounted
+    // round, released by the stage's ready signal; a slow device can no longer lose an idle fight before it can act.
+    // The stage's effects run before this screen's, so a stage that is ready on its first commit (no 3D) is recorded here
+    // and never held.
+    const stageGateFor = useRef<string | null>(null);
+    const stageReadyFor = useRef<string | null>(null);
+    const roundShown = !!battle && phase.kind === 'battle';
+    useEffect(() => { if (!roundShown || !battle || stageGateFor.current === battle.battleId || stageReadyFor.current === battle.battleId || preview?.cpuStageGate === false) return;
+        stageGateFor.current = battle.battleId;
+        holdCpuForStage(); }, [roundShown, battle?.battleId]);
     const pendingResult = pendingSettleHp !== null || ['sending', 'waiting', 'stalled'].includes(settlePhase.kind);
     const winPending = !!reply?.matchId && tooFastFor.current === reply.matchId;
     const forfeitHpNow = () => match && match.state === 'active' ? arenaForfeitHp({ checkpointHp: battle?.player.currentHP ?? null, pendingSettleHp, savedCheckpointHp: savedCheckpoint?.report.playerFinalHealth ?? null, admissionHp: match.entrant.currentHealth ?? match.entrant.maxHealth }) : null;
@@ -296,7 +307,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
       sits left of the pilot-menu cog (HomeCogButton, zIndex 100) so the cog never covers QUIT. Pak's call: the round renders
       with #133's fast mix (FAST_RENDER_QUALITY), since the real-time input unlock shares the JS thread with GL. */}
   {battle && (phase.kind === 'battle' || phase.kind === 'confirming') ? <View style={styles.fight}>
-      <LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false} levelTab levels={{ player: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'entrant', battle.player.name), rival: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'opponent', battle.opponent.name) }} caption={COPY.stageCaption} leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === 'sending'} onLeave={quit} chrome={{ top: insets.top + 10, right: 60 }} active={phase.kind === 'battle' && !quitAsk} renderQuality={FAST_RENDER_QUALITY} perf={preview?.stagePerf} onMetrics={preview?.onStageMetrics} showMetrics={!!preview?.showStageMetrics}/>
+      <LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false} levelTab levels={{ player: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'entrant', battle.player.name), rival: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'opponent', battle.opponent.name) }} caption={COPY.stageCaption} leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === 'sending'} onLeave={quit} chrome={{ top: insets.top + 10, right: 60 }} active={phase.kind === 'battle' && !quitAsk} renderQuality={FAST_RENDER_QUALITY} perf={preview?.stagePerf} onMetrics={preview?.onStageMetrics} showMetrics={!!preview?.showStageMetrics} onStageReady={() => { stageReadyFor.current = battle.battleId; releaseCpuForStage(); }}/>
     </View> : null}
   {phase.kind === 'confirming' ? <View style={[styles.overlay, { paddingTop: insets.top + 64 }]}><ArenaInterstitial eyebrow={COPY.confirmingEyebrow} title={winPending ? COPY.confirmingTitle : COPY.confirmingResult} body={COPY.confirmingBody} waiting actions={[{ label: COPY.forfeit, tone: 'danger', disabled: settlePhase.kind === 'sending', onPress: quit }]}/></View> : null}
   {phase.kind === 'stalled' ? framed(<ArenaInterstitial tone="warning" eyebrow={COPY.stalledEyebrow} title={COPY.stalledTitle} body={COPY.stalledBody} actions={[
