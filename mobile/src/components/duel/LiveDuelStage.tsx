@@ -43,6 +43,8 @@ export type LiveDuelStageProps = {
   renderQuality?: StageRenderQuality;
   /** Dev only: #133 perf-sweep knobs, which override renderQuality (BotStage ignores them outside __DEV__). */
   perf?: BotStagePerf;
+  /** Called once the stage can show the fight: GL loaded, GL failed, or no 3D for these fighters. */
+  onStageReady?: () => void;
   /** Dev QA only: BotStage frame metrics. */
   onMetrics?: (metrics: BotMetrics) => void;
   showMetrics?: boolean;
@@ -50,7 +52,7 @@ export type LiveDuelStageProps = {
 
 /** The park-arena 3D duel: BotStage over the park plate, FighterHud and the HoloCity command bar. Presentation of an
  * existing battle state only; every combat decision is the caller's (engine or store). */
-export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pending, caption, leaveLabel, leaveDisabled = pending, levels, levelTab = false, signature: signatureAllowed = true, playableIds, holdUntilReady = true, chrome, active = true, renderQuality, perf, onMetrics, showMetrics = false }: LiveDuelStageProps) {
+export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pending, caption, leaveLabel, leaveDisabled = pending, levels, levelTab = false, signature: signatureAllowed = true, playableIds, holdUntilReady = true, chrome, active = true, renderQuality, perf, onStageReady, onMetrics, showMetrics = false }: LiveDuelStageProps) {
   const insets = useSafeAreaInsets();
   const stage = useRef<BotStageHandle>(null);
   const [ready, setReady] = useState(false);
@@ -59,6 +61,10 @@ export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pen
   const player = resolveBotId(battle.player.name);
   const rival = resolveBotId(battle.opponent.name);
   const action = battle.actionHistory.at(-1);
+  const stageReady = useRef(onStageReady);
+  stageReady.current = onStageReady;
+  const settled = ready || error || !player || !rival;
+  useEffect(() => { if (settled) stageReady.current?.(); }, [settled]);
   useEffect(() => {
     if (!ready || !action) return;
     const { attacker, damaged } = getActionSides(action, battle);
