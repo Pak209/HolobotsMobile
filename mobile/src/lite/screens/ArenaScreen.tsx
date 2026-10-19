@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { View, Pressable, Text, StyleSheet, ActivityIndicator, AppState, ScrollView } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, AppState, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/lite/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArenaPrebattleMenu } from '@/lite/components/arena/ArenaPrebattleMenu';
-import { BattleArenaView } from '@/lite/components/arena/BattleArenaView';
+import { LiveDuelStage } from '@/lite/components/duel/LiveDuelStage';
+import { arenaFighterLevel } from '@/lite/lib/bots/arenaFighterLevel';
 import { BattleResultsModal } from '@/lite/components/arena/BattleResultsModal';
 import { ArenaFighterCard, ArenaInterstitial } from '@/lite/components/arena/ArenaInterstitial';
 import { HomeCogButton } from '@/lite/components/HomeCogButton';
@@ -19,6 +20,7 @@ import { ARENA_3V3_UNAVAILABLE_COPY } from '@/lite/lib/arenaMatch3v3';
 import { arenaHostBattle } from '@/lite/lib/arenaHostBattle';
 import { readHostVitals } from '@/lite/lib/arenaVitals';
 import { useArenaBattleStore } from '@/lite/stores/arena-battle-store';
+import type { BotMetrics } from '@/lite/components/bots/BotStage';
 import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lite/lib/hostDashboard';
 /** Lite CPU Arena. Presentation and transport only (hard rule 1): the City admits, settles and pays; this screen shows
  * its replies, runs the existing client practice sim between `start` and `settle`, and never decides an outcome. */
@@ -26,7 +28,7 @@ import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lite/lib/hostDas
  * scope, like the battle store it complements, so a remount mid-fight keeps it. */
 const carriedPerformance = new Map<string, { combos: number; perfects: number }>();
 /** Offline QA only (src/qa/ArenaPolishPreview.tsx, __DEV__ harness): a recorded-reply transport instead of the callable. */
-export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean };
+export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean; /** QA fps witness only. */ showStageMetrics?: boolean; onStageMetrics?: (metrics: BotMetrics) => void };
 export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) {
     const { user, profile } = useAuth();
     const uid = preview?.uid ?? user?.uid;
@@ -276,8 +278,6 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const result = phase.kind === 'receipt' ? arenaReceiptResult(reply!) : null;
     const closure = phase.kind === 'closure' ? arenaClosureResult(reply!) : null;
     const fighters = match ? <View style={styles.fighters}><ArenaFighterCard snapshot={match.entrant} side="entrant"/><ArenaFighterCard snapshot={match.opponent} side="opponent"/></View> : null;
-    // L3: below the status bar / Dynamic Island AND the pilot-menu cog (48 pt at insets.top + 10), never a fixed 45/70/90.
-    const pad = { paddingTop: insets.top + 58, paddingBottom: insets.bottom + theme.space.sm };
     const framed = (node: ReactNode) => <ScrollView contentContainerStyle={[styles.framed, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + theme.space.xl }]}>{node}</ScrollView>;
     return <View style={styles.page}>
   {phase.kind !== 'confirming' ? <HomeCogButton onOpenPvp={() => setPvp(true)}/> : null}
@@ -290,9 +290,11 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
             { label: !phase.interrupted ? COPY.start : phase.finished ? COPY.sendResult : phase.resumable ? COPY.resumeFight : COPY.restart, onPress: () => void action(launch) },
             { label: phase.interrupted ? COPY.forfeit : COPY.cancelRefund, tone: phase.interrupted ? 'danger' : 'secondary', onPress: quit },
         ]}>{fighters}</ArenaInterstitial>) : null}
-  {battle && (phase.kind === 'battle' || phase.kind === 'confirming') ? <View style={[styles.fight, pad]}>
-      <BattleArenaView embedded battle={battle} hostMatchReply={reply} hostMatchId={reply!.matchId!} roundProgress={{ currentRound: 1, totalRounds: 1 }} playerCards={store.playerMoves} playableCardIds={store.getPlayableMoves().map(m => m.id)} cardAvailability={store.getMoveAvailabilityMap()} lastAction={store.lastAction} isAnimating={store.isAnimating} onCardPlay={store.useMove} onSignaturePlay={() => { }}/>
-      <Pressable accessibilityRole="button" disabled={settlePhase.kind === 'sending'} onPress={quit} style={styles.quit}><Text style={styles.quitLabel}>{COPY.quitInBattle}</Text></Pressable>
+  {/* lite-arena-stage-1: the park-arena 3D duel stage (the city duel's look). Same store calls as before: moves go to
+      store.useMove, a City-issued match has no signature, and QUIT goes through the in-app confirmation. The toolbar
+      sits left of the pilot-menu cog (HomeCogButton, zIndex 100) so the cog never covers QUIT. */}
+  {battle && (phase.kind === 'battle' || phase.kind === 'confirming') ? <View style={styles.fight}>
+      <LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false} levelTab levels={{ player: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'entrant', battle.player.name), rival: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'opponent', battle.opponent.name) }} caption={COPY.stageCaption} leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === 'sending'} onLeave={quit} chrome={{ top: insets.top + 10, right: 60 }} active={phase.kind === 'battle' && !quitAsk} onMetrics={preview?.onStageMetrics} showMetrics={!!preview?.showStageMetrics}/>
     </View> : null}
   {phase.kind === 'confirming' ? <View style={[styles.overlay, { paddingTop: insets.top + 64 }]}><ArenaInterstitial eyebrow={COPY.confirmingEyebrow} title={winPending ? COPY.confirmingTitle : COPY.confirmingResult} body={COPY.confirmingBody} waiting actions={[{ label: COPY.forfeit, tone: 'danger', disabled: settlePhase.kind === 'sending', onPress: quit }]}/></View> : null}
   {phase.kind === 'stalled' ? framed(<ArenaInterstitial tone="warning" eyebrow={COPY.stalledEyebrow} title={COPY.stalledTitle} body={COPY.stalledBody} actions={[
@@ -325,8 +327,6 @@ const styles = StyleSheet.create({
   framed: {flexGrow:1,justifyContent:'center',paddingHorizontal:theme.space.lg},
   fighters: {flexDirection:'row',gap:theme.space.md,marginTop:theme.space.lg},
   fight: {flex:1},
-  quit: {alignItems:'center',alignSelf:'center',justifyContent:'center',minHeight:theme.touchTarget,paddingHorizontal:theme.space.xl},
-  quitLabel: {...theme.type.caption,color:theme.colors.danger,letterSpacing:1},
   overlay: {...StyleSheet.absoluteFillObject,backgroundColor:theme.plates.overlay,paddingHorizontal:theme.space.lg},
   confirm: {justifyContent:'center'},
   loadingOverlay: {alignItems:'center',backgroundColor:theme.plates.overlay,bottom:0,justifyContent:'center',left:0,position:'absolute',right:0,top:0},
