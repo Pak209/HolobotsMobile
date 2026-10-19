@@ -41,14 +41,15 @@ export type ArenaResultPresentation = {
   rows: ArenaResultRow[];
 };
 
-// PLACEHOLDER copy until Lex signs off the result-screen strings. DECISIONS #71: the authority is "the City".
+// DECISIONS #71: the authority is "the City". Lex packet 2 (DECISIONS #72.8) reviewed qaStandIn, cityReceipt,
+// cityNothingGranted, rewardsTitle and consolationTitle; the other strings stay PLACEHOLDER until Lex signs them off.
 export const ARENA_RESULT_COPY = {
   qaStandIn: "QA / SIMULATED / NO REWARDS",
   cityReceipt: "CITY RECEIPT",
-  cityNothingGranted: "CITY RECEIPT · NOTHING GRANTED",
+  cityNothingGranted: "CITY RECEIPT · NO REWARDS GRANTED",
   cityNoRewards: "CITY RECEIPT · NO REWARDS",
   rewardsTitle: "REWARDS",
-  consolationTitle: "CONSOLATION",
+  consolationTitle: "REWARDS",
   victory: "VICTORY!",
   defeat: "DEFEAT",
   forfeit: "FORFEIT",
