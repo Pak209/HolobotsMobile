@@ -53,6 +53,9 @@ export type HolobotCareer = {
 export type UserProfile = {
   /** Server-owned #80 city progression; mobile never writes these fields. */
   storyFlags?: import("@/lib/cityHub").CityStoryFlags;
+  /** Server-owned City HP ledger (host-written on settles), mapped only in lite builds for the Arena KO guard. Read only:
+   * mobile never writes or computes it. Same shape as src/lite/lib/arenaVitals.ts `HostVitals`. */
+  readonly holobotVitals?: Readonly<Record<string, Readonly<{ currentHealth: number; maxHealth: number }>>> | null;
   id: string;
   username: string;
   holobots: UserHolobot[];

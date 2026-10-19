@@ -41,6 +41,7 @@ const DEFAULT_USER_PROFILE = {
 
 type FirestoreUserDocument = {
   storyFlags?: unknown;
+  holobotVitals?: unknown;
   username?: string;
   dailyEnergy?: number;
   maxDailyEnergy?: number;
@@ -135,9 +136,27 @@ function stripUndefinedDeep(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Strict read of the City's HP ledger (`holobotVitals`, host-written on settles), the same rules as the lite reader
+ * src/lite/lib/arenaVitals.ts `readHostVitals`: display only, and anything malformed is null ("unknown"). Mobile never
+ * writes or computes these values; updateUserProfile has no holobotVitals field.
+ */
+function readHolobotVitals(raw: unknown): UserProfile["holobotVitals"] {
+  if (raw === undefined || raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, { currentHealth: number; maxHealth: number }> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    const v = value as Record<string, unknown> | null;
+    if (!v || typeof v !== "object" || typeof v.currentHealth !== "number" || !Number.isFinite(v.currentHealth) || typeof v.maxHealth !== "number"
+      || !Number.isFinite(v.maxHealth) || v.maxHealth <= 0 || v.currentHealth < 0 || v.currentHealth > v.maxHealth) return null;
+    out[id] = { currentHealth: v.currentHealth, maxHealth: v.maxHealth };
+  }
+  return out;
+}
+
 export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDocument): UserProfile {
   return {
     ...(isLiteEnabled() ? { storyFlags: readCityStoryFlags(data.storyFlags) } : {}),
+    ...(isLiteEnabled() ? { holobotVitals: readHolobotVitals(data.holobotVitals) } : {}),
     id: userId,
     username: data.username || `pilot_${userId.slice(0, 8)}`,
     holobots: data.holobots || [],

@@ -27,10 +27,6 @@ import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lite/lib/hostDas
 const carriedPerformance = new Map<string, { combos: number; perfects: number }>();
 /** Offline QA only (src/qa/ArenaPolishPreview.tsx, __DEV__ harness): a recorded-reply transport instead of the callable. */
 export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean };
-// HELD on main (lite-main-port-2): lite #144 maps `holobotVitals` in the shared lib/profile.ts and types/profile.ts,
-// which are original-app files. Main's shared profile mapping drops the field, so this reads undefined and the KO guard
-// shows "unknown" (never KO, never healthy); the City still refuses holobot_ko. It lights up when the mapping lands.
-const hostVitalsField = (profile: unknown): unknown => (profile as { holobotVitals?: unknown } | null)?.holobotVitals;
 export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) {
     const { user, profile } = useAuth();
     const uid = preview?.uid ?? user?.uid;
@@ -285,7 +281,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const framed = (node: ReactNode) => <ScrollView contentContainerStyle={[styles.framed, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + theme.space.xl }]}>{node}</ScrollView>;
     return <View style={styles.page}>
   {phase.kind !== 'confirming' ? <HomeCogButton onOpenPvp={() => setPvp(true)}/> : null}
-  {phase.kind === 'menu' && !busy && ready ? <ArenaPrebattleMenu onStartBattle={start} unavailable3v3Copy={ARENA_3V3_UNAVAILABLE_COPY} hostVitals={readHostVitals(hostVitalsField(profile))} userArenaPasses={profile?.arena_passes ?? 0} userHolobots={profile?.holobots ?? []} userTokens={profile?.holosTokens ?? 0}/> : null}
+  {phase.kind === 'menu' && !busy && ready ? <ArenaPrebattleMenu onStartBattle={start} unavailable3v3Copy={ARENA_3V3_UNAVAILABLE_COPY} hostVitals={readHostVitals(profile?.holobotVitals)} userArenaPasses={profile?.arena_passes ?? 0} userHolobots={profile?.holobots ?? []} userTokens={profile?.holosTokens ?? 0}/> : null}
   {phase.kind === 'pendingIssue' ? framed(<ArenaInterstitial tone="warning" eyebrow={COPY.pendingIssueEyebrow} title={COPY.pendingIssueTitle} body={COPY.pendingIssueBody} actions={[
             { label: COPY.retryEntry, onPress: () => void action(async () => { const r = await flow!.retryIssue(); await apply(r); if (arenaIssuePayoutCapped(r)) { setCappedMatchId(r.matchId); return; } await launch(); }) },
             { label: COPY.discardEntry, tone: 'secondary', onPress: () => void action(async () => { await flow!.discardPendingIssue(); await resumeAll(); }) },

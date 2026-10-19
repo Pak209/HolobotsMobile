@@ -58,9 +58,10 @@ const navTheme = {
 
 function AuthedApp() {
   const { bootLoading, profile, profileError, profileLoading, sessionLocked, user } = useAuth();
-  // HELD on main (lite-main-port-2): lite #142 starts the profile read in the same AuthContext update as the sign-in.
-  // That hunk edits the shared AuthContext, which still sets the user one render before the read starts. Track which
-  // account's read has started, so no render shows Home (or its CAN'T LOAD roster) before that read begins.
+  // Lite #142 starts the profile read in the same AuthContext update as the sign-in. Main's shared AuthContext keeps its
+  // original order (the original app's first render after sign-in must not change), so it sets the user one render
+  // before the read starts. Track which account's read has started, so no render shows Home (or its CAN'T LOAD roster)
+  // before that read begins.
   const profileReadFor = useRef<string | null>(null);
   if (!user) profileReadFor.current = null;
   else if (profileLoading || profile || profileError) profileReadFor.current = user.uid;
