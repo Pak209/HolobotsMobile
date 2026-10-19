@@ -1,6 +1,7 @@
 /** Dev-only 3D stage cost knobs and their measurement summary.
  * Presentation cost only: nothing here reads or changes duel outcomes.
- * Production BotStage never receives knobs; `PRODUCTION_KNOBS` documents what it does today.
+ * Production BotStage never receives knobs; `PRODUCTION_KNOBS` is its default, and a caller may pick a
+ * `StageRenderQuality` (the CPU Arena uses `FAST_RENDER_QUALITY`).
  */
 export type StagePerfKnobs = {
   /** expo-gl iOS default-framebuffer sample request. Production requests 1. */
@@ -24,7 +25,18 @@ export const PRODUCTION_KNOBS: StagePerfKnobs = { msaaSamples: 1, resolution: 1,
 export type PerfArm = { id: string; knobs: StagePerfKnobs; cues: 'hold' | 'run'; note: string };
 
 const arm = (id: string, change: Partial<StagePerfKnobs>, note: string, cues: PerfArm['cues'] = 'hold'): PerfArm => ({ id, knobs: { ...PRODUCTION_KNOBS, ...change }, cues, note });
-const SHIPPABLE: Partial<StagePerfKnobs> = { msaaSamples: 0, resolution: 0.5, animHz: 30 };
+/** The production render settings a caller may choose (the shippable subset of the knobs). */
+export type StageRenderQuality = Pick<StagePerfKnobs, 'msaaSamples' | 'resolution' | 'animHz'>;
+/** #133's `combo` mix (msaa0 + halfRes + anim30). Pak, lite-arena-stage-1: the CPU Arena round defaults to it, because
+ * its real-time input lock shares the JS thread with GL. Presentation cost only; combat is unaffected. */
+export const FAST_RENDER_QUALITY: StageRenderQuality = { msaaSamples: 0, resolution: 0.5, animHz: 30 };
+const SHIPPABLE: Partial<StagePerfKnobs> = FAST_RENDER_QUALITY;
+/** What a BotStage renders with: dev perf-sweep knobs (only ever passed in __DEV__) win, then the caller's quality, then
+ * production. */
+export function resolveStageRender(quality?: StageRenderQuality, devKnobs?: StagePerfKnobs): StageRenderQuality {
+  const source = devKnobs ?? quality ?? PRODUCTION_KNOBS;
+  return { msaaSamples: source.msaaSamples, resolution: source.resolution, animHz: source.animHz };
+}
 
 /** Baseline first and again near the end, so drift across context reloads is visible. */
 export const PERF_SWEEP_ARMS: readonly PerfArm[] = [
