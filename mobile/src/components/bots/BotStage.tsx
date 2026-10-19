@@ -9,7 +9,7 @@ import { BOT_MANIFEST, type BotId } from '../../../assets/bots';
 import { disposeBot, loadBot } from '../../lib/bots/loadBot';
 import { resolveClipName } from '../../lib/bots/animationClips';
 import { prepareBotMaterials, type BotMaterialQuality } from '../../lib/bots/materials';
-import { knobSignature, PERF_ARM_MEASURE_MS, PERF_ARM_WARMUP_MS, summarizeArm, throttledMixerStep, type PerfArmSummary, type PerfFrame, type StagePerfKnobs } from '../../lib/bots/stagePerf';
+import { knobSignature, PERF_ARM_MEASURE_MS, PERF_ARM_WARMUP_MS, resolveStageRender, summarizeArm, throttledMixerStep, type PerfArmSummary, type PerfFrame, type StagePerfKnobs, type StageRenderQuality } from '../../lib/bots/stagePerf';
 import { probeGl, stageInventory } from '../../lib/bots/stageProbe';
 
 export type BotMetrics = { botId: string; loadMs: number; fps: number; frames: number; assetBytes: number; platform: string; drawWidth: number; drawHeight: number; contextId: number; materialQuality: BotMaterialQuality; renderScale: number };
@@ -18,13 +18,18 @@ export type BotStageHandle = { play(side: string, clipName: string): boolean; st
 export type PerfArmResult = { arm: string; knobs: StagePerfKnobs; contextId: number; drawWidth: number; drawHeight: number; loadMs: number; renderer: unknown; defaultFramebufferSamples: unknown; reactRendersPerSecond: number; glCallsByNamePerFrame: Record<string, number>; summary: PerfArmSummary };
 /** Dev-only cost knobs (ignored outside __DEV__). Production callers never pass this. */
 export type BotStagePerf = { arm: string; knobs: StagePerfKnobs; onArmDone?: (result: PerfArmResult) => void };
-type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf };
+type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf;
+  /** Production render settings (MSAA, buffer scale, mixer Hz). Omitted: production defaults. Dev `perf` knobs override it. */
+  quality?: StageRenderQuality };
 type Actor = { id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial> };
 
-export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf }, ref) {
+export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf, quality }, ref) {
   const perfRun = __DEV__ ? perf : undefined;
-  const scale = Math.max(0.25, Math.min(1, renderScale)) * (perfRun?.knobs.resolution ?? 1);
-  const signature = `${variant}:${transparentBackdrop}:${scale}:${materialQuality}:` + bots.map(bot => `${bot.side}:${bot.id}`).join('|') + (perfRun ? `:perf:${perfRun.arm}:${knobSignature(perfRun.knobs)}` : '');
+  const renderSettings = resolveStageRender(quality, perfRun?.knobs);
+  const scale = Math.max(0.25, Math.min(1, renderScale)) * renderSettings.resolution;
+  const signature = `${variant}:${transparentBackdrop}:${scale}:${materialQuality}:m${renderSettings.msaaSamples}a${renderSettings.animHz}:` + bots.map(bot => `${bot.side}:${bot.id}`).join('|') + (perfRun ? `:perf:${perfRun.arm}:${knobSignature(perfRun.knobs)}` : '');
+  const renderRef = useRef(renderSettings);
+  renderRef.current = renderSettings;
   const perfRef = useRef(perfRun);
   perfRef.current = perfRun;
   const renderCount = useRef(0);
@@ -98,6 +103,8 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
     // Dev-only: captured once per context; any knob change changes the signature and remounts the GLView.
     const perfArm = perfRef.current;
     const knobs = perfArm?.knobs;
+    // Production quality or the dev arm, captured once per context (the signature remounts the GLView on change).
+    const animHz = renderRef.current.animHz;
     let glCalls = 0;
     const glCallNames: Record<string, number> = {};
     let mixerPendingMs = 0;
@@ -257,7 +264,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           camera.aspect = renderWidth / renderHeight; camera.updateProjectionMatrix();
         }
         const glCallsAtFrame = glCalls;
-        const step = knobs?.animHz ? throttledMixerStep(mixerPendingMs, elapsed, knobs.animHz) : null;
+        const step = animHz ? throttledMixerStep(mixerPendingMs, elapsed, animHz) : null;
         if (step) mixerPendingMs = step.pendingMs;
         localActors.forEach(actor => {
           if (!step) actor.mixer.update(elapsed / 1000);
@@ -326,7 +333,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
   }, [signature, play, showMetrics]);
 
   return <View collapsable={false} onLayout={({ nativeEvent }) => { const { width, height } = nativeEvent.layout; if (width > 0 && height > 0) setLayout(current => current.width === width && current.height === height ? current : { width, height }); }} style={[styles.container, transparentBackdrop && { backgroundColor: 'transparent' }, StyleSheet.flatten(style)?.position !== 'absolute' && { height: 260 }, style]} accessibilityLabel={bots.map(bot => bot.id.toUpperCase()).join(' versus ') + ' 3D Holobot viewer'}>
-    {layout.width > 0 && layout.height > 0 && <GLView key={signature} collapsable={false} style={{ position: 'absolute', width: layout.width * scale, height: layout.height * scale, left: layout.width * (1 - scale) / 2, top: layout.height * (1 - scale) / 2, transform: [{ scale: 1 / scale }] }} onContextCreate={createContext} msaaSamples={perfRun ? perfRun.knobs.msaaSamples : 1} />}
+    {layout.width > 0 && layout.height > 0 && <GLView key={signature} collapsable={false} style={{ position: 'absolute', width: layout.width * scale, height: layout.height * scale, left: layout.width * (1 - scale) / 2, top: layout.height * (1 - scale) / 2, transform: [{ scale: 1 / scale }] }} onContextCreate={createContext} msaaSamples={renderSettings.msaaSamples} />}
     {!loaded && !error && <View style={styles.overlay}><ActivityIndicator color={theme.colors.accent} /><Text style={styles.loading} numberOfLines={2}>LOADING</Text></View>}
     {error && <View style={styles.overlay}><Text style={styles.error}>3D preview unavailable</Text><Text style={styles.errorDetail}>{showMetrics ? error : 'Try opening this preview again.'}</Text></View>}
     {showMetrics && metrics && <Text style={styles.metrics}>{metrics.loadMs} ms · {metrics.fps ? `${metrics.fps} fps` : 'warming up'} · {(metrics.assetBytes / 1e6).toFixed(2)} MB</Text>}
