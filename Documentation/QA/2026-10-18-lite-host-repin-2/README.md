@@ -11,7 +11,7 @@ node mobile/scripts/pin-host.mjs --check 931562477170ee0cdde447826b3e8dbd144c028
 node mobile/scripts/pin-host.mjs --check                                            # snapshot == HOST_PIN.json: OK
 ```
 
-The base is the GitHub-verified `mobile-holocity-lite` tip `49d9d92` (#165).
+The base is the GitHub-verified `mobile-holocity-lite` tip `296f823` (#168). Work started on `49d9d92` (#165), then was rebased with no conflicts: #168 touches only the Arena stage files.
 
 ## Pin entries that changed (HOST_PIN.json)
 
@@ -56,7 +56,8 @@ Fixture: `mobile/src/qa/fixtures/onboarding.json` is a byte copy of main `931562
 |---|---|---|
 | `49d9d92` (before) | 1288 pass / 4 skip (94 files + 1 skipped) | 0 |
 | new pin, before taking main's expectations | 1 failed (`healingUseServerParity`) / 1287 pass / 4 skip | 0 |
-| **this PR** | **1312 pass / 4 skip** (95 files + 1 skipped) | **0** |
+| this PR on `49d9d92` | 1312 pass / 4 skip (95 files + 1 skipped) | 0 |
+| **this PR rebased on `296f823`** | **1322 pass / 4 skip** (96 files + 1 skipped; #168 adds 10) | **0** |
 | host-pin parity subset (the 23 test files that import the pin) | 231 pass / 4 skip | n/a |
 | known-bad control, `HOLOCITY_HOST_ROOT=<a90d061 functions>` | **6 failed**: hostPin, healingUseServerParity, genesis host grants, onboarding real-reply ×3 | n/a |
 
