@@ -75,7 +75,7 @@
               "rareDiscovery": false,
               "guardian": false,
               "utility": "ace",
-              "glimpse": "A high ledge. ACE could boost across.",
+              "glimpse": "A sealed gate. ACE can open it.",
               "dangerLabel": "ROOKIE"
             },
             {
@@ -110,7 +110,7 @@
               "rareDiscovery": false,
               "guardian": false,
               "utility": "shadow",
-              "glimpse": "A sealed hatch. SHADOW could slip inside.",
+              "glimpse": "A sealed cache. SHADOW can crack it.",
               "dangerLabel": "DEEPWOOD"
             },
             {
@@ -161,7 +161,7 @@
               "rareDiscovery": false,
               "guardian": false,
               "utility": "kuma",
-              "glimpse": "A boulder blocks the way. KUMA could move it.",
+              "glimpse": "An encounter ahead. KUMA can clear it.",
               "dangerLabel": "THE CORE"
             },
             {
@@ -299,7 +299,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "ace",
-                "glimpse": "A high ledge. ACE could boost across.",
+                "glimpse": "A sealed gate. ACE can open it.",
                 "dangerLabel": "ROOKIE"
               },
               {
@@ -334,7 +334,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "shadow",
-                "glimpse": "A sealed hatch. SHADOW could slip inside.",
+                "glimpse": "A sealed cache. SHADOW can crack it.",
                 "dangerLabel": "DEEPWOOD"
               },
               {
@@ -385,7 +385,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "kuma",
-                "glimpse": "A boulder blocks the way. KUMA could move it.",
+                "glimpse": "An encounter ahead. KUMA can clear it.",
                 "dangerLabel": "THE CORE"
               },
               {
@@ -1043,7 +1043,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "ace",
-                "glimpse": "A high ledge. ACE could boost across.",
+                "glimpse": "A sealed gate. ACE can open it.",
                 "dangerLabel": "ROOKIE"
               },
               {
@@ -1078,7 +1078,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "shadow",
-                "glimpse": "A sealed hatch. SHADOW could slip inside.",
+                "glimpse": "A sealed cache. SHADOW can crack it.",
                 "dangerLabel": "DEEPWOOD"
               },
               {
@@ -1129,7 +1129,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "kuma",
-                "glimpse": "A boulder blocks the way. KUMA could move it.",
+                "glimpse": "An encounter ahead. KUMA can clear it.",
                 "dangerLabel": "THE CORE"
               },
               {
@@ -1803,7 +1803,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "ace",
-                "glimpse": "A high ledge. ACE could boost across.",
+                "glimpse": "A sealed gate. ACE can open it.",
                 "dangerLabel": "ROOKIE"
               },
               {
@@ -1838,7 +1838,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "shadow",
-                "glimpse": "A sealed hatch. SHADOW could slip inside.",
+                "glimpse": "A sealed cache. SHADOW can crack it.",
                 "dangerLabel": "DEEPWOOD"
               },
               {
@@ -1889,7 +1889,7 @@
                 "rareDiscovery": false,
                 "guardian": false,
                 "utility": "kuma",
-                "glimpse": "A boulder blocks the way. KUMA could move it.",
+                "glimpse": "An encounter ahead. KUMA can clear it.",
                 "dangerLabel": "THE CORE"
               },
               {
