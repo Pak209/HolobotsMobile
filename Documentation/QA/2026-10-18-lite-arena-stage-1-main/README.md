@@ -46,3 +46,22 @@ This port brings in lite `9f856ac` (from https://github.com/Pak209/HolobotsMobil
   - `isLiteEnabled` compiles to `return false`.
 - **vitest:** 1,390 → **1,392** passed (4 skipped). The same 2 known `react-test-renderer` files fail before and after.
 - **tsc:** the same 2 known errors.
+
+## lite-arena-fast-1 (main): fast render mix + CPU first-action gate, final proof
+
+This branch is `claude/lite-arena-fast-1-main` on `main` `50ce759`. It supersedes the v2 numbers above, which were taken against `fe1e57e`.
+
+**Gate:** `src/lite/lib/arenaStageGate.ts`.
+- `ArenaScreen` holds the store's existing AI clock once per shown round and releases it on `LiveDuelStage`'s `onStageReady`, with a 10 s cap.
+- No combat rule changes, no visual change, and the store file is untouched.
+- Lite timing: the CPU's first hit moves from 1.0 s to 3.2 s, and idle KO from 7.0 s to 9.2 s.
+
+**Flag-off proof (before `50ce759`, after this branch, env unset):**
+- **Diff scope:** 8 files under `mobile/src/lite/**`, plus this README.
+- **MainApp import graph:** identical (116 modules, 0 lite). LiteApp goes from 198 to 199 modules; the only addition is `src/lite/lib/arenaStageGate.ts`.
+- **Offline iOS export:** both exit 0 (1,614 → 1,615 bundled modules).
+  - 6 modules differ, all under `src/lite/**`.
+  - 358 of 358 non-lite project modules and 1,122 of 1,122 `node_modules` modules are byte-identical.
+  - `isLiteEnabled` compiles to `return false`.
+- **vitest:** 1,403 → **1,413** passed (4 skipped). The same 2 known `react-test-renderer` files fail before and after.
+- **tsc:** the same 2 known errors.
