@@ -17,6 +17,8 @@ const FILES = [
   "../../components/arena/BattleResultsModal.tsx", "../../components/arena/arenaResultPresenter.ts", "../../components/arena/ArenaPrebattleMenu.tsx",
   "../arenaCopy.ts", "../arenaMatchFlow.ts", "../arenaSettleConfirm.ts", "../arenaHostBattle.ts", "../../screens/EnabledDuelPlaybackScreen.tsx",
   "../bots/liveRivalPlayback.ts", "../bots/hostDuelReceipt.ts", "../bots/duelPlayback.ts",
+  // lite-arena-stage-1: the shared park-arena 3D stage the CPU Arena round now renders.
+  "../../components/duel/LiveDuelStage.tsx", "../../components/duel/liveDuelCommands.ts", "../../components/city/CityLiveBattleView.tsx",
 ] as const;
 /** Type tags that never reach the screen: the receipt/trace discriminator `"host"` and the move template id prefix. */
 const NOT_ON_SCREEN = new Set(["'host'", '"host"', "`host.${id}`"]);

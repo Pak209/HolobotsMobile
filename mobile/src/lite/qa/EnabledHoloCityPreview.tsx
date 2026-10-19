@@ -4,6 +4,7 @@ import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaH
 import { cityMarketPreviewScreens } from "./CityMarketPreview";
 import { pvpFightersPreviewScreens } from "./PvpFightersPreview";
 import { arenaPolishPreviewScreens } from "./ArenaPolishPreview";
+import { arenaStagePreviewScreens } from "./ArenaStagePreview";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
@@ -113,6 +114,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ArenaAdmittedResult: ArenaAdmittedResultPreview, ArenaHostLevelsKnownBad: ArenaHostLevelsKnownBadPreview,
   CityBattle: CityBattlePreview, RivalEntry: RivalEntryPreview,
   ...arenaPolishPreviewScreens,
+  ...arenaStagePreviewScreens,
 };
 
 /** Opt-in __DEV__ harness only; no account provider is mounted. */

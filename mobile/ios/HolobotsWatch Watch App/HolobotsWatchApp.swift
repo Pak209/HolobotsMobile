@@ -7,6 +7,7 @@ struct HolobotsWatchApp: App {
     @StateObject private var connectivity = WatchConnectivityManager.shared
 
     init() {
+        Holo.registerFonts()
         WatchConnectivityManager.shared.activate()
     }
 

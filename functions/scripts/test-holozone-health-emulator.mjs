@@ -90,7 +90,8 @@ test('one ledger: the rival host\'s settle is what the zone issue serves; the zo
   assert.deepEqual(i.playerCombatants.map(c => c.currentHealth), [30, KUMA_MAX], 'the zone serves the rival host\'s value');
   // #57: paid mid-zone repair updates the same ledger and issued health bound.
   await transactDesktopItems(db, uid, { schemaVersion: 'desktop-items-2', operation: 'use', itemId: 'item.emergency_patch', requestId: 'patch_zone_1', holobotId: 'ace' }, T0);
-  assert.equal((await user(uid)).holobotVitals.ace.currentHealth,30+ACE_MAX*0.25);
+  // DECISIONS #72.1: 30 is below the 40 % floor, so the patch heals FROM the floor (floor + item), not from 30.
+  assert.equal((await user(uid)).holobotVitals.ace.currentHealth,Math.round((ACE_MAX*0.4+ACE_MAX*0.25)*1e6)/1e6);
   await zone(uid, { operation: 'settle', runId: i.runId, kills: 2, bossDefeated: true, fielded: ['ace', 'kuma'], healthSchema: FLAG, health: [{ holobotId: 'ace', currentHealth: 12 }] }, T0 + 1);
   assert.equal((await user(uid)).holobotVitals.ace.currentHealth, 12);
   const r2 = await rival(uid, { operation: 'issue', healthSchema: FLAG }, T0 + 5 * 60000); // DECISIONS #58 am. 1: past the 5-min rival cooldown
