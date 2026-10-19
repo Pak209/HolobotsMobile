@@ -32,9 +32,11 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
    
    duel=await tx.get(firestore.doc(`duelHealingRuns/${uid}`));zone=await tx.get(firestore.doc(`holoZoneRuns/${uid}`));
    if(expeditionOpen(zone.data()))throw new ItemError('safe_room_required');
-   const open=await tx.get(firestore.doc(`rivalBattles/${uid}`));if(Object.keys(readOpenBattles(open.data(),now)).length)throw new ItemError("between_battles_only");
+   const open=Object.keys(readOpenBattles((await tx.get(firestore.doc(`rivalBattles/${uid}`))).data(),now));
+   // c2 (duel-healing-host-fix-1): an open duel-healing run answers for its OWN rival battle (bound at issue); any other
+   // open rival battle still means between_battles_only. With no run open, every open rival battle refuses as before.
    if(duelOpen(duel.data())){
-    const d=duel.data()!;if(!c.holobotId||!d.squad.includes(c.holobotId))throw new ItemError("not_in_squad");if(d.fielded.includes(c.holobotId))throw new ItemError("bench_only");if(now<d.switchLockedUntilMs)throw new ItemError("switch_lockout");
+    const d=duel.data()!;if(open.some(id=>id!==d.rivalBattleId))throw new ItemError("between_battles_only");if(!c.holobotId||!d.squad.includes(c.holobotId))throw new ItemError("not_in_squad");if(d.fielded.includes(c.holobotId))throw new ItemError("bench_only");if(now<d.switchLockedUntilMs)throw new ItemError("switch_lockout");
     if(c.currentHealth!==undefined){const v=d.vitals[c.holobotId];if(!v||c.currentHealth>v.currentHealth)throw new ItemError("invalid_request");d.vitals={...d.vitals,[c.holobotId]:{...v,currentHealth:c.currentHealth}};}
     const repaired=repairUse({...user.data()!,travelSquad:{holobotIds:d.squad},holobotVitals:d.vitals},c.holobotId,c.itemId);
     const {holobotVitals,...stock}=repaired.updates;const vitals=holobotVitals as Record<string,unknown>;
@@ -43,6 +45,7 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
     const reply={...itemSnapshot({...user.data()!,...stock},favorite,now),result:{...repaired.result,kind:"duel_repair",runId:d.runId,switchLockedUntilMs:now+DUEL_SWITCH_LOCKOUT_MS}};
     tx.create(receiptRef!,{identity,reply,createdAtMs:now});return reply;
    }
+   if(open.length)throw new ItemError("between_battles_only");
   }
   if(c.currentHealth!==undefined && zone){
    const active=readHoloZoneRuns(zone.data()).find(x=>x.settlement===null&&x.closedAtMs===null&&now<=x.expiresAtMs);
