@@ -58,7 +58,8 @@ export const ZONE_EXPEDITION_RULES = Object.freeze({
    * verbatim (Unity shows them as-is with the level range beside them). glimpse lines are City-authored (DECISIONS
    * #72.8 P3/P4), keyed by the sector's host role in the daily layout table: entry / gate / cache / rareDiscovery /
    * guardian are Lex packet 2 text (cache and rareDiscovery share one line on purpose: no rare-loot spoiler; the
-   * guardian is not named). ace / shadow / kuma stay PLACEHOLDER until Pak rules mismatch (i). */
+   * guardian is not named). ace / shadow / kuma are Lex packet 2 too, in the gate / cache / encounter wording of
+   * DECISIONS #71.4 (Pak ruled mismatch (i) in #72.10, 2026-10-18): copy only; utility.effects is unchanged. */
   layoutCopy: Object.freeze({
     dangerLabels: Object.freeze(['ROOKIE', 'DEEPWOOD', 'THE CORE'] as const),
     glimpse: Object.freeze({
@@ -67,9 +68,9 @@ export const ZONE_EXPEDITION_RULES = Object.freeze({
       cache: 'A threat waits along this route.',
       rareDiscovery: 'A threat waits along this route.',
       guardian: 'A heavy signature waits ahead.',
-      ace: 'A high ledge. ACE could boost across.',
-      shadow: 'A sealed hatch. SHADOW could slip inside.',
-      kuma: 'A boulder blocks the way. KUMA could move it.',
+      ace: 'A sealed gate. ACE can open it.',
+      shadow: 'A sealed cache. SHADOW can crack it.',
+      kuma: 'An encounter ahead. KUMA can clear it.',
     }),
   }),
 });
