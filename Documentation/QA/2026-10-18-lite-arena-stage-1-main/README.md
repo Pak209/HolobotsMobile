@@ -29,3 +29,20 @@ This port brings lite PR #158 (the CPU Arena round on the park-arena 3D duel sta
 | After | **1,390** | 4 | the same 2 | the same 2 errors |
 
 The 2 failing files (`liteBoundary.test.ts` and `hostState/hooks.test.ts`) fail on the known missing `react-test-renderer` in the shared local `node_modules`, before and after. The tsc errors are the same 2 `react-test-renderer` ones.
+
+## v2: the Arena defaults to the fast render mix (Pak's call)
+
+This port brings in lite `9f856ac` (from https://github.com/Pak209/HolobotsMobile/pull/158's follow-up).
+- The lite fork `src/lite/components/bots/BotStage.tsx` gains a production `quality` prop, resolved by `src/lite/lib/bots/stagePerf.ts` `resolveStageRender`. Dev perf knobs, still `__DEV__`-only, win.
+- The CPU Arena passes `FAST_RENDER_QUALITY` (msaa0 + halfRes + anim30). The city/park duel keeps production defaults.
+- The shared original-app `BotStage` is untouched.
+
+### Flag-off proof (before `fe1e57e`, after this branch, env unset)
+- **Diff scope:** 5 files, all under `mobile/src/lite/**`, plus this README.
+- **MainApp import graph:** identical (116 modules, 0 lite). LiteApp reaches the same 198 modules before and after.
+- **Offline iOS export:** both exit 0, 1,614 bundled modules each.
+  - Only 4 modules differ, all under `src/lite/**`.
+  - 358 of 358 non-lite project modules and 1,122 of 1,122 `node_modules` modules are byte-identical.
+  - `isLiteEnabled` compiles to `return false`.
+- **vitest:** 1,390 → **1,392** passed (4 skipped). The same 2 known `react-test-renderer` files fail before and after.
+- **tsc:** the same 2 known errors.
