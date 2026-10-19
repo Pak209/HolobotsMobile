@@ -12,6 +12,7 @@
  * Pure module: no firebase imports, safe to import from tests.
  */
 import { calculateExperience, computeLeaderboardScore, getHolobotRank } from "./progression";
+import { healingDelta } from "./repairItems";
 
 export const GENESIS_STARTER_CHOICES = ["ACE", "KUMA", "SHADOW"] as const;
 export type GenesisStarterChoice = (typeof GENESIS_STARTER_CHOICES)[number];
@@ -123,4 +124,19 @@ export function buildGenesisSignupUserDoc<T>(starterHolobot: GenesisStarterChoic
     wins: 0,
     losses: 0,
   };
+}
+
+/** DECISIONS #72.5 (onboarding D3): the healing item every new account starts with (one). */
+export const GENESIS_REPAIR_KIT_ITEM = "item.repair_kit";
+export const GENESIS_REPAIR_KIT_COUNT = 1;
+
+/**
+ * Host-only grants that createGenesisProfile adds on top of buildGenesisSignupUserDoc. They are NOT part of the
+ * mobile-parity doc above: firestore.rules freezes `itemStocks` on a client create (economyFrozenOnCreate), so a
+ * phone sign-up cannot write them. The inventory shape is lib/repairItems.ts healingDelta (users/{uid}.itemStocks
+ * {repair_kit: n}, the same field desktopItemsHost buys into and uses from). The onboarding step is added by the
+ * callable from lib/onboarding.ts genesisOnboarding.
+ */
+export function buildGenesisHostGrants(): Record<string, unknown> {
+  return healingDelta({}, GENESIS_REPAIR_KIT_ITEM, GENESIS_REPAIR_KIT_COUNT);
 }

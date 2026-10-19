@@ -8,6 +8,7 @@ import {RepairError} from '../lib/repairItems';
 import {requireLivingVitals} from '../lib/rivalHealth';
 import {readOpenBattles,buildPlayerCombatants} from '../lib/rivalLadder';
 import {readHoloZoneRuns} from '../lib/holoZoneRuns';
+import {onboardingAfterEvent} from '../lib/onboarding';
 export async function transactWorkshopHeal(firestore:Firestore,uid:string,raw:unknown,now=Date.now()){
  const c=raw as Record<string,unknown>;
  if(!c||typeof c!=='object'||Object.keys(c).some(k=>!['schemaVersion','operation','requestId'].includes(k))||c.schemaVersion!=='healing-workshop-1'||c.operation!=='heal'||typeof c.requestId!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(c.requestId))throw new RepairError('invalid_request');
@@ -22,7 +23,8 @@ export async function transactWorkshopHeal(firestore:Firestore,uid:string,raw:un
   const combatants=buildPlayerCombatants(profile,squad);if(combatants.length!==squad.length)throw new RepairError('health_unavailable');
   const vitals={...profile.holobotVitals};for(const bot of combatants){if(!Number.isFinite(bot.maxHealth)||bot.maxHealth<=0)throw new RepairError('health_unavailable');vitals[bot.holobotId]={currentHealth:bot.maxHealth,maxHealth:bot.maxHealth};}
   const reply={schemaVersion:'healing-workshop-1',operation:'heal',holobotIds:squad,vitals:Object.fromEntries(squad.map(id=>[id,vitals[id]])),cost:0,alreadyProcessed:false};
-  tx.update(userRef,{holobotVitals:vitals});tx.create(receiptRef,{reply,createdAtMs:now});return reply;
+  // onboarding-host-1 (#72.3–#72.5): the first workshop heal completes the repair beat.
+  tx.update(userRef,{holobotVitals:vitals,...onboardingAfterEvent(profile,'repair',now)});tx.create(receiptRef,{reply,createdAtMs:now});return reply;
  });
 }
 export const workshopHealHost=onCall(async request=>{

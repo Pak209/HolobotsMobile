@@ -1,4 +1,5 @@
 import { Firestore } from 'firebase-admin/firestore';
+import { onboardingAfterEvent } from '../lib/onboarding';
 import { applyEquip, applyPurchase, commandFingerprint, MutationReply, readWardrobeState, validateWardrobeCommand, wardrobeStatus, WardrobeError } from '../lib/wardrobe';
 
 /**
@@ -33,7 +34,8 @@ export async function transactWardrobe(db: Firestore, uid: string, raw: unknown)
     const state = readWardrobeState(wardrobe.exists ? wardrobe.data() : undefined);
     if (command.operation === 'purchase') {
       const r = applyPurchase(user.data()!, state, command);
-      tx.update(userRef, { holosTokens: r.holosAfter });
+      // onboarding-host-1 (#72.3–#72.5): the first vendor purchase completes the market beat.
+      tx.update(userRef, { holosTokens: r.holosAfter, ...onboardingAfterEvent(user.data()!, 'vendor_purchase', Date.now()) });
       tx.set(wardrobeRef, r.state);
       tx.create(receiptRef, { fingerprint, reply: r.reply });
       return r.reply;

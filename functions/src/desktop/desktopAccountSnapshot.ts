@@ -1,6 +1,7 @@
 import { acknowledgeTournamentUnlock, readTournamentAcknowledged, tournamentUnlocks } from '../story/tournamentUnlocks';
 import { readStoryFlags, StoryError } from '../story/storyFlags';
 import { readPilotRank, PilotRankError } from '../account/pilotRank';
+import { acknowledgeOnboarding, OnboardingError, OnboardingIntent, readOnboarding, validateOnboardingIntent } from '../lib/onboarding';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { db } from '../admin';
 import { projectFirstTravelHolobot } from '../acquisition/captureOwnership';
@@ -29,10 +30,20 @@ export const desktopAccountSnapshot = onCall(async request => {
   const version = desktopAccountVersion(request.data);
   const data = request.data as Record<string, unknown> | undefined;
   const ack = data?.operation === 'ackTournamentUnlock';
-  if (data?.operation !== undefined && data.operation !== 'snapshot' && !ack)
+  // onboarding-host-1 (DECISIONS #72.3–#72.5): {operation:'ackOnboarding', onboarding:{advance:n} | {skip:true}}.
+  const ackOnboarding = data?.operation === 'ackOnboarding';
+  if (data?.operation !== undefined && data.operation !== 'snapshot' && !ack && !ackOnboarding)
     throw new HttpsError('invalid-argument','invalid_request',{rejectionCode:'invalid_request'});
   if (ack && Object.keys(data!).some(k => !['schemaVersion','operation','tournamentId'].includes(k)))
     throw new HttpsError('invalid-argument','invalid_request',{rejectionCode:'invalid_request'});
+  let onboardingIntent: OnboardingIntent | undefined;
+  if (ackOnboarding) {
+    if (Object.keys(data!).some(k => !['schemaVersion','operation','onboarding'].includes(k)))
+      throw new HttpsError('invalid-argument','invalid_request',{rejectionCode:'invalid_request'});
+    try { onboardingIntent = validateOnboardingIntent(data!.onboarding); }
+    catch (e) { if (e instanceof OnboardingError) throw new HttpsError('invalid-argument','invalid_request',{rejectionCode:'invalid_request'}); throw e; }
+  }
+  const nowMs = Date.now();
   const userRef = db.doc(`users/${uid}`);
   return db.runTransaction(async tx => {
     const snapshot = await tx.get(userRef);
@@ -55,8 +66,19 @@ export const desktopAccountSnapshot = onCall(async request => {
       if (e instanceof StoryError) throw new HttpsError(e.code === 'invalid_request' ? 'invalid-argument' : e.code === 'not_eligible' ? 'failed-precondition' : 'unavailable',e.code,{rejectionCode:e.code});
       throw e;
     }
+    let onboardingUpdates = {};
+    try {
+      const stored = readOnboarding(profile.onboarding);
+      if (onboardingIntent) {
+        const next = acknowledgeOnboarding(profile, onboardingIntent, nowMs);
+        if (JSON.stringify(next) !== JSON.stringify(stored)) onboardingUpdates = {onboarding: next};
+      }
+    } catch (e) {
+      if (e instanceof OnboardingError) throw new HttpsError(e.code === 'not_eligible' ? 'failed-precondition' : 'unavailable',e.code,{rejectionCode:e.code});
+      throw e;
+    }
     const changedTournamentUpdates = Object.fromEntries(Object.entries(tournamentUpdates).filter(([key,value]) => JSON.stringify(profile[key]) !== JSON.stringify(value)));
-    const updates = { ...changedTournamentUpdates, ...inv.updates, ...squad.updates,
+    const updates = { ...changedTournamentUpdates, ...onboardingUpdates, ...inv.updates, ...squad.updates,
       ...(profile.pilotRank === undefined ? {pilotRank} : {}),
       ...(JSON.stringify(profile.storyFlags) !== JSON.stringify(storyFlags) ? {storyFlags} : {}) };
     if (Object.keys(updates).length) tx.update(userRef, updates);

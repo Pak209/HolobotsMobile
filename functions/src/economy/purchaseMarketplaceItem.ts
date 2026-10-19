@@ -3,6 +3,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { db } from "../admin";
 import { buildItemPurchaseUpdatesRaw, getMarketplacePrice } from "../lib/economy";
 import { classifyItemRefusal, refusalError, REFUSALS } from "../lib/marketplaceRefusals";
+import { onboardingAfterEvent } from "../lib/onboarding";
 
 type PurchaseItemResponse = {
   holosTokens: number;
@@ -37,7 +38,8 @@ export const purchaseMarketplaceItem = onCall(async (request): Promise<PurchaseI
       throw refusalError(classifyItemRefusal(Number(userData.holosTokens || 0), getMarketplacePrice(itemName), itemName));
     }
 
-    transaction.set(userRef, result.updates, { merge: true });
+    // onboarding-host-1 (#72.3–#72.5): the first vendor purchase completes the market beat.
+    transaction.set(userRef, { ...result.updates, ...onboardingAfterEvent(userData, "vendor_purchase", Date.now()) }, { merge: true });
 
     return {
       holosTokens: Number(result.updates.holosTokens),

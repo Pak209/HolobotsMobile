@@ -2,7 +2,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
-import { buildGenesisSignupUserDoc, validateGenesisSignup } from "../lib/genesisSignup";
+import { buildGenesisHostGrants, buildGenesisSignupUserDoc, validateGenesisSignup } from "../lib/genesisSignup";
+import { genesisOnboarding, ONBOARDING_FIELD } from "../lib/onboarding";
 import { projectFirstTravelHolobot } from '../acquisition/captureOwnership';
 import { BUDDY_UNITS_FIELD, starterInventory } from "../lib/buddyUnits";
 
@@ -45,6 +46,9 @@ export const createGenesisProfile = onCall(async (request): Promise<CreateGenesi
       pilotRank: 0,
       ...projectFirstTravelHolobot(profile).updates,
       [BUDDY_UNITS_FIELD]: starterInventory(),
+      // DECISIONS #72.5 (D3): one Repair Kit. #72.3–#72.5: a new account starts the onboarding spine at step 0.
+      ...buildGenesisHostGrants(),
+      [ONBOARDING_FIELD]: genesisOnboarding(Date.now()),
     });
     return { schemaVersion: "genesis-profile-1", created: true };
   });

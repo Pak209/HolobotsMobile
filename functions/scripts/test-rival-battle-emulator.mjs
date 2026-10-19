@@ -238,8 +238,8 @@ test('desktop-account-1 (no data, as the shipped Unity build sends): deployed fi
     assert.equal(v1.schemaVersion, 'desktop-account-1'); assert.equal(v1.buddyUnits, 6);
     assert.equal(v1.pilotRank, 0);
     // + #124 dashboard identity (username, pilotPortraitId, pilotColourwayId, syncPoints, zones), tournamentUnlocks (728854d)
-    // and dailyMissionLedger (hardening-2, daily-mission-ledger-1).
-    assert.deepEqual(Object.keys(v1).sort(), ['blueprintTiers', 'blueprints', 'buddyUnits', 'dailyMissionLedger', 'holobots', 'pilotColourwayId', 'pilotPortraitId', 'pilotRank', 'schemaVersion', 'storyFlags', 'syncPoints', 'tournamentUnlocks', 'travelSquad', 'uid', 'username', 'zones']);
+    // and dailyMissionLedger (hardening-2, daily-mission-ledger-1), onboarding (onboarding-host-1, onboarding-1).
+    assert.deepEqual(Object.keys(v1).sort(), ['blueprintTiers', 'blueprints', 'buddyUnits', 'dailyMissionLedger', 'holobots', 'onboarding', 'pilotColourwayId', 'pilotPortraitId', 'pilotRank', 'schemaVersion', 'storyFlags', 'syncPoints', 'tournamentUnlocks', 'travelSquad', 'uid', 'username', 'zones']);
   }
   const v2 = await desktopAccountSnapshot.run({ auth: { uid }, data: V2 });
   assert.equal(v2.schemaVersion, 'desktop-account-2'); assert.deepEqual(v2.buddyUnits, light(1, 2, 3));

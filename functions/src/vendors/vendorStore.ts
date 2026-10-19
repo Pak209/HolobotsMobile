@@ -1,5 +1,6 @@
 import { Firestore } from 'firebase-admin/firestore';
 import { readWardrobeState } from '../lib/wardrobe';
+import { onboardingAfterEvent } from '../lib/onboarding';
 import { buildBuddyUnitPurchase, buildCatalog, BuddyPurchaseReply, validateBuddyPurchase, validateCatalogCommand, VendorError } from '../lib/vendors';
 
 /** DECISIONS #47/#48 read: users/{uid} (+ wardrobes/{uid} for the boutique); never writes. */
@@ -40,7 +41,8 @@ export async function transactBuddyUnitPurchase(db: Firestore, uid: string, raw:
       return { ...stored.reply, alreadyProcessed: true };
     }
     const r = buildBuddyUnitPurchase(user.data()!, command);
-    tx.update(userRef, r.updates);
+    // onboarding-host-1 (#72.3–#72.5): the first vendor purchase completes the market beat.
+    tx.update(userRef, { ...r.updates, ...onboardingAfterEvent(user.data()!, 'vendor_purchase', Date.now()) });
     tx.create(receiptRef, { tierId: command.tierId, reply: r.reply });
     return r.reply;
   });
