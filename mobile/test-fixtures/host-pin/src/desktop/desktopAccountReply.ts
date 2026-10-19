@@ -24,6 +24,7 @@ import { BLUEPRINT_TIERS } from '../lib/mintingEconomy';
 import { getHolobotDisplayStats, HolobotDisplayStats, normalizeUserHolobot } from '../lib/progression';
 import { getPlayerBattleStats } from '../lib/progressionEconomy';
 import { dailyMissionLedgerSummary } from '../lib/economy';
+import { onboardingView, readOnboarding } from '../lib/onboarding';
 
 /** Deployed 2026-09-30: buddyUnits is an int. Still served to clients that don't ask for a later version. */
 export const DESKTOP_ACCOUNT_V1 = 'desktop-account-1';
@@ -68,6 +69,8 @@ export function desktopHolobotV3(raw: Record<string, unknown>): Record<string, u
  * v3 maps only object entries with a string name (anything else cannot be shown or battled).
  * All versions also add dailyMissionLedger (hardening-2, additive): the daily-mission-ledger-1 summary of the
  * server-only ledger for the host's current UTC day (`nowMs`).
+ * All versions also add onboarding (onboarding-host-1, DECISIONS #72.3–#72.5, additive; Schemas/onboarding-1.json):
+ * the host-owned onboarding step; a profile without the field reads as returning (step 7, skipped).
  */
 export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: string, version: DesktopAccountVersion, units: BuddyInventory, nowMs: number = Date.now()): Record<string, unknown> {
   const stored: unknown[] = Array.isArray(profile.holobots) ? profile.holobots : [];
@@ -83,6 +86,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     pilotRank: readPilotRank(profile.pilotRank),
     tournamentUnlocks: tournamentUnlocks(profile),
     dailyMissionLedger: dailyMissionLedgerSummary(profile, new Date(nowMs)),
+    onboarding: onboardingView(readOnboarding(profile.onboarding)),
     holobots,
     blueprints: profile.blueprints ?? {},
     travelSquad: readTravelSquad(profile),

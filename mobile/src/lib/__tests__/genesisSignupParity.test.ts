@@ -102,6 +102,19 @@ describe("genesis sign-up client/server parity", () => {
     }
   });
 
+  it("host-only genesis grants (DECISIONS #72.5): one Repair Kit, never part of the mobile client literal", () => {
+    // createGenesisProfile adds these on top of buildGenesisSignupUserDoc; firestore.rules freezes itemStocks /
+    // onboarding on a client create, so a phone sign-up cannot write them and the parity doc above stays equal.
+    expect(server.buildGenesisHostGrants()).toEqual({ itemStocks: { repair_kit: 1 } });
+    expect(server.GENESIS_REPAIR_KIT_ITEM).toBe("item.repair_kit");
+    for (const starter of server.GENESIS_STARTER_CHOICES) {
+      const mobile = mobileSignupDoc(starter, "PakPilot");
+      expect(mobile).not.toHaveProperty("itemStocks");
+      expect(mobile).not.toHaveProperty("onboarding");
+      expect(server.buildGenesisSignupUserDoc(starter, "PakPilot", TIMESTAMP)).not.toHaveProperty("itemStocks");
+    }
+  });
+
   it("server validation follows the mobile form (trimmed username >= 3, Genesis starter only)", () => {
     expect(server.validateGenesisSignup("ACE", "ab")).toEqual({ ok: false, reason: "invalid-username" });
     expect(server.validateGenesisSignup("ACE", "   ab   ")).toEqual({ ok: false, reason: "invalid-username" });

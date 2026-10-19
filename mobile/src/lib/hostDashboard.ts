@@ -30,6 +30,15 @@ export type DailyMissionLedger = Readonly<{
   boosterPacksToday: number;
   claimed: Readonly<Record<(typeof DAILY_MISSION_LEDGER_IDS)[number], boolean>>;
 }>;
+/** Host 9315624 (onboarding-host-1, DECISIONS #72.3–#72.5, Schemas/onboarding-1.json): the host-owned onboarding step. */
+export const ONBOARDING_SCHEMA = "onboarding-1";
+export const ONBOARDING_STEP_IDS = ["arrive", "companion", "first_walk", "mentor_duel", "market", "repair", "goal", "done"] as const;
+export type DashboardOnboarding = Readonly<{
+  step: number;
+  stepId: (typeof ONBOARDING_STEP_IDS)[number];
+  skipped: boolean;
+  stepAt: number | null;
+}>;
 export type DashboardAccount = Readonly<{
   uid: string;
   schemaVersion: DashboardAccountVersion;
@@ -43,6 +52,8 @@ export type DashboardAccount = Readonly<{
   levels: Readonly<Record<string, number>>;
   /** The reply's additive `dailyMissionLedger` (host #145); null when absent (older host) or malformed. */
   dailyMissionLedger: DailyMissionLedger | null;
+  /** The reply's additive `onboarding` (host 9315624); absent when missing or malformed. Lite presents nothing from it. */
+  onboarding?: DashboardOnboarding;
 }>;
 
 function record(raw: unknown): Record<string, unknown> | null {
@@ -108,6 +119,21 @@ export function readDailyMissionLedger(raw: unknown): DailyMissionLedger | null 
 }
 
 /**
+ * Mirrors main's readHostOnboarding (mobile/src/lib/hostState/readers.ts). Lenient by design: a missing or
+ * unrecognised `onboarding` object reads as undefined and never fails the account read. A well-formed onboarding-1
+ * object is returned frozen.
+ */
+export function readDashboardOnboarding(raw: unknown): DashboardOnboarding | undefined {
+  const r = record(raw);
+  if (!r) return undefined;
+  const { step, stepId, skipped, stepAt } = r;
+  if (r.schemaVersion !== ONBOARDING_SCHEMA || typeof step !== "number" || !Number.isInteger(step) || step < 0 || step > 7 ||
+      stepId !== ONBOARDING_STEP_IDS[step] || typeof skipped !== "boolean" || (skipped && step !== 7) ||
+      (stepAt !== null && (typeof stepAt !== "number" || !Number.isSafeInteger(stepAt) || stepAt < 0))) return undefined;
+  return Object.freeze({ step, stepId: stepId as DashboardOnboarding["stepId"], skipped, stepAt: stepAt as number | null });
+}
+
+/**
  * Throws only when the reply is not this session's account (wrong uid / unknown version / not an object).
  * Old replies without the #124 identity fields are accepted: those fields read as null (UNAVAILABLE).
  */
@@ -117,6 +143,7 @@ export function readDashboardAccount(raw: unknown, uid: string): DashboardAccoun
     throw new Error("invalid_account_reply");
   }
   const username = typeof r.username === "string" && r.username.trim().length > 0 ? r.username : null;
+  const onboarding = readDashboardOnboarding(r.onboarding);
   return Object.freeze({
     uid,
     schemaVersion: r.schemaVersion as DashboardAccountVersion,
@@ -125,6 +152,7 @@ export function readDashboardAccount(raw: unknown, uid: string): DashboardAccoun
     zones: readDashboardZones(r.zones),
     levels: readLevels(r.holobots),
     dailyMissionLedger: readDailyMissionLedger(r.dailyMissionLedger),
+    ...(onboarding ? { onboarding } : {}),
   });
 }
 
