@@ -101,6 +101,16 @@ class PreflightTests(unittest.TestCase):
         self.assertFalse(self.run_preflight(expect_lite='off')['localChecksPassed'])
     def test_process_environment_seen(self):
         self.assertFalse(self.run_preflight(expect_lite='off', environ={'EXPO_PUBLIC_HOLOCITY_LITE': '1'})['localChecksPassed'])
+    def test_unexported_assignment_does_not_count(self):
+        (self.root/'ios/.xcode.env').write_text('EXPO_PUBLIC_HOLOCITY_LITE=1\n')
+        self.assertFalse(self.run_preflight(expect_lite='on')['localChecksPassed'])
+        (self.root/'ios/.xcode.env').write_text('EXPO_PUBLIC_HOLOCITY_LITE=1\nexport EXPO_PUBLIC_HOLOCITY_LITE\n')
+        self.assertTrue(self.run_preflight(expect_lite='on')['localChecksPassed'])
+    def test_gate_in_shell_script_phase_seen(self):
+        p = self.root/'ios/HolobotsMobile.xcodeproj/project.pbxproj'
+        p.write_text(p.read_text().replace('shellScript = "', 'shellScript = "export EXPO_PUBLIC_HOLOCITY_LITE=1\\n', 1))
+        report = self.run_preflight(expect_lite='off')
+        self.assertFalse(report['localChecksPassed']); self.assertIn('Lite gate source turns lite on: ios/HolobotsMobile.xcodeproj shellScript phases', report['localFailures'])
     def test_unset_in_local_env_clears_gate(self):
         (self.root/'ios/.xcode.env').write_text(GATE_ON)
         (self.root/'ios/.xcode.env.local').write_text('unset EXPO_PUBLIC_HOLOCITY_LITE\n')
