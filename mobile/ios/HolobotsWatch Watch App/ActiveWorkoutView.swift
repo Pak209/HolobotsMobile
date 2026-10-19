@@ -4,48 +4,37 @@ struct ActiveWorkoutView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @State private var showSettings = false
 
-    private let gold = Color(red: 0.94, green: 0.75, blue: 0.08)
-    private let brightGold = Color(red: 0.98, green: 0.80, blue: 0.10)
-    private let dimGold = Color(red: 0.94, green: 0.75, blue: 0.08).opacity(0.55)
-    private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
-    private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
-    private let accent = Color(red: 0.06, green: 0.08, blue: 0.10)
-    private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
 
     var body: some View {
         ZStack {
-            BrandedWorkoutBackground(
-                darkBg: darkBg,
-                gold: gold,
-                brightGold: brightGold
-            )
+            BrandedWorkoutBackground()
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ZStack {
                     Text("SYNC")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(brightGold)
+                        .font(Holo.display(13))
+                        .foregroundColor(Holo.accent)
                         .kerning(1.8)
                 }
                 .frame(maxWidth: .infinity)
                 .overlay(alignment: .leading) {
                     Text(timerLabel)
-                        .font(.system(size: 11, weight: .black, design: .monospaced))
-                        .foregroundColor(cream)
+                        .font(Holo.display(13))
+                        .foregroundColor(Holo.text)
                         .monospacedDigit()
                 }
                 .overlay(alignment: .topTrailing) {
                     Button(action: { showSettings = true }) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(panel.opacity(0.95))
+                                .fill(Holo.navy.opacity(0.95))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(brightGold.opacity(0.35), lineWidth: 0.8)
+                                        .stroke(Holo.accent.opacity(0.35), lineWidth: 0.8)
                                 )
 
-                            SettingsGlyph(color: brightGold)
+                            SettingsGlyph(color: Holo.accent)
                                 .frame(width: 13, height: 13)
                         }
                         .frame(width: 26, height: 22)
@@ -58,7 +47,7 @@ struct ActiveWorkoutView: View {
                 Spacer(minLength: 0)
 
                 Text("")
-                    .font(.system(size: 11, weight: .black))
+                    .font(Holo.display(13))
                     .hidden()
 
                 Spacer(minLength: 0)
@@ -67,7 +56,7 @@ struct ActiveWorkoutView: View {
                     speedLabel: viewModel.speedLabel,
                     speedValue: viewModel.displayedSpeed,
                     needleAngle: viewModel.needleAngle,
-                    cream: cream
+                    textColor: Holo.text
                 )
                 .frame(height: 86)
                 .padding(.horizontal, 2)
@@ -78,12 +67,12 @@ struct ActiveWorkoutView: View {
                 HStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("SYNC PTS")
-                            .font(.system(size: 8, weight: .heavy))
-                            .foregroundColor(dimGold)
+                            .font(Holo.display(10))
+                            .foregroundColor(Holo.muted)
                             .kerning(1.1)
                         Text("\(viewModel.currentRewards.syncPoints)")
-                            .font(.system(size: 22, weight: .black, design: .monospaced))
-                            .foregroundColor(brightGold)
+                            .font(Holo.display(26))
+                            .foregroundColor(Holo.accent)
                             .monospacedDigit()
                             .contentTransition(.numericText())
                             .animation(.easeOut(duration: 0.3), value: viewModel.currentRewards.syncPoints)
@@ -93,24 +82,24 @@ struct ActiveWorkoutView: View {
 
                     VStack(alignment: .trailing, spacing: 1) {
                         Text("DIST")
-                            .font(.system(size: 8, weight: .heavy))
-                            .foregroundColor(dimGold)
+                            .font(Holo.display(10))
+                            .foregroundColor(Holo.muted)
                             .kerning(1.1)
                         Text(viewModel.distanceLabel)
-                            .font(.system(size: 12, weight: .black, design: .monospaced))
-                            .foregroundColor(cream)
+                            .font(Holo.display(14))
+                            .foregroundColor(Holo.text)
                             .monospacedDigit()
                     }
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(panel.opacity(0.96))
-                .overlay(Rectangle().stroke(brightGold.opacity(0.35), lineWidth: 0.6))
+                .background(Holo.navy.opacity(0.96))
+                .overlay(Rectangle().stroke(Holo.accent.opacity(0.35), lineWidth: 0.6))
 
                 HStack(spacing: 4) {
                     ForEach(0..<WorkoutConfig.maxDailySessions, id: \.self) { i in
                         Circle()
-                            .fill(i < viewModel.sessionsCompleted ? brightGold : brightGold.opacity(0.18))
+                            .fill(i < viewModel.sessionsCompleted ? Holo.accent : Holo.accent.opacity(0.18))
                             .frame(width: 5, height: 5)
                     }
                 }
@@ -122,10 +111,10 @@ struct ActiveWorkoutView: View {
                     Button(action: viewModel.toggleRunning) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(viewModel.isRunning ? gold.opacity(0.72) : brightGold)
+                                .fill(viewModel.isRunning ? Holo.accent.opacity(0.72) : Holo.accent)
                             Image(systemName: viewModel.isRunning ? "pause.fill" : "play.fill")
                                 .font(.system(size: 16, weight: .black))
-                                .foregroundColor(darkBg)
+                                .foregroundColor(Holo.carbon)
                         }
                         .frame(height: 28)
                     }
@@ -135,14 +124,14 @@ struct ActiveWorkoutView: View {
                         Button(action: viewModel.finishNow) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(accent)
+                                    .fill(Holo.raised)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .stroke(brightGold.opacity(0.5), lineWidth: 0.8)
+                                            .stroke(Holo.accent.opacity(0.5), lineWidth: 0.8)
                                     )
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(brightGold)
+                                    .foregroundColor(Holo.accent)
                             }
                             .frame(width: 28, height: 28)
                         }
@@ -154,8 +143,8 @@ struct ActiveWorkoutView: View {
 
                 if viewModel.syncStatus == .sending {
                     Text("SYNCING…")
-                        .font(.system(size: 9, weight: .heavy))
-                        .foregroundColor(cream.opacity(0.9))
+                        .font(Holo.display(11))
+                        .foregroundColor(Holo.muted)
                         .kerning(1.2)
                         .padding(.bottom, 2)
                 }
@@ -179,7 +168,7 @@ private struct BrandedSpeedometer: View {
     let speedLabel: String
     let speedValue: Double
     let needleAngle: Angle
-    let cream: Color
+    let textColor: Color
 
     var body: some View {
         GeometryReader { geo in
@@ -201,14 +190,16 @@ private struct BrandedSpeedometer: View {
                         .rotationEffect(needleAngle, anchor: UnitPoint(x: 0.16, y: 0.5))
                         .animation(.easeOut(duration: 0.35), value: speedValue)
                 }
+                // The gauge art is gold; rotate its hue onto the HoloCity cyan accent.
+                .hueRotation(.degrees(136))
                 .frame(width: dialSize, height: visibleGaugeHeight, alignment: .top)
                 .clipped()
                 .position(x: width / 2, y: dialCenterY)
 
                 VStack(spacing: 1) {
                     Text(speedLabel)
-                        .font(.system(size: 13, weight: .black, design: .rounded))
-                        .foregroundColor(cream)
+                        .font(Holo.display(16))
+                        .foregroundColor(textColor)
                         .monospacedDigit()
                         .minimumScaleFactor(0.8)
                 }
@@ -240,11 +231,6 @@ struct PreWorkoutView: View {
     @State private var presenceNow = Date()
     private let presenceTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
-    private let gold = Color(red: 0.94, green: 0.75, blue: 0.08)
-    private let brightGold = Color(red: 0.98, green: 0.80, blue: 0.10)
-    private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
-    private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
-    private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
 
     private var phoneWorkoutActive: Bool {
         connectivity.phoneWorkoutPresence?.isCurrentlyActive(now: presenceNow) ?? false
@@ -252,38 +238,34 @@ struct PreWorkoutView: View {
 
     var body: some View {
         ZStack {
-            BrandedWorkoutBackground(
-                darkBg: darkBg,
-                gold: gold,
-                brightGold: brightGold
-            )
+            BrandedWorkoutBackground()
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ZStack {
                     Text("SYNC")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(brightGold)
+                        .font(Holo.display(13))
+                        .foregroundColor(Holo.accent)
                         .kerning(1.8)
                 }
                 .frame(maxWidth: .infinity)
                 .overlay(alignment: .leading) {
                     Text("READY")
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundColor(cream.opacity(0.9))
+                        .font(Holo.display(12))
+                        .foregroundColor(Holo.muted)
                         .kerning(1.1)
                 }
                 .overlay(alignment: .topTrailing) {
                     Button(action: { showSettings = true }) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(panel.opacity(0.95))
+                                .fill(Holo.navy.opacity(0.95))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(brightGold.opacity(0.35), lineWidth: 0.8)
+                                        .stroke(Holo.accent.opacity(0.35), lineWidth: 0.8)
                                 )
 
-                            SettingsGlyph(color: brightGold)
+                            SettingsGlyph(color: Holo.accent)
                                 .frame(width: 13, height: 13)
                         }
                         .frame(width: 26, height: 22)
@@ -299,13 +281,13 @@ struct PreWorkoutView: View {
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(viewModel.selectedHolobot.name)
-                                .font(.system(size: 19, weight: .black, design: .rounded))
-                                .foregroundColor(cream)
+                                .font(Holo.display(23))
+                                .foregroundColor(Holo.text)
                                 .minimumScaleFactor(0.7)
 
                             Text("EXP TARGET")
-                                .font(.system(size: 7, weight: .black))
-                                .foregroundColor(brightGold.opacity(0.9))
+                                .font(Holo.display(9))
+                                .foregroundColor(Holo.accent)
                                 .kerning(1.0)
                         }
 
@@ -320,19 +302,22 @@ struct PreWorkoutView: View {
                     Button(action: { showHolobotPicker = true }) {
                         HStack(spacing: 8) {
                             Text("CHANGE HOLOBOT")
-                                .font(.system(size: 10, weight: .black))
-                                .foregroundColor(cream)
+                                .font(Holo.display(12))
+                                .foregroundColor(Holo.text)
                                 .kerning(0.8)
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(brightGold)
+                            Image("HoloChangeIcon")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 14, height: 14)
+                                .foregroundColor(Holo.accent)
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 30)
-                        .background(panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(Holo.navy, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(brightGold.opacity(0.55), lineWidth: 0.9)
+                                .stroke(Holo.accent.opacity(0.55), lineWidth: 0.9)
                         )
                         .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
@@ -363,8 +348,8 @@ struct PreWorkoutView: View {
             VStack(spacing: 4) {
                 if phoneWorkoutActive {
                     Text("WORKOUT RUNNING ON IPHONE")
-                        .font(.system(size: 8, weight: .black))
-                        .foregroundColor(cream.opacity(0.85))
+                        .font(Holo.display(10))
+                        .foregroundColor(Holo.muted)
                         .kerning(0.8)
                 }
                 Button(action: {
@@ -373,19 +358,19 @@ struct PreWorkoutView: View {
                 }) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(phoneWorkoutActive ? panel : brightGold)
+                            .fill(phoneWorkoutActive ? Holo.navy : Holo.accent)
                         if phoneWorkoutActive {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(brightGold.opacity(0.55), lineWidth: 0.9)
+                                .stroke(Holo.accent.opacity(0.55), lineWidth: 0.9)
                         }
                         HStack(spacing: 6) {
                             Image(systemName: phoneWorkoutActive ? "iphone" : "play.fill")
                                 .font(.system(size: 11, weight: .black))
                             Text(phoneWorkoutActive ? "ON IPHONE" : "START SYNC")
-                                .font(.system(size: 11, weight: .black))
+                                .font(Holo.display(13))
                                 .kerning(1.1)
                         }
-                        .foregroundColor(phoneWorkoutActive ? brightGold : darkBg)
+                        .foregroundColor(phoneWorkoutActive ? Holo.accent : Holo.carbon)
                     }
                     .frame(width: 148, height: 28)
                     .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -424,22 +409,22 @@ struct PreWorkoutView: View {
             viewModel.workoutMode = mode
         }) {
             HStack(spacing: 5) {
-                workoutSettingsIcon(icon, color: selected ? brightGold : cream.opacity(0.82))
+                workoutSettingsIcon(icon, color: selected ? Holo.accent : Holo.muted)
                     .frame(width: 12, height: 12)
 
                 Text(title)
-                    .font(.system(size: 7, weight: .black))
-                    .foregroundColor(selected ? cream : cream.opacity(0.82))
+                    .font(Holo.display(9))
+                    .foregroundColor(selected ? Holo.text : Holo.muted)
                     .kerning(0.6)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 22)
-            .background(panel.opacity(selected ? 0.96 : 0.72), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(Holo.navy.opacity(selected ? 0.96 : 0.72), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(selected ? brightGold.opacity(0.8) : brightGold.opacity(0.25), lineWidth: 0.8)
+                    .stroke(selected ? Holo.accent.opacity(0.8) : Holo.accent.opacity(0.25), lineWidth: 0.8)
             )
             .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
@@ -453,21 +438,17 @@ private struct HolobotPickerView: View {
     @EnvironmentObject var connectivity: WatchConnectivityManager
     @Environment(\.dismiss) private var dismiss
 
-    private let brightGold = Color(red: 0.98, green: 0.80, blue: 0.10)
-    private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
-    private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
-    private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
 
     var body: some View {
         ZStack {
-            darkBg.ignoresSafeArea()
+            Holo.carbon.ignoresSafeArea()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("HOLOBOTS")
-                            .font(.system(size: 13, weight: .black))
-                            .foregroundColor(brightGold)
+                            .font(Holo.display(16))
+                            .foregroundColor(Holo.accent)
                             .kerning(1.8)
 
                         Spacer()
@@ -475,15 +456,15 @@ private struct HolobotPickerView: View {
                         Button("DONE") {
                             dismiss()
                         }
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(cream)
+                        .font(Holo.display(13))
+                        .foregroundColor(Holo.text)
                         .buttonStyle(.plain)
                     }
 
                     if viewModel.isRunning {
                         Text("Finish or pause the current workout before changing holobots.")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(cream.opacity(0.75))
+                            .font(Holo.body(10))
+                            .foregroundColor(Holo.muted)
                     }
 
                     ForEach(connectivity.ownedHolobots) { holobot in
@@ -500,29 +481,29 @@ private struct HolobotPickerView: View {
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(holobot.name)
-                                        .font(.system(size: 12, weight: .black))
-                                        .foregroundColor(cream)
+                                        .font(Holo.display(14))
+                                        .foregroundColor(Holo.text)
                                     Text("Apply watch EXP here")
-                                        .font(.system(size: 9, weight: .medium))
-                                        .foregroundColor(cream.opacity(0.65))
+                                        .font(Holo.body(9))
+                                        .foregroundColor(Holo.muted)
                                 }
 
                                 Spacer(minLength: 0)
 
                                 Circle()
-                                    .fill(viewModel.selectedHolobotName == holobot.name ? brightGold : brightGold.opacity(0.12))
+                                    .fill(viewModel.selectedHolobotName == holobot.name ? Holo.accent : Holo.accent.opacity(0.12))
                                     .frame(width: 16, height: 16)
                                     .overlay(
                                         Circle()
-                                            .stroke(brightGold.opacity(0.9), lineWidth: 1)
+                                            .stroke(Holo.accent.opacity(0.9), lineWidth: 1)
                                     )
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 6)
-                            .background(panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .background(Holo.navy, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(viewModel.selectedHolobotName == holobot.name ? brightGold : brightGold.opacity(0.35), lineWidth: 1)
+                                    .stroke(viewModel.selectedHolobotName == holobot.name ? Holo.accent : Holo.accent.opacity(0.35), lineWidth: 1)
                             )
                         }
                         .buttonStyle(.plain)
@@ -542,22 +523,17 @@ private struct WorkoutSettingsView: View {
     @EnvironmentObject var viewModel: WorkoutViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let gold = Color(red: 0.94, green: 0.75, blue: 0.08)
-    private let brightGold = Color(red: 0.98, green: 0.80, blue: 0.10)
-    private let darkBg = Color(red: 0.02, green: 0.03, blue: 0.04)
-    private let panel = Color(red: 0.04, green: 0.05, blue: 0.06)
-    private let cream = Color(red: 0.996, green: 0.945, blue: 0.878)
 
     var body: some View {
         ZStack {
-            darkBg.ignoresSafeArea()
+            Holo.carbon.ignoresSafeArea()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Text("SETTINGS")
-                            .font(.system(size: 13, weight: .black))
-                            .foregroundColor(brightGold)
+                            .font(Holo.display(16))
+                            .foregroundColor(Holo.accent)
                             .kerning(1.8)
 
                         Spacer()
@@ -565,14 +541,14 @@ private struct WorkoutSettingsView: View {
                         Button("DONE") {
                             dismiss()
                         }
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(cream)
+                        .font(Holo.display(13))
+                        .foregroundColor(Holo.text)
                         .buttonStyle(.plain)
                     }
 
                     Text("WORKOUT")
-                        .font(.system(size: 9, weight: .heavy))
-                        .foregroundColor(brightGold.opacity(0.8))
+                        .font(Holo.display(11))
+                        .foregroundColor(Holo.accent)
                         .kerning(1.3)
 
                     VStack(spacing: 6) {
@@ -593,13 +569,13 @@ private struct WorkoutSettingsView: View {
 
                     if viewModel.isRunning {
                         Text("Workout mode is locked while a session is running.")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(cream.opacity(0.7))
+                            .font(Holo.body(10))
+                            .foregroundColor(Holo.muted)
                     }
 
                     Text("UNITS")
-                        .font(.system(size: 9, weight: .heavy))
-                        .foregroundColor(brightGold.opacity(0.8))
+                        .font(Holo.display(11))
+                        .foregroundColor(Holo.accent)
                         .kerning(1.3)
                         .padding(.top, 4)
 
@@ -611,22 +587,22 @@ private struct WorkoutSettingsView: View {
                     // App Review 2.5.1: HealthKit use must be identified in
                     // the UI of the binary that uses it (this watch app).
                     Text("APPLE HEALTH")
-                        .font(.system(size: 9, weight: .heavy))
-                        .foregroundColor(brightGold.opacity(0.8))
+                        .font(Holo.display(11))
+                        .foregroundColor(Holo.accent)
                         .kerning(1.3)
                         .padding(.top, 4)
 
                     HStack(spacing: 8) {
                         Image(systemName: "heart.fill")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.red)
+                            .foregroundColor(Holo.danger)
                         Text("Sync workouts are recorded to Apple Health as workout sessions using HealthKit.")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(cream.opacity(0.85))
+                            .font(Holo.body(10))
+                            .foregroundColor(Holo.muted)
                     }
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(Holo.navy, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .padding(10)
             }
@@ -648,34 +624,34 @@ private struct WorkoutSettingsView: View {
             HStack(spacing: 8) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(selected ? gold.opacity(0.2) : Color.black.opacity(0.15))
-                    workoutSettingsIcon(icon, color: selected ? brightGold : cream)
+                        .fill(selected ? Holo.accent.opacity(0.2) : Holo.carbon.opacity(0.6))
+                    workoutSettingsIcon(icon, color: selected ? Holo.accent : Holo.text)
                         .frame(width: 18, height: 18)
                 }
                 .frame(width: 34, height: 34)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(cream)
+                        .font(Holo.display(13))
+                        .foregroundColor(Holo.text)
                     Text(subtitle)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(cream.opacity(0.66))
+                        .font(Holo.body(9))
+                        .foregroundColor(Holo.muted)
                 }
 
                 Spacer()
 
                 Circle()
-                    .fill(selected ? brightGold : Color.clear)
-                    .overlay(Circle().stroke(brightGold.opacity(0.6), lineWidth: 1))
+                    .fill(selected ? Holo.accent : Color.clear)
+                    .overlay(Circle().stroke(Holo.accent.opacity(0.6), lineWidth: 1))
                     .frame(width: 14, height: 14)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
-            .background(panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Holo.navy, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(selected ? brightGold : gold.opacity(0.2), lineWidth: 0.8)
+                    .stroke(selected ? Holo.accent : Holo.accent.opacity(0.2), lineWidth: 0.8)
             )
         }
         .buttonStyle(.plain)
@@ -689,17 +665,17 @@ private struct WorkoutSettingsView: View {
             viewModel.distanceUnit = unit
         }) {
             Text(title)
-                .font(.system(size: 12, weight: .black))
-                .foregroundColor(selected ? darkBg : cream)
+                .font(Holo.display(14))
+                .foregroundColor(selected ? Holo.carbon : Holo.text)
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
                 .background(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(selected ? brightGold : panel)
+                        .fill(selected ? Holo.accent : Holo.navy)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .stroke(brightGold.opacity(selected ? 0 : 0.35), lineWidth: 0.8)
+                        .stroke(Holo.accent.opacity(selected ? 0 : 0.35), lineWidth: 0.8)
                 )
         }
         .buttonStyle(.plain)
@@ -867,14 +843,10 @@ private struct TreadmillGlyph: View {
 }
 
 private struct BrandedWorkoutBackground: View {
-    let darkBg: Color
-    let gold: Color
-    let brightGold: Color
-
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [brightGold.opacity(0.96), gold.opacity(0.92), darkBg],
+                colors: [Holo.raised, Holo.navy, Holo.carbon],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -890,7 +862,7 @@ private struct BrandedWorkoutBackground: View {
                     path.addLine(to: CGPoint(x: width * 0.05, y: height * 0.28))
                     path.closeSubpath()
                 }
-                .fill(Color.black.opacity(0.10))
+                .fill(Holo.accent.opacity(0.08))
 
                 Path { path in
                     path.move(to: CGPoint(x: width * 0.22, y: height))
@@ -899,15 +871,14 @@ private struct BrandedWorkoutBackground: View {
                     path.addLine(to: CGPoint(x: width * 0.35, y: height))
                     path.closeSubpath()
                 }
-                .fill(Color.black.opacity(0.14))
+                .fill(Holo.accent.opacity(0.06))
             }
         }
-        .overlay(Color.black.opacity(0.18))
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.clear, darkBg.opacity(0.94)],
+                        colors: [Color.clear, Holo.carbon.opacity(0.94)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
