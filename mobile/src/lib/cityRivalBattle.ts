@@ -7,8 +7,10 @@ export type CityCombatant = {
   commandRules: { version: 1; maxStamina: number; staminaRegen: number };
 };
 export type CityRivalIssue = {
-  battleId: string; expiresAtMs: number; player: CityCombatant; opponent: CityCombatant; raw: unknown;
+  /** Null when the City omitted the player snapshot (host 8f82e19: every roster-citizen issue). Never filled from local stats. */
+  battleId: string; expiresAtMs: number; player: CityCombatant | null; opponent: CityCombatant; raw: unknown;
 };
+export const CITY_RIVAL_NO_ENTRANT = "The City didn’t send your Holobot’s battle stats for this duel, so it can’t be played here." /* PLACEHOLDER copy (Lex, DECISIONS #71) */;
 export function readCityRivalSettlement(reply: unknown, battleId: string) {
   const data = record(reply), status = record(data?.status);
   if (data?.schemaVersion !== "rival-battle-3" || data.battleId !== battleId || typeof data.didWin !== "boolean" || typeof data.alreadyProcessed !== "boolean" ||
@@ -26,14 +28,19 @@ function combatant(value: unknown): CityCombatant {
     commandRules: { version: 1, maxStamina: 7, staminaRegen: 0.5 },
   };
 }
-/** #80 issues one citizen bot. Use the first host-issued travel-squad bot as the entrant. */
+/**
+ * #80 issues one citizen bot. The entrant is the first host-issued travel-squad bot when the City sends
+ * `playerCombatants`. Host 8f82e19 omits that optional snapshot from every roster-citizen issue (matching
+ * Unity's gathering projection; the host still pins vitals and resolver fighters), so an absent block reads
+ * as `player: null`. A present block must still be a valid non-empty squad. Callers needing stats refuse null.
+ */
 export function readCityRivalIssue(raw: unknown, citizenId: string, expectedBotId: string, now = Date.now()): CityRivalIssue {
   const reply = record(raw), encounter = record(reply?.encounter), pilot = record(encounter?.opponentPilot);
   if (reply?.schemaVersion !== "rival-battle-3" || typeof reply.battleId !== "string" || !/^rb_[a-f0-9]{24}$/.test(reply.battleId) ||
       typeof reply.expiresAtMs !== "number" || !Number.isFinite(reply.expiresAtMs) || reply.expiresAtMs <= now ||
       encounter?.encounterId !== reply.battleId || pilot?.pilotId !== citizenId || !Array.isArray(encounter?.opponentSquad) || encounter.opponentSquad.length !== 1 ||
-      !Array.isArray(reply.playerCombatants) || reply.playerCombatants.length === 0) throw new Error("The City did not return a playable squad. Check your travel squad and try again." /* PLACEHOLDER copy (Lex, DECISIONS #71) */);
-  const player = combatant(reply.playerCombatants[0]), opponent = combatant(encounter.opponentSquad[0]);
+      (reply.playerCombatants !== undefined && (!Array.isArray(reply.playerCombatants) || reply.playerCombatants.length === 0))) throw new Error("The City did not return a playable squad. Check your travel squad and try again." /* PLACEHOLDER copy (Lex, DECISIONS #71) */);
+  const player = Array.isArray(reply.playerCombatants) ? combatant(reply.playerCombatants[0]) : null, opponent = combatant(encounter.opponentSquad[0]);
   if (opponent.holobotId !== expectedBotId) throw new Error("The rival’s Holobot changed. Refresh the gathering first.");
   return { battleId: reply.battleId, expiresAtMs: reply.expiresAtMs, player, opponent, raw };
 }
