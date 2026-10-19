@@ -228,6 +228,8 @@ The 2 failing files and both tsc errors are the same before and after. All of th
 
 ## HELD
 
+> **Update (lite-main-shared-1):** after Pak's ruling, both shared-file items below are **CLOSED** by additive edits to the shared files, with the flag-off bundle diff listed exactly. See `Documentation/QA/2026-10-18-lite-main-shared-1/README.md`. Lite #142's same-batch profile read stays off the shared AuthContext; `LiteApp`'s guard covers it.
+
 - **`contexts/AuthContext.tsx` `retryProfile` (#142)** and **`lib/profile.ts` / `types/profile.ts` `holobotVitals` (#144).** Both need an original-app file change. The producer decides whether a gated shared edit (the pattern #125 used) is acceptable. Until then, main's lite Home offers no roster RETRY and the Arena KO guard reads "unknown". Both adaptations are marked `HELD on main (lite-main-port-2)` in code.
 - **`react-test-renderer` local gap.** Main declares it, but the shared local `node_modules` lacks it. This PR's CI (`npm ci`, then `tsc` + `vitest`) is the run of record for `liteBoundary.test.ts` and `hostState/__tests__/hooks.test.ts`.
 - **#139's 3v3 transport and bench UI** stay off main (see Skips) until the 3v3 host runtime is un-HELD.
