@@ -20,7 +20,8 @@ import { ARENA_3V3_UNAVAILABLE_COPY } from '@/lib/arenaMatch3v3';
 import { arenaHostBattle } from '@/lib/arenaHostBattle';
 import { readHostVitals } from '@/lib/arenaVitals';
 import { useArenaBattleStore } from '@/stores/arena-battle-store';
-import type { BotMetrics } from '@/components/bots/BotStage';
+import type { BotMetrics, BotStagePerf } from '@/components/bots/BotStage';
+import { FAST_RENDER_QUALITY } from '@/lib/bots/stagePerf';
 import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lib/hostDashboard';
 /** Lite CPU Arena. Presentation and transport only (hard rule 1): the City admits, settles and pays; this screen shows
  * its replies, runs the existing client practice sim between `start` and `settle`, and never decides an outcome. */
@@ -28,7 +29,7 @@ import { arenaEconomyChange, notifyHostEconomyChanged } from '@/lib/hostDashboar
  * scope, like the battle store it complements, so a remount mid-fight keeps it. */
 const carriedPerformance = new Map<string, { combos: number; perfects: number }>();
 /** Offline QA only (src/qa/ArenaPolishPreview.tsx, __DEV__ harness): a recorded-reply transport instead of the callable. */
-export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean; /** QA fps witness only. */ showStageMetrics?: boolean; onStageMetrics?: (metrics: BotMetrics) => void };
+export type ArenaScreenPreview = { flow: ArenaMatchFlow; uid: string; payoutCapped?: boolean; /** QA fps witness only. */ showStageMetrics?: boolean; onStageMetrics?: (metrics: BotMetrics) => void; /** Dev QA only: #133 knob override. */ stagePerf?: BotStagePerf };
 export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) {
     const { user, profile } = useAuth();
     const uid = preview?.uid ?? user?.uid;
@@ -292,9 +293,10 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
         ]}>{fighters}</ArenaInterstitial>) : null}
   {/* lite-arena-stage-1: the park-arena 3D duel stage (the city duel's look). Same store calls as before: moves go to
       store.useMove, a City-issued match has no signature, and QUIT goes through the in-app confirmation. The toolbar
-      sits left of the pilot-menu cog (HomeCogButton, zIndex 100) so the cog never covers QUIT. */}
+      sits left of the pilot-menu cog (HomeCogButton, zIndex 100) so the cog never covers QUIT. Pak's call: the round renders
+      with #133's fast mix (FAST_RENDER_QUALITY), since the real-time input unlock shares the JS thread with GL. */}
   {battle && (phase.kind === 'battle' || phase.kind === 'confirming') ? <View style={styles.fight}>
-      <LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false} levelTab levels={{ player: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'entrant', battle.player.name), rival: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'opponent', battle.opponent.name) }} caption={COPY.stageCaption} leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === 'sending'} onLeave={quit} chrome={{ top: insets.top + 10, right: 60 }} active={phase.kind === 'battle' && !quitAsk} onMetrics={preview?.onStageMetrics} showMetrics={!!preview?.showStageMetrics}/>
+      <LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false} levelTab levels={{ player: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'entrant', battle.player.name), rival: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'opponent', battle.opponent.name) }} caption={COPY.stageCaption} leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === 'sending'} onLeave={quit} chrome={{ top: insets.top + 10, right: 60 }} active={phase.kind === 'battle' && !quitAsk} renderQuality={FAST_RENDER_QUALITY} perf={preview?.stagePerf} onMetrics={preview?.onStageMetrics} showMetrics={!!preview?.showStageMetrics}/>
     </View> : null}
   {phase.kind === 'confirming' ? <View style={[styles.overlay, { paddingTop: insets.top + 64 }]}><ArenaInterstitial eyebrow={COPY.confirmingEyebrow} title={winPending ? COPY.confirmingTitle : COPY.confirmingResult} body={COPY.confirmingBody} waiting actions={[{ label: COPY.forfeit, tone: 'danger', disabled: settlePhase.kind === 'sending', onPress: quit }]}/></View> : null}
   {phase.kind === 'stalled' ? framed(<ArenaInterstitial tone="warning" eyebrow={COPY.stalledEyebrow} title={COPY.stalledTitle} body={COPY.stalledBody} actions={[
