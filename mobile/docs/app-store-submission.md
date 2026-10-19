@@ -8,12 +8,19 @@ the last section).
 
 ## 0. State of play
 
-- Bundle: `fun.holobots.mobile` (+ `fun.holobots.mobile.watchapp`), builds
-  already uploading to App Store Connect. ✅
+- **1.0 (37) is approved** (Ready for Distribution 2026-08-03). The next
+  upload is the HoloCity lite internal TestFlight build **1.1.0 (39)** from
+  branch `release/lite-1.1.0` (DECISIONS #72.7; runbook
+  `mobile/TESTFLIGHT_INTERNAL.md`).
+- Bundle: `fun.holobots.mobile` (+ the embedded `fun.holobots.mobile.watchapp`). ✅
 - Account deletion in-app (`deleteUserAccountV2` via Settings) — Apple
   REQUIRES this for apps with account creation. ✅
-- All permission purpose strings present (HealthKit ×2, Motion, Location
-  when-in-use). ✅
+- Phone purpose strings: Face ID, Motion, Location when-in-use. The phone has
+  **no HealthKit** entitlement or strings since #53 (Guideline 2.5.1); the
+  NSHealth strings live only on the Watch app (`INFOPLIST_KEY_*` build
+  settings). `app.json` no longer lists them either. ✅
+- **Never run `expo prebuild`** (above all `--clean`): `ios/` is hand-made,
+  and prebuild drops the Watch targets and re-applies `app.json` `infoPlist`.
 - `ITSAppUsesNonExemptEncryption = false` added to Info.plist (HTTPS-only
   exemption) — the export-compliance question disappears from every future
   build upload. ✅ (this PR)
@@ -24,14 +31,16 @@ the last section).
 
 ## 1. Version hygiene (before the next build)
 
-Pick ONE public version and make everything agree. Recommended: **1.0.0**.
+1.0 shipped; its train is closed. Lite and live share one version namespace
+and one build-number sequence (D3/D4).
 
-- Xcode target `HolobotsMobile`: MARKETING_VERSION `1.0.0`, build number
-  = next integer above your last TestFlight upload.
-- Watch app target: same MARKETING_VERSION (Apple requires watch/phone
-  version match).
-- `mobile/app.json` `version`: `1.0.0` (cosmetic for bare workflow, but
-  stop the drift).
+- Next: **1.1.0 (39)**. 39 is valid only if App Store Connect's highest
+  uploaded build is ≤ 38 🖐 (pass it to the preflight as `--last-uploaded`).
+- Every `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the pbxproj (phone,
+  Watch app, Watch container and test targets, 10 settings) and `app.json`
+  `version` / `ios.buildNumber` must agree; `scripts/testflight-preflight.py`
+  fails on drift and on a released marketing version.
+- Production hotfixes for 1.0 ship as 1.0.1.
 
 ## 2. App Information
 
@@ -133,16 +142,24 @@ Expected rating: **9+**.
 ## 6. App Privacy (the "nutrition label") 🖐 answers below
 
 Data types to declare — all **Linked to identity**, none **Used for
-tracking** (no ad SDKs, no cross-app identifiers):
+tracking** (no ad SDKs, no cross-app identifiers). The draft
+`NSPrivacyCollectedDataTypes` in `ios/HolobotsMobile/PrivacyInfo.xcprivacy`
+(one file, shipped in both the phone and the Watch app) declares the same
+four types and is **pending Pak's approval** (M6); the label and the
+manifest must agree.
 
 | Data type | Collected? | Purpose |
 |---|---|---|
 | Contact Info → Email Address | Yes (Firebase Auth) | App Functionality |
-| Health & Fitness → Fitness | Yes (steps, distance, workout sessions via HealthKit/pedometer) | App Functionality |
+| Health & Fitness → Fitness | Yes (aggregate workout events sent to the host: date, distance, minutes, steps; HealthKit records stay in Apple Health) | App Functionality |
 | Identifiers → User ID | Yes (Firebase uid) | App Functionality |
-| User Content → Other (username, game profile) | Yes | App Functionality |
-| Location | **No** — coordinates are used on-device to compute distance during workouts; only the derived distance is uploaded |
-| Purchases, Browsing, Diagnostics, Contacts, etc. | No |
+| User Content → Gameplay Content (profile, roster, results, username) | Yes | App Functionality |
+| Location | **No** — coordinates are used on-device to compute distance during workouts; the host payload carries no coordinates |
+| Purchases | **No while `iapEnabled` is false** (D7). The RevenueCat SDK ships, but purchases run only when that remote flag is on; add Purchases to the label and manifest before turning it on |
+| Browsing, Diagnostics, Contacts, etc. | No |
+
+If the live 1.0 label used "User Content → Other" for the profile, either
+category is defensible; pick one and make the manifest match.
 
 (If you later add Crashlytics/analytics, add Diagnostics.)
 
@@ -188,8 +205,9 @@ tracking** (no ad SDKs, no cross-app identifiers):
 
 ## 9. Known review-risk notes (why we're OK)
 
-- **HealthKit**: entitlements on both targets + purpose strings + policy
-  hosted → compliant. Watch-only HealthKit usage is explained in notes.
+- **HealthKit**: Watch app only (entitlement + purpose strings via build
+  settings); the phone has neither since #53 cleared Guideline 2.5.1.
+  Watch-only HealthKit usage is explained in notes.
 - **Account creation** → deletion requirement met in-app.
 - **Loot boxes**: odds disclosure only applies to randomized items
   obtainable via purchase. Not applicable until IAP ships — when Holos
@@ -210,11 +228,12 @@ Remaining hands-on items:
 - ~~Create IAP products~~ ✅ 3 drafts exist (`genesis_squad_499`,
   `genesis_squad_early_199`, `battle_pass_monthly`) — still 🖐 attach to a
   submitted version + IAP review screenshot at launch
-- RevenueCat dashboard setup (project, entitlements `genesis_squad` +
-  `battle_pass`, offering, SDK key, webhook + secret) 🖐
-- `pod install` in `mobile/ios` + add In-App Purchase capability to the
-  Xcode target 🖐
-- Update the privacy label: add Purchases 🖐
+- ~~RevenueCat SDK key, `pod install`, In-App Purchase capability~~ ✅ #45
+  (the public iOS SDK key is committed; the capability is on the phone target)
+- RevenueCat dashboard (entitlements, offering, webhook + secret): confirm 🖐
+- Purchases stay off for the lite TestFlight (D7): `iapEnabled` is one remote
+  flag for every installed build, live 1.0 included
+- Update the privacy label and `PrivacyInfo.xcprivacy`: add Purchases 🖐
 - Add gacha odds disclosure if randomized items become purchasable
 - ~~Restore Purchases button~~ ✅ ships dormant; renders only when
   `iapEnabled` is true
