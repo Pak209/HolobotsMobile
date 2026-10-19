@@ -26,11 +26,12 @@ test('KO refusal: zero ledger HP cannot issue a zone run (all versions, health f
  }
 });
 
-test('existing emergency patch repairs 25 percent and the zone then accepts the bot',async()=>{
+// DECISIONS #72.1 "floor + item": the KO'd bot heals FROM the 40 % fallback (76.8) + 25 % (48) = 124.8, not 0 + 48.
+test('emergency patch on a KO bot heals from the 40 percent floor (+25 percent) and the zone then accepts the bot',async()=>{
  const uid=await setup();await assert.rejects(()=>issue(uid,{healthSchema:FLAG}),e=>e.details?.rejectionCode==='holobot_ko');
  await transactDesktopItems(db,uid,{schemaVersion:'desktop-items-2',operation:'use',itemId:'item.emergency_patch',requestId:'zone_ko_patch_1',holobotId:'ace'});
- const repaired=await user(uid);assert.equal(repaired.holobotVitals.ace.currentHealth,48);assert.equal(repaired.emergencyPatches,0);
- const reply=await issue(uid,{schemaVersion:'holozone-run-2',healthSchema:FLAG});assert.equal(reply.playerCombatants[0].currentHealth,48);assert.equal(reply.playerCombatants[0].maxHealth,192);assert.ok(reply.runId);
+ const repaired=await user(uid);assert.equal(repaired.holobotVitals.ace.currentHealth,124.8);assert.equal(repaired.emergencyPatches,0);
+ const reply=await issue(uid,{schemaVersion:'holozone-run-2',healthSchema:FLAG});assert.equal(reply.playerCombatants[0].currentHealth,124.8);assert.equal(reply.playerCombatants[0].maxHealth,192);assert.ok(reply.runId);
 });
 
 test('city rival issue retains 40 percent recovery, unaffected by zone policy',async()=>{
