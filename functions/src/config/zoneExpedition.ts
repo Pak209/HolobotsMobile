@@ -55,16 +55,18 @@ export const ZONE_EXPEDITION_RULES = Object.freeze({
   }),
   /** zone-run-4 layout preview copy (Holocity #53); presentation text only, never a ruling. dangerLabels[i] names
    * band i+1 (the band whose WOLF level is bandLevels[i]): PLACE names per Pak DECISIONS #71.3 (2026-10-17), sent
-   * verbatim (Unity shows them as-is with the level range beside them). glimpse lines stay PLACEHOLDER strings for
-   * Lex/Pak, keyed by the sector's host role in the daily layout table. */
+   * verbatim (Unity shows them as-is with the level range beside them). glimpse lines are City-authored (DECISIONS
+   * #72.8 P3/P4), keyed by the sector's host role in the daily layout table: entry / gate / cache / rareDiscovery /
+   * guardian are Lex packet 2 text (cache and rareDiscovery share one line on purpose: no rare-loot spoiler; the
+   * guardian is not named). ace / shadow / kuma stay PLACEHOLDER until Pak rules mismatch (i). */
   layoutCopy: Object.freeze({
     dangerLabels: Object.freeze(['ROOKIE', 'DEEPWOOD', 'THE CORE'] as const),
     glimpse: Object.freeze({
-      entry: 'The portal clearing. The beacon hums behind you.',
-      gate: 'A safe room. Beacon online, repairs possible.',
-      cache: 'Something glints past the threat.',
-      rareDiscovery: 'A rare signal pulses past the threat.',
-      guardian: 'A heavy signature waits here.',
+      entry: 'The beacon hums in the portal clearing.',
+      gate: 'A safe room with a beacon. Bring kits for repairs.',
+      cache: 'A threat waits along this route.',
+      rareDiscovery: 'A threat waits along this route.',
+      guardian: 'A heavy signature waits ahead.',
       ace: 'A high ledge. ACE could boost across.',
       shadow: 'A sealed hatch. SHADOW could slip inside.',
       kuma: 'A boulder blocks the way. KUMA could move it.',
