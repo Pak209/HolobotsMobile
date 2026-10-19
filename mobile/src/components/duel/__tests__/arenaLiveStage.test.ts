@@ -8,6 +8,7 @@ import { arenaFighterLevel } from '@/lib/bots/arenaFighterLevel';
 import { useArenaBattleStore } from '@/stores/arena-battle-store';
 import type { HoloCityCommand } from '@/components/HoloCityCommandBar';
 import { liveDuelCommandMove, liveDuelCommands } from '../liveDuelCommands';
+import { FAST_RENDER_QUALITY, PERF_SWEEP_ARMS, PRODUCTION_KNOBS, resolveStageRender } from '@/lib/bots/stagePerf';
 import fixture from '../../../qa/fixtures/arena-admitted-lifecycle.json';
 
 /** lite-arena-stage-1: the CPU Arena round renders the city duel's park-arena 3D stage. There is no RN renderer here, so
@@ -16,6 +17,7 @@ const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.m
 const screen = read('../../../screens/ArenaScreen.tsx');
 const stage = read('../LiveDuelStage.tsx');
 const city = read('../../city/CityLiveBattleView.tsx');
+const botStage = read('../../bots/BotStage.tsx');
 const hud = read('../../../screens/DuelPlaybackScreen.tsx');
 // The four plates as HoloCityCommandBar declares them (that module imports react-native, which this env cannot load).
 const PLATES: HoloCityCommand[] = [{ id: 'strike', label: 'STRIKE' }, { id: 'heavy', label: 'HEAVY' }, { id: 'defend', label: 'DEFEND' }, { id: 'finisher', label: 'FINISHER' }];
@@ -118,5 +120,30 @@ describe('Arena round on the shared 3D stage', () => {
         expect(city).toContain('<LiveDuelStage');
         expect(city).toContain("hostFighterLevel(hostIssue, 'player', battle.player.name, accountSnapshot)");
         expect(city).toContain("caption={preview ? 'OFFLINE PREVIEW · NO REWARDS' : 'HOLOCITY / PARK ARENA'} leaveLabel=\"LEAVE\"");
+    });
+
+    it("Pak's call: the Arena round renders #133's fast mix (msaa0 + halfRes + anim30); the city duel keeps production", () => {
+        expect(FAST_RENDER_QUALITY).toEqual({ msaaSamples: 0, resolution: 0.5, animHz: 30 });
+        // The same mix the #133 sweep measured as `combo`.
+        const combo = PERF_SWEEP_ARMS.find(a => a.id === 'combo')!.knobs;
+        expect({ msaaSamples: combo.msaaSamples, resolution: combo.resolution, animHz: combo.animHz }).toEqual(FAST_RENDER_QUALITY);
+        expect(screen).toContain('renderQuality={FAST_RENDER_QUALITY}');
+        expect(stage).toContain('quality={renderQuality} perf={perf}');
+        // City rival / park duel: no quality passed, so BotStage resolves to production (MSAA on, full buffer, every frame).
+        expect(city).not.toContain('renderQuality');
+        expect(resolveStageRender(undefined)).toEqual({ msaaSamples: PRODUCTION_KNOBS.msaaSamples, resolution: 1, animHz: 0 });
+    });
+
+    it('dev perf-sweep knobs still override the caller quality, and BotStage applies the resolved settings', () => {
+        const halfResOnly = PERF_SWEEP_ARMS.find(a => a.id === 'halfRes')!.knobs;
+        expect(resolveStageRender(FAST_RENDER_QUALITY, halfResOnly)).toEqual({ msaaSamples: 1, resolution: 0.5, animHz: 0 });
+        expect(resolveStageRender(FAST_RENDER_QUALITY, PRODUCTION_KNOBS)).toEqual({ msaaSamples: 1, resolution: 1, animHz: 0 });
+        expect(botStage).toContain('const perfRun = __DEV__ ? perf : undefined;');
+        expect(botStage).toContain('const renderSettings = resolveStageRender(quality, perfRun?.knobs);');
+        expect(botStage).toContain('msaaSamples={renderSettings.msaaSamples}');
+        expect(botStage).toContain('Math.min(1, renderScale)) * renderSettings.resolution;');
+        expect(botStage).toContain('const step = animHz ? throttledMixerStep(mixerPendingMs, elapsed, animHz) : null;');
+        // A quality change remounts the GL context (it is part of the signature).
+        expect(botStage).toContain(':m${renderSettings.msaaSamples}a${renderSettings.animHz}:');
     });
 });
