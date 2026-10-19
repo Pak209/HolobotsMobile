@@ -1,3 +1,4 @@
+import {KO_FALLBACK_FRACTION} from "./rivalHealth";
 /** Server-owned repair stock and health. No client-supplied amount/health is accepted. */
 export const REPAIR_FIELD = "emergencyPatches";
 export const REPAIR_ITEM = "item.emergency_patch";
@@ -47,6 +48,12 @@ export function repairUse(profile:Record<string,unknown>,botId:string|undefined,
  const v=ledger?.[botId];
  if(!v||!Number.isFinite(v.currentHealth)||!Number.isFinite(v.maxHealth)||v.maxHealth<=0||v.currentHealth<0||v.currentHealth>v.maxHealth)throw new RepairError("health_unavailable");
  if(v.currentHealth>=v.maxHealth)throw new RepairError("already_full");
- const health=Math.min(v.maxHealth,v.currentHealth+v.maxHealth*item.fraction);
+ // DECISIONS #72.1 "floor + item": a bot below the KO fallback (HP 0, or under 40 %) heals FROM the fallback, so a heal
+ // never leaves it lower than not healing would (the unhealed bot enters its next rival duel at the fallback).
+ // Shared by the city item use and duel_repair (desktopItemsHost); Workshop heals to full and does not come here.
+ const start=Math.max(v.currentHealth,v.maxHealth*KO_FALLBACK_FRACTION);
+ // The client prints this value verbatim ({hp}/{max}); strip binary-float noise from the floor sum (192*.4+48 is
+ // 124.80000000000001) without changing the amount.
+ const health=Math.min(v.maxHealth,Math.round((start+v.maxHealth*item.fraction)*1e6)/1e6);
  return {updates:{...healingDelta(profile,itemId,-1),holobotVitals:{...ledger,[botId]:{...v,currentHealth:health}}},result:{kind:"repair",itemId,holobotId:botId,currentHealth:health,maxHealth:v.maxHealth}};
 }

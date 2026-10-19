@@ -1,0 +1,24 @@
+{
+  "provenance": "onboarding-host-1 (DECISIONS #72.3-#72.5). Requests and reply excerpts of desktopAccountSnapshot; scripts/test-onboarding.mjs asserts each reply is the builder output for its profile, and scripts/test-onboarding-emulator.mjs replays the requests through the real callable. Unity mirror: DesktopAccountSession.ValidSnapshot / ackTournamentUnlock siblings.",
+  "schema": "Schemas/onboarding-1.json",
+  "returning": {
+    "storedOnboarding": null,
+    "reply": { "onboarding": { "schemaVersion": "onboarding-1", "step": 7, "stepId": "done", "skipped": true, "stepAt": null } }
+  },
+  "genesis": {
+    "storedOnboarding": { "step": 0, "skipped": false, "stepAt": 1792368000000 },
+    "reply": { "onboarding": { "schemaVersion": "onboarding-1", "step": 0, "stepId": "arrive", "skipped": false, "stepAt": 1792368000000 } }
+  },
+  "advanceRequest": { "schemaVersion": "desktop-account-3", "operation": "ackOnboarding", "onboarding": { "advance": 1 } },
+  "skipRequest": { "schemaVersion": "desktop-account-3", "operation": "ackOnboarding", "onboarding": { "skip": true } },
+  "skipped": {
+    "storedOnboarding": { "step": 7, "skipped": true, "stepAt": 1792368005000 },
+    "reply": { "onboarding": { "schemaVersion": "onboarding-1", "step": 7, "stepId": "done", "skipped": true, "stepAt": 1792368005000 } }
+  },
+  "knownBad": [
+    { "schemaVersion": "onboarding-1", "step": 3, "stepId": "mentor_duel", "skipped": true, "stepAt": 1 },
+    { "schemaVersion": "onboarding-1", "step": 2, "stepId": "market", "skipped": false, "stepAt": 1 },
+    { "schemaVersion": "onboarding-1", "step": 8, "stepId": "done", "skipped": false, "stepAt": 1 },
+    { "schemaVersion": "onboarding-1", "step": 1, "stepId": "companion", "skipped": false, "stepAt": 1, "extra": true }
+  ]
+}

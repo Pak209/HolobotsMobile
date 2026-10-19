@@ -6,6 +6,9 @@ export const RIVAL_HEALTH_SCHEMA='rival-health-1';
 export type HealthRow={holobotId:string;currentHealth:number};
 export type Vitals=Record<string,{currentHealth:number;maxHealth:number}>;
 export class HealthError extends Error{}
+/** DECISIONS #57 / #72.1: a knocked-out bot enters its next rival duel at this fraction of max (issueVitals), and any
+ * item heal on a bot below it starts FROM it (lib/repairItems.ts repairUse). One constant, both rules. */
+export const KO_FALLBACK_FRACTION=0.4;
 export function healthRows(raw:unknown):HealthRow[]|undefined{
  if(raw===undefined)return undefined;
  if(!Array.isArray(raw)||raw.length>3)throw new HealthError('invalid_request');
@@ -26,7 +29,7 @@ export function requireLivingVitals(profile:Record<string,unknown>,holobotIds:re
 export function issueVitals(profile:Record<string,unknown>,players:{holobotId:string;maxHealth:number}[]){
  const next=ledger(profile);for(const p of players){if(!Number.isFinite(p.maxHealth)||p.maxHealth<=0)throw new HealthError('unavailable');const old=next[p.holobotId];let hp=old?Math.min(old.currentHealth,p.maxHealth):p.maxHealth;
  // Pak: recovery at zero is host-owned. Retain the existing forty-percent recovery as host policy.
- if(hp===0)hp=p.maxHealth*.4;next[p.holobotId]={currentHealth:hp,maxHealth:p.maxHealth};}return next;
+ if(hp===0)hp=p.maxHealth*KO_FALLBACK_FRACTION;next[p.holobotId]={currentHealth:hp,maxHealth:p.maxHealth};}return next;
 }
 export function settleVitals(profile:Record<string,unknown>,issued:Vitals,rows:HealthRow[]):Vitals{
  const next=ledger(profile);for(const r of rows){const start=issued[r.holobotId],current=next[r.holobotId];if(!start||!current||r.currentHealth>start.currentHealth)throw new HealthError('invalid_request');next[r.holobotId]={...current,currentHealth:Math.min(current.currentHealth,r.currentHealth)};}return next;
