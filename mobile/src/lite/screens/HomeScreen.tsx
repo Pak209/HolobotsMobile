@@ -221,11 +221,7 @@ function ArtImage({
 export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: RivalHudPreview; dashboardPreview?: HostDashboardState } = {}) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const insets = useSafeAreaInsets();
-  const { profile, profileError, profileLoading, updateProfile, user } = useAuth();
-  // HELD on main (lite-main-port-2): lite #142's AuthContext hunk (`retryProfile`) changes an original-app file, so
-  // main's shared AuthContext cannot re-subscribe. Until it lands, a failed read shows CAN'T LOAD YOUR ROSTER with no
-  // RETRY that would do nothing (homeRoster "missing").
-  const retryProfile: (() => void) | undefined = undefined;
+  const { profile, profileError, profileLoading, retryProfile, updateProfile, user } = useAuth();
   const rival = useRivalStatus(user?.uid, rivalPreview);
   // Header pilot / SYNC / HOLOS, squad LV and zone rows: host reads only (desktopAccountSnapshot + desktopItemsHost).
   const host = useHostDashboard(user?.uid, dashboardPreview);
@@ -239,7 +235,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
   // Signed in with no owned Holobot: never present the catalog fallback as the account's bot. Only a failed
   // profile read says "can't load" and offers RETRY; a loaded profile with no Holobots says so (L20).
-  const rosterState = homeRosterState({ signedIn: !!user, ownsHolobot: roster.some((holobot) => holobot.owned), profileLoaded: !!profile, profileLoading, profileError: retryProfile ? profileError : null });
+  const rosterState = homeRosterState({ signedIn: !!user, ownsHolobot: roster.some((holobot) => holobot.owned), profileLoaded: !!profile, profileLoading, profileError });
   const rosterAvailable = rosterState === "ready";
   const expProgressWidth = rosterAvailable ? 460.193 * getExpProgress(selectedHolobot) : 0;
   const equippedParts =

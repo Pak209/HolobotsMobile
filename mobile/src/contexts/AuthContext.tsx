@@ -48,6 +48,8 @@ type AuthContextValue = {
   sessionLocked: boolean;
   profileLoading: boolean;
   profileError: string | null;
+  /** Re-subscribe to the profile after a failed read. */
+  retryProfile: () => void;
   login: (email: string, password: string, options?: { rememberMe?: boolean; faceId?: boolean }) => Promise<void>;
   signup: (
     params: {
@@ -101,6 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  // Bumped only by retryProfile(); while it stays 0 the profile subscription behaves exactly as before.
+  const [profileRevision, setProfileRevision] = useState(0);
+  const profileReadRef = useRef<{ uid: string; revision: number } | null>(null);
   const manualLoginRef = useRef(false);
 
   useEffect(() => {
@@ -203,20 +208,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) {
+      profileReadRef.current = null;
       setProfile(null);
       setProfileLoading(false);
       setProfileError(null);
       return;
     }
 
+    // A retryProfile() re-read of the same account keeps the failed read's error until the new read answers, so a
+    // retry reads "failed, retrying" and never a loaded-but-empty roster. Every other (re)subscribe clears it as before.
+    const retrying = profileReadRef.current?.uid === user.uid && profileReadRef.current.revision !== profileRevision;
+    profileReadRef.current = { uid: user.uid, revision: profileRevision };
     setProfileLoading(true);
-    setProfileError(null);
+    if (!retrying) setProfileError(null);
 
     const unsubscribe = subscribeToUserProfile(
       user.uid,
       (nextProfile) => {
         setProfile(nextProfile);
         setProfileLoading(false);
+        // Only a retried read kept an error to clear (last, so no state ever reads "loading, no error" mid-retry).
+        if (retrying) setProfileError(null);
       },
       (error) => {
         setProfile(null);
@@ -226,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     return unsubscribe;
-  }, [user]);
+  }, [user, profileRevision]);
 
   useEffect(() => {
     if (!user) {
@@ -288,6 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionLocked,
       profileLoading,
       profileError,
+      retryProfile: () => setProfileRevision((revision) => revision + 1),
       login: async (email, password, options) => {
         const normalizedEmail = email.trim();
         const nextRememberMe = options?.rememberMe ?? authPreferences.rememberMe;
@@ -604,6 +617,7 @@ export function OfflinePreviewAuthProvider({
       sessionLocked: false,
       profileLoading: false,
       profileError: null,
+      retryProfile: () => {},
       login: unavailable,
       signup: unavailable,
       logout: unavailable,

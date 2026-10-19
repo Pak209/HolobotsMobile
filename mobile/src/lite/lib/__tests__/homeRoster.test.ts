@@ -33,20 +33,27 @@ describe("Home roster state (L20: only a real failure claims one)", () => {
     const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url) as unknown as string), "utf8");
     const app = read("../../../../LiteApp.tsx");
     expect(app).toContain("if (bootLoading || (user && profileLoading && !profile && !profileError)) {");
-    // HELD on main (lite-main-port-2): lite #142's AuthContext hunk (retryProfile, same-batch profile read) edits an
-    // original-app file. Main's shared AuthContext has neither, so Home offers no RETRY. When that change lands this
-    // goes red: restore lite's AuthContext assertions here and drop HomeScreen's `retryProfile = undefined`.
+    // lite-main-shared-1: the shared AuthContext exposes retryProfile (additive; MainApp never calls it). A retry
+    // re-subscribes the same account and keeps the failed read's error until the read answers; a successful read
+    // clears it. Without a retry every (re)subscribe clears the error up front, exactly as before.
     const auth = read("../../../contexts/AuthContext.tsx");
-    expect(auth).not.toContain("retryProfile");
-    expect(read("../../screens/HomeScreen.tsx")).toContain("profileError: retryProfile ? profileError : null");
-    // The shared AuthContext sets the user one render before it starts the read, so LiteApp covers that render
+    expect(auth).toContain("retryProfile: () => void;");
+    expect(auth).toContain("retryProfile: () => setProfileRevision((revision) => revision + 1),");
+    expect(auth).toContain("retryProfile: () => {},");
+    expect(auth).toContain("}, [user, profileRevision]);");
+    expect(auth).toContain("const retrying = profileReadRef.current?.uid === user.uid && profileReadRef.current.revision !== profileRevision;");
+    expect(auth).toMatch(/setProfileLoading\(true\);\s*if \(!retrying\) setProfileError\(null\);/);
+    expect(auth).toMatch(/setProfile\(nextProfile\);\s*setProfileLoading\(false\);\s*\/\/[^\n]*\n\s*if \(retrying\) setProfileError\(null\);/);
+    // Runtime proof of these semantics (and of the unchanged no-retry sequence): src/contexts/__tests__/authProfileRetry.test.ts.
+    expect(read("../../screens/HomeScreen.tsx")).toContain("const { profile, profileError, profileLoading, retryProfile, updateProfile, user } = useAuth();");
+    // Lite #142 also starts the read in the same AuthContext update as the sign-in. On main that would change the
+    // original app's first render after sign-in, so the shared context keeps its order and LiteApp covers that render
     // itself: a signed-in account whose read has not started gets the loading screen, never Home.
     expect(app).toContain("else if (profileLoading || profile || profileError) profileReadFor.current = user.uid;");
     expect(app).toContain("const profileReadPending = !!user && profileReadFor.current !== user.uid;");
     expect(app).toMatch(/if \(profileReadPending\) \{\s*return <AppLoadingScreen \/>;/);
   });
   it("Home draws RETRY and its tap target only for the unavailable state", () => {
-    // On main "unavailable" is unreachable while lite #142's AuthContext hunk is HELD (see the tripwire above).
     const home = readFileSync(fileURLToPath(new URL("../../screens/HomeScreen.tsx", import.meta.url) as unknown as string), "utf8");
     expect(home).toContain('rosterState === "unavailable" ? <Text');
     expect(home).toMatch(/\{rosterState === "unavailable" \? \(\s*<Pressable[\s\S]*?onPress=\{retryProfile\}/);
