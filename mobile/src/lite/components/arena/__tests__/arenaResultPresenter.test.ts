@@ -38,9 +38,9 @@ describe('presentArenaResult — subtitle and rows from one source', () => {
     expect(saysNoRewards(view.subtitle)).toBe(false);
   });
 
-  it('(b2) host receipt on a loss titles the rows CONSOLATION', () => {
+  it('(b2) host receipt on a loss titles the rows REWARDS', () => {
     const view = presentArenaResult({ didWin: false, receipt: { kind: 'host', rewards: { exp: 20, syncPoints: 5 } } });
-    expect(view.rowsTitle).toBe('CONSOLATION');
+    expect(view.rowsTitle).toBe('REWARDS');
     expect(view.rows).toHaveLength(2);
   });
 
@@ -48,7 +48,7 @@ describe('presentArenaResult — subtitle and rows from one source', () => {
     const view = presentArenaResult({ didWin: false, receipt: { kind: 'host', rewards: { exp: 0, syncPoints: 0, holos: 0, blueprintRewards: [] } }, context: 'ACE LV 4 · HARE LV 12' });
     expect(view.rows).toEqual([]);
     expect(view.rowsTitle).toBeNull();
-    expect(view.subtitle).toBe('ACE LV 4 · HARE LV 12 · CITY RECEIPT · NOTHING GRANTED');
+    expect(view.subtitle).toBe('ACE LV 4 · HARE LV 12 · CITY RECEIPT · NO REWARDS GRANTED');
     expect(saysNoRewards(view.subtitle)).toBe(true);
   });
 
