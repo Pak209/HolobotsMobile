@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArenaScreen } from '@/screens/ArenaScreen';
@@ -6,6 +6,7 @@ import { BattleArenaView } from '@/components/arena/BattleArenaView';
 import { ArenaMatchFlow, type ArenaCheckpoint, type ArenaIssue, type ArenaPendingSettle, type ArenaReply } from '@/lib/arenaMatchFlow';
 import { arenaHostBattle } from '@/lib/arenaHostBattle';
 import { theme } from '@/theme';
+import { useArenaBattleStore } from '@/stores/arena-battle-store';
 import { ARENA_SETTLED, ARENA_STARTED, tooFast } from './arenaPolishFixtures';
 
 /**
@@ -36,10 +37,10 @@ function cellFlow(cell: Cell) {
         checkpoints: { get: async () => checkpoint, set: async v => { checkpoint = v; } },
     });
 }
-/** Sits under the fighter HUD so it never covers the stage's toolbar or command bar. */
+/** Sits between the fighter HUD (with its LV tabs) and the command bar. */
 function Banner({ title, caption }: { title: string; caption: string }) {
     const insets = useSafeAreaInsets();
-    return <View pointerEvents="none" style={[styles.banner, { top: insets.top + 170 }]}><Text style={styles.bannerTitle}>{`QA / OFFLINE / RECORDED REPLIES · ${title}`}</Text><Text style={styles.bannerCaption}>{caption}</Text></View>;
+    return <View pointerEvents="none" style={[styles.banner, { top: insets.top + 300 }]}><Text style={styles.bannerTitle}>{`QA / OFFLINE / RECORDED REPLIES · ${title}`}</Text><Text style={styles.bannerCaption}>{caption}</Text></View>;
 }
 const noop = () => { };
 /** KNOWN BAD control: the pre-stage Arena round, exactly as ArenaScreen rendered it at b40c2ac (flat 2D cards). */
@@ -56,7 +57,14 @@ function ArenaStageKnownBad() {
 export const arenaStagePreviewScreens: Record<string, ComponentType> = {
     ArenaStageKnownBad,
     ...Object.fromEntries(Object.entries(CELLS).map(([name, cell]) => [name, function ArenaStageCell() {
+        // The battle store is module scope and every cell shares the fixture matchId: clear it (after commit, never while
+        // rendering) before the screen mounts, so each cell starts without a fight.
         const flow = useMemo(() => cellFlow(cell), []);
+        const [fresh, setFresh] = useState(false);
+        useEffect(() => { useArenaBattleStore.getState().resetBattle(); setFresh(true); }, []);
+        // Witness probe: the store inputs the stage's commands read, once a second (QA log only).
+        useEffect(() => { const id = setInterval(() => { const g = useArenaBattleStore.getState(), b = g.currentBattle; if (b) console.info('[ArenaStage:store] ' + JSON.stringify({ cell: name, animating: g.isAnimating, paused: g.paused, playable: g.getPlayableMoves().map(m => m.id), moves: g.playerMoves.map(m => m.id), playerHp: b.player.currentHP, opponentHp: b.opponent.currentHP, stamina: b.player.stamina, status: b.status, loop: !!g.gameLoopIntervalId })); }, 1000); return () => clearInterval(id); }, []);
+        if (!fresh) return <View style={styles.root}/>;
         return <View style={styles.root}><ArenaScreen preview={{ flow, uid: 'offline-fixture', showStageMetrics: true, onStageMetrics: metrics => console.info('[ArenaStage:metrics] ' + JSON.stringify({ cell: name, ...metrics })) }}/><Banner title={cell.title} caption={cell.caption}/></View>;
     }])),
 };

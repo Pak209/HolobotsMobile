@@ -33,6 +33,11 @@ export type LiveDuelStageProps = {
   playableIds?: readonly string[];
   /** Hold commands until the 3D stage has loaded (city rival). The Arena's live loop is never held. */
   holdUntilReady?: boolean;
+  /** Top padding (default insets.top + 4) and a right reserve on the toolbar, for chrome the caller keeps above the
+   * stage (the Arena's pilot-menu cog, 48 pt at insets.top + 10, right 18). */
+  chrome?: { top: number; right: number };
+  /** False pauses the GL scene (under an overlay); combat is not affected. */
+  active?: boolean;
   /** Dev QA only: BotStage frame metrics. */
   onMetrics?: (metrics: BotMetrics) => void;
   showMetrics?: boolean;
@@ -40,7 +45,7 @@ export type LiveDuelStageProps = {
 
 /** The park-arena 3D duel: BotStage over the park plate, FighterHud and the HoloCity command bar. Presentation of an
  * existing battle state only; every combat decision is the caller's (engine or store). */
-export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pending, caption, leaveLabel, leaveDisabled = pending, levels, levelTab = false, signature: signatureAllowed = true, playableIds, holdUntilReady = true, onMetrics, showMetrics = false }: LiveDuelStageProps) {
+export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pending, caption, leaveLabel, leaveDisabled = pending, levels, levelTab = false, signature: signatureAllowed = true, playableIds, holdUntilReady = true, chrome, active = true, onMetrics, showMetrics = false }: LiveDuelStageProps) {
   const insets = useSafeAreaInsets();
   const stage = useRef<BotStageHandle>(null);
   const [ready, setReady] = useState(false);
@@ -68,9 +73,9 @@ export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pen
   const state = (fighter: BattleState['player']) => ({ hp: fighter.currentHP, maxHp: fighter.maxHP, stamina: fighter.stamina, maxStamina: fighter.maxStamina });
   return <View style={styles.screen} testID="live-duel-stage">
     <Image source={require('../../../assets/battle/holocity-park.jpg')} style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]} resizeMode="cover" />
-    {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} onMetrics={onMetrics} showMetrics={showMetrics} />}
-    <View style={[styles.top, { paddingTop: insets.top + 4 }]}>
-      <View style={styles.toolbar}><Text style={styles.caption}>{caption}</Text><Pressable accessibilityRole="button" onPress={onLeave} disabled={leaveDisabled} style={styles.button}><Text style={styles.caption}>{leaveLabel}</Text></Pressable></View>
+    {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} active={active} onMetrics={onMetrics} showMetrics={showMetrics} />}
+    <View style={[styles.top, { paddingTop: chrome?.top ?? insets.top + 4 }]}>
+      <View style={[styles.toolbar, chrome ? { marginRight: chrome.right } : null]}><Text style={styles.caption}>{caption}</Text><Pressable accessibilityRole="button" onPress={onLeave} disabled={leaveDisabled} style={styles.button}><Text style={styles.caption}>{leaveLabel}</Text></Pressable></View>
       <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} level={levels.player} levelTab={levelTab} /><View style={styles.round}><Text style={styles.caption}>TURN</Text><Text style={styles.number}>{String(action?.turnNumber ?? 1).padStart(2, '0')}</Text></View><FighterHud name={battle.opponent.name} state={state(battle.opponent)} level={levels.rival} levelTab={levelTab} rival /></View>
     </View>
     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
