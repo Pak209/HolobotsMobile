@@ -13,6 +13,7 @@ RELEASE_HOLDS = [
     'App Store Connect: confirm the highest uploaded build so the next build number is unused (pass it as --last-uploaded).',
     'Apple distribution signing/provisioning and Watch HealthKit capability match require account verification.',
     'App privacy/disclosure and export-compliance answers require owner approval; manifest syntax is not approval.',
+    'Purchases are undeclared only while remote config/monetization.iapEnabled is false; declare Purchase History (manifest + ASC label) before it is ever turned on.',
     'Physical-device release acceptance, live citizen admission, native diagnostics and performance gates remain unresolved.',
 ]
 GATE = 'EXPO_PUBLIC_HOLOCITY_LITE'
@@ -25,15 +26,19 @@ EXPO_ENV_FILES = ['.env.production.local', '.env.local', '.env.production', '.en
 HERMES_MAGIC = bytes.fromhex('c61fbc03c103191f')
 
 def shell_assignments(text, key):
-    """Values a sourced shell file assigns to key, in order (None = unset)."""
+    """Values a sourced shell file exports for key, in order (None = unset).
+
+    A plain `KEY=v` stays a shell variable and never reaches export:embed's
+    environment unless the file also runs `export KEY`."""
+    lines = [line.split('#', 1)[0].strip() for line in text.splitlines()]
+    exported = any(re.match(rf'^export\s+(.*\s)?{key}(\s|$)', line) for line in lines)
     values = []
-    for line in text.splitlines():
-        line = line.split('#', 1)[0].strip()
+    for line in lines:
         if re.match(rf'^unset\s+(.*\s)?{key}(\s|$)', line):
             values.append(None)
-        m = re.match(rf'^(?:export\s+)?{key}=(.*)$', line)
-        if m:
-            values.append(m.group(1).strip().strip('"\''))
+        m = re.match(rf'^(export\s+)?{key}=(.*)$', line)
+        if m and (m.group(1) or exported):
+            values.append(m.group(2).strip().strip('"\''))
     return values
 
 def bundle_gate(path):
@@ -115,14 +120,18 @@ def inspect(root, expo_config=None, *, expect_lite=None, last_uploaded=None, rel
     env = os.environ if environ is None else environ
     sources, effective = [], env.get(GATE)
     sources.append({'source': f'process environment ({GATE})', 'values': [effective] if effective is not None else []})
-    settings = re.findall(rf'\b{GATE}\s*=\s*"?([^";]*)"?;', project)
-    sources.append({'source': 'ios/HolobotsMobile.xcodeproj build settings', 'values': settings})
-    if settings: effective = settings[-1]
+    # Xcode: xcconfig values sit below the target's own build settings.
     for xc in (root / 'ios').glob('**/*.xcconfig'):
         if 'Pods' in xc.parts: continue
-        values = re.findall(rf'^\s*{GATE}\s*=\s*(.*)$', xc.read_text(), re.M)
+        values = [v.strip() for v in re.findall(rf'^\s*{GATE}\s*=\s*(.*)$', xc.read_text(), re.M)]
         sources.append({'source': str(xc.relative_to(root)), 'values': values, 'tracked': tracked(root, str(xc.relative_to(root)))})
-        if values: effective = values[-1].strip()
+        if values: effective = values[-1]
+    settings = re.findall(rf'^\s*{GATE}\s*=\s*"?([^";\n]*)"?;\s*$', project, re.M)
+    sources.append({'source': 'ios/HolobotsMobile.xcodeproj build settings', 'values': settings})
+    if settings: effective = settings[-1]
+    # Script phases that set it inline (shellScript bodies are escaped strings).
+    inline = re.findall(rf'{GATE}=([^\\\s;"]*)', ' '.join(re.findall(r'shellScript = "((?:[^"\\]|\\.)*)";', project)))
+    sources.append({'source': 'ios/HolobotsMobile.xcodeproj shellScript phases', 'values': inline})
     seen = set()
     for relative in XCODE_ENV_FILES:
         path = root / relative

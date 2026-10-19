@@ -47,7 +47,7 @@ Edit the Xcode project and `app.json` by hand and keep them in step (the preflig
    `--last-uploaded`, any gate source (process env, Xcode build settings, `ios/.xcode.env*`,
    `mobile/.env*`) that disagrees with `--expect-lite`, the gate not coming from the
    versioned `ios/.xcode.env`, a phone NSHealth string, and a missing `ExpoGL` lock entry.
-5. Optional bundle proof: build the JS bundle the way the Xcode phase does and pass it in.
+5. Bundle proof (required): build the JS bundle the way the Xcode phase does and pass it in.
 
    ```sh
    (source ios/.xcode.env && CI=1 NODE_ENV=production npx expo export:embed --platform ios --dev false --bundle-output /tmp/lite.jsbundle --assets-dest /tmp/lite-assets)
@@ -55,6 +55,7 @@ Edit the Xcode project and `app.json` by hand and keep them in step (the preflig
    ```
 
    The archived `main.jsbundle` is Hermes bytecode, which the preflight refuses to guess at.
+   Archive right after this, with the same environment and the cache from step 3 untouched.
 
 ## Xcode upload path (Pak, D8)
 
