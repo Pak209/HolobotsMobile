@@ -84,3 +84,22 @@ Pak's ruling: "Default the Arena to the fast render mix (no anti-aliasing, half 
 - **Input lock:** the 1 Hz store probe still read `isAnimating` as true in 9 of 13 samples. v1 read about 5 of 7, and the zero-render simulation reads about 28%. A 1 Hz probe is too coarse to show a change in a 350 ms window.
 - Frame time fell from about 130–170 ms to about 45 ms, so the unlock timer should lag much less. The phone test should confirm it.
 - **Look trade-off:** at half resolution the bot edges are visibly softer and blockier.
+
+## lite-arena-fast-1: the CPU's first action waits for the stage (producer add-on)
+
+**Code:** `lib/arenaStageGate.ts`.
+- **Hold:** `holdCpuForStage()` stamps the store's existing `lastAIActionTime` 10 s ahead. The store's own 950 ms rule then holds the CPU.
+- **Release:** `releaseCpuForStage()` stamps "now", so the CPU waits the same interval as at any fight start.
+- **Screen:** `ArenaScreen` holds once per shown round. It releases on `LiveDuelStage`'s `onStageReady`, which fires when GL has loaded, when GL fails, or when the fighters have no 3D.
+- **Effect order:** a stage that is ready on its first commit is never held, because React runs the child's effects before the screen's.
+- **Not changed:** combat rules, damage, stamina, player input and the store file. The gate adds nothing visible.
+- **Tests:** `arenaStageGate.test.ts` uses the real store with a fake clock. It covers hold, release, the cap, player input during a hold, an ungated control and the wiring.
+
+**Timing (simulator, fresh JS process, idle player, measured from when the round appears):**
+
+| | CPU's first hit | Stage loaded | Idle KO | fps |
+|---|---|---|---|---|
+| Fast mix alone (`ArenaStageRoundNoGate`, QA control) | 1.0 s, while still loading | 2.5 s | 7.0 s | 24.8–26.6 |
+| Fast mix + gate (`ArenaStageRound`) | **3.2 s** | 2.2 s | **9.2 s** | ~27 |
+
+Park duel in the same session: 8.2–9.3 fps. Gate sheet: `~/HolobotsVault/QA/2026-10-18-lite-arena-stage-1/GATE_SHEET-v2.png`; raw evidence in `v2b/`.
