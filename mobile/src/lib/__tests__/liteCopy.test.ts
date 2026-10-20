@@ -49,6 +49,9 @@ describe("lite copy rules (DECISIONS #71)", () => {
     const dashes = onScreenText(read(path)).filter((text) => /(^["'`>]?\s*—\s*["'`]?$)|LV —|Lv —|EXP —|— HOLOS|TIER —/.test(text));
     expect(dashes).toEqual([]);
   });
+  it.each(FILES)("Lex packet 3: the level badge is LV, never Lv: %s", (path) => {
+    expect(onScreenText(read(path)).filter((text) => /\bLv\b/.test(text))).toEqual([]);
+  });
   it("L20: Home never says ROSTER UNAVAILABLE; its roster copy comes from one honest state (homeRoster.ts)", () => {
     const home = read("../../screens/HomeScreen.tsx");
     expect(home).not.toContain("ROSTER UNAVAILABLE");

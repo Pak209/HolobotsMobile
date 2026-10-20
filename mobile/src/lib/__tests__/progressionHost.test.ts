@@ -155,6 +155,7 @@ describe("start → claim through the City (happy path)", () => {
     expect(runStatusLine(running, CITY_QUEST.endsAtMs - 61_000)).toMatch(/^ENDS \d\d:\d\d · 1m 01s LEFT$/);
     expect(runStatusLine(running, CITY_QUEST.startedAtMs)).toMatch(/^ENDS \d\d:\d\d · 30m 00s LEFT$/);
     expect(runStatusLine({ state: "running", endsAtMs: CITY_TRAINING.endsAtMs }, CITY_TRAINING.endsAtMs - 3_725_000)).toMatch(/· 1h 02m LEFT$/);
+    expect(runStatusLine({ state: "legacy_running", endsAtMs: CITY_QUEST.endsAtMs }, CITY_QUEST.endsAtMs - 61_000)).toBe("OLDER APP RUN · 1m 01s LEFT");
     const [ready] = buildQuestCards(timers, fixture.after.rewardSystem, noneRefused, CITY_QUEST.endsAtMs);
     expect(ready.state).toBe("ready");
     expect(canTryClaim(ready)).toBe(true);
@@ -317,7 +318,7 @@ describe("legacy in-flight runs (started by an older app on client timers)", () 
     const legacy = cards.find((card) => card.runId === LEGACY_QUEST_ID)!;
     expect(legacy.state).toBe("legacy_refused");
     expect(canTryClaim(legacy)).toBe(false);
-    expect(runStatusLine(legacy, NOW)).toBe("THE CITY CAN'T PAY THIS RUN · START A NEW ONE");
+    expect(runStatusLine(legacy, NOW)).toBe("THE CITY DECLINED THIS RUN · START A NEW ONE");
     // Another account's refusals never leak into this one.
     expect(legacyRefusals.get("pilot-other").has(LEGACY_QUEST_ID)).toBe(false);
     // It stays closed after a relaunch: a fresh store reads the persisted refusal for this account only.
@@ -371,7 +372,7 @@ describe("critic round 1 (read-only review of f1f21b8)", () => {
     const card = buildTrainingCard(empty, noEnd, noneRefused, NOW)!;
     expect(card).toMatchObject({ source: "legacy", endsAtMs: null, state: "legacy_ready" });
     expect(canTryClaim(card)).toBe(true);
-    expect(runStatusLine(card, NOW)).toBe("STARTED ON AN OLDER APP · TRY CLAIM");
+    expect(runStatusLine(card, NOW)).toBe("OLDER APP RUN · TRY CLAIM");
     const quests = { activeQuests: [{ ...fixture.profile.rewardSystem.activeQuests[0], endsAt: undefined }] };
     expect(buildQuestCards(empty, quests, noneRefused, NOW)[0].state).toBe("legacy_ready");
   });

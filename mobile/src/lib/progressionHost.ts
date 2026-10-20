@@ -230,14 +230,14 @@ export const START_BLOCK_COPY: Record<StartBlock, string> = {
   legacy_training: "Claim your earlier training first.",
 };
 
-/** PLACEHOLDER copy (Lex): the line under a run card. A City run shows the City's end time (device clock for hh:mm). */
+/** Lex packet 3 (group 8) reviewed copy: the line under a run card. A City run shows the City's end time (device clock for hh:mm). */
 export function runStatusLine(card: { state: RunState; endsAtMs: number | null }, nowMs: number): string {
   switch (card.state) {
     case "ready": return "READY TO CLAIM";
     case "running": return `ENDS ${formatClock(card.endsAtMs!)} · ${formatRemaining(card.endsAtMs! - nowMs)} LEFT`;
-    case "legacy_ready": return "STARTED ON AN OLDER APP · TRY CLAIM";
-    case "legacy_running": return `STARTED ON AN OLDER APP · ${formatRemaining(card.endsAtMs! - nowMs)} LEFT`;
-    case "legacy_refused": return "THE CITY CAN'T PAY THIS RUN · START A NEW ONE";
+    case "legacy_ready": return "OLDER APP RUN · TRY CLAIM";
+    case "legacy_running": return `OLDER APP RUN · ${formatRemaining(card.endsAtMs! - nowMs)} LEFT`;
+    case "legacy_refused": return "THE CITY DECLINED THIS RUN · START A NEW ONE";
   }
 }
 
