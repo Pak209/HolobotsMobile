@@ -48,7 +48,7 @@ describe('presentArenaResult — subtitle and rows from one source', () => {
     const view = presentArenaResult({ didWin: false, receipt: { kind: 'host', rewards: { exp: 0, syncPoints: 0, holos: 0, blueprintRewards: [] } }, context: 'ACE LV 4 · HARE LV 12' });
     expect(view.rows).toEqual([]);
     expect(view.rowsTitle).toBeNull();
-    expect(view.subtitle).toBe('ACE LV 4 · HARE LV 12 · CITY RECEIPT · NO REWARDS GRANTED');
+    expect(view.subtitle).toBe('ACE LV 4 · HARE LV 12 · CITY RECEIPT · NOTHING GRANTED');
     expect(saysNoRewards(view.subtitle)).toBe(true);
   });
 
@@ -77,9 +77,9 @@ describe('presentArenaResult — subtitle and rows from one source', () => {
 
   it('(A)2 payoutWithheld: no rows, NO REWARDS subtitle and the honest reason as a notice', () => {
     const cap = presentArenaResult({ didWin: true, receipt: { kind: 'host', rewards: { exp: 0, syncPoints: 0, holos: 0, blueprintRewards: [] }, withheld: 'daily_cap' }, context: 'ACE LV 4 · HARE LV 12' });
-    expect(cap).toMatchObject({ headline: 'VICTORY!', rows: [], rowsTitle: null, subtitle: 'ACE LV 4 · HARE LV 12 · CITY RECEIPT · NO REWARDS', notice: 'Daily Arena rewards reached · resets 00:00 UTC' });
+    expect(cap).toMatchObject({ headline: 'VICTORY!', rows: [], rowsTitle: null, subtitle: 'ACE LV 4 · HARE LV 12 · CITY RECEIPT · NO REWARDS THIS MATCH', notice: 'Daily Arena reward cap reached · resets 00:00 UTC' });
     const quick = presentArenaResult({ didWin: false, receipt: { kind: 'host', rewards: { exp: 0, syncPoints: 0 }, withheld: 'under_floor' } });
-    expect(quick).toMatchObject({ headline: 'DEFEAT', tone: 'loss', rows: [], notice: 'Quick loss · no rewards' });
+    expect(quick).toMatchObject({ headline: 'DEFEAT', tone: 'loss', rows: [], notice: 'Battle too brief for rewards' });
     expect(saysNoRewards(cap.subtitle) && saysNoRewards(quick.subtitle)).toBe(true);
   });
 
@@ -88,7 +88,7 @@ describe('presentArenaResult — subtitle and rows from one source', () => {
     expect(refund).toMatchObject({ headline: 'ENTRY REFUNDED', tone: 'neutral', rows: [], notice: 'Cancelled before the fight · 50 Holos returned' });
     expect(presentArenaClosure({ closure: { kind: 'refund', method: 'pass', amount: 1, expired: true }, fighter: 'ACE' }).notice).toBe('Cancelled before the fight · match timed out · 1 Arena Pass returned');
     const forfeit = presentArenaClosure({ closure: { kind: 'forfeit', holobotId: 'ace', finalHealth: 44, maxHealth: 172, expired: false }, fighter: 'ACE' });
-    expect(forfeit).toMatchObject({ headline: 'FORFEIT', tone: 'loss', rows: [], subtitle: 'CITY RECEIPT · NO REWARDS', notice: 'Forfeit · entry not refunded · ACE HP 44 / 172' });
+    expect(forfeit).toMatchObject({ headline: 'FORFEIT', tone: 'loss', rows: [], subtitle: 'CITY RECEIPT · NO REWARDS THIS MATCH', notice: 'Forfeit · entry not refunded · ACE HP 44 / 172' });
     expect(presentArenaClosure({ closure: { kind: 'forfeit', holobotId: 'ace', finalHealth: null, maxHealth: null, expired: false }, fighter: 'ACE' }).notice).toBe('Forfeit · entry not refunded');
   });
 
