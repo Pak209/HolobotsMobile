@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { ajv2020 } from './lib/ajv2020.mjs';
 const require = createRequire(import.meta.url);
 const F = require('../lib/sim/fight/index.js');
 const { firstDivergence } = require('../lib/sim/fight/diff.js');
@@ -108,8 +109,7 @@ test('diff tool: state bytes decode to named fields; a one-tick step names exact
 });
 
 test('duel-rules-3: defaults equal rules-default.json; the schema accepts every vector snapshot; the parser is strict', () => {
-  const Ajv2020 = createRequire(new URL('../../rules-tests/package.json', import.meta.url))('ajv/dist/2020');
-  const validate = new Ajv2020({ strict: false }).compile(JSON.parse(readFileSync(new URL('../../Schemas/duel-rules-3.json', import.meta.url))));
+  const validate = ajv2020().compile(JSON.parse(readFileSync(new URL('../../Schemas/duel-rules-3.json', import.meta.url))));
   const def = JSON.parse(readFileSync(new URL('rules-default.json', dir)));
   assert.deepEqual(F.rulesToJson(F.defaultRules()), def);
   for (const name of index.vectors) assert.equal(validate(JSON.parse(readFileSync(new URL(name + '.json', dir))).rules), true, name);
