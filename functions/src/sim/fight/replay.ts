@@ -4,7 +4,7 @@ import {
 } from '../../shared/fightReplayContract';
 import { FightCoreBrain } from './brain';
 import { EventKind, FIGHT_PROFILE_KEYS, FIGHT_SKILL_KEYS, FightInput, FightProfile, FightSkill } from './contracts';
-import { FightCore } from './core';
+import { FightCore, townHp } from './core';
 import { FightInputLog, FightInputLogError, firstDivergentSample, inputLogToWire, logInputs, parseInputLog, recordEquals, sampleTick, toRecord } from './inputLog';
 import { hex, sha256 } from './math';
 import { FightRules, rulesFromJson, rulesHash } from './rules';
@@ -128,7 +128,9 @@ export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: V
   for (const e of result.events) if (e.kind === EventKind.Swap || e.kind === EventKind.ForcedSwap) fielded[e.side].add(e.value);
   const finals = (side: number, slots: { fighterId: string; holobotId: string }[]): FightFinalWire[] =>
     core.roster[side].map((m, i) => ({
-      fighterId: m.def.id, holobotId: slots[i].holobotId, currentHealth: m.hp, maxHealth: m.def.maxHp, staminaPm: m.sta, sync: m.sync,
+      // duel-sim-3 r3 (fight-tune-2): the core fights in FIGHT HP (issued HP x the pair HP scale); the receipt and the settle stay in
+      // town units (townHp maps back: 0 stays 0, standing >= 1, full stays full), so the town HP display is unchanged (#72.26)
+      fighterId: m.def.id, holobotId: slots[i].holobotId, currentHealth: townHp(m), maxHealth: m.def.maxHp, staminaPm: m.sta, sync: m.sync,
       knockedOut: m.ko, fielded: fielded[side].has(i),
     }));
   const receipt: FightReceiptWire = {

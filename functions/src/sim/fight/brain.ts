@@ -34,22 +34,25 @@ export interface FightBrainDriver {
 // ---------------------------------------------------------------- FightAiSeam
 
 const Phase = { Out: 0, Edge: 1, Exchange: 2, Close: 3 } as const;
-const Act = { Free: 0, Telegraph: 1, Recovery: 2, Step: 3, Burst: 4, Shove: 5, Stagger: 6, FeintRecovery: 7 } as const;
-const Strike = { None: 0, Light: 1, Heavy: 2, Special: 3 } as const;
-const AiPress = { None: 0, Strike: 1, Heavy: 2, Finisher: 3, Feint: 4, Step: 5, Shove: 6, Disengage: 7 } as const;
+const Act = { Free: 0, Telegraph: 1, Recovery: 2, Step: 3, Burst: 4, Shove: 5, Stagger: 6, FeintRecovery: 7, Escape: 8 } as const;
+const Strike = { None: 0, Light: 1, Heavy: 2, Special: 3, Charge: 4 } as const;
+/** r3: Escape goes to the core as the double-tap (code 8) away from the rival; a ShoulderCharge is Step (sideways) then Strike. */
+const AiPress = { None: 0, Strike: 1, Heavy: 2, Finisher: 3, Feint: 4, Step: 5, Shove: 6, Disengage: 7, Escape: 8 } as const;
 
 type AiView = {
   x: number; z: number; hp: number; maxHp: number; stamina: number; sync: number; act: number; strike: number;
   actStartTick: number; contactTick: number; actEndTick: number; guardHeld: boolean; guardUp: boolean;
   punishable: boolean; punishableUntilTick: number; breaking: boolean; counterUntilTick: number;
 };
-type AiKit = { runMmPerTick: number; primaryReachMm: number; contactReachMm: number; lightLungeMm: number; heavyLungeMm: number; specialLungeMm: number };
-const lungeOf = (k: AiKit, s: number) => (s === Strike.Heavy ? k.heavyLungeMm : s === Strike.Special ? k.specialLungeMm : k.lightLungeMm);
-const threat = (k: AiKit, s: number) => k.contactReachMm + lungeOf(k, s);
+type AiKit = { runMmPerTick: number; primaryReachMm: number; contactReachMm: number; lightLungeMm: number; heavyLungeMm: number; specialLungeMm: number;
+  chargeReachMm: number; chargeLungeMm: number };
+const lungeOf = (k: AiKit, s: number) => (s === Strike.Heavy ? k.heavyLungeMm : s === Strike.Special ? k.specialLungeMm : s === Strike.Charge ? k.chargeLungeMm : k.lightLungeMm);
+const threat = (k: AiKit, s: number) => (s === Strike.Charge ? k.chargeReachMm : k.contactReachMm) + lungeOf(k, s);
 type AiRules = {
   lightCost: number; heavyCost: number; specialCost: number; feintCost: number; stepCost: number; burstCost: number; shoveCost: number;
   openerTelegraphTicks: number; chainTelegraphTicks: number; feintWindowTicks: number; guardRaiseTicks: number; perfectGuardTicks: number;
   breakLine: number; closeRangeMm: number; edgeBandMm: number; minGapMm: number; stepMm: number; burstMm: number;
+  escapeCost: number; chargeCost: number; chargeMaxStartMm: number; shoveOnHeavyInClose: boolean;
 };
 const costOf = (r: AiRules, s: number) => (s === Strike.Heavy ? r.heavyCost : s === Strike.Special ? r.specialCost : r.lightCost);
 type AiObs = {
@@ -92,6 +95,8 @@ export class FightBrain {
   private exchSeen = NO_TICK; private exchPlanEnd = 0; private exiting = false;
   private guardedContact = NO_TICK;
   private prevAct: number = Act.Free;
+  private escapeTried = false; private chargeTried = false;   // r3: one quick-escape roll per retreat, one ShoulderCharge roll per chain
+  private chargeFollowAt = -1;                                 // r3: the tick to press the Strike that turns its sidestep into the charge
 
   constructor(readonly profile: BrainProfile, readonly skill: BrainSkill, private readonly r: AiRules) {
     const why = profileIsValid(profile);
@@ -107,7 +112,7 @@ export class FightBrain {
   private affords(s: AiView, k: number): boolean { return s.stamina - costOf(this.r, k) >= this.r.breakLine + 1000; }
 
   private startChain(rng: FightRng, forced: number): void {
-    this.burstTried = false; this.postChain = false; this.nextKind = Strike.None;
+    this.burstTried = false; this.postChain = false; this.nextKind = Strike.None; this.chargeTried = false;
     if (forced >= 0) { this.chainLeft = forced; if (forced > 0) this.mode = Mode.Engage; return; }
     const P = this.profile;
     const a = div(P.chainMeanX10, 10);
@@ -160,6 +165,13 @@ export class FightBrain {
     let ux = 0, uz = 127;
     if (d > 0) { ux = div(dxl * 127, d); uz = div(dzl * 127, d); }
     const px = -uz, pz = ux;
+
+    // ---- r3: the second half of a ShoulderCharge (Step>Light) ----
+    if (this.chargeFollowAt >= 0 && t >= this.chargeFollowAt) {
+      const follow = t === this.chargeFollowAt && s.act === Act.Step;
+      this.chargeFollowAt = -1;
+      if (follow) press = AiPress.Strike;
+    }
 
     // ---- A. a newly perceived telegraph: guard (perfect-timed by rank), step out, or beat it ----
     if (o.act === Act.Telegraph && o.actStartTick !== this.lastSeenTele) {
@@ -215,7 +227,7 @@ export class FightBrain {
     // ---- C. punish windows ----
     if (press === AiPress.None && (free || buffering)) {
       const ownWindow = s.counterUntilTick >= t;
-      const key = ownWindow ? s.counterUntilTick * 2 + 1 : (o.act === Act.Recovery && o.punishable ? o.actStartTick * 2 : NO_TICK);
+      const key = ownWindow ? s.counterUntilTick * 2 + 1 : ((o.act === Act.Recovery || o.act === Act.Escape) && o.punishable ? o.actStartTick * 2 : NO_TICK);
       if (key !== NO_TICK && key !== this.lastPunishKey && d <= threat(kit, Strike.Heavy) && this.affords(s, Strike.Light)) {
         this.lastPunishKey = key;
         if (roll(rng, P.counterRateBps)) {
@@ -266,7 +278,13 @@ export class FightBrain {
         if (!s.breaking && press === AiPress.None) press = AiPress.Disengage;
         this.mode = Mode.Retreat; this.chainLeft = 0; this.openerFeint = false; this.feintPending = false; this.nextKind = Strike.None; this.shell = false;
         this.retreatTarget = Math.min(100000, Math.max(P.engageMinStamina, P.breakAtStamina + 15000));
+        this.escapeTried = false;
       }
+    }
+    // r3 quick escape (evasive profiles only: escapeBps 0 never draws): once per retreat, from the fighter's own BREAK
+    if (this.mode === Mode.Retreat && !this.escapeTried && press === AiPress.None && free && s.breaking && d <= edgeOuter + 500) {
+      this.escapeTried = true;
+      if (P.escapeBps > 0 && s.stamina >= R.escapeCost + 5000 && roll(rng, P.escapeBps)) { press = AiPress.Escape; stepX = -ux; stepZ = -uz; }
     }
     if (this.mode === Mode.Retreat && !s.breaking && s.stamina >= this.retreatTarget) this.mode = d > edgeOuter ? Mode.Approach : Mode.Stalk;
     if (this.mode === Mode.Approach && d <= edgeOuter) this.mode = Mode.Stalk;
@@ -287,6 +305,18 @@ export class FightBrain {
     if (think && this.mode !== Mode.Retreat && roll(rng, 120)) this.circleDir = -this.circleDir;
 
     // ---- F. engage: walk / burst in, then chain strikes ----
+    if (this.mode === Mode.Engage && press === AiPress.None) {
+      // r3 ShoulderCharge: an opener out of neutral inside the dash reach may be the dash attack (a sidestep now, the light next tick)
+      if (!this.chargeTried && free && !inExchange && !this.openerFeint && P.chargeShareBps > 0 && d > R.closeRangeMm + 200 && d <= R.chargeMaxStartMm - 100
+        && s.stamina - R.chargeCost >= R.breakLine + 2000) {
+        this.chargeTried = true;
+        if (roll(rng, P.chargeShareBps)) {
+          press = AiPress.Step; stepX = px * this.circleDir; stepZ = pz * this.circleDir; this.chargeFollowAt = t + 1;
+          this.nextKind = Strike.None; this.guardUntil = -2;
+          if (--this.chainLeft <= 0) { this.chainLeft = 0; this.mode = Mode.Stalk; this.postChain = true; }
+        }
+      }
+    }
     if (this.mode === Mode.Engage && press === AiPress.None) {
       if (this.nextKind === Strike.None) this.nextKind = this.pickKind(rng, s, o, d, kit);
       const thr = threat(kit, this.nextKind) - (lungeOf(kit, this.nextKind) > 1000 ? 200 : STRIKE_MARGIN_MM);
@@ -363,6 +393,7 @@ export class FightBrain {
     if (len > 0 && mag > 0) { mx = div(mx * mag, len); mz = div(mz * mag, len); } else { mx = 0; mz = 0; }
 
     const guard = this.guardFrom >= 0 && t >= this.guardFrom && t <= this.guardUntil && press === AiPress.None && !ownTele;
+    if (press === AiPress.Heavy && R.shoveOnHeavyInClose && obs.phase === Phase.Close) press = AiPress.Strike;
     if (press === AiPress.Step && stepX === 0 && stepZ === 0) { stepX = -ux; stepZ = -uz; }
     return { moveX: clampI(mx, -127, 127), moveZ: clampI(mz, -127, 127), guard, press, stepX: clampI(stepX, -127, 127), stepZ: clampI(stepZ, -127, 127) };
   }
@@ -376,6 +407,7 @@ function kitOf(d: FightFighterDef, r: FightRules): AiKit {
     lightLungeMm: d.reachLightMm <= r.closeKitReachMm ? r.closeKitLungeMm : r.lungeLightMm,
     heavyLungeMm: Math.max(0, d.reachHeavyMm - d.reachLightMm) + r.lungeHeavyMm,
     specialLungeMm: Math.max(0, d.reachSpecialMm - d.reachLightMm) + r.lungeSpecialMm,
+    chargeReachMm: r.chargeReachMm, chargeLungeMm: r.chargeDashMm,
   };
 }
 
@@ -387,6 +419,7 @@ function mapView(v: FightFighterView): AiView {
     case Action.Step: act = v.loco === Loco.ForwardJump ? Act.Burst : Act.Step; break;
     case Action.Shove: act = Act.Shove; break;
     case Action.FeintRecovery: act = Act.FeintRecovery; break;
+    case Action.Escape: act = Act.Escape; break;
     case Action.Stun: case Action.Ko: act = Act.Stagger; break;
     default: act = Act.Free; break;
   }
@@ -395,7 +428,7 @@ function mapView(v: FightFighterView): AiView {
     x: v.xMm, z: v.zMm, hp: v.hp, maxHp: v.maxHp, stamina: v.staminaPm * 100, sync: v.sync, act, strike: v.move,
     actStartTick: tel ? v.telegraphStartTick : v.actionUntilTick, contactTick: tel ? v.contactTick : -1, actEndTick: v.actionUntilTick,
     guardHeld: v.guard === Guard.Raising || v.guard === Guard.Up, guardUp: v.guard === Guard.Up,
-    punishable: v.action === Action.Recovery && v.punishableUntil > v.tick, punishableUntilTick: v.punishableUntil,
+    punishable: (v.action === Action.Recovery || v.action === Action.Escape) && v.punishableUntil > v.tick, punishableUntilTick: v.punishableUntil,
     breaking: v.state === State.Break, counterUntilTick: v.counterWindowUntil - 1,
   };
 }
@@ -422,6 +455,8 @@ export class FightCoreBrain implements FightBrainDriver {
       openerTelegraphTicks: R.telegraphTicks, chainTelegraphTicks: R.chainTelegraphTicks, feintWindowTicks: R.feintWindowTicks,
       guardRaiseTicks: R.guardRaiseTicks, perfectGuardTicks: R.perfectGuardTicks, breakLine: R.breakLinePm * 100,
       closeRangeMm: R.closeRangeMm, edgeBandMm: R.edgeBandMm, minGapMm: R.minGapMm, stepMm: me.backstepMm, burstMm: me.forwardJumpMm,
+      escapeCost: R.costEscapePm * 100, chargeCost: (R.costLightPm + R.costChargeDashPm) * 100, chargeMaxStartMm: R.minGapMm + R.chargeDashMm,
+      shoveOnHeavyInClose: R.shoveOnHeavyInClose !== 0,
     };
     if (!this.issuedProfile || !this.issuedSkill) throw new RangeError('brain_unissued');
     this.inner = new FightBrain(brainFromIssued(this.issuedProfile), skillFromIssued(this.issuedSkill), this.aiRules);
@@ -448,6 +483,7 @@ export class FightCoreBrain implements FightBrainDriver {
       case AiPress.Step: inp.press = Press.Step; inp.stepX = axis(it.stepX); inp.stepZ = axis(it.stepZ); break;
       case AiPress.Shove: inp.press = Press.Shove; break;
       case AiPress.Disengage: inp.press = Press.Disengage; break;
+      case AiPress.Escape: inp.press = Press.DoubleTap; inp.stepX = axis(it.stepX); inp.stepZ = axis(it.stepZ); break;
     }
     return inp;
   }

@@ -5,7 +5,9 @@ import { FightInputs } from './runner';
  * duel-inputs-2 decoder/encoder: the host mirror of HolobotsUnity `Sim/FightInputs/FightInputLog.cs` (fight-input-1), the
  * authoritative runtime check (JSON Schema cannot express the stream grammar). Same checks, same order, same refusal codes;
  * the 4 valid fixture logs re-encode byte for byte and the 35 invalid ones refuse with the C# decoder's code.
- *   record = header [dt:uleb128 if header&7==0] [moveX:i8 moveZ:i8 if bit3] [press:u8 if bit5 [stepX:i8 stepZ:i8 if press&7==5]]
+ *   record = header [dt:uleb128 if header&7==0] [moveX:i8 moveZ:i8 if bit3] [press:u8 if bit5 [dirX:i8 dirZ:i8 if code is 5 or 8]]
+ *   press  = bits0-2 code low · bits3-4 special tier · bit5 code bit 3 (code 8 = double-tap, HolobotsUnity fight-input-2 #134,
+ *            additive: codes 1-7 byte-identical, 9-15 refused) · bits6-7 zero; a double-tap's direction is never 0,0.
  *            [deploy:u8 if bit6] [target:u8 if bit7]
  * Levels (move, guard) start at (0,0) / guard false and persist; a press or pick lasts its tick.
  */
@@ -31,8 +33,9 @@ export function idleRecord(): FightTickRecord {
 /** FightTickRecord.Check. */
 export function checkRecord(r: FightTickRecord): void {
   if (r.moveX === -128 || r.moveZ === -128 || r.stepX === -128 || r.stepZ === -128) fail('fight_input_axis');
-  if (r.press > Press.Disengage) fail('fight_input_press');
-  if (r.press !== Press.Step && (r.stepX !== 0 || r.stepZ !== 0)) fail('fight_input_step');
+  if (r.press > Press.DoubleTap) fail('fight_input_press');
+  if (!hasDirection(r.press) && (r.stepX !== 0 || r.stepZ !== 0)) fail('fight_input_step');
+  if (r.press === Press.DoubleTap && r.stepX === 0 && r.stepZ === 0) fail('fight_input_step');
   if (r.press === Press.Special ? r.specialTier !== 1 && r.specialTier !== 2 : r.specialTier !== 0) fail('fight_input_tier');
 }
 export function recordEquals(a: FightTickRecord, b: FightTickRecord): boolean {
@@ -43,7 +46,7 @@ export function recordEquals(a: FightTickRecord, b: FightTickRecord): boolean {
 export function toRecord(i: FightInput): FightTickRecord {
   const r = idleRecord();
   r.moveX = i.moveX | 0; r.moveZ = i.moveZ | 0; r.guard = i.guard; r.press = i.press; r.specialTier = i.specialTier; r.deploy = i.deploy; r.target = i.target;
-  if (i.press === Press.Step) { r.stepX = i.stepX | 0; r.stepZ = i.stepZ | 0; }
+  if (hasDirection(i.press)) { r.stepX = i.stepX | 0; r.stepZ = i.stepZ | 0; }
   if (i.press !== Press.Special) r.specialTier = 0;
   return r;
 }
@@ -69,6 +72,13 @@ const HEX64 = /^[0-9a-f]{64}(?![\s\S])/, ID = /^[a-z0-9_-]{1,64}(?![\s\S])/, RUL
 const HASHES = /^(?:[0-9a-f]{16})*(?![\s\S])/, B64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?(?![\s\S])/;
 const i8 = (v: number) => v & 0xff;
 
+/** FightTickRecord.HasDirection: step and the double-tap carry a direction. */
+export function hasDirection(press: number): boolean { return press === Press.Step || press === Press.DoubleTap; }
+/** FightInputLog.PressByte: the code's low 3 bits, the tier in bits 3-4 (Special only), the code's bit 3 in bit 5. */
+export function pressByte(code: number, tier: number): number {
+  return (code & 7) | (((code >> 3) & 1) << 5) | (code === Press.Special ? tier << 3 : 0);
+}
+
 export function encodeStream(ticks: FightTickRecord[]): Buffer {
   const out: number[] = [];
   let mx = 0, mz = 0, guard = false, prev = -1;
@@ -83,8 +93,8 @@ export function encodeStream(ticks: FightTickRecord[]): Buffer {
     if (move) { out.push(i8(r.moveX), i8(r.moveZ)); mx = r.moveX; mz = r.moveZ; }
     if (g) guard = r.guard;
     if (press) {
-      out.push(r.press | (r.press === Press.Special ? r.specialTier << 3 : 0));
-      if (r.press === Press.Step) out.push(i8(r.stepX), i8(r.stepZ));
+      out.push(pressByte(r.press, r.specialTier));
+      if (hasDirection(r.press)) out.push(i8(r.stepX), i8(r.stepZ));
     }
     if (deploy) out.push(r.deploy);
     if (target) out.push(r.target);
@@ -122,11 +132,12 @@ export function decodeStream(bytes: Uint8Array, tickCount: number, ownRoster: nu
     if ((header & 16) !== 0) guard = !guard;
     r.moveX = mx; r.moveZ = mz; r.guard = guard;
     if ((header & 32) !== 0) {
-      const p = next(), code = p & 7, tier = (p >> 3) & 3;
-      if (code === 0 || (p & 0xe0) !== 0) fail('stream_press');
+      const p = next(), code = (p & 7) | (((p >> 5) & 1) << 3), tier = (p >> 3) & 3;
+      if (code === 0 || code > Press.DoubleTap || (p & 0xc0) !== 0) fail('stream_press');
       if (code === Press.Special ? tier !== 1 && tier !== 2 : tier !== 0) fail('stream_tier');
       r.press = code; r.specialTier = tier;
-      if (code === Press.Step) { r.stepX = axis(); r.stepZ = axis(); }
+      if (hasDirection(code)) { r.stepX = axis(); r.stepZ = axis(); }
+      if (code === Press.DoubleTap && r.stepX === 0 && r.stepZ === 0) fail('stream_press_dir');
     }
     if ((header & 64) !== 0) { r.deploy = next(); if (r.deploy >= ownRoster) fail('stream_deploy'); }
     if ((header & 128) !== 0) { r.target = next(); if (r.target >= opponentRoster) fail('stream_target'); }

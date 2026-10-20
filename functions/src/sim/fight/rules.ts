@@ -11,7 +11,7 @@ export const TICK_HZ = 30;
 export const MAX_ROSTER_PER_SIDE = 3;
 
 export const RULE_DEFAULTS = {
-  maxTicks: 5400, ringRadiusMm: 12000, minGapMm: 1000, closeRangeMm: 1300, edgeBandMm: 1500, exchangeGapTicks: 30, exchangeMinPresses: 2,
+  maxTicks: 5400, ringRadiusMm: 6000, minGapMm: 1000, closeRangeMm: 1300, edgeBandMm: 1500, exchangeGapTicks: 30, exchangeMinPresses: 2,
   regenOutPmPerSec: 200, regenEdgePmPerSec: 80, regenExchangePmPerSec: 15, regenClosePmPerSec: 10, regenBreakPmPerSec: 200, breakRegenDelayTicks: 9,
   regenDelayTicks: 12, guardRegenPm: 500,
   costLightPm: 80, costHeavyPm: 180, costSpecialPm: 200, costFeintPm: 30, costStepPm: 60, costBurstPm: 100, costShovePm: 80, multBlockedPm: 1150,
@@ -29,6 +29,10 @@ export const RULE_DEFAULTS = {
   scaleLightPm: 1000, scaleHeavyPm: 1550, scaleSpecialPm: 2000, specialHalfEffectPm: 500, specialFullEffectPm: 1000, specialHalfSync: 50,
   specialFullSync: 100, syncLight: 10, syncHeavy: 14, syncBlockedPm: 500, maxSync: 100,
   shoveTicks: 8, shovePushMm: 800, shovePushTicks: 8, swapLockoutTicks: 90, swapShieldTicks: 23,
+  // duel-sim-3 r3 (fight-tune-2; DECISIONS #72.25-#72.29): fight HP scale, Shove = heavy in CLOSE, quick escape, ShoulderCharge
+  hpScaleLights: 19, shoveOnHeavyInClose: 1, costEscapePm: 100, escapeTurnTicks: 8, escapeNoGuardTicks: 12, escapeRunTicks: 24, escapeTurnBackTicks: 6,
+  chargeWindowTicks: 6, chargeTelegraphTicks: 10, chargeRecoveryTicks: 7, costChargeDashPm: 100, chargeDashMm: 2500, chargeReachMm: 1500, scaleChargePm: 1200, chargePushMm: 600,
+  chargePushTicks: 6,
 };
 export type RuleKey = keyof typeof RULE_DEFAULTS;
 /** FightRules.GlobalKeys, camelCased, in hash order. */
@@ -133,6 +137,7 @@ export function validateFighter(f: FightFighterDef): void {
 export function validateRules(r: FightRules): void {
   for (const k of GLOBAL_KEYS) if (!Number.isSafeInteger(r[k]) || r[k] < 0) fail('invalid_' + k);
   if (r.maxTicks < 1 || r.maxTicks > 7200 || r.telegraphTicks < 1 || r.chainTelegraphTicks < 1 || r.breakLinePm > 1000 || r.chainMax < 1) fail('invalid_rules');
+  if (r.shoveOnHeavyInClose > 1 || r.chargeTelegraphTicks < 1 || r.escapeTurnTicks + r.escapeRunTicks + r.escapeTurnBackTicks < 1 || r.hpScaleLights > 1000) fail('invalid_rules');
   if (!Array.isArray(r.fighters) || r.fighters.length < 2 || r.fighters.length > 2 * MAX_ROSTER_PER_SIDE) fail('invalid_fighters');
   for (const f of r.fighters) validateFighter(f);
   for (let i = 0; i < r.fighters.length; i++) for (let j = i + 1; j < r.fighters.length; j++) if (r.fighters[i].id === r.fighters[j].id) fail('duplicate_fighter');

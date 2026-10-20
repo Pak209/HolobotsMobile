@@ -11,6 +11,7 @@ for (let i = 0; i < N; i++) {
   const [p, o] = pairs[i % pairs.length];
   const issue = issueFor({ battleId: `rb_bench${String(i).padStart(20, '0')}`, seed: (i + 1).toString(16).padStart(8, '0').repeat(8),
     player: [combatant(p, 1000000, 90, 45)], opponent: [combatant(o, 1000000, 85, 40)], tier: i % 10 });
+  issue.rules.rules.hpScaleLights = 0; issue.rulesHash = F.rulesHash(F.rulesFromJson(issue.rules));   // fight-tune-2 r3: keep the 180 s timeout fight
   const { wire } = recordFightLog(issue, smartPlayer(issue, p, 'Champion'));
   kb.push(JSON.stringify(wire).length / 1024);
   verifyFightReplay(issue, wire, { battleId: issue.rulesId.slice(13) });   // warm

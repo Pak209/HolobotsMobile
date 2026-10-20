@@ -77,9 +77,17 @@ test('a press that changes no hashed state (a buffered heavy that expires unused
   // The sampled trail cannot see it, and it cannot matter: the host settles what the replay computed, which is unchanged.
   const issue = issueFor();
   const client = recordFightLog(issue, smartPlayer(issue));
-  const log = F.parseInputLog(client.wire);
-  log.sides[0].ticks[121] = { ...log.sides[0].ticks[121], press: 2 };
-  const v = verify(issue, F.inputLogToWire(log)), base = verify(issue, client.wire);
+  // fight-tune-2 (duel-sim-3 r3): the tick is searched, not fixed (any r3 rule change moves the fight); the first tick from 100
+  // whose idle record, given a heavy press, still replays through every sample is the vector.
+  const base = verify(issue, client.wire);
+  let v = null;
+  for (let t = 100; t < client.endTick && !v; t++) {
+    const log = F.parseInputLog(client.wire);
+    if (log.sides[0].ticks[t].press !== 0) continue;
+    log.sides[0].ticks[t] = { ...log.sides[0].ticks[t], press: 2 };
+    try { v = verify(issue, F.inputLogToWire(log)); } catch (e) { if (!(e instanceof FightReplayError)) throw e; }
+  }
+  assert.ok(v, 'a heavy press that changes no sampled state exists in the fight');
   assert.deepEqual({ ...v.receipt, inputsHash: '' }, { ...base.receipt, inputsHash: '' });
   assert.notEqual(v.receipt.inputsHash, base.receipt.inputsHash, 'the receipt still pins exactly which log was replayed');
 });
@@ -145,6 +153,8 @@ test('3v3: a player bench deploy and CPU forced swaps; fielded = every player bo
 
 test('cost: replay CPU per 60 s of fight (budget ~85 ms; design-1 gate <= 250 ms p95 for 180 s)', () => {
   const issue = issueFor({ player: [combatant('ace', 100000, 90, 45)], opponent: [combatant('wolf', 100000, 85, 40)] });
+  // fight-tune-2 (r3): the fight HP scale normalises any HP to ~19 lights, so the cost fight switches it off to run the full 180 s
+  issue.rules.rules.hpScaleLights = 0; issue.rulesHash = F.rulesHash(F.rulesFromJson(issue.rules));
   const client = recordFightLog(issue, smartPlayer(issue, 'ace', 'Champion'));
   assert.equal(client.endTick, 5399, '180 s timeout fight');
   const runs = [];

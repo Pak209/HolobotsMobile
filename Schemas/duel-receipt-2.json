@@ -315,6 +315,8 @@
               "hardHits",
               "swaps",
               "forcedSwaps",
+              "escapes",
+              "charges",
               "stamina"
             ],
             "properties": {
@@ -427,6 +429,18 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 2147483647
+              },
+              "escapes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647,
+                "description": "duel-sim-3 r3 (fight-tune-2): quick escapes started"
+              },
+              "charges": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647,
+                "description": "duel-sim-3 r3 (fight-tune-2): ShoulderCharges started"
               },
               "stamina": {
                 "type": "array",
