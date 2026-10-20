@@ -1,18 +1,24 @@
 import { buildCatalog, ITEM_INVENTORY_FIELD, buildBuddyUnitPurchase, validateBuddyPurchase } from "./vendors";
 import { buildItemPurchaseUpdatesRaw, buildPackGrantUpdatesRaw, buildPackRewards, GACHA_PACKS, dailyMissionCounterUpdates } from "./economy";
 import { buildEnergyRefillUpdates, buildExpBoosterActivationRaw } from "./mintingEconomy";
-import {repairStock,repairGrant,repairUse,RepairError,REPAIR_ITEM,healingItem,healingPurchase} from "./repairItems";
+import {repairStock,repairGrant,repairUse,RepairError,REPAIR_ITEM,healingItem,healingPurchase,healingQuantityPurchase,HEALING_QUANTITY_MIN,HEALING_QUANTITY_MAX} from "./repairItems";
 export const ITEMS_SCHEMA = "desktop-items-2";
-export class ItemError extends Error { constructor(public code:string){super(code);} }
-export type ItemCommand={schemaVersion:string;operation:"read"|"favorite"|"buy"|"use";itemId?:string;requestId?:string;packId?:string;holobotId?:string;currentHealth?:number};
+/** `extra` (desktop-items-quantity-1, quantity buy only) adds host numbers to the callable error's details next to rejectionCode:
+ * over_cap {cap, owned, maxQuantity}, not_enough_holos {price, holosTokens, shortfall}. Every other refusal carries none. */
+export class ItemError extends Error { constructor(public code:string,public readonly extra?:Readonly<Record<string,number>>){super(code);} }
+export type ItemCommand={schemaVersion:string;operation:"read"|"favorite"|"buy"|"use";itemId?:string;requestId?:string;packId?:string;holobotId?:string;currentHealth?:number;quantity?:number};
 export function validateItemCommand(raw:unknown):ItemCommand {
  const c=raw as ItemCommand;
- if(!c||Object.keys(c).some(k=>!["schemaVersion","operation","itemId","requestId","packId","holobotId","currentHealth"].includes(k))||c.schemaVersion!==ITEMS_SCHEMA||!["read","favorite","buy","use"].includes(c.operation))throw new ItemError("invalid_request");
+ if(!c||Object.keys(c).some(k=>!["schemaVersion","operation","itemId","requestId","packId","holobotId","currentHealth","quantity"].includes(k))||c.schemaVersion!==ITEMS_SCHEMA||!["read","favorite","buy","use"].includes(c.operation))throw new ItemError("invalid_request");
  if(c.operation!=="read"&&(typeof c.itemId!=="string"||c.itemId.length>80||typeof c.requestId!=="string"||!/^[a-zA-Z0-9_-]{1,128}$/.test(c.requestId)))throw new ItemError("invalid_request");
  if(c.packId!==undefined&&(typeof c.packId!=="string"||c.packId.length>60))throw new ItemError("invalid_request");
  if(c.holobotId!==undefined&&(typeof c.holobotId!=="string"||!/^([a-z]{2,12})$/.test(c.holobotId)))throw new ItemError("invalid_request");
  if(c.currentHealth!==undefined&&(c.operation!=="use"||!healingItem(c.itemId!)||typeof c.currentHealth!=="number"||!Number.isFinite(c.currentHealth)||c.currentHealth<0))throw new ItemError("invalid_request");
- return {schemaVersion:ITEMS_SCHEMA,currentHealth:c.currentHealth,operation:c.operation,itemId:c.itemId,requestId:c.requestId,packId:c.packId,holobotId:c.holobotId};
+ // desktop-items-quantity-1 (DECISIONS #72.32): `quantity` (integer 1-99) only on a "buy" of a healing item, with no packId /
+ // holobotId (the same gate as currentHealth). Absent = the legacy one-per-buy request; JSON.stringify drops the undefined key,
+ // so the legacy receipt identity is byte-identical.
+ if(c.quantity!==undefined&&(c.operation!=="buy"||!healingItem(c.itemId!)||typeof c.quantity!=="number"||!Number.isInteger(c.quantity)||c.quantity<HEALING_QUANTITY_MIN||c.quantity>HEALING_QUANTITY_MAX||c.packId!==undefined||c.holobotId!==undefined))throw new ItemError("invalid_request");
+ return {schemaVersion:ITEMS_SCHEMA,currentHealth:c.currentHealth,operation:c.operation,itemId:c.itemId,requestId:c.requestId,packId:c.packId,holobotId:c.holobotId,quantity:c.quantity};
 }
 function checked(profile:Record<string,unknown>){for(const key of [...Object.values(ITEM_INVENTORY_FIELD),"holosTokens","dailyEnergy","maxDailyEnergy","expBoosterActiveUntil"]){const v=profile[key];if(v!==undefined&&(typeof v!=="number"||!Number.isFinite(v)||v<0))throw new ItemError("unavailable");}}
 export function itemSnapshot(profile:Record<string,unknown>,favoriteId:string|null,now:number){
@@ -44,7 +50,13 @@ export function applyItemCommand(profile:Record<string,unknown>,favoriteId:strin
  const snapshot=itemSnapshot(profile,favoriteId,now);const item=snapshot.items.find(i=>i.listingId===c.itemId);if(!item)throw new ItemError("unknown_item");
  let updates:Record<string,unknown>={};let result:unknown={kind:c.operation,itemId:c.itemId};let favorite=favoriteId;
  if(c.operation==="favorite")favorite=c.itemId!;
- else if(c.operation==="buy"){
+ else if(c.operation==="buy"&&c.quantity!==undefined){
+  // desktop-items-quantity-1: unit price x quantity in one update; over_cap before not_enough_holos, both with host numbers.
+  if(!item.available)throw new ItemError("unavailable");
+  let bought:ReturnType<typeof healingQuantityPurchase>;
+  try{bought=healingQuantityPurchase(profile,item.listingId,c.quantity);}catch(e){if(e instanceof RepairError)throw new ItemError(e.code,e.extra);throw e;}
+  updates=bought.updates;result={kind:"buy",itemId:c.itemId,quantity:c.quantity,unitPrice:bought.unitPrice,price:bought.price,owned:bought.owned};
+ } else if(c.operation==="buy"){
   if(!item.available||!item.affordable)throw new ItemError(!item.available?"unavailable":"not_enough_holos");
   if(healingItem(item.listingId))updates=healingPurchase(profile,item.listingId);
   else if(item.kind==="buddy_unit")updates=buildBuddyUnitPurchase(profile,validateBuddyPurchase({...item.purchase.request,requestId:c.requestId})).updates;

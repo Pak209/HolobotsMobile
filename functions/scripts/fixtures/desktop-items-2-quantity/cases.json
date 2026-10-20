@@ -1,0 +1,1667 @@
+{
+  "schemaVersion": "desktop-items-2",
+  "generatedBy": "functions/scripts/generate-desktop-items-quantity-fixture.mjs",
+  "nowMs": 1792497600000,
+  "rules": {
+    "quantityMin": 1,
+    "quantityMax": 99,
+    "stackCap": 999,
+    "healingItemIds": [
+      "item.emergency_patch",
+      "item.repair_kit",
+      "item.full_restore"
+    ],
+    "unitPrices": {
+      "item.emergency_patch": 100,
+      "item.repair_kit": 250,
+      "item.full_restore": 600
+    },
+    "ledgerEntryPath": "itemInventories/{uid}/receipts/{requestId}"
+  },
+  "cases": {
+    "patchX5": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "fx_patch_5",
+        "quantity": 5
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99500,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.emergency_patch",
+          "quantity": 5,
+          "unitPrice": 100,
+          "price": 500,
+          "owned": 7
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.emergency_patch",
+          "kind": "item",
+          "displayName": "Emergency Patch",
+          "price": 100,
+          "owned": 7,
+          "details": {
+            "healFraction": "0.25",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.emergency_patch",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "596b887682de68728822e34b15524a3d80bbd181c485b6ab59f2cfae8ef11b84",
+      "updates": {
+        "emergencyPatches": 7,
+        "holosTokens": 99500
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.emergency_patch\",\"requestId\":\"fx_patch_5\",\"quantity\":5}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "repairKitX1": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_kit_1",
+        "quantity": 1
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99750,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.repair_kit",
+          "quantity": 1,
+          "unitPrice": 250,
+          "price": 250,
+          "owned": 2
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.repair_kit",
+          "kind": "item",
+          "displayName": "Repair Kit",
+          "price": 250,
+          "owned": 2,
+          "details": {
+            "healFraction": "0.5",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.repair_kit",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "7b306546841a78e70f5c37f488176a5f4ea010a8cbad0a9d3360901a387d5d0a",
+      "updates": {
+        "itemStocks": {
+          "repair_kit": 2,
+          "full_restore": 0
+        },
+        "holosTokens": 99750
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.repair_kit\",\"requestId\":\"fx_kit_1\",\"quantity\":1}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "fullRestoreX99": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.full_restore",
+        "requestId": "fx_full_99",
+        "quantity": 99
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 40600,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.full_restore",
+          "quantity": 99,
+          "unitPrice": 600,
+          "price": 59400,
+          "owned": 99
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.full_restore",
+          "kind": "item",
+          "displayName": "Full Restore",
+          "price": 600,
+          "owned": 99,
+          "details": {
+            "healFraction": "1",
+            "source": "vendor_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.full_restore",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "38ff03b637b3807541ba8a568601ed80f4c211c2223569d198d177c1cc683597",
+      "updates": {
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 99
+        },
+        "holosTokens": 40600
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.full_restore\",\"requestId\":\"fx_full_99\",\"quantity\":99}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "repairKitExactFunds": {
+      "profile": {
+        "holosTokens": 1000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_kit_exact",
+        "quantity": 4
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 0,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.repair_kit",
+          "quantity": 4,
+          "unitPrice": 250,
+          "price": 1000,
+          "owned": 5
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.repair_kit",
+          "kind": "item",
+          "displayName": "Repair Kit",
+          "price": 250,
+          "owned": 5,
+          "details": {
+            "healFraction": "0.5",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.repair_kit",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": false,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "9f6bd690ebae9b82febc62add08f1cd5e827abca8963a29bbf08c91b11c3eb56",
+      "updates": {
+        "itemStocks": {
+          "repair_kit": 5,
+          "full_restore": 0
+        },
+        "holosTokens": 0
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.repair_kit\",\"requestId\":\"fx_kit_exact\",\"quantity\":4}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "patchToCap": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 994,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "fx_patch_cap",
+        "quantity": 5
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99500,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.emergency_patch",
+          "quantity": 5,
+          "unitPrice": 100,
+          "price": 500,
+          "owned": 999
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.emergency_patch",
+          "kind": "item",
+          "displayName": "Emergency Patch",
+          "price": 100,
+          "owned": 999,
+          "details": {
+            "healFraction": "0.25",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.emergency_patch",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "8a0f754033002996bb4e1464d2dfe94b216ff918ef9449f25a1bf6b051eab87e",
+      "updates": {
+        "emergencyPatches": 999,
+        "holosTokens": 99500
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.emergency_patch\",\"requestId\":\"fx_patch_cap\",\"quantity\":5}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "repairKitNoStocksYet": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_kit_new",
+        "quantity": 3
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99250,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.repair_kit",
+          "quantity": 3,
+          "unitPrice": 250,
+          "price": 750,
+          "owned": 3
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.repair_kit",
+          "kind": "item",
+          "displayName": "Repair Kit",
+          "price": 250,
+          "owned": 3,
+          "details": {
+            "healFraction": "0.5",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.repair_kit",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "28212db94212dbc0d0ae28044f144414a20761124d38364c4402d735f936e3d5",
+      "updates": {
+        "itemStocks": {
+          "repair_kit": 3
+        },
+        "holosTokens": 99250
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.repair_kit\",\"requestId\":\"fx_kit_new\",\"quantity\":3}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "replay": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "fx_patch_5",
+        "quantity": 5
+      },
+      "storedReceiptOf": "patchX5",
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99500,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.emergency_patch",
+          "quantity": 5,
+          "unitPrice": 100,
+          "price": 500,
+          "owned": 7
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.emergency_patch",
+          "kind": "item",
+          "displayName": "Emergency Patch",
+          "price": 100,
+          "owned": 7,
+          "details": {
+            "healFraction": "0.25",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.emergency_patch",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        },
+        "alreadyProcessed": true
+      }
+    },
+    "conflictQuantity": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "fx_patch_5",
+        "quantity": 6
+      },
+      "storedReceiptOf": "patchX5",
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "sequence_conflict",
+        "details": {
+          "rejectionCode": "sequence_conflict"
+        }
+      }
+    },
+    "conflictItem": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_patch_5",
+        "quantity": 5
+      },
+      "storedReceiptOf": "patchX5",
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "sequence_conflict",
+        "details": {
+          "rejectionCode": "sequence_conflict"
+        }
+      }
+    },
+    "conflictLegacyShape": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "fx_patch_5"
+      },
+      "storedReceiptOf": "patchX5",
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "sequence_conflict",
+        "details": {
+          "rejectionCode": "sequence_conflict"
+        }
+      }
+    },
+    "overCap": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 995
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_cap",
+        "quantity": 5
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "over_cap",
+        "details": {
+          "cap": 999,
+          "owned": 995,
+          "maxQuantity": 4,
+          "rejectionCode": "over_cap"
+        }
+      }
+    },
+    "overCapAtCap": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 999,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "fx_cap_full",
+        "quantity": 1
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "over_cap",
+        "details": {
+          "cap": 999,
+          "owned": 999,
+          "maxQuantity": 0,
+          "rejectionCode": "over_cap"
+        }
+      }
+    },
+    "overCapAboveCap": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "full_restore": 1200
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.full_restore",
+        "requestId": "fx_cap_above",
+        "quantity": 1
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "over_cap",
+        "details": {
+          "cap": 999,
+          "owned": 1200,
+          "maxQuantity": 0,
+          "rejectionCode": "over_cap"
+        }
+      }
+    },
+    "overCapBeforeFunds": {
+      "profile": {
+        "holosTokens": 0,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 990
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_cap_poor",
+        "quantity": 10
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "over_cap",
+        "details": {
+          "cap": 999,
+          "owned": 990,
+          "maxQuantity": 9,
+          "rejectionCode": "over_cap"
+        }
+      }
+    },
+    "notEnoughHolos": {
+      "profile": {
+        "holosTokens": 1000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.full_restore",
+        "requestId": "fx_poor",
+        "quantity": 3
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "not_enough_holos",
+        "details": {
+          "price": 1800,
+          "holosTokens": 1000,
+          "shortfall": 800,
+          "rejectionCode": "not_enough_holos"
+        }
+      }
+    },
+    "notEnoughHolosOneUnitAffordable": {
+      "profile": {
+        "holosTokens": 300,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_poor_one",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "not_enough_holos",
+        "details": {
+          "price": 500,
+          "holosTokens": 300,
+          "shortfall": 200,
+          "rejectionCode": "not_enough_holos"
+        }
+      }
+    },
+    "nonHealingItem": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.energy_refill",
+        "requestId": "fx_energy",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "nonHealingItemX1": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.energy_refill",
+        "requestId": "fx_energy_1",
+        "quantity": 1
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "unknownItem": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.mystery_box",
+        "requestId": "fx_unknown",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "useWithQuantity": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "use",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_use",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "favoriteWithQuantity": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "favorite",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_fav",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityZero": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_q0",
+        "quantity": 0
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantity100": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_q100",
+        "quantity": 100
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityNegative": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_qneg",
+        "quantity": -3
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityFraction": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_qf",
+        "quantity": 2.5
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityString": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_qs",
+        "quantity": "5"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityNull": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_qn",
+        "quantity": null
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "requestIdMissing": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "requestIdMalformed": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "a b",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "withHolobotId": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_bot",
+        "quantity": 2,
+        "holobotId": "ace"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "withPackId": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_pack",
+        "quantity": 2,
+        "packId": "basic"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "withCurrentHealth": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_hp",
+        "quantity": 2,
+        "currentHealth": 10
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "clientPriceRefused": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_price",
+        "quantity": 2,
+        "price": 1
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "wrongSchemaVersion": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-3",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_v3",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "malformedBalance": {
+      "profile": {
+        "holosTokens": "100000",
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_bad_holos",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "unavailable",
+        "details": {
+          "rejectionCode": "unavailable"
+        }
+      }
+    },
+    "malformedStock": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1.5
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "fx_bad_stock",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "unavailable",
+        "details": {
+          "rejectionCode": "unavailable"
+        }
+      }
+    },
+    "malformedPatches": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": -1,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "fx_bad_patch",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "unavailable",
+        "details": {
+          "rejectionCode": "unavailable"
+        }
+      }
+    },
+    "malformedItemStocks": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": [],
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.full_restore",
+        "requestId": "fx_bad_stocks",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "unavailable",
+        "details": {
+          "rejectionCode": "unavailable"
+        }
+      }
+    }
+  },
+  "legacyCases": {
+    "legacyPatch": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "lg_patch"
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99900,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.emergency_patch"
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.emergency_patch",
+          "kind": "item",
+          "displayName": "Emergency Patch",
+          "price": 100,
+          "owned": 3,
+          "details": {
+            "healFraction": "0.25",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.emergency_patch",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "ece563f65e77a6645ed585738ef10f24707514d18e18d198143233bd29f0d794",
+      "updates": {
+        "emergencyPatches": 3,
+        "holosTokens": 99900
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.emergency_patch\",\"requestId\":\"lg_patch\"}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "legacyRepairKit": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "lg_kit"
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99750,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.repair_kit"
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.repair_kit",
+          "kind": "item",
+          "displayName": "Repair Kit",
+          "price": 250,
+          "owned": 2,
+          "details": {
+            "healFraction": "0.5",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.repair_kit",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "f5dbbd2d767a5b7b14e6505bc0653bf1feec23c4cf1db6112cfe814ed42ab6fc",
+      "updates": {
+        "itemStocks": {
+          "repair_kit": 2,
+          "full_restore": 0
+        },
+        "holosTokens": 99750
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.repair_kit\",\"requestId\":\"lg_kit\"}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "legacyFullRestore": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.full_restore",
+        "requestId": "lg_full"
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99400,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.full_restore"
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.full_restore",
+          "kind": "item",
+          "displayName": "Full Restore",
+          "price": 600,
+          "owned": 1,
+          "details": {
+            "healFraction": "1",
+            "source": "vendor_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.full_restore",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "0dcf5e5f1489732a16b71871ce75508a6d21732220e1eab92e7cd32110b33169",
+      "updates": {
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 1
+        },
+        "holosTokens": 99400
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.full_restore\",\"requestId\":\"lg_full\"}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "legacyEnergyRefill": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.energy_refill",
+        "requestId": "lg_energy"
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99800,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.energy_refill"
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.energy_refill",
+          "kind": "item",
+          "displayName": "Energy Refill",
+          "price": 200,
+          "owned": 2,
+          "details": {},
+          "purchase": {
+            "callable": "purchaseMarketplaceItem",
+            "request": {
+              "itemName": "Energy Refill"
+            }
+          },
+          "affordable": true,
+          "useMode": "energy",
+          "canUse": true,
+          "description": "Refills account training energy. Does not heal a Holobot."
+        }
+      },
+      "replySha256": "f1b0aa59a2daaf5c2352234c1b5f480b6977f93dafc143773579181d22ea5d3b",
+      "updates": {
+        "holosTokens": 99800,
+        "energyRefills": 2
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.energy_refill\",\"requestId\":\"lg_energy\"}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "legacyNotEnoughHolos": {
+      "profile": {
+        "holosTokens": 50,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "lg_poor"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "not_enough_holos",
+        "details": {
+          "rejectionCode": "not_enough_holos"
+        }
+      }
+    },
+    "legacyAboveCapUncapped": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 999,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.emergency_patch",
+        "requestId": "lg_above_cap"
+      },
+      "reply": {
+        "schemaVersion": "desktop-items-2",
+        "holosTokens": 99900,
+        "result": {
+          "kind": "buy",
+          "itemId": "item.emergency_patch"
+        },
+        "item": {
+          "currency": "holos",
+          "quantity": 1,
+          "available": true,
+          "availableAtMs": 0,
+          "listingId": "item.emergency_patch",
+          "kind": "item",
+          "displayName": "Emergency Patch",
+          "price": 100,
+          "owned": 1000,
+          "details": {
+            "healFraction": "0.25",
+            "source": "vendor_or_reward_or_craft"
+          },
+          "purchase": {
+            "callable": "desktopItemsHost",
+            "request": {
+              "schemaVersion": "desktop-items-2",
+              "operation": "buy",
+              "itemId": "item.emergency_patch",
+              "requestId": "<client-generated>"
+            }
+          },
+          "affordable": true,
+          "useMode": "repair",
+          "canUse": true,
+          "description": "Host-owned healing item. Choose a squad Holobot."
+        }
+      },
+      "replySha256": "e2e146a7ce4e834f66aff15a479e99da351cccac2bb0a74b06005455faa00e01",
+      "updates": {
+        "emergencyPatches": 1000,
+        "holosTokens": 99900
+      },
+      "receipt": {
+        "identity": "{\"schemaVersion\":\"desktop-items-2\",\"operation\":\"buy\",\"itemId\":\"item.emergency_patch\",\"requestId\":\"lg_above_cap\"}",
+        "createdAtMs": 1792497600000
+      }
+    },
+    "legacyMalformedStock": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1.5
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "lg_bad_stock"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "unavailable",
+        "details": {
+          "rejectionCode": "unavailable"
+        }
+      }
+    },
+    "legacyUnknownKey": {
+      "profile": {
+        "holosTokens": 100000,
+        "emergencyPatches": 2,
+        "itemStocks": {
+          "repair_kit": 1,
+          "full_restore": 0
+        },
+        "energyRefills": 1
+      },
+      "request": {
+        "schemaVersion": "desktop-items-2",
+        "operation": "buy",
+        "itemId": "item.repair_kit",
+        "requestId": "lg_key",
+        "amount": 5
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "invalid_request",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    }
+  }
+}
