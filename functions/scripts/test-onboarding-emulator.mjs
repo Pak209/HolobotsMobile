@@ -226,11 +226,20 @@ test('vendor purchase advances 4 → 5 (items host, marketplace item, Buddy Unit
 });
 
 test('repair advances 5 → 6: the genesis Repair Kit used from desktopItemsHost, or the workshop heal', async () => {
+  // DECISIONS #72.1 "floor + item" (Mobile #160, merged three minutes before this suite): a heal starts FROM the 40 % KO
+  // fallback when the bot is below it. ACE 40/160 is 25 %, under the 64 floor, so the Repair Kit (50 % = 80) lands at
+  // 64 + 80 = 144, not the pre-#72.1 40 + 80 = 120.
   const kit = await setup({ ...atStep(5), itemStocks: { repair_kit: 1 }, holobotVitals: { ace: { currentHealth: 40, maxHealth: 160 } } });
   const used = await transactDesktopItems(db, kit, { schemaVersion: 'desktop-items-2', operation: 'use', itemId: 'item.repair_kit', holobotId: 'ace', requestId: 'use1' });
   assert.equal(used.result.kind, 'repair');
   const k = await user(kit);
-  assert.equal(k.onboarding.step, 6); assert.deepEqual(k.itemStocks, { repair_kit: 0 }); assert.equal(k.holobotVitals.ace.currentHealth, 120);
+  assert.equal(k.onboarding.step, 6); assert.deepEqual(k.itemStocks, { repair_kit: 0 }); assert.equal(k.holobotVitals.ace.currentHealth, 144);
+  // Pins the floor itself on the literal knocked-out case: 0/160 + Kit = max(0, 64) + 80 = 144 (it was 0 + 80 = 80 before #72.1).
+  const ko = await setup({ ...atStep(5), itemStocks: { repair_kit: 1 }, holobotVitals: { ace: { currentHealth: 0, maxHealth: 160 } } });
+  await transactDesktopItems(db, ko, { schemaVersion: 'desktop-items-2', operation: 'use', itemId: 'item.repair_kit', holobotId: 'ace', requestId: 'use1' });
+  const koAfter = await user(ko);
+  assert.equal(koAfter.holobotVitals.ace.currentHealth, 64 + 80, 'a KO heal starts from the 40 % floor (64), then adds the Kit (80)');
+  assert.equal(koAfter.onboarding.step, 6);
   const ws = await setup({ ...atStep(5), holobotVitals: { ace: { currentHealth: 40, maxHealth: 160 } } });
   await transactWorkshopHeal(db, ws, { schemaVersion: 'healing-workshop-1', operation: 'heal', requestId: 'ws1' });
   assert.equal((await user(ws)).onboarding.step, 6);
