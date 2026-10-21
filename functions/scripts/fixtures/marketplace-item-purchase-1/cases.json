@@ -1,0 +1,885 @@
+{
+  "schemaVersion": "marketplace-item-purchase-1",
+  "generatedBy": "functions/scripts/generate-marketplace-item-purchase-fixture.mjs",
+  "nowMs": 1792497600000,
+  "rules": {
+    "quantityMin": 1,
+    "quantityMax": 99,
+    "stackCap": 999,
+    "stackableItemNames": [
+      "Arena Pass",
+      "Gacha Ticket",
+      "Energy Refill",
+      "EXP Booster",
+      "Rank Skip"
+    ],
+    "ledgerEntryPath": "vendorPurchases/{uid}/marketplaceItems/{requestId}"
+  },
+  "cases": {
+    "arenaPassX5": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "requestId": "fx_arena_5"
+      },
+      "reply": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "requestId": "fx_arena_5",
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "unitPrice": 50,
+        "price": 250,
+        "holosTokens": 9750,
+        "owned": 7,
+        "alreadyProcessed": false
+      },
+      "updates": {
+        "holosTokens": 9750,
+        "arenaPassses": 7
+      },
+      "receipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_arena_5",
+          "itemName": "Arena Pass",
+          "quantity": 5,
+          "unitPrice": 50,
+          "price": 250,
+          "holosTokens": 9750,
+          "owned": 7,
+          "alreadyProcessed": false
+        }
+      }
+    },
+    "gachaTicketX1": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Gacha Ticket",
+        "quantity": 1,
+        "requestId": "fx_gacha_1"
+      },
+      "reply": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "requestId": "fx_gacha_1",
+        "itemName": "Gacha Ticket",
+        "quantity": 1,
+        "unitPrice": 100,
+        "price": 100,
+        "holosTokens": 9900,
+        "owned": 4,
+        "alreadyProcessed": false
+      },
+      "updates": {
+        "holosTokens": 9900,
+        "gachaTickets": 4
+      },
+      "receipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Gacha Ticket",
+        "quantity": 1,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_gacha_1",
+          "itemName": "Gacha Ticket",
+          "quantity": 1,
+          "unitPrice": 100,
+          "price": 100,
+          "holosTokens": 9900,
+          "owned": 4,
+          "alreadyProcessed": false
+        }
+      }
+    },
+    "energyRefillX99": {
+      "profile": {
+        "holosTokens": 20000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Energy Refill",
+        "quantity": 99,
+        "requestId": "fx_energy_99"
+      },
+      "reply": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "requestId": "fx_energy_99",
+        "itemName": "Energy Refill",
+        "quantity": 99,
+        "unitPrice": 200,
+        "price": 19800,
+        "holosTokens": 200,
+        "owned": 99,
+        "alreadyProcessed": false
+      },
+      "updates": {
+        "holosTokens": 200,
+        "energyRefills": 99
+      },
+      "receipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Energy Refill",
+        "quantity": 99,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_energy_99",
+          "itemName": "Energy Refill",
+          "quantity": 99,
+          "unitPrice": 200,
+          "price": 19800,
+          "holosTokens": 200,
+          "owned": 99,
+          "alreadyProcessed": false
+        }
+      }
+    },
+    "rankSkipExactFunds": {
+      "profile": {
+        "holosTokens": 15000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Rank Skip",
+        "quantity": 3,
+        "requestId": "fx_rank_3"
+      },
+      "reply": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "requestId": "fx_rank_3",
+        "itemName": "Rank Skip",
+        "quantity": 3,
+        "unitPrice": 5000,
+        "price": 15000,
+        "holosTokens": 0,
+        "owned": 3,
+        "alreadyProcessed": false
+      },
+      "updates": {
+        "holosTokens": 0,
+        "rankSkips": 3
+      },
+      "receipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Rank Skip",
+        "quantity": 3,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_rank_3",
+          "itemName": "Rank Skip",
+          "quantity": 3,
+          "unitPrice": 5000,
+          "price": 15000,
+          "holosTokens": 0,
+          "owned": 3,
+          "alreadyProcessed": false
+        }
+      }
+    },
+    "expBoosterToCap": {
+      "profile": {
+        "holosTokens": 5000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 994,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "EXP Booster",
+        "quantity": 5,
+        "requestId": "fx_exp_cap"
+      },
+      "reply": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "requestId": "fx_exp_cap",
+        "itemName": "EXP Booster",
+        "quantity": 5,
+        "unitPrice": 750,
+        "price": 3750,
+        "holosTokens": 1250,
+        "owned": 999,
+        "alreadyProcessed": false
+      },
+      "updates": {
+        "holosTokens": 1250,
+        "expBoosters": 999
+      },
+      "receipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "EXP Booster",
+        "quantity": 5,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_exp_cap",
+          "itemName": "EXP Booster",
+          "quantity": 5,
+          "unitPrice": 750,
+          "price": 3750,
+          "holosTokens": 1250,
+          "owned": 999,
+          "alreadyProcessed": false
+        }
+      }
+    },
+    "wildcardPackX1": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Wildcard Blueprints",
+        "quantity": 1,
+        "requestId": "fx_wildcard_1"
+      },
+      "reply": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "requestId": "fx_wildcard_1",
+        "itemName": "Wildcard Blueprints",
+        "quantity": 1,
+        "unitPrice": 300,
+        "price": 300,
+        "holosTokens": 9700,
+        "owned": 10,
+        "alreadyProcessed": false
+      },
+      "updates": {
+        "lastWildcardPackAt": 1792497600000,
+        "holosTokens": 9700,
+        "wildcardBlueprints": 10
+      },
+      "receipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Wildcard Blueprints",
+        "quantity": 1,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_wildcard_1",
+          "itemName": "Wildcard Blueprints",
+          "quantity": 1,
+          "unitPrice": 300,
+          "price": 300,
+          "holosTokens": 9700,
+          "owned": 10,
+          "alreadyProcessed": false
+        }
+      }
+    },
+    "replay": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "requestId": "fx_arena_5"
+      },
+      "storedReceipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_arena_5",
+          "itemName": "Arena Pass",
+          "quantity": 5,
+          "unitPrice": 50,
+          "price": 250,
+          "holosTokens": 9750,
+          "owned": 7,
+          "alreadyProcessed": false
+        }
+      },
+      "reply": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "requestId": "fx_arena_5",
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "unitPrice": 50,
+        "price": 250,
+        "holosTokens": 9750,
+        "owned": 7,
+        "alreadyProcessed": true
+      }
+    },
+    "conflictQuantity": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 6,
+        "requestId": "fx_arena_5"
+      },
+      "storedReceipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_arena_5",
+          "itemName": "Arena Pass",
+          "quantity": 5,
+          "unitPrice": 50,
+          "price": 250,
+          "holosTokens": 9750,
+          "owned": 7,
+          "alreadyProcessed": false
+        }
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "That request id was already used for a different purchase.",
+        "details": {
+          "rejectionCode": "sequence_conflict"
+        }
+      }
+    },
+    "conflictItem": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Gacha Ticket",
+        "quantity": 5,
+        "requestId": "fx_arena_5"
+      },
+      "storedReceipt": {
+        "schemaVersion": "marketplace-item-purchase-1",
+        "itemName": "Arena Pass",
+        "quantity": 5,
+        "createdAtMs": 1792497600000,
+        "reply": {
+          "schemaVersion": "marketplace-item-purchase-1",
+          "requestId": "fx_arena_5",
+          "itemName": "Arena Pass",
+          "quantity": 5,
+          "unitPrice": 50,
+          "price": 250,
+          "holosTokens": 9750,
+          "owned": 7,
+          "alreadyProcessed": false
+        }
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "That request id was already used for a different purchase.",
+        "details": {
+          "rejectionCode": "sequence_conflict"
+        }
+      }
+    },
+    "notStackable": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Wildcard Blueprints",
+        "quantity": 2,
+        "requestId": "fx_ns"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "This item is bought one at a time.",
+        "details": {
+          "rejectionCode": "not_stackable"
+        }
+      }
+    },
+    "overCap": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 995,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Gacha Ticket",
+        "quantity": 5,
+        "requestId": "fx_cap"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "That would go over the most you can hold of this item.",
+        "details": {
+          "cap": 999,
+          "owned": 995,
+          "maxQuantity": 4,
+          "rejectionCode": "over_cap"
+        }
+      }
+    },
+    "overCapAtCap": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 999,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Gacha Ticket",
+        "quantity": 1,
+        "requestId": "fx_cap_full"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "That would go over the most you can hold of this item.",
+        "details": {
+          "cap": 999,
+          "owned": 999,
+          "maxQuantity": 0,
+          "rejectionCode": "over_cap"
+        }
+      }
+    },
+    "overCapBeforeFunds": {
+      "profile": {
+        "holosTokens": 0,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 990,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Rank Skip",
+        "quantity": 10,
+        "requestId": "fx_cap_poor"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "That would go over the most you can hold of this item.",
+        "details": {
+          "cap": 999,
+          "owned": 990,
+          "maxQuantity": 9,
+          "rejectionCode": "over_cap"
+        }
+      }
+    },
+    "notEnoughHolos": {
+      "profile": {
+        "holosTokens": 2000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "EXP Booster",
+        "quantity": 3,
+        "requestId": "fx_poor"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "Not enough Holos.",
+        "details": {
+          "price": 2250,
+          "holosTokens": 2000,
+          "shortfall": 250,
+          "rejectionCode": "not_enough_holos"
+        }
+      }
+    },
+    "onCooldown": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1792238400000
+      },
+      "request": {
+        "itemName": "Wildcard Blueprints",
+        "quantity": 1,
+        "requestId": "fx_cd"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "Unknown marketplace item.",
+        "details": {
+          "rejectionCode": "on_cooldown"
+        }
+      }
+    },
+    "unknownItem": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Mystery Box",
+        "quantity": 2,
+        "requestId": "fx_unknown"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "Unknown marketplace item.",
+        "details": {
+          "rejectionCode": "unknown_item"
+        }
+      }
+    },
+    "itemNameMissing": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "quantity": 2,
+        "requestId": "fx_noname"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "An item name is required.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityZero": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 0,
+        "requestId": "fx_q0"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantity100": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 100,
+        "requestId": "fx_q100"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityFraction": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 2.5,
+        "requestId": "fx_qf"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityString": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": "5",
+        "requestId": "fx_qs"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "quantityNull": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": null,
+        "requestId": "fx_qn"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "requestIdMissing": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 2
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "requestIdMalformed": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 2,
+        "requestId": "a b"
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "clientPriceRefused": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 2,
+        "requestId": "fx_price",
+        "price": 1
+      },
+      "refusal": {
+        "code": "invalid-argument",
+        "message": "A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.",
+        "details": {
+          "rejectionCode": "invalid_request"
+        }
+      }
+    },
+    "malformedBalance": {
+      "profile": {
+        "holosTokens": "10000",
+        "arenaPassses": 2,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 2,
+        "requestId": "fx_bad_holos"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "Account data is unavailable.",
+        "details": {
+          "rejectionCode": "unavailable"
+        }
+      }
+    },
+    "malformedCounter": {
+      "profile": {
+        "holosTokens": 10000,
+        "arenaPassses": 1.5,
+        "gachaTickets": 3,
+        "energyRefills": 0,
+        "expBoosters": 1,
+        "rankSkips": 0,
+        "wildcardBlueprints": 5,
+        "lastWildcardPackAt": 1791806400000
+      },
+      "request": {
+        "itemName": "Arena Pass",
+        "quantity": 2,
+        "requestId": "fx_bad_count"
+      },
+      "refusal": {
+        "code": "failed-precondition",
+        "message": "Account data is unavailable.",
+        "details": {
+          "rejectionCode": "unavailable"
+        }
+      }
+    }
+  }
+}
