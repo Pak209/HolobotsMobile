@@ -391,7 +391,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={460.193} height={22.202} fill={theme.plates.raised} />
             <Rect x={140.48} y={HOME_INFO_CARD_Y + 177.61} width={expProgressWidth} height={22.202} fill={theme.colors.accent} />
             <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 147.62} fill={theme.colors.text} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
-            <Text fontFamily={HUD_FONT} x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{`Lv ${selectedHolobot.level}`}</Text>
+            <Text fontFamily={HUD_FONT} x={141} y={HOME_INFO_CARD_Y + 268.92} fill={theme.colors.text} fontSize={100.722}>{`LV ${selectedHolobot.level}`}</Text>
           </G> : rosterState === "unavailable" ? <Text fontFamily={HUD_FONT} x={153} y={HOME_INFO_CARD_Y + 250} fill={theme.colors.accent} fontSize={64}>{HOME_ROSTER_COPY.retry}</Text> : null}
 
           <Path

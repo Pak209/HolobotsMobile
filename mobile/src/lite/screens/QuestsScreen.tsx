@@ -178,7 +178,7 @@ export function QuestsScreen({ cityPreview }: { cityPreview?: CityProgression } 
               <Image source={selectedHolobot.imageSource} style={styles.selectedHolobotImage} resizeMode="contain" />
               <View style={styles.selectedHolobotBody}>
                 <Text numberOfLines={1} style={styles.selectedHolobotName}>{selectedHolobot.name}</Text>
-                <Text style={styles.selectedHolobotMeta}>{`Lv ${selectedHolobot.level}`}</Text>
+                <Text style={styles.selectedHolobotMeta}>{`LV ${selectedHolobot.level}`}</Text>
                 <Text style={styles.selectedHolobotPower}>{`POWER ${getHolobotPowerScore({
                   boostedAttributes: selectedHolobot.boostedAttributes,
                   experience: selectedHolobot.experience,

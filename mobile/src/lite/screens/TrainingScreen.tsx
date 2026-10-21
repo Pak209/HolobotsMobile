@@ -167,7 +167,7 @@ export function TrainingScreen({ cityPreview }: { cityPreview?: CityProgression 
               <View style={styles.heroTopRow}>
                 <View style={styles.heroTitleBlock}>
                   <Text style={styles.heroName}>{selectedHolobot.name}</Text>
-                  <Text style={styles.heroMeta}>{`Lv ${selectedHolobot.level}   EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
+                  <Text style={styles.heroMeta}>{`LV ${selectedHolobot.level}   EXP ${selectedHolobot.experience}/${selectedHolobot.nextLevelExp}`}</Text>
                 </View>
                 <View style={styles.energyBox}>
                   <Text style={styles.energyLabel}>ENERGY</Text>
