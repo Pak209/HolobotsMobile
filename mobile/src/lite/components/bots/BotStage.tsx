@@ -11,23 +11,31 @@ import { resolveClipName } from '../../lib/bots/animationClips';
 import { prepareBotMaterials, type BotMaterialQuality } from '../../lib/bots/materials';
 import { knobSignature, PERF_ARM_MEASURE_MS, PERF_ARM_WARMUP_MS, resolveStageRender, summarizeArm, throttledMixerStep, type PerfArmSummary, type PerfFrame, type StagePerfKnobs, type StageRenderQuality } from '../../lib/bots/stagePerf';
 import { probeGl, stageInventory } from '../../lib/bots/stageProbe';
+import { VfxPlayer, type VfxAnchors } from '../../vfx/vfxPlayer';
+import type { LiveDuelVfxCue } from '../../vfx/liveDuelVfx';
 
 export type BotMetrics = { botId: string; loadMs: number; fps: number; frames: number; assetBytes: number; platform: string; drawWidth: number; drawHeight: number; contextId: number; materialQuality: BotMaterialQuality; renderScale: number };
 export type StageBot = { id: BotId; side: string };
-export type BotStageHandle = { play(side: string, clipName: string): boolean; strike(side: string): void; hit(side: string): void; guard(side: string): void };
+export type BotStageHandle = { play(side: string, clipName: string): boolean; strike(side: string): void; hit(side: string): void; guard(side: string): void;
+  /** lite-vfx-port-1: plays a HoloCity combat-VFX cue (presentation only). False when VFX are off, not loaded, or the kit is not in the pack. */
+  fx(cue: LiveDuelVfxCue, impactMs: number): boolean };
 export type PerfArmResult = { arm: string; knobs: StagePerfKnobs; contextId: number; drawWidth: number; drawHeight: number; loadMs: number; renderer: unknown; defaultFramebufferSamples: unknown; reactRendersPerSecond: number; glCallsByNamePerFrame: Record<string, number>; summary: PerfArmSummary };
 /** Dev-only cost knobs (ignored outside __DEV__). Production callers never pass this. */
 export type BotStagePerf = { arm: string; knobs: StagePerfKnobs; onArmDone?: (result: PerfArmResult) => void };
 type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf;
   /** Production render settings (MSAA, buffer scale, mixer Hz). Omitted: production defaults. Dev `perf` knobs override it. */
-  quality?: StageRenderQuality };
-type Actor = { id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial> };
+  quality?: StageRenderQuality;
+  /** lite-vfx-port-1: load the combat-VFX pack and accept fx() cues (duel stages only). Off: no VFX code runs. */
+  vfx?: boolean;
+  /** Dev QA only (ignored outside __DEV__): also play pack kits Unity has not built yet (WOLF). */
+  vfxUnbuiltKits?: boolean };
+type Actor = { id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>; anchors?: VfxAnchors };
 
-export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf, quality }, ref) {
+export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf, quality, vfx = false, vfxUnbuiltKits = false }, ref) {
   const perfRun = __DEV__ ? perf : undefined;
   const renderSettings = resolveStageRender(quality, perfRun?.knobs);
   const scale = Math.max(0.25, Math.min(1, renderScale)) * renderSettings.resolution;
-  const signature = `${variant}:${transparentBackdrop}:${scale}:${materialQuality}:m${renderSettings.msaaSamples}a${renderSettings.animHz}:` + bots.map(bot => `${bot.side}:${bot.id}`).join('|') + (perfRun ? `:perf:${perfRun.arm}:${knobSignature(perfRun.knobs)}` : '');
+  const signature = `${variant}:${transparentBackdrop}:${scale}:${materialQuality}:m${renderSettings.msaaSamples}a${renderSettings.animHz}:${vfx ? 'fx' + (vfxUnbuiltKits ? '+' : '') + ':' : ''}` + bots.map(bot => `${bot.side}:${bot.id}`).join('|') + (perfRun ? `:perf:${perfRun.arm}:${knobSignature(perfRun.knobs)}` : '');
   const renderRef = useRef(renderSettings);
   renderRef.current = renderSettings;
   const perfRef = useRef(perfRun);
@@ -48,6 +56,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
   const generation = useRef(0);
   const mounted = useRef(true);
   const cameraCue = useRef({ strikeAt: -Infinity, shakeFrames: 0 });
+  const vfxRef = useRef<{ player: VfxPlayer; camera: THREE.Camera; size: () => { width: number; height: number } } | null>(null);
 
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => {
@@ -86,6 +95,22 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       if (!actor) return;
       if (!play(side, 'InterceptGuard') && !play(side, 'Guard')) play(side, 'Idle');
       actor.guardAt = performance.now();
+    },
+    fx(cue, impactMs) {
+      const vfxStage = vfxRef.current;
+      const caster = actors.current.get(cue.caster)?.anchors, target = actors.current.get(cue.target)?.anchors;
+      if (!vfxStage || !caster || !target || (cue.kit === null && cue.effect !== 'guard')) return false;
+      const now = performance.now() / 1000;
+      const played = vfxStage.player.fire({ kit: cue.kit ?? '', effect: cue.effect, caster, target, impactS: impactMs / 1000, phases: cue.phases, flash: cue.flash }, now);
+      if (__DEV__ && played) {
+        // QA log for the impact-lift gate: the impact point P (SKY: the landing floor; else the struck chest) and the caster's
+        // standing height projected at P's depth, as fractions of the stage view.
+        const point = (cue.effect === 'sky_launch' ? target.feet : target.chest).clone();
+        const top = point.clone().add(new THREE.Vector3(0, caster.height, 0));
+        point.project(vfxStage.camera); top.project(vfxStage.camera);
+        console.info('[HolobotVfx:fire] ' + JSON.stringify({ kit: cue.kit, effect: cue.effect, flash: cue.flash, phases: cue.phases, firedAtMs: Math.round(now * 1000), impactAtMs: Math.round(now * 1000 + impactMs), pointFrac: [Math.round((point.x + 1) / 2 * 1e4) / 1e4, Math.round((1 - point.y) / 2 * 1e4) / 1e4], hFrac: Math.round(Math.abs(top.y - point.y) / 2 * 1e4) / 1e4, stats: vfxStage.player.stats }));
+      }
+      return played;
     },
   }), [play]);
 
@@ -127,6 +152,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       localActors.forEach(actor => { actor.mixer.stopAllAction(); actor.mixer.uncacheRoot(actor.root); });
       ownedRoots.forEach(disposeBot);
       if (actors.current === localActors) actors.current = new Map();
+      vfxRef.current?.player.dispose(); vfxRef.current = null;
       renderer?.dispose();
       scene.clear();
       if (Platform.OS !== 'web') void GLView.destroyContextAsync(gl).catch(cause => { if (__DEV__) console.warn('[HolobotViewer:dispose] ' + String(cause)); });
@@ -173,6 +199,8 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       const disposeFloor = disposeRef.current;
       disposeRef.current = () => { if (!alive) return; grid.geometry.dispose(); (grid.material as THREE.Material).dispose(); disposeFloor(); };
       phase = 'load asset';
+      // lite-vfx-port-1: the pack's textures load alongside the bots; a failure leaves the fight without VFX, never without a stage.
+      const vfxLoad = vfx && isDuel ? VfxPlayer.create(scene, camera, { allowUnbuilt: __DEV__ && vfxUnbuiltKits }).catch(cause => { if (__DEV__) console.warn('[HolobotVfx:load] ' + String(cause)); return null; }) : null;
       await Promise.all(bots.map(async (bot, index) => {
         const gltf = await loadBot(bot.id, nextPhase => { phase = `${bot.id}: ${nextPhase}`; });
         if (!alive || ticket !== generation.current || !mounted.current) { disposeBot(gltf.scene); return; }
@@ -216,6 +244,25 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           // Retain the transparent first draw to warm its shader before the first defend pulse.
           scene.add(shield); ownedRoots.push(shield); actor.guardRim = shield;
         });
+      }
+      if (vfxLoad) {
+        const player = await vfxLoad;
+        if (!alive || ticket !== generation.current || !mounted.current) { player?.dispose(); return; }
+        if (player) {
+          // Anchors on the presented bodies: feet on the floor, chest at 0.62 H, the striking hand 0.3 H toward the rival.
+          const list = [...localActors.values()];
+          list.forEach((actor, index) => {
+            const other = list[1 - index] ?? actor;
+            const height = portrait ? 1.45 : 1.45 * actor.root.scale.y;
+            const facing = new THREE.Vector3(other.base.x - actor.base.x, 0, other.base.z - actor.base.z);
+            if (facing.lengthSq() < 1e-6) facing.set(1, 0, 0);
+            facing.normalize();
+            const feet = actor.base.clone(); feet.y = 0;
+            const chest = feet.clone().add(new THREE.Vector3(0, 0.62 * height, 0));
+            actor.anchors = { feet, chest, hand: chest.clone().addScaledVector(facing, 0.3 * height), facing, height };
+          });
+          vfxRef.current = { player, camera, size: () => drawSize.current };
+        }
       }
       if (!isDuel) {
         const actor = localActors.values().next().value as Actor;
@@ -284,6 +331,8 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         if (cameraCue.current.shakeFrames > 0) { camera.position.x += cameraCue.current.shakeFrames === 2 ? 0.012 : -0.012; cameraCue.current.shakeFrames--; }
         // Expo's native presentation can leave another framebuffer bound between frames.
         // Three caches its null binding, so restore Expo's current default explicitly.
+        camera.updateMatrixWorld();
+        vfxRef.current?.player.update(now / 1000);
         const prepEnd = knobs ? performance.now() : 0;
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         renderer!.render(scene, camera);
@@ -330,7 +379,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       setError(message); callbacks.current.onError?.(message);
       if (__DEV__) console.warn('[HolobotViewer:error] ' + JSON.stringify({ phase, message, stack: cause instanceof Error ? cause.stack : String(cause) }));
     }
-  }, [signature, play, showMetrics]);
+  }, [signature, play, showMetrics, vfx, vfxUnbuiltKits]);
 
   return <View collapsable={false} onLayout={({ nativeEvent }) => { const { width, height } = nativeEvent.layout; if (width > 0 && height > 0) setLayout(current => current.width === width && current.height === height ? current : { width, height }); }} style={[styles.container, transparentBackdrop && { backgroundColor: 'transparent' }, StyleSheet.flatten(style)?.position !== 'absolute' && { height: 260 }, style]} accessibilityLabel={bots.map(bot => bot.id.toUpperCase()).join(' versus ') + ' 3D Holobot viewer'}>
     {layout.width > 0 && layout.height > 0 && <GLView key={signature} collapsable={false} style={{ position: 'absolute', width: layout.width * scale, height: layout.height * scale, left: layout.width * (1 - scale) / 2, top: layout.height * (1 - scale) / 2, transform: [{ scale: 1 / scale }] }} onContextCreate={createContext} msaaSamples={renderSettings.msaaSamples} />}
