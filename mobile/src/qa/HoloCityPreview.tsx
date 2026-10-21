@@ -6,6 +6,7 @@ import { pvpFightersPreviewScreens } from "./PvpFightersPreview";
 import { arenaBenchPreviewScreens } from "./ArenaBenchPreview";
 import { arenaPolishPreviewScreens } from "./ArenaPolishPreview";
 import { arenaStagePreviewScreens } from "./ArenaStagePreview";
+import { arenaVfxPreviewScreens } from "./ArenaVfxPreview";
 import { progressionHostPreviewScreens } from "./ProgressionHostPreview";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
@@ -118,6 +119,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ...arenaBenchPreviewScreens,
   ...arenaPolishPreviewScreens,
   ...arenaStagePreviewScreens,
+  ...arenaVfxPreviewScreens,
   ...progressionHostPreviewScreens,
 };
 
