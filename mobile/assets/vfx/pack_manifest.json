@@ -1,0 +1,2377 @@
+{
+ "curves": {
+  "dissolve": {
+   "early": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.3,
+     0,
+     0,
+     0
+    ],
+    [
+     0.85,
+     1,
+     0,
+     0
+    ],
+    [
+     1,
+     1,
+     0,
+     0
+    ]
+   ],
+   "late": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.55,
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     1,
+     0,
+     0
+    ]
+   ],
+   "none": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     0,
+     0,
+     0
+    ]
+   ],
+   "tail": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     0.8,
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     1,
+     0,
+     0
+    ]
+   ]
+  },
+  "scale": {
+   "flash": [
+    [
+     0,
+     0.8,
+     0,
+     1.5
+    ],
+    [
+     0.2,
+     1,
+     0,
+     0
+    ],
+    [
+     1,
+     1.05,
+     0,
+     0
+    ]
+   ],
+   "hold": [
+    [
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     1,
+     1,
+     0,
+     0
+    ]
+   ],
+   "ring_expand": [
+    [
+     0,
+     0.35,
+     0,
+     1.95
+    ],
+    [
+     1,
+     1,
+     0,
+     0
+    ]
+   ],
+   "slash_sweep": [
+    [
+     0,
+     0.85,
+     0,
+     1.2
+    ],
+    [
+     0.25,
+     1,
+     0,
+     0
+    ],
+    [
+     1,
+     1.02,
+     0,
+     0
+    ]
+   ],
+   "swell": [
+    [
+     0,
+     0.6,
+     0,
+     2.4
+    ],
+    [
+     0.35,
+     1,
+     0,
+     0
+    ],
+    [
+     1,
+     1,
+     0,
+     0
+    ]
+   ]
+  }
+ },
+ "elements": {
+  "GuardHexFill": {
+   "aspect": [
+    1.0,
+    1.25
+   ]
+  },
+  "GuardHexRing": {
+   "aspect": [
+    1.0,
+    1.25
+   ]
+  },
+  "RingCore": {
+   "haloScale": 1.35,
+   "innerScale": 1.13,
+   "note": "quad side = 1.35 x element extent; core band r 0.422-0.5 extent"
+  }
+ },
+ "generatedBy": "Tools/VFX/pack/export_pack.py",
+ "guardImpact": {
+  "cyan": "#62DDE8",
+  "hdr": 1.8,
+  "layers": [
+   {
+    "alpha": [
+     [
+      0,
+      1
+     ],
+     [
+      0.5,
+      0.9
+     ],
+     [
+      1,
+      0
+     ]
+    ],
+    "color": [
+     [
+      0,
+      "#FFFFFF"
+     ],
+     [
+      0.35,
+      "cyan"
+     ],
+     [
+      1,
+      "cyan"
+     ]
+    ],
+    "count": 1,
+    "delay": 0.0,
+    "gain": 1.8,
+    "life": 0.14,
+    "mode": "billboard",
+    "name": "Flash",
+    "size": 0.46,
+    "sizeCurve": [
+     [
+      0,
+      0.45
+     ],
+     [
+      0.25,
+      1
+     ],
+     [
+      1,
+      0.2
+     ]
+    ],
+    "texture": "SoftGauss35"
+   },
+   {
+    "alpha": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      0
+     ]
+    ],
+    "color": [
+     [
+      0,
+      "#FFFFFF"
+     ],
+     [
+      0.4,
+      "cyan"
+     ],
+     [
+      1,
+      "cyan"
+     ]
+    ],
+    "count": 12,
+    "delay": 0.0,
+    "gain": 1.8,
+    "lengthScale": 4.0,
+    "life": [
+     0.07,
+     0.14
+    ],
+    "mode": "stretch",
+    "name": "Starburst",
+    "shape": "circle-in-shield-plane",
+    "size": [
+     0.03,
+     0.045
+    ],
+    "speed": [
+     2.2,
+     4.2
+    ],
+    "texture": "SoftGauss35"
+   },
+   {
+    "alpha": [
+     [
+      0,
+      0.55
+     ],
+     [
+      0.4,
+      0.3
+     ],
+     [
+      1,
+      0
+     ]
+    ],
+    "color": [
+     [
+      0,
+      "cyan"
+     ]
+    ],
+    "count": 1,
+    "delay": 0.03,
+    "gain": 1.3,
+    "life": 0.5,
+    "mode": "shield",
+    "name": "HexFill",
+    "size": 1.0,
+    "sizeCurve": [
+     [
+      0,
+      0.32
+     ],
+     [
+      0.3,
+      0.47
+     ],
+     [
+      1,
+      0.52
+     ]
+    ],
+    "texture": "GuardHexFill"
+   },
+   {
+    "alpha": [
+     [
+      0,
+      1
+     ],
+     [
+      0.5,
+      0.6
+     ],
+     [
+      1,
+      0
+     ]
+    ],
+    "color": [
+     [
+      0,
+      "#FFFFFF"
+     ],
+     [
+      0.3,
+      "cyan"
+     ],
+     [
+      1,
+      "cyan"
+     ]
+    ],
+    "count": 1,
+    "delay": 0.03,
+    "gain": 1.8,
+    "life": 0.47,
+    "mode": "billboard",
+    "name": "CoreGlow",
+    "size": 0.3,
+    "sizeCurve": [
+     [
+      0,
+      0.6
+     ],
+     [
+      0.2,
+      1
+     ],
+     [
+      1,
+      0.5
+     ]
+    ],
+    "texture": "SoftGauss35"
+   },
+   {
+    "alpha": [
+     [
+      0,
+      1
+     ],
+     [
+      0.55,
+      0.6
+     ],
+     [
+      1,
+      0
+     ]
+    ],
+    "color": [
+     [
+      0,
+      "cyan"
+     ]
+    ],
+    "count": 3,
+    "delay": [
+     0.03,
+     0.11,
+     0.19
+    ],
+    "gain": 1.6,
+    "life": 0.42,
+    "mode": "shield",
+    "name": "HexRings",
+    "size": 1.0,
+    "sizeCurve": [
+     [
+      0,
+      0.3
+     ],
+     [
+      0.35,
+      0.52
+     ],
+     [
+      1,
+      0.62
+     ]
+    ],
+    "texture": "GuardHexRing"
+   },
+   {
+    "alpha": [
+     [
+      0,
+      0
+     ],
+     [
+      0.12,
+      1
+     ],
+     [
+      0.6,
+      0.55
+     ],
+     [
+      1,
+      0
+     ]
+    ],
+    "color": [
+     [
+      0,
+      "#FFFFFF"
+     ],
+     [
+      0.3,
+      "cyan"
+     ],
+     [
+      1,
+      "cyan"
+     ]
+    ],
+    "count": 1,
+    "delay": 0.18,
+    "gain": 1.8,
+    "life": 0.67,
+    "mode": "shield",
+    "name": "VerticalLine",
+    "size": [
+     0.008,
+     0.85
+    ],
+    "texture": "White"
+   },
+   {
+    "alpha": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      0
+     ]
+    ],
+    "color": [
+     [
+      0,
+      "#FFFFFF"
+     ],
+     [
+      1,
+      "cyan"
+     ]
+    ],
+    "count": 8,
+    "delay": 0.02,
+    "gain": 1.8,
+    "gravity": 0.6,
+    "life": [
+     0.18,
+     0.3
+    ],
+    "mode": "stretch",
+    "name": "Sparks",
+    "shape": "hemisphere",
+    "size": [
+     0.008,
+     0.014
+    ],
+    "speed": [
+     0.8,
+     1.7
+    ],
+    "texture": "SoftGauss35"
+   }
+  ],
+  "life": 0.85,
+  "source": "Assets/Holobots/Shared/Editor/GuardImpactFxBuilder.cs",
+  "substitutions": [
+   "Default-Particle.psd (Unity built-in) -> SoftGauss35"
+  ]
+ },
+ "kits": {
+  "ace": {
+   "bodyHeight": 0.78,
+   "bytes": 19879,
+   "coreTint": "#F8FBFC",
+   "effectiveHeightFloor": 1.0,
+   "effects": {
+    "break_heavy": {
+     "layers": [
+      {
+       "anchor": "feet",
+       "at": "windup",
+       "curves": {
+        "dissolve": "late",
+        "scale": "ring_expand"
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "anchor": "feet",
+        "at": "windup",
+        "coreIntensity": 0.5,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": "late",
+        "elementLife": 0.6,
+        "elementScaleCurve": "ring_expand",
+        "elementSize": 0.9,
+        "elementThickness": 0.2,
+        "emission": 1.0,
+        "ground": true,
+        "haloIntensity": 1.0,
+        "suppressShared": true
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": "right_hand",
+       "at": "windup",
+       "curves": {
+        "dissolve": "tail",
+        "scale": "swell"
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "anchor": "right_hand",
+        "at": "windup",
+        "attach": true,
+        "coreIntensity": 0.5,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": "tail",
+        "elementFaceCamera": true,
+        "elementLife": 0.9,
+        "elementScaleCurve": "swell",
+        "elementSize": 0.62,
+        "elementSpin": 360,
+        "elementThickness": 0.6,
+        "emission": 1.0,
+        "haloIntensity": 1.1,
+        "holdAt": 0.35,
+        "holdWhileChanneling": true
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": "right_hand",
+       "at": "landing",
+       "curves": {
+        "dissolve": "early",
+        "scale": "flash"
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "anchor": "right_hand",
+        "at": "landing",
+        "coreIntensity": 0.5,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": "early",
+        "elementFaceCamera": true,
+        "elementLife": 0.4,
+        "elementScaleCurve": "flash",
+        "elementSize": 0.62,
+        "elementThickness": 0.6,
+        "emission": 1.2,
+        "haloIntensity": 1.1,
+        "punch": [
+         [
+          0,
+          1.6
+         ],
+         [
+          0.25,
+          1
+         ]
+        ]
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": "chest",
+       "at": "windup",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#FF8DA4",
+        "life": 0.3,
+        "motes": 20,
+        "sizeH": 0.9
+       },
+       "spec": {
+        "anchor": "chest",
+        "at": "windup",
+        "attach": true,
+        "charge": {
+         "color": "#FF8DA4",
+         "life": 0.3,
+         "motes": 20,
+         "sizeH": 0.9
+        }
+       },
+       "textures": [
+        "SoftGauss35",
+        "Mote"
+       ],
+       "type": "charge"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": true,
+        "color": "#FFFFFF",
+        "fringe": "#FF8DA4",
+        "intensity": 2.0,
+        "life": 0.5,
+        "sizeH": 2.5,
+        "streak": 0.4
+       },
+       "spec": {
+        "at": "landing",
+        "flash": {
+         "atChest": true,
+         "color": "#FFFFFF",
+         "fringe": "#FF8DA4",
+         "intensity": 2.0,
+         "life": 0.5,
+         "sizeH": 2.5,
+         "streak": 0.4
+        }
+       },
+       "textures": [
+        "FlashCore",
+        "SoftGauss35"
+       ],
+       "type": "flash"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#FFC3CF",
+        "intensity": 0.9,
+        "life": 0.35,
+        "sizeH": 1.8
+       },
+       "spec": {
+        "at": "landing",
+        "groundLight": {
+         "color": "#FFC3CF",
+         "intensity": 0.9,
+         "life": 0.35,
+         "sizeH": 1.8
+        }
+       },
+       "textures": [
+        "SoftGauss32"
+       ],
+       "type": "groundLight"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": true,
+        "color": "#4E3A44",
+        "count": 14,
+        "debrisMesh": "Cube",
+        "edge": "#FF8DA4",
+        "gravity": 1.2,
+        "life": [
+         0.7,
+         1.2
+        ],
+        "sizeM": [
+         0.04,
+         0.09
+        ],
+        "speed": [
+         3,
+         6
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "debris": {
+         "atChest": true,
+         "color": "#4E3A44",
+         "count": 14,
+         "debrisMesh": "Cube",
+         "edge": "#FF8DA4",
+         "gravity": 1.2,
+         "life": [
+          0.7,
+          1.2
+         ],
+         "sizeM": [
+          0.04,
+          0.09
+         ],
+         "speed": [
+          3,
+          6
+         ]
+        }
+       },
+       "textures": [
+        "White"
+       ],
+       "type": "debris"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#E9C9D1",
+        "count": 40,
+        "life": [
+         1.0,
+         1.6
+        ],
+        "sizeH": [
+         0.4,
+         0.7
+        ],
+        "speed": [
+         2.0,
+         4.5
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "dust": {
+         "color": "#E9C9D1",
+         "count": 40,
+         "life": [
+          1.0,
+          1.6
+         ],
+         "sizeH": [
+          0.4,
+          0.7
+         ]
+        }
+       },
+       "textures": [
+        "SoftDust"
+       ],
+       "type": "dust"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": true,
+        "color": "#FF8DA4",
+        "life": 1.2,
+        "mask": "ring",
+        "mode": "motes",
+        "motes": 12,
+        "sizeH": 1.0
+       },
+       "spec": {
+        "at": "landing",
+        "residue": {
+         "atChest": true,
+         "color": "#FF8DA4",
+         "life": 1.2,
+         "mode": "motes",
+         "motes": 12,
+         "sizeH": 1.0
+        }
+       },
+       "textures": [
+        "Mote"
+       ],
+       "type": "residue"
+      }
+     ]
+    },
+    "gap_closer": {
+     "layers": [
+      {
+       "anchor": "feet",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "Hovl pack prefab (third-party, gitignored): not redistributable into the app",
+       "spec": {
+        "anchor": "feet",
+        "at": "launch",
+        "dropEmitters": [
+         "Warning"
+        ],
+        "ground": true,
+        "hovl": "Laser teleport",
+        "scale": 0.1,
+        "tint": "signature"
+       },
+       "type": "hovl"
+      },
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "dash trail follows the caster's travel; the lite stage does not move the bots",
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "trail": {
+         "intensity": 3.0,
+         "lead": 1.2,
+         "seconds": 0.25,
+         "time": 0.25,
+         "width": 0.3
+        }
+       },
+       "type": "trail"
+      }
+     ]
+    },
+    "impactAccent": {
+     "layers": [
+      {
+       "anchor": null,
+       "at": "landing",
+       "curves": {
+        "dissolve": "late",
+        "scale": "ring_expand"
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "at": "landing",
+        "coreIntensity": 1.8,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": "late",
+        "elementLife": 0.35,
+        "elementScaleCurve": "ring_expand",
+        "elementSize": 0.9,
+        "elementThickness": 0.3,
+        "elementTint": "#FFFFFF",
+        "emission": 1.0,
+        "ground": true,
+        "haloIntensity": 0.6
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      }
+     ]
+    },
+    "intercept": {
+     "layers": [
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "curves": {
+        "dissolve": "tail",
+        "scale": "swell"
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "attach": true,
+        "coreIntensity": 0.5,
+        "count": 2,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": "tail",
+        "elementEuler": [
+         90,
+         0,
+         0
+        ],
+        "elementLife": 0.9,
+        "elementScaleCurve": "swell",
+        "elementSize": 0.9,
+        "elementSpin": 120,
+        "elementThickness": 0.5,
+        "emission": 1.0,
+        "fanAxis": [
+         0,
+         0,
+         1
+        ],
+        "fanDegrees": 90,
+        "haloIntensity": 1.0,
+        "holdAt": 0.35,
+        "suppressShared": true,
+        "whileGuarding": true
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      }
+     ]
+    },
+    "sky_launch": {
+     "layers": [
+      {
+       "anchor": "feet",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "Hovl pack prefab (third-party, gitignored): not redistributable into the app",
+       "spec": {
+        "anchor": "feet",
+        "at": "launch",
+        "ground": true,
+        "hovl": "Lightning pillar",
+        "scale": 0.125,
+        "tint": "signature"
+       },
+       "type": "hovl"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "curves": {
+        "dissolve": [
+         [
+          0,
+          0
+         ],
+         [
+          0.45,
+          0
+         ],
+         [
+          1,
+          1
+         ]
+        ],
+        "scale": [
+         [
+          0,
+          0.35,
+          0,
+          3.5
+         ],
+         [
+          0.55,
+          1,
+          0,
+          0
+         ],
+         [
+          1,
+          1
+         ]
+        ]
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "at": "landing",
+        "coreIntensity": 0.5,
+        "count": 3,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": [
+         [
+          0,
+          0
+         ],
+         [
+          0.45,
+          0
+         ],
+         [
+          1,
+          1
+         ]
+        ],
+        "elementHaloBlend": "alpha",
+        "elementLife": 2.0,
+        "elementScaleCurve": [
+         [
+          0,
+          0.35,
+          0,
+          3.5
+         ],
+         [
+          0.55,
+          1,
+          0,
+          0
+         ],
+         [
+          1,
+          1
+         ]
+        ],
+        "elementThickness": 0.2,
+        "emission": 1.0,
+        "ground": true,
+        "haloIntensity": 1.0,
+        "instanceScales": [
+         1.0,
+         0.8125,
+         0.625
+        ],
+        "matchRadius": 0.8,
+        "punch": [
+         [
+          0,
+          1.6
+         ],
+         [
+          0.25,
+          1
+         ]
+        ],
+        "stagger": 0.07,
+        "suppressShared": true
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#FF8DA4",
+        "life": 0.3,
+        "motes": 30,
+        "sizeH": 1.3
+       },
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "attach": true,
+        "charge": {
+         "color": "#FF8DA4",
+         "life": 0.3,
+         "motes": 30,
+         "sizeH": 1.3
+        }
+       },
+       "textures": [
+        "SoftGauss35",
+        "Mote"
+       ],
+       "type": "charge"
+      },
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "dash trail follows the caster's travel; the lite stage does not move the bots",
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "trail": {
+         "intensity": 2.0,
+         "lead": 0,
+         "seconds": 0.7,
+         "time": 0.3,
+         "width": 0.25
+        }
+       },
+       "type": "trail"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": false,
+        "color": "#FFFFFF",
+        "fringe": "#FF8DA4",
+        "intensity": 2.0,
+        "life": 0.7,
+        "sizeH": 2.5,
+        "streak": 0
+       },
+       "spec": {
+        "at": "landing",
+        "flash": {
+         "color": "#FFFFFF",
+         "fringe": "#FF8DA4",
+         "intensity": 2.0,
+         "sizeH": 2.5,
+         "streak": 0
+        }
+       },
+       "textures": [
+        "FlashCore",
+        "SoftGauss35"
+       ],
+       "type": "flash"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#FFC3CF",
+        "intensity": 0.9,
+        "life": 0.6,
+        "sizeH": 3.0
+       },
+       "spec": {
+        "at": "landing",
+        "groundLight": {
+         "color": "#FFC3CF",
+         "intensity": 0.9,
+         "life": 0.6,
+         "sizeH": 3.0
+        }
+       },
+       "textures": [
+        "SoftGauss32"
+       ],
+       "type": "groundLight"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "curves": {
+        "dissolve": "early",
+        "scale": [
+         [
+          0,
+          0.3,
+          0,
+          4
+         ],
+         [
+          0.35,
+          1,
+          0,
+          0
+         ],
+         [
+          1,
+          1.05
+         ]
+        ]
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "at": "landing",
+        "coreIntensity": 1.2,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": "early",
+        "elementHaloBlend": "alpha",
+        "elementLife": 0.9,
+        "elementScaleCurve": [
+         [
+          0,
+          0.3,
+          0,
+          4
+         ],
+         [
+          0.35,
+          1,
+          0,
+          0
+         ],
+         [
+          1,
+          1.05
+         ]
+        ],
+        "elementSize": 2.8,
+        "elementThickness": 0.15,
+        "emission": 1.2,
+        "flare": true,
+        "ground": true,
+        "haloIntensity": 1.0
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": false,
+        "color": "#F8FBFC",
+        "count": 36,
+        "debrisMesh": "Cube",
+        "edge": "#FF8DA4",
+        "gravity": 1.2,
+        "life": [
+         0.8,
+         1.4
+        ],
+        "sizeM": [
+         0.04,
+         0.1
+        ],
+        "speed": [
+         4,
+         7
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "debris": {
+         "color": "#F8FBFC",
+         "count": 36,
+         "debrisMesh": "Cube",
+         "edge": "#FF8DA4",
+         "gravity": 1.2,
+         "life": [
+          0.8,
+          1.4
+         ],
+         "sizeM": [
+          0.04,
+          0.1
+         ],
+         "speed": [
+          4,
+          7
+         ]
+        }
+       },
+       "textures": [
+        "White"
+       ],
+       "type": "debris"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#E9C9D1",
+        "count": 40,
+        "life": [
+         1.2,
+         2.0
+        ],
+        "sizeH": [
+         0.4,
+         0.7
+        ],
+        "speed": [
+         2.0,
+         4.5
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "dust": {
+         "color": "#E9C9D1",
+         "count": 40,
+         "life": [
+          1.2,
+          2.0
+         ],
+         "sizeH": [
+          0.4,
+          0.7
+         ]
+        }
+       },
+       "textures": [
+        "SoftDust"
+       ],
+       "type": "dust"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.25,
+       "lite": "play",
+       "params": {
+        "atChest": false,
+        "color": "#FF8DA4",
+        "life": 3.0,
+        "mask": "ring",
+        "mode": "decal",
+        "motes": 0,
+        "sizeH": 2.2
+       },
+       "spec": {
+        "at": "landing",
+        "delay": 0.25,
+        "residue": {
+         "color": "#FF8DA4",
+         "life": 3.0,
+         "mask": "ring",
+         "mode": "decal",
+         "sizeH": 2.2
+        }
+       },
+       "textures": [
+        "Residue_ring"
+       ],
+       "type": "residue"
+      }
+     ]
+    }
+   },
+   "sha256": "f9025901eed71f54bbc0ecd46ea08824fcc6e489676161f0af430b2b24fc687e",
+   "source": "Tools/VFX/fxkits/ACE.json",
+   "tint": "#FF8DA4",
+   "unityRedoBuilt": true
+  },
+  "wolf": {
+   "bodyHeight": 1.52,
+   "bytes": 17767,
+   "coreTint": "#F9FCFB",
+   "effectiveHeightFloor": 0.0,
+   "effects": {
+    "break_heavy": {
+     "layers": [
+      {
+       "anchor": "right_hand",
+       "at": "windup",
+       "curves": {
+        "dissolve": "tail",
+        "scale": "swell"
+       },
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "element mesh HB_VFX_WOLF_Fang has no flat-mask port in the pack yet",
+       "spec": {
+        "anchor": "right_hand",
+        "at": "windup",
+        "attach": true,
+        "coreIntensity": 0.5,
+        "count": 3,
+        "element": "HB_VFX_WOLF_Fang",
+        "elementDissolveCurve": "tail",
+        "elementEuler": [
+         0,
+         90,
+         0
+        ],
+        "elementLife": 0.9,
+        "elementScaleCurve": "swell",
+        "elementSize": 0.62,
+        "emission": 1.0,
+        "fanAxis": [
+         0,
+         0,
+         1
+        ],
+        "fanDegrees": 60,
+        "haloIntensity": 1.3,
+        "holdAt": 0.35,
+        "holdWhileChanneling": true,
+        "suppressShared": true
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": "landing_point",
+       "at": "landing",
+       "curves": {
+        "dissolve": "early",
+        "scale": "slash_sweep"
+       },
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "element mesh HB_VFX_WOLF_Fang has no flat-mask port in the pack yet",
+       "spec": {
+        "anchor": "landing_point",
+        "at": "landing",
+        "coreIntensity": 0.5,
+        "count": 3,
+        "element": "HB_VFX_WOLF_Fang",
+        "elementDissolveCurve": "early",
+        "elementEuler": [
+         90,
+         0,
+         0
+        ],
+        "elementLife": 0.8,
+        "elementOffset": [
+         0,
+         0.06,
+         -0.45
+        ],
+        "elementScaleCurve": "slash_sweep",
+        "elementSize": 0.7,
+        "emission": 1.2,
+        "haloIntensity": 1.3,
+        "punch": [
+         [
+          0,
+          1.6
+         ],
+         [
+          0.25,
+          1
+         ]
+        ],
+        "spread": 0.22,
+        "spreadAxis": [
+         1,
+         0,
+         0
+        ],
+        "stagger": 0.05
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": "chest",
+       "at": "windup",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#59FAD2",
+        "life": 0.3,
+        "motes": 20,
+        "sizeH": 0.9
+       },
+       "spec": {
+        "anchor": "chest",
+        "at": "windup",
+        "attach": true,
+        "charge": {
+         "color": "#59FAD2",
+         "life": 0.3,
+         "motes": 20,
+         "sizeH": 0.9
+        }
+       },
+       "textures": [
+        "SoftGauss35",
+        "Mote"
+       ],
+       "type": "charge"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": true,
+        "color": "#FFFFFF",
+        "fringe": "#F08D3B",
+        "intensity": 2.0,
+        "life": 0.5,
+        "sizeH": 2.5,
+        "streak": 0.4
+       },
+       "spec": {
+        "at": "landing",
+        "flash": {
+         "atChest": true,
+         "color": "#FFFFFF",
+         "fringe": "#F08D3B",
+         "intensity": 2.0,
+         "life": 0.5,
+         "sizeH": 2.5,
+         "streak": 0.4
+        }
+       },
+       "textures": [
+        "FlashCore",
+        "SoftGauss35"
+       ],
+       "type": "flash"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#A6F7E4",
+        "intensity": 0.9,
+        "life": 0.35,
+        "sizeH": 1.8
+       },
+       "spec": {
+        "at": "landing",
+        "groundLight": {
+         "color": "#A6F7E4",
+         "intensity": 0.9,
+         "life": 0.35,
+         "sizeH": 1.8
+        }
+       },
+       "textures": [
+        "SoftGauss32"
+       ],
+       "type": "groundLight"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": true,
+        "color": "#3C4C48",
+        "count": 14,
+        "debrisMesh": "Cube",
+        "edge": "#59FAD2",
+        "gravity": 1.2,
+        "life": [
+         0.7,
+         1.2
+        ],
+        "sizeM": [
+         0.06,
+         0.14
+        ],
+        "speed": [
+         3,
+         6
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "debris": {
+         "atChest": true,
+         "color": "#3C4C48",
+         "count": 14,
+         "debrisMesh": "Cube",
+         "edge": "#59FAD2",
+         "gravity": 1.2,
+         "life": [
+          0.7,
+          1.2
+         ],
+         "sizeM": [
+          0.06,
+          0.14
+         ],
+         "speed": [
+          3,
+          6
+         ]
+        }
+       },
+       "textures": [
+        "White"
+       ],
+       "type": "debris"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#8F8070",
+        "count": 40,
+        "life": [
+         1.0,
+         1.6
+        ],
+        "sizeH": [
+         0.4,
+         0.7
+        ],
+        "speed": [
+         2.0,
+         4.5
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "dust": {
+         "color": "#8F8070",
+         "count": 40,
+         "life": [
+          1.0,
+          1.6
+         ],
+         "sizeH": [
+          0.4,
+          0.7
+         ]
+        }
+       },
+       "textures": [
+        "SoftDust"
+       ],
+       "type": "dust"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": true,
+        "color": "#59FAD2",
+        "life": 1.2,
+        "mask": "ring",
+        "mode": "motes",
+        "motes": 12,
+        "sizeH": 1.0
+       },
+       "spec": {
+        "at": "landing",
+        "residue": {
+         "atChest": true,
+         "color": "#59FAD2",
+         "life": 1.2,
+         "mode": "motes",
+         "motes": 12,
+         "sizeH": 1.0
+        }
+       },
+       "textures": [
+        "Mote"
+       ],
+       "type": "residue"
+      }
+     ]
+    },
+    "gap_closer": {
+     "layers": [
+      {
+       "anchor": "feet",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "Hovl pack prefab (third-party, gitignored): not redistributable into the app",
+       "spec": {
+        "anchor": "feet",
+        "at": "launch",
+        "dropEmitters": [
+         "Warning"
+        ],
+        "ground": true,
+        "hovl": "Laser teleport",
+        "scale": 0.1,
+        "tint": "signature"
+       },
+       "type": "hovl"
+      },
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "dash trail follows the caster's travel; the lite stage does not move the bots",
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "trail": {
+         "intensity": 3.0,
+         "lead": 1.2,
+         "seconds": 0.25,
+         "time": 0.25,
+         "width": 0.3
+        }
+       },
+       "type": "trail"
+      }
+     ]
+    },
+    "impactAccent": {
+     "layers": [
+      {
+       "anchor": null,
+       "at": "landing",
+       "curves": {
+        "dissolve": "late",
+        "scale": "swell"
+       },
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "element mesh HB_VFX_WOLF_Fang has no flat-mask port in the pack yet",
+       "spec": {
+        "at": "landing",
+        "coreIntensity": 1.8,
+        "count": 3,
+        "element": "HB_VFX_WOLF_Fang",
+        "elementDissolveCurve": "late",
+        "elementEuler": [
+         0,
+         90,
+         0
+        ],
+        "elementLife": 0.7,
+        "elementScaleCurve": "swell",
+        "elementSize": 0.35,
+        "elementTint": "#F9FCFB",
+        "emission": 1.0,
+        "ground": true,
+        "haloIntensity": 0.6,
+        "spread": 0.1,
+        "spreadAxis": [
+         1,
+         0,
+         0
+        ]
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      }
+     ]
+    },
+    "intercept": {
+     "layers": [
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "curves": {
+        "dissolve": "tail",
+        "scale": "swell"
+       },
+       "delay": 0.0,
+       "lite": "play",
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "attach": true,
+        "coreIntensity": 0.5,
+        "count": 2,
+        "element": "HB_VFX_ACE_ShockRingRound",
+        "elementDissolveCurve": "tail",
+        "elementEuler": [
+         90,
+         0,
+         0
+        ],
+        "elementLife": 0.9,
+        "elementScaleCurve": "swell",
+        "elementSize": 0.9,
+        "elementSpin": 120,
+        "elementThickness": 0.5,
+        "emission": 1.0,
+        "fanAxis": [
+         0,
+         0,
+         1
+        ],
+        "fanDegrees": 90,
+        "haloIntensity": 1.0,
+        "holdAt": 0.35,
+        "suppressShared": true,
+        "whileGuarding": true
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      }
+     ]
+    },
+    "sky_launch": {
+     "layers": [
+      {
+       "anchor": "feet",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "Hovl pack prefab (third-party, gitignored): not redistributable into the app",
+       "spec": {
+        "anchor": "feet",
+        "at": "launch",
+        "ground": true,
+        "hovl": "Lightning pillar",
+        "scale": 0.125,
+        "tint": "signature"
+       },
+       "type": "hovl"
+      },
+      {
+       "anchor": "landing_point",
+       "at": "landing",
+       "curves": {
+        "dissolve": "late",
+        "scale": "flash"
+       },
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "element mesh HB_VFX_WOLF_Fang has no flat-mask port in the pack yet",
+       "spec": {
+        "anchor": "landing_point",
+        "at": "landing",
+        "coreIntensity": 0.5,
+        "count": 6,
+        "element": "HB_VFX_WOLF_Fang",
+        "elementDissolveCurve": "late",
+        "elementLife": 0.9,
+        "elementOffset": [
+         0,
+         0.3,
+         0
+        ],
+        "elementScaleCurve": "flash",
+        "elementSize": 0.5,
+        "emission": 1.2,
+        "haloIntensity": 1.3,
+        "punch": [
+         [
+          0,
+          1.6
+         ],
+         [
+          0.25,
+          1
+         ]
+        ],
+        "ringPlacement": {
+         "count": 6,
+         "radius": 0.55,
+         "startDeg": 30
+        },
+        "stagger": 0.02,
+        "suppressShared": true
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#59FAD2",
+        "life": 0.3,
+        "motes": 30,
+        "sizeH": 1.3
+       },
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "attach": true,
+        "charge": {
+         "color": "#59FAD2",
+         "life": 0.3,
+         "motes": 30,
+         "sizeH": 1.3
+        }
+       },
+       "textures": [
+        "SoftGauss35",
+        "Mote"
+       ],
+       "type": "charge"
+      },
+      {
+       "anchor": "chest",
+       "at": "launch",
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "dash trail follows the caster's travel; the lite stage does not move the bots",
+       "spec": {
+        "anchor": "chest",
+        "at": "launch",
+        "trail": {
+         "intensity": 2.0,
+         "lead": 0,
+         "seconds": 0.7,
+         "time": 0.3,
+         "width": 0.25
+        }
+       },
+       "type": "trail"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#F08D3B",
+        "fade": 0.25,
+        "heightH": 6.0,
+        "intensity": 1.6,
+        "lead": 0.1,
+        "life": 0.35,
+        "variant": "column",
+        "widthH": 0.15
+       },
+       "spec": {
+        "at": "landing",
+        "skyColumn": {
+         "color": "#F08D3B",
+         "fade": 0.25,
+         "heightH": 6.0,
+         "intensity": 1.6,
+         "lead": 0.1,
+         "variant": "column",
+         "widthH": 0.15
+        }
+       },
+       "textures": [
+        "Column",
+        "Mote"
+       ],
+       "type": "skyColumn"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": false,
+        "color": "#FFFFFF",
+        "fringe": "#F08D3B",
+        "intensity": 2.0,
+        "life": 0.7,
+        "sizeH": 2.5,
+        "streak": 0
+       },
+       "spec": {
+        "at": "landing",
+        "flash": {
+         "color": "#FFFFFF",
+         "fringe": "#F08D3B",
+         "intensity": 2.0,
+         "sizeH": 2.5,
+         "streak": 0
+        }
+       },
+       "textures": [
+        "FlashCore",
+        "SoftGauss35"
+       ],
+       "type": "flash"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#A6F7E4",
+        "intensity": 0.9,
+        "life": 0.6,
+        "sizeH": 3.0
+       },
+       "spec": {
+        "at": "landing",
+        "groundLight": {
+         "color": "#A6F7E4",
+         "intensity": 0.9,
+         "life": 0.6,
+         "sizeH": 3.0
+        }
+       },
+       "textures": [
+        "SoftGauss32"
+       ],
+       "type": "groundLight"
+      },
+      {
+       "anchor": "landing_point",
+       "at": "landing",
+       "curves": {
+        "dissolve": "early",
+        "scale": "flash"
+       },
+       "delay": 0.0,
+       "lite": "skip",
+       "reason": "element mesh HB_VFX_WOLF_Fang has no flat-mask port in the pack yet",
+       "spec": {
+        "anchor": "landing_point",
+        "at": "landing",
+        "coreIntensity": 1.2,
+        "count": 8,
+        "element": "HB_VFX_WOLF_Fang",
+        "elementDissolveCurve": "early",
+        "elementLife": 0.9,
+        "elementOffset": [
+         0,
+         0.3,
+         0
+        ],
+        "elementScaleCurve": "flash",
+        "elementSize": 0.7,
+        "emission": 1.2,
+        "flare": true,
+        "haloIntensity": 1.0,
+        "ringPlacement": {
+         "count": 8,
+         "radius": 1.75,
+         "startDeg": 22.5
+        },
+        "stagger": 0.02
+       },
+       "textures": [
+        "RingCore",
+        "RingHalo"
+       ],
+       "type": "element"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "atChest": false,
+        "color": "#3C4C48",
+        "count": 24,
+        "debrisMesh": "Cube",
+        "edge": "#59FAD2",
+        "gravity": 1.2,
+        "life": [
+         0.8,
+         1.4
+        ],
+        "sizeM": [
+         0.08,
+         0.19
+        ],
+        "speed": [
+         4,
+         7
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "debris": {
+         "color": "#3C4C48",
+         "count": 24,
+         "debrisMesh": "Cube",
+         "edge": "#59FAD2",
+         "gravity": 1.2,
+         "life": [
+          0.8,
+          1.4
+         ],
+         "sizeM": [
+          0.08,
+          0.19
+         ],
+         "speed": [
+          4,
+          7
+         ]
+        }
+       },
+       "textures": [
+        "White"
+       ],
+       "type": "debris"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.0,
+       "lite": "play",
+       "params": {
+        "color": "#8F8070",
+        "count": 100,
+        "life": [
+         1.2,
+         2.0
+        ],
+        "sizeH": [
+         0.4,
+         0.7
+        ],
+        "speed": [
+         2.0,
+         4.5
+        ]
+       },
+       "spec": {
+        "at": "landing",
+        "dust": {
+         "color": "#8F8070",
+         "count": 100,
+         "life": [
+          1.2,
+          2.0
+         ],
+         "sizeH": [
+          0.4,
+          0.7
+         ]
+        }
+       },
+       "textures": [
+        "SoftDust"
+       ],
+       "type": "dust"
+      },
+      {
+       "anchor": null,
+       "at": "landing",
+       "delay": 0.25,
+       "lite": "play",
+       "params": {
+        "atChest": false,
+        "color": "#59FAD2",
+        "life": 3.0,
+        "mask": "scratch3",
+        "mode": "decal",
+        "motes": 0,
+        "sizeH": 2.2
+       },
+       "spec": {
+        "at": "landing",
+        "delay": 0.25,
+        "residue": {
+         "color": "#59FAD2",
+         "life": 3.0,
+         "mask": "scratch3",
+         "mode": "decal",
+         "sizeH": 2.2
+        }
+       },
+       "textures": [
+        "Residue_scratch3"
+       ],
+       "type": "residue"
+      }
+     ]
+    }
+   },
+   "sha256": "969ccbc3a5174ab47114310444213cc38a74a8f6dbdd40fab4b7bd849d93c731",
+   "source": "Tools/VFX/fxkits/WOLF.json",
+   "tint": "#59FAD2",
+   "unityRedoBuilt": false
+  }
+ },
+ "note": "Presentation only. Layers = Tools/VFX/fxkits/<BOT>.json verbatim (notes stripped) + FxKitBuilderRedo's defaults resolved; 'lite': 'play' | 'skip' (+ reason). Sizes: every ...H field x H (bodyHeight; flash / groundLight / flare x H_eff = max(H, effectiveHeightFloor)); metres scale by the stage's presented height / bodyHeight.",
+ "schema": "holobots.vfxpack/1",
+ "screenFlash": {
+  "break": {
+   "holdFrames": 0,
+   "outFrames": 6,
+   "peak": 0.1,
+   "upFrames": 1
+  },
+  "frameTimed": true,
+  "rateLimitSeconds": 0.5,
+  "rule": "SKYBREAKER hit or counter hit = sky; BREAK hit = break; a whiff gets none; tint white (the event carries no striker)",
+  "sky": {
+   "holdFrames": 1,
+   "outFrames": 8,
+   "peak": 0.14,
+   "upFrames": 1
+  },
+  "tint": "#FFFFFF",
+  "whiteLerp": 0.92
+ },
+ "sourceRef": "f6d374d58c16557c5034a3452f4eb990a888ffe8",
+ "textures": {
+  "Column": {
+   "bytes": 4621,
+   "file": "masks/Column.png",
+   "px": [
+    256,
+    256
+   ],
+   "sha256": "c02a33de867d7ad6642d1e959d997266dacea5c7f827be6243cec56287683e67"
+  },
+  "FlashCore": {
+   "bytes": 8172,
+   "file": "masks/FlashCore.png",
+   "px": [
+    256,
+    256
+   ],
+   "sha256": "b46a5cdb72892d064d969f49d6175b8179b1da8932411e14d18c9fe3a8efc39e"
+  },
+  "GuardHexFill": {
+   "bytes": 1487,
+   "file": "elements/GuardHexFill.png",
+   "px": [
+    128,
+    128
+   ],
+   "sha256": "21d3ca1409c310de6796ca7d430f6ea6658eb11310c28a84d91f2dd975c91530"
+  },
+  "GuardHexRing": {
+   "bytes": 1502,
+   "file": "elements/GuardHexRing.png",
+   "px": [
+    128,
+    128
+   ],
+   "sha256": "c2784bad7188dcc15460c32f01ac7ea861fcb5765d4491c5adbd30490e3601a4"
+  },
+  "Mote": {
+   "bytes": 2747,
+   "file": "masks/Mote.png",
+   "px": [
+    128,
+    128
+   ],
+   "sha256": "e5271350e6baac8e58b6e3199c6bf9e60c39df8a239f339dd054cdbed6ae8c55"
+  },
+  "Residue_ring": {
+   "bytes": 39742,
+   "file": "masks/Residue_ring.png",
+   "px": [
+    512,
+    512
+   ],
+   "sha256": "c4924fc8f6ffd4e75cef83e56ae059ed4a08b26cf0f5f0a48fadbfce04480b2f"
+  },
+  "Residue_scratch3": {
+   "bytes": 7161,
+   "file": "masks/Residue_scratch3.png",
+   "px": [
+    256,
+    256
+   ],
+   "sha256": "437a947f42c2de348e642a0c6857fe131670cc384f635ca6dcf882193bb35668"
+  },
+  "RingCore": {
+   "bytes": 4757,
+   "file": "elements/RingCore.png",
+   "px": [
+    256,
+    256
+   ],
+   "sha256": "24f2c38a4c9f23866fbcf3f9c948d205d49080d5e9ee406902836bce268e9b7a"
+  },
+  "RingHalo": {
+   "bytes": 13043,
+   "file": "elements/RingHalo.png",
+   "px": [
+    256,
+    256
+   ],
+   "sha256": "290fc478b2d5acb3186912e5069713ea70c121a91613e6a7f01d99e9b387f236"
+  },
+  "SoftDust": {
+   "bytes": 3799,
+   "file": "masks/SoftDust.png",
+   "px": [
+    128,
+    128
+   ],
+   "sha256": "52eda7d4d9ac68d25520e88ff7a017933aec8e98ac74cb2dba1c31104aedd051"
+  },
+  "SoftGauss32": {
+   "bytes": 10070,
+   "file": "masks/SoftGauss32.png",
+   "px": [
+    256,
+    256
+   ],
+   "sha256": "b71b8ff466f70346eaee831d88ecd173fe9b4483ac639180621d154abf5a524a"
+  },
+  "SoftGauss35": {
+   "bytes": 10639,
+   "file": "masks/SoftGauss35.png",
+   "px": [
+    256,
+    256
+   ],
+   "sha256": "f114f8549265d45652b149c376f7652c0a088d9d9e489e522cb3c31b07d76141"
+  },
+  "White": {
+   "bytes": 294,
+   "file": "masks/White.png",
+   "px": [
+    128,
+    128
+   ],
+   "sha256": "1391fa34295e4eb7ae8070c7c90f8aa7a06cd1920cabed8c885ee95c4b2f2c14"
+  }
+ }
+}

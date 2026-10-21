@@ -15,12 +15,14 @@ import { ARENA_SETTLED, ARENA_STARTED, tooFast } from './arenaPolishFixtures';
  * match, so CONTINUE FIGHT brings up the round on the park-arena 3D stage. Known-bad control first.
  */
 const match = ARENA_STARTED.match!;
-type Cell = { title: string; caption: string; opponentHp: number; settle: () => ArenaReply; gate?: false };
+type Cell = { title: string; caption: string; opponentHp: number; settle: () => ArenaReply; gate?: false; vfx?: false };
 const unavailable = () => { throw Object.assign(Error('unavailable'), { code: 'functions/unavailable', details: { rejectionCode: 'unavailable' } }); };
 const CELLS: Record<string, Cell> = {
     ArenaStageRound: { title: 'ROUND ON 3D STAGE', caption: 'CONTINUE FIGHT: park plate, GLB bots, FighterHud with LV corner tabs, command bar.', opponentHp: match.opponent.maxHealth, settle: unavailable },
     // lite-arena-fast-1 witness: the same idle round with the CPU stage gate switched off (QA only), for the timing pair.
     ArenaStageRoundNoGate: { title: 'ROUND · NO CPU GATE', caption: 'QA control: fast mix only, CPU may act while the stage loads.', opponentHp: match.opponent.maxHealth, settle: unavailable, gate: false },
+    // lite-vfx-port-1 control: the same round with the combat VFX off (today's no-VFX hit; the fps baseline).
+    ArenaStageRoundNoVfx: { title: 'ROUND · NO VFX', caption: 'QA control: the round without the combat VFX (lite-vfx-port-1 known-bad / fps baseline).', opponentHp: match.opponent.maxHealth, settle: unavailable, vfx: false },
     ArenaStageConfirming: { title: 'CONFIRMING ON STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the City answers too_fast: confirming over the stage.', opponentHp: 1, settle: () => { throw tooFast(600_000); } },
     ArenaStageReceipt: { title: 'RECEIPT AFTER STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the recorded settle shows the CITY RECEIPT.', opponentHp: 1, settle: () => ARENA_SETTLED },
 };
@@ -69,7 +71,7 @@ export const arenaStagePreviewScreens: Record<string, ComponentType> = {
         // Witness probe: the store inputs the stage's commands read, once a second (QA log only).
         useEffect(() => { const id = setInterval(() => { const g = useArenaBattleStore.getState(), b = g.currentBattle; if (b) console.info('[ArenaStage:store] ' + JSON.stringify({ cell: name, animating: g.isAnimating, paused: g.paused, playable: g.getPlayableMoves().map(m => m.id), moves: g.playerMoves.map(m => m.id), playerHp: b.player.currentHP, opponentHp: b.opponent.currentHP, stamina: b.player.stamina, status: b.status, loop: !!g.gameLoopIntervalId })); }, 1000); return () => clearInterval(id); }, []);
         if (!fresh) return <View style={styles.root}/>;
-        return <View style={styles.root}><ArenaScreen preview={{ flow, uid: 'offline-fixture', showStageMetrics: true, cpuStageGate: cell.gate, onStageMetrics: metrics => console.info('[ArenaStage:metrics] ' + JSON.stringify({ cell: name, ...metrics })) }}/><Banner title={cell.title} caption={cell.caption}/></View>;
+        return <View style={styles.root}><ArenaScreen preview={{ flow, uid: 'offline-fixture', showStageMetrics: true, cpuStageGate: cell.gate, vfx: cell.vfx, onStageMetrics: metrics => console.info('[ArenaStage:metrics] ' + JSON.stringify({ cell: name, ...metrics })) }}/><Banner title={cell.title} caption={cell.caption}/></View>;
     }])),
 };
 const styles = StyleSheet.create({

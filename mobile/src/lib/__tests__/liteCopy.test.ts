@@ -21,6 +21,8 @@ const FILES = [
   "../../components/duel/LiveDuelStage.tsx", "../../components/duel/liveDuelCommands.ts", "../../components/city/CityLiveBattleView.tsx",
   // lite-battle-ui-1: the HoloCity battle HUD (hex command plates, fighter cards, readiness chip).
   "../../components/HoloCityCommandBar.tsx", "../../components/duel/HoloHudArt.tsx", "../../components/duel/commandPlateLayout.ts",
+  // lite-vfx-port-1: the combat-VFX player and its action mapping (no on-screen copy; pinned so none creeps in).
+  "../../vfx/vfxPlayer.ts", "../../vfx/liveDuelVfx.ts", "../../vfx/vfxCurves.ts",
   // lite-progression-host-1: quests, training and daily missions through the City.
   "../../screens/QuestsScreen.tsx", "../../screens/TrainingScreen.tsx", "../../components/DailyMissionsModal.tsx",
   "../../components/UserStatsModal.tsx", "../progressionHost.ts", "../progressionHostClient.ts", "../dailyMissions.ts",
