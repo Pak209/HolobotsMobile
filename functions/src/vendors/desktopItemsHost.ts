@@ -71,5 +71,7 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
 export const desktopItemsHost=onCall(async request=>{
  if(!request.auth)throw new HttpsError("unauthenticated","Sign in to use items.");
  try{return await transactDesktopItems(db,request.auth.uid,request.data);}
- catch(e){if(e instanceof ItemError||e instanceof RepairError||e instanceof HoloZoneError)throw new HttpsError("failed-precondition",e.code,{rejectionCode:e.code});throw e;}
+ // desktop-items-quantity-1: a quantity buy's over_cap / not_enough_holos add host numbers (ItemError.extra) beside
+ // rejectionCode; every other refusal has none, so its details stay exactly {rejectionCode}.
+ catch(e){if(e instanceof ItemError||e instanceof RepairError||e instanceof HoloZoneError)throw new HttpsError("failed-precondition",e.code,{...(e instanceof ItemError?e.extra:undefined),rejectionCode:e.code});throw e;}
 });

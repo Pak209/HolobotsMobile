@@ -21,12 +21,36 @@ export function healingDelta(profile:Record<string,unknown>,id:string,delta:numb
  if(!Number.isSafeInteger(delta)||!Number.isSafeInteger(n)||n<0)throw new RepairError("no_item");
  return id===REPAIR_ITEM?{[REPAIR_FIELD]:n}:{itemStocks:{...(profile.itemStocks as Record<string,unknown>??{}),[item.stockKey]:n}};
 }
+/**
+ * desktop-items-quantity-1 (HolobotsUnity DECISIONS #72.32; mirrors market-quantity-host-1 / Mobile #175 for the
+ * healing items): an optional `quantity` on a desktop-items-2 `buy` buys 1-99 of ONE healing item as ONE purchase.
+ * Holos spent = unit price x quantity, in the same update that raises the stock by quantity. A healing stock may not
+ * pass HEALING_STACK_CAP after a quantity buy (over_cap, checked before funds). Grants from other sources (genesis kit,
+ * cache patch, rewards, Workshop craft) and the legacy one-per-buy request stay uncapped, as today.
+ */
+export const HEALING_QUANTITY_MIN = 1;
+export const HEALING_QUANTITY_MAX = 99;
+/** The most of one healing item a pilot may hold after a quantity buy (the marketplace-item-purchase-1 cap). */
+export const HEALING_STACK_CAP = 999;
+/** Strict reads (stored balance / stock never coerced); refusals throw before any write, in the order over_cap, not_enough_holos. */
+export function healingQuantityPurchase(profile:Record<string,unknown>,id:string,quantity:number){
+ const item=healingItem(id);if(!item)throw new RepairError("unknown_item");
+ if(!Number.isInteger(quantity)||quantity<HEALING_QUANTITY_MIN||quantity>HEALING_QUANTITY_MAX)throw new RepairError("invalid_request");
+ const balance=profile.holosTokens??0;
+ if(typeof balance!=="number"||!Number.isFinite(balance)||balance<0)throw new RepairError("unavailable");
+ const owned=healingStock(profile,id);
+ if(owned+quantity>HEALING_STACK_CAP)throw new RepairError("over_cap",{cap:HEALING_STACK_CAP,owned,maxQuantity:Math.max(0,HEALING_STACK_CAP-owned)});
+ const price=item.price*quantity;
+ if(balance<price)throw new RepairError("not_enough_holos",{price,holosTokens:balance,shortfall:price-balance});
+ return {updates:{...healingDelta(profile,id,quantity),holosTokens:balance-price},unitPrice:item.price,price,owned:owned+quantity};
+}
 export function healingPurchase(profile:Record<string,unknown>,id:string){
  const item=healingItem(id);if(!item)throw new RepairError("unknown_item");const balance=profile.holosTokens??0;
  if(typeof balance!=="number"||!Number.isFinite(balance)||balance<0)throw new RepairError("unavailable");
  if(balance<item.price)throw new RepairError("not_enough_holos");return {...healingDelta(profile,id,1),holosTokens:balance-item.price};
 }
-export class RepairError extends Error { constructor(public code:string){super(code);} }
+/** `extra` (quantity path only) adds host numbers to the callable error's details next to rejectionCode. */
+export class RepairError extends Error { constructor(public code:string,public readonly extra?:Readonly<Record<string,number>>){super(code);} }
 export function repairStock(profile:Record<string,unknown>):number {
  const n=profile[REPAIR_FIELD]??0;
  if(typeof n!=="number"||!Number.isSafeInteger(n)||n<0)throw new RepairError("unavailable");
