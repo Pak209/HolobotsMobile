@@ -5,6 +5,8 @@ import { theme } from '../theme';
 import { resolveBotId } from '../../assets/bots';
 import { getHolobotHeadshotImageSource } from '../config/holobots';
 import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../components/HoloCityCommandBar';
+import { HudActionStrip, HudRoundPlate, LineFrame, PortraitRing, useBoxSize } from '../components/duel/HoloHudArt';
+import { fighterPanelPoints } from '../components/duel/commandPlateLayout';
 import { BotStage, type BotMetrics, type BotStageHandle, type BotStagePerf } from '../components/bots/BotStage';
 import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound, type ObservedDuelState, type ObservedFighterState } from '../lib/bots/duelPlayback';
 import { hostFighterLevel, levelBadge, receiptIssue } from '../lib/bots/hostFighterLevel';
@@ -13,20 +15,31 @@ export type { DuelRound } from '../lib/bots/duelPlayback';
 export type DuelPlaybackScreenProps = { receipt: unknown; accountSnapshot?: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number; /** Dev-only stage cost knobs (QA perf sweep). */ perf?: BotStagePerf; /** Dev-only: keep round 1 on screen with idle loops so every knob arm renders the same content. */ holdCues?: boolean };
 
 type FighterSnapshot = ObservedFighterState;
-/** `levelTab`: DECISIONS #71 lower-left corner tab (the CPU Arena); otherwise the badge sits beside the name. */
+/** Portrait disc diameter on the fighter card (concept: the round portrait in the angled frame). */
+const PORTRAIT = 52;
+/** lite-battle-ui-1 (DECISIONS #72.56): the concept's fighter card. Round portrait in a cyan ring at the outer end, the
+ * angled frame, name, HP with numbers (green you / red rival), STA pips. `levelTab`: DECISIONS #71 lower-left corner tab
+ * on the portrait (the CPU Arena); otherwise the badge sits beside the name. */
 export function FighterHud({ name, state, level, rival = false, levelTab = false }: { name: string; state?: FighterSnapshot; level?: number; rival?: boolean; levelTab?: boolean }) {
   const badge = levelBadge(level);
-  const accent = rival ? theme.rings.rival[0] : theme.rings.player[0];
   const ratio = state && state.hp !== undefined && state.maxHp > 0 ? Math.max(0, Math.min(1, state.hp / state.maxHp)) : 0;
-  return <View style={[styles.fighter, { borderColor: accent }, levelTab && badge ? styles.tabbed : null]}>
-    <View style={[styles.identity, rival && styles.reverse]}>
-      {resolveBotId(name) ? <Image source={getHolobotHeadshotImageSource(name)} resizeMode="contain" style={[styles.portrait, { borderColor: accent }]} /> : <View style={[styles.portrait, { borderColor: accent, alignItems: 'center', justifyContent: 'center' }]}><Text style={styles.statLabel}>?</Text></View>}
-      <View style={styles.nameRow}><Text numberOfLines={1} style={[styles.name, { color: accent }]}>{name.toUpperCase()}</Text>{badge && !levelTab && <Text testID={`fighter-level-${name.toLowerCase()}`} style={styles.levelBadge}>{badge}</Text>}</View>
+  const [box, onLayout] = useBoxSize();
+  const hp = rival ? theme.hud.hpRival : theme.hud.hpPlayer;
+  return <View onLayout={onLayout} testID={`fighter-card-${rival ? 'rival' : 'player'}`} style={[styles.fighter, rival && styles.fighterRival]}>
+    <LineFrame width={box.width} height={box.height} points={fighterPanelPoints(box.width, box.height, PORTRAIT, rival)} fill={theme.hud.frameFill} stroke={theme.hud.frame} strokeWidth={1.4} trace={4} />
+    <View style={styles.portraitWrap}>
+      <View style={styles.portraitDisc}>
+        {resolveBotId(name) ? <Image source={getHolobotHeadshotImageSource(name)} resizeMode="contain" style={styles.portrait} /> : <Text style={styles.statLabel}>?</Text>}
+      </View>
+      <PortraitRing size={PORTRAIT} color={theme.hud.frame} />
+      {badge && levelTab ? <View testID={`fighter-level-tab-${name.toLowerCase()}`} style={styles.levelTab}><Text style={styles.levelTabText}>{badge}</Text></View> : null}
     </View>
-    <View style={styles.statLine}><Text style={styles.statLabel}>HP</Text>{state?.hp !== undefined ? <Text style={styles.statValue}>{`${state.hp}/${state.maxHp}`}</Text> : null}</View>
-    <View style={styles.hpTrack}><View style={[styles.hpFill, { width: `${ratio * 100}%`, backgroundColor: rival ? theme.colors.danger : theme.colors.success }]} /></View>
-    <View style={styles.stamina}><Text style={styles.statLabel}>STA</Text>{state?.stamina !== undefined ? Array.from({ length: Math.min(12, state.maxStamina) }, (_, i) => <View key={i} style={[styles.pip, { backgroundColor: i < state.stamina! ? accent : theme.plates.keycap, borderColor: accent }]} />) : null}</View>
-    {badge && levelTab ? <View testID={`fighter-level-tab-${name.toLowerCase()}`} style={[styles.levelTab, { borderColor: accent }]}><Text style={styles.levelTabText}>{badge}</Text></View> : null}
+    <View style={styles.info}>
+      <View style={[styles.nameRow, rival && styles.endRow]}><Text numberOfLines={1} style={styles.name}>{name.toUpperCase()}</Text>{badge && !levelTab && <Text testID={`fighter-level-${name.toLowerCase()}`} style={styles.levelBadge}>{badge}</Text>}</View>
+      <View style={[styles.statLine, rival && styles.endRow]}><Text style={[styles.hpLabel, { color: hp }]}>HP</Text>{state?.hp !== undefined ? <Text style={styles.statValue}>{`${state.hp}/${state.maxHp}`}</Text> : null}</View>
+      <View style={styles.hpTrack}><View style={[styles.hpFill, { width: `${ratio * 100}%`, backgroundColor: hp }, rival && styles.hpFillRival]} /></View>
+      <View style={styles.stamina}><Text style={styles.staLabel}>STA</Text>{state?.stamina !== undefined ? Array.from({ length: Math.min(12, state.maxStamina) }, (_, i) => <View key={i} style={[styles.pip, { backgroundColor: i < state.stamina! ? theme.hud.stamina : theme.hud.pipEmpty }]} />) : null}</View>
+    </View>
   </View>;
 }
 
@@ -102,14 +115,14 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
       <View style={styles.toolbar}><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel="Return to city" onPress={onClose} hitSlop={4}><Text style={styles.utility}>‹ CITY</Text></Pressable><Text style={styles.arenaLabel}>HOLOCITY / PARK ARENA</Text><Pressable style={styles.utilityButton} accessibilityRole="button" accessibilityLabel={complete ? "Replay battle" : paused ? "Resume battle replay" : "Pause battle replay"} onPress={() => complete ? setReplay(v => v + 1) : setPaused(v => !v)} hitSlop={12}><Text style={styles.utility}>{complete ? 'REPLAY ↻' : paused ? 'PLAY ▷' : 'PAUSE Ⅱ'}</Text></Pressable></View>
       <View style={styles.hud}>
         <FighterHud name={player ?? attackerBotId ?? 'PLAYER'} state={snapshot?.player} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'player', actors.player, accountSnapshot)} />
-        <View style={styles.roundPlate}><Text style={styles.roundLabel}>{complete && !round ? 'RESULT' : 'ROUND'}</Text>{round ? <Text style={styles.roundNumber}>{String(round.roundNumber ?? currentRound + 1).padStart(2, '0')}</Text> : null}{normalized.roundCount ? <Text style={styles.roundLabel}>OF {normalized.roundCount}</Text> : null}</View>
+        <HudRoundPlate label={complete && !round ? 'RESULT' : 'ROUND'} value={round ? String(round.roundNumber ?? currentRound + 1).padStart(2, '0') : undefined} sub={normalized.roundCount ? `OF ${normalized.roundCount}` : undefined} />
         <FighterHud name={rival ?? defenderBotId ?? 'RIVAL'} state={snapshot?.rival} level={hostFighterLevel(liveIssue ?? receiptIssue(receipt), 'rival', actors.rival)} rival />
       </View>
     </View>
     {(normalized.receiptError || stageError || !player || !rival) && <View style={styles.warning}><Text style={styles.notice}>{normalized.receiptError ?? '3D presentation unavailable. The recorded result is preserved.'}</Text></View>}
     {complete && <View style={styles.result} testID="duel-result-card"><Text style={styles.resultEyebrow}>RECORDED RESULT</Text><Text style={[styles.resultTitle, normalized.didWin === false && { color: theme.colors.danger }]}>{result}</Text>{!isSynthetic && normalized.holosGranted !== null && <Text style={styles.reward}>+{normalized.holosGranted} HOLOS</Text>}{!normalized.rounds.length && <Text style={styles.notice}>This City reply contains no round trace.</Text>}<Pressable style={styles.returnButton} accessibilityRole="button" onPress={onClose}><Text style={styles.returnLabel}>RETURN TO CITY</Text></Pressable></View>}
     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
-      <View style={styles.actionLog}><View style={styles.logAccent} /><Text numberOfLines={1} style={styles.logText}>{!ready && player && rival ? 'LOADING ARENA' : actionLog}</Text></View>
+      <HudActionStrip text={!ready && player && rival ? 'LOADING ARENA' : actionLog} />
       {!complete && <HoloCityCommandBar compact commands={commands} selected={round?.action?.toLowerCase() ?? null} />}
       <Text style={styles.source}>{traceLabel}</Text>
     </View>
@@ -119,10 +132,14 @@ export default DuelPlaybackScreen;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.carbon }, stage: { ...StyleSheet.absoluteFillObject, borderRadius: 0 },
   top: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 12 }, toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#101318CC', paddingHorizontal: 10, marginBottom: 9, borderRadius: 4 }, utilityButton: { minWidth: 52, minHeight: 44, justifyContent: 'center' }, utility: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1 }, arenaLabel: { ...theme.type.micro, color: theme.colors.text, letterSpacing: 1, fontSize: 9 },
-  nameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }, levelBadge: { ...theme.type.micro, fontSize: 14, color: theme.colors.text, backgroundColor: theme.colors.carbon, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 2 },
-  tabbed: { paddingBottom: 24 }, levelTab: { position: 'absolute', bottom: 0, left: 0, backgroundColor: theme.colors.carbon, borderRightWidth: 1, borderTopWidth: 1, borderBottomLeftRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }, levelTabText: { ...theme.type.micro, fontSize: 12, color: theme.colors.text },
-  hud: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 }, fighter: { flex: 1, minWidth: 0, backgroundColor: '#081723EA', borderWidth: 1, borderRadius: 6, padding: 8 }, identity: { flexDirection: 'row', alignItems: 'center', gap: 7 }, reverse: { flexDirection: 'row-reverse' }, portrait: { width: 36, height: 36, borderWidth: 1, borderRadius: 18, backgroundColor: theme.plates.keycap }, name: { ...theme.type.label, fontSize: 18, flexShrink: 1 }, statLine: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }, statLabel: { ...theme.type.micro, color: theme.colors.muted, fontSize: 9 }, statValue: { ...theme.type.micro, color: theme.colors.text, fontSize: 11 }, hpTrack: { height: 5, backgroundColor: theme.plates.keycap, borderRadius: 2, overflow: 'hidden', marginTop: 3 }, hpFill: { height: '100%' }, stamina: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 7 }, pip: { flex: 1, height: 9, borderWidth: 0.5, borderRadius: 1 },
-  roundPlate: { width: 52, backgroundColor: '#081723EF', borderColor: theme.colors.accent, borderWidth: 1, borderRadius: 4, alignItems: 'center', paddingVertical: 8 }, roundLabel: { ...theme.type.micro, color: theme.colors.accent, fontSize: 9, letterSpacing: 1 }, roundNumber: { ...theme.type.display, fontSize: 30, lineHeight: 34, color: theme.colors.text },
-  bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, gap: 8 }, actionLog: { minHeight: 38, backgroundColor: '#101318F2', borderColor: theme.colors.accent, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, overflow: 'hidden' }, logAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: theme.colors.accent }, logText: { ...theme.type.label, color: theme.colors.text, fontSize: 16, letterSpacing: 0.5 }, source: { ...theme.type.micro, color: theme.colors.text, fontSize: 9, letterSpacing: 1, textAlign: 'center', backgroundColor: '#101318D9', padding: 3 },
+  nameRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }, levelBadge: { ...theme.type.micro, fontSize: 12, color: theme.colors.text, backgroundColor: theme.colors.carbon, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
+  levelTab: { position: 'absolute', bottom: 0, left: 0, backgroundColor: theme.colors.carbon, borderColor: theme.hud.frame, borderWidth: 1, borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }, levelTabText: { ...theme.type.micro, fontSize: 10, lineHeight: 12, color: theme.colors.text },
+  hud: { flexDirection: 'row', alignItems: 'stretch', gap: 6 }, fighter: { flex: 1, minWidth: 0, minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 10, paddingVertical: 6 }, fighterRival: { flexDirection: 'row-reverse', paddingRight: 0, paddingLeft: 10 }, endRow: { justifyContent: 'flex-end' },
+  portraitWrap: { width: PORTRAIT, height: PORTRAIT + 6 }, portraitDisc: { position: 'absolute', left: 4, top: 4, width: PORTRAIT - 8, height: PORTRAIT - 8, borderRadius: (PORTRAIT - 8) / 2, overflow: 'hidden', backgroundColor: theme.plates.keycap, alignItems: 'center', justifyContent: 'center' }, portrait: { width: '100%', height: '100%' },
+  info: { flex: 1, minWidth: 0, gap: 3 }, name: { ...theme.type.label, fontSize: 16, lineHeight: 19, color: theme.colors.text, flexShrink: 1 },
+  statLine: { flexDirection: 'row', alignItems: 'baseline', gap: 6 }, statLabel: { ...theme.type.micro, color: theme.colors.muted, fontSize: 9 }, hpLabel: { ...theme.type.micro, fontSize: 10 }, statValue: { ...theme.type.micro, color: theme.colors.text, fontSize: 11 },
+  hpTrack: { height: 7, backgroundColor: theme.hud.pipEmpty, borderRadius: 1, overflow: 'hidden' }, hpFill: { height: '100%' }, hpFillRival: { alignSelf: 'flex-end' },
+  stamina: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }, staLabel: { ...theme.type.micro, color: theme.hud.stamina, fontSize: 9, marginRight: 2 }, pip: { flex: 1, height: 8, borderRadius: 1 },
+  bottom: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, gap: 8 }, source: { ...theme.type.micro, color: theme.colors.text, fontSize: 9, letterSpacing: 1, textAlign: 'center', backgroundColor: '#101318D9', padding: 3 },
   warning: { position: 'absolute', top: '35%', left: 24, right: 24, backgroundColor: theme.plates.overlay, padding: 18, borderRadius: 8 }, notice: { ...theme.type.caption, color: theme.colors.muted, textAlign: 'center', marginTop: 8 }, result: { position: 'absolute', left: 32, right: 32, top: '34%', backgroundColor: '#081723F2', borderWidth: 1, borderColor: theme.colors.accent, borderRadius: 8, padding: 18, alignItems: 'center' }, resultEyebrow: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 2 }, resultTitle: { ...theme.type.display, color: theme.colors.accent, marginTop: 6 }, reward: { ...theme.type.value, color: theme.colors.text, marginTop: 5 }, returnButton: { backgroundColor: theme.colors.accent, paddingHorizontal: 22, paddingVertical: 10, borderRadius: 4, marginTop: 12 }, returnLabel: { ...theme.type.micro, color: theme.colors.carbon, letterSpacing: 1 },
 });

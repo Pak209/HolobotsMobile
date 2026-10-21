@@ -19,6 +19,8 @@ const FILES = [
   "../bots/liveRivalPlayback.ts", "../bots/hostDuelReceipt.ts", "../bots/duelPlayback.ts",
   // lite-arena-stage-1: the shared park-arena 3D stage the CPU Arena round now renders.
   "../../components/duel/LiveDuelStage.tsx", "../../components/duel/liveDuelCommands.ts", "../../components/city/CityLiveBattleView.tsx",
+  // lite-battle-ui-1: the HoloCity battle HUD (hex command plates, fighter cards, readiness chip).
+  "../../components/HoloCityCommandBar.tsx", "../../components/duel/HoloHudArt.tsx", "../../components/duel/commandPlateLayout.ts",
   // lite-progression-host-1: quests, training and daily missions through the City.
   "../../screens/QuestsScreen.tsx", "../../screens/TrainingScreen.tsx", "../../components/DailyMissionsModal.tsx",
   "../../components/UserStatsModal.tsx", "../progressionHost.ts", "../progressionHostClient.ts", "../dailyMissions.ts",
