@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveBotId } from '../../../../assets/bots';
 import { BotStage, type BotMetrics, type BotStageHandle, type BotStagePerf } from '../bots/BotStage';
 import type { StageRenderQuality } from '../../lib/bots/stagePerf';
-import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../HoloCityCommandBar';
+import { FinisherReadinessChip, HoloCityCommandBar, HOLOCITY_COMMANDS } from '../HoloCityCommandBar';
+import { HudActionStrip, HudRoundPlate } from './HoloHudArt';
 import { liveDuelCommandMove, liveDuelCommands } from './liveDuelCommands';
 import { FighterHud } from '../../screens/DuelPlaybackScreen';
 import { getActionSides } from '../../../components/arena/battleVisualStates';
@@ -81,17 +82,19 @@ export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pen
   }, [action?.id, ready]);
   const waiting = holdUntilReady && !ready && !error && !!player && !!rival;
   const commands = liveDuelCommands(HOLOCITY_COMMANDS, { battle, moves, power, signature: signatureAllowed, playableIds, blocked: pending || waiting });
+  const finisherReadiness = commands.find(command => command.id === 'finisher')?.readiness;
   const state = (fighter: BattleState['player']) => ({ hp: fighter.currentHP, maxHp: fighter.maxHP, stamina: fighter.stamina, maxStamina: fighter.maxStamina });
   return <View style={styles.screen} testID="live-duel-stage">
     <Image source={require('../../../../assets/battle/holocity-park.jpg')} style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]} resizeMode="cover" />
     {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} active={active} quality={renderQuality} perf={perf} onMetrics={onMetrics} showMetrics={showMetrics} />}
     <View style={[styles.top, { paddingTop: chrome?.top ?? insets.top + 4 }]}>
       <View style={[styles.toolbar, chrome ? { marginRight: chrome.right } : null]}><Text style={styles.caption}>{caption}</Text><Pressable accessibilityRole="button" onPress={onLeave} disabled={leaveDisabled} style={styles.button}><Text style={styles.caption}>{leaveLabel}</Text></Pressable></View>
-      <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} level={levels.player} levelTab={levelTab} /><View style={styles.round}><Text style={styles.caption}>TURN</Text><Text style={styles.number}>{String(action?.turnNumber ?? 1).padStart(2, '0')}</Text></View><FighterHud name={battle.opponent.name} state={state(battle.opponent)} level={levels.rival} levelTab={levelTab} rival /></View>
+      <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} level={levels.player} levelTab={levelTab} /><HudRoundPlate testID="live-duel-turn" label="TURN" value={String(action?.turnNumber ?? 1).padStart(2, '0')} /><FighterHud name={battle.opponent.name} state={state(battle.opponent)} level={levels.rival} levelTab={levelTab} rival /></View>
     </View>
     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
-      <Text style={styles.log}>{error || !player || !rival ? '3D unavailable · controls remain active' : !ready ? 'LOADING ARENA' : action ? `${action.card.name} · ${action.actualDamage ?? action.damageDealt} DMG` : 'SELECT YOUR COMMAND'}</Text>
-      <View style={styles.toolbar}><Text style={styles.caption}>{Math.round(battle.player.specialMeter)}% SYNC</Text>{signatureAllowed ? (['half', 'full'] as const).map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: power === value }} onPress={() => setPower(value)} style={styles.button}><Text style={[styles.caption, power === value && { color: theme.colors.warning }]}>{FINISHER_POLICY[value].sync}% · {FINISHER_POLICY[value].stamina} STA</Text></Pressable>) : <View style={styles.button} />}</View>
+      <HudActionStrip testID="live-duel-log" text={error || !player || !rival ? '3D unavailable · controls remain active' : !ready ? 'LOADING ARENA' : action ? `${action.card.name} · ${action.actualDamage ?? action.damageDealt} DMG` : 'SELECT YOUR COMMAND'} />
+      {/* The hint line (Unity's "COMBO 0 · … · SYNC 0% · HALF · TAP 50% / HOLD 100%"), in the lite's own words. */}
+      <View style={styles.hint}><Text numberOfLines={1} style={[styles.caption, styles.hintText]}>{`COMBO ×${battle.player.comboCounter} · ${Math.round(battle.player.specialMeter)}% SYNC`}</Text>{signatureAllowed ? (['half', 'full'] as const).map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: power === value }} onPress={() => setPower(value)} style={styles.button}><Text style={[styles.caption, power === value && { color: theme.colors.warning }]}>{FINISHER_POLICY[value].sync}% · {FINISHER_POLICY[value].stamina} STA</Text></Pressable>) : null}{finisherReadiness ? <FinisherReadinessChip readiness={finisherReadiness} /> : null}</View>
       <HoloCityCommandBar compact commands={commands} onPress={id => {
         if (id === 'finisher') onSignature(power);
         else { const card = liveDuelCommandMove(id, moves); if (card) onPlay(card.id); }
@@ -105,9 +108,8 @@ const styles = StyleSheet.create({
   toolbar: { backgroundColor: '#101318DD', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, marginBottom: 8 },
   button: { minHeight: 44, minWidth: 52, justifyContent: 'center', alignItems: 'center' },
   caption: { ...theme.type.micro, color: theme.colors.accent, fontSize: 10 },
-  hud: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  round: { backgroundColor: '#081723EF', borderWidth: 1, borderColor: theme.colors.accent, padding: 8, alignItems: 'center' },
-  number: { ...theme.type.display, color: theme.colors.text, fontSize: 30 },
+  hud: { flexDirection: 'row', alignItems: 'stretch', gap: 6 },
   bottom: { position: 'absolute', bottom: 0, left: 14, right: 14 },
-  log: { ...theme.type.label, textAlign: 'center', color: theme.colors.text, padding: 8, marginBottom: 8, backgroundColor: '#101318EF', borderWidth: 1, borderColor: theme.colors.accent },
+  hint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2, minHeight: 44, marginVertical: 4, paddingLeft: 10, paddingRight: 4, backgroundColor: theme.hud.frameFill, borderRadius: theme.radius.sm },
+  hintText: { flex: 1, color: theme.colors.text },
 });
