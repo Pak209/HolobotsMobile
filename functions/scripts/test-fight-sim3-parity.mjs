@@ -24,9 +24,9 @@ function runScripted(doc) {
   return F.runFight(rules, doc.seed, drv(), drv(), { tickHashes: true });
 }
 
-test('14 frozen vectors are listed', () => {
+test('21 frozen vectors are listed', () => {
   assert.equal(index.vectorVersion, 'duel-sim-3-vectors-1');
-  assert.equal(index.vectors.length, 14);
+  assert.equal(index.vectors.length, 21);   // fight-tune-2 r3: 14 regenerated + 7 new
 });
 
 for (const name of index.vectors) {
@@ -122,4 +122,23 @@ test('duel-rules-3: defaults equal rules-default.json; the schema accepts every 
   bad(d => { d.fighters[1].id = 'ace'; }, 'duplicate_fighter');
   bad(d => { d.fighters[0].hp = 2000; }, 'invalid_fighter_stats');
   bad(d => { d.fighters[1].side = 0; }, 'invalid_roster');
+});
+
+test('r3 HP scale + town HP: the TS twin computes the C# pins (FightCoreR3Tests) on the same stat lines', () => {
+  const r = F.defaultRules();
+  assert.equal(r.hpScaleLights, 19);
+  assert.equal(F.meanLightsToKoMilli(r), 15151, '1000 HP / a 66 light = 15.151 lights');
+  const c = new F.FightCore(r, '0'.repeat(64));
+  assert.equal(c.F[0].maxHp, 1254); assert.equal(c.F[0].hp, 1254); assert.equal(c.F[0].def.maxHp, 1000);
+  assert.equal(F.townHp(c.F[0]), 1000);
+  const carried = F.defaultRules(); carried.fighters[0].hp = 500; carried.fighters[1].hp = 1;
+  const k = new F.FightCore(carried, '0'.repeat(64));
+  assert.equal(k.F[0].hp, 627); assert.equal(F.townHp(k.F[0]), 500); assert.equal(k.F[1].hp, 1); assert.equal(F.townHp(k.F[1]), 1);
+  for (const [atk, def, hp] of [[50, 50, 175], [140, 140, 490]]) {
+    const q = F.defaultRules('wolf', 'kuma');
+    for (const f of q.fighters) { f.attack = atk; f.defense = def; f.maxHp = hp; f.hp = hp; }
+    const light = Math.trunc(atk * 100 / (100 + def)), lk = Math.trunc(new F.FightCore(q, '0'.repeat(64)).F[0].maxHp * 1000 / light);
+    assert.ok(lk >= 18500 && lk <= 19500, `fight HP / light = 19 at every level (${lk})`);
+  }
+  assert.equal(F.defaultRules().ringRadiusMm, 6000, 'the town duel ring is 6 m (#72.26/#72.29)');
 });

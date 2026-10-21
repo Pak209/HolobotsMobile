@@ -170,3 +170,22 @@ AND a rival-battle-3 issue that declares `duelInputs:"duel-inputs-2"`; otherwise
   `fightReceipt` (`duel-receipt-2`, `Schemas/duel-receipt-2.json`) once; a repeated settle returns the stored receipt.
 - Cost (`npm run bench:fight-replay`, 20 × 180 s fights): settle replay p95 ≈ 9 ms per 180 s (≈ 3 ms per 60 s,
   1.4 µs/tick); with every tick hashed ≈ 8 ms per 60 s. Brief budget ≈ 85 ms per 60 s; design-1 gate ≤ 250 ms p95 / 180 s.
+
+## `duel-sim-3` r3 (lane `fight-tune-2`, DECISIONS #72.18–#72.29)
+
+The TS twin follows HolobotsUnity `claude/fight-tune-2` (stacks on Holocity #120 and #134). Contract-Change on both sides:
+`Schemas/duel-rules-3.json` (16 new keys, ring default 12 m → 6 m), `Schemas/duel-inputs-2.json` (press code 8 = the
+double-tap, from #134, additive: codes 1–7 encode exactly as before, schemaVersion unchanged), `Schemas/duel-receipt-2.json`
+(witness sides + `escapes`, `charges`).
+
+| Rule | Keys (default) | What the core does |
+|---|---|---|
+| Fight HP scale | `hpScaleLights` 19 | One factor per fight: every member's fight HP = issued HP × 19 000 / (roster-average clean lights to KO × 1000), the light hitting with the opposing side's mean attack into the member's own defense. Equal-level fights last the same at every level; relative HP/attack/defense is kept. `townHp()` maps back (0 → 0, standing ≥ 1, full → full). The receipt and the settle stay in **town** HP. |
+| Shove = R2 in CLOSE | `shoveOnHeavyInClose` 1 | A heavy press with the pair in CLOSE at the start of the tick is the shove. |
+| Quick escape | `costEscapePm` 100, `escapeTurnTicks` 8, `escapeNoGuardTicks` 12, `escapeRunTicks` 24, `escapeTurnBackTicks` 6 | A double-tap (code 8) **away** from the rival (backward component beats lateral) from EDGE or the fighter's own BREAK: 10 % burst, guard dropped, voluntary BREAK, TurnAway (0 travel) → own Run straight away → TurnBack. A strike landing in the first 12 ticks is a counter (×1.5). After the window a guard press ends it early. Any other double-tap has no rule. |
+| ShoulderCharge | `chargeWindowTicks` 6, `chargeTelegraphTicks` 10, `chargeRecoveryTicks` 7, `costChargeDashPm` 100, `chargeDashMm` 2500, `chargeReachMm` 1500, `scaleChargePm` 1200, `chargePushMm` 600, `chargePushTicks` 6 | A light within 6 ticks of the fighter's own sidestep / ForwardJump, pair in EDGE/OUT, body gap ≤ 2.5 m: a light-class strike, contact 10 ticks later, free 18 after the light; 10 % dash in all (the step's own cost counts) + the light's 8 %; light × 1.2 and a 0.6 m push on hit and block; chip 30 %, light drain, no feint. |
+| Ring | `ringRadiusMm` 6000 | The town duel ring (#72.26, #72.29). |
+
+The 13-profile table gains `escapeRatePm` (HARE 600, KURAI 500, ERA 500, else 0) and `chargeSharePm`; `PROFILES_VERSION` 2.
+Parity: the 21 frozen vectors (`scripts/fixtures/duel-sim-3`, copied verbatim from Unity) match every tick hash, and the 12 brain
+vectors were re-emitted by `scripts/fight-sim3-oracle/oracle.py --ref 95e924186` (C# at the lane commit).

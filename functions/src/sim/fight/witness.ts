@@ -11,7 +11,7 @@ export type WitnessSideJson = {
   ticksInState: number[]; forcedBreaks: number; voluntaryBreaks: number; lineCrossings: number; breakLengths: number[];
   telegraphs: number; feints: number; feintBaits: number; steps: number; shoves: number; hits: number; blocks: number;
   perfectGuards: number; guardBreaks: number; whiffs: number; evades: number; counters: number; hardHits: number;
-  swaps: number; forcedSwaps: number; stamina: number[];
+  swaps: number; forcedSwaps: number; escapes: number; charges: number; stamina: number[];
 };
 export type WitnessJson = {
   ticks: number; exchangeLengths: number[]; exchangeHistogram1s: number[]; exchangesIn2To5Pm: number; exchangeMedianTicks: number;
@@ -31,6 +31,7 @@ export class FightWitness {
   telegraphs = two(); feints = two(); feintBaits = two(); steps = two(); shoves = two();
   hits = two(); blocks = two(); perfectGuards = two(); guardBreaks = two(); whiffs = two(); evades = two();
   counters = two(); hardHits = two(); swaps = two(); forcedSwaps = two();
+  escapes = two(); charges = two();   // r3: quick escapes / ShoulderCharges started
   trades = 0; railFires = 0; ticks = 0;
   private lastSta = [-1, -1];
 
@@ -43,6 +44,7 @@ export class FightWitness {
       case EventKind.Step: this.steps[s]++; break;
       case EventKind.Shove: this.shoves[s]++; break;
       case EventKind.HardHit: this.hardHits[s]++; break;
+      case EventKind.Escape: this.escapes[s]++; break;
     }
   }
   contact(s: number, o: FightOutcome, counter: boolean): void {
@@ -56,6 +58,7 @@ export class FightWitness {
     }
     if (counter && (o === Outcome.Hit || o === Outcome.GuardBreak)) this.counters[s]++;
   }
+  charged(s: number): void { this.charges[s]++; }
   breakStarted(s: number, forced: boolean): void { if (forced) this.forcedBreaks[s]++; else this.voluntaryBreaks[s]++; }
   breakEnded(s: number, len: number): void { this.breakLengths[s].push(len); }
   exchangeEnded(len: number): void {
@@ -90,7 +93,8 @@ export class FightWitness {
       lineCrossings: this.lineCrossings[s], breakLengths: [...this.breakLengths[s]], telegraphs: this.telegraphs[s], feints: this.feints[s],
       feintBaits: this.feintBaits[s], steps: this.steps[s], shoves: this.shoves[s], hits: this.hits[s], blocks: this.blocks[s],
       perfectGuards: this.perfectGuards[s], guardBreaks: this.guardBreaks[s], whiffs: this.whiffs[s], evades: this.evades[s],
-      counters: this.counters[s], hardHits: this.hardHits[s], swaps: this.swaps[s], forcedSwaps: this.forcedSwaps[s], stamina: [...this.stamina[s]],
+      counters: this.counters[s], hardHits: this.hardHits[s], swaps: this.swaps[s], forcedSwaps: this.forcedSwaps[s],
+      escapes: this.escapes[s], charges: this.charges[s], stamina: [...this.stamina[s]],
     }));
     return {
       ticks: this.ticks, exchangeLengths: [...this.exchangeLengths], exchangeHistogram1s: [...this.exchangeHistogram],

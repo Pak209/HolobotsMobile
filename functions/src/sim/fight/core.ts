@@ -7,7 +7,7 @@ import { cloneRules, FightFighterDef, FightRules, rosterOf, rulesHashBytes, vali
 import { FightWitness } from './witness';
 
 /**
- * duel-sim-3 fight core, a line-for-line port of HolobotsUnity `Sim/Fight/FightCore.cs` (fight-core-1 + fight-tune-1 r2).
+ * duel-sim-3 fight core, a line-for-line port of HolobotsUnity `Sim/Fight/FightCore.cs` (fight-core-1 + fight-tune-1 r2 + fight-tune-2 r3).
  * Tick order (identical): 0 timers + pending forced Backstep, 1 inputs side 0 then side 1, 2 telegraph starts -> exchange clock,
  * 3 movement, 4+5 contacts (one frozen state, simultaneous contacts both land), 6 regen, 7 forced breaks, 7b KO forced swap,
  * 8 pair state + break exits + witness, 9 KO/timeout, 10 state hash. Integer only; see math.ts for the division rule.
@@ -39,8 +39,12 @@ export class FightFighter {
   lastSelfMoveTick = -1000;
   ko = false; loco: FightLoco = Loco.Still; state: FightState = State.OutOfRange;
   shieldUntil = 0;
+  /** r3: tick the current/last quick escape started (-1 never). */
+  escStart = -1;
+  /** r3: the FIGHT max HP (issued maxHp x the pair HP scale; = def.maxHp when hpScaleLights is 0). Not hashed (a function of the rules). */
+  maxHp: number;
   // identity (not hashed)
-  constructor(readonly def: FightFighterDef, readonly rosterIndex: number) {}
+  constructor(readonly def: FightFighterDef, readonly rosterIndex: number) { this.maxHp = def.maxHp; }
   // per-tick transients (not hashed)
   staStart = 0; hardHitThisTick = false;
 }
@@ -90,12 +94,19 @@ export class FightCore {
     this.rules = cloneRules(rules);
     this.rulesHashB = rulesHashBytes(this.rules);
     this.seed = seedBytes(seedHex);
+    const meanLightsMilli = this.rules.hpScaleLights > 0 ? meanLightsToKoMilli(this.rules) : 0;
     for (let s = 0; s < 2; s++) {
       const idx = rosterOf(this.rules, s);
       for (let i = 0; i < idx.length; i++) {
         const d = this.rules.fighters[idx[i]];
         const f = new FightFighter(d, i);
-        f.x = d.startXMm; f.z = d.startZMm; f.hp = d.hp; f.sta = d.startStaminaPm; f.sync = Math.min(d.startSync, this.rules.maxSync);
+        let maxHp = d.maxHp, hp = d.hp;
+        if (meanLightsMilli > 0) {
+          maxHp = Math.max(1, Math.min(1000000000, div(d.maxHp * this.rules.hpScaleLights * 1000, meanLightsMilli)));
+          hp = d.hp === d.maxHp ? maxHp : d.hp === 0 ? 0 : Math.max(1, div(d.hp * maxHp, d.maxHp));
+        }
+        f.maxHp = maxHp;
+        f.x = d.startXMm; f.z = d.startZMm; f.hp = hp; f.sta = d.startStaminaPm; f.sync = Math.min(d.startSync, this.rules.maxSync);
         if (f.hp === 0) { f.ko = true; f.action = Action.Ko; }
         this.roster[s].push(f);
       }
@@ -130,7 +141,7 @@ export class FightCore {
   private makeView(f: FightFighter): FightFighterView {
     const tel = f.action === Action.Telegraph;
     return {
-      tick: this.tick, xMm: f.x, zMm: f.z, hp: f.hp, maxHp: f.def.maxHp, staminaPm: f.sta, sync: f.sync, state: f.state, action: f.action,
+      tick: this.tick, xMm: f.x, zMm: f.z, hp: f.hp, maxHp: f.maxHp, staminaPm: f.sta, sync: f.sync, state: f.state, action: f.action,
       guard: f.guard, move: f.action === Action.Telegraph || f.action === Action.Recovery ? f.atkMove : Move.None,
       telegraphStartTick: tel ? f.atkStart : -1, contactTick: tel ? f.atkContact : -1, actionUntilTick: f.actionUntil,
       counterWindowUntil: f.counterWindowUntil, chainCount: f.chainCount, gassed: f.sta < this.rules.breakLinePm, loco: f.loco,
@@ -152,9 +163,10 @@ export class FightCore {
     // 0. timers + the pending forced Backstep (D2)
     for (let s = 0; s < 2; s++) {
       const f = this.F[s]; if (f.ko) continue;
-      if ((f.action === Action.Recovery || f.action === Action.Step || f.action === Action.Stun || f.action === Action.Shove || f.action === Action.FeintRecovery) && t >= f.actionUntil) {
+      if ((f.action === Action.Recovery || f.action === Action.Step || f.action === Action.Stun || f.action === Action.Shove || f.action === Action.FeintRecovery
+        || f.action === Action.Escape) && t >= f.actionUntil) {
         if (f.action === Action.Recovery) f.atkMove = Move.None;
-        if (f.action === Action.Step) { f.stepKind = Loco.Still; f.stepForced = false; }
+        if (f.action === Action.Step || f.action === Action.Escape) { f.stepKind = Loco.Still; f.stepForced = false; }
         f.action = Action.Idle;
       }
       if (f.guard === Guard.Raising && t - f.guardRaiseStart >= R.guardRaiseTicks) f.guard = Guard.Up;
@@ -215,7 +227,7 @@ export class FightCore {
 
   // ================================================================ bench swap + lock-on
 
-  private sideHpPm(s: number): number { let sum = 0; for (const m of this.roster[s]) sum += div(m.hp * 1000, m.def.maxHp); return sum; }
+  private sideHpPm(s: number): number { let sum = 0; for (const m of this.roster[s]) sum += div(m.hp * 1000, m.maxHp); return sum; }
 
   private nextStanding(s: number): number {
     const n = this.roster[s].length;
@@ -271,8 +283,14 @@ export class FightCore {
     f.guardInput = inp.guard;
     f.moveX = clamp127(inp.moveX); f.moveZ = clamp127(inp.moveZ);
     let press: FightPress = inp.press;
+    // r3 (#72.26 P5): the heavy press inside CLOSE is the shove (the pair state at the start of the tick decides)
+    if (press === Press.Heavy && R.shoveOnHeavyInClose !== 0 && pairAtStart === State.CloseRange) press = Press.Shove;
+    // r3 quick escape: after the no-guard window a guard press ends the escape early
+    if (f.action === Action.Escape && edgeDown && t - f.escStart >= R.escapeNoGuardTicks) {
+      f.action = Action.Idle; f.actionUntil = t; f.stepKind = Loco.Still; f.stepElapsed = 0; f.stepTicks = 0; f.stepTotal = 0; f.stepDirX = 0; f.stepDirZ = 0;
+    }
 
-    if (f.action === Action.Telegraph && (edgeDown || press === Press.Feint)) {
+    if (f.action === Action.Telegraph && f.atkMove !== Move.Charge && (edgeDown || press === Press.Feint)) {
       if (t - f.atkStart <= R.feintWindowTicks) { this.feint(s, rail); if (edgeDown) f.guardEdgeTick = t; this.raiseGuardIfHeld(f, t); return; }
       if (press === Press.Feint) { this.deny(s, Deny.FeintWindow); press = Press.None; }
     } else if (press === Press.Feint) { this.deny(s, Deny.FeintWindow); press = Press.None; }
@@ -290,12 +308,18 @@ export class FightCore {
       if (pairAtStart !== State.CloseRange) this.deny(s, Deny.NotClose);
       else if (!this.free(f) || inp.guard) this.deny(s, Deny.Busy);
       else { this.shove(s, rail); executed = true; }
-    } else if (press === Press.Light || press === Press.Heavy || press === Press.Special || press === Press.Step) {
-      if (inp.guard) this.deny(s, Deny.Guarding);
+    } else if (press === Press.DoubleTap && !this.away(s, inp.stepX, inp.stepZ)) {
+      // a double-tap that is not away from the rival has no rule (accepted, ignored)
+    } else if (press === Press.DoubleTap && f.action === Action.Idle) {
+      executed = this.execute(s, press, inp.stepX, inp.stepZ, 0, rail);
+    } else if (press === Press.Light && !inp.guard && this.chargeReady(s, t)) {
+      executed = this.startStrike(s, Move.Charge, 0, rail);
+    } else if (press === Press.Light || press === Press.Heavy || press === Press.Special || press === Press.Step || press === Press.DoubleTap) {
+      if (inp.guard && press !== Press.DoubleTap) this.deny(s, Deny.Guarding);
       else if (this.free(f)) executed = this.execute(s, press, inp.stepX, inp.stepZ, inp.specialTier, rail);
-      else if (press === Press.Step && f.action === Action.Step && f.stepForced) { this.startStep(s, inp.stepX, inp.stepZ, false, rail); executed = true; }
+      else if ((press === Press.Step || press === Press.DoubleTap) && f.action === Action.Step && f.stepForced) { executed = this.execute(s, press, inp.stepX, inp.stepZ, 0, rail); }
       else if (f.action === Action.Telegraph || f.action === Action.Recovery || f.action === Action.Step || f.action === Action.Stun
-        || f.action === Action.Shove || f.action === Action.FeintRecovery || f.guard === Guard.Lowering) {
+        || f.action === Action.Shove || f.action === Action.FeintRecovery || f.action === Action.Escape || f.guard === Guard.Lowering) {
         f.bufPress = press; f.bufStepX = inp.stepX; f.bufStepZ = inp.stepZ; f.bufTier = inp.specialTier; f.bufExpiry = t + R.bufferTicks;
         this.emit(s, EventKind.Buffered, moveOf(press), 0);
       }
@@ -321,6 +345,7 @@ export class FightCore {
 
   private execute(s: number, p: FightPress, sx: number, sz: number, tier: number, rail: boolean): boolean {
     if (p === Press.Step) { this.startStep(s, sx, sz, false, rail); return true; }
+    if (p === Press.DoubleTap) return this.startEscape(s, sx, sz, rail);
     return this.startStrike(s, moveOf(p), tier, rail);
   }
 
@@ -334,6 +359,13 @@ export class FightCore {
   private startStrike(s: number, move: FightMove, tier: number, rail: boolean): boolean {
     const f = this.F[s], o = this.F[1 - s], R = this.rules, t = this.tick;
     let syncNeed = 0;
+    let dashTopUp = 0;
+    if (move === Move.Charge) {
+      const stepPaid = f.stepKind === Loco.ForwardJump ? R.costBurstPm : R.costStepPm;
+      dashTopUp = Math.max(0, this.rail(R.costChargeDashPm, rail) - this.rail(stepPaid, rail));
+      f.stepKind = Loco.Still; f.stepDirX = 0; f.stepDirZ = 0; f.stepTotal = 0; f.stepTicks = 0; f.stepElapsed = 0; f.stepForced = false;
+      clearBuffer(f);
+    }
     if (move === Move.Special) {
       tier = tier === 2 ? 2 : 1;
       syncNeed = tier === 2 ? R.specialFullSync : R.specialHalfSync;
@@ -342,12 +374,12 @@ export class FightCore {
     const inChain = f.chainCount >= 1 && f.chainCount < R.chainMax && t <= f.lastReadyTick + R.chainGapTicks;
     const shortTel = move === Move.Light && inChain;
     f.chainCount = inChain ? f.chainCount + 1 : 1;
-    let tel = shortTel ? R.chainTelegraphTicks + R.chainDecayTicks * (f.chainCount - 2) : R.telegraphTicks;
+    let tel = move === Move.Charge ? R.chargeTelegraphTicks : shortTel ? R.chainTelegraphTicks + R.chainDecayTicks * (f.chainCount - 2) : R.telegraphTicks;
     tel += f.sta === 0 ? R.emptyTelegraphTicks : f.sta < R.breakLinePm ? R.gassedTelegraphTicks : 0;
-    let baseCost = move === Move.Light ? R.costLightPm : move === Move.Heavy ? R.costHeavyPm : R.costSpecialPm;
+    let baseCost = move === Move.Light || move === Move.Charge ? R.costLightPm : move === Move.Heavy ? R.costHeavyPm : R.costSpecialPm;
     if (shortTel) for (let k = 1; k < f.chainCount; k++) baseCost = mulDiv(baseCost, R.chainCostPm, 1000);
     const cost = this.rail(baseCost, rail);
-    this.spend(f, cost);
+    this.spend(f, cost + dashTopUp);
     f.sync -= syncNeed;
     const [ux, uz] = unit(o.x - f.x, o.z - f.z, s);
     f.action = Action.Telegraph; f.atkMove = move; f.atkStart = t; f.atkContact = t + tel; f.atkFacingX = ux; f.atkFacingZ = uz;
@@ -356,6 +388,7 @@ export class FightCore {
     this.telegraphStarts.push({ side: s, inReach: d <= this.reach(s, move) + this.lunge(f, move) });
     this.emit(s, EventKind.Telegraph, move, f.atkContact);
     this.witness.count(s, EventKind.Telegraph);
+    if (move === Move.Charge) this.witness.charged(s);
     return true;
   }
 
@@ -388,6 +421,25 @@ export class FightCore {
     this.emit(s, EventKind.Step, Move.None, kind); this.witness.count(s, EventKind.Step);
   }
 
+  /** r3 quick escape (FightCore.StartEscape): from EDGE or the fighter's own BREAK; burst cost, guard given up, voluntary
+   * BREAK, TurnAway (0 travel) -> Run straight away -> TurnBack; a strike landing inside escapeNoGuardTicks is a counter. */
+  private startEscape(s: number, sx: number, sz: number, rail: boolean): boolean {
+    const f = this.F[s], o = this.F[1 - s], R = this.rules, d = f.def, t = this.tick;
+    if (!this.away(s, sx, sz)) return false;
+    if (this.pairState !== State.EdgeOfRange && !f.inBreak) { this.deny(s, Deny.NotEdgeOrBreak); return false; }
+    this.spend(f, this.rail(R.costEscapePm, rail));
+    if (f.guard !== Guard.Down) { f.guard = Guard.Down; this.emit(s, EventKind.GuardLower, Move.None, 0); }
+    const [ux, uz] = unit(o.x - f.x, o.z - f.z, s);
+    f.action = Action.Escape; f.escStart = t; f.actionUntil = t + R.escapeTurnTicks + R.escapeRunTicks + R.escapeTurnBackTicks;
+    f.stepKind = Loco.EscapeRun; f.stepDirX = -ux; f.stepDirZ = -uz; f.stepTicks = R.escapeRunTicks; f.stepElapsed = 0; f.stepForced = false;
+    f.stepTotal = div(d.runMmPerSec * R.escapeRunTicks, 30);
+    f.chainCount = 0; clearBuffer(f);
+    f.punishableUntil = Math.max(f.punishableUntil, t + R.escapeNoGuardTicks);
+    if (!f.inBreak) this.enterBreak(s, false);
+    this.emit(s, EventKind.Escape, Move.None, f.stepTotal); this.witness.count(s, EventKind.Escape);
+    return true;
+  }
+
   private shove(s: number, rail: boolean): void {
     const f = this.F[s], o = this.F[1 - s], R = this.rules;
     this.spend(f, this.rail(R.costShovePm, rail));
@@ -412,10 +464,29 @@ export class FightCore {
   }
 
   private closeKit(f: FightFighter): boolean { return f.def.reachLightMm <= this.rules.closeKitReachMm; }
+  /** r3: a double-tap direction is away from the rival when its backward component beats its lateral one (FightCore.Away). */
+  private away(s: number, sx: number, sz: number): boolean {
+    const f = this.F[s], o = this.F[1 - s];
+    const [ux, uz] = unit(o.x - f.x, o.z - f.z, s);
+    const fwd = sx * ux + sz * uz, cross = ux * sz - uz * sx, lat = cross < 0 ? -cross : cross;
+    return (sx !== 0 || sz !== 0) && -fwd > lat;
+  }
+  /** r3 ShoulderCharge window (FightCore.ChargeReady). */
+  private chargeReady(s: number, t: number): boolean {
+    const f = this.F[s], o = this.F[1 - s], R = this.rules;
+    if (f.action !== Action.Step || f.stepForced) return false;
+    if (f.stepKind !== Loco.SidestepL && f.stepKind !== Loco.SidestepR && f.stepKind !== Loco.ForwardJump) return false;
+    if (t - (f.actionUntil - f.stepTicks) > R.chargeWindowTicks) return false;
+    if (this.pairState !== State.EdgeOfRange && this.pairState !== State.OutOfRange) return false;
+    return dist(o.x - f.x, o.z - f.z) - R.minGapMm <= R.chargeDashMm;
+  }
   private deny(s: number, reason: number): void { this.emit(s, EventKind.Denied, Move.None, reason); }
-  private reach(s: number, m: FightMove): number { const d = this.F[s].def; return m === Move.Light ? d.reachLightMm : m === Move.Heavy ? d.reachHeavyMm : d.reachSpecialMm; }
+  private reach(s: number, m: FightMove): number {
+    const d = this.F[s].def; return m === Move.Light ? d.reachLightMm : m === Move.Heavy ? d.reachHeavyMm : m === Move.Charge ? this.rules.chargeReachMm : d.reachSpecialMm;
+  }
   private lunge(f: FightFighter, m: FightMove): number {
-    return m === Move.Light ? (this.closeKit(f) ? this.rules.closeKitLungeMm : this.rules.lungeLightMm) : m === Move.Heavy ? this.rules.lungeHeavyMm : this.rules.lungeSpecialMm;
+    return m === Move.Light ? (this.closeKit(f) ? this.rules.closeKitLungeMm : this.rules.lungeLightMm) : m === Move.Heavy ? this.rules.lungeHeavyMm
+      : m === Move.Charge ? this.rules.chargeDashMm : this.rules.lungeSpecialMm;
   }
 
   // ================================================================ 3. movement
@@ -435,6 +506,15 @@ export class FightCore {
         dx[s] += profile(f.stepDirX, f.stepTotal, k + 1, f.stepTicks) - profile(f.stepDirX, f.stepTotal, k, f.stepTicks);
         dz[s] += profile(f.stepDirZ, f.stepTotal, k + 1, f.stepTicks) - profile(f.stepDirZ, f.stepTotal, k, f.stepTicks);
         f.stepElapsed++; f.lastSelfMoveTick = t; f.loco = f.stepKind;
+      } else if (f.action === Action.Escape) {
+        const k = t - f.escStart;
+        if (k < R.escapeTurnTicks) f.loco = Loco.TurnAway;
+        else if (f.stepElapsed < f.stepTicks) {
+          const e = f.stepElapsed;
+          dx[s] += profile(f.stepDirX, f.stepTotal, e + 1, f.stepTicks) - profile(f.stepDirX, f.stepTotal, e, f.stepTicks);
+          dz[s] += profile(f.stepDirZ, f.stepTotal, e + 1, f.stepTicks) - profile(f.stepDirZ, f.stepTotal, e, f.stepTicks);
+          f.stepElapsed++; f.lastSelfMoveTick = t; f.loco = Loco.EscapeRun;
+        } else f.loco = Loco.TurnBack;
       } else if (f.action === Action.Telegraph) {
         const tel = f.atkContact - f.atkStart, k = t - f.atkStart;
         if (k < tel && d0 > R.closeRangeMm) {
@@ -506,9 +586,9 @@ export class FightCore {
     if (list.length === 2) this.witness.count(0, EventKind.Contact, true);
     for (const c of list) {
       const f = this.F[c.side], m = c.move;
-      let rec = m === Move.Light ? R.recoveryLightTicks : m === Move.Heavy ? R.recoveryHeavyTicks : R.recoverySpecialTicks;
+      let rec = m === Move.Light ? R.recoveryLightTicks : m === Move.Heavy ? R.recoveryHeavyTicks : m === Move.Charge ? R.chargeRecoveryTicks : R.recoverySpecialTicks;
       const whiff = c.outcome === Outcome.Whiffed || c.outcome === Outcome.Evaded, blocked = c.outcome === Outcome.Blocked || c.outcome === Outcome.Perfect;
-      if (whiff) rec += m === Move.Light ? R.whiffLightExtraTicks : R.whiffHeavyExtraTicks;
+      if (whiff) rec += lightClass(m) ? R.whiffLightExtraTicks : R.whiffHeavyExtraTicks;
       if (c.outcome === Outcome.Perfect) rec += R.perfectRecoveryExtraTicks;
       if (blocked) rec = Math.max(rec, R.blockedRecoveryMinTicks);
       f.action = Action.Recovery; f.actionUntil = t + 1 + rec; f.lastReadyTick = f.actionUntil;
@@ -521,7 +601,7 @@ export class FightCore {
     }
     for (const c of list) {
       const f = this.F[c.side], o = this.F[1 - c.side], od = o.def;
-      const gain = c.move === Move.Light ? R.syncLight : c.move === Move.Heavy ? R.syncHeavy : 0;
+      const gain = lightClass(c.move) ? R.syncLight : c.move === Move.Heavy ? R.syncHeavy : 0;
       switch (c.outcome) {
         case Outcome.Hit:
         case Outcome.GuardBreak: {
@@ -538,14 +618,15 @@ export class FightCore {
             push(o, ux, uz, R.knockbackMm, R.knockbackTicks);
             o.hardHitThisTick = true;
             this.emit(1 - c.side, EventKind.HardHit, c.move, c.damage); this.witness.count(c.side, EventKind.HardHit);
-          }
+          } else if (c.move === Move.Charge) { const [ux, uz] = unit(o.x - f.x, o.z - f.z, c.side); push(o, ux, uz, R.chargePushMm, R.chargePushTicks); }
           break;
         }
         case Outcome.Blocked:
           o.hp = Math.max(0, o.hp - c.damage);
           this.spend(o, c.drain);
           f.sync = Math.min(R.maxSync, f.sync + mulDiv(gain, R.syncBlockedPm, 1000));
-          if (c.move !== Move.Light) { const [ux, uz] = unit(o.x - f.x, o.z - f.z, c.side); push(o, ux, uz, R.heavyPushbackMm, R.pushbackTicks); }
+          if (c.move === Move.Charge) { const [ux, uz] = unit(o.x - f.x, o.z - f.z, c.side); push(o, ux, uz, R.chargePushMm, R.chargePushTicks); }
+          else if (c.move !== Move.Light) { const [ux, uz] = unit(o.x - f.x, o.z - f.z, c.side); push(o, ux, uz, R.heavyPushbackMm, R.pushbackTicks); }
           break;
         case Outcome.Perfect:
           o.counterWindowUntil = t + 1 + R.counterWindowTicks;
@@ -559,7 +640,7 @@ export class FightCore {
   }
 
   private resolve(s: number, t: number): Contact {
-    const R = this.rules, f = this.F[s], o = this.F[1 - s], od = o.def, m = f.atkMove;
+    const R = this.rules, f = this.F[s], o = this.F[1 - s], m = f.atkMove;
     const c: Contact = { side: s, move: m, outcome: Outcome.Hit, counter: false, hard: false, damage: 0, drain: 0 };
     const vx = o.x - f.x, vz = o.z - f.z, d = dist(vx, vz);
     const inReach = d <= this.reach(s, m);
@@ -571,7 +652,7 @@ export class FightCore {
     if (guarding && o.guardEdgeTick >= 0 && t - o.guardEdgeTick <= R.perfectGuardTicks) { c.outcome = Outcome.Perfect; return c; }
     c.counter = f.atkCounter || (o.action === Action.Telegraph && o.atkContact > t) || t < o.punishableUntil;
     if (o.guard === Guard.Up) {
-      let drain = m === Move.Light ? R.drainLightPm : m === Move.Heavy ? R.drainHeavyPm : R.drainSpecialPm;
+      let drain = lightClass(m) ? R.drainLightPm : m === Move.Heavy ? R.drainHeavyPm : R.drainSpecialPm;
       if (o.sta < R.breakLinePm) drain = mulDiv(drain, R.gassedDrainPm, 1000);
       c.drain = drain;
       if (o.sta === 0 || drain > o.sta) { c.outcome = Outcome.GuardBreak; c.damage = this.damage(s, m, c.counter, 1000, d); c.hard = true; return c; }
@@ -581,13 +662,13 @@ export class FightCore {
     }
     c.outcome = Outcome.Hit;
     c.damage = this.damage(s, m, c.counter, 1000, d);
-    c.hard = c.damage * 1000 >= R.hardHitHpPm * od.maxHp || (c.counter && m !== Move.Light);
+    c.hard = c.damage * 1000 >= R.hardHitHpPm * o.maxHp || (c.counter && !lightClass(m));
     return c;
   }
 
   private damage(s: number, m: FightMove, counter: boolean, chipPm: number, d: number): number {
     const R = this.rules, f = this.F[s], df = f.def, od = this.F[1 - s].def;
-    const scale = m === Move.Light ? R.scaleLightPm : m === Move.Heavy ? R.scaleHeavyPm : R.scaleSpecialPm;
+    const scale = m === Move.Light ? R.scaleLightPm : m === Move.Heavy ? R.scaleHeavyPm : m === Move.Charge ? R.scaleChargePm : R.scaleSpecialPm;
     let dmg = mulDiv(df.attack, scale, 1000);
     dmg = mulDiv(dmg, 100, 100 + od.defense);
     if (m === Move.Special) dmg = mulDiv(dmg, f.atkTier === 2 ? R.specialFullEffectPm : R.specialHalfEffectPm, 1000);
@@ -685,6 +766,7 @@ export const STATE_FIGHTER_FIELDS = [
   'stepKind', 'stepDirX', 'stepDirZ', 'stepTotal', 'stepTicks', 'stepElapsed', 'stepForced',
   'pushDirX', 'pushDirZ', 'pushTotal', 'pushTicks', 'pushElapsed',
   'inBreak', 'breakForced', 'backstepPending', 'breakStart', 'breakUntil', 'lastSelfMoveTick', 'ko', 'loco', 'state', 'shieldUntil',
+  'escStart',
 ] as const;
 export const STATE_HEADER_FIELDS = ['tick', 'exchangeActive', 'exchangeStartTick', 'lastTelegraphTick', 'lastContactTick', 'exchangePresses',
   'railFired', 'pairState', 'distanceMm', 'rangeRMm', 'winner', 'ended'] as const;
@@ -697,14 +779,40 @@ function writeFighter(w: Int32Writer, f: FightFighter): void {
     .int(f.bufPress).int(f.bufStepX).int(f.bufStepZ).int(f.bufTier).int(f.bufExpiry).int(f.moveX).int(f.moveZ).int(f.moveAcc)
     .int(f.stepKind).int(f.stepDirX).int(f.stepDirZ).int(f.stepTotal).int(f.stepTicks).int(f.stepElapsed).int(B(f.stepForced))
     .int(f.pushDirX).int(f.pushDirZ).int(f.pushTotal).int(f.pushTicks).int(f.pushElapsed)
-    .int(B(f.inBreak)).int(B(f.breakForced)).int(B(f.backstepPending)).int(f.breakStart).int(f.breakUntil).int(f.lastSelfMoveTick).int(B(f.ko)).int(f.loco).int(f.state).int(f.shieldUntil);
+    .int(B(f.inBreak)).int(B(f.breakForced)).int(B(f.backstepPending)).int(f.breakStart).int(f.breakUntil).int(f.lastSelfMoveTick).int(B(f.ko)).int(f.loco).int(f.state).int(f.shieldUntil)
+    .int(f.escStart);
 }
 
 function clamp127(v: number): number { return v < -127 ? -127 : v > 127 ? 127 : v; }
 
 function clearBuffer(f: FightFighter): void { f.bufPress = Press.None; f.bufStepX = 0; f.bufStepZ = 0; f.bufTier = 0; f.bufExpiry = -1; }
 
-function moveOf(p: FightPress): FightMove { return p === Press.Light ? Move.Light : p === Press.Heavy ? Move.Heavy : p === Press.Special ? Move.Special : Move.None; }
+function moveOf(p: FightPress): FightMove {
+  return p === Press.Light ? Move.Light : p === Press.Heavy ? Move.Heavy : p === Press.Special ? Move.Special : Move.None;
+}
+function lightClass(m: FightMove): boolean { return m === Move.Light || m === Move.Charge; }
+
+/** r3 HP scale (FightCore.MeanLightsToKoMilli): the roster-average count (x1000) of clean lights to KO each member at its issued
+ * HP, hit by the opposing side's mean attack (light scale, own defense; at least 1 per hit). Rules-array order, truncating. */
+export function meanLightsToKoMilli(r: FightRules): number {
+  const atkSum = [0, 0], n = [0, 0];
+  for (const d of r.fighters) { atkSum[d.side] += d.attack; n[d.side]++; }
+  let sum = 0, count = 0;
+  for (const d of r.fighters) {
+    const oppAtk = div(atkSum[1 - d.side], Math.max(1, n[1 - d.side]));
+    let dmg = mulDiv(mulDiv(oppAtk, r.scaleLightPm, 1000), 100, 100 + d.defense);
+    if (dmg < 1) dmg = 1;
+    sum += div(d.maxHp * 1000, dmg); count++;
+  }
+  return Math.max(1, div(sum, Math.max(1, count)));
+}
+
+/** r3 FightCore.TownHp: a fight HP back in issued (town) units for the settle; 0 stays 0, standing >= 1, full stays full. */
+export function townHp(m: FightFighter): number {
+  if (m.hp <= 0) return 0;
+  if (m.hp >= m.maxHp) return m.def.maxHp;
+  return Math.max(1, div(m.hp * m.def.maxHp, m.maxHp));
+}
 
 /** Unit vector (length 1024, truncated); a zero delta faces side 0 to +X and side 1 to -X. */
 function unit(dx: number, dz: number, side: number): [number, number] {
@@ -734,5 +842,5 @@ function bench(f: FightFighter): void {
   f.counterWindowUntil = 0; f.chainCount = 0; f.lastReadyTick = -1000; clearBuffer(f); f.moveX = 0; f.moveZ = 0; f.moveAcc = 0;
   f.stepKind = Loco.Still; f.stepDirX = 0; f.stepDirZ = 0; f.stepTotal = 0; f.stepTicks = 0; f.stepElapsed = 0; f.stepForced = false;
   f.pushDirX = 0; f.pushDirZ = 0; f.pushTotal = 0; f.pushTicks = 0; f.pushElapsed = 0;
-  f.inBreak = false; f.breakForced = false; f.backstepPending = false; f.breakStart = -1; f.breakUntil = -1; f.lastSelfMoveTick = -1000; f.loco = Loco.Still; f.shieldUntil = 0;
+  f.inBreak = false; f.breakForced = false; f.backstepPending = false; f.breakStart = -1; f.breakUntil = -1; f.lastSelfMoveTick = -1000; f.loco = Loco.Still; f.shieldUntil = 0; f.escStart = -1;
 }

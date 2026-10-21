@@ -12,36 +12,39 @@ export type BrainProfile = {
   id: string; style: string; aggressionBps: number; engageMinStamina: number; bandOffsetMm: number; prefersClose: boolean;
   chainMeanX10: number; heavyRatioBps: number; feintRateBps: number; guardRateBps: number; counterRateBps: number; beatShareBps: number;
   breakAtStamina: number; circleBiasBps: number; shoveRateBps: number; burstInBps: number; lowHpRiskBps: number; special: number;
+  /** r3 (fight-tune-2): quick-escape rate on a retreat from BREAK (evasive profiles only) and the ShoulderCharge opener share. */
+  escapeBps: number; chargeShareBps: number;
 };
 
-export const PROFILES_VERSION = 1;
+export const PROFILES_VERSION = 2;   // r3 (fight-tune-2): + escapeBps, chargeShareBps
 export const PROFILE_ROSTER_IDS = ['ace', 'wolf', 'gama', 'hare', 'ken', 'kuma', 'kurai', 'era', 'shadow', 'tora', 'tsuin', 'wake', 'jusan'] as const;
 
 function P(id: string, style: string, aggr: number, engageMin: number, band: number, close: boolean, chain: number, heavy: number, feint: number,
-  guard: number, counter: number, beat: number, breakAt: number, circle: number, shove: number, burst: number, lowHp: number, sp: number): BrainProfile {
+  guard: number, counter: number, beat: number, breakAt: number, circle: number, shove: number, burst: number, lowHp: number, sp: number,
+  escape = 0, charge = 0): BrainProfile {
   return { id, style, aggressionBps: aggr, engageMinStamina: engageMin, bandOffsetMm: band, prefersClose: close, chainMeanX10: chain, heavyRatioBps: heavy,
     feintRateBps: feint, guardRateBps: guard, counterRateBps: counter, beatShareBps: beat, breakAtStamina: breakAt, circleBiasBps: circle,
-    shoveRateBps: shove, burstInBps: burst, lowHpRiskBps: lowHp, special: sp };
+    shoveRateBps: shove, burstInBps: burst, lowHpRiskBps: lowHp, special: sp, escapeBps: escape, chargeShareBps: charge };
 }
 const S = SpecialPolicy;
 
 /** FightProfiles.All(), in PROFILE_ROSTER_IDS order (literal copy; parity-pinned against the C# oracle dump). */
 export function allBrainProfiles(): BrainProfile[] {
   return [
-    //  id        style                        aggr  engMin band close chain heavy feint guard ctr  beat  break  circle shove burst lowHp special
-    P('ace', 'hover-boxer', 5500, 70000, 0, false, 30, 3000, 1500, 5000, 4000, 2500, 40000, 6500, 1000, 5500, 10000, S.FullSync),
-    P('wolf', 'pressure / swarmer', 7000, 65000, -300, false, 35, 2500, 1500, 4500, 3000, 3000, 30000, 7000, 2000, 6000, 12000, S.HalfSync),
-    P('gama', 'grappler-ish plate-shield', 5500, 65000, -800, false, 25, 3500, 2500, 5000, 4500, 1000, 35000, 3000, 5000, 4000, 10000, S.HalfAfterPerfectGuard),
-    P('hare', 'out-fighter / darter', 7000, 65000, 300, false, 20, 2000, 1500, 5000, 4500, 2000, 40000, 9000, 0, 9500, 9000, S.HalfSync),
-    P('ken', 'counter striker', 5500, 70000, 200, false, 20, 3500, 2000, 5000, 7000, 1500, 50000, 4000, 1000, 2500, 9000, S.HalfAfterPerfectGuard),
-    P('kuma', 'brawler / tank', 5000, 60000, 0, true, 30, 4500, 500, 5000, 2500, 1000, 35000, 2000, 3000, 3000, 13000, S.FullSyncOnBreak),
-    P('kurai', 'darter swordsman', 6500, 70000, 600, false, 15, 3000, 2000, 4500, 5000, 3000, 45000, 8000, 0, 7000, 8500, S.HalfSync),
-    P('era', 'zoner', 5500, 65000, 900, false, 20, 4000, 1500, 4500, 4000, 2000, 42000, 8500, 0, 5000, 9000, S.FullSync),
-    P('shadow', 'iaido counter', 4800, 65000, 800, false, 15, 5000, 3500, 3500, 8000, 7000, 45000, 5000, 0, 2000, 8000, S.FullAsCounter),
-    P('tora', 'pouncer', 5500, 70000, 0, false, 20, 6500, 500, 5000, 3000, 1000, 40000, 3000, 2500, 8500, 12000, S.FullSync),
-    P('tsuin', 'twin-blade rhythm', 5500, 70000, -200, false, 40, 1000, 1000, 5000, 3000, 2500, 35000, 6000, 1000, 4500, 11000, S.HalfSync),
-    P('wake', 'heavyweight', 5000, 65000, 0, true, 30, 4500, 500, 4500, 3500, 1500, 35000, 3000, 3000, 1500, 11000, S.FullSyncOnBreak),
-    P('jusan', 'blade-knight (Zell)', 6000, 70000, 0, false, 30, 3500, 2000, 5000, 5000, 2500, 40000, 5500, 2000, 5000, 10000, S.FullSync),
+    //  id        style                        aggr  engMin band close chain heavy feint guard ctr  beat  break  circle shove burst lowHp special  escape charge
+    P('ace', 'hover-boxer', 5500, 70000, 0, false, 30, 3000, 1500, 5000, 4000, 2500, 40000, 6500, 1000, 5500, 10000, S.FullSync, 0, 2500),
+    P('wolf', 'pressure / swarmer', 7000, 65000, -300, false, 35, 2500, 1500, 4500, 3000, 3000, 30000, 7000, 2000, 6000, 12000, S.HalfSync, 0, 3500),
+    P('gama', 'grappler-ish plate-shield', 5500, 65000, -800, false, 25, 3500, 2500, 5000, 4500, 1000, 35000, 3000, 5000, 4000, 10000, S.HalfAfterPerfectGuard, 0, 2000),
+    P('hare', 'out-fighter / darter', 7000, 65000, 300, false, 20, 2000, 1500, 5000, 4500, 2000, 40000, 9000, 0, 9500, 9000, S.HalfSync, 6000, 2500),
+    P('ken', 'counter striker', 5500, 70000, 200, false, 20, 3500, 2000, 5000, 7000, 1500, 50000, 4000, 1000, 2500, 9000, S.HalfAfterPerfectGuard, 0, 1000),
+    P('kuma', 'brawler / tank', 5000, 60000, 0, true, 30, 4500, 500, 5000, 2500, 1000, 35000, 2000, 3000, 3000, 13000, S.FullSyncOnBreak, 0, 3500),
+    P('kurai', 'darter swordsman', 6500, 70000, 600, false, 15, 3000, 2000, 4500, 5000, 3000, 45000, 8000, 0, 7000, 8500, S.HalfSync, 5000, 2000),
+    P('era', 'zoner', 5500, 65000, 900, false, 20, 4000, 1500, 4500, 4000, 2000, 42000, 8500, 0, 5000, 9000, S.FullSync, 5000, 1500),
+    P('shadow', 'iaido counter', 4800, 65000, 800, false, 15, 5000, 3500, 3500, 8000, 7000, 45000, 5000, 0, 2000, 8000, S.FullAsCounter, 0, 500),
+    P('tora', 'pouncer', 5500, 70000, 0, false, 20, 6500, 500, 5000, 3000, 1000, 40000, 3000, 2500, 8500, 12000, S.FullSync, 0, 3500),
+    P('tsuin', 'twin-blade rhythm', 5500, 70000, -200, false, 40, 1000, 1000, 5000, 3000, 2500, 35000, 6000, 1000, 4500, 11000, S.HalfSync, 0, 2500),
+    P('wake', 'heavyweight', 5000, 65000, 0, true, 30, 4500, 500, 4500, 3500, 1500, 35000, 3000, 3000, 1500, 11000, S.FullSyncOnBreak, 0, 3000),
+    P('jusan', 'blade-knight (Zell)', 6000, 70000, 0, false, 30, 3500, 2000, 5000, 5000, 2500, 40000, 5500, 2000, 5000, 10000, S.FullSync, 0, 2500),
   ];
 }
 
@@ -54,7 +57,8 @@ export function brainProfile(id: string): BrainProfile {
 export function profileIsValid(p: BrainProfile): string | null {
   const bps = (v: number) => v >= 0 && v <= 10000;
   if (!p.id || p.id !== p.id.toLowerCase()) return 'id';
-  if (![p.aggressionBps, p.heavyRatioBps, p.feintRateBps, p.guardRateBps, p.counterRateBps, p.beatShareBps, p.circleBiasBps, p.shoveRateBps, p.burstInBps].every(bps)) return 'bps';
+  if (![p.aggressionBps, p.heavyRatioBps, p.feintRateBps, p.guardRateBps, p.counterRateBps, p.beatShareBps, p.circleBiasBps, p.shoveRateBps, p.burstInBps,
+    p.escapeBps, p.chargeShareBps].every(bps)) return 'bps';
   if (p.breakAtStamina < 30000 || p.breakAtStamina > 90000) return 'breakAt';
   if (p.engageMinStamina < 30000 || p.engageMinStamina > 100000) return 'engageMin';
   if (p.chainMeanX10 < 10 || p.chainMeanX10 > 60) return 'chain';
@@ -71,6 +75,7 @@ export function issuedProfile(p: BrainProfile): FightProfile {
     chainMeanMilli: p.chainMeanX10 * 100, heavyRatioPm: t(p.heavyRatioBps / 10), feintRatePm: t(p.feintRateBps / 10), guardRatePm: t(p.guardRateBps / 10),
     counterRatePm: t(p.counterRateBps / 10), breakAtStaminaPm: t(p.breakAtStamina / 100), circleBiasPm: t(p.circleBiasBps / 10), shoveRatePm: t(p.shoveRateBps / 10),
     specialPolicy: p.special, beatSharePm: t(p.beatShareBps / 10), burstInPm: t(p.burstInBps / 10), lowHpRiskPm: t(p.lowHpRiskBps / 10),
+    escapeRatePm: t(p.escapeBps / 10), chargeSharePm: t(p.chargeShareBps / 10),
   };
 }
 
@@ -83,6 +88,7 @@ export function brainFromIssued(c: FightProfile): BrainProfile {
   p.counterRateBps = c.counterRatePm * 10; p.breakAtStamina = c.breakAtStaminaPm * 100; p.circleBiasBps = c.circleBiasPm * 10; p.shoveRateBps = c.shoveRatePm * 10;
   p.special = c.specialPolicy;
   p.beatShareBps = c.beatSharePm * 10; p.burstInBps = c.burstInPm * 10; p.lowHpRiskBps = c.lowHpRiskPm * 10;
+  p.escapeBps = c.escapeRatePm * 10; p.chargeShareBps = c.chargeSharePm * 10;
   return p;
 }
 

@@ -7,13 +7,13 @@ It is the reference the TS twin (functions/src/sim/fight) is parity-pinned again
   oracle.py codes <fixture.json> <out.json>    the C# decoder's refusal code per duel-inputs-2 invalid case
   oracle.py state <doc.json> <tick> [name]     C# canonical state bytes (hex) at the end of <tick> (for fight-sim3-diff.mjs)
   oracle.py profiles | bench
-Options: --unity-repo (default ~/Projects/HolobotsUnity) --ref (default 0bae2cc16, origin/claude/fight-tune-1 = PR #120)
+Options: --unity-repo (default ~/Projects/HolobotsUnity) --ref (default 95e924186, claude/fight-tune-2 = duel-sim-3 r3 on #120 + #134)
          --unity (Unity.app, default 6000.5.4f1). Newtonsoft comes from the Unity repo's Library/PackageCache (read only)."""
 import argparse, json, shutil, subprocess, sys, tempfile
 from pathlib import Path
 p = argparse.ArgumentParser()
 p.add_argument('--unity-repo', type=Path, default=Path.home() / 'Projects/HolobotsUnity')
-p.add_argument('--ref', default='0bae2cc16')
+p.add_argument('--ref', default='95e924186')   # fight-tune-2: HolobotsUnity claude/fight-tune-2 (duel-sim-3 r3; stacks on #120 + #134)
 p.add_argument('--unity', type=Path, default=Path('/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app'))
 p.add_argument('args', nargs=argparse.REMAINDER)
 a = p.parse_args()

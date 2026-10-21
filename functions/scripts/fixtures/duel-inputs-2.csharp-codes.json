@@ -34,12 +34,20 @@
     "truncated-step": "stream_truncated",
     "deploy-past-roster": "stream_deploy",
     "target-past-roster": "stream_target",
-    "non-canonical-base64": "invalid_stream"
+    "non-canonical-base64": "invalid_stream",
+    "press-code-9": "stream_press",
+    "press-code-15": "stream_press",
+    "press-bit6-with-code-8": "stream_press",
+    "doubletap-zero-direction": "stream_press_dir",
+    "doubletap-truncated-direction": "stream_truncated",
+    "doubletap-with-tier": "stream_tier",
+    "doubletap-axis-minus-128": "stream_axis"
   },
   "valid": {
     "exchange-4s": "roundtrip",
     "idle-1-tick": "roundtrip",
     "long-gap-varint": "roundtrip",
-    "player-vs-player-3v3-roster": "roundtrip"
+    "player-vs-player-3v3-roster": "roundtrip",
+    "six-input-map": "roundtrip"
   }
 }

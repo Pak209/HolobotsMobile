@@ -4,7 +4,7 @@
   "tickHz": 30,
   "rules": {
     "maxTicks": 5400,
-    "ringRadiusMm": 12000,
+    "ringRadiusMm": 6000,
     "minGapMm": 1000,
     "closeRangeMm": 1300,
     "edgeBandMm": 1500,
@@ -95,7 +95,23 @@
     "shovePushMm": 800,
     "shovePushTicks": 8,
     "swapLockoutTicks": 90,
-    "swapShieldTicks": 23
+    "swapShieldTicks": 23,
+    "hpScaleLights": 19,
+    "shoveOnHeavyInClose": 1,
+    "costEscapePm": 100,
+    "escapeTurnTicks": 8,
+    "escapeNoGuardTicks": 12,
+    "escapeRunTicks": 24,
+    "escapeTurnBackTicks": 6,
+    "chargeWindowTicks": 6,
+    "chargeTelegraphTicks": 10,
+    "chargeRecoveryTicks": 7,
+    "costChargeDashPm": 100,
+    "chargeDashMm": 2500,
+    "chargeReachMm": 1500,
+    "scaleChargePm": 1200,
+    "chargePushMm": 600,
+    "chargePushTicks": 6
   },
   "fighters": [
     {
