@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "desktop-items-2",
+  "title": "Desktop item intent v2",
+  "description": "desktopItemsHost request (the root) plus, under $defs, the desktop-items-quantity-1 quantity-buy reply result, refusal details and ledger entry. HolobotsMobile desktop-items-quantity-1 (HolobotsUnity DECISIONS #72.32; mirrors market-quantity-host-1 / Mobile #175 for the healing items). The root is HolobotsUnity Schemas/desktop-items-v2.schema.json with one additive optional field, `quantity`; schemaVersion stays desktop-items-2 (the currentHealth precedent). Host-authoritative (hard rule 1): the host prices, spends, grants and refuses; clients send the request and present the reply. A 'buy' carrying `quantity` (integer 1-99) buys that many of ONE healing item (item.emergency_patch, item.repair_kit, item.full_restore) as ONE purchase: Holos spent = unit price x quantity in the same users/{uid} update that raises the stock by quantity; one onboarding market beat; one server-only ledger entry per requestId, the existing receipt itemInventories/{uid}/receipts/{requestId} (#/$defs/receipt; rules deny clients; account deletion removes it); a retry with the same requestId replays the stored reply with alreadyProcessed true and never buys twice; the same requestId for another item or quantity is sequence_conflict. A healing stock may not pass the cap of 999 after a quantity buy. `quantity` on any other operation or item, or beside packId / holobotId / currentHealth, is invalid_request. A request without `quantity` is the legacy one-per-buy request: reply, refusals, receipt identity and writes unchanged byte for byte. Refusals are callable errors (failed-precondition, message = the code) whose details are #/$defs/quantityRefusalDetails, checked in this order: invalid_request, unavailable (no profile), replay or sequence_conflict, between_battles_only (an open zone expedition), unavailable (malformed balance or stock, never coerced), over_cap (details cap/owned/maxQuantity), not_enough_holos (details price/holosTokens/shortfall). A refusal writes nothing. Clients key on details.rejectionCode.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "operation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "desktop-items-2"
+    },
+    "operation": {
+      "enum": [
+        "read",
+        "favorite",
+        "buy",
+        "use"
+      ]
+    },
+    "itemId": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+    },
+    "packId": {
+      "enum": [
+        "basic",
+        "premium",
+        "elite"
+      ]
+    },
+    "holobotId": {
+      "type": "string",
+      "pattern": "^[a-z]{2,12}$"
+    },
+    "currentHealth": {
+      "type": "number",
+      "minimum": 0,
+      "description": "healing-items-2 (HolobotsMobile 147cfb5 desktopItemsHost): optional presented-HP observation on a 'use' with holobotId inside an open zone run (or a duel-healing-1 run). Never above the host-issued vitals or the ledger; the host refuses higher (invalid_request) and heals from it."
+    },
+    "quantity": {
+      "$ref": "#/$defs/quantity",
+      "description": "desktop-items-quantity-1 (HolobotsMobile desktopItemsHost, DECISIONS #72.32): optional on a 'buy' of a healing item only: how many units ONE purchase buys. (Not the vendor-3 listing's own `quantity`, which is the units one listing purchase grants: 1 for each healing item.) Absent = the legacy one-per-buy request. The host refuses it anywhere else (invalid_request)."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "favorite",
+              "buy",
+              "use"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "itemId",
+          "requestId"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "quantity"
+        ]
+      },
+      "then": {
+        "required": [
+          "itemId",
+          "requestId"
+        ],
+        "properties": {
+          "operation": {
+            "const": "buy"
+          },
+          "itemId": {
+            "$ref": "#/$defs/healingItemId"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "packId"
+              ]
+            },
+            {
+              "required": [
+                "holobotId"
+              ]
+            },
+            {
+              "required": [
+                "currentHealth"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "healingItemId": {
+      "description": "The items a quantity buy may name (lib/repairItems.ts HEALING_ITEMS).",
+      "enum": [
+        "item.emergency_patch",
+        "item.repair_kit",
+        "item.full_restore"
+      ]
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "holos": {
+      "type": "number",
+      "minimum": 0
+    },
+    "quantityBuyResult": {
+      "description": "`result` of a quantity buy's reply. A legacy buy keeps {kind: 'buy', itemId}.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "itemId",
+        "quantity",
+        "unitPrice",
+        "price",
+        "owned"
+      ],
+      "properties": {
+        "kind": {
+          "const": "buy"
+        },
+        "itemId": {
+          "$ref": "#/$defs/healingItemId"
+        },
+        "quantity": {
+          "$ref": "#/$defs/quantity"
+        },
+        "unitPrice": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Holos for one unit (the vendor-3 listing price)."
+        },
+        "price": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Holos spent: unitPrice x quantity."
+        },
+        "owned": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999,
+          "description": "The stock after the purchase (also the item row's owned in the same reply)."
+        }
+      }
+    },
+    "quantityBuyReply": {
+      "description": "A quantity buy's reply: the desktop-items-2 inventory snapshot after the purchase (every other field unchanged from today's reply) with result = #/$defs/quantityBuyResult. alreadyProcessed is present (true) only on a replay, as for every desktopItemsHost receipt.",
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "holosTokens",
+        "items",
+        "result"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "desktop-items-2"
+        },
+        "holosTokens": {
+          "$ref": "#/$defs/holos",
+          "description": "Balance after the purchase."
+        },
+        "items": {
+          "type": "array"
+        },
+        "result": {
+          "$ref": "#/$defs/quantityBuyResult"
+        },
+        "alreadyProcessed": {
+          "const": true
+        }
+      }
+    },
+    "quantityRefusalDetails": {
+      "description": "details of a quantity-buy callable error (HttpsError failed-precondition, message = the code). over_cap and not_enough_holos carry the host's numbers for the max / shortfall line.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rejectionCode"
+      ],
+      "properties": {
+        "rejectionCode": {
+          "enum": [
+            "invalid_request",
+            "unavailable",
+            "sequence_conflict",
+            "between_battles_only",
+            "over_cap",
+            "not_enough_holos"
+          ]
+        },
+        "cap": {
+          "const": 999
+        },
+        "owned": {
+          "$ref": "#/$defs/count"
+        },
+        "maxQuantity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999,
+          "description": "The most this pilot can buy now before the cap: cap - owned, floored at 0."
+        },
+        "price": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Holos the purchase would spend: unitPrice x quantity."
+        },
+        "holosTokens": {
+          "$ref": "#/$defs/holos"
+        },
+        "shortfall": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "price - holosTokens."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "rejectionCode": {
+                "const": "over_cap"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "cap",
+              "owned",
+              "maxQuantity"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "price"
+                  ]
+                },
+                {
+                  "required": [
+                    "holosTokens"
+                  ]
+                },
+                {
+                  "required": [
+                    "shortfall"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "rejectionCode": {
+                "const": "not_enough_holos"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "price",
+              "holosTokens",
+              "shortfall"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "cap"
+                  ]
+                },
+                {
+                  "required": [
+                    "owned"
+                  ]
+                },
+                {
+                  "required": [
+                    "maxQuantity"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "rejectionCode": {
+                "enum": [
+                  "invalid_request",
+                  "unavailable",
+                  "sequence_conflict",
+                  "between_battles_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "maxProperties": 1
+          }
+        }
+      ]
+    },
+    "receipt": {
+      "description": "The one ledger entry per requestId: itemInventories/{uid}/receipts/{requestId} (the existing desktopItemsHost receipt; a quantity buy adds nothing new). identity is the validated request as JSON, so it includes quantity. Server-only (Firestore rules deny clients); documented for host tests and audits.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity",
+        "reply",
+        "createdAtMs"
+      ],
+      "properties": {
+        "identity": {
+          "type": "string",
+          "minLength": 2
+        },
+        "reply": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/quantityBuyReply"
+            },
+            {
+              "not": {
+                "required": [
+                  "alreadyProcessed"
+                ]
+              }
+            }
+          ]
+        },
+        "createdAtMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

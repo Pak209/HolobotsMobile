@@ -26,6 +26,11 @@ const SHARED_FILES = [
     functionsCopy: "src/lib/rivalTierStats.ts",
     mobileCopy: "../mobile/src/lib/rivalTierStats.ts",
   },
+  {
+    // fight-host-1 (fight-flow H1): rival input-log issue block, duel-receipt-2, replay_mismatch detail.
+    functionsCopy: "src/shared/fightReplayContract.ts",
+    mobileCopy: "../mobile/src/lib/fightReplayContract.ts",
+  },
 ];
 
 let failed = false;

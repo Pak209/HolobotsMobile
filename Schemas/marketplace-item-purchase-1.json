@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://holobots.local/schemas/marketplace-item-purchase-1.json",
+  "title": "purchaseMarketplaceItem quantity purchase: request, reply, refusal details, ledger entry",
+  "description": "HolobotsMobile market-quantity-host-1 (HolobotsUnity DECISIONS #72.26, UI plan P3). Additive opt-in on the existing purchaseMarketplaceItem callable: a request carrying `quantity` buys 1-99 of ONE marketplace single item as ONE purchase; a request without `quantity` is the legacy single purchase ({itemName} -> {holosTokens, itemName, price}), unchanged byte for byte. Host-authoritative (hard rule 1): the host prices, spends, grants and refuses; clients send the request and present the reply. Validate a request with #/definitions/request and a success reply with #/definitions/reply (the Firebase callable data/result envelope is excluded). Rules: Holos spent (`price`) = `unitPrice` x `quantity` in the same users/{uid} update that raises the item counter by `quantity`; one server-only ledger entry per purchase at vendorPurchases/{uid}/marketplaceItems/{requestId} (#/definitions/receipt; rules deny clients; account deletion removes it); a retry with the same requestId replays the stored reply with alreadyProcessed true and never buys twice; the same requestId for another itemName or quantity is sequence_conflict. Stackables are every marketplace single item except the weekly Wildcard pack ('Wildcard Blueprints', quantity 1 only, 5 units, 7-day cooldown). A stackable's counter may not pass the inventory cap of 999 after the purchase. `quantity` is how many purchases of a vendor-3 listing to make; the vendor-3 listing's own `quantity` is the units ONE purchase grants (1 for every stackable). Refusals are callable errors carrying details (#/definitions/refusalDetails), checked in this order: invalid_request (no itemName: invalid-argument 'An item name is required.'; quantity not an integer 1-99, requestId missing or not ^[a-zA-Z0-9_-]{1,128}$, or any other key: invalid-argument 'A quantity purchase sends only itemName, a whole-number quantity from 1 to 99 and a request id.'), unavailable (no profile: not-found 'User profile not found.'), replay or sequence_conflict (failed-precondition 'That request id was already used for a different purchase.'), unknown_item (invalid-argument 'Unknown marketplace item.'), not_stackable (quantity above 1 on the Wildcard pack: invalid-argument 'This item is bought one at a time.'), unavailable (malformed balance, counter or pack time: failed-precondition 'Account data is unavailable.'), on_cooldown (Wildcard pack inside its 7 days: invalid-argument 'Unknown marketplace item.', the legacy message), over_cap (failed-precondition 'That would go over the most you can hold of this item.', details cap/owned/maxQuantity), not_enough_holos (failed-precondition 'Not enough Holos.', details price/holosTokens/shortfall). A refusal writes nothing. Clients key on details.rejectionCode, never on the English message.",
+  "oneOf": [
+    { "$ref": "#/definitions/request" },
+    { "$ref": "#/definitions/reply" }
+  ],
+  "definitions": {
+    "itemName": {
+      "enum": ["Arena Pass", "Gacha Ticket", "Energy Refill", "EXP Booster", "Rank Skip", "Wildcard Blueprints"]
+    },
+    "stackableItemName": {
+      "description": "The items a quantity above 1 may buy (lib/marketplaceQuantity.ts MARKETPLACE_STACKABLE_ITEM_NAMES).",
+      "enum": ["Arena Pass", "Gacha Ticket", "Energy Refill", "EXP Booster", "Rank Skip"]
+    },
+    "quantity": { "type": "integer", "minimum": 1, "maximum": 99 },
+    "requestId": { "type": "string", "pattern": "^[a-zA-Z0-9_-]{1,128}$" },
+    "holos": { "type": "number", "minimum": 0 },
+    "count": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemName", "quantity", "requestId"],
+      "properties": {
+        "itemName": { "type": "string", "minLength": 1 },
+        "quantity": { "$ref": "#/definitions/quantity" },
+        "requestId": { "$ref": "#/definitions/requestId" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "itemName": { "const": "Wildcard Blueprints" } } },
+          "then": { "properties": { "quantity": { "const": 1 } } }
+        }
+      ]
+    },
+    "reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "requestId", "itemName", "quantity", "unitPrice", "price", "holosTokens", "owned", "alreadyProcessed"],
+      "properties": {
+        "schemaVersion": { "const": "marketplace-item-purchase-1" },
+        "requestId": { "$ref": "#/definitions/requestId" },
+        "itemName": { "$ref": "#/definitions/itemName" },
+        "quantity": { "$ref": "#/definitions/quantity" },
+        "unitPrice": { "type": "integer", "minimum": 0, "description": "Holos for one unit." },
+        "price": { "type": "integer", "minimum": 0, "description": "Holos spent: unitPrice x quantity." },
+        "holosTokens": { "$ref": "#/definitions/holos", "description": "Balance after the purchase." },
+        "owned": { "$ref": "#/definitions/count", "description": "The item counter after the purchase." },
+        "alreadyProcessed": { "type": "boolean", "description": "true when this reply is the stored ledger entry's reply for a retried requestId; nothing was bought again." }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "itemName": { "const": "Wildcard Blueprints" } } },
+          "then": { "properties": { "quantity": { "const": 1 } } },
+          "else": { "properties": { "owned": { "maximum": 999 } } }
+        }
+      ]
+    },
+    "refusalDetails": {
+      "description": "details of a quantity-path callable error. over_cap and not_enough_holos carry the host's numbers for the shortfall / max line.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rejectionCode"],
+      "properties": {
+        "rejectionCode": { "enum": ["invalid_request", "unavailable", "sequence_conflict", "unknown_item", "not_stackable", "on_cooldown", "over_cap", "not_enough_holos"] },
+        "cap": { "const": 999 },
+        "owned": { "$ref": "#/definitions/count" },
+        "maxQuantity": { "type": "integer", "minimum": 0, "maximum": 999, "description": "The most this pilot can buy now before the cap: cap - owned, floored at 0." },
+        "price": { "type": "integer", "minimum": 0, "description": "Holos the purchase would spend: unitPrice x quantity." },
+        "holosTokens": { "$ref": "#/definitions/holos" },
+        "shortfall": { "type": "number", "exclusiveMinimum": 0, "description": "price - holosTokens." }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "rejectionCode": { "const": "over_cap" } } },
+          "then": { "required": ["cap", "owned", "maxQuantity"], "not": { "anyOf": [{ "required": ["price"] }, { "required": ["holosTokens"] }, { "required": ["shortfall"] }] } }
+        },
+        {
+          "if": { "properties": { "rejectionCode": { "const": "not_enough_holos" } } },
+          "then": { "required": ["price", "holosTokens", "shortfall"], "not": { "anyOf": [{ "required": ["cap"] }, { "required": ["owned"] }, { "required": ["maxQuantity"] }] } }
+        },
+        {
+          "if": { "properties": { "rejectionCode": { "enum": ["invalid_request", "unavailable", "sequence_conflict", "unknown_item", "not_stackable", "on_cooldown"] } } },
+          "then": { "maxProperties": 1 }
+        }
+      ]
+    },
+    "receipt": {
+      "description": "The one ledger entry per purchase: vendorPurchases/{uid}/marketplaceItems/{requestId}. Server-only (Firestore rules deny clients); documented for host tests and audits.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "itemName", "quantity", "createdAtMs", "reply"],
+      "properties": {
+        "schemaVersion": { "const": "marketplace-item-purchase-1" },
+        "itemName": { "$ref": "#/definitions/itemName" },
+        "quantity": { "$ref": "#/definitions/quantity" },
+        "createdAtMs": { "type": "integer", "minimum": 0 },
+        "reply": {
+          "allOf": [
+            { "$ref": "#/definitions/reply" },
+            { "properties": { "alreadyProcessed": { "const": false } } }
+          ]
+        }
+      }
+    }
+  }
+}

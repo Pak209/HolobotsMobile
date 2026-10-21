@@ -1,0 +1,26 @@
+{
+  "vectorVersion": "duel-sim-3-vectors-1",
+  "vectors": [
+    "neutral-idle",
+    "known-bad-whiff-spam-drains-out",
+    "perfect-guard-counter",
+    "feint-bait-punish",
+    "forced-break-hard-hit",
+    "forced-break-stamina-line",
+    "light-chain",
+    "guard-break",
+    "close-trade-shove",
+    "exchange-rail",
+    "movement-tour",
+    "bench-swap-ko",
+    "quick-escape-clean-hit",
+    "quick-escape-shape",
+    "quick-escape-guard-cancel",
+    "shoulder-charge-hit-then-blocked",
+    "shove-r2-close",
+    "ring-clamp-6m",
+    "hp-scale-squad-tier9",
+    "cpu-stub-smoke-0",
+    "cpu-stub-smoke-1"
+  ]
+}

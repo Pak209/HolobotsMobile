@@ -125,3 +125,67 @@ working-tree source inspected 2026-10-17; the movement brief itself specifies on
 fast-vs-slow chase, slow-vs-fast escape, long-range opener, dash-out-of-STA,
 zero-STA running, diagonal ring bound, Mid keep-range, and Long back-off.
 `generate-movement-vectors.mjs` is an explicit authoring tool, never run by tests.
+
+## `duel-sim-3` host twin + input-log replay verification (fight-flow H1, lane `fight-host-1`)
+
+`src/sim/fight/` is a line-for-line TypeScript port of HolobotsUnity's fight-core-1 / fight-ai-1 / fight-input-1 C# at
+`origin/claude/fight-tune-1` **0bae2cc16** (PR #120, which contains #117/#118/#119): `FightCore` (the 10 tick phases,
+`StateBytes` hash layout), `FightRng` (xorshift32 seeded from SHA-256("duel-sim-3/rng"‖seed‖side)), `FightWitness`,
+`FightRules` (duel-rules-3 strict loader + canonical hash), `FightKitDefaults`, the shipped CPU (`FightCoreBrain` →
+`FightBrain`, the 13 `FightProfiles` and the rank table) and the stub brain, and the `duel-inputs-2` codec
+(`FightInputLog`). It is independent of `duel-sim-1/2` above (nothing there changed).
+
+Integer rules: every division is `Math.trunc(a / b)` (exact while |a| < 2^53; the largest product is ~2.5e10), both
+floor-Newton integer square roots are ported as written, the rng uses `>>> 0`, state ints are written with
+`writeInt32LE(v | 0)`. Every brain draw keeps the C# evaluation order (short-circuit `&&`/`||` included); the side's
+draw count is hashed, so one reordered draw diverges the trail.
+
+**Parity gate (no parity, no issue mode).** `npm run test:fight-sim3`:
+- `test-fight-sim3-parity.mjs` — the 14 frozen vectors (`scripts/fixtures/duel-sim-3`, copied verbatim from Unity
+  `Schemas/fixtures/duel-sim-3`): every per-tick hash, initial/final/rules hash, outcome, witness, events. Plus 12
+  supplemental **brain** vectors (`scripts/fixtures/duel-sim-3-brain/brain-vectors.json`) emitted by the C# cold oracle:
+  the shipped brain driving one or both sides (7 profile pairs × all 6 ranks, a 3v3 with forced swaps, 4 real
+  duel-inputs-2 logs incl. a bench deploy) — every tick's hash prefix, final hash, draw counts, witness, events — and the
+  13-profile + rank tables equal the C# `ToIssued` dump.
+- `test-fight-inputs2-contract.mjs` — the Unity fixture: 4 valid logs decode to their keys and re-encode byte for byte
+  (whole wire JSON); the 35 invalid ones are refused with **the C# decoder's own code** (`duel-inputs-2.csharp-codes.json`).
+- `scripts/fight-sim3-oracle/oracle.py` compiles the Unity C# at the pinned ref with Unity's bundled .NET 8 Roslyn (no
+  Unity process) and regenerates / re-checks all of the above. `scripts/fight-sim3-diff.mjs` names the first divergent
+  tick and, with `--oracle`, the differing state fields (C# vs TS); `--issue/--log` diagnoses a rejected settle.
+
+**Rival mode `input-log`** (`rival/fightReplayIssue.ts`, `rival/rivalBattleStore.ts`, `sim/fight/replay.ts`; wire types in
+`shared/fightReplayContract.ts`, byte-identical in `mobile/src/lib/`). Gated by `HOLOCITY_FIGHT_REPLAY=1` (default off)
+AND a rival-battle-3 issue that declares `duelInputs:"duel-inputs-2"`; otherwise every existing mode is issued unchanged.
+- Issue pins `duel: {mode:"input-log", rulesId:"duel-rules-3:<battleId>", rulesHash, rules (duel-rules-3), seed (64 hex,
+  disclosed by design), playerSide:0, player.roster, cpu:{rank, profile, roster}}` on the record and serves the same
+  block. Stats are the resolver's (`duelFighterFromCombatant`); kit rows `FightKitDefaults`; rank by rival tier.
+- Settle sends `inputLog` (duel-inputs-2, object or compact string, ≤ 256 KB). The replay runs **outside** the
+  transaction against the immutable issue block: identity check (rules id/hash, seed, rosters, CPU profile ids, rank),
+  then the twin with the player side from the log and the CPU side from the host's own brain, then the hash trail window
+  by window, the final hash, completeness, and the CPU stream the client recorded vs the host brain's decisions. A
+  refusal is `replay_mismatch` (HttpsError failed-precondition) with `{reason: identity|hash|final_hash|incomplete|
+  cpu_stream, field | window+fromTick+toTick | tick}`, a telemetry line and `fightReplayRejections` on the record; it
+  never burns the battle. Success settles the computed winner + fielded set through `settleRivalBattle`, pilot rank and
+  `settleVitals` with the replay's HP (a duel-healing run bound to the battle keeps owning HP, #57), and persists/returns
+  `fightReceipt` (`duel-receipt-2`, `Schemas/duel-receipt-2.json`) once; a repeated settle returns the stored receipt.
+- Cost (`npm run bench:fight-replay`, 20 × 180 s fights): settle replay p95 ≈ 9 ms per 180 s (≈ 3 ms per 60 s,
+  1.4 µs/tick); with every tick hashed ≈ 8 ms per 60 s. Brief budget ≈ 85 ms per 60 s; design-1 gate ≤ 250 ms p95 / 180 s.
+
+## `duel-sim-3` r3 (lane `fight-tune-2`, DECISIONS #72.18–#72.29)
+
+The TS twin follows HolobotsUnity `claude/fight-tune-2` (stacks on Holocity #120 and #134). Contract-Change on both sides:
+`Schemas/duel-rules-3.json` (16 new keys, ring default 12 m → 6 m), `Schemas/duel-inputs-2.json` (press code 8 = the
+double-tap, from #134, additive: codes 1–7 encode exactly as before, schemaVersion unchanged), `Schemas/duel-receipt-2.json`
+(witness sides + `escapes`, `charges`).
+
+| Rule | Keys (default) | What the core does |
+|---|---|---|
+| Fight HP scale | `hpScaleLights` 19 | One factor per fight: every member's fight HP = issued HP × 19 000 / (roster-average clean lights to KO × 1000), the light hitting with the opposing side's mean attack into the member's own defense. Equal-level fights last the same at every level; relative HP/attack/defense is kept. `townHp()` maps back (0 → 0, standing ≥ 1, full → full). The receipt and the settle stay in **town** HP. |
+| Shove = R2 in CLOSE | `shoveOnHeavyInClose` 1 | A heavy press with the pair in CLOSE at the start of the tick is the shove. |
+| Quick escape | `costEscapePm` 100, `escapeTurnTicks` 8, `escapeNoGuardTicks` 12, `escapeRunTicks` 24, `escapeTurnBackTicks` 6 | A double-tap (code 8) **away** from the rival (backward component beats lateral) from EDGE or the fighter's own BREAK: 10 % burst, guard dropped, voluntary BREAK, TurnAway (0 travel) → own Run straight away → TurnBack. A strike landing in the first 12 ticks is a counter (×1.5). After the window a guard press ends it early. Any other double-tap has no rule. |
+| ShoulderCharge | `chargeWindowTicks` 6, `chargeTelegraphTicks` 10, `chargeRecoveryTicks` 7, `costChargeDashPm` 100, `chargeDashMm` 2500, `chargeReachMm` 1500, `scaleChargePm` 1200, `chargePushMm` 600, `chargePushTicks` 6 | A light within 6 ticks of the fighter's own sidestep / ForwardJump, pair in EDGE/OUT, body gap ≤ 2.5 m: a light-class strike, contact 10 ticks later, free 18 after the light; 10 % dash in all (the step's own cost counts) + the light's 8 %; light × 1.2 and a 0.6 m push on hit and block; chip 30 %, light drain, no feint. |
+| Ring | `ringRadiusMm` 6000 | The town duel ring (#72.26, #72.29). |
+
+The 13-profile table gains `escapeRatePm` (HARE 600, KURAI 500, ERA 500, else 0) and `chargeSharePm`; `PROFILES_VERSION` 2.
+Parity: the 21 frozen vectors (`scripts/fixtures/duel-sim-3`, copied verbatim from Unity) match every tick hash, and the 12 brain
+vectors were re-emitted by `scripts/fight-sim3-oracle/oracle.py --ref 95e924186` (C# at the lane commit).
