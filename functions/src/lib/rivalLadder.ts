@@ -1,3 +1,4 @@
+import type { FightReceiptWire, FightReplayIssueWire } from "../shared/fightReplayContract";
 import type { DuelInput, DuelReceipt } from './duelResolver';
 import {healthRows,RIVAL_HEALTH_SCHEMA,HealthRow,HealthError} from "./rivalHealth";
 import {repairGrant} from "./repairItems";
@@ -368,13 +369,16 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable" | "replay_mismatch";
 export class RivalError extends Error {
   /** rival_cooldown only: ms until the same rival can be issued again. */
   public retryAfterMs?: number;
-  constructor(public code: RivalErrorCode, retryAfterMs?: number) {
+  /** replay_mismatch / input-log invalid_request only (fight-host-1): the first divergent window / field, for the callable details. */
+  public detail?: Record<string, unknown>;
+  constructor(public code: RivalErrorCode, retryAfterMs?: number, detail?: Record<string, unknown>) {
     super(code);
     if (retryAfterMs !== undefined) this.retryAfterMs = retryAfterMs;
+    if (detail !== undefined) this.detail = detail;
   }
 }
 
@@ -447,9 +451,11 @@ export type RivalBattleRecord = {
   /** DECISIONS #53 amendment 1: the stat scale of `lineup` (records issued from 2026-10-06 ~14:07; absent = the #43 baseline). */
   lineupScale?: RivalLineupScale;
   /** W10: issue-time host mode/stats/seed; no client override. */
-  duel?: {mode:"legacy"} | {mode:"resolver";schemaVersion:"duel-receipt-1";input:Pick<DuelInput,"seed"|"player"|"opponent">};
+  duel?: {mode:"legacy"} | {mode:"resolver";schemaVersion:"duel-receipt-1";input:Pick<DuelInput,"seed"|"player"|"opponent">} | FightReplayIssueWire;
   /** Persisted once with the reward settlement. */
   duelReceipt?: DuelReceipt;
+  /** fight-host-1 (input-log mode): the duel-receipt-2 the host computed by replay, persisted once with the settlement. */
+  fightReceipt?: FightReceiptWire;
 };
 
 /** When the TTL policy may delete an issued battle (epoch ms). */

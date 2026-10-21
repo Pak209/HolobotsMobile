@@ -11,9 +11,12 @@ import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from ".
 import { onboardingAfterEvent, onboardingMentorActive } from '../lib/onboarding';
 import { applyOnboardingMentor, isOnboardingMentorBattle } from './onboardingMentor';
 import { randomBytes, randomInt } from 'node:crypto';
-import { Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
+import { FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_REPLAY_FLAG, FightReceiptWire, FightReplayIssueWire } from '../shared/fightReplayContract';
+import { FightReplayError, FightReplayVerdict, verifyFightReplay } from '../sim/fight/replay';
+import { buildFightReplayIssue } from './fightReplayIssue';
+import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
-import { issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
+import { issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
@@ -63,9 +66,38 @@ async function requireLeaseFree(tx: Transaction, db: Firestore, uid: string): Pr
   if (holder === 'arena') throw new RivalError('activity_conflict');
   if (holder === 'duel') throw new RivalError('too_many_open');
 }
-export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean } = {}) {
+/** fight-host-1: the settle-time replay, run OUTSIDE the transaction (CPU work never repeats on a transaction retry). */
+async function preVerifyFightReplay(db: Firestore, uid: string, request: Record<string, unknown>): Promise<{ verdict: FightReplayVerdict; issue: FightReplayIssueWire } | undefined> {
+  // Only a settle that carries a log pays the extra read; an input-log battle settled without one refuses in the transaction.
+  if (request?.operation !== 'settle' || request[FIGHT_LOG_FIELD] === undefined || typeof request.battleId !== 'string' || !RIVAL_BATTLE_ID.test(request.battleId)) return undefined;
+  const ref = db.doc(`rivalBattles/${uid}/battles/${request.battleId}`);
+  const pre = (await ref.get()).data() as RivalBattleRecord | undefined;
+  if (!pre || pre.settlement || pre.duel?.mode !== 'input-log') return undefined;
+  const issue = pre.duel as FightReplayIssueWire;
+  try {
+    const verdict = verifyFightReplay(issue, request[FIGHT_LOG_FIELD], { battleId: request.battleId });
+    console.info(JSON.stringify({ event: 'fight_replay_verified', battleId: request.battleId, ticks: verdict.ticks, replayMs: Math.round(verdict.replayMs * 10) / 10, winner: verdict.receipt.winner }));
+    return { verdict, issue };
+  } catch (e) {
+    if (!(e instanceof FightReplayError)) throw e;
+    if (e.code === 'invalid_issue') throw new RivalError('unavailable');
+    // design-1 zero-tolerance: the result is not accepted; a telemetry line + a bounded record on the battle (repro handle).
+    const rejection = { code: e.code, ...e.detail, atMs: Date.now() };
+    console.warn(JSON.stringify({ event: 'fight_replay_rejected', battleId: request.battleId, ...rejection }));
+    try { await ref.update({ fightReplayRejections: FieldValue.increment(1), lastFightReplayRejection: rejection }); } catch { /* telemetry is best effort */ }
+    if (e.code === 'invalid_log') throw new RivalError('invalid_request', undefined, { reason: 'invalid_log', ...e.detail });
+    throw new RivalError('replay_mismatch', undefined, e.detail);
+  }
+}
+
+export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean } = {}) {
   // One-release server flag. Requests cannot select or downgrade a stored mode.
   const legacyMode = options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER !== '1';
+  // fight-host-1: "replay verification ON" (HOLOCITY_FIGHT_REPLAY=1, default off) issues input-log to clients that declare
+  // duel-inputs-2 on a rival-battle-3 issue. The capability only opts INTO the verified mode; it cannot pick legacy/resolver.
+  const fightReplay = options.fightReplay ?? process.env[FIGHT_REPLAY_FLAG] === '1';
+  const capability = (raw as Record<string, unknown> | null)?.[FIGHT_INPUTS_CAPABILITY_FIELD];
+  if (capability !== undefined && capability !== FIGHT_INPUTS_SCHEMA) throw new RivalError('invalid_request');
   const allowLegacySettlement = options.allowLegacySettlement ?? process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN !== '0';
   const request = raw as Record<string, unknown>;
   // Read the routing envelope before loading the pinned mode. Resolver mode ignores
@@ -76,13 +108,17 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   const story = citizenId === undefined ? storyRequest(raw) : {requested:false,issueZell:false};
   const zellEnabled = options.zellEnabled === true;
   if (story.issueZell && !zellEnabled) throw new RivalError('unavailable');
-  const healthEnabled=!legacyMode || (raw as {healthSchema?:unknown})?.healthSchema===RIVAL_HEALTH_SCHEMA;
+  const inputLogIssue = fightReplay && capability === FIGHT_INPUTS_SCHEMA && command.operation === 'issue' && command.schemaVersion === 'rival-battle-3';
+  const healthEnabled=!legacyMode || inputLogIssue || (raw as {healthSchema?:unknown})?.healthSchema===RIVAL_HEALTH_SCHEMA;
   const userRef = db.doc(`users/${uid}`);
   // Pin the battle id and draws outside the transaction so retries rule identically.
   const battleId = command.operation === 'settle' ? command.battleId : `rb_${randomBytes(12).toString('hex')}`;
   const draws = Array.from({ length: 8 }, random);
   // Separate from the legacy public presentation seed; never reveal future CPU draws at issue.
   const resolverSeed = randomBytes(4).readUInt32LE(0);
+  // input-log seed: pinned outside the transaction like the draws (disclosed at issue: the client predicts the CPU locally).
+  const fightSeed = randomBytes(32).toString('hex');
+  const fightPre = await preVerifyFightReplay(db, uid, request);
   const ledgerRef = db.doc(`rivalBattles/${uid}`);
   const battleRef = db.doc(`rivalBattles/${uid}/battles/${battleId}`);
   return db.runTransaction(async tx => {
@@ -111,7 +147,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // DECISIONS #72.3 (onboarding D1): Kaz's ordinary issue at host onboarding step <= 3 fields one tier-0 WOLF.
       const mentor = citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);
       if (mentor) applyOnboardingMentor(r, rivalLineupScaleFor(command.schemaVersion));
-      if (!legacyMode && r.reply.playerCombatants.length === 0) throw new RivalError('squad_required');
+      if ((!legacyMode || inputLogIssue) && r.reply.playerCombatants.length === 0) throw new RivalError('squad_required');
       if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{const vitals=issueVitals(profile,r.reply.playerCombatants);r.userUpdates.holobotVitals=vitals;(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
       if (story.issueZell) {
         bindZellLineup(r);
@@ -120,7 +156,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         storyState = nextStory;
       }
       if (citizenId !== undefined) bindGatheringRival(uid,profile,citizenId,r);
-      if (legacyMode) r.battle.duel = {mode:'legacy'};
+      const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
+        player:r.reply.playerCombatants, opponent:r.reply.encounter.opponentSquad}) : null;
+      if (fightIssue) r.battle.duel = fightIssue;
+      else if (legacyMode) r.battle.duel = {mode:'legacy'};
       else {
         const input = {seed:resolverSeed,player:r.reply.playerCombatants.map(c=>duelFighterFromCombatant({...c,tier:r.battle.tier})),
           opponent:r.reply.encounter.opponentSquad.map(c=>duelFighterFromCombatant({...c,tier:mentor ? 0 : r.battle.tier}))};
@@ -141,7 +180,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (citizenId !== undefined) delete (issueReply as {playerCombatants?: unknown}).playerCombatants;
       return withStory({...issueReply,duel:r.battle.duel.mode === 'resolver'
         ? {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,maxRounds:DUEL_MAX_ROUNDS,
-          player:r.battle.duel.input.player,opponent:r.battle.duel.input.opponent} : {mode:'legacy'}});
+          player:r.battle.duel.input.player,opponent:r.battle.duel.input.opponent}
+        : r.battle.duel.mode === 'input-log' ? {...r.battle.duel} : {mode:'legacy'}});
     }
     const battle = await tx.get(battleRef);
     const ledger = await tx.get(ledgerRef);
@@ -149,16 +189,24 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     const isStoryBattle = issued?.storySchema === ZELL_STORY_SCHEMA && issued.storyRivalId === 'zell';
     if (isStoryBattle && !storyState) storyState = readZellStory((await tx.get(storyRef)).data());
     const record = battle.exists ? battle.data() as RivalBattleRecord : undefined;
-    const withReceipt = (reply: object, receipt?: DuelReceipt) => receipt ? {...reply,duelReceipt:receipt} : reply;
-    // Replays need no new intents/legacy flag and never recompute combat or write a grant.
+    const withReceipt = (reply: object, receipt?: DuelReceipt, fight?: FightReceiptWire) => fight ? {...reply,[FIGHT_RECEIPT_FIELD]:fight} : receipt ? {...reply,duelReceipt:receipt} : reply;
+    // Replays need no new intents/legacy flag/log and never recompute combat or write a grant.
     if (record?.settlement) {
       const replay = settleRivalBattle(profile,record,command.battleId,record.settlement.didWin,nowMs);
-      return withStory(withReceipt(rivalReplyForVersion(replay.reply,command.schemaVersion),record.duelReceipt));
+      return withStory(withReceipt(rivalReplyForVersion(replay.reply,command.schemaVersion),record.duelReceipt,record.fightReceipt));
     }
     if (!record) throw new RivalError('unknown_battle');
     let receipt: DuelReceipt | undefined;
+    let fightReceipt: FightReceiptWire | undefined;
     let settleCommand = command;
-    if (record.duel?.mode === 'resolver') {
+    if (record.duel?.mode === 'input-log') {
+      // The replay ran before the transaction against this same immutable issue block; a concurrent first settle, or a
+      // record that changed in between, is never settled from a stale verdict.
+      if (!fightPre) throw new RivalError('invalid_request', undefined, { reason: 'input_log_required' });
+      if (fightPre.issue.rulesHash !== record.duel.rulesHash || fightPre.issue.seed !== record.duel.seed) throw new RivalError('unavailable');
+      fightReceipt = fightPre.verdict.receipt;
+      settleCommand = {...command,didWin:fightReceipt.winner === 'player',fielded:fightPre.verdict.fieldedHolobotIds};
+    } else if (record.duel?.mode === 'resolver') {
       let intents;
       try { intents = validateDuelIntents(request.playerIntents); } catch { throw new RivalError('invalid_request'); }
       if (record.duel.schemaVersion !== DUEL_RECEIPT_SCHEMA) throw new RivalError('unavailable');
@@ -173,7 +221,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       settleCommand = legacy;
     }
     const r = settleRivalBattle(profile,record,command.battleId,settleCommand.didWin,nowMs,settleCommand.fielded,
-      receipt ? [] : squadIdsOf(profile));
+      receipt || fightReceipt ? [] : squadIdsOf(profile));
     // Apply to the authoritative ruling, once in the same transaction as its receipt.
     // All rival versions (including gathering/Zell) count; losses and replays never do.
     if (r.battleUpdates?.settlement?.didWin) {
@@ -183,7 +231,18 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     // A delayed pre-Arena battle must not settle rewards/HP into the current Arena activity.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
     if(expeditionOpen((await tx.get(db.doc(`holoZoneRuns/${uid}`))).data()))throw new RivalError('activity_conflict');
-    if (r.battleUpdates && receipt) {
+    if (r.battleUpdates && fightReceipt) {
+      r.battleUpdates.fightReceipt = fightReceipt;
+      // HP is the replay's, never the client's. A duel-healing run bound to THIS battle owns the duel's HP (#57: bench heals
+      // are outside duel-sim-3 and settle with that run), exactly as for the legacy health rows.
+      const bound=(await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
+      if(bound?.rivalBattleId!==command.battleId){
+        const b = battle.data()!;
+        try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
+          fightReceipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:f.currentHealth}))); }
+        catch { throw new RivalError('unavailable'); }
+      }
+    } else if (r.battleUpdates && receipt) {
       r.battleUpdates.duelReceipt = receipt;
       const b = battle.data()!;
       try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
@@ -219,6 +278,6 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const pilotId = (battle.data() as RivalBattleRecord).lineup.opponentPilot.pilotId;
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId), [RIVAL_LAST_SETTLED_FIELD]: mentorLoss ? readRivalLastSettled(ledger.data()) : rivalLastSettledAfterSettle(readRivalLastSettled(ledger.data()), pilotId, nowMs) });
     }
-    return withStory(withReceipt(rivalReplyForVersion(r.reply, command.schemaVersion),receipt));
+    return withStory(withReceipt(rivalReplyForVersion(r.reply, command.schemaVersion),receipt,fightReceipt));
   });
 }

@@ -1,0 +1,19 @@
+{
+  "vectorVersion": "duel-sim-3-vectors-1",
+  "vectors": [
+    "neutral-idle",
+    "known-bad-whiff-spam-drains-out",
+    "perfect-guard-counter",
+    "feint-bait-punish",
+    "forced-break-hard-hit",
+    "forced-break-stamina-line",
+    "light-chain",
+    "guard-break",
+    "close-trade-shove",
+    "exchange-rail",
+    "movement-tour",
+    "bench-swap-ko",
+    "cpu-stub-smoke-0",
+    "cpu-stub-smoke-1"
+  ]
+}
