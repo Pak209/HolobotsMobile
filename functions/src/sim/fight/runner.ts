@@ -59,7 +59,7 @@ export function runFight(rules: FightRules, seed: string, d0: FightDriver, d1: F
 /** Fixture key (Schemas/fixtures/duel-sim-3 `script`): {t, s, move?, guard?, press?, step?, tier?, deploy?, target?}. */
 export type ScriptKey = { t: number; s: number; move?: [number, number]; guard?: boolean; press?: string; step?: [number, number]; tier?: number; deploy?: number; target?: number };
 
-const PRESS_BY_NAME: Record<string, number> = { light: Press.Light, heavy: Press.Heavy, special: Press.Special, feint: Press.Feint, step: Press.Step, shove: Press.Shove, disengage: Press.Disengage };
+const PRESS_BY_NAME: Record<string, number> = { light: Press.Light, heavy: Press.Heavy, special: Press.Special, feint: Press.Feint, step: Press.Step, shove: Press.Shove, disengage: Press.Disengage, doubletap: Press.DoubleTap };
 
 /** FightScript: held values fold from every key at or before the tick; presses/picks only from keys AT the tick. */
 export class FightScript implements FightInputs {

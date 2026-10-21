@@ -1,6 +1,6 @@
 // fight-host-1: duel-inputs-2 decoder parity with HolobotsUnity fight-input-1 (C# FightInputLog, the Python reference codec).
 // The fixture (scripts/fixtures/duel-inputs-2.fixture.json = Unity Schemas/fixtures/duel-inputs-2.fixture.json, verbatim):
-// the 4 valid logs schema-validate, decode to their sparse keys and re-encode byte for byte (whole wire JSON); the 35 invalid
+// the 5 valid logs schema-validate, decode to their sparse keys and re-encode byte for byte (whole wire JSON); the 42 invalid
 // ones are refused (schema class: by the JSON Schema; decoder class: schema-valid but refused by the decoder), and the host
 // decoder refuses EVERY one with the C# decoder's own code (duel-inputs-2.csharp-codes.json, emitted by the cold oracle).
 import test from 'node:test';
@@ -17,7 +17,7 @@ const fixture = JSON.parse(readFileSync(new URL('./fixtures/duel-inputs-2.fixtur
 const csharp = JSON.parse(readFileSync(new URL('./fixtures/duel-inputs-2.csharp-codes.json', import.meta.url)));
 const brain = JSON.parse(readFileSync(new URL('./fixtures/duel-sim-3-brain/brain-vectors.json', import.meta.url)));
 
-const NAMES = { 1: 'light', 2: 'heavy', 3: 'special', 4: 'feint', 5: 'step', 6: 'shove', 7: 'disengage' };
+const NAMES = { 1: 'light', 2: 'heavy', 3: 'special', 4: 'feint', 5: 'step', 6: 'shove', 7: 'disengage', 8: 'doubletap' };   // 8: Unity fight-input-2 (#134)
 /** The Python codec's to_keys (sparse per-tick expectations; levels persist). */
 function toKeys(sides) {
   const keys = [];
@@ -36,10 +36,10 @@ function toKeys(sides) {
   return keys;
 }
 
-test('fixture shape: 4 valid, 35 invalid, every invalid has a C# code', () => {
+test('fixture shape: 5 valid, 42 invalid, every invalid has a C# code (Unity #134: +1 six-input-map, +7 invalid)', () => {
   assert.equal(fixture.schemaVersion, 'duel-inputs-2');
-  assert.equal(fixture.valid.length, 4);
-  assert.equal(fixture.invalid.length, 35);
+  assert.equal(fixture.valid.length, 5);
+  assert.equal(fixture.invalid.length, 42);
   for (const c of fixture.invalid) assert.ok(csharp.invalid[c.name] && csharp.invalid[c.name] !== 'ACCEPTED', c.name);
   for (const c of fixture.valid) assert.equal(csharp.valid[c.name], 'roundtrip');
 });
@@ -78,7 +78,8 @@ test('real core logs (cold oracle, C# FightInputLog.ToWire) schema-validate, dec
 test('encoder refuses out-of-range records exactly like FightTickRecord.Check', () => {
   const bad = (patch, code) => assert.throws(() => F.encodeStream([{ ...F.idleRecord(), ...patch }]), e => e.code === code);
   bad({ moveX: -128 }, 'fight_input_axis');
-  bad({ press: 8 }, 'fight_input_press');
+  bad({ press: 9 }, 'fight_input_press');            // 8 = the double-tap since Unity #134 (additive)
+  bad({ press: 8 }, 'fight_input_step');             // a double-tap always carries a direction
   bad({ press: 1, stepX: 3 }, 'fight_input_step');
   bad({ press: 3, specialTier: 0 }, 'fight_input_tier');
   bad({ press: 1, specialTier: 1 }, 'fight_input_tier');

@@ -1,26 +1,28 @@
 /**
- * duel-sim-3 plug-in surface, ported from HolobotsUnity `Sim/Fight/FightContracts.cs` (fight-core-1, fight-tune-1 r2).
+ * duel-sim-3 plug-in surface, ported from HolobotsUnity `Sim/Fight/FightContracts.cs` (fight-core-1, fight-tune-1 r2, fight-tune-2 r3).
  * Enum values ARE the C# byte values (they are hashed and on the wire): append only, never renumber.
  */
 
-export const Press = { None: 0, Light: 1, Heavy: 2, Special: 3, Feint: 4, Step: 5, Shove: 6, Disengage: 7 } as const;
+/** DoubleTap (8): HolobotsUnity fight-input-2 (#134) — the stick double-tapped, stepX/stepZ = its world direction (never 0,0);
+ * the r3 core makes a double-tap AWAY from the rival the quick escape (from EDGE or the fighter's own BREAK). */
+export const Press = { None: 0, Light: 1, Heavy: 2, Special: 3, Feint: 4, Step: 5, Shove: 6, Disengage: 7, DoubleTap: 8 } as const;
 export type FightPress = (typeof Press)[keyof typeof Press];
-export const PRESS_NAMES = ['None', 'Light', 'Heavy', 'Special', 'Feint', 'Step', 'Shove', 'Disengage'] as const;
+export const PRESS_NAMES = ['None', 'Light', 'Heavy', 'Special', 'Feint', 'Step', 'Shove', 'Disengage', 'DoubleTap'] as const;
 
 export const State = { OutOfRange: 0, EdgeOfRange: 1, Exchange: 2, CloseRange: 3, Break: 4 } as const;
 export type FightState = (typeof State)[keyof typeof State];
 
-export const Action = { Idle: 0, Telegraph: 1, Recovery: 2, Step: 3, Stun: 4, Shove: 5, FeintRecovery: 6, Ko: 7 } as const;
+export const Action = { Idle: 0, Telegraph: 1, Recovery: 2, Step: 3, Stun: 4, Shove: 5, FeintRecovery: 6, Ko: 7, Escape: 8 } as const;
 export type FightAction = (typeof Action)[keyof typeof Action];
 
 export const Guard = { Down: 0, Raising: 1, Up: 2, Lowering: 3 } as const;
 export type FightGuard = (typeof Guard)[keyof typeof Guard];
 
-export const Move = { None: 0, Light: 1, Heavy: 2, Special: 3 } as const;
+export const Move = { None: 0, Light: 1, Heavy: 2, Special: 3, Charge: 4 } as const;
 export type FightMove = (typeof Move)[keyof typeof Move];
-export const MOVE_NAMES = ['None', 'Light', 'Heavy', 'Special'] as const;
+export const MOVE_NAMES = ['None', 'Light', 'Heavy', 'Special', 'Charge'] as const;
 
-export const Loco = { Still: 0, Forward: 1, Backpedal: 2, StrafeL: 3, StrafeR: 4, Backstep: 5, SidestepL: 6, SidestepR: 7, ForwardJump: 8, Lunge: 9, Pushed: 10 } as const;
+export const Loco = { Still: 0, Forward: 1, Backpedal: 2, StrafeL: 3, StrafeR: 4, Backstep: 5, SidestepL: 6, SidestepR: 7, ForwardJump: 8, Lunge: 9, Pushed: 10, TurnAway: 11, EscapeRun: 12, TurnBack: 13 } as const;
 export type FightLoco = (typeof Loco)[keyof typeof Loco];
 
 export const Outcome = { Hit: 0, Blocked: 1, Perfect: 2, GuardBreak: 3, Whiffed: 4, Evaded: 5, Shielded: 6 } as const;
@@ -30,14 +32,15 @@ export const OUTCOME_NAMES = ['Hit', 'Blocked', 'Perfect', 'GuardBreak', 'Whiffe
 export const EventKind = {
   Telegraph: 0, Feint: 1, FeintBait: 2, Step: 3, Shove: 4, Contact: 5, HardHit: 6, BreakStart: 7, BreakEnd: 8,
   ExchangeStart: 9, ExchangeEnd: 10, Rail: 11, Ko: 12, Denied: 13, Buffered: 14, GuardRaise: 15, GuardLower: 16, Timeout: 17, Swap: 18,
-  ForcedSwap: 19, TargetLock: 20, ProbeEnd: 21,
+  ForcedSwap: 19, TargetLock: 20, ProbeEnd: 21, Escape: 22,
 } as const;
 export type FightEventKind = (typeof EventKind)[keyof typeof EventKind];
 export const EVENT_NAMES = ['Telegraph', 'Feint', 'FeintBait', 'Step', 'Shove', 'Contact', 'HardHit', 'BreakStart', 'BreakEnd', 'ExchangeStart',
-  'ExchangeEnd', 'Rail', 'Ko', 'Denied', 'Buffered', 'GuardRaise', 'GuardLower', 'Timeout', 'Swap', 'ForcedSwap', 'TargetLock', 'ProbeEnd'] as const;
+  'ExchangeEnd', 'Rail', 'Ko', 'Denied', 'Buffered', 'GuardRaise', 'GuardLower', 'Timeout', 'Swap', 'ForcedSwap', 'TargetLock', 'ProbeEnd', 'Escape'] as const;
 
 /** Denied reason codes (FightEvent.value). */
-export const Deny = { Guarding: 1, Sync: 2, NotClose: 3, Busy: 4, FeintWindow: 5, Ko: 6, Lockout: 7, SameSlot: 8, KnockedOut: 9, NoSuchSlot: 10, TargetNotFielded: 11 } as const;
+export const Deny = { Guarding: 1, Sync: 2, NotClose: 3, Busy: 4, FeintWindow: 5, Ko: 6, Lockout: 7, SameSlot: 8, KnockedOut: 9, NoSuchSlot: 10, TargetNotFielded: 11,
+  NotEdgeOrBreak: 12 } as const;
 
 export const NO_PICK = 255;
 
@@ -54,13 +57,14 @@ export function idleInput(): FightInput {
 /** FightInput.Check: the core refuses (throws) rather than clamping. */
 export function checkInput(i: FightInput): void {
   if (i.moveX === -128 || i.moveZ === -128 || i.stepX === -128 || i.stepZ === -128) throw new RangeError('fight_input_axis');
-  if (i.press > Press.Disengage) throw new RangeError('fight_input_press');
+  if (i.press > Press.DoubleTap) throw new RangeError('fight_input_press');
   if (i.specialTier > 2) throw new RangeError('fight_input_tier');
 }
 
-/** Same-tick press order (higher first): step > shove > special > heavy > light > feint > disengage. */
+/** Same-tick press order (higher first): double-tap > step > shove > special > heavy > light > feint > disengage. */
 export function pressRank(p: number): number {
   switch (p) {
+    case Press.DoubleTap: return 8;
     case Press.Step: return 7;
     case Press.Shove: return 6;
     case Press.Special: return 5;
@@ -107,10 +111,11 @@ export type FightProfile = {
   chainMeanMilli: number; heavyRatioPm: number; feintRatePm: number; guardRatePm: number; counterRatePm: number;
   breakAtStaminaPm: number; circleBiasPm: number; shoveRatePm: number; specialPolicy: number;
   beatSharePm: number; burstInPm: number; lowHpRiskPm: number;
+  escapeRatePm: number; chargeSharePm: number;   // r3 (fight-tune-2)
 };
 export const FIGHT_PROFILE_KEYS = ['id', 'aggressionPmPerSec', 'engageMinStaminaPm', 'preferredBand', 'preferredBandOffsetMm', 'chainMeanMilli',
   'heavyRatioPm', 'feintRatePm', 'guardRatePm', 'counterRatePm', 'breakAtStaminaPm', 'circleBiasPm', 'shoveRatePm', 'specialPolicy',
-  'beatSharePm', 'burstInPm', 'lowHpRiskPm'] as const;
+  'beatSharePm', 'burstInPm', 'lowHpRiskPm', 'escapeRatePm', 'chargeSharePm'] as const;
 
 /** The issued rank skill row (FightSkill). */
 export type FightSkill = { rank: string; reactionTicks: number; feintReadPm: number; perfectGuardPm: number };

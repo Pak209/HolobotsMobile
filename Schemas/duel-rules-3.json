@@ -118,7 +118,23 @@
         "shovePushMm",
         "shovePushTicks",
         "swapLockoutTicks",
-        "swapShieldTicks"
+        "swapShieldTicks",
+        "hpScaleLights",
+        "shoveOnHeavyInClose",
+        "costEscapePm",
+        "escapeTurnTicks",
+        "escapeNoGuardTicks",
+        "escapeRunTicks",
+        "escapeTurnBackTicks",
+        "chargeWindowTicks",
+        "chargeTelegraphTicks",
+        "chargeRecoveryTicks",
+        "costChargeDashPm",
+        "chargeDashMm",
+        "chargeReachMm",
+        "scaleChargePm",
+        "chargePushMm",
+        "chargePushTicks"
       ],
       "properties": {
         "maxTicks": {
@@ -131,7 +147,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 1000000,
-          "description": "the barrier is just a clamp (brief C1, #72.18 (6)) [millimetres; default 12000]"
+          "description": "the barrier is just a clamp (brief C1, #72.18 (6)); r3: 6 m = the town duel ring (#72.26/#72.29; was 12 m) [millimetres; default 6000]"
         },
         "minGapMm": {
           "type": "integer",
@@ -678,6 +694,102 @@
           "minimum": 0,
           "maximum": 1000000,
           "description": "0.75 s: the incoming bot cannot be hit (\"no free hit\") [ticks at 30 Hz; default 23]"
+        },
+        "hpScaleLights": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "fight-tune-2 sweep: 19 = equal-level CPU rounds median 54.6-65.7 s at all ten rival tiers (0 = issued HP) [integer; default 19]"
+        },
+        "shoveOnHeavyInClose": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "#72.26 P5: the heavy press (pad R2) inside CLOSE is the shove (frees North / O) [integer; default 1]"
+        },
+        "costEscapePm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "quick escape (#72.25/#72.26): burst cost 10 % [per-mille (1000 = x1.0 / 100 %); default 100]"
+        },
+        "escapeTurnTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "TurnAway one-shot (0 travel; pivot on the lead foot) [ticks at 30 Hz; default 8]"
+        },
+        "escapeNoGuardTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "0.4 s from the press: no guard, and a strike landing in it is a clean hit (x1.5 counter) [ticks at 30 Hz; default 12]"
+        },
+        "escapeRunTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "then the bot's own Run, back turned, straight away from the opponent (0.8 s) [ticks at 30 Hz; default 24]"
+        },
+        "escapeTurnBackTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "TurnBack one-shot (0 travel); after the no-guard window a guard press ends the escape early [ticks at 30 Hz; default 6]"
+        },
+        "chargeWindowTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "ShoulderCharge = Step then Light (fight-input-2): the light within 0.2 s of a sidestep / ForwardJump [ticks at 30 Hz; default 6]"
+        },
+        "chargeTelegraphTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "ShoulderCharge (#72.27/#72.28): DamageFrame at tick 10 ... [ticks at 30 Hz; default 10]"
+        },
+        "chargeRecoveryTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "... of 18 (0.6 s): free 18 ticks after the press on a hit [ticks at 30 Hz; default 7]"
+        },
+        "costChargeDashPm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "the dash part (burst 10 % in all, the opening step's own cost included); the strike part is CostLightPm (8 %, surcharged as a light) [per-mille (1000 = x1.0 / 100 %); default 100]"
+        },
+        "chargeDashMm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "dash travel during the telegraph; usable only from EDGE/OUT with the body gap d - MinGap <= this [millimetres; default 2500]"
+        },
+        "chargeReachMm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "contact reach (shoulder: the Close tier) [millimetres; default 1500]"
+        },
+        "scaleChargePm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "damage = light x 1.2 [per-mille (1000 = x1.0 / 100 %); default 1200]"
+        },
+        "chargePushMm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "+ 0.6 m push (on a hit and on a block) [millimetres; default 600]"
+        },
+        "chargePushTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "/ <summary>The roster: 2..6 entries, 1..3 per side (FightFighterDef.Side). A side's roster index = its order among [ticks at 30 Hz; default 6]"
         }
       }
     },

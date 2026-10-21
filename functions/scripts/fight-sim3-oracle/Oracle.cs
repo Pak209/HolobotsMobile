@@ -58,6 +58,7 @@ static class Oracle
         ["preferredBandOffsetMm"] = p.PreferredBandOffsetMm, ["chainMeanMilli"] = p.ChainMeanMilli, ["heavyRatioPm"] = p.HeavyRatioPm, ["feintRatePm"] = p.FeintRatePm,
         ["guardRatePm"] = p.GuardRatePm, ["counterRatePm"] = p.CounterRatePm, ["breakAtStaminaPm"] = p.BreakAtStaminaPm, ["circleBiasPm"] = p.CircleBiasPm,
         ["shoveRatePm"] = p.ShoveRatePm, ["specialPolicy"] = p.SpecialPolicy, ["beatSharePm"] = p.BeatSharePm, ["burstInPm"] = p.BurstInPm, ["lowHpRiskPm"] = p.LowHpRiskPm,
+        ["escapeRatePm"] = p.EscapeRatePm, ["chargeSharePm"] = p.ChargeSharePm,   // duel-sim-3 r3 (fight-tune-2)
     };
     public static JObject SkillJson(FightSkill s) => new JObject { ["rank"] = s.Rank, ["reactionTicks"] = s.ReactionTicks, ["feintReadPm"] = s.FeintReadPm, ["perfectGuardPm"] = s.PerfectGuardPm };
 
@@ -195,7 +196,7 @@ static class Oracle
         var top = new JObject
         {
             ["vectorVersion"] = "duel-sim-3-brain-vectors-1",
-            ["provenance"] = "fight-host-1 cold oracle: HolobotsUnity origin/claude/fight-tune-1 0bae2cc16 (PR #120 incl. #117/#118/#119) C# FightCore + FightCoreBrain/FightBrain + FightInputLog compiled with Unity 6000.5.4f1's bundled .NET 8 Roslyn, no Unity process. Supplemental to Schemas/fixtures/duel-sim-3 (which drive scripts + the stub brain only): these drive the SHIPPED brain and 13-profile table, so the host twin's CPU replay is pinned too.",
+            ["provenance"] = "fight-host-1 cold oracle (re-run by fight-tune-2, duel-sim-3 r3): HolobotsUnity claude/fight-tune-2 (stacks on PR #120 incl. #117/#118/#119 and #134) C# FightCore + FightCoreBrain/FightBrain + FightInputLog compiled with Unity 6000.5.4f1's bundled .NET 8 Roslyn, no Unity process. Supplemental to Schemas/fixtures/duel-sim-3 (which drive scripts + the stub brain only): these drive the SHIPPED brain and 13-profile table, so the host twin's CPU replay is pinned too.",
             ["profiles"] = ProfilesJson(), ["vectors"] = outArr,
         };
         File.WriteAllText(outPath, top.ToString(Formatting.None) + "\n");
