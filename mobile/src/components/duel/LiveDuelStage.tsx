@@ -53,15 +53,18 @@ export type LiveDuelStageProps = {
   /** Dev QA only: BotStage frame metrics. */
   onMetrics?: (metrics: BotMetrics) => void;
   showMetrics?: boolean;
-  /** lite-vfx-port-1: the HoloCity combat VFX on the stage (the CPU Arena round passes true; Pak calls the city duel). */
+  /** lite-vfx-port-1 / lite-2305-1: the HoloCity combat VFX on the stage (the CPU Arena round and the city duel pass true). */
   vfx?: boolean;
+  /** lite-2305-1 (DECISIONS #72.63): the special camera beat on a played SKY / BREAK special. Default on; QA passes false for
+   * today's framing. It only runs with the VFX (it holds for the played effect's duration). */
+  specialCamera?: boolean;
   /** Dev QA only: also play pack kits Unity has not built yet (WOLF). */
   vfxUnbuiltKits?: boolean;
 };
 
 /** The park-arena 3D duel: BotStage over the park plate, FighterHud and the HoloCity command bar. Presentation of an
  * existing battle state only; every combat decision is the caller's (engine or store). */
-export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pending, caption, leaveLabel, leaveDisabled = pending, levels, levelTab = false, signature: signatureAllowed = true, playableIds, holdUntilReady = true, chrome, active = true, renderQuality, perf, onStageReady, onMetrics, showMetrics = false, vfx = false, vfxUnbuiltKits = false }: LiveDuelStageProps) {
+export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pending, caption, leaveLabel, leaveDisabled = pending, levels, levelTab = false, signature: signatureAllowed = true, playableIds, holdUntilReady = true, chrome, active = true, renderQuality, perf, onStageReady, onMetrics, showMetrics = false, vfx = false, vfxUnbuiltKits = false, specialCamera = true }: LiveDuelStageProps) {
   const insets = useSafeAreaInsets();
   const stage = useRef<BotStageHandle>(null);
   const [ready, setReady] = useState(false);
@@ -97,7 +100,7 @@ export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pen
   const state = (fighter: BattleState['player']) => ({ hp: fighter.currentHP, maxHp: fighter.maxHP, stamina: fighter.stamina, maxStamina: fighter.maxStamina });
   return <View style={styles.screen} testID="live-duel-stage">
     <Image source={require('../../../assets/battle/holocity-park.jpg')} style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]} resizeMode="cover" />
-    {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} active={active} quality={renderQuality} perf={perf} onMetrics={onMetrics} showMetrics={showMetrics} vfx={vfx} vfxUnbuiltKits={vfxUnbuiltKits} />}
+    {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} active={active} quality={renderQuality} perf={perf} onMetrics={onMetrics} showMetrics={showMetrics} vfx={vfx} vfxUnbuiltKits={vfxUnbuiltKits} specialCamera={specialCamera} />}
     <View style={[styles.top, { paddingTop: chrome?.top ?? insets.top + 4 }]}>
       <View style={[styles.toolbar, chrome ? { marginRight: chrome.right } : null]}><Text style={styles.caption}>{caption}</Text><Pressable accessibilityRole="button" onPress={onLeave} disabled={leaveDisabled} style={styles.button}><Text style={styles.caption}>{leaveLabel}</Text></Pressable></View>
       <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} level={levels.player} levelTab={levelTab} /><HudRoundPlate testID="live-duel-turn" label="TURN" value={String(action?.turnNumber ?? 1).padStart(2, '0')} /><FighterHud name={battle.opponent.name} state={state(battle.opponent)} level={levels.rival} levelTab={levelTab} rival /></View>

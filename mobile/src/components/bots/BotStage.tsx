@@ -13,6 +13,7 @@ import { knobSignature, PERF_ARM_MEASURE_MS, PERF_ARM_WARMUP_MS, resolveStageRen
 import { probeGl, stageInventory } from '../../lib/bots/stageProbe';
 import { VfxPlayer, type VfxAnchors } from '../../vfx/vfxPlayer';
 import type { LiveDuelVfxCue } from '../../vfx/liveDuelVfx';
+import { isSpecialCue, restartSpecialBeat, specialCameraPose, specialCameraWeight, specialEffectDurationS } from '../../vfx/specialCameraBeat';
 
 export type BotMetrics = { botId: string; loadMs: number; fps: number; frames: number; assetBytes: number; platform: string; drawWidth: number; drawHeight: number; contextId: number; materialQuality: BotMaterialQuality; renderScale: number };
 export type StageBot = { id: BotId; side: string };
@@ -27,11 +28,13 @@ type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?
   quality?: StageRenderQuality;
   /** lite-vfx-port-1: load the combat-VFX pack and accept fx() cues (duel stages only). Off: no VFX code runs. */
   vfx?: boolean;
+  /** lite-2305-1: the portrait duel camera pulls back + widens for a special's played VFX (SKY / BREAK), then eases back. */
+  specialCamera?: boolean;
   /** Dev QA only (ignored outside __DEV__): also play pack kits Unity has not built yet (WOLF). */
   vfxUnbuiltKits?: boolean };
 type Actor = { id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>; anchors?: VfxAnchors };
 
-export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf, quality, vfx = false, vfxUnbuiltKits = false }, ref) {
+export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf, quality, vfx = false, vfxUnbuiltKits = false, specialCamera = false }, ref) {
   const perfRun = __DEV__ ? perf : undefined;
   const renderSettings = resolveStageRender(quality, perfRun?.knobs);
   const scale = Math.max(0.25, Math.min(1, renderScale)) * renderSettings.resolution;
@@ -55,7 +58,9 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
   const disposeRef = useRef<() => void>(() => {});
   const generation = useRef(0);
   const mounted = useRef(true);
-  const cameraCue = useRef({ strikeAt: -Infinity, shakeFrames: 0 });
+  const cameraCue = useRef<{ strikeAt: number; shakeFrames: number; beat?: { startS: number; holdEndS: number } | null }>({ strikeAt: -Infinity, shakeFrames: 0 });
+  const specialCameraRef = useRef(specialCamera);
+  specialCameraRef.current = specialCamera;
   const vfxRef = useRef<{ player: VfxPlayer; camera: THREE.Camera; size: () => { width: number; height: number } } | null>(null);
 
   useEffect(() => { activeRef.current = active; }, [active]);
@@ -102,6 +107,12 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       if (!vfxStage || !caster || !target || (cue.kit === null && cue.effect !== 'guard')) return false;
       const now = performance.now() / 1000;
       const played = vfxStage.player.fire({ kit: cue.kit ?? '', effect: cue.effect, caster, target, impactS: impactMs / 1000, phases: cue.phases, flash: cue.flash }, now);
+      // lite-2305-1: a played special holds the pulled-back camera for the effect's own manifest duration (presentation only).
+      const beatS = played && specialCameraRef.current && isSpecialCue(cue) ? specialEffectDurationS(cue.kit, cue.effect, cue.phases, impactMs / 1000) : null;
+      if (beatS !== null) {
+        cameraCue.current.beat = restartSpecialBeat(now, cameraCue.current.beat ?? null, beatS);
+        if (__DEV__) console.info('[HolobotVfx:beat] ' + JSON.stringify({ effect: cue.effect, firedAtMs: Math.round(now * 1000), holdS: Math.round(beatS * 1000) / 1000, holdEndMs: Math.round(cameraCue.current.beat.holdEndS * 1000) }));
+      }
       if (__DEV__ && played) {
         // QA log for the impact-lift gate: the impact point P (SKY: the landing floor; else the struck chest) and the caster's
         // standing height projected at P's depth, as fractions of the stage view.
@@ -290,6 +301,8 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
 
       let loadMs = 0;
       const cameraHome = camera.position.clone();
+      const cameraFovHome = camera.fov;
+      let cameraFov = camera.fov;
       const assetBytes = bots.reduce((sum, bot) => sum + BOT_MANIFEST[bot.id].bytes, 0);
       const emit = (fps: number) => {
         const sample: BotMetrics = { botId: bots.map(bot => bot.id).join('+'), loadMs, fps: Math.round(fps * 10) / 10, frames, assetBytes, platform: Platform.OS, drawWidth: renderWidth, drawHeight: renderHeight, contextId: gl.contextId, materialQuality, renderScale: scale };
@@ -326,6 +339,16 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           }
         });
         camera.position.copy(cameraHome);
+        if (portrait) {
+          // lite-2305-1 special beat; at weight 0 this is exactly the home pose (same position, aim and FOV as before).
+          const beat = cameraCue.current.beat;
+          const weight = beat ? specialCameraWeight(now / 1000, beat.startS, beat.holdEndS) : 0;
+          if (beat && weight === 0 && now / 1000 > beat.holdEndS) cameraCue.current.beat = null;
+          const pose = specialCameraPose(weight, { y: cameraHome.y, z: cameraHome.z, aimY: 0.9, fovDeg: cameraFovHome });
+          camera.position.y = pose.y; camera.position.z = pose.z;
+          camera.lookAt(0, pose.aimY, 0);
+          if (pose.fovDeg !== cameraFov) { cameraFov = pose.fovDeg; camera.fov = cameraFov; camera.updateProjectionMatrix(); }
+        }
         const strikeElapsed = now - cameraCue.current.strikeAt;
         if (portrait && strikeElapsed < 700) camera.position.z -= 0.18 * Math.sin(strikeElapsed / 700 * Math.PI);
         if (cameraCue.current.shakeFrames > 0) { camera.position.x += cameraCue.current.shakeFrames === 2 ? 0.012 : -0.012; cameraCue.current.shakeFrames--; }
