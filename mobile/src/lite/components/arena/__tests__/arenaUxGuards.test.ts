@@ -36,9 +36,11 @@ describe('lite Arena UX rows', () => {
         expect(view).not.toMatch(/cardSlotEmpty|emptyCardCore|undefined as never/);
         expect(view).toContain('if (!battle.hostSnapshot) slots.push(');
     });
-    it('L8: the card bay frame has fixed corners (no stretched ornament through the labels) and padded meters', () => {
-        expect(view).toMatch(/<View style=\{styles\.cardBay\}>\s*<BayFrame/);
-        expect(view).toMatch(/cardBay: \{[^}]*paddingHorizontal: 14/);
+    it('L8 (lite-hud-row-1): the PvP command block is the park duel\'s: 14 pt inset, a ≥ 44 pt hint line, one plate row', () => {
+        expect(view).toMatch(/commandDock: \{[^}]*marginHorizontal: 14/);
+        expect(view).toMatch(/hint: \{[^}]*minHeight: 44/);
+        expect(view).toContain('<HoloCityCommandBar compact commands={commands}');
+        expect(view).not.toMatch(/BayFrame|cardBay|arena-moves/);
     });
     it('L18: no fake progress rail, and reward rows draw real glyphs', () => {
         expect(modal).not.toMatch(/headerRailFill|width: '62%'/);

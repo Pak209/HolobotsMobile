@@ -190,11 +190,16 @@ describe("PvP cards print no local level", () => {
   it("PvpArenaModal and PvpSeatBadges never read a fighter/profile .level; badges come from pvpSeatBadge", () => {
     const modal = read("../../components/arena/PvpArenaModal.tsx");
     const seats = read("../../components/arena/PvpSeatBadges.tsx");
-    for (const source of [modal, seats]) {
+    const live = read("../../components/arena/PvpLiveBattle.tsx");
+    for (const source of [modal, seats, live]) {
       expect(source).not.toMatch(/\.level\b/);
       expect(source).not.toMatch(/\bLv \$\{/i);
     }
     expect(modal).toContain("<PvpSeatBadges");
     expect(seats).toContain("pvpSeatBadge(view, room, role, name, pending[role])");
+    // lite-hud-row-1: in the fight the LV tabs ride the fighter cards, from the seat snapshot only.
+    expect(live).toContain("player: pvpFighterLevel(hostView, room, myRole, room.players[myRole]?.holobotName),");
+    expect(live).toContain("rival: pvpFighterLevel(hostView, room, opponentRole, room.players[opponentRole]?.holobotName),");
+    expect(live).toContain("levels={levels}");
   });
 });

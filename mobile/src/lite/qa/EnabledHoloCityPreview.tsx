@@ -3,6 +3,7 @@ import { ArenaAdmittedRoundPreview, ArenaAdmittedResultPreview, ArenaAdmittedKno
 import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaHostLevelsPreview";
 import { cityMarketPreviewScreens } from "./CityMarketPreview";
 import { pvpFightersPreviewScreens } from "./PvpFightersPreview";
+import { pvpBattlePreviewScreens } from "./PvpBattlePreview";
 import { arenaPolishPreviewScreens } from "./ArenaPolishPreview";
 import { arenaStagePreviewScreens } from "./ArenaStagePreview";
 import { arenaVfxPreviewScreens } from "./ArenaVfxPreview";
@@ -107,6 +108,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ...cityScreens,
   ...cityMarketPreviewScreens,
   ...pvpFightersPreviewScreens,
+  ...pvpBattlePreviewScreens,
   HostDuel: HostDuelPreview, ...hostDuelCaptureScreens, HostDuelPerfSweep: HostDuelPerfSweepPreview,
   Duel: DuelPreview, DuelReceipt: ReceiptPreview, ...duelCaptureScreens,
   ArenaHostLevels: ArenaHostLevelsPreview,

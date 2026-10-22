@@ -65,15 +65,39 @@ describe('HoloCity command plates: layout', () => {
 
   it('the bar leaves the 3D stage visible at 375×812 (smallest supported portrait phone)', () => {
     // Top: inset 47 + toolbar 44 + 8 + fighter card 72. Bottom: inset 34 + action strip 38 + hint line 44 + 8 + the bar.
+    // lite-hud-row-1: one row instead of the 2×2 grid gives the stage back ~90 pt (the grid left ≈ 337 pt).
     const top = 47 + 44 + 8 + 72, bottom = 34 + 38 + 44 + 8 + commandPlateLayout(barWidth(375), { compact: true }).height;
-    expect(812 - top - bottom).toBeGreaterThanOrEqual(240);
+    expect(812 - top - bottom).toBeGreaterThanOrEqual(400);
   });
 
-  it("places the plates as Pak's concept: STRIKE / DEFEND on top, HEAVY (the concept's COMBO) / FINISHER below", () => {
+  it.each([375, 402, 430])('lite-hud-row-1: at %i pt wide the four plates are ONE row (Pak 2026-10-22), each ≥ 44 pt', (width) => {
+    const layout = commandPlateLayout(barWidth(width), { compact: true });
+    expect(new Set(layout.slots.map(slot => slot.y))).toEqual(new Set([0]));
+    expect(layout.height).toBe(layout.slots[0].height);
+    for (const [i, slot] of layout.slots.entries()) {
+      expect(slot.width).toBeGreaterThanOrEqual(MIN_TAP);
+      if (i) expect(slot.x).toBeGreaterThan(layout.slots[i - 1].x + layout.slots[i - 1].width - 1e-6);
+    }
+    expect(layout.slots.at(-1)!.x + layout.slots.at(-1)!.width).toBeCloseTo(barWidth(width), 6);
+  });
+
+  it("orders the row as HoloCity's fight HUD: STRIKE · HEAVY · DEFEND · FINISHER", () => {
     const order = PLATES.map(p => p.id).sort((a, b) => PLATE_POSITION[a] - PLATE_POSITION[b]);
-    expect(order).toEqual(['strike', 'defend', 'heavy', 'finisher']);
+    expect(order).toEqual(['strike', 'heavy', 'defend', 'finisher']);
     expect(bar).toContain('.sort((a, b) => a.position - b.position)');
     expect(bar).toContain('const slot = layout.slots[slotIndex];');
+    // PvP passes its own move ids and names the plate it draws with `art`.
+    expect(bar).toContain('PLATE_POSITION[command.art ?? command.id]');
+    expect(bar).toContain('HOLO_COMMAND_GLYPHS[(command.art ?? command.id) as keyof typeof HOLO_COMMAND_GLYPHS]');
+  });
+
+  // Local witness only (the Unity project is not in CI): the row order is HoloCombatHudView's portrait parity order.
+  const hudView = resolve(process.env.HOLOBOTS_UNITY_ROOT ?? resolve(homedir(), 'Projects/HolobotsUnity'), 'Assets/UI/Foundation/Runtime/HoloCombatHudView.cs');
+  it.skipIf(!existsSync(hudView))('the row order equals HoloCombatHudView.RefreshLayout parity order {0,1,2,5} = FAST, BREAK, INTERCEPT, SKYBREAKER', () => {
+    const source = readFileSync(hudView, 'utf8');
+    expect(source).toContain('int[] order={0,1,2,5};');
+    expect(source).toContain('Place((RectTransform)commands[order[n]].transform,new Rect(n*CombatHudLayout.ParityPlateStep,0,170,154));');
+    expect(source).toContain('int[] slots={0,1,2,5};string[] categories={"STRIKE","HEAVY","DEFEND","FINISHER"};');
   });
 
   it('hex, chip, fighter-card and counter frames are convex, clockwise and insettable (the bevel trace)', () => {
@@ -136,6 +160,27 @@ describe('FINISHER readiness chip (LOCKED / HALF READY / FULL READY) reads the e
     expect(commands.map(c => c.readiness)).toEqual([undefined, undefined, undefined, 'locked']);
     expect(stage).toContain("const finisherReadiness = commands.find(command => command.id === 'finisher')?.readiness;");
     expect(stage).toContain('{finisherReadiness ? <FinisherReadinessChip readiness={finisherReadiness} /> : null}');
+  });
+});
+
+describe('PvP (BattleArenaView) wears the same HoloCity battle UI (lite-hud-row-1)', () => {
+  const view = read('../../arena/BattleArenaView.tsx');
+  it('fighter cards with LV tabs, the counter, the action strip, the hint line and the plate row; the press mapping is unchanged', () => {
+    expect(view).toContain('<FighterHud name={battle.player.name} state={fighterState(battle.player)} level={playerLevel} levelTab />');
+    expect(view).toContain('<FighterHud name={battle.opponent.name} state={fighterState(battle.opponent)} level={rivalLevel} levelTab rival />');
+    expect(view).toContain('<HudActionStrip testID="pvp-action-strip" text={stripText} />');
+    expect(view).toContain('{!battle.hostSnapshot ? <FinisherReadinessChip readiness={finisherReadiness(battle, true)} /> : null}');
+    expect(view).toContain('if (slot.signature) onSignaturePlay(finisherPower);');
+    expect(view).toContain('else onCardPlay(slot.card.id);');
+    expect(view).toContain('disabled: isAnimating || !isPlayable,');
+    expect(view).toContain('const PLATE_ART: Record<CardType, NonNullable<HoloCityCommand["art"]>> = { strike: "strike", combo: "heavy", defense: "defend", finisher: "finisher" };');
+  });
+  it('no invented round count: without round progress the counter shows the room turn', () => {
+    expect(view).toContain('label="TURN" value={String(Math.max(1, battle.turnNumber)).padStart(2, "0")}');
+    expect(view).not.toContain('?? 3}');
+  });
+  it('known-bad: no raw whitespace JSX text between a View and its Text (the 3v3 switch dock crashed with "Text strings must be rendered within a <Text>")', () => {
+    expect(view).not.toMatch(/<View[^>\n]*>[ \t]+<Text/);
   });
 });
 
