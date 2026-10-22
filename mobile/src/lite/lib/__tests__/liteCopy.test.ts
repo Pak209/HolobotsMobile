@@ -23,6 +23,8 @@ const FILES = [
   "../../components/HoloCityCommandBar.tsx", "../../components/duel/HoloHudArt.tsx", "../../components/duel/commandPlateLayout.ts",
   // lite-vfx-port-1: the combat-VFX player and its action mapping (no on-screen copy; pinned so none creeps in).
   "../../vfx/vfxPlayer.ts", "../../vfx/liveDuelVfx.ts", "../../vfx/vfxCurves.ts",
+  // lite-2305-1: the special camera beat.
+  "../../vfx/specialCameraBeat.ts",
 ] as const;
 /** Type tags that never reach the screen: the receipt/trace discriminator `"host"` and the move template id prefix. */
 const NOT_ON_SCREEN = new Set(["'host'", '"host"', "`host.${id}`"]);

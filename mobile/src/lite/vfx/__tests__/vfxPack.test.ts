@@ -134,7 +134,11 @@ describe('wiring pins', () => {
     expect(read('../../components/bots/BotStage.tsx')).toContain('vfx = false, vfxUnbuiltKits = false');
     expect(read('../../screens/ArenaScreen.tsx')).toContain('vfx={preview?.vfx ?? true}');
   });
-  it('the city duel and the duel playback do not pass vfx yet (Pak calls the city duel)', () => {
-    expect(read('../../components/city/CityLiveBattleView.tsx')).not.toMatch(/\bvfx\b/);
+  it('lite-2305-1: the city duel plays the VFX by default (Pak 23:05); the duel playback still does not', () => {
+    const city = read('../../components/city/CityLiveBattleView.tsx');
+    expect(city).toContain('vfx = true, specialCamera = true');
+    expect(city).toContain('vfx={vfx} specialCamera={specialCamera}');
+    expect(read('../../components/city/CityRivalBattle.tsx')).not.toMatch(/\bvfx=/);
+    expect(read('../../screens/DuelPlaybackScreen.tsx')).not.toMatch(/\bvfx\b/);
   });
 });
