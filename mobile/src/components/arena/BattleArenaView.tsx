@@ -9,6 +9,10 @@ import Svg, { Ellipse, Path } from "react-native-svg";
 import type { ActionCard, ArmedDefenseTrap, BattleAction, BattleState, CardType } from "../../types/arena";
 import type { ArenaCardAvailability } from "../../features/arena/arenaCards";
 import { GameSurfaceFrame } from "../ui/GameSurfaceFrame";
+import { FinisherReadinessChip, HOLOCITY_COMMANDS, HoloCityCommandBar, type HoloCityCommand } from "../HoloCityCommandBar";
+import { HudActionStrip, HudRoundPlate } from "../duel/HoloHudArt";
+import { finisherReadiness } from "../duel/liveDuelCommands";
+import { FighterHud } from "../../screens/DuelPlaybackScreen";
 import { HolobotAnimatedCharacter } from "../character/HolobotAnimatedCharacter";
 import {
   hasHolobotAnimation,
@@ -20,30 +24,12 @@ import { ArenaCombatEngine } from "../../features/arena/combatEngine";
 import { FINISHER_POLICY, type FinisherPower } from "../../features/arena/finisherPolicy";
 /** Real moves only: at most 3 command cards plus the signature (when this battle has one). L7: no empty ghost slots. */
 const COMMAND_SLOTS = 3;
+/** The HoloCity plate each move type is drawn as (the lite's COMBO is HoloCity's HEAVY). */
+const PLATE_ART: Record<CardType, NonNullable<HoloCityCommand["art"]>> = { strike: "strike", combo: "heavy", defense: "defend", finisher: "finisher" };
+const fighterState = (fighter: BattleState["player"]) => ({ hp: fighter.currentHP, maxHp: fighter.maxHP, stamina: fighter.stamina, maxStamina: fighter.maxStamina });
 /** L5: the Arena stage backdrop (the city park, as in city battles and duels), under a carbon scrim for HUD contrast. */
 const ARENA_STAGE = require("../../../assets/battle/holocity-park.jpg");
 const STAGE_SCRIM = `${theme.colors.carbon}B8`;
-/** L8: the card-bay frame with FIXED 10 pt chamfers measured from its own layout. The shared 360x140 GameSurfaceFrame
- * stretched non-uniformly over the tall bay, so its corner ornaments ran through the SYNC label and the deck hint. */
-function BayFrame({ accent }: { accent: string }) {
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const c = 10, { w, h } = size;
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      {w > 2 * c && h > 2 * c ? (
-        <Svg width={w} height={h}>
-          <Path d={`M${c} 1 H${w - c} L${w - 1} ${c} V${h - c} L${w - c} ${h - 1} H${c} L1 ${h - c} V${c} Z`} fill={theme.plates.navy} stroke={accent} strokeWidth={1.5} />
-        </Svg>
-      ) : null}
-    </View>
-  );
-}
-const arenaMoveIcons: Record<CardType, number> = {
-  strike: require("../../../assets/game/arena-moves/strike.png"),
-  defense: require("../../../assets/game/arena-moves/defend.png"),
-  combo: require("../../../assets/game/arena-moves/combo.png"),
-  finisher: require("../../../assets/game/arena-moves/finisher.png"),
-};
 export type TeamHudChip = {
   index: number;
   name: string;
@@ -87,33 +73,11 @@ type BattleArenaViewProps = {
   team?: TeamHudProps | null;
   /** Parent already supplies safe-area padding (for example, the city rival flow). */
   embedded?: boolean;
+  /** PvP: the seat-snapshot levels (pvpFighterLevel), drawn as the fighter cards' LV corner tabs. */
+  levels?: { player?: number; rival?: number };
 };
 
-function getCardColors(type: CardType) {
-  switch (type) {
-    case "combo":
-      return { accent: theme.colors.accent };
-    case "strike":
-      return { accent: theme.colors.danger };
-    case "defense":
-      return { accent: theme.colors.blue };
-    case "finisher":
-      return { accent: theme.colors.warning };
-  }
-}
 
-function getCardLabel(type: CardType) {
-  switch (type) {
-    case "combo":
-      return "COMBO";
-    case "strike":
-      return "STRIKE";
-    case "defense":
-      return "DEFEND";
-    case "finisher":
-      return "FINISHER";
-  }
-}
 
 function getAvailabilityLabel(availability?: ArenaCardAvailability, card?: ActionCard) {
   if (!availability || availability.playable) {
@@ -171,93 +135,8 @@ function describeTrap(trap: ArmedDefenseTrap): string {
   return `Next incoming attack: ${parts.join(" · ") || "absorbed"}.`;
 }
 
-function getHealthPercent(current: number, max: number) {
-  if (max <= 0) {
-    return 0;
-  }
 
-  return Math.max(0, Math.min(1, current / max));
-}
 
-function HudBar({
-  align = "left",
-  color,
-  label,
-  value,
-  percent,
-}: {
-  align?: "left" | "right";
-  color: string;
-  label: string;
-  percent: number;
-  value: string;
-}) {
-  return (
-    <View style={[styles.hudBarBlock, align === "right" ? styles.hudBarBlockRight : null]}>
-      <View style={styles.hudBarLabelRow}>
-        {align === "left" ? <Text style={styles.hudStatValue}>{value}</Text> : null}
-        <Text style={[styles.hudStatLabel, { color }]}>{label}</Text>
-        {align === "right" ? <Text style={styles.hudStatValue}>{value}</Text> : null}
-      </View>
-      <View style={styles.hudBarTrack}>
-        <View
-          style={[
-            styles.hudBarFill,
-            {
-              backgroundColor: color,
-              width: `${Math.max(0, Math.min(100, percent * 100))}%`,
-              alignSelf: align === "right" ? "flex-end" : "flex-start",
-            },
-          ]}
-        />
-      </View>
-    </View>
-  );
-}
-
-function ArenaCard({
-  card,
-  disabled,
-  isPlayable,
-  reasonLabel,
-  bonusLabel,
-  onPress,
-}: {
-  card: ActionCard;
-  disabled: boolean;
-  isPlayable: boolean;
-  reasonLabel: string | null;
-  bonusLabel?: string | null;
-  onPress: () => void;
-}) {
-  const colors = getCardColors(card.type);
-
-  const effect = card.type === "finisher" ? "SIGNATURE" : card.baseDamage > 0 ? `${card.baseDamage} DMG` : card.type === "defense" ? "BLOCK" : "UTILITY";
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${card.name}, ${card.staminaCost} stamina, ${effect}${reasonLabel ? `, ${reasonLabel}` : ""}`}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.cardSlot, { opacity: isPlayable ? 1 : 0.65 }]}
-    >
-      <GameSurfaceFrame accent={colors.accent} fill={theme.plates.keycap} />
-      <View style={styles.cardHeading}>
-        <Text numberOfLines={1} style={[styles.cardTypeLabel, { color: colors.accent }]}>{getCardLabel(card.type)}</Text>
-        <Text style={styles.cardCostText}>{card.type === "defense" ? "NEED " : ""}{card.staminaCost} STA</Text>
-      </View>
-      <View style={styles.cardBody}>
-        <Image accessibilityIgnoresInvertColors resizeMode="contain" source={arenaMoveIcons[card.type]} style={[styles.cardMoveIcon, { tintColor: colors.accent }]} />
-        <View style={styles.cardCopy}>
-          <Text numberOfLines={1} style={styles.cardName}>{card.name}</Text>
-          <Text style={[styles.cardDamage, { color: colors.accent }]}>{effect}</Text>
-        </View>
-      </View>
-      <Text numberOfLines={1} style={[styles.cardReasonText, bonusLabel ? { color: theme.colors.warning } : null]}>{reasonLabel ?? bonusLabel ?? (isPlayable ? "READY" : "WAITING")}</Text>
-    </Pressable>
-  );
-}
 
 /** Display-only roster strip (the CPU side); the player's tappable switch
     dock lives in the card bay. */
@@ -309,6 +188,7 @@ export function BattleArenaView({
   onSignaturePlay,
   team,
   embedded = false,
+  levels,
 }: BattleArenaViewProps) {
   const [transientVisualStates, setTransientVisualStates] = useState<FighterVisualStates>({
     player: "idle",
@@ -400,13 +280,37 @@ export function BattleArenaView({
   const playableFinisher = playerCards.find(
     (card) => card?.type === "finisher" && playableCardIds.includes(card.id),
   );
-  const playerHealthPercent = getHealthPercent(battle.player.currentHP, battle.player.maxHP);
-  const opponentHealthPercent = getHealthPercent(battle.opponent.currentHP, battle.opponent.maxHP);
-  const playerStaminaPercent = getHealthPercent(battle.player.stamina, battle.player.maxStamina);
-  const opponentStaminaPercent = getHealthPercent(battle.opponent.stamina, battle.opponent.maxStamina);
-  const playerSpecialPercent = getHealthPercent(battle.player.specialMeter, 100);
   const finisherReady = !battle.hostSnapshot && finisherAvailability.playable;
   const lastActionDamage = lastAction ? (lastAction.actualDamage ?? lastAction.damageDealt) : 0;
+  const playerLevel = levels?.player ?? arenaFighterLevel(hostMatchReply, hostMatchId, "entrant", battle.player.name) ?? hostFighterLevel(undefined, "player", battle.player.name, hostLevelAccount);
+  const rivalLevel = levels?.rival ?? arenaFighterLevel(hostMatchReply, hostMatchId, "opponent", battle.opponent.name);
+  const deckHint = team?.entryLocked
+    ? "ENTERING THE ARENA…"
+    : isAnimating
+      ? "RESOLVING MOVE…"
+      : battle.player.armedDefenseTrap
+        ? "DEFENSE TRAP ARMED"
+        : finisherReady
+          ? "FINISHER READY — TAP THE GOLD COMMAND"
+          : playableFinisher && chainLength >= 1
+            ? `CHAIN ×${chainLength} LIVE — FINISHER CASHES IT (DEFENDING DROPS IT)`
+            : playerCanAct
+              ? "TAP A MOVE TO FIGHT"
+              : "WAITING FOR STAMINA";
+  // The strip shows the last action (as the park duel does); before the first one, or while entering, the bay's hint.
+  const stripText = lastAction && !team?.entryLocked ? `${lastAction.card.name}${lastActionDamage > 0 ? ` · ${lastActionDamage} DMG` : ""}${getOutcomeLabel(lastAction)}` : deckHint;
+  // Each move is drawn as the HoloCity plate of its type; availability, reasons and costs are the engine's, as before.
+  const commands: HoloCityCommand[] = visibleCards.map(({ card, signature: isSignature }) => {
+    const art = PLATE_ART[card.type];
+    const plate = HOLOCITY_COMMANDS.find(command => command.id === art)!;
+    const isPlayable = (isSignature ? !battle.hostSnapshot && finisherAvailability.playable : playableCardIds.includes(card.id)) && !team?.entryLocked;
+    const reason = isSignature ? (finisherAvailability.playable ? null : finisherAvailability.reason === "stamina" ? `NEED ${finisherAvailability.staminaCost} STA` : finisherAvailability.reason === "special_meter" ? `NEED ${finisherAvailability.syncCost}% SYNC` : "NOT READY") : getAvailabilityLabel(cardAvailability[card.id], card);
+    return {
+      id: card.id, art, label: plate.label, accent: plate.accent, detail: card.name,
+      cost: !isPlayable && reason ? reason : `${card.type === "defense" ? "NEED " : ""}${card.staminaCost} STA`,
+      disabled: isAnimating || !isPlayable,
+    };
+  });
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.screenContent, { paddingTop: embedded ? 0 : insets.top, paddingBottom: embedded ? 0 : insets.bottom }]} bounces={false}>
@@ -415,93 +319,32 @@ export function BattleArenaView({
         <View style={[StyleSheet.absoluteFill, { backgroundColor: STAGE_SCRIM }]} />
       </View>
 
+      {/* lite-hud-row-1: the HoloCity fighter cards (round portrait, HP numbers, STA pips, LV corner tab) and the angled
+          ROUND counter, shared with the park duel; passives, traps and the CPU bench sit under them. */}
       <View style={styles.topHud}>
-        <View style={styles.hudSide}>
-          <View style={styles.hudInfoStack}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><Text numberOfLines={1} style={styles.hudName}>{battle.player.name}</Text><HostLevelBadge account={hostLevelAccount} name={battle.player.name} issuedLevel={arenaFighterLevel(hostMatchReply, hostMatchId, "entrant", battle.player.name)} /></View>
-            <HudBar
-              color={theme.colors.success}
-              label="HP"
-              percent={playerHealthPercent}
-              value={`${battle.player.currentHP} / ${battle.player.maxHP}`}
-            />
-            <HudBar
-              color={theme.colors.accent}
-              label="STAMINA"
-              percent={playerStaminaPercent}
-              value={`${battle.player.stamina} / ${battle.player.maxStamina}`}
-            />
-            <Text
-              style={[
-                styles.comboCounter,
-                battle.player.comboCounter > 0 ? styles.comboCounterActive : null,
-              ]}
-            >
-              {`COMBO ×${battle.player.comboCounter}`}
-            </Text>
-            {battle.player.ability ? (
-              <Text numberOfLines={1} style={styles.abilityBadge}>
-                {`◈ ${battle.player.ability.name.toUpperCase()}`}
-              </Text>
-            ) : null}
-            {battle.player.armedDefenseTrap ? (
-              <View style={styles.trapChip}>
-                <Text numberOfLines={1} style={styles.trapChipText}>
-                  {`⛨ ${battle.player.armedDefenseTrap.name.toUpperCase()}${(battle.player.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}${(battle.player.armedDefenseTrap.stackLevel ?? 0) > 0 ? ` ▲${battle.player.armedDefenseTrap.stackLevel}` : ""}`}
-                </Text>
-              </View>
-            ) : null}
-            {/* Player switch controls live down in the card bay where the
-                thumb already is; only the CPU's roster stays up here. */}
-          </View>
+        <View style={styles.fighterRow}>
+          <FighterHud name={battle.player.name} state={fighterState(battle.player)} level={playerLevel} levelTab />
+          {/* No round progress (PvP has none): the room's turn, as the park duel shows TURN; never an invented "OF 3". */}
+          {roundProgress ? <HudRoundPlate testID="pvp-round" label="ROUND" value={String(roundProgress.currentRound).padStart(2, "0")} sub={`OF ${roundProgress.totalRounds}`} />
+            : <HudRoundPlate testID="pvp-round" label="TURN" value={String(Math.max(1, battle.turnNumber)).padStart(2, "0")} />}
+          <FighterHud name={battle.opponent.name} state={fighterState(battle.opponent)} level={rivalLevel} levelTab rival />
         </View>
-
-        <View style={styles.roundCore}>
-          <Text style={styles.roundLabel}>ROUND</Text>
-          <Text style={styles.roundValue}>{String(roundProgress?.currentRound ?? 1).padStart(2, "0")}</Text>
-          <Text style={styles.roundSubtext}>{`OF ${roundProgress?.totalRounds ?? 3}`}</Text>
-        </View>
-
-        <View style={styles.hudSide}>
-          <View style={styles.hudInfoStack}>
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 4 }}><Text numberOfLines={1} style={[styles.hudName, styles.hudNameRight]}>{battle.opponent.name}</Text><HostLevelBadge name={battle.opponent.name} issuedLevel={arenaFighterLevel(hostMatchReply, hostMatchId, "opponent", battle.opponent.name)} /></View>
-            <HudBar
-              align="right"
-              color={theme.colors.danger}
-              label="HP"
-              percent={opponentHealthPercent}
-              value={`${battle.opponent.currentHP} / ${battle.opponent.maxHP}`}
-            />
-            <HudBar
-              align="right"
-              color={theme.colors.accent}
-              label="STAMINA"
-              percent={opponentStaminaPercent}
-              value={`${battle.opponent.stamina} / ${battle.opponent.maxStamina}`}
-            />
-            <Text
-              style={[
-                styles.comboCounter,
-                styles.comboCounterRight,
-                battle.opponent.comboCounter > 0 ? styles.comboCounterActive : null,
-              ]}
-            >
-              {`COMBO ×${battle.opponent.comboCounter}`}
-            </Text>
-            {battle.opponent.ability ? (
-              <Text numberOfLines={1} style={[styles.abilityBadge, styles.abilityBadgeRight]}>
-                {`◈ ${battle.opponent.ability.name.toUpperCase()}`}
-              </Text>
-            ) : null}
-            {battle.opponent.armedDefenseTrap ? (
-              <View style={[styles.trapChip, styles.trapChipRight]}>
-                <Text numberOfLines={1} style={styles.trapChipText}>
-                  {`⛨ ${battle.opponent.armedDefenseTrap.name.toUpperCase()}${(battle.opponent.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}${(battle.opponent.armedDefenseTrap.stackLevel ?? 0) > 0 ? ` ▲${battle.opponent.armedDefenseTrap.stackLevel}` : ""}`}
-                </Text>
+        <View style={styles.statusRow}>
+          {(["player", "opponent"] as const).map(side => {
+            const fighter = battle[side], right = side === "opponent";
+            return (
+              <View key={side} style={[styles.statusSide, right ? styles.statusSideRight : null]}>
+                {right && fighter.comboCounter > 0 ? <Text style={[styles.statusChip, styles.comboChip]}>{`COMBO ×${fighter.comboCounter}`}</Text> : null}
+                {fighter.ability ? <Text numberOfLines={1} style={styles.statusChip}>{`◈ ${fighter.ability.name.toUpperCase()}`}</Text> : null}
+                {fighter.armedDefenseTrap ? (
+                  <Text numberOfLines={1} style={[styles.statusChip, styles.trapStatus]}>
+                    {`⛨ ${fighter.armedDefenseTrap.name.toUpperCase()}${(fighter.armedDefenseTrap.charges ?? 1) > 1 ? " ×2" : ""}${(fighter.armedDefenseTrap.stackLevel ?? 0) > 0 ? ` ▲${fighter.armedDefenseTrap.stackLevel}` : ""}`}
+                  </Text>
+                ) : null}
+                {right && team ? <BenchChips chips={team.opponentChips} align="right" /> : null}
               </View>
-            ) : null}
-            {team ? <BenchChips chips={team.opponentChips} align="right" /> : null}
-          </View>
+            );
+          })}
         </View>
       </View>
 
@@ -579,17 +422,6 @@ export function BattleArenaView({
         </View>
       </View>
 
-      {lastAction ? (
-        <View style={styles.actionTicker}>
-          <GameSurfaceFrame accent={theme.colors.accent} />
-          <Text numberOfLines={1} style={styles.actionTickerText}>
-            {`${lastAction.card.name} ${lastActionDamage > 0 ? `• ${lastActionDamage} DMG` : ""}${getOutcomeLabel(
-              lastAction,
-            )}`}
-          </Text>
-        </View>
-      ) : null}
-
       {team?.sendIn ? (
         <View style={styles.sendInOverlay}>
           <View style={styles.sendInCard}>
@@ -616,8 +448,10 @@ export function BattleArenaView({
         </View>
       ) : null}
 
-      <View style={styles.cardBay}>
-        <BayFrame accent={theme.colors.accent} />
+      {/* lite-hud-row-1: the HoloCity command block, as the park duel draws it: the last-action strip, the hint line
+          (COMBO · SYNC · finisher power · readiness chip) and ONE row of command plates. */}
+      <View style={styles.commandDock}>
+        <HudActionStrip testID="pvp-action-strip" text={stripText} />
         {team ? (
           <View style={styles.switchDock}>
             {team.playerChips.map((chip) => {
@@ -635,9 +469,12 @@ export function BattleArenaView({
                     { borderColor: slotAccent(false, chip.index) },
                   ]}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>                  <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
-                    {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
-                  </Text><HostLevelBadge account={hostLevelAccount} name={chip.name} /></View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
+                      {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
+                    </Text>
+                    <HostLevelBadge account={hostLevelAccount} name={chip.name} />
+                  </View>
                   <View style={styles.benchBarTrack}>
                     <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
                   </View>
@@ -655,72 +492,23 @@ export function BattleArenaView({
             })}
           </View>
         ) : null}
-        <View style={styles.cardBayTopBar}>
-          <View style={styles.specialGaugeGroup}>
-            <Text style={styles.meterLabel}>{Math.round(battle.player.specialMeter)}% SYNC</Text>
-          <View style={styles.specialGaugeTrack}>
-            <View style={[styles.specialGaugeFill, { width: `${playerSpecialPercent * 100}%` }]} />
-            <View
-              style={[
-                styles.specialGaugeUnlockTick,
-                { left: `${FINISHER_POLICY.half.sync}%` },
-              ]}
-            />
-          </View>
-          </View>
-          <View style={styles.specialCluster}>
-            {!battle.hostSnapshot && (["half", "full"] as const).map(power => (
-              <Pressable key={power} accessibilityRole="button" accessibilityState={{ selected: finisherPower === power }}
-                accessibilityLabel={`${power === "half" ? "Half" : "Full"} strength Finisher`}
-                onPress={() => setFinisherPower(power)} style={[styles.powerChoice, finisherPower === power ? styles.powerChoiceSelected : null]}>
-                <Text style={styles.specialText}>{`${FINISHER_POLICY[power].sync}% · ${FINISHER_POLICY[power].stamina} STA`}</Text>
-              </Pressable>
-            ))}
-          </View>
+        <View style={styles.hint}>
+          <Text numberOfLines={1} style={styles.hintText}>{`COMBO ×${battle.player.comboCounter} · ${Math.round(battle.player.specialMeter)}% SYNC`}</Text>
+          {!battle.hostSnapshot && (["half", "full"] as const).map(power => (
+            <Pressable key={power} accessibilityRole="button" accessibilityState={{ selected: finisherPower === power }}
+              accessibilityLabel={`${power === "half" ? "Half" : "Full"} strength Finisher`}
+              onPress={() => setFinisherPower(power)} style={styles.powerChoice}>
+              <Text style={[styles.hintCaption, finisherPower === power ? styles.hintCaptionSelected : null]}>{`${FINISHER_POLICY[power].sync}% · ${FINISHER_POLICY[power].stamina} STA`}</Text>
+            </Pressable>
+          ))}
+          {!battle.hostSnapshot ? <FinisherReadinessChip readiness={finisherReadiness(battle, true)} /> : null}
         </View>
-        <View style={styles.cardBayHeader}>
-          <Text numberOfLines={1} style={styles.deckHint}>
-            {team?.entryLocked
-              ? "ENTERING THE ARENA…"
-              : isAnimating
-                ? "RESOLVING MOVE…"
-                : battle.player.armedDefenseTrap
-                  ? "DEFENSE TRAP ARMED"
-              : finisherReady
-                ? "FINISHER READY — TAP THE GOLD COMMAND"
-                : playableFinisher && chainLength >= 1
-                  ? `CHAIN ×${chainLength} LIVE — FINISHER CASHES IT (DEFENDING DROPS IT)`
-                  : playerCanAct
-                    ? "TAP A MOVE TO FIGHT"
-                    : "WAITING FOR STAMINA"}
-          </Text>
-        </View>
-
-        <View style={styles.cardRow}>
-          {visibleCards.map(({ card, signature: isSignature }) => {
-            const isPlayable = (isSignature ? !battle.hostSnapshot && finisherAvailability.playable : playableCardIds.includes(card.id)) && !team?.entryLocked;
-            return (
-              <ArenaCard
-                key={card.id}
-                card={card}
-                disabled={isAnimating || !isPlayable}
-                isPlayable={isPlayable}
-                reasonLabel={isSignature ? (finisherAvailability.playable ? null : finisherAvailability.reason === "stamina" ? `NEED ${finisherAvailability.staminaCost} STA` : finisherAvailability.reason === "special_meter" ? `NEED ${finisherAvailability.syncCost}% SYNC` : "NOT READY") : getAvailabilityLabel(cardAvailability[card.id], card)}
-                bonusLabel={
-                  card.type === "finisher" && isPlayable && chainLength >= 1
-                    ? `CHAIN ENDER ×${chainLength}`
-                    : null
-                }
-                onPress={() => {
-                  if (card && isPlayable) {
-                    if (isSignature) onSignaturePlay(finisherPower);
-                    else onCardPlay(card.id);
-                  }
-                }}
-              />
-            );
-          })}
-        </View>
+        <HoloCityCommandBar compact commands={commands} onPress={(id) => {
+          const slot = visibleCards.find(({ card }) => card.id === id);
+          if (!slot) return;
+          if (slot.signature) onSignaturePlay(finisherPower);
+          else onCardPlay(slot.card.id);
+        }} />
 
         {/* L2: a panel only for a fighter that actually has a passive; none at all for a City-issued CPU match. */}
         {abilitySides.length > 0 ? (
@@ -749,23 +537,9 @@ export function BattleArenaView({
 
 const styles = StyleSheet.create({
   screenContent: { flexGrow: 1 },
-  cardHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 4 },
-  cardBody: { flexDirection: "row", alignItems: "center", gap: 6 },
-  cardCopy: { flex: 1, minWidth: 0 },
-  specialGaugeGroup: { flex: 1, gap: 5 },
-  meterLabel: { ...theme.type.micro, color: theme.colors.warning },
   detailBackdrop: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: theme.plates.overlay },
   detailPanel: { padding: 20, backgroundColor: theme.plates.navy, borderWidth: 1, borderColor: theme.colors.accent },
   detailCopy: { color: theme.colors.text, fontFamily: "HoloBody", fontSize: theme.type.body.fontSize, lineHeight: 20, marginVertical: 10 },
-  actionTicker: { alignItems: "center", marginHorizontal: 12, marginBottom: 6, minHeight: 28, justifyContent: "center", paddingHorizontal: 8, position: "relative", },
-  actionTickerText: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    textAlign: "center",
-  },
   stageBackdrop: { height: "100%", width: "100%" },
   backgroundAngles: {
     ...StyleSheet.absoluteFillObject,
@@ -779,7 +553,7 @@ const styles = StyleSheet.create({
   },
   fighterOverlay: { bottom: "22%", left: 0, position: "absolute", right: 0, top: 0, zIndex: 2, },
   battleStage: { flex: 1, alignItems: "center", minHeight: 104, position: "relative", width: "100%", },
-  battleStageWrap: { flex: 1, minHeight: 104, maxHeight: 240, marginHorizontal: 12, marginBottom: 6, },
+  battleStageWrap: { flex: 1, minHeight: 104, maxHeight: 300, marginHorizontal: 12, marginBottom: 6, },
   stageFighter: { alignItems: "center", bottom: 0, height: "100%", maxHeight: 160, justifyContent: "flex-end", position: "absolute", width: "34%", },
   stageFighterImage: {
     height: "100%",
@@ -794,7 +568,6 @@ const styles = StyleSheet.create({
   stageFighterRight: {
     right: "9%",
   },
-  cardMoveIcon: { height: 28, width: 28, },
   benchBarTrack: { backgroundColor: theme.plates.keycap, height: 3, marginTop: 3, overflow: "hidden", },
   benchChip: { backgroundColor: theme.plates.navy, borderColor: theme.colors.border, borderWidth: 1, minWidth: 0, flex: 1, padding: 3, },
   benchChipActive: {
@@ -932,140 +705,23 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 4,
   },
-  cardBay: { flexShrink: 0, marginHorizontal: 12, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 12, position: "relative", },
-  cardBayHeader: { alignItems: "center", flexDirection: "row", marginBottom: 6, minHeight: 14, },
-  cardBayTopBar: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 6, paddingHorizontal: 2, },
-  abilityBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: theme.plates.navy,
-    borderRadius: 4,
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    marginTop: 3,
-    overflow: "hidden",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  abilityBadgeRight: {
-    alignSelf: "flex-end",
-    textAlign: "right",
-  },
-  trapChip: {
-    alignSelf: "flex-start",
-    backgroundColor: theme.plates.navy,
-    borderColor: theme.colors.blue,
-    borderWidth: 1.5,
-    marginTop: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  trapChipRight: {
-    alignSelf: "flex-end",
-  },
-  trapChipText: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-  // Combo state retains its own plate beside the HP/stamina telemetry.
-  comboCounter: {
-    alignSelf: "flex-start",
-    backgroundColor: theme.plates.navy,
-    borderRadius: 4,
-    color: theme.colors.muted,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.micro.fontSize,
-    fontWeight: "900",
-    letterSpacing: 1,
-    marginTop: 3,
-    overflow: "hidden",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  comboCounterActive: {
-    color: theme.colors.accent,
-  },
-  comboCounterRight: {
-    alignSelf: "flex-end",
-    textAlign: "right",
-  },
-  cardCostText: { fontFamily: "HoloBody", fontSize: 10, color: theme.colors.muted, },
-  cardDamage: { fontFamily: "HoloBody", fontSize: 10, lineHeight: 14, },
-  cardName: { color: theme.colors.text, fontFamily: "HoloDisplay", fontSize: 16, lineHeight: 19, },
-  cardReasonText: { color: theme.colors.muted, fontFamily: "HoloBody", fontSize: 9, lineHeight: 12, letterSpacing: 0.3, },
-  powerChoice: { minHeight: 44, minWidth: 78, paddingHorizontal: 4, justifyContent: "center", opacity: 0.55, },
-  powerChoiceSelected: { opacity: 1, borderBottomWidth: 2, borderBottomColor: theme.colors.accent },
-  cardRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, },
-  cardSlot: { flexBasis: "48%", flexGrow: 1, minWidth: 0, minHeight: 88, paddingHorizontal: 9, paddingVertical: 7, gap: 3, },
-  cardTypeLabel: { fontFamily: "HoloBody", fontSize: 10, fontWeight: "900", letterSpacing: 0.7, },
-  deckHint: { color: theme.colors.muted, flex: 1, fontFamily: "HoloBody", fontSize: 9, letterSpacing: 0.2, },
-  specialCluster: { alignItems: "center", flexDirection: "row", gap: 4, },
-  specialGaugeFill: { backgroundColor: theme.colors.warning, height: "100%", },
-  specialGaugeTrack: { backgroundColor: theme.plates.keycap, height: 8, overflow: "hidden", },
-  specialGaugeUnlockTick: {
-    backgroundColor: theme.plates.navy,
-    bottom: 0,
-    position: "absolute",
-    top: 0,
-    width: 2,
-  },
+  powerChoice: { minHeight: 44, minWidth: 52, paddingHorizontal: 4, justifyContent: "center", alignItems: "center" },
   specialText: { color: theme.colors.warning, fontFamily: "HoloBody", fontSize: 11, fontWeight: "900", textAlign: "right", },
-  hudBarBlock: {
-    gap: 2,
-    width: "100%",
-  },
-  hudBarBlockRight: {
-    alignItems: "flex-end",
-  },
-  hudBarFill: {
-    borderRadius: 3,
-    height: "100%",
-  },
-  hudBarLabelRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-    minHeight: 11,
-  },
-  hudBarTrack: { backgroundColor: theme.plates.keycap, height: 8, overflow: "hidden", width: "100%", },
-  hudName: { color: theme.colors.text, fontFamily: "HoloDisplay", fontSize: 17, letterSpacing: 0.4, marginBottom: 2, },
-  hudNameRight: {
-    textAlign: "right",
-  },
-  hudInfoStack: {
-    flex: 1,
-    gap: 3,
-    minWidth: 0,
-  },
-  hudSide: {
-    flex: 1,
-    minWidth: 0,
-  },
-  hudStatLabel: { fontFamily: "HoloBody", fontSize: 9, letterSpacing: 0.35, },
-  hudStatValue: { color: theme.colors.text, flex: 1, fontFamily: "HoloBody", fontSize: 9, },
-  roundCore: { alignItems: "center", backgroundColor: theme.plates.navy, borderColor: theme.colors.border, borderWidth: 1, height: 60, justifyContent: "center", marginHorizontal: 8, width: 54, },
-  roundLabel: {
-    color: theme.colors.text,
-    fontFamily: "HoloBody",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  roundSubtext: { color: theme.colors.muted, fontFamily: "HoloBody", fontSize: 8, letterSpacing: 0.8, },
-  roundValue: {
-    color: theme.colors.text,
-    fontFamily: "HoloDisplay",
-    fontSize: theme.type.header.fontSize,
-    fontWeight: "900",
-    marginTop: 0,
-  },
   screen: { backgroundColor: theme.colors.carbon, flex: 1, },
-  topHud: { alignItems: "flex-start", flexDirection: "row", paddingHorizontal: 12, paddingVertical: 8, },
+  topHud: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  fighterRow: { flexDirection: "row", alignItems: "stretch", gap: 6 },
+  statusRow: { flexDirection: "row", gap: 8 },
+  statusSide: { flex: 1, minWidth: 0, flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 4 },
+  statusSideRight: { justifyContent: "flex-end" },
+  statusChip: { ...theme.type.micro, overflow: "hidden", maxWidth: "100%", backgroundColor: theme.hud.frameFill, borderRadius: theme.radius.sm, color: theme.colors.accent, fontSize: 9, letterSpacing: 0.5, paddingHorizontal: 6, paddingVertical: 3 },
+  comboChip: { color: theme.colors.warning },
+  trapStatus: { color: theme.colors.text },
+  /** The park duel's bottom block (LiveDuelStage: 14 pt side inset, the hint line ≥ 44 pt). */
+  commandDock: { flexShrink: 0, marginHorizontal: 14, marginBottom: 8 },
+  hint: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2, minHeight: 44, marginVertical: 4, paddingLeft: 10, paddingRight: 4, backgroundColor: theme.hud.frameFill, borderRadius: theme.radius.sm },
+  hintText: { ...theme.type.micro, flex: 1, color: theme.colors.text, fontSize: 10 },
+  hintCaption: { ...theme.type.micro, color: theme.colors.accent, fontSize: 10 },
+  hintCaptionSelected: { color: theme.colors.warning },
   vsBadge: { alignItems: "center", backgroundColor: theme.plates.keycap, borderColor: theme.colors.border, borderWidth: 1, height: 30, justifyContent: "center", position: "absolute", top: "48%", width: 34, zIndex: 3, },
   vsText: { color: theme.colors.subtle, fontFamily: "HoloDisplay", fontSize: 14, },
 });

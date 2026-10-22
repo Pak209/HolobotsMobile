@@ -105,7 +105,9 @@ describe('Arena round on the shared 3D stage', () => {
         expect(screen).toContain('hostVitals={readHostVitals(profile?.holobotVitals)}');
         expect(screen).toContain('unavailable3v3Copy={ARENA_3V3_UNAVAILABLE_COPY}');
         expect(screen).toContain('<PvpArenaModal');
-        expect(read('../../arena/PvpArenaModal.tsx')).toContain('<BattleArenaView');
+        // lite-hud-row-1: the modal mounts the extracted live-battle body, which renders the (HoloCity-restyled) BattleArenaView.
+        expect(read('../../arena/PvpArenaModal.tsx')).toContain('<PvpLiveBattle');
+        expect(read('../../arena/PvpLiveBattle.tsx')).toContain('<BattleArenaView');
     });
 
     it('the stage holds commands until 3D is ready only for the city duel; the Arena loop is never gated on GL load', () => {

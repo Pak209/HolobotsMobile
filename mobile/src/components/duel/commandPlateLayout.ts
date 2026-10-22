@@ -1,7 +1,9 @@
 /**
  * lite-battle-ui-1 (DECISIONS #72.56): geometry for the HoloCity battle HUD, free of react-native so the layout test
- * runs on it directly. The four command plates sit 2×2 as in Pak's 10-14 mobile battle concept: elongated hexagons with
- * the STA cost chip straddling the bottom edge. Every number here is layout; no combat state is read.
+ * runs on it directly. lite-hud-row-1 (Pak 2026-10-22: "the Row of icons instead of the 2x2 grid"): the four command
+ * plates sit in ONE row as HoloCity's fight HUD draws them (HoloCombatHudView parity layout: STRIKE · HEAVY · DEFEND ·
+ * FINISHER, left to right), each a hex plate with the STA cost chip straddling its bottom edge. Every number here is
+ * layout; no combat state is read.
  */
 export type Point = readonly [number, number];
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -12,13 +14,13 @@ export type CommandPlateLayout = { width: number; height: number; slots: PlateSl
 export type FinisherReadiness = 'locked' | 'half' | 'full';
 /** Unity HoloCombatHudView.ReadinessText. */
 export const READINESS_TEXT: Record<FinisherReadiness, string> = { locked: 'LOCKED', half: 'HALF READY', full: 'FULL READY' };
-/** The concept's 2×2 placement: STRIKE / DEFEND on top, HEAVY (the concept's COMBO plate) / FINISHER below. */
-export const PLATE_POSITION: Readonly<Record<string, number>> = { strike: 0, defend: 1, heavy: 2, finisher: 3 };
+/** HoloCity's row order, left to right: HoloCombatHudView RefreshLayout parity `order = {0,1,2,5}` = FAST (STRIKE),
+ * BREAK (HEAVY), INTERCEPT (DEFEND), SKYBREAKER (FINISHER). */
+export const PLATE_POSITION: Readonly<Record<string, number>> = { strike: 0, heavy: 1, defend: 2, finisher: 3 };
 
 /** Apple HIG minimum tap target. */
 export const MIN_TAP = 44;
-export const PLATE_GAP = 8;
-export const PLATE_ROW_GAP = 4;
+export const PLATE_GAP = 6;
 export const CHIP_HEIGHT = 18;
 /** The chip is centred on the plate's bottom edge, so half of it hangs below the plate. */
 export const CHIP_OVERHANG = CHIP_HEIGHT / 2;
@@ -51,24 +53,26 @@ export function insetPolygon(points: readonly Point[], d: number): Point[] {
 
 export const toSvgPoints = (points: readonly Point[], dx = 0, dy = 0) => points.map(([x, y]) => `${(x + dx).toFixed(2)},${(y + dy).toFixed(2)}`).join(' ');
 
-/** The 2×2 grid for a bar `width` points wide. `compact` (the duel stages) keeps the plates a little flatter. */
-export function commandPlateLayout(width: number, { compact = false, count = 4 }: { compact?: boolean; count?: number } = {}): CommandPlateLayout {
-  const plateWidth = Math.max(MIN_TAP, (width - PLATE_GAP) / 2);
-  const plateHeight = Math.round(clamp(plateWidth * (compact ? 0.46 : 0.52), 72, 96));
+/** The side cut of a row plate: the concept's hex, kept shallow so a narrow plate still reads as HoloCity's angled plate. */
+export const plateCut = (width: number, height: number) => Math.round(Math.min(height * 0.38, width * 0.16));
+
+/** One row of `count` plates across a bar `width` points wide (Unity's portrait row: four plates side by side). */
+export function commandPlateLayout(width: number, { count = 4 }: { compact?: boolean; count?: number } = {}): CommandPlateLayout {
+  const n = Math.max(1, count);
+  const plateWidth = Math.max(MIN_TAP, (width - PLATE_GAP * (n - 1)) / n);
+  const plateHeight = Math.round(clamp(plateWidth * 0.98, 72, 92));
   const slotHeight = plateHeight + CHIP_OVERHANG;
-  const slots = Array.from({ length: count }, (_, index) => {
-    const x = (index % 2) * (plateWidth + PLATE_GAP);
-    const y = Math.floor(index / 2) * (slotHeight + PLATE_ROW_GAP);
-    const chipWidth = Math.min(plateWidth * 0.5, 96);
+  const chipWidth = Math.min(plateWidth * 0.86, 96);
+  const slots = Array.from({ length: n }, (_, index) => {
+    const x = index * (plateWidth + PLATE_GAP), y = 0;
     return {
       x, y, width: plateWidth, height: slotHeight,
       plate: { x, y, width: plateWidth, height: plateHeight },
       chip: { x: x + (plateWidth - chipWidth) / 2, y: y + plateHeight - CHIP_HEIGHT / 2, width: chipWidth, height: CHIP_HEIGHT },
-      hex: hexPoints(plateWidth, plateHeight).map(([px, py]) => [px + x, py + y] as Point),
+      hex: hexPoints(plateWidth, plateHeight, plateCut(plateWidth, plateHeight)).map(([px, py]) => [px + x, py + y] as Point),
     };
   });
-  const rows = Math.ceil(count / 2);
-  return { width, height: rows * slotHeight + Math.max(0, rows - 1) * PLATE_ROW_GAP, slots };
+  return { width, height: slotHeight, slots };
 }
 
 /** Fighter card frame (concept): the panel starts under the round portrait and its inner end is cut on both corners.
