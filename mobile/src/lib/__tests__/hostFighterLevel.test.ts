@@ -26,7 +26,13 @@ describe('host-only fighter level badges', () => {
     const issue = { playerCombatants: [{ holobotId: 'ace', level: 4 }], encounter: { opponentSquad: [{ holobotId: 'wolf', level: 8 }] } };
     expect(hostFighterLevel(issue, 'player', 'ace', { holobots: [{ name: 'ACE', level: 4 }] })).toBe(4);
     expect(hostFighterLevel(issue, 'rival', 'wolf')).toBe(8);
-    expect(hostFighterLevel(issue, 'player', 'ace')).toBeUndefined();
+    // lite-2305-1: without an account snapshot the issue's own playerCombatants supply the player level (same issue as the rival's).
+    expect(hostFighterLevel(issue, 'player', 'ace')).toBe(4);
+    expect(hostFighterLevel(issue, 'player', 'kuma')).toBeUndefined();
+    // The verified account snapshot still wins when it has the bot.
+    expect(hostFighterLevel(issue, 'player', 'ace', { holobots: [{ name: 'ACE', level: 6 }] })).toBe(6);
+    // A citizen issue (host omits playerCombatants) with no snapshot stays hidden; never the rival's squad.
+    expect(hostFighterLevel({ encounter: { opponentSquad: [{ holobotId: 'ace', level: 8 }] } }, 'player', 'ace')).toBeUndefined();
     expect(hostFighterLevel({ playerCombatants: [{ holobotId: 'ace', experience: 10000, rank: 'Champion', speed: 99 }] }, 'player', 'ace')).toBeUndefined();
   });
   it('hides missing, invalid and ambiguous levels, including in a result card', () => {

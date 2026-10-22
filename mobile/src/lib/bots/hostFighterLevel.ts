@@ -7,14 +7,15 @@ const object = (value: unknown): Record<string, unknown> => value !== null && ty
 export function hostFighterLevel(rawIssue: unknown, side: 'player' | 'rival', holobotId: string | null, accountSnapshot?: unknown): number | undefined {
   if (!holobotId) return undefined;
   const issue = object(rawIssue), duel = object(issue.duel);
-  const team = duel.mode === 'resolver'
-    ? duel[side === 'player' ? 'player' : 'opponent']
-    : side === 'player' ? object(accountSnapshot).holobots : object(issue.encounter).opponentSquad;
+  if (duel.mode === 'resolver') return uniqueLevel(duel[side === 'player' ? 'player' : 'opponent'], 'holobotId', holobotId);
+  if (side === 'rival') return uniqueLevel(object(issue.encounter).opponentSquad, 'holobotId', holobotId);
+  // Legacy player card: the verified account snapshot first; lite-2305-1 (DECISIONS #72.63): else the issue's own
+  // rival-battle-3 `playerCombatants[]` (the same issue the opponent card reads; the host omits it on citizen issues).
+  return uniqueLevel(object(accountSnapshot).holobots, 'name', holobotId) ?? uniqueLevel(issue.playerCombatants, 'holobotId', holobotId);
+}
+function uniqueLevel(team: unknown, key: 'holobotId' | 'name', holobotId: string): number | undefined {
   if (!Array.isArray(team)) return undefined;
-  const matches = team.map(object).filter(bot => {
-    const id = duel.mode !== 'resolver' && side === 'player' ? bot.name : bot.holobotId;
-    return typeof id === 'string' && id.toLowerCase() === holobotId.toLowerCase();
-  });
+  const matches = team.map(object).filter(bot => typeof bot[key] === 'string' && (bot[key] as string).toLowerCase() === holobotId.toLowerCase());
   return matches.length === 1 && levelBadge(matches[0].level) !== null ? matches[0].level as number : undefined;
 }
 /** Offline receipt envelope and live issue use the same read-only lookup; receipt final stats never supply levels. */
