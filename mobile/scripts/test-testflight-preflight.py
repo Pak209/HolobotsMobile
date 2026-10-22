@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -64,7 +65,9 @@ class PreflightTests(unittest.TestCase):
         data['expo']['ios']['infoPlist']['NSHealthShareUsageDescription'] = 'x'; p.write_text(json.dumps(data))
         self.assertIn('Phone declares HealthKit usage string: NSHealthShareUsageDescription', self.run_preflight()['localFailures'])
     def test_missing_expo_gl_lock_rejected(self):
-        (self.root/'ios/Podfile.lock').write_text((self.root/'ios/Podfile.lock').read_text().replace(EXPO_GL_LOCK, ''))
+        # Strip every locked ExpoGL pod/checksum line: the real lock now carries ExpoGL too, not just the fixture.
+        lock = (self.root/'ios/Podfile.lock').read_text()
+        (self.root/'ios/Podfile.lock').write_text(re.sub(r'^  (- ExpoGL \(|ExpoGL: [0-9a-f]+$).*\n', '', lock, flags=re.M))
         self.assertTrue(any('ExpoGL is not in ios/Podfile.lock' in x for x in self.run_preflight()['localFailures']))
 
     def test_gate_on_from_xcode_env(self):
