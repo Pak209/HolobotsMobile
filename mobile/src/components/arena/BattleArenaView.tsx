@@ -13,6 +13,7 @@ import { FinisherReadinessChip, HOLOCITY_COMMANDS, HoloCityCommandBar, type Holo
 import { HudActionStrip, HudRoundPlate } from "../duel/HoloHudArt";
 import { finisherReadiness } from "../duel/liveDuelCommands";
 import { FighterHud } from "../../screens/DuelPlaybackScreen";
+import { DuelBotStage, hasDuelBotStage } from "../duel/DuelBotStage";
 import { HolobotAnimatedCharacter } from "../character/HolobotAnimatedCharacter";
 import {
   hasHolobotAnimation,
@@ -75,6 +76,12 @@ type BattleArenaViewProps = {
   embedded?: boolean;
   /** PvP: the seat-snapshot levels (pvpFighterLevel), drawn as the fighter cards' LV corner tabs. */
   levels?: { player?: number; rival?: number };
+  /** lite-pvp-3d-1: PvP draws the Arena round's 3D stage (DuelBotStage: models, pack VFX, SKY / BREAK camera beat) behind
+   * this HUD instead of the 2D sprite floor. The sprite floor stays only as the fallback (no 3D model, or GL failed). */
+  stage3d?: boolean;
+  /** How far the 3D stage extends above this view (PvP: its room bar), so it frames the fighters on the same full-height
+   * plate as the Arena round. The caller keeps that chrome above the stage (zIndex). */
+  stageBleedTop?: number;
 };
 
 
@@ -189,7 +196,12 @@ export function BattleArenaView({
   team,
   embedded = false,
   levels,
+  stage3d = false,
+  stageBleedTop = 0,
 }: BattleArenaViewProps) {
+  const [stageFailed, setStageFailed] = useState(false);
+  useEffect(() => { setStageFailed(false); }, [battle.battleId]);
+  const show3d = stage3d && !stageFailed && hasDuelBotStage(battle);
   const [transientVisualStates, setTransientVisualStates] = useState<FighterVisualStates>({
     player: "idle",
     opponent: "idle",
@@ -313,11 +325,15 @@ export function BattleArenaView({
   });
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={[styles.screenContent, { paddingTop: embedded ? 0 : insets.top, paddingBottom: embedded ? 0 : insets.bottom }]} bounces={false}>
-      <View pointerEvents="none" style={styles.backgroundAngles}>
+    <View style={styles.screen}>
+    {/* lite-pvp-3d-1: the 3D stage sits behind the (transparent) scroll body and fills the battle view, as the Arena
+        round's does; the send-in overlay pauses it. */}
+    {show3d ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { top: -stageBleedTop }]}><DuelBotStage battle={battle} action={lastAction} active={!team?.sendIn} onError={() => setStageFailed(true)} /></View> : null}
+    <ScrollView style={[styles.screen, show3d ? styles.screen3d : null]} contentContainerStyle={[styles.screenContent, { paddingTop: embedded ? 0 : insets.top, paddingBottom: embedded ? 0 : insets.bottom }]} bounces={false}>
+      {show3d ? null : <View pointerEvents="none" style={styles.backgroundAngles}>
         <Image source={ARENA_STAGE} style={styles.stageBackdrop} resizeMode="cover" />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: STAGE_SCRIM }]} />
-      </View>
+      </View>}
 
       {/* lite-hud-row-1: the HoloCity fighter cards (round portrait, HP numbers, STA pips, LV corner tab) and the angled
           ROUND counter, shared with the park duel; passives, traps and the CPU bench sit under them. */}
@@ -348,7 +364,7 @@ export function BattleArenaView({
         </View>
       </View>
 
-      <View style={styles.battleStageWrap}>
+      {show3d ? <View pointerEvents="none" testID="pvp-stage-3d" style={styles.battleStageWrap} /> : <View style={styles.battleStageWrap}>
         <View style={styles.battleStage}>
           <View style={styles.battleFloor}>
             <Svg pointerEvents="none" width="100%" height="100%" viewBox="0 0 360 180" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
@@ -420,7 +436,7 @@ export function BattleArenaView({
             </View>
           </View>
         </View>
-      </View>
+      </View>}
 
       {team?.sendIn ? (
         <View style={styles.sendInOverlay}>
@@ -532,6 +548,7 @@ export function BattleArenaView({
         </Modal>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -708,6 +725,7 @@ const styles = StyleSheet.create({
   powerChoice: { minHeight: 44, minWidth: 52, paddingHorizontal: 4, justifyContent: "center", alignItems: "center" },
   specialText: { color: theme.colors.warning, fontFamily: "HoloBody", fontSize: 11, fontWeight: "900", textAlign: "right", },
   screen: { backgroundColor: theme.colors.carbon, flex: 1, },
+  screen3d: { backgroundColor: "transparent" },
   topHud: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
   fighterRow: { flexDirection: "row", alignItems: "stretch", gap: 6 },
   statusRow: { flexDirection: "row", gap: 8 },
