@@ -7,6 +7,8 @@ import { hex, Int32Writer, sha256 } from './math';
  */
 export const SIM_VERSION = 'duel-sim-3';
 export const RULES_SCHEMA = 'duel-rules-3';
+/** duel-rules-4 (HolobotsUnity duel-rules-4-1, DECISIONS #72.65): duel-rules-3 + the fight-chase-1 `chase` block. Same core. */
+export const RULES_SCHEMA_4 = 'duel-rules-4';
 export const TICK_HZ = 30;
 export const MAX_ROSTER_PER_SIDE = 3;
 
@@ -47,6 +49,18 @@ export type FighterKey = keyof typeof FIGHTER_DEFAULTS;
 /** FightFighterDef.Keys, camelCased, in hash order. */
 export const FIGHTER_KEYS = Object.keys(FIGHTER_DEFAULTS) as FighterKey[];
 
+/** FightChaseRules field initialisers (fight-chase-1 #72.65), in FightChaseRules.Keys (= hash) order. */
+export const CHASE_DEFAULTS = {
+  chaserSpeedPm: 1100, chaseDrainPmPerSec: 30, retreatCostPm: 60, retreatCooldownTicks: 45, chaseLapseTicks: 15,
+  caughtStaggerTicks: 15, caughtGapMm: 1300, caughtPullMm: 3000, caughtPullTicks: 9, ringStop: 1,
+};
+export type ChaseKey = keyof typeof CHASE_DEFAULTS;
+/** FightChaseRules.Keys, camelCased, in hash order. */
+export const CHASE_KEYS = Object.keys(CHASE_DEFAULTS) as ChaseKey[];
+/** The issued chase block (duel-rules-4); null everywhere = duel-rules-3 = today's core. */
+export type FightChaseRules = { [K in ChaseKey]: number };
+export function defaultChaseRules(): FightChaseRules { return { ...CHASE_DEFAULTS }; }
+
 export type FightFighterDef = { id: string } & { [K in FighterKey]: number };
 export type FightRulesValues = { [K in RuleKey]: number };
 export type FightRules = FightRulesValues & { fighters: FightFighterDef[] };
@@ -55,6 +69,9 @@ export type DuelRules3Doc = {
   schemaVersion: typeof RULES_SCHEMA; simVersion: typeof SIM_VERSION; tickHz: typeof TICK_HZ;
   rules: FightRulesValues; fighters: FightFighterDef[];
 };
+
+/** The duel-rules-4 JSON document: duel-rules-3 + `chase`. */
+export type DuelRules4Doc = Omit<DuelRules3Doc, 'schemaVersion'> & { schemaVersion: typeof RULES_SCHEMA_4; chase: FightChaseRules };
 
 export class FightRulesError extends RangeError {}
 const fail = (code: string): never => { throw new FightRulesError(code); };
@@ -183,12 +200,48 @@ export function rulesFromJson(o: unknown): FightRules {
   return r;
 }
 
+/** FightChaseRules.Validate (same checks, same order, same codes). */
+export function validateChaseRules(c: FightChaseRules): void {
+  for (const k of CHASE_KEYS) if (!Number.isSafeInteger(c[k]) || c[k] < 0) fail('invalid_chase_' + k);
+  if (c.ringStop > 1 || c.chaserSpeedPm < 1000 || c.chaserSpeedPm > 2000 || c.caughtPullTicks < 1) fail('invalid_chase_rules');
+}
+
+/** FightChaseRules.FromJson: strict (every key, integers only, nothing extra), then validateChaseRules. */
+export function chaseFromJson(o: unknown): FightChaseRules {
+  if (!isObj(o)) return fail('invalid_chase');
+  exact(o, CHASE_KEYS);
+  const c = {} as FightChaseRules;
+  for (const k of CHASE_KEYS) c[k] = int32(o[k], k);
+  validateChaseRules(c);
+  return c;
+}
+
+/** FightRules.FromJsonAny: duel-rules-3 (chase null, today's core) or duel-rules-4 (the same document + a strict chase block). */
+export function rulesDocFromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null } {
+  if (isObj(o) && o.schemaVersion === RULES_SCHEMA_4) {
+    exact(o, ['schemaVersion', 'simVersion', 'tickHz', 'rules', 'fighters', 'chase']);
+    const { chase, ...rest } = o;
+    const rules = rulesFromJson({ ...rest, schemaVersion: RULES_SCHEMA });
+    return { rules, chase: chaseFromJson(chase) };
+  }
+  return { rules: rulesFromJson(o), chase: null };
+}
+
 /** FightRules.ToJson (key order = hash order; JSON key order is not significant to the hash). */
 export function rulesToJson(r: FightRules): DuelRules3Doc {
   const rules = {} as FightRulesValues;
   for (const k of GLOBAL_KEYS) rules[k] = r[k];
   const fighters = r.fighters.map(f => { const o = { id: f.id } as FightFighterDef; for (const k of FIGHTER_KEYS) o[k] = f[k]; return o; });
   return { schemaVersion: RULES_SCHEMA, simVersion: SIM_VERSION, tickHz: TICK_HZ, rules, fighters };
+}
+
+/** FightRules.ToJson(chase): duel-rules-4 when chase is set (keys after `fighters`, as Newtonsoft writes them), else duel-rules-3. */
+export function rulesDocToJson(r: FightRules, chase: FightChaseRules | null): DuelRules3Doc | DuelRules4Doc {
+  const doc = rulesToJson(r);
+  if (!chase) return doc;
+  const c = {} as FightChaseRules;
+  for (const k of CHASE_KEYS) c[k] = chase[k];
+  return { ...doc, schemaVersion: RULES_SCHEMA_4, chase: c };
 }
 
 /** "duel-rules-3" ASCII, every global int32 LE, fighter count, then per fighter: id length + ASCII id + every FIGHTER_KEYS int32. */
@@ -203,5 +256,21 @@ export function rulesCanonicalBytes(r: FightRules): Buffer {
   }
   return w.done();
 }
+/** duel-rules-4 (chase set): "duel-rules-4" ASCII, every global int32 LE, every CHASE_KEYS int32 LE, then the fighter count
+ * and the fighters exactly as duel-rules-3. Chase null = rulesCanonicalBytes (duel-rules-3, byte for byte). */
+export function rulesCanonicalBytes4(r: FightRules, chase: FightChaseRules | null): Buffer {
+  if (!chase) return rulesCanonicalBytes(r);
+  const w = new Int32Writer(512).ascii(RULES_SCHEMA_4);
+  for (const k of GLOBAL_KEYS) w.int(r[k]);
+  for (const k of CHASE_KEYS) w.int(chase[k]);
+  w.int(r.fighters.length);
+  for (const f of r.fighters) {
+    const id = Buffer.from(f.id, 'ascii');
+    w.int(id.length).bytes(id);
+    for (const k of FIGHTER_KEYS) w.int(f[k]);
+  }
+  return w.done();
+}
 export function rulesHashBytes(r: FightRules): Buffer { return sha256(rulesCanonicalBytes(r)); }
-export function rulesHash(r: FightRules): string { return hex(rulesHashBytes(r)); }
+/** The issued snapshot's hash: duel-rules-4's when `chase` is set, else duel-rules-3's (the one-argument form). */
+export function rulesHash(r: FightRules, chase: FightChaseRules | null = null): string { return hex(sha256(rulesCanonicalBytes4(r, chase))); }

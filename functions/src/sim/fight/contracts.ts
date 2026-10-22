@@ -33,14 +33,19 @@ export const EventKind = {
   Telegraph: 0, Feint: 1, FeintBait: 2, Step: 3, Shove: 4, Contact: 5, HardHit: 6, BreakStart: 7, BreakEnd: 8,
   ExchangeStart: 9, ExchangeEnd: 10, Rail: 11, Ko: 12, Denied: 13, Buffered: 14, GuardRaise: 15, GuardLower: 16, Timeout: 17, Swap: 18,
   ForcedSwap: 19, TargetLock: 20, ProbeEnd: 21, Escape: 22,
+  // fight-chase-1 (#72.65; only with a duel-rules-4 chase block): see FightCore.cs FightEventKind
+  Retreat: 23, Caught: 24, RingStop: 25, ChaseEnd: 26,
 } as const;
 export type FightEventKind = (typeof EventKind)[keyof typeof EventKind];
 export const EVENT_NAMES = ['Telegraph', 'Feint', 'FeintBait', 'Step', 'Shove', 'Contact', 'HardHit', 'BreakStart', 'BreakEnd', 'ExchangeStart',
-  'ExchangeEnd', 'Rail', 'Ko', 'Denied', 'Buffered', 'GuardRaise', 'GuardLower', 'Timeout', 'Swap', 'ForcedSwap', 'TargetLock', 'ProbeEnd', 'Escape'] as const;
+  'ExchangeEnd', 'Rail', 'Ko', 'Denied', 'Buffered', 'GuardRaise', 'GuardLower', 'Timeout', 'Swap', 'ForcedSwap', 'TargetLock', 'ProbeEnd', 'Escape',
+  'Retreat', 'Caught', 'RingStop', 'ChaseEnd'] as const;
 
 /** Denied reason codes (FightEvent.value). */
 export const Deny = { Guarding: 1, Sync: 2, NotClose: 3, Busy: 4, FeintWindow: 5, Ko: 6, Lockout: 7, SameSlot: 8, KnockedOut: 9, NoSuchSlot: 10, TargetNotFielded: 11,
-  NotEdgeOrBreak: 12 } as const;
+  NotEdgeOrBreak: 12, RetreatCooldown: 13 } as const;
+/** fight-chase-1: why a runner's tag ended (the ChaseEnd event's value; C# FightChaseEnd). */
+export const ChaseEnd = { Turned: 1, Caught: 2, Closed: 3, Lapsed: 4, Ko: 5, Benched: 6 } as const;
 
 export const NO_PICK = 255;
 

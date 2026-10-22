@@ -164,3 +164,46 @@ test('cost: replay CPU per 60 s of fight (budget ~85 ms; design-1 gate <= 250 ms
   console.log(`fight replay cost: 180 s fight p50 ${p50.toFixed(1)} ms (max ${runs[6].toFixed(1)} ms) = ${per60.toFixed(1)} ms per 60 s, ${(p50 * 1000 / 5400).toFixed(1)} us/tick`);
   assert.ok(runs[6] <= 250, `p100 ${runs[6]} ms over the 250 ms design-1 gate`);
 });
+
+// ---- duel-rules-4-1 (DECISIONS #72.65): the chase rules on the issue, behind HOLOCITY_FIGHT_CHASE (default off)
+const rules4Schema = ajv.compile(JSON.parse(readFileSync(new URL('../../Schemas/duel-rules-4.json', import.meta.url))));
+
+test('chase flag off (default): the issue is duel-rules-3, byte for byte the pre-duel-rules-4 block', () => {
+  const lineup = { player: [combatant('ace'), combatant('kuma', 520, 80, 60)], opponent: [combatant('hare', 450, 85, 40)] };
+  const off = issueFor(lineup), absent = buildFightReplayIssue({ battleId: BATTLE, seed: '5eed'.repeat(16), tier: 4, mentor: false, ...lineup });
+  assert.deepEqual(off, absent);
+  assert.equal(off.rules.schemaVersion, 'duel-rules-3'); assert.equal('chase' in off.rules, false); assert.ok(off.rulesId.startsWith('duel-rules-3:'));
+  assert.equal(off.rulesHash, F.rulesHash(F.rulesFromJson(off.rules)));
+  const on = issueFor({ ...lineup, chase: true });
+  assert.equal(on.rules.schemaVersion, 'duel-rules-4'); assert.ok(on.rulesId.startsWith('duel-rules-4:'));
+  assert.equal(rules4Schema(on.rules), true, JSON.stringify(rules4Schema.errors));
+  assert.deepEqual(on.rules.chase, F.defaultChaseRules());
+  const { schemaVersion: _a, chase: _c, ...on3 } = on.rules, { schemaVersion: _b, ...off3 } = off.rules;
+  assert.deepEqual(on3, off3, 'the same snapshot plus the chase block');
+  assert.notEqual(on.rulesHash, off.rulesHash);
+  const { rules, chase } = F.rulesDocFromJson(on.rules); assert.equal(F.rulesHash(rules, chase), on.rulesHash);
+});
+
+test('chase issue: a log recorded on the chase core verifies; the host replays the issued chase block', () => {
+  const issue = issueFor({ chase: true, player: [combatant('ace')], opponent: [combatant('hare', 450, 85, 40)] });
+  const { wire } = recordFightLog(issue, smartPlayer(issue, 'hare', 'Legendary'));
+  const v = verify(issue, wire);
+  assert.equal(v.receipt.rulesId, issue.rulesId); assert.equal(v.receipt.rulesHash, issue.rulesHash); assert.equal(receiptSchema(v.receipt), true);
+  // known-bad: the same player inputs recorded against today's core (the duel-rules-3 issue for the same battle) do not verify here
+  const three = issueFor({ player: [combatant('ace')], opponent: [combatant('hare', 450, 85, 40)] });
+  const old = recordFightLog(three, smartPlayer(issue, 'hare', 'Legendary')).wire;
+  rejects(() => verify(issue, old), e => e.code === 'replay_mismatch');
+  const relabelled = F.parseInputLog(old); relabelled.rulesId = issue.rulesId; relabelled.rulesHash = issue.rulesHash;
+  rejects(() => verify(issue, F.inputLogToWire(relabelled)), e => e.code === 'replay_mismatch' && e.detail.reason !== 'identity');
+});
+
+test('chase issue: a tampered chase number or a chase block on a duel-rules-3 issue is invalid_issue', () => {
+  const issue = issueFor({ chase: true });
+  const { wire } = recordFightLog(issue, scriptedPlayer([{ t: 0, press: 'disengage' }]));
+  const t1 = clone(issue); t1.rules.chase.chaserSpeedPm = 1200;
+  rejects(() => verify(t1, wire), e => e.code === 'invalid_issue');
+  const t2 = clone(issueFor()); t2.rules.chase = F.defaultChaseRules();
+  rejects(() => verify(t2, wire), e => e.code === 'invalid_issue');
+  const t3 = clone(issue); delete t3.rules.chase; t3.rules.schemaVersion = 'duel-rules-3';
+  rejects(() => verify(t3, wire), e => e.code === 'invalid_issue');
+});

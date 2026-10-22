@@ -1,4 +1,5 @@
-import { FightCore, STATE_FIGHTER_FIELDS, STATE_HEADER_FIELDS, STATE_SIDE_FIELDS } from './core';
+import { CHASE_SIDE_FIELDS, FightCore, STATE_FIGHTER_FIELDS, STATE_HEADER_FIELDS, STATE_SIDE_FIELDS } from './core';
+import { CHASE_KEYS } from './rules';
 import { FightRules } from './rules';
 
 /**
@@ -30,6 +31,13 @@ export function decodeState(bytes: Uint8Array, rules: FightRules): Record<string
   for (const k of STATE_HEADER_FIELDS) out[k] = take();
   for (let s = 0; s < 2; s++) for (const k of STATE_SIDE_FIELDS) out[`side${s}.${k}`] = take();
   for (const f of rules.fighters) for (const k of STATE_FIGHTER_FIELDS) out[`${f.id}.${k}`] = take();
+  // fight-chase-1 tail (duel-rules-4 only): ASCII 'fight-chase-1', the 10 chase rules, then per side CHASE_SIDE_FIELDS
+  const tag = 'fight-chase-1';
+  if (b.length - at >= tag.length && b.toString('ascii', at, at + tag.length) === tag) {
+    at += tag.length;
+    for (const k of CHASE_KEYS) out[`chase.${k}`] = take();
+    for (let s = 0; s < 2; s++) for (const k of CHASE_SIDE_FIELDS) out[`chase${s}.${k}`] = take();
+  }
   if (at !== b.length) out.trailingBytes = b.length - at;
   return out;
 }
@@ -46,5 +54,5 @@ export function diffState(expected: Uint8Array, actual: Uint8Array, rules: Fight
 
 /** The named state of a live core (for the report when only the expected HASH is known). */
 export function coreFields(core: FightCore): Record<string, number> {
-  return decodeState(core.stateBytes(), core.rules);
+  return decodeState(core.stateBytes(), core.rules);   // includes the chase tail when core.chase is set
 }

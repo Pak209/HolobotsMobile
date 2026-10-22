@@ -11,7 +11,7 @@ import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from ".
 import { onboardingAfterEvent, onboardingMentorActive } from '../lib/onboarding';
 import { applyOnboardingMentor, isOnboardingMentorBattle } from './onboardingMentor';
 import { randomBytes, randomInt } from 'node:crypto';
-import { FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_REPLAY_FLAG, FightReceiptWire, FightReplayIssueWire } from '../shared/fightReplayContract';
+import { FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_REPLAY_FLAG, FightReceiptWire, FightReplayIssueWire } from '../shared/fightReplayContract';
 import { FightReplayError, FightReplayVerdict, verifyFightReplay } from '../sim/fight/replay';
 import { buildFightReplayIssue } from './fightReplayIssue';
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
@@ -90,12 +90,14 @@ async function preVerifyFightReplay(db: Firestore, uid: string, request: Record<
   }
 }
 
-export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean } = {}) {
+export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean; fightChase?: boolean } = {}) {
   // One-release server flag. Requests cannot select or downgrade a stored mode.
   const legacyMode = options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER !== '1';
   // fight-host-1: "replay verification ON" (HOLOCITY_FIGHT_REPLAY=1, default off) issues input-log to clients that declare
   // duel-inputs-2 on a rival-battle-3 issue. The capability only opts INTO the verified mode; it cannot pick legacy/resolver.
   const fightReplay = options.fightReplay ?? process.env[FIGHT_REPLAY_FLAG] === '1';
+  // duel-rules-4-1: HOLOCITY_FIGHT_CHASE=1 (default off) makes those input-log issues duel-rules-4 (the #72.65 chase rules)
+  const fightChase = options.fightChase ?? process.env[FIGHT_CHASE_FLAG] === '1';
   const capability = (raw as Record<string, unknown> | null)?.[FIGHT_INPUTS_CAPABILITY_FIELD];
   if (capability !== undefined && capability !== FIGHT_INPUTS_SCHEMA) throw new RivalError('invalid_request');
   const allowLegacySettlement = options.allowLegacySettlement ?? process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN !== '0';
@@ -157,7 +159,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       }
       if (citizenId !== undefined) bindGatheringRival(uid,profile,citizenId,r);
       const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
-        player:r.reply.playerCombatants, opponent:r.reply.encounter.opponentSquad}) : null;
+        player:r.reply.playerCombatants, opponent:r.reply.encounter.opponentSquad, chase:fightChase}) : null;
       if (fightIssue) r.battle.duel = fightIssue;
       else if (legacyMode) r.battle.duel = {mode:'legacy'};
       else {
