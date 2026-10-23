@@ -23,7 +23,7 @@ test('v3: normalised holobots + battleStats / displayStats; the starter Buddy Un
   const uid = await setup();
   const r = await desktopAccountSnapshot.run({ auth: { uid }, data: { schemaVersion: 'desktop-account-3' } });
   assert.equal(r.schemaVersion, 'desktop-account-3'); assert.deepEqual(r.buddyUnits, { light: 1, medium: 0, heavy: 0 });
-  assert.deepEqual(r.holobots[0].battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 80, intelligence: 60 });
+  assert.deepEqual(r.holobots[0].battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 69, intelligence: 60 }, '#72.78: ACE base SPEED 7 -> 6 (LV4: floor(60 * 1.15))');
   assert.deepEqual(r.holobots[0].displayStats, P.getHolobotDisplayStats('ACE', 4, { attack: 3, health: 20 }));
   assert.deepEqual({ ...r.holobots[1], battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined }, { name: 'KUMA', level: 1, attributePoints: 1, experience: 0, nextLevelExp: 400, rank: 'Rookie', boostedAttributes: {}, battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined });
   const s = E.getPlayerBattleStats({ name: 'KUMA', level: 1 });

@@ -16,7 +16,7 @@ const ace = { name: 'ACE', level: 4, experience: 1700, nextLevelExp: 2500, rank:
 test('applies one boost per request id, persists it, and replays without spending', async () => {
   const uid = await setup([ace, { name: 'KUMA', level: 1, experience: 0, nextLevelExp: 400, attributePoints: 0 }]);
   const r = await boost(uid, { holobotName: 'ACE', attribute: 'health', requestId: 'b1' });
-  assert.equal(r.applied, true); assert.equal(r.holobot.attributePoints, 1); assert.equal(r.holobot.boostedAttributes.health, 20);
+  assert.equal(r.applied, true); assert.equal(r.holobot.attributePoints, 1); assert.equal(r.holobot.boostedAttributes.health, 13, '#72.78: a new point adds +3 HP on top of the grandfathered 10');
   let u = await user(uid);
   assert.deepEqual(u.holobots[0], r.holobot); assert.deepEqual(u.holobots[0].career, { workouts: 3 }); assert.deepEqual(u.attributeBoostRequestIds, ['b1']); assert.equal(u.holosTokens, 3);
   const again = await boost(uid, { holobotName: 'ACE', attribute: 'health', requestId: 'b1' });
@@ -29,12 +29,12 @@ test('applies one boost per request id, persists it, and replays without spendin
   u = await user(uid); assert.deepEqual(u.attributeBoostRequestIds, ['b1', 'b2']); assert.equal(u.holobots[0].attributePoints, 0);
 });
 
-test('SPECIAL is refused (tied to SYNC): applied false, nothing written', async () => {
+test('#72.78: SPECIAL is buyable (+1 on boostedAttributes.special), one point spent, persisted', async () => {
   const uid = await setup([ace]);
-  const before = await user(uid);
   const r = await boost(uid, { holobotName: 'ACE', attribute: 'special', requestId: 's1' });
-  assert.equal(r.applied, false); assert.equal(r.reason, 'attribute_not_boostable'); assert.equal(r.holobot.attributePoints, 2);
-  assert.deepEqual(await user(uid), before);
+  assert.equal(r.applied, true); assert.equal(r.holobot.attributePoints, 1); assert.deepEqual(r.holobot.boostedAttributes, { health: 10, special: 1 });
+  const u = await user(uid);
+  assert.deepEqual(u.holobots[0], r.holobot); assert.deepEqual(u.attributeBoostRequestIds, ['s1']); assert.equal(u.holosTokens, 3);
 });
 
 test('rejections: unauthenticated, invalid request, not owned, no profile', async () => {
