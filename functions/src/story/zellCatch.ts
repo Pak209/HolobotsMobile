@@ -17,7 +17,7 @@ export type CatchEscapeWire = {
   schemaVersion: typeof CATCH_ESCAPE_SCHEMA;
   /** Escape once the runner (side 1) has been caught (pulled back, #72.65 (3)) this many times. */
   caughtPulls: number;
-  /** Escape once the ring has stopped the runner (#72.65 (6)) this many times. */
+  /** Escape once the ring has stopped the runner (#72.65 (6)) for this many ticks in total (FightChaseSide.ringStops counts ticks). */
   ringStops: number;
   /** Escape once the runner's fielded bot is at or below this fight-HP per mille. */
   runnerHpPm: number;
@@ -31,8 +31,8 @@ export const CATCH_ESCAPE_CAUSES: readonly CatchEscapeCause[] = ['caught', 'ring
 export type ZellCatchDef = { catchIndex: 0 | 1; lesson: 'stamina_and_pull' | 'ring_stop'; tier: number; escape: CatchEscapeWire };
 /** Producer defaults (Pak tunes): catch 1 teaches no-regen + the caught pull, catch 2 the ring stop. */
 export const ZELL_CATCHES: readonly ZellCatchDef[] = [
-  { catchIndex: 0, lesson: 'stamina_and_pull', tier: 2, escape: { schemaVersion: CATCH_ESCAPE_SCHEMA, caughtPulls: 2, ringStops: 0, runnerHpPm: 450, maxTicks: 1800 } },
-  { catchIndex: 1, lesson: 'ring_stop', tier: 3, escape: { schemaVersion: CATCH_ESCAPE_SCHEMA, caughtPulls: 3, ringStops: 2, runnerHpPm: 300, maxTicks: 1800 } },
+  { catchIndex: 0, lesson: 'stamina_and_pull', tier: 2, escape: { schemaVersion: CATCH_ESCAPE_SCHEMA, caughtPulls: 2, ringStops: 0, runnerHpPm: 450, maxTicks: 1350 } },
+  { catchIndex: 1, lesson: 'ring_stop', tier: 3, escape: { schemaVersion: CATCH_ESCAPE_SCHEMA, caughtPulls: 3, ringStops: 30, runnerHpPm: 300, maxTicks: 1350 } },
 ];
 
 const int = (v: unknown, lo: number, hi: number) => typeof v === 'number' && Number.isSafeInteger(v) && v >= lo && v <= hi;
@@ -41,7 +41,7 @@ export function readCatchEscape(raw: unknown): CatchEscapeWire {
   const e = raw as Record<string, unknown>;
   if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).length !== CATCH_ESCAPE_KEYS.length
     || CATCH_ESCAPE_KEYS.some(k => !(k in e)) || e.schemaVersion !== CATCH_ESCAPE_SCHEMA
-    || !int(e.caughtPulls, 0, 50) || !int(e.ringStops, 0, 50) || !int(e.runnerHpPm, 0, 999) || !int(e.maxTicks, 30, 7200)) throw new RangeError('invalid_escape');
+    || !int(e.caughtPulls, 0, 50) || !int(e.ringStops, 0, 600) || !int(e.runnerHpPm, 0, 999) || !int(e.maxTicks, 30, 7200)) throw new RangeError('invalid_escape');
   return { schemaVersion: CATCH_ESCAPE_SCHEMA, caughtPulls: e.caughtPulls as number, ringStops: e.ringStops as number, runnerHpPm: e.runnerHpPm as number, maxTicks: e.maxTicks as number };
 }
 

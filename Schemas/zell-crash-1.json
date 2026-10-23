@@ -24,7 +24,7 @@
       "properties": {
         "schemaVersion": { "const": "catch-escape-1" },
         "caughtPulls": { "type": "integer", "minimum": 0, "maximum": 50, "description": "FightChaseSide.Caught of side 1 >= this (#72.65 (3))." },
-        "ringStops": { "type": "integer", "minimum": 0, "maximum": 50, "description": "FightChaseSide.RingStops of side 1 >= this (#72.65 (6))." },
+        "ringStops": { "type": "integer", "minimum": 0, "maximum": 600, "description": "FightChaseSide.RingStops of side 1 >= this; the core counts TICKS the ring stopped the runner (#72.65 (6)), so 30 = one second pinned." },
         "runnerHpPm": { "type": "integer", "minimum": 0, "maximum": 999, "description": "Active side-1 fighter: Hp * 1000 <= runnerHpPm * MaxHp (fight HP)." },
         "maxTicks": { "type": "integer", "minimum": 30, "maximum": 7200, "description": "Tick + 1 >= maxTicks." }
       }
