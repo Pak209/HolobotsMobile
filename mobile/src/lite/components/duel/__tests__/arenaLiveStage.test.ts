@@ -126,15 +126,15 @@ describe('Arena round on the shared 3D stage', () => {
         expect(city).toContain("hostFighterLevel(hostIssue, 'player', battle.player.name, accountSnapshot)");
         expect(city).toContain("caption={preview ? 'OFFLINE PREVIEW · NO REWARDS' : 'HOLOCITY / PARK ARENA'} leaveLabel=\"LEAVE\"");
     });
-    it("Pak's call: the Arena round renders #133's fast mix (msaa0 + halfRes + anim30); the city duel keeps production", () => {
+    it("Pak's call: the Arena round renders #133's fast mix (msaa0 + halfRes + anim30); since lite-sim-fixes-1 the city duel does too", () => {
         expect(FAST_RENDER_QUALITY).toEqual({ msaaSamples: 0, resolution: 0.5, animHz: 30 });
         // The same mix the #133 sweep measured as `combo`.
         const combo = PERF_SWEEP_ARMS.find(a => a.id === 'combo')!.knobs;
         expect({ msaaSamples: combo.msaaSamples, resolution: combo.resolution, animHz: combo.animHz }).toEqual(FAST_RENDER_QUALITY);
         expect(screen).toContain('renderQuality={FAST_RENDER_QUALITY}');
         expect(stage).toContain('quality={renderQuality} perf={perf}');
-        // City rival / park duel: no quality passed, so BotStage resolves to production (MSAA on, full buffer, every frame).
-        expect(city).not.toContain('renderQuality');
+        // City rival / park duel: it drew a full 402x788 buffer at 7-10 sim fps; it now passes the Arena round's mix.
+        expect(city).toContain('renderQuality={FAST_RENDER_QUALITY}');
         expect(resolveStageRender(undefined)).toEqual({ msaaSamples: PRODUCTION_KNOBS.msaaSamples, resolution: 1, animHz: 0 });
     });
 

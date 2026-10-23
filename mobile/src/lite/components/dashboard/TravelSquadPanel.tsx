@@ -1,4 +1,5 @@
 import { theme } from "@/lite/theme";
+import { useCompactText } from "@/lite/components/FigmaCanvas";
 import { useEffect, useRef, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { HolobotRosterEntry } from '@/config/holobots';
@@ -10,6 +11,7 @@ import { presentSquadTitle } from '@/lite/lib/hostDashboard';
 /** Dashboard entry and owned-roster picker. Membership appears only after host confirmation.
  * `levels` (holobot id -> LV) comes from the desktopAccountSnapshot read; null = that read is unavailable. */
 export function TravelSquadPanel({ uid, roster, inline = false, levels }: { uid?: string; roster: HolobotRosterEntry[]; inline?: boolean; levels?: Readonly<Record<string, number>> | null }) {
+  const fit = useCompactText();
   const [open, setOpen] = useState(false), [slot, setSlot] = useState(0);
   const [state, setState] = useState<SquadState>({ squad: null, busy: false, retry: false, message: '' });
   const session = useRef<TravelSquadSession | null>(null);
@@ -30,7 +32,7 @@ export function TravelSquadPanel({ uid, roster, inline = false, levels }: { uid?
   return <>
     <Pressable style={inline ? styles.inlineEntry : styles.entry} accessibilityRole="button" accessibilityLabel={`Manage travel squad. ${title}`} onPress={() => { setOpen(true); void session.current?.refresh(); }}>
       <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy} />
-      <Text style={styles.entryTitle}>TRAVEL SQUAD</Text><Text style={styles.entryNames} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{title}</Text>
+      <Text style={[styles.entryTitle, fit(styles.entryTitle)]} numberOfLines={1}>TRAVEL SQUAD</Text><Text style={[styles.entryNames, fit(styles.entryNames)]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{title}</Text>
     </Pressable>
     <Modal visible={open} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => setOpen(false)}>
       <View style={styles.backdrop}><View style={styles.sheet}>

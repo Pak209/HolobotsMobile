@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View, type DimensionValue, type ImageSourcePropType } from "react-native";
 import { Defs, Filter, FeColorMatrix, Image as SvgImage } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 import { DashboardSettingsModal } from "@/lite/components/DashboardSettingsModal";
-import { FigmaCanvas } from "@/lite/components/FigmaCanvas";
+import { FigmaCanvas, useHomeCompactFactor } from "@/lite/components/FigmaCanvas";
 import { HolobotPickerModal } from "@/lite/components/HolobotPickerModal";
 import { UserStatsModal } from "@/lite/components/UserStatsModal";
 import { GameDialogFrame, GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
@@ -474,7 +474,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
           accessibilityRole="button"
           accessibilityLabel="Change active holobot"
         />
-        <View style={styles.utilityStack}>
+        <HomeUtilityRail>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open pilot stats"
@@ -540,7 +540,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
               </Svg>
             </View>
           </Pressable>
-        </View>
+        </HomeUtilityRail>
         {rosterAvailable ? <View pointerEvents="none" style={styles.holobotPortrait}>
           <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" />
         </View> : null}
@@ -593,7 +593,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
             <RNText testID="dashboard-header-pilot" style={[styles.statusText, styles.pilotText]} numberOfLines={1}>{dashboard.pilot}{dashboard.unavailable ? " · RETRY" : ""}</RNText>
           </Pressable>
         </View>
-        <View style={styles.nativeCityEntry}><UnityLaunchButton inline compact /></View>
+        <HomeCityEntry />
         <TravelSquadPanel uid={user?.uid} roster={roster} levels={dashboard.levels} />
         <DashboardZonesPanel summary={dashboard.zonesSummary} zones={dashboard.zones} onRetry={host.retry} />
         <HolobotPickerModal
@@ -699,6 +699,21 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
     </FigmaCanvas>
     </View>
   );
+}
+
+/** ENTER HOLOCITY over the status strip: HOME_NATIVE_CITY_ENTRY.heightPt (32) at 402 / 430 pt; lite-sim-fixes-1 scales it
+ * with the compact factor (and keeps the label on one line) so on a 375 pt artboard it no longer covers the CITY countdown. */
+function HomeCityEntry() {
+  const k = useHomeCompactFactor();
+  return <View testID="home-city-entry" style={[styles.nativeCityEntry, { height: Math.round(HOME_NATIVE_CITY_ENTRY.heightPt * k) }]}><UnityLaunchButton inline compact /></View>;
+}
+
+/** The right-hand rail (pilot stats, quests, training, settings) is sized in points. lite-sim-fixes-1: on a smaller
+ * artboard (iPhone SE) it shrinks with the art from its top-right corner, so the settings gear stays above the CHANGE
+ * HOLOBOT bar instead of covering its swap icon. Factor 1 (unchanged) at 402 and 430 pt. */
+function HomeUtilityRail({ children }: { children: ReactNode }) {
+  const k = useHomeCompactFactor();
+  return <View testID="home-utility-rail" style={[styles.utilityStack, k < 1 ? { transform: [{ scale: k }], transformOrigin: "top right" } : null]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

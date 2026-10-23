@@ -17,8 +17,8 @@ export function UnityLaunchButton({ inline = false, compact = false }: { inline?
   };
   if(!hasNativeUnity())return null;
   return <>
-    <Pressable style={[inline ? styles.inlineEntry : styles.entry, compact && { minHeight: 32 }]} disabled={busy} onPress={()=>void launch()} accessibilityRole="button" accessibilityLabel={NATIVE_CITY_COPY.accessibility} accessibilityState={{busy,disabled:busy}}>
-      <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy}/><Text style={[styles.label, compact && { fontSize: 9 }]}>{busy?NATIVE_CITY_COPY.opening:NATIVE_CITY_COPY.label}</Text>
+    <Pressable style={[inline ? styles.inlineEntry : styles.entry, compact && { minHeight: 0 }]} disabled={busy} onPress={()=>void launch()} accessibilityRole="button" accessibilityLabel={NATIVE_CITY_COPY.accessibility} accessibilityState={{busy,disabled:busy}}>
+      <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy}/><Text style={[styles.label, compact && { fontSize: 9 }]} numberOfLines={compact ? 1 : undefined} adjustsFontSizeToFit={compact} minimumFontScale={0.7}>{busy?NATIVE_CITY_COPY.opening:NATIVE_CITY_COPY.label}</Text>
     </Pressable>
     <Modal visible={!!error} transparent animationType="fade" onRequestClose={()=>setError('')}>
       <View style={styles.backdrop}><View style={styles.dialog}><GameDialogFrame accent={theme.colors.accent} fill={theme.plates.navy}/>

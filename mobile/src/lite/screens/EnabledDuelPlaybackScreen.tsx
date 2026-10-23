@@ -8,6 +8,7 @@ import { HoloCityCommandBar, HOLOCITY_COMMANDS } from '../components/HoloCityCom
 import { HudActionStrip, HudRoundPlate, LineFrame, PortraitRing, useBoxSize } from '../components/duel/HoloHudArt';
 import { fighterPanelPoints } from '../components/duel/commandPlateLayout';
 import { BotStage, type BotMetrics, type BotStageHandle, type BotStagePerf } from '../components/bots/BotStage';
+import { FAST_RENDER_QUALITY } from '../lib/bots/stagePerf';
 import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRound, type ObservedDuelState, type ObservedFighterState } from '../lib/bots/duelPlayback';
 import { hostFighterLevel, levelBadge, receiptIssue } from '../lib/bots/hostFighterLevel';
 import { readLiveRivalPlayback } from '../lib/bots/liveRivalPlayback';
@@ -107,7 +108,7 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
   const actionLog = complete ? result : round?.label ?? (round?.action ? `${round.action.toUpperCase()}${round.damage !== undefined ? ` · ${round.damage} DMG` : ''}` : 'RECORDED ACTION');
   return <View style={styles.screen} testID="duel-playback-screen">
     <Image source={require('../../../assets/battle/holocity-park.jpg')} style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} resizeMode="cover" />
-    {player && rival ? <BotStage key={`${player}:${rival}`} ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={styles.stage} active={!paused} onReady={() => setReady(true)} onError={() => { setStageError(true); setReady(true); }} onMetrics={metrics => {
+    {player && rival ? <BotStage key={`${player}:${rival}`} ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={styles.stage} quality={FAST_RENDER_QUALITY} active={!paused} onReady={() => setReady(true)} onError={() => { setStageError(true); setReady(true); }} onMetrics={metrics => {
       onMetrics?.(metrics);
       if (__DEV__ && showMetrics) console.info('[DuelPlayback:metrics] ' + JSON.stringify({ ...metrics, round: currentRound + 1, elapsedMs: Math.round(elapsedRef.current), synthetic: isSynthetic }));
     }} showMetrics={showMetrics} perf={perf} /> : null}

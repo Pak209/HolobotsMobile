@@ -160,13 +160,13 @@ function BenchChips({ chips, align }: { chips: TeamHudChip[]; align: "left" | "r
             { borderColor: slotAccent(align === "right", chip.index) },
           ]}
         >
-          <Text numberOfLines={1} style={[styles.benchChipName, { color: slotAccent(align === "right", chip.index) }]}>
+          <Text numberOfLines={1} style={[styles.benchChipName, { color: slotAccent(align === "right", chip.index) }, chip.isKnockedOut ? styles.koDim : null]}>
             {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
           </Text>
-          <View style={styles.benchBarTrack}>
+          <View style={[styles.benchBarTrack, chip.isKnockedOut ? styles.koDim : null]}>
             <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
           </View>
-          <View style={styles.benchBarTrack}>
+          <View style={[styles.benchBarTrack, chip.isKnockedOut ? styles.koDim : null]}>
             <View style={[styles.benchMeterFill, { width: `${Math.round(chip.meterPct * 100)}%` }]} />
           </View>
         </View>
@@ -485,16 +485,16 @@ export function BattleArenaView({
                     { borderColor: slotAccent(false, chip.index) },
                   ]}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <View style={[{ flexDirection: "row", alignItems: "center", gap: 4 }, chip.isKnockedOut ? styles.koDim : null]}>
                     <Text numberOfLines={1} style={[styles.switchChipName, { color: slotAccent(false, chip.index) }]}>
                       {chip.isKnockedOut ? `✕ ${chip.name}` : chip.name}
                     </Text>
                     <HostLevelBadge account={hostLevelAccount} name={chip.name} />
                   </View>
-                  <View style={styles.benchBarTrack}>
+                  <View style={[styles.benchBarTrack, chip.isKnockedOut ? styles.koDim : null]}>
                     <View style={[styles.benchHpFill, { width: `${Math.round(chip.hpPct * 100)}%` }]} />
                   </View>
-                  <Text style={[styles.switchChipMeta, pressable ? styles.switchChipMetaReady : null]}>
+                  <Text style={[styles.switchChipMeta, pressable ? styles.switchChipMetaReady : null, chip.isKnockedOut ? styles.switchChipMetaKo : null]}>
                     {chip.isActive
                       ? "ACTIVE"
                       : chip.isKnockedOut
@@ -590,8 +590,13 @@ const styles = StyleSheet.create({
   benchChipActive: {
     borderColor: theme.colors.accent,
   },
+  // lite-sim-fixes-1: a KO'd chip keeps its opaque navy plate (opacity on the chip faded the plate too, so the 3D stage
+  // showed through "✕ WOLF / DOWN"); only its contents dim (koDim) and DOWN reads in the danger colour.
   benchChipKo: {
-    opacity: 0.35,
+    backgroundColor: theme.plates.navy,
+  },
+  koDim: {
+    opacity: 0.45,
   },
   benchChipName: {
     color: theme.colors.text,
@@ -622,7 +627,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.accent,
   },
   switchChipKo: {
-    opacity: 0.35,
+    backgroundColor: theme.plates.navy,
+  },
+  switchChipMetaKo: {
+    color: theme.colors.danger,
+    fontWeight: "900",
   },
   switchChipReady: {
     borderColor: theme.colors.accent,

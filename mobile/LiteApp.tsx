@@ -135,7 +135,7 @@ function EnabledLiteApp() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {!fontsReady && !fontError ? <AppLoadingScreen /> : isLitePreviewEnabled() ? (
+        {!fontsReady && !fontError ? <AppLoadingScreen fontsPending /> : isLitePreviewEnabled() ? (
           <OfflinePreview />
         ) : (
           <AuthProvider>
