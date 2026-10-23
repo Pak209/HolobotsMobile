@@ -12,12 +12,13 @@ import { transactHoloZoneRun } from './holoZoneStore';
  * tier, the beast roster / spawn counts / respawn rule (by zone and tier) and the EXP, and settles once per runId; the
  * client places the bodies and reports kills / boss / the fielded Holobots.
  * Spec: docs/HOLOCITY_PROGRESSION.md section 5 (+ 5a for holozone-run-2). Expeditions: zone-run-3 / zone-run-4 (utility
- * results + layout preview copy, additive) / zone-extract-1 — functions/src/holozone/expedition.ts.
+ * results + layout preview copy, additive) / zone-run-5 (signature pilot, HOLOCITY_ZONE_SIGNATURES flag, default off:
+ * refused invalid_request while off) / zone-extract-1 — functions/src/holozone/expedition.ts.
  */
 export const holoZoneHost = onCall(async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in to enter a HoloZone.');
-  const expeditionRequest=['zone-run-3','zone-run-4','zone-extract-1'].includes(request.data?.schemaVersion);
+  const expeditionRequest=['zone-run-3','zone-run-4','zone-run-5','zone-extract-1'].includes(request.data?.schemaVersion);
   try {
     if(expeditionRequest)return await transactExpedition(db,uid,request.data);
     return await transactHoloZoneRun(db, uid, request.data);
