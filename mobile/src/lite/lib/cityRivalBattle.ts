@@ -1,6 +1,6 @@
 import { CITY_BOT_IDS, record } from "./cityHub";
-import type { ArenaFighter, BattleAction } from "@/lite/types/arena";
-import type { DuelRound } from "./bots/duelPlayback";
+import type { ArenaFighter, BattleAction, BattleState } from "@/lite/types/arena";
+import type { DuelRound, DuelState } from "./bots/duelPlayback";
 
 export type CityCombatant = {
   holobotId: string; level: number; maxHealth: number; currentHealth: number; attack: number; defense: number; speed: number; intelligence: number;
@@ -49,10 +49,40 @@ export function cityCombatantFighter(bot: CityCombatant, side: "player" | "rival
   };
 }
 /** Defense setup is omitted; only observed attack resolutions become playback cues. */
-export function cityBattleRounds(actions: readonly BattleAction[]): DuelRound[] {
-  return actions.filter((action) => action.card.type !== "defense").map((action) => ({
-    attacker: action.actorRole === "player" || (action.actorRole === undefined && action.actorId.startsWith("player-")) ? "player" : "rival",
+/** Engine state observed around one action (copied from the committed BattleState, never recalculated). */
+export type CityObservedAction = { before: DuelState; after: DuelState };
+function observedFighter(fighter: ArenaFighter): DuelState["player"] {
+  return { hp: Math.max(0, Math.min(fighter.maxHP, fighter.currentHP)), maxHp: fighter.maxHP, stamina: Math.max(0, Math.min(fighter.maxStamina, fighter.stamina)), maxStamina: fighter.maxStamina };
+}
+export function cityObservedState(battle: Pick<BattleState, "player" | "opponent">): DuelState {
+  return { player: observedFighter(battle.player), rival: observedFighter(battle.opponent) };
+}
+/** lite-ko-continue-bug-1: one observed before/after pair per action that `next` appended to `previous`'s history. */
+export function cityObservedActions(previous: BattleState | null, next: BattleState): CityObservedAction[] {
+  const added = next.actionHistory.length - (previous?.actionHistory.length ?? 0);
+  if (added <= 0) return [];
+  const before = cityObservedState(previous ?? next), after = cityObservedState(next);
+  return Array.from({ length: added }, () => ({ before, after }));
+}
+/** The offline preview's client trace. Rounds end with the KO action: the trace is the engine's own history, and each
+ * round carries the engine HP/stamina observed around it so the replay's bars show real values (they read empty before). */
+export function cityBattleRounds(actions: readonly BattleAction[], observed: readonly CityObservedAction[] = []): DuelRound[] {
+  return actions.flatMap((action, index) => action.card.type === "defense" ? [] : [{
+    attacker: action.actorRole === "player" || (action.actorRole === undefined && action.actorId.startsWith("player-")) ? "player" as const : "rival" as const,
     evaded: action.outcome === "dodged" || action.outcome === "missed" || action.outcome === "perfect_defense",
     damage: Math.max(0, action.actualDamage ?? action.damageDealt), label: action.card.name,
-  }));
+    ...(observed[index] ? { before: observed[index].before, after: observed[index].after } : {}),
+  }]);
+}
+
+/** lite-ko-continue-bug-1: the KO beat before the city duel's result. Same 2 s as the Arena round's KO_RESULT_HOLD_MS
+ * (lite-battle-pace #199); presentation only, the completed battle state is not touched. */
+export const CITY_KO_HOLD_MS = 2000;
+export type CityDuelPhase = "fight" | "ko" | "result";
+/** fight while the engine says active; a 2 s KO beat on the live stage once it completes; then the result. The result is
+ * never a fresh fight: the playback screen opens on the recorded result card (REPLAY is the player's choice). */
+export function cityDuelPhase(status: BattleState["status"] | undefined, completedAtMs: number | null, nowMs: number): CityDuelPhase {
+  if (status !== "completed") return "fight";
+  if (completedAtMs === null || nowMs - completedAtMs < CITY_KO_HOLD_MS) return "ko";
+  return "result";
 }
