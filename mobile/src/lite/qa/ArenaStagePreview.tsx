@@ -55,7 +55,7 @@ function ArenaStageKnownBad() {
     <View style={{ flex: 1, paddingTop: insets.top + 58, paddingBottom: insets.bottom + theme.space.sm }}>
       <BattleArenaView embedded battle={prepared.battle} hostMatchReply={ARENA_STARTED} hostMatchId={match.matchId} roundProgress={{ currentRound: 1, totalRounds: 1 }} playerCards={prepared.playerMoves} playableCardIds={prepared.playerMoves.map(m => m.id)} cardAvailability={{}} lastAction={null} isAnimating={false} onCardPlay={noop} onSignaturePlay={noop}/>
     </View>
-    <Banner title="KNOWN BAD (OLD FLAT ROUND)" caption="b40c2ac Arena round: 2D cards under a 72% scrim. Not the park duel look."/>
+    <Banner title="KNOWN BAD (2D ROUND)" caption="The Arena fixture on the 2D BattleArenaView (PvP's view): sprite stage, no park duel. Since lite-hud-row-1 it wears the HoloCity HUD."/>
   </View>;
 }
 export const arenaStagePreviewScreens: Record<string, ComponentType> = {

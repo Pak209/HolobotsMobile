@@ -13,11 +13,8 @@ import {
   View,
 } from "react-native";
 
-import {
-  BattleArenaView,
-  type TeamHudChip,
-  type TeamHudProps,
-} from "@/lite/components/arena/BattleArenaView";
+import { type TeamHudChip, type TeamHudProps } from "@/lite/components/arena/BattleArenaView";
+import { PvpLiveBattle } from "@/lite/components/arena/PvpLiveBattle";
 import { HolobotPickerModal } from "@/lite/components/HolobotPickerModal";
 import { ArenaControlFrame } from "@/lite/components/arena/ArenaTierFrames";
 import { PvpSeatBadges } from "@/lite/components/arena/PvpSeatBadges";
@@ -279,29 +276,20 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     return (
       <>
         <Modal animationType="fade" presentationStyle="overFullScreen" transparent visible={visible} onRequestClose={handleClose}>
-          <View style={styles.battleFull}>
-            <View style={styles.battleTopBar}>
-              <Text style={styles.battleTopText}>
-                {`ROOM ${room!.roomCode} • VS ${opponent?.username || "PILOT"}`}
-              </Text>
-              <Pressable style={styles.closeChip} onPress={handleClose}>
-                <Text style={styles.closeChipText}>X</Text>
-              </Pressable>
-            </View>
-            <PvpSeatBadges room={room!} myRole={myRole!} view={hostView} pending={hostSeatPending} compact />
-            <BattleArenaView
-              battle={battleState}
-              roundProgress={null}
-              playerCards={playerCards}
-              playableCardIds={playableCardIds}
-              cardAvailability={moveAvailability}
-              lastAction={room!.lastAction ?? null}
-              isAnimating={false}
-              onCardPlay={(moveId) => void handlePlayMove(moveId)}
-              onSignaturePlay={(power) => void handleSignature(power)}
-              team={teamHud}
-            />
-          </View>
+          <PvpLiveBattle
+            room={room!}
+            myRole={myRole!}
+            opponentName={opponent?.username || "PILOT"}
+            hostView={hostView}
+            battle={battleState}
+            playerCards={playerCards}
+            playableCardIds={playableCardIds}
+            cardAvailability={moveAvailability}
+            team={teamHud}
+            onClose={handleClose}
+            onCardPlay={(moveId) => void handlePlayMove(moveId)}
+            onSignaturePlay={(power) => void handleSignature(power)}
+          />
         </Modal>
       </>
     );
@@ -478,25 +466,6 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
 }
 
 const styles = StyleSheet.create({
-  battleFull: {
-    backgroundColor: "#05060a",
-    flex: 1,
-  },
-  battleTopBar: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingBottom: 6,
-    paddingTop: 54,
-  },
-  battleTopText: {
-    color: theme.colors.accent,
-    fontFamily: "HoloBody",
-    fontSize: theme.type.caption.fontSize,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-  },
   modeRow: {
     flexDirection: "row",
     gap: 8,
