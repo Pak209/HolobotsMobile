@@ -28,7 +28,7 @@ describe('server-owned Buddy Units and rival ladder', () => {
     await assertFails(updateDoc(ref, { rivalRewardDay: '1999-01-01' }));
     await assertFails(updateDoc(ref, { rankKitTiers: { ace: 0 } })); // DECISIONS #58: the rank Kit record is server-only
     for (const k of Object.keys(fields)) await assertFails(updateDoc(ref, { [k]: deleteField() }));
-    await assertSucceeds(updateDoc(ref, { ...fields, dailyEnergy: 42 }));
+    await assertSucceeds(updateDoc(ref, { ...fields, referralCode: "RC42" }));
     await assertSucceeds(getDoc(ref));
     await assertFails(getDoc(doc(authedDb(env, 'bob'), 'users/alice')));
   });
@@ -67,8 +67,8 @@ describe('server-owned Buddy Units and rival ladder', () => {
     await assertFails(updateDoc(alice, { buddyUnits: deleteField() }));
     await assertFails(setDoc(alice, { ...buildUserDoc() }));
     await assertFails(deleteDoc(alice));
-    await assertSucceeds(updateDoc(alice, { buddyUnits: tiers, dailyEnergy: 41 }));
-    await assertSucceeds(setDoc(alice, { buddyUnits: tiers, dailyEnergy: 40 }, { merge: true }));
+    await assertSucceeds(updateDoc(alice, { buddyUnits: tiers, referralCode: "RC41" }));
+    await assertSucceeds(setDoc(alice, { buddyUnits: tiers, referralCode: "RC40" }, { merge: true }));
     await env.withSecurityRulesDisabled(async (ctx) => {
       const d = (await getDoc(doc(ctx.firestore(), 'users/alice'))).data()!;
       if (JSON.stringify(d.buddyUnits) !== JSON.stringify(tiers)) throw new Error(`tiers changed: ${JSON.stringify(d.buddyUnits)}`);

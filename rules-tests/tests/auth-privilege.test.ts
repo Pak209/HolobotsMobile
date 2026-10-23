@@ -52,8 +52,8 @@ describe("auth boundaries", () => {
     const aliceDb = authedDb(env, "alice");
 
     await assertSucceeds(setDoc(doc(aliceDb, "users/alice"), buildClientCreateDoc()));
-    // Economy fields are frozen; a non-frozen field stands in for "update".
-    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 42 }));
+    // Economy fields are frozen; a client-writable setting stands in for "update".
+    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { referralCode: "RC42" }));
     // Profile deletion is server-only (deleteUserAccountV2); see buddy-units-rival.test.ts.
     await assertFails(deleteDoc(doc(aliceDb, "users/alice")));
   });
@@ -107,9 +107,9 @@ describe("privilege escalation", () => {
   it("allows normal updates on a legacy account with isDevAccount already true", async () => {
     await seedUser(env, "alice", buildUserDoc({ isDevAccount: true }));
 
-    // (dailyEnergy stands in — economy fields are frozen since 2026-07-12.)
+    // (referralCode stands in — economy fields are frozen since 2026-07-12, energy since energy-quest-server-1.)
     await assertSucceeds(
-      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { dailyEnergy: 42 }),
+      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { referralCode: "RC42" }),
     );
   });
 
@@ -132,7 +132,7 @@ describe("privilege escalation", () => {
     // Writing the unchanged value alongside a normal field is fine
     // (full-profile merges keep working)...
     await assertSucceeds(
-      updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 11, isDevAccount: true }),
+      updateDoc(doc(aliceDb, "users/alice"), { referralCode: "RC11", isDevAccount: true }),
     );
     // ...but since the MapDiff guard (2026-07-18), ANY client-side flip is
     // denied — including renouncing. isDevAccount changes are Admin-SDK-only.
@@ -158,13 +158,13 @@ describe("economy sanity caps", () => {
     await seedUser(env, "alice", buildUserDoc());
   });
 
-  it("rejects dailyEnergy over the cap and accepts the boundary value", async () => {
+  it("rejects every client dailyEnergy write (server-only since energy-quest-server-1)", async () => {
     const aliceDb = authedDb(env, "alice");
 
     await assertFails(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100000001 }));
-    // holobots-write-lockdown-1: the real cap is maxDailyEnergy (default 100), see write-lockdown.test.ts.
     await assertFails(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100000000 }));
-    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100 }));
+    // energy-quest-server-1: even a value inside the cap; see energy-server-only.test.ts.
+    await assertFails(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 99 }));
   });
 
   it("rejects negative syncPoints and accepts zero", async () => {
@@ -174,13 +174,13 @@ describe("economy sanity caps", () => {
     await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { syncPoints: 0 }));
   });
 
-  it("rejects an absurd stepEnergyGrantedToday and accepts a sane value", async () => {
+  it("rejects any client stepEnergyGrantedToday write, absurd or sane (server-only since energy-quest-server-1)", async () => {
     const aliceDb = authedDb(env, "alice");
 
     await assertFails(
       updateDoc(doc(aliceDb, "users/alice"), { stepEnergyGrantedToday: 999999999 }),
     );
-    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { stepEnergyGrantedToday: 40 }));
+    await assertFails(updateDoc(doc(aliceDb, "users/alice"), { stepEnergyGrantedToday: 40 }));
   });
 
   it("rejects a non-numeric dailyEnergy value", async () => {

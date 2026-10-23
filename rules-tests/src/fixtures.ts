@@ -60,11 +60,10 @@ export function buildUserDoc(overrides: Record<string, unknown> = {}): Record<st
 // (createGenesisProfile) — tests seed it with rules disabled. The most a client
 // CREATE may carry is firestore.rules clientCreateKeys(): no holobots,
 // currency, items or cards.
+// energy-quest-server-1: energy fields are server-only too (refreshEnergy).
 export const CLIENT_CREATE_DOC: Record<string, unknown> = {
-  dailyEnergy: 100,
   fitnessSource: "mobile",
   isDevAccount: false,
-  lastEnergyRefresh: new Date(),
   onboardingPath: "genesis",
   syncDistanceUnit: "km",
 };

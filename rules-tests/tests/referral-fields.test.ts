@@ -76,7 +76,7 @@ describe("referral field protection", () => {
     });
 
     await assertSucceeds(
-      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { dailyEnergy: 55 }),
+      updateDoc(doc(authedDb(env, "alice"), "users/alice"), { referralCode: "RC55" }),
     );
   });
 

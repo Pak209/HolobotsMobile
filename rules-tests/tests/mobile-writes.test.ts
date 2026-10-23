@@ -102,11 +102,11 @@ describe("mobile write replay", () => {
     });
   });
 
-  describe("energy regen (profile.ts updateDoc)", () => {
-    it("allows the owner to update energy fields including a Timestamp", async () => {
+  describe("energy regen (old builds' profile.ts updateDoc)", () => {
+    it("DENIES the owner's energy write since energy-quest-server-1 (refreshEnergy regenerates on the host)", async () => {
       await seedUser(env, "alice", buildUserDoc());
 
-      await assertSucceeds(updateDoc(doc(authedDb(env, "alice"), "users/alice"), ENERGY_REGEN_UPDATE));
+      await assertFails(updateDoc(doc(authedDb(env, "alice"), "users/alice"), ENERGY_REGEN_UPDATE));
     });
   });
 

@@ -41,6 +41,6 @@ describe('server-only pilot wardrobe', () => {
   it('the Holos a purchase spends stay client-immutable on users/{uid}', async () => {
     await seedUser(env, 'alice', { ...buildUserDoc(), holosTokens: 1500 });
     await assertFails(updateDoc(doc(authedDb(env, 'alice'), 'users/alice'), { holosTokens: 99999 }));
-    await assertSucceeds(updateDoc(doc(authedDb(env, 'alice'), 'users/alice'), { dailyEnergy: 9 }));
+    await assertSucceeds(updateDoc(doc(authedDb(env, 'alice'), 'users/alice'), { referralCode: 'RC9' }));
   });
 });

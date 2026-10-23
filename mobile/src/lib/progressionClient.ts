@@ -1,7 +1,7 @@
-import { functions, httpsCallable } from "@/config/firebase";
+import { db, doc, functions, httpsCallable, updateDoc } from "@/config/firebase";
 import { toServerActionError } from "@/lib/callables";
 import { progressionRules5Enabled, type BoostableAttribute } from "@/lib/progression";
-import type { ActiveQuestRecord, TrainingSessionRecord } from "@/lib/progressionSystems";
+import type { ActiveQuestRecord, QuestId, TrainingCourseId, TrainingSessionRecord } from "@/lib/progressionSystems";
 import { type SyncStatKey } from "@/lib/syncProgression";
 import type { UserHolobot, UserProfile } from "@/types/profile";
 
@@ -71,6 +71,62 @@ const redeemLegendaryBlueprintCallable = httpsCallable<
   { holobotName: string },
   { holobotName: string; outcome: "minted" | "ascended" | "converted"; wildcards?: number }
 >(functions, "redeemLegendaryBlueprint");
+
+const startQuestRunCallable = httpsCallable<{ questId: QuestId; holobotName: string; requestId: string }, unknown>(functions, "startQuestRun");
+const startTrainingSessionCallable = httpsCallable<{ courseId: TrainingCourseId; holobotName: string; requestId: string }, unknown>(
+  functions,
+  "startTrainingSession",
+);
+
+/** One id per start attempt; matches the host's request-id rule (progressionTimers REQUEST_ID). */
+export function makeStartRequestId(nowMs = Date.now(), random = Math.random): string {
+  return `ms${nowMs.toString(36)}${random().toString(36).slice(2, 12).padEnd(10, "0")}`.replace(/[^A-Za-z0-9_-]/g, "0").slice(0, 80);
+}
+
+/**
+ * energy-quest-server-1: main-app quest / training STARTS go through the host callables the lite tree already uses
+ * (startQuestRun / startTrainingSession): the host validates, regenerates + debits the energy, stamps the run with its
+ * clock and writes the rewardSystem display copy the screens show. Idempotent per requestId: a retry after an unknown
+ * outcome (network) must resend the SAME id, so the host replays instead of starting twice.
+ */
+export async function startQuestRunAuthoritative(request: { questId: QuestId; holobotName: string; requestId: string }): Promise<void> {
+  try {
+    await startQuestRunCallable(request);
+  } catch (error) {
+    throw toServerActionError(error);
+  }
+}
+
+export async function startTrainingSessionAuthoritative(request: { courseId: TrainingCourseId; holobotName: string; requestId: string }): Promise<void> {
+  try {
+    await startTrainingSessionCallable(request);
+  } catch (error) {
+    throw toServerActionError(error);
+  }
+}
+
+/** True when the start may or may not have reached the host (keep the request id for the retry). */
+export function isUnknownStartOutcome(error: unknown): boolean {
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
+  return !code.startsWith("functions/") || code === "functions/unavailable" || code === "functions/deadline-exceeded" || code === "functions/internal";
+}
+
+/** The quest-board / sync-boost preferences, as dotted rewardSystem paths (never the whole map: its run copies are the host's). */
+export type RewardSystemPreferences = Partial<{
+  availableQuestIds: string[];
+  questRefreshesRemaining: number;
+  lastQuestRefreshDate: string;
+  syncBoostEnabled: boolean;
+}>;
+
+export async function updateRewardSystemPreferences(uid: string, patch: RewardSystemPreferences): Promise<void> {
+  const updates: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) updates[`rewardSystem.${key}`] = value;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (Object.keys(updates).length) await updateDoc(doc(db, "users", uid), updates as Record<string, any>);
+}
 
 export async function claimQuestRunAuthoritative(
   _profile: UserProfile,
