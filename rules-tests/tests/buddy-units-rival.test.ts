@@ -2,7 +2,7 @@ import { doc, setDoc, updateDoc, deleteField, deleteDoc, getDoc } from 'firebase
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { authedDb, initTestEnv, seedUser } from '../src/helpers';
-import { buildUserDoc } from '../src/fixtures';
+import { buildClientCreateDoc, buildUserDoc } from '../src/fixtures';
 
 // DECISIONS #43/#44: buddyUnits (#44: {light, medium, heavy}), rivalWins and rivalRewardDay are written only by the functions (Admin SDK).
 describe('server-owned Buddy Units and rival ladder', () => {
@@ -13,9 +13,9 @@ describe('server-owned Buddy Units and rival ladder', () => {
   const fields: Record<string, unknown> = { buddyUnits: 1, rivalWins: 3, rivalRewardDay: '2026-09-30', rankKitTiers: { ace: 2 } };
 
   it('denies a client create that carries any of the fields (even zero / starter values)', async () => {
-    for (const [k, v] of Object.entries({ ...fields, buddyUnits: 1 })) await assertFails(setDoc(doc(authedDb(env, 'alice'), 'users/alice'), { ...buildUserDoc(), [k]: v }));
-    await assertFails(setDoc(doc(authedDb(env, 'alice'), 'users/alice'), { ...buildUserDoc(), buddyUnits: 0 }));
-    await assertSucceeds(setDoc(doc(authedDb(env, 'alice'), 'users/alice'), buildUserDoc()));
+    for (const [k, v] of Object.entries({ ...fields, buddyUnits: 1 })) await assertFails(setDoc(doc(authedDb(env, 'alice'), 'users/alice'), { ...buildClientCreateDoc(), [k]: v }));
+    await assertFails(setDoc(doc(authedDb(env, 'alice'), 'users/alice'), { ...buildClientCreateDoc(), buddyUnits: 0 }));
+    await assertSucceeds(setDoc(doc(authedDb(env, 'alice'), 'users/alice'), buildClientCreateDoc()));
   });
 
   it('denies client add, change and delete; allows unchanged full-profile merges and owner reads', async () => {

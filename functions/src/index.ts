@@ -71,3 +71,8 @@ export { tournamentBracketHost } from "./story/tournamentBracketHost";
 
 // pvp-room-fighters-1: host-minted PvP room fighter snapshots (presentation only).
 export { pvpRoomFighterHost } from "./pvp/pvpRoomFighterHost";
+
+// holobots-write-lockdown-1: the last client profile writes (holobots, equippedParts, starter deck) as callables.
+export { equipSyncAbility } from "./progression/equipSyncAbility";
+export { equipHolobotPart } from "./progression/equipHolobotPart";
+export { claimStarterDeck } from "./account/claimStarterDeck";

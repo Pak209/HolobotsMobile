@@ -45,8 +45,12 @@ describe("shared profile holobotVitals (additive, lite-only, read only)", () => 
 
   it("is never written by the client", async () => {
     vi.stubEnv("EXPO_PUBLIC_HOLOCITY_LITE", "1");
+    // holobots-write-lockdown-1: server-only keys (holobotVitals, holosTokens, ...) are dropped;
+    // only the rules allowlist is ever sent, and a write with nothing allowed is skipped.
     await updateUserProfile("uid-1", { holobotVitals: ledger, holosTokens: 5 } as never);
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+    await updateUserProfile("uid-1", { holobotVitals: ledger, holosTokens: 5, syncDistanceUnit: "mi" } as never);
     expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
-    expect(firestore.updateDoc).toHaveBeenCalledWith("users/uid-1", { holosTokens: 5 });
+    expect(firestore.updateDoc).toHaveBeenCalledWith("users/uid-1", { syncDistanceUnit: "mi" });
   });
 });

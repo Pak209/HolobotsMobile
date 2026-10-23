@@ -20,18 +20,16 @@ import {
   getDoc,
   httpsCallable,
   onAuthStateChanged,
-  serverTimestamp,
-  setDoc,
   signInWithEmailAndPassword,
   signOut,
   type User,
 } from "@/config/firebase";
 import { createGenesisStarterHolobot, getHolobotRank } from "@/config/holobots";
-import { AUTH_TIMEOUT_MS, FIRESTORE_TIMEOUT_MS, withTimeout } from "@/lib/async";
+import { AUTH_TIMEOUT_MS, CALLABLE_TIMEOUT_MS, FIRESTORE_TIMEOUT_MS, withTimeout } from "@/lib/async";
 import { getGenesisStarterDeckGrants } from "@/lib/battleCards/catalog";
-import { computeLeaderboardScore, subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
+import { subscribeToUserProfile, updateUserProfile } from "@/lib/profile";
+import { claimStarterDeckAuthoritative, createGenesisProfileAuthoritative } from "@/lib/loadoutClient";
 import { initPurchases } from "@/lib/purchases";
-import { getSyncRank } from "@/lib/syncProgression";
 import type { UserProfile } from "@/types/profile";
 
 export type GenesisStarterChoice = "ACE" | "KUMA" | "SHADOW";
@@ -107,6 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileRevision, setProfileRevision] = useState(0);
   const profileReadRef = useRef<{ uid: string; revision: number } | null>(null);
   const manualLoginRef = useRef(false);
+  // One starter-deck claim per signed-in uid (reset on failure so a later profile snapshot retries).
+  const starterDeckClaimRequestedRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -256,34 +256,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (
-      profile.leaderboardScore === undefined ||
-      profile.lifetimeSyncPoints === undefined ||
-      profile.seasonSyncPoints === undefined ||
-      profile.syncRank === undefined
-    ) {
-      void updateUserProfile(user.uid, {
-        holobots: profile.holobots || [],
-        syncPoints: profile.syncPoints || 0,
-        lifetimeSyncPoints: profile.lifetimeSyncPoints ?? profile.syncPoints ?? 0,
-        seasonSyncPoints: profile.seasonSyncPoints ?? profile.syncPoints ?? 0,
-        syncRank: profile.syncRank ?? getSyncRank(profile.lifetimeSyncPoints ?? profile.syncPoints ?? 0),
-      }).catch((error) => {
-        console.error("[Auth] Failed to backfill sync progression", error);
-      });
-    }
-
+    // holobots-write-lockdown-1: the sync-progression backfill that used to
+    // live here wrote holobots / syncPoints / leaderboardScore from the client;
+    // those are server-only now (the leaderboard mirror recomputes the score).
+    // The legacy starter-deck grant moved to the claimStarterDeck callable.
     const alreadyHasCards = Object.keys(profile.battle_cards || {}).length > 0;
-    if (profile.starter_deck_claimed || alreadyHasCards) {
+    if (profile.starter_deck_claimed || alreadyHasCards || starterDeckClaimRequestedRef.current === user.uid) {
       return;
     }
 
-    void updateUserProfile(user.uid, {
-      arena_deck_template_ids: Object.keys(getGenesisStarterDeckGrants()),
-      battle_cards: getGenesisStarterDeckGrants(),
-      starter_deck_claimed: true,
-    }).catch((error) => {
-      console.error("[Auth] Failed to seed starter deck", error);
+    starterDeckClaimRequestedRef.current = user.uid;
+    void claimStarterDeckAuthoritative().catch((error) => {
+      starterDeckClaimRequestedRef.current = null;
+      console.error("[Auth] Failed to claim starter deck", error);
     });
   }, [profile, user]);
 
@@ -338,40 +323,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const starterDeck = getGenesisStarterDeckGrants();
         const starterHolobotProfile = createGenesisStarterHolobot(starterHolobot);
-        const userRefData = {
-          arena_deck_template_ids: Object.keys(starterDeck),
-          asyncBattleTickets: 3,
-          battle_cards: starterDeck,
-          dailyEnergy: 100,
-          energyRefills: 0,
-          expBoosters: 0,
-          fitnessSource: "mobile",
-          gachaTickets: 0,
-          holobots: [starterHolobotProfile],
-          holosTokens: 0,
-          inventory: {},
-          isDevAccount: false,
-          lastAsyncTicketRefresh: serverTimestamp(),
-          lastEnergyRefresh: serverTimestamp(),
-          onboardingPath: "genesis",
-          starter_deck_claimed: true,
-          syncDistanceUnit: "km",
-          syncPoints: 0,
-          lifetimeSyncPoints: 0,
-          seasonSyncPoints: 0,
-          syncRank: "Rookie",
-          leaderboardScore: computeLeaderboardScore({
-            holobots: [starterHolobotProfile],
-            prestigeCount: 0,
-            seasonSyncPoints: 0,
-            wins: 0,
-          }),
-          todaySteps: 0,
-          username: normalizedUsername,
-          wins: 0,
-          losses: 0,
-        };
-
+        // holobots-write-lockdown-1: the host writes the sign-up profile
+        // (createGenesisProfile, functions/src/lib/genesisSignup.ts — the same
+        // callable HoloCity desktop sign-up uses); firestore.rules no longer
+        // lets a client create holobots, currency or cards. localProfile below
+        // is only the optimistic first frame until the profile listener lands.
         const localProfile: UserProfile = {
           arena_deck_template_ids: Object.keys(starterDeck),
           async_battle_tickets: 3,
@@ -436,7 +392,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfileLoading(false);
           setProfileError(null);
 
-          await setDoc(doc(db, "users", createdUser.uid), userRefData, { merge: true }).catch((error) => {
+          await withTimeout(
+            createGenesisProfileAuthoritative(starterHolobot, normalizedUsername),
+            CALLABLE_TIMEOUT_MS,
+            "Creating your profile timed out. Check your connection and try again.",
+          ).catch((error) => {
             console.error("[Auth] Failed to persist new user profile", error);
           });
         } catch (error) {
@@ -460,8 +420,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
               if (!existingProfileSnap.exists()) {
                 await withTimeout(
-                  setDoc(existingProfileRef, userRefData, { merge: true }),
-                  FIRESTORE_TIMEOUT_MS,
+                  createGenesisProfileAuthoritative(starterHolobot, normalizedUsername),
+                  CALLABLE_TIMEOUT_MS,
                   "Restoring this account timed out. Check your connection and try again.",
                 );
                 setUser(existingUser);

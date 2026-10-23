@@ -20,6 +20,7 @@ import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import type { RootTabs } from "../../App";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { equipHolobotPartAuthoritative } from "@/lib/loadoutClient";
 
 const ATTRIBUTE_LABELS = ["ATK", "DEF", "SPECIAL", "HP", "SPEED"] as const;
 const ATTRIBUTE_CENTER_X = 415;
@@ -561,21 +562,11 @@ export function HomeScreen() {
                           if (!profile || !selectedPartSlot) return;
 
                           const targetSlot = selectedPartSlot;
-                          const nextEquippedParts = {
-                            ...(profile.equippedParts || {}),
-                            [selectedHolobot.name]: {
-                              ...(profile.equippedParts?.[selectedHolobot.name] || {}),
-                              [targetSlot]: {
-                                id: part.id,
-                                name: part.name,
-                                rarity: part.rarity,
-                                slot: targetSlot,
-                              },
-                            },
-                          };
 
                           try {
-                            await updateProfile({ equippedParts: nextEquippedParts });
+                            // equippedParts is server-only (holobots-write-lockdown-1): the host copies
+                            // the owned part's record into the slot.
+                            await equipHolobotPartAuthoritative(selectedHolobot.name, targetSlot, part.id);
                             setSelectedPartSlot(null);
                           } catch (error) {
                             Alert.alert("Equip failed", error instanceof Error ? error.message : "Please try again.");

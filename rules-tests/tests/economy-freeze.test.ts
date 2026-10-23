@@ -3,7 +3,7 @@ import { assertFails, assertSucceeds, type RulesTestEnvironment } from "@firebas
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
 import { authedDb, initTestEnv, seedUser } from "../src/helpers";
-import { buildUserDoc } from "../src/fixtures";
+import { buildClientCreateDoc, buildUserDoc } from "../src/fixtures";
 
 // The 2026-07-12 economy freeze: currency, items, loot, and fitness-derived
 // stats are paid only by the callables. The owner keeps write access to the
@@ -52,18 +52,23 @@ describe("economy field freeze", () => {
 
     // Quest/training starts + energy regen.
     await assertSucceeds(updateDoc(aliceDoc, { dailyEnergy: 40 }));
-    // Attribute-point spends rewrite holobots (and recompute leaderboardScore).
-    await assertSucceeds(
+    // Mission/quest display state.
+    await assertSucceeds(updateDoc(aliceDoc, { rewardSystem: { arenaBattlesToday: 1 } }));
+  });
+
+  it("holobots-write-lockdown-1: roster, deck, part-equip and leaderboard writes are host-only", async () => {
+    await seedUser(env, "alice", buildUserDoc());
+    const aliceDoc = doc(authedDb(env, "alice"), "users/alice");
+
+    await assertFails(
       updateDoc(aliceDoc, {
         holobots: [{ name: "ACE", level: 1, experience: 0, rank: "Rookie", attributePoints: 9 }],
-        leaderboardScore: 12,
       }),
     );
-    // Mission/quest state, deck building, part equips.
-    await assertSucceeds(updateDoc(aliceDoc, { rewardSystem: { arenaBattlesToday: 1 } }));
-    await assertSucceeds(updateDoc(aliceDoc, { arena_deck_template_ids: ["strike.quickJab"] }));
-    await assertSucceeds(updateDoc(aliceDoc, { battle_cards: { "strike.quickJab": 2 } }));
-    await assertSucceeds(updateDoc(aliceDoc, { equippedParts: {} }));
+    await assertFails(updateDoc(aliceDoc, { leaderboardScore: 12 }));
+    await assertFails(updateDoc(aliceDoc, { arena_deck_template_ids: ["strike.quickJab"] }));
+    await assertFails(updateDoc(aliceDoc, { battle_cards: { "strike.quickJab": 2 } }));
+    await assertFails(updateDoc(aliceDoc, { equippedParts: {} }));
   });
 
   it("an unchanged frozen field passing through a merge is fine", async () => {
@@ -82,14 +87,14 @@ describe("economy field freeze", () => {
   it("signup creates pass, but pre-loaded creates fail", async () => {
     const aliceDb = authedDb(env, "alice");
 
-    await assertSucceeds(setDoc(doc(aliceDb, "users/alice"), buildUserDoc()));
+    await assertSucceeds(setDoc(doc(aliceDb, "users/alice"), buildClientCreateDoc()));
 
     const richDb = authedDb(env, "mallory");
     await assertFails(
-      setDoc(doc(richDb, "users/mallory"), { ...buildUserDoc(), holosTokens: 99999 }),
+      setDoc(doc(richDb, "users/mallory"), { ...buildClientCreateDoc(), holosTokens: 99999 }),
     );
     await assertFails(
-      setDoc(doc(richDb, "users/mallory"), { ...buildUserDoc(), blueprints: { ace: 80 } }),
+      setDoc(doc(richDb, "users/mallory"), { ...buildClientCreateDoc(), blueprints: { ace: 80 } }),
     );
   });
 });

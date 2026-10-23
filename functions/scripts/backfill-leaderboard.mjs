@@ -7,6 +7,7 @@
  *   node scripts/backfill-leaderboard.mjs --key <service-account.json>
  */
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import process from "node:process";
 
 import { cert, initializeApp } from "firebase-admin/app";
@@ -26,22 +27,8 @@ if (!usingEmulator && (!keyPath || !existsSync(keyPath))) {
 initializeApp(usingEmulator ? { projectId: PROJECT_ID } : { credential: cert(keyPath), projectId: PROJECT_ID });
 const db = getFirestore();
 
-function projectEntry(uid, data) {
-  const holobots = Array.isArray(data.holobots) ? data.holobots : [];
-  const highestHolobotLevel = holobots.reduce(
-    (highest, holobot) => Math.max(highest, Number(holobot?.level || 0)),
-    0,
-  );
-  return {
-    username: String(data.username || `pilot_${uid.slice(0, 8)}`),
-    leaderboardScore: Number(data.leaderboardScore || 0),
-    wins: Number(data.wins || 0),
-    prestigeCount: Number(data.prestigeCount || 0),
-    highestHolobotLevel,
-    syncRank: String(data.syncRank || "Rookie"),
-    genesisBadge: Boolean(data.genesisBadge),
-  };
-}
+// Same projection as the trigger (compiled lib; run `npm run build` first).
+const { projectLeaderboardEntry: projectEntry } = createRequire(import.meta.url)("../lib/lib/leaderboardProjection.js");
 
 const users = await db.collection("users").get();
 let written = 0;

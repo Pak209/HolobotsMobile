@@ -99,9 +99,11 @@ describe("client writes on a mature (fat) account doc", () => {
     fitnessSource: "watch",
   });
 
-  it("allows equipping a part (the exact failing device write)", async () => {
+  // holobots-write-lockdown-1: the part equip that motivated this suite is a
+  // callable now (equipHolobotPart); the client write is denied on purpose.
+  it("denies the old client part-equip write (equippedParts is host-only)", async () => {
     await seedUser(env, "alice", FAT_ACCOUNT);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(authedDb(env, "alice"), "users/alice"), {
         equippedParts: {
           ACE: { head: { name: "Combat Mask", rarity: "rare", slot: "head" } },
@@ -120,7 +122,22 @@ describe("client writes on a mature (fat) account doc", () => {
     );
   });
 
-  it("allows attribute-point spends on holobots", async () => {
+  it("allows the remaining client writes (rewardSystem + settings) on the fat doc", async () => {
+    await seedUser(env, "alice", FAT_ACCOUNT);
+    const aliceDoc = doc(authedDb(env, "alice"), "users/alice");
+    await assertSucceeds(updateDoc(aliceDoc, { rewardSystem: { syncBoostEnabled: true }, syncDistanceUnit: "mi" }));
+    await assertSucceeds(updateDoc(aliceDoc, { referralCode: "ALICE1", presenceOptOut: true }));
+  });
+
+  it("allows a full-profile merge that only changes energy (budget: one MapDiff per check)", async () => {
+    await seedUser(env, "alice", FAT_ACCOUNT);
+    const { setDoc } = await import("firebase/firestore");
+    await assertSucceeds(
+      setDoc(doc(authedDb(env, "alice"), "users/alice"), { ...FAT_ACCOUNT, dailyEnergy: 70 }, { merge: true }),
+    );
+  });
+
+  it("denies the old client attribute-point spend on holobots (boostHolobotAttribute)", async () => {
     await seedUser(env, "alice", FAT_ACCOUNT);
     const nextHolobots = (FAT_ACCOUNT.holobots as Array<Record<string, unknown>>).map(
       (entry, index) =>
@@ -128,7 +145,7 @@ describe("client writes on a mature (fat) account doc", () => {
           ? { ...entry, attributePoints: 2, boostedAttributes: { attack: 3, defense: 1, health: 4, speed: 1 } }
           : entry,
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(authedDb(env, "alice"), "users/alice"), {
         holobots: nextHolobots,
         leaderboardScore: 5900,

@@ -32,6 +32,7 @@ import {
   upgradeSyncStatAuthoritative,
 } from "@/lib/progressionClient";
 import { canUpgradeSyncStat, type SyncStatKey } from "@/lib/syncProgression";
+import { equipSyncAbilityAuthoritative } from "@/lib/loadoutClient";
 
 const tabs = ["Holobots", "Parts", "Items", "Move Lab"] as const;
 type InventoryTab = (typeof tabs)[number];
@@ -152,13 +153,8 @@ export function InventoryScreen() {
       return;
     }
     try {
-      await updateProfile({
-        holobots: profile.holobots.map((entry) =>
-          entry.name.toUpperCase() === normalized.name.toUpperCase()
-            ? { ...entry, equippedSyncAbilityId: abilityId }
-            : entry,
-        ),
-      });
+      // holobots is server-only (holobots-write-lockdown-1): the host re-checks the unlock.
+      await equipSyncAbilityAuthoritative(normalized.name, abilityId);
     } catch (error) {
       Alert.alert("Equip failed", error instanceof Error ? error.message : "Please try again.");
     }

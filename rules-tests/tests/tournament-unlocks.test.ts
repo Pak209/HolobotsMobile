@@ -24,5 +24,5 @@ for(const field of ['tournamentUnlocks','tournamentUnlockAcknowledged'])it(`${fi
 });
 it('owner may keep unchanged host fields on an otherwise permitted write',async()=>{
  await env.withSecurityRulesDisabled(ctx=>setDoc(doc(ctx.firestore(),'users/unchanged'),{username:'old',tournamentUnlocks:[],tournamentUnlockAcknowledged:['starter']}));
- await assertSucceeds(updateDoc(doc(env.authenticatedContext('unchanged').firestore(),'users/unchanged'),{username:'new',tournamentUnlocks:[],tournamentUnlockAcknowledged:['starter']}));
+ await assertSucceeds(updateDoc(doc(env.authenticatedContext('unchanged').firestore(),'users/unchanged'),{syncDistanceUnit:'mi',tournamentUnlocks:[],tournamentUnlockAcknowledged:['starter']}));
 });

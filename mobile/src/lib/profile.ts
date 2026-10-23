@@ -263,37 +263,20 @@ export function subscribeToUserProfile(
   );
 }
 
-type UserProfileUpdates = Partial<{
+/**
+ * The ONLY profile fields the client may write (firestore.rules
+ * clientWritableKeys, holobots-write-lockdown-1). Everything else — holobots,
+ * currency, items, cards, parts, leaderboard inputs — is written by the
+ * callables; adding a field here without adding it to the rules allowlist
+ * makes every write that carries it PERMISSION_DENIED.
+ */
+export type UserProfileUpdates = Partial<{
   dailyEnergy: number;
   lastEnergyRefresh: string;
   stepEnergyDate: string;
   stepEnergyGrantedToday: number;
-  holosTokens: number;
-  syncPoints: number;
-  lifetimeSyncPoints: number;
-  seasonSyncPoints: number;
-  syncRank: SyncRank;
-  gachaTickets: number;
-  arena_passes: number;
-  exp_boosters: number;
-  energy_refills: number;
-  rank_skips: number;
-  emergency_patches: number;
-  async_battle_tickets: number;
-  blueprints: Record<string, number>;
-  inventory: Record<string, number>;
-  parts: Array<Record<string, unknown>>;
-  equippedParts: Record<string, Record<string, Record<string, unknown>>>;
-  pack_history: Array<Record<string, unknown>>;
-  battle_cards: Record<string, number>;
-  starter_deck_claimed: boolean;
-  arena_deck_template_ids: string[];
-  holobots: UserHolobot[];
   rewardSystem: Record<string, unknown>;
   syncDistanceUnit: "km" | "mi";
-  leaderboardScore: number;
-  wildcardBlueprints: number;
-  lastWildcardPackAt: number;
   referralCode: string;
 }>;
 
@@ -311,56 +294,10 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   if (updates.stepEnergyGrantedToday !== undefined) {
     firestoreUpdates.stepEnergyGrantedToday = updates.stepEnergyGrantedToday;
   }
-  if (updates.holosTokens !== undefined) firestoreUpdates.holosTokens = updates.holosTokens;
-  if (updates.syncPoints !== undefined) firestoreUpdates.syncPoints = updates.syncPoints;
-  if (updates.lifetimeSyncPoints !== undefined) firestoreUpdates.lifetimeSyncPoints = updates.lifetimeSyncPoints;
-  if (updates.seasonSyncPoints !== undefined) firestoreUpdates.seasonSyncPoints = updates.seasonSyncPoints;
-  if (updates.syncRank !== undefined) firestoreUpdates.syncRank = updates.syncRank;
-  if (updates.gachaTickets !== undefined) firestoreUpdates.gachaTickets = updates.gachaTickets;
-  if (updates.arena_passes !== undefined) firestoreUpdates.arenaPassses = updates.arena_passes;
-  if (updates.exp_boosters !== undefined) firestoreUpdates.expBoosters = updates.exp_boosters;
-  if (updates.energy_refills !== undefined) firestoreUpdates.energyRefills = updates.energy_refills;
-  if (updates.rank_skips !== undefined) firestoreUpdates.rankSkips = updates.rank_skips;
-  if (updates.emergency_patches !== undefined) firestoreUpdates.emergencyPatches = updates.emergency_patches;
-  if (updates.async_battle_tickets !== undefined) firestoreUpdates.asyncBattleTickets = updates.async_battle_tickets;
-  if (updates.blueprints !== undefined) firestoreUpdates.blueprints = updates.blueprints;
-  if (updates.inventory !== undefined) firestoreUpdates.inventory = updates.inventory;
-  if (updates.parts !== undefined) firestoreUpdates.parts = updates.parts;
-  if (updates.equippedParts !== undefined) firestoreUpdates.equippedParts = updates.equippedParts;
-  if (updates.pack_history !== undefined) firestoreUpdates.packHistory = updates.pack_history;
-  if (updates.battle_cards !== undefined) firestoreUpdates.battle_cards = updates.battle_cards;
-  if (updates.starter_deck_claimed !== undefined) firestoreUpdates.starter_deck_claimed = updates.starter_deck_claimed;
-  if (updates.arena_deck_template_ids !== undefined) {
-    firestoreUpdates.arena_deck_template_ids = updates.arena_deck_template_ids;
-  }
-  if (updates.holobots !== undefined) firestoreUpdates.holobots = updates.holobots;
   if (updates.rewardSystem !== undefined) firestoreUpdates.rewardSystem = updates.rewardSystem;
   if (updates.syncDistanceUnit !== undefined) firestoreUpdates.syncDistanceUnit = updates.syncDistanceUnit;
-  if (updates.wildcardBlueprints !== undefined) firestoreUpdates.wildcardBlueprints = updates.wildcardBlueprints;
-  if (updates.lastWildcardPackAt !== undefined) firestoreUpdates.lastWildcardPackAt = updates.lastWildcardPackAt;
   if (updates.referralCode !== undefined) firestoreUpdates.referralCode = updates.referralCode;
 
-  if (
-    updates.holobots !== undefined ||
-    updates.syncPoints !== undefined ||
-    updates.seasonSyncPoints !== undefined ||
-    updates.leaderboardScore !== undefined
-  ) {
-    const existingSnapshot = await getDoc(userRef);
-    const existingData = (existingSnapshot.data() ?? {}) as FirestoreUserDocument;
-
-    firestoreUpdates.leaderboardScore =
-      updates.leaderboardScore ??
-      computeLeaderboardScore({
-        holobots: updates.holobots ?? existingData.holobots ?? DEFAULT_USER_PROFILE.holobots,
-        prestigeCount: existingData.prestigeCount ?? 0,
-        seasonSyncPoints:
-          updates.seasonSyncPoints ??
-          existingData.seasonSyncPoints ??
-          DEFAULT_USER_PROFILE.seasonSyncPoints,
-        wins: existingData.wins ?? DEFAULT_USER_PROFILE.wins,
-      });
-  }
-
+  if (Object.keys(firestoreUpdates).length === 0) return;
   await updateDoc(userRef, stripUndefinedDeep(firestoreUpdates) as any);
 }
