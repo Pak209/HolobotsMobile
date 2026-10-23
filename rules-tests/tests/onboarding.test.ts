@@ -14,7 +14,7 @@ it('onboarding: deny create/add/change/delete by owner, other and anonymous',asy
  for(const actor of ['owner','other',null]){
   const uid=`onboarding_${actor??'anon'}`,path=`users/${uid}`;
   const client=actor==='owner'?env.authenticatedContext(uid).firestore():actor?env.authenticatedContext(actor).firestore():env.unauthenticatedContext().firestore();
-  await assertFails(setDoc(doc(client,path),{username:'pilot',onboarding:genesis}));
+  await assertFails(setDoc(doc(client,path),{syncDistanceUnit:'km',onboarding:genesis}));
   await env.withSecurityRulesDisabled(ctx=>setDoc(doc(ctx.firestore(),path),{username:'test'}));
   await assertFails(updateDoc(doc(client,path),{onboarding:{step:7,skipped:true,stepAt:2}}));
   await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),path),{onboarding:genesis}));
@@ -25,7 +25,7 @@ it('onboarding: deny create/add/change/delete by owner, other and anonymous',asy
 });
 it('owner may keep the unchanged host onboarding field on an otherwise permitted write',async()=>{
  await env.withSecurityRulesDisabled(ctx=>setDoc(doc(ctx.firestore(),'users/onboarding_unchanged'),{username:'old',onboarding:genesis}));
- await assertSucceeds(updateDoc(doc(env.authenticatedContext('onboarding_unchanged').firestore(),'users/onboarding_unchanged'),{username:'new',onboarding:genesis}));
+ await assertSucceeds(updateDoc(doc(env.authenticatedContext('onboarding_unchanged').firestore(),'users/onboarding_unchanged'),{syncDistanceUnit:'mi',onboarding:genesis}));
  // Control: the same permitted write succeeds without the field, so the denials above are the field, not the write.
- await assertSucceeds(updateDoc(doc(env.authenticatedContext('onboarding_unchanged').firestore(),'users/onboarding_unchanged'),{username:'newer'}));
+ await assertSucceeds(updateDoc(doc(env.authenticatedContext('onboarding_unchanged').firestore(),'users/onboarding_unchanged'),{syncDistanceUnit:'km'}));
 });

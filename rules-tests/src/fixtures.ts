@@ -56,6 +56,23 @@ export function buildUserDoc(overrides: Record<string, unknown> = {}): Record<st
   return { ...SIGNUP_USER_DOC, ...overrides };
 }
 
+// holobots-write-lockdown-1: SIGNUP_USER_DOC above is now written by the HOST
+// (createGenesisProfile) — tests seed it with rules disabled. The most a client
+// CREATE may carry is firestore.rules clientCreateKeys(): no holobots,
+// currency, items or cards.
+export const CLIENT_CREATE_DOC: Record<string, unknown> = {
+  dailyEnergy: 100,
+  fitnessSource: "mobile",
+  isDevAccount: false,
+  lastEnergyRefresh: new Date(),
+  onboardingPath: "genesis",
+  syncDistanceUnit: "km",
+};
+
+export function buildClientCreateDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { ...CLIENT_CREATE_DOC, ...overrides };
+}
+
 // ---- fitness sync (mobile/src/lib/fitnessSync.ts) --------------------------
 
 export const FITNESS_USER_UPDATES: Record<string, unknown> = {

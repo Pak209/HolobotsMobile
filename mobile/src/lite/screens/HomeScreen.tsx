@@ -32,6 +32,7 @@ import { presentHostDashboard, type HostDashboardState } from "@/lite/lib/hostDa
 import { HOME_ROSTER_COPY, homeRosterState } from "@/lite/lib/homeRoster";
 import type { RootTabs } from "../../../LiteApp";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { equipHolobotPartAuthoritative } from "@/lib/loadoutClient";
 
 // Overlay only the gold pixels (green without blue), retaining the original
 // red Arena blade, blue bag and white basket. Core Image works in linear RGB.
@@ -649,21 +650,11 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
                           if (!profile || !selectedPartSlot) return;
 
                           const targetSlot = selectedPartSlot;
-                          const nextEquippedParts = {
-                            ...(profile.equippedParts || {}),
-                            [selectedHolobot.name]: {
-                              ...(profile.equippedParts?.[selectedHolobot.name] || {}),
-                              [targetSlot]: {
-                                id: part.id,
-                                name: part.name,
-                                rarity: part.rarity,
-                                slot: targetSlot,
-                              },
-                            },
-                          };
 
                           try {
-                            await updateProfile({ equippedParts: nextEquippedParts });
+                            // equippedParts is server-only (holobots-write-lockdown-1): the host copies
+                            // the owned part's record into the slot.
+                            await equipHolobotPartAuthoritative(selectedHolobot.name, targetSlot, part.id);
                             setSelectedPartSlot(null);
                           } catch (error) {
                             Alert.alert("Equip failed", error instanceof Error ? error.message : "Please try again.");

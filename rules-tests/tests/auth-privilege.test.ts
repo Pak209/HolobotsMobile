@@ -3,7 +3,7 @@ import { assertFails, assertSucceeds, type RulesTestEnvironment } from "@firebas
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
 import { authedDb, initTestEnv, seedUser, unauthedDb } from "../src/helpers";
-import { buildUserDoc } from "../src/fixtures";
+import { buildClientCreateDoc, buildUserDoc } from "../src/fixtures";
 
 describe("auth boundaries", () => {
   let env: RulesTestEnvironment;
@@ -29,7 +29,7 @@ describe("auth boundaries", () => {
   it("denies an unauthenticated setDoc of another user's document", async () => {
     await seedUser(env, "alice", buildUserDoc());
 
-    await assertFails(setDoc(doc(unauthedDb(env), "users/alice"), buildUserDoc()));
+    await assertFails(setDoc(doc(unauthedDb(env), "users/alice"), buildClientCreateDoc()));
   });
 
   it("DENIES a signed-in user reading another user's document (privacy hardening)", async () => {
@@ -51,7 +51,7 @@ describe("auth boundaries", () => {
   it("allows the owner to create and update their own document, but not delete it", async () => {
     const aliceDb = authedDb(env, "alice");
 
-    await assertSucceeds(setDoc(doc(aliceDb, "users/alice"), buildUserDoc()));
+    await assertSucceeds(setDoc(doc(aliceDb, "users/alice"), buildClientCreateDoc()));
     // Economy fields are frozen; a non-frozen field stands in for "update".
     await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 42 }));
     // Profile deletion is server-only (deleteUserAccountV2); see buddy-units-rival.test.ts.
@@ -76,7 +76,7 @@ describe("privilege escalation", () => {
 
   it("denies creating a document with isDevAccount: true", async () => {
     await assertFails(
-      setDoc(doc(authedDb(env, "alice"), "users/alice"), buildUserDoc({ isDevAccount: true })),
+      setDoc(doc(authedDb(env, "alice"), "users/alice"), buildClientCreateDoc({ isDevAccount: true })),
     );
   });
 
@@ -92,7 +92,7 @@ describe("privilege escalation", () => {
     const aliceDb = authedDb(env, "alice");
 
     await assertSucceeds(
-      setDoc(doc(aliceDb, "users/alice"), buildUserDoc({ isDevAccount: false })),
+      setDoc(doc(aliceDb, "users/alice"), buildClientCreateDoc({ isDevAccount: false })),
     );
     await assertSucceeds(
       updateDoc(doc(aliceDb, "users/alice"), { isDevAccount: false }),
@@ -162,7 +162,9 @@ describe("economy sanity caps", () => {
     const aliceDb = authedDb(env, "alice");
 
     await assertFails(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100000001 }));
-    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100000000 }));
+    // holobots-write-lockdown-1: the real cap is maxDailyEnergy (default 100), see write-lockdown.test.ts.
+    await assertFails(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100000000 }));
+    await assertSucceeds(updateDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 100 }));
   });
 
   it("rejects negative syncPoints and accepts zero", async () => {

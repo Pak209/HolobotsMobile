@@ -3,7 +3,7 @@ import { assertFails, assertSucceeds, type RulesTestEnvironment } from "@firebas
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
 import { authedDb, initTestEnv, seedUser } from "../src/helpers";
-import { buildUserDoc } from "../src/fixtures";
+import { buildClientCreateDoc, buildUserDoc } from "../src/fixtures";
 
 // 2026-10-17 critic review S2: claimDailyMission pays from users/{uid}.dailyMissionLedger,
 // which only host callables write. rewardSystem stays owner-writable (quest/training starts
@@ -44,8 +44,8 @@ describe("daily mission ledger is server-only", () => {
   });
 
   it("denies a client creating a profile that already carries a ledger", async () => {
-    await assertFails(setDoc(doc(authedDb(env, "bob"), "users/bob"), buildUserDoc({ dailyMissionLedger: { ...ledger(), missionClaims: {} } })));
-    await assertSucceeds(setDoc(doc(authedDb(env, "carol"), "users/carol"), buildUserDoc()));
+    await assertFails(setDoc(doc(authedDb(env, "bob"), "users/bob"), buildClientCreateDoc({ dailyMissionLedger: { ...ledger(), missionClaims: {} } })));
+    await assertSucceeds(setDoc(doc(authedDb(env, "carol"), "users/carol"), buildClientCreateDoc()));
   });
 
   it("keeps the census rewardSystem writes working (quest/training starts, refresh, sync boost) and an unchanged-ledger merge", async () => {

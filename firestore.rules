@@ -2,25 +2,21 @@ rules_version = '2';
 
 // Holobots Firestore Security Rules
 // -----------------------------------------------------------------------------
-// SECURITY MODEL & KNOWN LIMITATION
+// SECURITY MODEL
 //
-// The mobile client currently writes economy fields (holosTokens, syncPoints,
-// gachaTickets, holobots, leaderboardScore, battle_cards, inventory, ...)
-// directly to /users/{uid}. These rules therefore CANNOT make those fields
-// fully immutable without breaking the shipping app. Instead they:
-//   * require authentication for every read/write (was previously ungoverned),
+// Since holobots-write-lockdown-1 (Pak 2026-10-23, "yes, lock it down") a
+// client UPDATE of /users/{uid} may touch ONLY the keys in
+// clientWritableKeys() below (energy regen, the rewardSystem display /
+// quest-board copy, and three settings). Everything else on the profile —
+// holobots (stats, levels, XP, attributes, sync stats), currency, items,
+// cards, parts, leaderboard inputs — is written only by the callables
+// (Admin SDK bypasses rules). A client CREATE carries no economy at all:
+// sign-up goes through createGenesisProfile. These rules also:
+//   * require authentication for every read/write,
 //   * scope every document to its owner (no cross-account reads/writes),
 //   * block privilege escalation (isDevAccount, uid spoofing),
-//   * reject malformed / negative / absurdly large economy values as
-//     defense-in-depth against trivial "set balance = 1e9" attacks,
 //   * restrict PvP room/pool writes to participants.
-//
-// FULL economy integrity still REQUIRES moving value-granting logic
-// (gacha, battle payouts, fitness conversion, quests, purchases, minting,
-// mission claims, leaderboard scoring, PvP resolution) into Cloud Functions
-// that recompute from server-trusted state. See SECURITY_AUDIT.md (C1-C5, H1-H7).
-// Once those writes move server-side, tighten the economy fields below to
-// `allow write: if false` for the client and delete the sanity-cap helpers.
+// See SECURITY_AUDIT.md and Documentation/HANDOFFS for the history.
 // -----------------------------------------------------------------------------
 
 service cloud.firestore {
@@ -78,18 +74,67 @@ service cloud.firestore {
         || (data.referralCode is string && data.referralCode.size() <= 12);
     }
 
+    // ---- client write allowlist (holobots-write-lockdown-1, 2026-10-23) -------
+    // The ONLY profile keys a client may add / change / remove on update. One
+    // MapDiff hasOnly = one expression regardless of how many fields the
+    // account has populated (EVALUATION BUDGET note below). Writing any other
+    // field with its UNCHANGED value stays legal (full-profile merges).
+    //   dailyEnergy, lastEnergyRefresh, stepEnergyDate, stepEnergyGrantedToday:
+    //     the client-side regen tick (mobile/src/hooks/useEnergyRegen.ts) and
+    //     the main-app quest / training start spend. Capped by energyNotInflated.
+    //     Moving regen to the host is the remaining follow-up (local-day reset).
+    //   rewardSystem: quest-board / sync-boost preferences + the display copy of
+    //     quest / training runs and daily missions. Nothing pays from it: payouts
+    //     validate against progressionTimers / dailyMissionLedger (server-only).
+    //   syncDistanceUnit ("km" | "mi"), referralCode (own code, see
+    //   referralCodeSane), presenceOptOut (bool): settings, no economy.
+    function clientWritableKeys() {
+      return [
+        'dailyEnergy', 'lastEnergyRefresh', 'stepEnergyDate', 'stepEnergyGrantedToday',
+        'rewardSystem',
+        'syncDistanceUnit', 'referralCode', 'presenceOptOut'
+      ];
+    }
+
+    function onlyClientWritableKeysChanged(data, existing) {
+      return data.diff(existing).affectedKeys().hasOnly(clientWritableKeys());
+    }
+
+    // A client may spend energy or regenerate it up to maxDailyEnergy
+    // (server-only), never past it. A balance the host already put above the
+    // cap (refill items) may still be spent down.
+    function energyNotInflated(data, existing) {
+      return !('dailyEnergy' in data)
+        || data.dailyEnergy == existing.get('dailyEnergy', 0)
+        || data.dailyEnergy <= existing.get('maxDailyEnergy', 100)
+        || data.dailyEnergy <= existing.get('dailyEnergy', 0);
+    }
+
+    function syncDistanceUnitSane(data, existing) {
+      return !('syncDistanceUnit' in data)
+        || data.syncDistanceUnit == existing.get('syncDistanceUnit', null)
+        || data.syncDistanceUnit in ['km', 'mi'];
+    }
+
+    // A client CREATE (mobile and desktop sign-up both use createGenesisProfile)
+    // may only carry these keys: no holobots, currency, items or cards.
+    function clientCreateKeys() {
+      return clientWritableKeys().concat(['isDevAccount', 'fitnessSource', 'onboardingPath']);
+    }
+
     // ---- economy freeze (2026-07-12) ----------------------------------------
     // Currency, items, loot, and fitness-derived stats are paid ONLY by the
     // callables (Admin SDK bypasses rules). The mobile client fallbacks were
     // removed the same day; the holobots-fun web app's client-side economy
     // writes break by design until it migrates (owner decision).
-    // Still client-writable on purpose: dailyEnergy + energy timestamps
-    // (regen/quest/training starts), holobots (attribute-point spends),
-    // battle_cards + arena_deck_template_ids + starter_deck_claimed (deck
-    // building & signup starter grant), equippedParts, inventory,
-    // rewardSystem (quest/training state + a DISPLAY mirror of the daily
-    // mission counters; nothing pays from it), leaderboardScore (recomputed by
-    // legit holobots writes), asyncBattleTickets, prestigeCount.
+    // holobots-write-lockdown-1 (2026-10-23) closed the rest: holobots
+    // (attribute spends -> boostHolobotAttribute, sync-ability equips ->
+    // equipSyncAbility, kit saves -> saveHolobotCombatKit), equippedParts
+    // (-> equipHolobotPart), battle_cards / arena_deck_template_ids /
+    // starter_deck_claimed (-> createGenesisProfile / claimStarterDeck),
+    // inventory, leaderboardScore (the leaderboard mirror recomputes it),
+    // prestigeCount, asyncBattleTickets, maxDailyEnergy are server-only, and
+    // clientWritableKeys() above is the whole client surface.
     // Daily missions (2026-10-17 critic review S2): the counters and claims
     // claimDailyMission pays from live in dailyMissionLedger, server-only
     // below. rewardSystem itself stays owner-writable until the quest/training
@@ -127,7 +172,13 @@ service cloud.firestore {
         // 2026-10-17 critic review S3 (hardening-2): host-clock quest / training start records.
         'progressionTimers',
         // onboarding-host-1 (DECISIONS #72.3–#72.5): the host-owned onboarding step.
-        'onboarding'
+        'onboarding',
+        // holobots-write-lockdown-1: the roster (stats / levels / XP / attributes / sync
+        // stats / equipped abilities), cards, parts loadout, items and leaderboard inputs.
+        'holobots', 'equippedParts', 'battle_cards', 'arena_deck_template_ids',
+        'starter_deck_claimed', 'inventory', 'leaderboardScore', 'prestigeCount',
+        'asyncBattleTickets', 'lastAsyncTicketRefresh', 'maxDailyEnergy',
+        'attributeBoostRequestIds'
       ]);
     }
 
@@ -215,6 +266,9 @@ service cloud.firestore {
       allow read: if isOwner(uid);
 
       allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(clientCreateKeys())
+        && energyNotInflated(request.resource.data, {})
+        && syncDistanceUnitSane(request.resource.data, {})
         && noPrivilegeEscalation(request.resource.data)
         && economyFieldsSane(request.resource.data)
         && economyFrozenOnCreate(request.resource.data)
@@ -227,8 +281,11 @@ service cloud.firestore {
       // isDevAccount: true keeps writing normally (unchanged value is not
       // affected) while any flip in either direction is denied.
       allow update: if isOwner(uid)
+        && onlyClientWritableKeysChanged(request.resource.data, resource.data)
         && economyFieldsSane(request.resource.data)
         && protectedFieldsUntouched(request.resource.data, resource.data)
+        && energyNotInflated(request.resource.data, resource.data)
+        && syncDistanceUnitSane(request.resource.data, resource.data)
         && referralCodeSane(request.resource.data)
         && presenceOptOutSane(request.resource.data);
 

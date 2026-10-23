@@ -31,8 +31,10 @@ describe("mobile write replay", () => {
   });
 
   describe("signup (AuthContext.tsx setDoc merge:true)", () => {
-    it("allows the owner to create their own user doc via setDoc merge", async () => {
-      await assertSucceeds(
+    // holobots-write-lockdown-1: sign-up is createGenesisProfile (host). The old
+    // client signup write (holobots + starter deck + zero balances) is denied.
+    it("DENIES the old client signup write (AuthContext setDoc of the full profile)", async () => {
+      await assertFails(
         setDoc(doc(authedDb(env, "alice"), "users/alice"), SIGNUP_USER_DOC, { merge: true }),
       );
     });
