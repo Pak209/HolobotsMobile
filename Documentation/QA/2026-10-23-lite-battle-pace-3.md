@@ -1,0 +1,13 @@
+# Lite battle pace 3 — HARE strict pack
+
+Pak approved the 2,210,316-byte HARE candidate as a bot-specific exception to the usual 2,000,000-byte limit. The approved bytes are installed at `mobile/assets/bots/hare.glb` with SHA-256 `58d8505b9cdfbab3a9656e0f92a0c9ed92dca14dd38e82298e07b6a3732c9f5e`. All other bots retain the 2,000,000-byte cap. The source and install script pin the exact candidate; no new art or pack attempt was made.
+
+Decoded pose comparison: maximum position delta 0.0697288083 mm and rotation delta 0.0781414536 degrees. The earlier 1,987,352-byte candidate remains known-bad because it exceeded pose tolerance. Asset validation: 12 bots, 194 clips, 148 native/WASM-identical buffers, 19,454,332 bytes total and zero glTF errors.
+
+The signed-out Arena QA fixture now uses the HARE model with its recorded HARE issue/settle data; it no longer substitutes a KUMA model. Host outcomes and rewards remain unchanged.
+
+Local checks: lite branch 1,430 passing mobile tests, 4 conditional skips, typecheck green; gated-main mirror 1,588 passing mobile tests, 4 conditional skips, typecheck green; 50/50 overworld tests on main mirror; HARE budget and compactor tests 3/3. Both PRs' GitHub Actions have green mobile/typecheck, functions/unit and Firestore emulator jobs: [#199 run](https://github.com/Pak209/HolobotsMobile/actions/runs/40022324551), [#200 run](https://github.com/Pak209/HolobotsMobile/actions/runs/40022399550).
+
+Evidence: `/Users/pak/HolobotsVault/QA/2026-10-23-astra-lite-battle-pace/pace-3/PHONE_SHEET.png` (1600 px, eight inventoried cells). Cells 2–3 are **decoded strict-pack Blender renders**, explicitly labeled as such, replacing the old KUMA stand-in cells. Cells 1 and 4–8 retain the prior native simulator evidence, with known-bad first. `sheet-inventory.json` names every source. The packed source and pose report are in `pace-2/packed/hare-r2.*`.
+
+Native HARE playback re-witness remains open. The installed simulator binary is a cached build with the prior KUMA fixture. Metro served the current source, but opening the QA URL left the cached screen unchanged. A local cold `xcodebuild` against the existing offline Pods failed with missing `RevenueCat.modulemap` and Yoga headers (`/private/tmp/astra-hare-xcodebuild.log`, `BUILD FAILED`, exit 65). The scratch Pod symlink was removed; no shared source files or native dependencies were changed. The prior Arena/PvP performance limits remain: Arena 24.40 fps and tall PvP modal 24.125 fps, below their approximate 25/33 fps targets. These are historical measurements, not measurements of the new HARE pack.
