@@ -394,7 +394,7 @@
     },
     "hare": {
       "file": "hare.glb",
-      "bytes": 1681480,
+      "bytes": 2210316,
       "originalBytes": 13931624,
       "heightM": 1.52,
       "triangles": 42982,
@@ -436,11 +436,58 @@
           "unityClip": "HB_HARE_Mixar_Walk"
         }
       ],
-      "sha256": "d42b1e56204a55aad593bf063a4d617262ea6bedd211fd91897e47ef73833bc4",
+      "sha256": "58d8505b9cdfbab3a9656e0f92a0c9ed92dca14dd38e82298e07b6a3732c9f5e",
       "validation": {
         "errors": 0,
         "warnings": 2
-      }
+      },
+      "fightClips": [
+        {
+          "name": "FightLight",
+          "seconds": 1.625,
+          "unityClip": "HB_HARE_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.875,
+          "unityClip": "HB_HARE_MixarState_DoubleHeel"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.875,
+          "unityClip": "HB_HARE_MixarState_DoubleHeel"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.46666667,
+          "unityClip": "HB_HARE_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 1.0666667,
+          "unityClip": "HB_HARE_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_HARE_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.6666667,
+          "unityClip": "HB_HARE_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.0,
+          "unityClip": "HB_HARE_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.8333334,
+          "unityClip": "HB_HARE_Mixar_Run"
+        }
+      ]
     },
     "shadow": {
       "file": "shadow.glb",
@@ -1139,6 +1186,7 @@
       "ace",
       "era",
       "gama",
+      "hare",
       "ken",
       "kuma",
       "kurai",
@@ -1148,11 +1196,12 @@
       "wake",
       "wolf"
     ],
-    "heldBots": [
-      "hare"
-    ],
+    "heldBots": [],
     "compression": "meshopt medium; source geometry/textures retained; top-two normalized skin; animation resample tolerance1e-7",
     "rawToPackedMaxJointErrorMm": 1,
     "rawToPackedMaxJointRotationDeg": 0.2
+  },
+  "maxBotBytesByBot": {
+    "hare": 2210316
   }
 }

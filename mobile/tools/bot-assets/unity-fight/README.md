@@ -1,6 +1,6 @@
 # Unity fight clip port — lite-battle-pace-1
 
-Candidate ports for 11 of the 12 bundled bots. HARE remains the original asset: two pack attempts reached 2,013,044 and 2,011,580 bytes, above the strict 2,000,000-byte cap. Do not silently increase that cap, drop a take, lower texture resolution, or simplify geometry to make this lane pass.
+Candidate ports for all 12 bundled bots. The original 11 pass the 2,000,000-byte cap. Pak approved one HARE-only exception for the strict 2,210,316-byte pack (DECISIONS #72.82); its independent decoded-pose error is 0.06973 mm / 0.07814°. No take, texture or geometry is removed. `hare-budget.mjs` pins the exact exception; all other bots retain the strict decimal cap. The first 11-bot staging script remains the historical baseline; `install_approved_hare.py` applies the approved follow-up pack and provenance.
 
 The manifest pins Unity `1252e63acc6da12be0ab2cbdbde1408e2687251f` and original Mobile `cdf6318d961c532f43d9428e75c00154b5b4f8ad`. Installed Unity `.anim` curves and controller speeds are the motion authority. These are frequently newer than the original FBX. ACE hit/defeat and the explicitly identified TSUIN guard use FBX takes. This is not a claim that every original FBX hierarchy was independently validated.
 
@@ -19,7 +19,7 @@ node mobile/tools/bot-assets/unity-fight/validate_poses.mjs "$PACE_OUT/export/wo
 node mobile/scripts/validate-bots.mjs --report "$PACE_OUT/asset-validation.json"
 ```
 
-`stage_manifest.py` requires a complete guarded-status report with exactly 11 accepted bots and HARE excluded. It copies only the accepted candidate bytes and writes checksums/provenance. It does not grant approval to install a held candidate. `fight-source-manifest.json` is the committed immutable inventory; the runtime timing subset is `src/lite/lib/bots/fightClipTiming.json` (or `src/lib/bots/` on the lite integration branch).
+`stage_manifest.py` requires a complete guarded-status report with exactly 11 accepted bots and HARE excluded. It copies that historical set and writes checksums/provenance. Then run `install_approved_hare.py` with the pinned strict HARE candidate, its pose report and `unity-fight-source.json`; the script asserts the byte hash, exact size and pose tolerance before updating the 12-bot manifests. `fight-source-manifest.json` is the committed immutable inventory; the runtime timing subset is `src/lite/lib/bots/fightClipTiming.json` (or `src/lib/bots/` on the lite integration branch).
 
 ## Gates and limitations
 
@@ -38,6 +38,6 @@ node mobile/scripts/validate-bots.mjs --report "$PACE_OUT/asset-validation.json"
 
 ## lite-battle-pace-2 continuation
 
-`compact_defaults.mjs` removes only explicit GLB JSON defaults (`normalized:false`, zero byte offsets, `LINEAR` interpolation). It asserts valid GLB framing and preserves all following BIN chunks byte-for-byte. `pack.mjs` applies it after strict packing; the 2,000,000-byte cap and 1e-7 tolerance remain unchanged. Run `node --test mobile/tools/bot-assets/unity-fight/compact_defaults.test.mjs`.
+`compact_defaults.mjs` removes only explicit GLB JSON defaults (`normalized:false`, zero byte offsets, `LINEAR` interpolation). It asserts valid GLB framing and preserves all following BIN chunks byte-for-byte. `pack.mjs` applies it after strict packing; the 1e-7 tolerance and 2,000,000-byte cap remain for eleven bots, with only HARE's exact approved 2,210,316-byte exception. Run `node --test mobile/tools/bot-assets/unity-fight/compact_defaults.test.mjs mobile/tools/bot-assets/hare-budget.test.mjs`.
 
-HARE is still held: the prior loose candidate now fits at 1,987,352 B but fails decoded pose (2.291864 mm / 0.217491 degrees); a strict repack passes pose (0.0697288 mm / 0.0781415 degrees) but is 2,210,316 B. Both failures and commands are archived in the pace-2 vault; no third attempt or HARE installation. See `Documentation/QA/2026-10-23-lite-battle-pace-2.md` for the rule citation, native KO-to-result and TSUIN guard witness, and FPS limits.
+The prior loose HARE candidate at 1,987,352 B failed decoded pose (2.291864 mm / 0.217491 degrees). Pak's approved strict candidate passes pose (0.0697288 mm / 0.0781415 degrees) and is the one installed. Both earlier attempts remain archived in the pace-2 vault; no new art attempt was made. See `Documentation/QA/2026-10-23-lite-battle-pace-3.md` for the acceptance and fresh phone sheet.
