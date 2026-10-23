@@ -197,7 +197,7 @@
     "evadeMaxPm": 100,
     "evadeWide": 1,
     "evadeSpecials": 0,
-    "initiativeMinEdgePm": 1,
+    "initiativeMinEdgePm": 47,
     "tempoMaxTicks": 2,
     "tempoFullEdgePm": 150,
     "syncEdgePm": 2000,

@@ -234,7 +234,11 @@ test('attrs + chase flags: the issue is duel-rules-5 with each fighter\'s battle
   assert.deepEqual(on.rules.attrs, F.defaultAttrRules()); assert.deepEqual(on.rules.chase, F.defaultChaseRules());
   assert.deepEqual(on.rules.fighters.map(f => [f.id, f.speed, f.special]), [['ace', 62, 50], ['kuma', 40, 40], ['cpu-hare', 70, 33]]);
   const { schemaVersion: _a, simVersion: _v, attrs: _t, fighters: f5, ...on4 } = on.rules, { schemaVersion: _b, simVersion: _w, fighters: f4, ...off4 } = four.rules;
-  assert.deepEqual(on4, off4); assert.deepEqual(f5.map(({ speed: _s, special: _p, ...f }) => f), f4, 'the same snapshot plus attrs + speed / special');
+  assert.deepEqual(on4, off4);
+  // #72.80: player fighters carry the fight-row delta (attack / defense / HP); everything else is the duel-rules-4 snapshot
+  const strip = ({ speed: _s, special: _p, attack: _a, defense: _d, maxHp: _m, hp: _h, ...f }) => f;
+  assert.deepEqual(f5.map(strip), f4.map(strip), 'the same snapshot plus attrs + speed / special + the fight rows');
+  assert.deepEqual(f5[2], { ...f4[2], speed: 70, special: 33 }, 'a tier-curve opponent keeps its issued stats');
   const { rules, chase, attrs } = F.rulesDocFromJson(on.rules);
   assert.equal(F.rulesHash(rules, chase, attrs), on.rulesHash); assert.notEqual(on.rulesHash, four.rulesHash);
 });
@@ -257,4 +261,25 @@ test('attrs issue: a log recorded on the duel-rules-5 core verifies; a duel-rule
   rejects(() => verify(t2, wire), e => e.code === 'invalid_issue');
   const t3 = clone(issue); delete t3.rules.attrs; t3.rules.schemaVersion = 'duel-rules-4'; t3.rules.simVersion = 'duel-sim-3';
   rejects(() => verify(t3, wire), e => e.code === 'invalid_issue');
+});
+
+test('#72.80 fight rows: a duel-rules-5 issue applies the fight base-row delta to progression-sourced combatants only', async () => {
+  const { getHolobotFightStatDelta, HOLOBOT_FIGHT_BASE_STATS_72_80 } = await import('../lib/lib/fightBalance.js');
+  const P = await import('../lib/lib/progression.js');
+  const ace = P.getHolobotBattleStats('ACE', 1), kuma = P.getHolobotBattleStats('KUMA', 1);
+  const c = (id, s, src) => ({ ...combatant(id, s.maxHP, s.attack, s.defense), speed: s.speed, intelligence: s.intelligence, ...(src ? { statSource: src } : {}) });
+  const lineup = { player: [c('ace', ace)], opponent: [c('kuma', kuma, 'progression')] };
+  const on = issueFor({ ...lineup, chase: true, attrs: true }), off = issueFor({ ...lineup, chase: true });
+  const da = getHolobotFightStatDelta('ace', 1), dk = getHolobotFightStatDelta('kuma', 1);
+  assert.deepEqual([da.attack, da.defense, da.maxHP], [-20, -10, -27]); assert.deepEqual([dk.attack, dk.maxHP], [-20, -12]);
+  const [p, o] = on.rules.fighters, [p4, o4] = off.rules.fighters;
+  assert.deepEqual([p.attack, p.defense, p.maxHp], [p4.attack - 20, p4.defense - 10, p4.maxHp - 27]);
+  assert.deepEqual([o.attack, o.maxHp], [o4.attack - 20, o4.maxHp - 12], 'a progression-sourced opponent gets its row too');
+  const tierOpp = issueFor({ player: lineup.player, opponent: [c('kuma', kuma)], chase: true, attrs: true }).rules.fighters[1];
+  assert.equal(tierOpp.attack, o4.attack, 'a tier-curve opponent is untouched');
+  assert.equal(JSON.stringify(off), JSON.stringify(issueFor({ ...lineup, chase: true, attrs: false })), 'flag off: rules-4, no delta');
+  assert.deepEqual(HOLOBOT_FIGHT_BASE_STATS_72_80.JUSAN, { attack: 6, defense: 4, hp: 137, intelligence: 5, speed: 6 }, 'JUSAN has his own row');
+  for (const [id, r] of Object.entries(HOLOBOT_FIGHT_BASE_STATS_72_80)) if (P.HOLOBOT_BASE_STATS[id]) {
+    assert.equal(r.speed, P.HOLOBOT_BASE_STATS[id].speed, id + ': SPEED column untouched'); assert.equal(r.intelligence, P.HOLOBOT_BASE_STATS[id].intelligence, id + ': SPECIAL untouched');
+  }
 });

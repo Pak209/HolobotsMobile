@@ -2,6 +2,7 @@ import {
   FIGHT_INPUTS_SCHEMA, FIGHT_RECEIPT_SCHEMA, FIGHT_REPLAY_MODE, FIGHT_SIM_VERSION, FightReplayIssueWire,
 } from '../shared/fightReplayContract';
 import { duelFighterFromCombatant } from '../lib/duelResolver';
+import { getHolobotFightStatDelta } from '../lib/fightBalance';
 import {
   defaultAttrRules, defaultChaseRules, defaultRulesValues, FightFighterDef, FightRules, KIT_IDS, kitFighter, RULES_SCHEMA, RULES_SCHEMA_4, RULES_SCHEMA_5, rulesDocToJson5,
   rulesHash, validateRules,
@@ -30,7 +31,9 @@ export function fightRankForTier(tier: number): string {
   return RANKS[idx];
 }
 
-type Combatant = Parameters<typeof duelFighterFromCombatant>[0] & { intelligence?: number };
+/** statSource 'progression' = stats from getHolobotBattleStats rows (player bots, arena / PvP entrants): a duel-rules-5 issue
+ * applies the #72.80 fight-row delta (lib/fightBalance). Rival tier-curve combatants (WOLF-shaped, rivalTierStats) carry none. */
+type Combatant = Parameters<typeof duelFighterFromCombatant>[0] & { intelligence?: number; statSource?: 'progression' | 'tier' };
 
 export function buildFightReplayIssue(input: {
   battleId: string; seed: string; tier: number; mentor: boolean;
@@ -44,7 +47,17 @@ export function buildFightReplayIssue(input: {
   if (new Set(player.map(c => c.holobotId)).size !== player.length || new Set(opponent.map(c => c.holobotId)).size !== opponent.length) return null;
   const half = Math.trunc(FIGHT_START_GAP_MM / 2);
   const issueAttrs = input.chase === true && input.attrs === true;
-  const fighter = (c: Combatant, side: number, fighterId: string): FightFighterDef => {
+  // #72.80: duel-rules-5 fights read the fight base rows (player side always; opponents only when progression-sourced)
+  const balanced = (c: Combatant, side: number): Combatant => {
+    if (!issueAttrs || !(side === 0 || c.statSource === 'progression')) return c;
+    const dl = getHolobotFightStatDelta(c.holobotId, c.level ?? 1);
+    const maxHealth = Math.max(1, c.maxHealth + dl.maxHP);
+    const currentHealth = c.currentHealth === undefined ? undefined : Math.max(0, Math.min(maxHealth, Math.floor(c.currentHealth * maxHealth / Math.max(1, c.maxHealth))));
+    return { ...c, attack: Math.max(0, c.attack + dl.attack), defense: Math.max(0, c.defense + dl.defense), maxHealth, currentHealth,
+      speed: Math.max(0, (c.speed ?? 0) + dl.speed), intelligence: Math.max(0, (c.intelligence ?? 0) + dl.intelligence) };
+  };
+  const fighter = (raw: Combatant, side: number, fighterId: string): FightFighterDef => {
+    const c = balanced(raw, side);
     const s = duelFighterFromCombatant({ ...c, tier: input.mentor ? 0 : input.tier });
     const f = kitFighter(c.holobotId);
     f.id = fighterId; f.side = side;

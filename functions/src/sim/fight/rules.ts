@@ -68,7 +68,7 @@ export function defaultChaseRules(): FightChaseRules { return { ...CHASE_DEFAULT
 /** FightAttrRules field initialisers (duel-rules-5 `attrs`, Pak's approved v3 numbers #72.78), in FightAttrRules.Keys (= hash) order. */
 export const ATTR_DEFAULTS = {
   moveEdgePm: 600, moveMinPm: 940, moveMaxPm: 1060, chaseParity: 1, evadeBasePm: 0, evadeEdgePm: 1000, evadeMaxPm: 100, evadeWide: 1, evadeSpecials: 0,
-  initiativeMinEdgePm: 1, tempoMaxTicks: 2, tempoFullEdgePm: 150, syncEdgePm: 2000, syncMinPm: 750, syncMaxPm: 1400, specialDmgEdgePm: 2000, specialDmgMaxPm: 1300,
+  initiativeMinEdgePm: 47, tempoMaxTicks: 2, tempoFullEdgePm: 150, syncEdgePm: 2000, syncMinPm: 750, syncMaxPm: 1400, specialDmgEdgePm: 2000, specialDmgMaxPm: 1300,
   retreatChainMax: 3,
 };
 export type AttrKey = keyof typeof ATTR_DEFAULTS;
@@ -304,7 +304,8 @@ export function attrEdge(own: number, opp: number): number { return own + opp <=
 export function moveMul(a: FightAttrRules, e: number): number { return clampL(1000 + div(a.moveEdgePm * e, 1000), a.moveMinPm, a.moveMaxPm); }
 export function evadeChance(a: FightAttrRules, e: number): number { return clampL(a.evadeBasePm + div(a.evadeEdgePm * e, 1000), 0, a.evadeMaxPm); }
 export function tempoTicks(a: FightAttrRules, e: number): number {
-  return e <= 0 || a.tempoFullEdgePm <= 0 ? 0 : clampL(div(a.tempoMaxTicks * e, a.tempoFullEdgePm), 0, a.tempoMaxTicks);
+  // #72.80: the faster wind-up needs the same clear speed gap as the trade win (FightAttrRules.TempoTicks)
+  return e <= 0 || a.tempoFullEdgePm <= 0 || (a.initiativeMinEdgePm > 0 && e < a.initiativeMinEdgePm) ? 0 : clampL(div(a.tempoMaxTicks * e, a.tempoFullEdgePm), 0, a.tempoMaxTicks);
 }
 export function syncMul(a: FightAttrRules, e: number): number { return clampL(1000 + div(a.syncEdgePm * e, 1000), a.syncMinPm, a.syncMaxPm); }
 export function specialDmgMul(a: FightAttrRules, e: number): number {

@@ -20,7 +20,7 @@ const cpuDoc = load('cpu-brain-sync-vectors');
 const schema5 = JSON.parse(readFileSync(new URL('../../Schemas/duel-rules-5.json', import.meta.url)));
 const schema4 = JSON.parse(readFileSync(new URL('../../Schemas/duel-rules-4.json', import.meta.url)));
 
-const NAMES = ['attrs-move-run', 'attrs-escape-chase-parity', 'attrs-evade-sure', 'attrs-evade-roll', 'attrs-initiative-stuff', 'attrs-tempo-opener',
+const NAMES = ['attrs-move-run', 'attrs-escape-chase-parity', 'attrs-evade-sure', 'attrs-evade-roll', 'attrs-initiative-stuff', 'attrs-gap-neutral', 'attrs-tempo-opener',
   'attrs-sync-special', 'attrs-retreat-chain', 'attrs-tuned-numbers', 'cpu-stub-attrs-smoke-0', 'cpu-stub-attrs-smoke-1'];
 
 /** FightCoreFixtures.Seed(i): hex8(i * 2654435761 mod 2^32) + 48 zeros + hex8(i). */
@@ -42,7 +42,7 @@ function replay(doc, asRules4 = false, rulesDoc = doc.rules) {
 const isSpeedEvent = e => e.kind === F.EventKind.Stuffed || (e.kind === F.EventKind.Contact && e.value === -1);
 const ev = n => load(n).expected.events;
 
-test('the index lists the 11 duel-rules-5 vectors (the C# Names order)', () => {
+test('the index lists the 12 duel-rules-5 vectors (the C# Names order)', () => {
   assert.equal(index.vectorVersion, 'duel-rules-5-vectors-1');
   assert.deepEqual(index.vectors, NAMES);
   assert.equal(cpuDoc.fixtureVersion, 'duel-rules-5-cpu-brain-1');
@@ -145,6 +145,8 @@ test('the curves and the roll are pinned (C# TheCurvesAndTheRollArePinned)', () 
   assert.equal(F.attrEdge(60, 40), 200); assert.equal(F.attrEdge(40, 60), -200); assert.equal(F.attrEdge(0, 0), 0);
   assert.equal(F.moveMul(a, 200), 1060); assert.equal(F.moveMul(a, -200), 940); assert.equal(F.moveMul(a, 100), 1060); assert.equal(F.moveMul(a, 91), 1054);
   assert.equal(F.evadeChance(a, 91), 91); assert.equal(F.evadeChance(a, 400), 100); assert.equal(F.evadeChance(a, 100), 100); assert.equal(F.evadeChance(a, -50), 0);
+  assert.equal(F.attrEdge(110, 100), 47); assert.equal(F.attrEdge(105, 100), 24); assert.equal(F.attrEdge(115, 100), 69);
+  assert.equal(a.initiativeMinEdgePm, 47, '#72.80: a 10 % speed gap'); assert.equal(F.tempoTicks(a, 46), 0);
   assert.equal(F.tempoTicks(a, 74), 0); assert.equal(F.tempoTicks(a, 75), 1); assert.equal(F.tempoTicks(a, 150), 2); assert.equal(F.tempoTicks(a, 900), 2);
   assert.equal(F.syncMul(a, 111), 1222); assert.equal(F.syncMul(a, -400), 750); assert.equal(F.syncMul(a, 400), 1400);
   assert.equal(F.specialDmgMul(a, 100), 1200); assert.equal(F.specialDmgMul(a, -500), 700);
@@ -266,4 +268,10 @@ test('the attrs-off core is the duel-rules-4 core byte for byte; the decoder con
   assert.equal(F.decodeState(off.stateBytes(), rules).trailingBytes, undefined);
   // the retreat-chain vector's own end state names the chain counter
   const r = replay(doc); assert.equal(F.coreFields(r.core)[`${rules.fighters[0].id}.retreatChain`], r.core.F[0].retreatChain);
+});
+
+test('#72.80 attrs-gap-neutral: a 6 % speed gap gives no trade win and no faster wind-up', () => {
+  const ev = JSON.parse(readFileSync(new URL('./fixtures/duel-rules-5/attrs-gap-neutral.json', import.meta.url))).expected.events;
+  assert.ok(ev.includes('0 s0 Telegraph Light 15')); assert.ok(!ev.some(e => e.includes('Stuffed')));
+  assert.equal(ev.filter(e => e.startsWith('15 ') && e.includes('Contact Light Hit')).length, 2);
 });

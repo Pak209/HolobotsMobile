@@ -965,7 +965,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 1000,
-          "description": "a same-tick trade goes to the faster side when |e| >= this (0 = off) [per-mille (1000 = x1.0 / 100 %); default 1]"
+          "description": "a same-tick trade goes to the faster side when |e| >= this (0 = off) [per-mille (1000 = x1.0 / 100 %); default 47]"
         },
         "tempoMaxTicks": {
           "type": "integer",
