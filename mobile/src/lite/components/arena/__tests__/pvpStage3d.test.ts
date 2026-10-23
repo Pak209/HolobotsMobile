@@ -15,7 +15,7 @@ describe('PvP renders the Arena round\'s 3D stage', () => {
   it('the live PvP body asks for the 3D stage; the 2D sprite floor is only the fallback', () => {
     expect(live).toMatch(/^\s*stage3d$/m);
     expect(view).toContain('const show3d = stage3d && !stageFailed && hasDuelBotStage(battle);');
-    expect(view).toContain('<DuelBotStage battle={battle} action={lastAction} active={!team?.sendIn} onError={() => setStageFailed(true)} />');
+    expect(view).toContain('<DuelBotStage battle={battle} action={lastAction} active={!!terminal || !team?.sendIn} terminal={terminal} onTerminalComplete={onTerminalComplete} onError={() => setStageFailed(true)} />');
     expect(view).toContain('{show3d ? <View pointerEvents="none" testID="pvp-stage-3d" style={styles.battleStageWrap} /> : <View style={styles.battleStageWrap}>');
   });
   it('known-bad: the pre-lane PvP body (no stage3d) would still draw the 2D sprites', () => {
