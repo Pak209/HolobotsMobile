@@ -24,15 +24,16 @@ describe('PvP renders the Arena round\'s 3D stage', () => {
     expect(view).toContain('stage3d = false,');
   });
   it('the stage is the Arena round\'s: duelPortrait BotStage on the park plate, fast mix, pack VFX + SKY / BREAK camera beat', () => {
-    expect(stage).toContain('<BotStage ref={stage} variant="duelPortrait" transparentBackdrop');
+    expect(stage).toContain('<BotStage key={sceneKey} ref={stage} variant="duelPortrait" transparentBackdrop');
     expect(stage).toContain("require('../../../../assets/battle/holocity-park.jpg')");
     expect(stage).toContain('renderQuality = FAST_RENDER_QUALITY, vfx = true, specialCamera = true');
-    expect(stage).toContain('if (vfx) for (const cue of liveDuelVfxCues(action, battle, { player, rival })) stage.current?.fx(cue, IMPACT_MS);');
-    expect(stage).toContain('const IMPACT_MS = 300;');
+    expect(stage).toContain('cue.effects = vfx ? liveDuelVfxCues(row, battle, { player, rival }) : [];');
+    expect(stage).not.toContain('const IMPACT_MS = 300;');
   });
   it('3v3: only the two active fighters are on stage (a switch swaps the model; never six at once)', () => {
     expect(stage).toContain("bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]}");
-    expect(stage).toContain('useEffect(() => { setReady(false); }, [player, rival]);');
+    expect(stage).toContain('const ready = readyScene === sceneKey;');
+    expect(stage).toContain('`${battle.battleId}:${player}:${rival}`');
   });
   it('presentation only: the 3D layer is not touchable and the HUD presses are unchanged', () => {
     expect(view).toContain('{show3d ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { top: -stageBleedTop }]}>');

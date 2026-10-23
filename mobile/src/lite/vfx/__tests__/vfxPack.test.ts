@@ -129,7 +129,9 @@ describe('wiring pins', () => {
   });
   it('the stage fires from the action effect that presents the store update, at the hit recoil beat; VFX are opt-in', () => {
     const stage = read('../../components/duel/LiveDuelStage.tsx');
-    expect(stage).toContain('if (vfx) for (const cue of liveDuelVfxCues(action, battle, { player, rival })) stage.current?.fx(cue, IMPACT_MS);');
+    expect(stage).toContain('cue.effects = vfx ? liveDuelVfxCues(row, battle, { player, rival }) : [];');
+    expect(read('../../components/bots/BotStage.tsx')).toContain('fireFx(effect, cue.timing.windupMs)');
+    expect(stage).not.toContain('const IMPACT_MS = 300;');
     expect(stage).toContain('vfx = false');
     expect(read('../../components/bots/BotStage.tsx')).toContain('vfx = false, vfxUnbuiltKits = false');
     expect(read('../../screens/ArenaScreen.tsx')).toContain('vfx={preview?.vfx ?? true}');
