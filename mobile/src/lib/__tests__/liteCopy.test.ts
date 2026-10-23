@@ -25,6 +25,10 @@ const FILES = [
   "../../vfx/vfxPlayer.ts", "../../vfx/liveDuelVfx.ts", "../../vfx/vfxCurves.ts",
   // lite-2305-1: the special camera beat.
   "../../vfx/specialCameraBeat.ts",
+  // lite-hud-row-1: the PvP live battle body.
+  "../../components/arena/PvpLiveBattle.tsx",
+  // lite-pvp-3d-1: PvP's 3D stage.
+  "../../components/duel/DuelBotStage.tsx", "../../components/arena/pvpStageAction.ts",
   // lite-progression-host-1: quests, training and daily missions through the City.
   "../../screens/QuestsScreen.tsx", "../../screens/TrainingScreen.tsx", "../../components/DailyMissionsModal.tsx",
   "../../components/UserStatsModal.tsx", "../progressionHost.ts", "../progressionHostClient.ts", "../dailyMissions.ts",

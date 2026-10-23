@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 import { theme } from "@/theme";
-import { CHIP_HEIGHT, PLATE_POSITION, READINESS_TEXT, commandPlateLayout, hexPoints, type FinisherReadiness } from "./duel/commandPlateLayout";
+import { CHIP_HEIGHT, PLATE_POSITION, READINESS_TEXT, commandPlateLayout, hexPoints, plateCut, type FinisherReadiness } from "./duel/commandPlateLayout";
 import { HoloCommandGlyph, LineFrame, PlateFrame, useBoxSize } from "./duel/HoloHudArt";
 import { HOLO_COMMAND_GLYPHS } from "./duel/holoCommandGlyphs";
 
@@ -16,6 +16,9 @@ export type HoloCityCommand = {
   glyph?: string;
   accent?: string;
   disabled?: boolean;
+  /** Which HoloCity plate this command is drawn as (glyph and row slot) when its id is not one of the four plate ids
+   * (PvP passes its own move ids). */
+  art?: "strike" | "heavy" | "defend" | "finisher";
   /** FINISHER only: the engine's readiness, shown as the LOCKED / HALF READY / FULL READY chip. */
   readiness?: FinisherReadiness;
 };
@@ -53,14 +56,15 @@ export function FinisherReadinessChip({ readiness }: { readiness: FinisherReadin
   </View>;
 }
 
-/** HoloCity's four command plates as Pak's portrait concept draws them: 2×2 hex plates with the Unity glyph, command,
- * move name and the STA cost chip in the bottom notch. Presentation of the commands it is given; it decides nothing. */
+/** HoloCity's four command plates in ONE row, as the HoloCity fight HUD draws them (lite-hud-row-1, Pak 2026-10-22):
+ * STRIKE · HEAVY · DEFEND · FINISHER, each a hex plate with the Unity glyph, command, move name and the STA cost chip in
+ * the bottom notch. Presentation of the commands it is given; it decides nothing. */
 export function HoloCityCommandBar({ commands = HOLOCITY_COMMANDS, selected, disabled = false, compact = false, onPress, style }: HoloCityCommandBarProps) {
   const window = useWindowDimensions();
   // The duel stages inset the bar 14 pt each side; measure the real width once laid out.
   const [box, onLayout] = useBoxSize({ width: window.width - 28, height: 0 });
   const layout = commandPlateLayout(box.width, { compact, count: commands.length });
-  const ordered = commands.map((command, index) => ({ command, index, position: PLATE_POSITION[command.id] ?? index })).sort((a, b) => a.position - b.position);
+  const ordered = commands.map((command, index) => ({ command, index, position: PLATE_POSITION[command.art ?? command.id] ?? index })).sort((a, b) => a.position - b.position);
   return <View onLayout={onLayout} style={[styles.bar, { height: layout.height }, style]}>
     {ordered.map(({ command, index }, slotIndex) => {
       const slot = layout.slots[slotIndex];
@@ -68,23 +72,23 @@ export function HoloCityCommandBar({ commands = HOLOCITY_COMMANDS, selected, dis
       const blocked = disabled || command.disabled;
       const accent = command.accent ?? theme.hud.plate.strike;
       const plate = slot.plate;
-      const glyph = HOLO_COMMAND_GLYPHS[command.id as keyof typeof HOLO_COMMAND_GLYPHS];
-      const side = Math.round(plate.height * 0.38);
+      const glyph = HOLO_COMMAND_GLYPHS[(command.art ?? command.id) as keyof typeof HOLO_COMMAND_GLYPHS];
+      const side = plateCut(plate.width, plate.height);
       const chipWidth = slot.chip.width;
-      const glyphSize = Math.round(plate.height * 0.34);
+      const glyphSize = Math.round(plate.height * 0.3);
       const dim = !!blocked && !active;
       const body = <>
         <PlateFrame width={plate.width} height={plate.height} points={hexPoints(plate.width, plate.height, side)} accent={accent} lit={active} dim={dim} />
-        <View pointerEvents="none" style={[styles.face, { left: side * 0.55, right: side * 0.55, height: plate.height - CHIP_HEIGHT / 2 }, dim && styles.disabled]}>
+        <View pointerEvents="none" style={[styles.face, { left: side * 0.6, right: side * 0.6, height: plate.height - CHIP_HEIGHT / 2 }, dim && styles.disabled]}>
           {glyph ? <HoloCommandGlyph id={glyph.id} size={glyphSize} /> : null}
-          <Text numberOfLines={1} style={[styles.category, { color: accent }]}>{command.label}</Text>
-          {command.detail ? <Text numberOfLines={1} style={styles.detail}>{command.detail}</Text> : null}
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.category, { color: accent }]}>{command.label}</Text>
+          {command.detail ? <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.detail}>{command.detail}</Text> : null}
         </View>
-        {/* Replay only: the pad glyph this command maps to in HoloCity (touch play shows no socket). */}
-        {!onPress && command.glyph ? <View pointerEvents="none" style={[styles.socket, { right: side * 0.5, top: plate.height - CHIP_HEIGHT - 8, borderColor: active ? accent : theme.colors.border }]}><Text style={styles.glyph}>{command.glyph}</Text></View> : null}
         <View pointerEvents="none" style={[styles.chip, { left: (plate.width - chipWidth) / 2, top: plate.height - CHIP_HEIGHT / 2, width: chipWidth }, dim && styles.chipDim]}>
           <LineFrame width={chipWidth} height={CHIP_HEIGHT} points={hexPoints(chipWidth, CHIP_HEIGHT, 7)} fill={theme.hud.chipFill} stroke={theme.hud.chipStroke} />
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.cost}>{command.cost ?? "UNAVAILABLE"}</Text>
+          {/* Replay only: the pad glyph this command maps to in HoloCity, as a keycap in the chip (touch play shows none). */}
+          {!onPress && command.glyph ? <View style={[styles.socket, { borderColor: active ? accent : theme.colors.border }]}><Text style={styles.glyph}>{command.glyph}</Text></View> : null}
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.cost}>{command.cost ?? "UNAVAILABLE"}</Text>
         </View>
       </>;
       const accessibilityLabel = `${command.label}, ${command.detail ? `${command.detail}, ` : ""}${command.cost ?? "cost unavailable"}${command.readiness ? `, ${READINESS_TEXT[command.readiness].toLowerCase()}` : ""}${active ? ", current action" : ""}`;
@@ -99,12 +103,12 @@ const styles = StyleSheet.create({
   bar: { position: "relative", width: "100%" },
   slot: { position: "absolute" },
   face: { position: "absolute", top: 0, alignItems: "center", justifyContent: "center", gap: 1 },
-  category: { ...theme.type.label, fontSize: 15, lineHeight: 18, letterSpacing: 1.6 },
-  detail: { ...theme.type.caption, color: theme.colors.text, fontSize: 11, lineHeight: 14 },
-  chip: { position: "absolute", height: CHIP_HEIGHT, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
-  cost: { ...theme.type.micro, color: theme.hud.chipText, fontSize: 10, lineHeight: 13, letterSpacing: 0.8 },
-  socket: { position: "absolute", minWidth: 22, height: 16, paddingHorizontal: 3, backgroundColor: theme.plates.keycap, borderWidth: 1, borderRadius: 2, alignItems: "center", justifyContent: "center" },
-  glyph: { ...theme.type.micro, fontSize: 8, lineHeight: 10, color: theme.colors.text },
+  category: { ...theme.type.label, fontSize: 12, lineHeight: 15, letterSpacing: 1 },
+  detail: { ...theme.type.caption, color: theme.colors.text, fontSize: 9.5, lineHeight: 12 },
+  chip: { position: "absolute", height: CHIP_HEIGHT, flexDirection: "row", gap: 3, alignItems: "center", justifyContent: "center", paddingHorizontal: 7 },
+  cost: { ...theme.type.micro, flexShrink: 1, color: theme.hud.chipText, fontSize: 9, lineHeight: 12, letterSpacing: 0.6 },
+  socket: { minWidth: 16, height: 12, paddingHorizontal: 2, backgroundColor: theme.plates.keycap, borderWidth: 1, borderRadius: 2, alignItems: "center", justifyContent: "center" },
+  glyph: { ...theme.type.micro, fontSize: 7, lineHeight: 9, color: theme.colors.text },
   readiness: { minWidth: 76, height: 22, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
   readinessText: { ...theme.type.micro, fontSize: 9, lineHeight: 12, letterSpacing: 1 },
   /** Unavailable or in flight: dimmed as before (0.45), but only the plate's contents, so the carbon face stays solid. */
