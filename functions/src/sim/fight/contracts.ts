@@ -35,11 +35,14 @@ export const EventKind = {
   ForcedSwap: 19, TargetLock: 20, ProbeEnd: 21, Escape: 22,
   // fight-chase-1 (#72.65; only with a duel-rules-4 chase block): see FightCore.cs FightEventKind
   Retreat: 23, Caught: 24, RingStop: 25, ChaseEnd: 26,
+  // duel-rules-5 (#72.77; only with an attrs block): Stuffed = a same-tick trade went to the faster side and this side's strike
+  // (move) never resolved (SPEED initiative). A SPEED evade is a Contact Evaded with value -1.
+  Stuffed: 27,
 } as const;
 export type FightEventKind = (typeof EventKind)[keyof typeof EventKind];
 export const EVENT_NAMES = ['Telegraph', 'Feint', 'FeintBait', 'Step', 'Shove', 'Contact', 'HardHit', 'BreakStart', 'BreakEnd', 'ExchangeStart',
   'ExchangeEnd', 'Rail', 'Ko', 'Denied', 'Buffered', 'GuardRaise', 'GuardLower', 'Timeout', 'Swap', 'ForcedSwap', 'TargetLock', 'ProbeEnd', 'Escape',
-  'Retreat', 'Caught', 'RingStop', 'ChaseEnd'] as const;
+  'Retreat', 'Caught', 'RingStop', 'ChaseEnd', 'Stuffed'] as const;
 
 /** Denied reason codes (FightEvent.value). */
 export const Deny = { Guarding: 1, Sync: 2, NotClose: 3, Busy: 4, FeintWindow: 5, Ko: 6, Lockout: 7, SameSlot: 8, KnockedOut: 9, NoSuchSlot: 10, TargetNotFielded: 11,

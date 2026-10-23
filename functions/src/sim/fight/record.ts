@@ -12,10 +12,10 @@ import { FightInputs, runFight } from './runner';
  * for the editor lane (fight-present-1). `playerInputs` must be a pure function of the tick (no host state).
  */
 export function recordFightLog(issue: FightReplayIssueWire, playerInputs: FightInputs, hashEvery = 30): { wire: DuelInputs2Wire; endTick: number; winner: number } {
-  const { rules, chase } = rulesDocFromJson(issue.rules);   // duel-rules-3 or duel-rules-4 (the issued chase block)
+  const { rules, chase, attrs } = rulesDocFromJson(issue.rules);   // duel-rules-3, -4 (the issued chase block) or -5 (+ the attrs block)
   const rec: [FightTickRecord[], FightTickRecord[]] = [[], []];
   const res = runFight(rules, issue.seed, { inputs: playerInputs }, { brain: new FightCoreBrain(), profile: issue.cpu.profile as FightProfile, skill: issue.cpu.rank as FightSkill }, {
-    hashAt: t => (t + 1) % hashEvery === 0, recordEvents: false, chase,
+    hashAt: t => (t + 1) % hashEvery === 0, recordEvents: false, chase, attrs,
     onTick: (_t, inputs) => { rec[0].push(toRecord(inputs[0])); rec[1].push(toRecord(inputs[1])); },
   });
   const tickCount = res.endTick + 1;

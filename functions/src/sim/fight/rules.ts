@@ -1,4 +1,4 @@
-import { hex, Int32Writer, sha256 } from './math';
+import { div, hex, Int32Writer, sha256 } from './math';
 
 /**
  * duel-rules-3: the issued, immutable rules snapshot (HolobotsUnity `Schemas/duel-rules-3.json`, `Sim/Fight/FightRules.cs`).
@@ -9,6 +9,10 @@ export const SIM_VERSION = 'duel-sim-3';
 export const RULES_SCHEMA = 'duel-rules-3';
 /** duel-rules-4 (HolobotsUnity duel-rules-4-1, DECISIONS #72.65): duel-rules-3 + the fight-chase-1 `chase` block. Same core. */
 export const RULES_SCHEMA_4 = 'duel-rules-4';
+/** duel-rules-5 (HolobotsUnity lane speed-special-p2-1, DECISIONS #72.77/#72.78; Contract-Change approved): duel-rules-4 + the
+ * `attrs` block + per-fighter `speed` / `special`; simVersion duel-sim-4 (the state hash prefix). */
+export const RULES_SCHEMA_5 = 'duel-rules-5';
+export const SIM_VERSION_4 = 'duel-sim-4';
 export const TICK_HZ = 30;
 export const MAX_ROSTER_PER_SIDE = 3;
 
@@ -61,7 +65,22 @@ export const CHASE_KEYS = Object.keys(CHASE_DEFAULTS) as ChaseKey[];
 export type FightChaseRules = { [K in ChaseKey]: number };
 export function defaultChaseRules(): FightChaseRules { return { ...CHASE_DEFAULTS }; }
 
-export type FightFighterDef = { id: string } & { [K in FighterKey]: number };
+/** FightAttrRules field initialisers (duel-rules-5 `attrs`, Pak's approved v3 numbers #72.78), in FightAttrRules.Keys (= hash) order. */
+export const ATTR_DEFAULTS = {
+  moveEdgePm: 600, moveMinPm: 900, moveMaxPm: 1100, chaseParity: 1, evadeBasePm: 0, evadeEdgePm: 1000, evadeMaxPm: 150, evadeWide: 1, evadeSpecials: 0,
+  initiativeMinEdgePm: 1, tempoMaxTicks: 2, tempoFullEdgePm: 150, syncEdgePm: 2000, syncMinPm: 750, syncMaxPm: 1400, specialDmgEdgePm: 2000, specialDmgMaxPm: 1300,
+  retreatChainMax: 3,
+};
+export type AttrKey = keyof typeof ATTR_DEFAULTS;
+/** FightAttrRules.Keys, camelCased, in hash order. */
+export const ATTR_KEYS = Object.keys(ATTR_DEFAULTS) as AttrKey[];
+/** The issued attrs block (duel-rules-5); null everywhere = duel-rules-3/-4 exactly. */
+export type FightAttrRules = { [K in AttrKey]: number };
+export function defaultAttrRules(): FightAttrRules { return { ...ATTR_DEFAULTS }; }
+
+/** duel-rules-5 only: the issued battle SPEED / SPECIAL (progression speed / intelligence). Serialized and hashed only in a
+ * duel-rules-5 snapshot; duel-rules-3/-4 neither read nor write them (absent = 0 there, as C#'s default). */
+export type FightFighterDef = { id: string } & { [K in FighterKey]: number } & { speed?: number; special?: number };
 export type FightRulesValues = { [K in RuleKey]: number };
 export type FightRules = FightRulesValues & { fighters: FightFighterDef[] };
 /** The duel-rules-3 JSON document (the issued snapshot). */
@@ -72,6 +91,10 @@ export type DuelRules3Doc = {
 
 /** The duel-rules-4 JSON document: duel-rules-3 + `chase`. */
 export type DuelRules4Doc = Omit<DuelRules3Doc, 'schemaVersion'> & { schemaVersion: typeof RULES_SCHEMA_4; chase: FightChaseRules };
+/** The duel-rules-5 JSON document: duel-rules-4 (simVersion duel-sim-4) + `attrs`, every fighter + `speed` / `special`. */
+export type DuelRules5Doc = Omit<DuelRules4Doc, 'schemaVersion' | 'simVersion' | 'fighters'> & {
+  schemaVersion: typeof RULES_SCHEMA_5; simVersion: typeof SIM_VERSION_4; fighters: (FightFighterDef & { speed: number; special: number })[]; attrs: FightAttrRules;
+};
 
 export class FightRulesError extends RangeError {}
 const fail = (code: string): never => { throw new FightRulesError(code); };
@@ -146,6 +169,8 @@ export function validateFighter(f: FightFighterDef): void {
   if (typeof f.id !== 'string' || f.id.length < 1 || f.id.length > 64 || !ID.test(f.id)) fail('invalid_id');
   if (f.side < 0 || f.side > 1) fail('invalid_side');
   if (f.maxHp < 1 || f.hp < 0 || f.hp > f.maxHp || f.attack < 0 || f.defense < 0 || f.startStaminaPm > 1000 || f.radiusMm < 1) fail('invalid_fighter_stats');
+  const speed = f.speed ?? 0, special = f.special ?? 0;
+  if (!Number.isSafeInteger(speed) || !Number.isSafeInteger(special) || speed < 0 || special < 0 || speed > 100000 || special > 100000) fail('invalid_fighter_attrs');
   if (f.backstepTicks < 1 || f.sidestepTicks < 1 || f.forwardJumpTicks < 1 || f.hitLightTicks < 1 || f.hitHeavyTicks < 1) fail('invalid_fighter_ticks');
   if (Math.abs(f.startXMm) > 12000 || Math.abs(f.startZMm) > 12000) fail('invalid_fighter_start');
 }
@@ -216,8 +241,8 @@ export function chaseFromJson(o: unknown): FightChaseRules {
   return c;
 }
 
-/** FightRules.FromJsonAny: duel-rules-3 (chase null, today's core) or duel-rules-4 (the same document + a strict chase block). */
-export function rulesDocFromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null } {
+/** FightRules.FromJsonAny(o, out chase): duel-rules-3 (chase null, today's core) or duel-rules-4 (the same document + a strict chase block). */
+function rulesDoc34FromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null } {
   if (isObj(o) && o.schemaVersion === RULES_SCHEMA_4) {
     exact(o, ['schemaVersion', 'simVersion', 'tickHz', 'rules', 'fighters', 'chase']);
     const { chase, ...rest } = o;
@@ -225,6 +250,78 @@ export function rulesDocFromJson(o: unknown): { rules: FightRules; chase: FightC
     return { rules, chase: chaseFromJson(chase) };
   }
   return { rules: rulesFromJson(o), chase: null };
+}
+
+/** FightRules.FromJsonAny(o, out chase, out attrs): duel-rules-3 (chase + attrs null), duel-rules-4 (attrs null) or duel-rules-5
+ * (duel-rules-4 with simVersion duel-sim-4 + a strict attrs block + per-fighter speed / special). Same checks, order and codes as C#. */
+export function rulesDocFromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null } {
+  if (isObj(o) && o.schemaVersion === RULES_SCHEMA_5) {
+    exact(o, ['schemaVersion', 'simVersion', 'tickHz', 'rules', 'fighters', 'chase', 'attrs']);
+    if (o.simVersion !== SIM_VERSION_4) fail('invalid_version');
+    const fs = o.fighters;
+    if (!Array.isArray(fs) || fs.length < 2 || fs.length > 2 * MAX_ROSTER_PER_SIDE) return fail('invalid_fighters');
+    const speeds: number[] = [], specials: number[] = [], fs4: unknown[] = [];
+    for (const f of fs as unknown[]) {
+      if (!isObj(f)) return fail('invalid_fighter');
+      if (!Object.prototype.hasOwnProperty.call(f, 'speed')) fail('missing_speed');
+      if (!Object.prototype.hasOwnProperty.call(f, 'special')) fail('missing_special');
+      speeds.push(int32(f.speed, 'speed')); specials.push(int32(f.special, 'special'));
+      const { speed: _s, special: _p, ...c } = f; fs4.push(c);
+    }
+    const { attrs, ...rest } = o;
+    const four = rulesDoc34FromJson({ ...rest, schemaVersion: RULES_SCHEMA_4, simVersion: SIM_VERSION, fighters: fs4 });
+    if (!four.chase) fail('invalid_chase');
+    four.rules.fighters.forEach((f, i) => { f.speed = speeds[i]; f.special = specials[i]; });
+    validateRules(four.rules);
+    return { rules: four.rules, chase: four.chase, attrs: attrsFromJson(attrs) };
+  }
+  return { ...rulesDoc34FromJson(o), attrs: null };
+}
+
+/** FightAttrRules.Validate (same checks, same order, same codes). */
+export function validateAttrRules(a: FightAttrRules): void {
+  for (const k of ATTR_KEYS) if (!Number.isSafeInteger(a[k]) || a[k] < 0) fail('invalid_attrs_' + k);
+  if (a.moveMinPm > 1000 || a.moveMaxPm < 1000 || a.moveMaxPm > 2000 || a.moveEdgePm > 2000 || a.evadeMaxPm > 1000 || a.evadeBasePm > 1000 || a.evadeEdgePm > 5000
+    || a.syncMinPm > 1000 || a.syncMaxPm < 1000 || a.syncMaxPm > 3000 || a.syncEdgePm > 10000 || a.specialDmgMaxPm < 1000 || a.specialDmgMaxPm > 2000 || a.specialDmgEdgePm > 10000
+    || a.chaseParity > 1 || a.evadeWide > 1 || a.evadeSpecials > 1 || a.tempoMaxTicks > 10 || a.initiativeMinEdgePm > 1000 || a.retreatChainMax > 100) fail('invalid_attrs_rules');
+}
+
+/** FightAttrRules.FromJson: strict (every key, integers only, nothing extra), then validateAttrRules. */
+export function attrsFromJson(o: unknown): FightAttrRules {
+  if (!isObj(o)) return fail('invalid_attrs');
+  exact(o, ATTR_KEYS);
+  const a = {} as FightAttrRules;
+  for (const k of ATTR_KEYS) a[k] = int32(o[k], k);
+  validateAttrRules(a);
+  return a;
+}
+
+// ---------------------------------------------------------------- duel-rules-5 curves (FightAttrRules; C# long math, truncating)
+
+const clampL = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
+/** The pair-relative edge of `own` over `opp`, per-mille (truncating; 0 when both are 0). */
+export function attrEdge(own: number, opp: number): number { return own + opp <= 0 ? 0 : div((own - opp) * 1000, own + opp); }
+export function moveMul(a: FightAttrRules, e: number): number { return clampL(1000 + div(a.moveEdgePm * e, 1000), a.moveMinPm, a.moveMaxPm); }
+export function evadeChance(a: FightAttrRules, e: number): number { return clampL(a.evadeBasePm + div(a.evadeEdgePm * e, 1000), 0, a.evadeMaxPm); }
+export function tempoTicks(a: FightAttrRules, e: number): number {
+  return e <= 0 || a.tempoFullEdgePm <= 0 ? 0 : clampL(div(a.tempoMaxTicks * e, a.tempoFullEdgePm), 0, a.tempoMaxTicks);
+}
+export function syncMul(a: FightAttrRules, e: number): number { return clampL(1000 + div(a.syncEdgePm * e, 1000), a.syncMinPm, a.syncMaxPm); }
+export function specialDmgMul(a: FightAttrRules, e: number): number {
+  return clampL(1000 + div(a.specialDmgEdgePm * e, 1000), 2000 - a.specialDmgMaxPm, a.specialDmgMaxPm);
+}
+
+/** The evade stream's seed word: LE u32 of the first 4 bytes of SHA-256(ASCII "duel-sim-4/evade" || 32 seed bytes). */
+export function evadeWord(seed: Uint8Array): number {
+  return sha256(Buffer.concat([Buffer.from('duel-sim-4/evade', 'ascii'), Buffer.from(seed)])).readUInt32LE(0);
+}
+
+/** murmur3 fmix32 over (word, attacker side, attacker's roll index) -> 0..999 by multiply-shift (uint32 via Math.imul + >>> 0;
+ * x * 1000 < 2^42 is exact in a double, so the floor of / 2^32 is C#'s (ulong) x * 1000 >> 32). */
+export function rollPm(word: number, side: number, index: number): number {
+  let x = ((word >>> 0) ^ Math.imul(side + 1, 0x85ebca6b) ^ Math.imul(index, 0x9e3779b1)) >>> 0;
+  x = (x ^ (x >>> 16)) >>> 0; x = Math.imul(x, 0x85ebca6b) >>> 0; x = (x ^ (x >>> 13)) >>> 0; x = Math.imul(x, 0xc2b2ae35) >>> 0; x = (x ^ (x >>> 16)) >>> 0;
+  return Math.floor((x * 1000) / 4294967296);
 }
 
 /** FightRules.ToJson (key order = hash order; JSON key order is not significant to the hash). */
@@ -242,6 +339,18 @@ export function rulesDocToJson(r: FightRules, chase: FightChaseRules | null): Du
   const c = {} as FightChaseRules;
   for (const k of CHASE_KEYS) c[k] = chase[k];
   return { ...doc, schemaVersion: RULES_SCHEMA_4, chase: c };
+}
+
+/** FightRules.ToJson(chase, attrs): duel-rules-5 when attrs is set (needs chase): the duel-rules-4 document with simVersion
+ * duel-sim-4, `attrs` after `chase`, every fighter + speed / special (the C# key order); attrs null = rulesDocToJson(r, chase). */
+export function rulesDocToJson5(r: FightRules, chase: FightChaseRules | null, attrs: FightAttrRules | null): DuelRules3Doc | DuelRules4Doc | DuelRules5Doc {
+  if (!attrs) return rulesDocToJson(r, chase);
+  if (!chase) return fail('invalid_attrs_without_chase');
+  const four = rulesDocToJson(r, chase) as DuelRules4Doc;
+  const a = {} as FightAttrRules;
+  for (const k of ATTR_KEYS) a[k] = attrs[k];
+  const fighters = four.fighters.map((f, i) => ({ ...f, speed: r.fighters[i].speed ?? 0, special: r.fighters[i].special ?? 0 }));
+  return { ...four, schemaVersion: RULES_SCHEMA_5, simVersion: SIM_VERSION_4, attrs: a, fighters };
 }
 
 /** "duel-rules-3" ASCII, every global int32 LE, fighter count, then per fighter: id length + ASCII id + every FIGHTER_KEYS int32. */
@@ -271,6 +380,27 @@ export function rulesCanonicalBytes4(r: FightRules, chase: FightChaseRules | nul
   }
   return w.done();
 }
+/** duel-rules-5 (attrs set; needs chase): "duel-rules-5" ASCII, every global int32 LE, every CHASE_KEYS, every ATTR_KEYS, the
+ * fighter count, then per fighter the duel-rules-3 bytes + speed + special (int32 LE). Attrs null = rulesCanonicalBytes4. */
+export function rulesCanonicalBytes5(r: FightRules, chase: FightChaseRules | null, attrs: FightAttrRules | null): Buffer {
+  if (!attrs) return rulesCanonicalBytes4(r, chase);
+  if (!chase) return fail('invalid_attrs_without_chase');
+  const w = new Int32Writer(640).ascii(RULES_SCHEMA_5);
+  for (const k of GLOBAL_KEYS) w.int(r[k]);
+  for (const k of CHASE_KEYS) w.int(chase[k]);
+  for (const k of ATTR_KEYS) w.int(attrs[k]);
+  w.int(r.fighters.length);
+  for (const f of r.fighters) {
+    const id = Buffer.from(f.id, 'ascii');
+    w.int(id.length).bytes(id);
+    for (const k of FIGHTER_KEYS) w.int(f[k]);
+    w.int(f.speed ?? 0).int(f.special ?? 0);
+  }
+  return w.done();
+}
 export function rulesHashBytes(r: FightRules): Buffer { return sha256(rulesCanonicalBytes(r)); }
-/** The issued snapshot's hash: duel-rules-4's when `chase` is set, else duel-rules-3's (the one-argument form). */
-export function rulesHash(r: FightRules, chase: FightChaseRules | null = null): string { return hex(sha256(rulesCanonicalBytes4(r, chase))); }
+/** The issued snapshot's hash: duel-rules-5's when `attrs` is set (needs chase), duel-rules-4's when only `chase` is set, else
+ * duel-rules-3's (the one-argument form). */
+export function rulesHash(r: FightRules, chase: FightChaseRules | null = null, attrs: FightAttrRules | null = null): string {
+  return hex(sha256(rulesCanonicalBytes5(r, chase, attrs)));
+}

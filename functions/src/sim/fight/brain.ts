@@ -2,7 +2,7 @@ import { Action, FightFighterView, FightInput, FightProfile, FightRng, FightSkil
 import { FightCore } from './core';
 import { dist, div } from './math';
 import { FightFighterDef, FightRules, TICK_HZ } from './rules';
-import { BrainProfile, BrainSkill, brainFromIssued, profileIsValid, skillFromIssued, SpecialPolicy } from './profiles';
+import { BrainProfile, BrainSkill, brainFromIssued, profileIsValid, RANKS, skillFromIssued, SpecialPolicy } from './profiles';
 
 /**
  * The in-core CPU, ported from HolobotsUnity `Sim/Ai/FightBrain.cs`, `FightCoreBrain.cs`, `FightAiSeam.cs` (fight-ai-1 +
@@ -53,11 +53,16 @@ type AiRules = {
   openerTelegraphTicks: number; chainTelegraphTicks: number; feintWindowTicks: number; guardRaiseTicks: number; perfectGuardTicks: number;
   breakLine: number; closeRangeMm: number; edgeBandMm: number; minGapMm: number; stepMm: number; burstMm: number;
   escapeCost: number; chargeCost: number; chargeMaxStartMm: number; shoveOnHeavyInClose: boolean;
+  /** duel-rules-5 SYNC spend policy: the half / full special SYNC costs (rules specialHalfSync / specialFullSync). */
+  specialHalfSync?: number; specialFullSync?: number;
 };
 const costOf = (r: AiRules, s: number) => (s === Strike.Heavy ? r.heavyCost : s === Strike.Special ? r.specialCost : r.lightCost);
 type AiObs = {
   tick: number; side: number; self: AiView; opponent: AiView; selfKit: AiKit; opponentKit: AiKit; phase: number;
   exchangeTicks: number; pairReachMm: number; ringRadiusMm: number; selfTagged: boolean;
+  /** duel-rules-5 (#72.78): the SYNC spend policy is on (the core runs the attrs block). False/absent on duel-rules-3/-4, where the
+   * brain is byte-for-byte today's (no extra draws). */
+  syncSpend?: boolean;
 };
 type AiIntent = { moveX: number; moveZ: number; guard: boolean; press: number; stepX: number; stepZ: number };
 
@@ -69,6 +74,20 @@ export const EXCHANGE_PLAN_BASE_TICKS = 24, EXCHANGE_PLAN_PER_CHAIN_X10 = 12, EX
 export const STRIKE_MARGIN_MM = 900;
 
 const clampI = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
+
+/** duel-rules-5 SYNC spend table by rank (Rookie .. Legendary; #72.78 producer pick, Pak tunes), FightBrain.SyncDiscipline /
+ * SyncHalfRateBps / SyncFullRateBps. Discipline: 0 = any in-reach moment, 1 = + the target is not guarding, 2 = + not stepping /
+ * bursting / escaping and the spend keeps it above the break line, prime windows at twice the rate and the half tier outside one at
+ * a third, 3 = the half tier only in prime windows. */
+export const SYNC_DISCIPLINE: readonly number[] = [0, 1, 1, 2, 3, 3];
+export const SYNC_HALF_RATE_BPS: readonly number[] = [2500, 3500, 4500, 5500, 6500, 7500];
+export const SYNC_FULL_RATE_BPS: readonly number[] = [3500, 4500, 6000, 7500, 9000, 10000];
+/** FightBrain.RankIndex: the issued rank's row in RANKS (case-insensitive); an unknown rank reads Champion. */
+export function rankIndex(rank: string): number {
+  const r = String(rank).toLowerCase();
+  for (let i = 0; i < RANKS.length; i++) if (RANKS[i].toLowerCase() === r) return i;
+  return 2;
+}
 const roll = (rng: FightRng, bps: number) => bps > 0 && (bps >= 10000 || rng.below(10000) < bps);
 
 /** FightBrain.Isqrt: floor sqrt by Newton from above (a different iteration from FightMath.Isqrt; same floor value). */
@@ -97,6 +116,8 @@ export class FightBrain {
   private prevAct: number = Act.Free;
   private escapeTried = false; private chargeTried = false;   // r3: one quick-escape roll per retreat, one ShoulderCharge roll per chain
   private chargeFollowAt = -1;                                 // r3: the tick to press the Strike that turns its sidestep into the charge
+  /** FightBrainStats subset: duel-rules-5 SYNC spend policy finishers pressed at the 50 / 100 tier (#72.78). */
+  readonly stats = { halfSpends: 0, fullSpends: 0 };
 
   constructor(readonly profile: BrainProfile, readonly skill: BrainSkill, private readonly r: AiRules) {
     const why = profileIsValid(profile);
@@ -339,6 +360,29 @@ export class FightBrain {
       }
     }
 
+    // ---- S. duel-rules-5 SYNC spend (#72.78): spend the 50 % tier (half special) and the 100 % tier (finisher) in good windows;
+    // discipline (which windows qualify) and aggression (how often it takes one) rise with the issued rank ----
+    if (obs.syncSpend && press === AiPress.None && think && free && !s.guardHeld && s.sync >= R.specialHalfSync! && s.stamina >= R.specialCost) {
+      const rank = rankIndex(K.rank), disc = SYNC_DISCIPLINE[rank];
+      const full = s.sync >= R.specialFullSync!;
+      let window = d <= threat(kit, Strike.Special) - 300;
+      if (disc >= 1) window = window && !o.guardHeld;
+      if (disc >= 2) window = window && o.act !== Act.Step && o.act !== Act.Burst && o.act !== Act.Escape && s.stamina - R.specialCost >= R.breakLine;
+      if (window) {
+        let rate = full ? SYNC_FULL_RATE_BPS[rank] : SYNC_HALF_RATE_BPS[rank];
+        if (disc >= 2) {
+          // prime windows: punishable recovery, breaking, staggered, own counter window, target below 35 % HP
+          const prime = (o.act === Act.Recovery && o.punishable) || o.breaking || o.act === Act.Stagger || s.counterUntilTick >= t || o.hp * 100 <= 35 * o.maxHp;
+          if (prime) rate = Math.min(10000, rate * 2);
+          else if (!full) rate = disc >= 3 ? 0 : div(rate, 3);
+        }
+        if (roll(rng, div(rate, div(30, THINK_EVERY)))) {
+          press = AiPress.Finisher; if (full) this.stats.fullSpends++; else this.stats.halfSpends++;
+          this.nextKind = Strike.None; this.guardUntil = -2;
+        }
+      }
+    }
+
     // ---- G. CLOSE: shove-out ----
     if (press === AiPress.None && think && free && obs.phase === Phase.Close && s.stamina >= R.shoveCost + R.breakLine
       && roll(rng, div(P.shoveRateBps, div(30, THINK_EVERY)))) press = AiPress.Shove;
@@ -451,6 +495,8 @@ export class FightCoreBrain implements FightBrainDriver {
   private side = 0;
   private issuedProfile: FightProfile | null = null;
   private issuedSkill: FightSkill | null = null;
+  /** The inner FightBrain (null until the first decide); its `stats` carry the SYNC spend counts. */
+  get brain(): FightBrain | null { return this.inner; }
 
   begin(side: number, profile: FightProfile | null, skill: FightSkill | null): void {
     this.side = side; this.issuedProfile = profile; this.issuedSkill = skill; this.inner = null;
@@ -465,7 +511,7 @@ export class FightCoreBrain implements FightBrainDriver {
       guardRaiseTicks: R.guardRaiseTicks, perfectGuardTicks: R.perfectGuardTicks, breakLine: R.breakLinePm * 100,
       closeRangeMm: R.closeRangeMm, edgeBandMm: R.edgeBandMm, minGapMm: R.minGapMm, stepMm: me.backstepMm, burstMm: me.forwardJumpMm,
       escapeCost: R.costEscapePm * 100, chargeCost: (R.costLightPm + R.costChargeDashPm) * 100, chargeMaxStartMm: R.minGapMm + R.chargeDashMm,
-      shoveOnHeavyInClose: R.shoveOnHeavyInClose !== 0,
+      shoveOnHeavyInClose: R.shoveOnHeavyInClose !== 0, specialHalfSync: R.specialHalfSync, specialFullSync: R.specialFullSync,
     };
     if (!this.issuedProfile || !this.issuedSkill) throw new RangeError('brain_unissued');
     this.inner = new FightBrain(brainFromIssued(this.issuedProfile), skillFromIssued(this.issuedSkill), this.aiRules);
@@ -479,7 +525,7 @@ export class FightCoreBrain implements FightBrainDriver {
       : d <= ar.closeRangeMm ? Phase.Close : d > R + ar.edgeBandMm ? Phase.Out : Phase.Edge;
     const obs: AiObs = {
       tick: t, side: this.side, self: mapView(self), opponent: mapView(opp), selfKit: kitOf(v.selfDef, v.rules), opponentKit: kitOf(v.opponentDef, v.rules),
-      selfTagged: v.core.tagged(this.side),
+      selfTagged: v.core.tagged(this.side), syncSpend: v.core.attrs !== null,
       phase, exchangeTicks: v.exchangeActive ? t - v.exchangeStartTick : 0, pairReachMm: R, ringRadiusMm: v.rules.ringRadiusMm,
     };
     const it = this.inner!.think(obs, rng);

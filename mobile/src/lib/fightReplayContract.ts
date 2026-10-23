@@ -4,7 +4,7 @@
  * Pure types + constants, no imports. Kept byte-identical at
  *   functions/src/shared/fightReplayContract.ts  and  mobile/src/lib/fightReplayContract.ts
  * (functions/scripts/check-shared-parity.mjs, run on every functions build).
- * JSON Schemas: Schemas/duel-rules-3.json, Schemas/duel-rules-4.json, Schemas/duel-inputs-2.json, Schemas/duel-receipt-2.json (HolobotsUnity mirrors).
+ * JSON Schemas: Schemas/duel-rules-3.json, Schemas/duel-rules-4.json, Schemas/duel-rules-5.json, Schemas/duel-inputs-2.json, Schemas/duel-receipt-2.json (HolobotsUnity mirrors).
  * Hard rule 1: the host re-runs the duel-sim-3 core on the issued rules + seed + this log and settles what IT computed.
  */
 
@@ -14,12 +14,19 @@ export const FIGHT_INPUTS_SCHEMA = 'duel-inputs-2' as const;
 export const FIGHT_RULES_SCHEMA = 'duel-rules-3' as const;
 /** duel-rules-4 (DECISIONS #72.65, Contract-Change duel-rules-4-1): duel-rules-3 + the fight-chase-1 `chase` block. */
 export const FIGHT_RULES_SCHEMA_4 = 'duel-rules-4' as const;
+/** duel-rules-5 (DECISIONS #72.77/#72.78, lane speed-special-p2-1): duel-rules-4 + the SPEED / SPECIAL `attrs` block + per-fighter
+ * `speed` / `special`; its rules simVersion is duel-sim-4 (the issue / receipt simVersion stays FIGHT_SIM_VERSION). */
+export const FIGHT_RULES_SCHEMA_5 = 'duel-rules-5' as const;
 export const FIGHT_SIM_VERSION = 'duel-sim-3' as const;
 /** Host env flag ("replay verification ON"); default off. */
 export const FIGHT_REPLAY_FLAG = 'HOLOCITY_FIGHT_REPLAY' as const;
 /** Host env flag: input-log issues carry duel-rules-4 (the chase / retreat rules); default off = duel-rules-3, today's fight.
  * Only meaningful with FIGHT_REPLAY_FLAG on. Turn it on only once the floor client parses duel-rules-4 (HolobotsUnity duel-rules-4-1). */
 export const FIGHT_CHASE_FLAG = 'HOLOCITY_FIGHT_CHASE' as const;
+/** Host env flag: input-log issues carry duel-rules-5 (SPEED / SPECIAL as fight inputs); default off = duel-rules-3/-4 exactly.
+ * Only meaningful with FIGHT_REPLAY_FLAG and FIGHT_CHASE_FLAG on (duel-rules-5 needs the chase block). Turn it on only once the
+ * floor client parses duel-rules-5 (HolobotsUnity speed-special-p2-1). */
+export const FIGHT_ATTRS_FLAG = 'HOLOCITY_FIGHT_ATTRS' as const;
 /** Issue request field a client sends to say it can record + upload duel-inputs-2 (capability, not a mode override). */
 export const FIGHT_INPUTS_CAPABILITY_FIELD = 'duelInputs' as const;
 /** Settle request field carrying the duel-inputs-2 log (the JSON object, or its compact wire string). */
@@ -46,6 +53,9 @@ export type DuelRules3Wire = {
 };
 /** duel-rules-4 document (Schemas/duel-rules-4.json): duel-rules-3 + the ten chase numbers. */
 export type DuelRules4Wire = Omit<DuelRules3Wire, 'schemaVersion'> & { schemaVersion: 'duel-rules-4'; chase: Record<string, number> };
+/** duel-rules-5 document (Schemas/duel-rules-5.json): duel-rules-4 (simVersion duel-sim-4) + the eighteen attrs numbers; every
+ * fighter also carries `speed` / `special`. */
+export type DuelRules5Wire = Omit<DuelRules4Wire, 'schemaVersion' | 'simVersion'> & { schemaVersion: 'duel-rules-5'; simVersion: 'duel-sim-4'; attrs: Record<string, number> };
 
 export type FightRosterSlotWire = { fighterId: string; holobotId: string };
 export type FightCpuRosterSlotWire = FightRosterSlotWire & { profile: string };
@@ -58,8 +68,9 @@ export type FightReplayIssueWire = {
   simVersion: typeof FIGHT_SIM_VERSION;
   rulesId: string;
   rulesHash: string;
-  /** duel-rules-3, or duel-rules-4 when the host issued the chase rules (FIGHT_CHASE_FLAG); rulesHash is that document's hash. */
-  rules: DuelRules3Wire | DuelRules4Wire;
+  /** duel-rules-3, duel-rules-4 when the host issued the chase rules (FIGHT_CHASE_FLAG), or duel-rules-5 when it also issued the
+   * SPEED / SPECIAL rules (FIGHT_ATTRS_FLAG); rulesHash is that document's hash. */
+  rules: DuelRules3Wire | DuelRules4Wire | DuelRules5Wire;
   /** 64 lowercase hex; disclosed at issue by design (the client predicts the CPU's seeded decisions locally). */
   seed: string;
   /** The player always drives side 0; the CPU brain drives side 1. */

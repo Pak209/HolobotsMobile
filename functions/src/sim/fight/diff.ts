@@ -1,5 +1,5 @@
-import { CHASE_SIDE_FIELDS, FightCore, STATE_FIGHTER_FIELDS, STATE_HEADER_FIELDS, STATE_SIDE_FIELDS } from './core';
-import { CHASE_KEYS } from './rules';
+import { CHASE_SIDE_FIELDS, FightCore, STATE_FIGHTER_FIELDS, STATE_FIGHTER_FIELDS_4, STATE_HEADER_FIELDS, STATE_SIDE_FIELDS } from './core';
+import { ATTR_KEYS, CHASE_KEYS, SIM_VERSION_4 } from './rules';
 import { FightRules } from './rules';
 
 /**
@@ -30,13 +30,24 @@ export function decodeState(bytes: Uint8Array, rules: FightRules): Record<string
   out.rulesHashHead = b.readUInt32LE(10); out.seedHead = b.readUInt32LE(42);
   for (const k of STATE_HEADER_FIELDS) out[k] = take();
   for (let s = 0; s < 2; s++) for (const k of STATE_SIDE_FIELDS) out[`side${s}.${k}`] = take();
-  for (const f of rules.fighters) for (const k of STATE_FIGHTER_FIELDS) out[`${f.id}.${k}`] = take();
+  // duel-sim-4 (duel-rules-5): every member carries syncAcc / evadeRolls / retreatChain after its duel-sim-3 fields
+  const sim4 = b.toString('ascii', 0, 10) === SIM_VERSION_4;
+  for (const f of rules.fighters) {
+    for (const k of STATE_FIGHTER_FIELDS) out[`${f.id}.${k}`] = take();
+    if (sim4) for (const k of STATE_FIGHTER_FIELDS_4) out[`${f.id}.${k}`] = take();
+  }
   // fight-chase-1 tail (duel-rules-4 only): ASCII 'fight-chase-1', the 10 chase rules, then per side CHASE_SIDE_FIELDS
   const tag = 'fight-chase-1';
   if (b.length - at >= tag.length && b.toString('ascii', at, at + tag.length) === tag) {
     at += tag.length;
     for (const k of CHASE_KEYS) out[`chase.${k}`] = take();
     for (let s = 0; s < 2; s++) for (const k of CHASE_SIDE_FIELDS) out[`chase${s}.${k}`] = take();
+  }
+  // duel-rules-5 tail: ASCII 'fight-attrs-1' then the 18 attrs rules
+  const atag = 'fight-attrs-1';
+  if (b.length - at >= atag.length && b.toString('ascii', at, at + atag.length) === atag) {
+    at += atag.length;
+    for (const k of ATTR_KEYS) out[`attrs.${k}`] = take();
   }
   if (at !== b.length) out.trailingBytes = b.length - at;
   return out;
