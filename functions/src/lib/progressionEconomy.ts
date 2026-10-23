@@ -26,6 +26,7 @@ import {
   applyHolobotExperience,
   computeLeaderboardScore,
   getHolobotBattleStats,
+  getLegacyBattleSpeed,
   getSyncRank,
   normalizeUserHolobot,
   type AttributeBoostRefusal,
@@ -110,7 +111,10 @@ export const MAX_CLAIMED_HOLOBOT_POWER = 50000;
  * the claim rolls against that record, never a client-written holobotPower. */
 export function getHolobotPowerScore(holobot: { name: string; level?: number; boostedAttributes?: unknown }): number {
   const stats = getHolobotBattleStats(holobot.name, holobot.level, holobot.boostedAttributes);
-  return Math.round(stats.maxHP * 4 + stats.attack * 6 + stats.defense * 5 + stats.speed * 4 + stats.intelligence * 5);
+  // DECISIONS #72.78: the speed narrowing is a fight ruling, not a quest/training rebalance — the power score keeps
+  // the pre-#72.78 speed column (getLegacyBattleSpeed), so quest odds and stored holobotPower values are unchanged.
+  const speed = getLegacyBattleSpeed(holobot.name, holobot.level, holobot.boostedAttributes);
+  return Math.round(stats.maxHP * 4 + stats.attack * 6 + stats.defense * 5 + speed * 4 + stats.intelligence * 5);
 }
 
 /** Mirror of the client's start-time chance formula, evaluated at claim time. */
@@ -527,7 +531,8 @@ export function isSyncUpgradeRefusal(
 export const ATTRIBUTE_BOOST_REQUEST_IDS_FIELD = "attributeBoostRequestIds";
 export const MAX_ATTRIBUTE_BOOST_REQUEST_IDS = 20;
 export const ATTRIBUTE_BOOST_REQUEST_ID = /^[a-zA-Z0-9_-]{1,128}$/;
-/** Accepted on the wire. "special" is accepted only to be refused with a typed reason (SPECIAL comes from SYNC). */
+/** Accepted on the wire. Since DECISIONS #72.78 every wire attribute is boostable (BOOSTABLE_ATTRIBUTES); the typed
+ * attribute_not_boostable refusal stays for a wire/boostable drift. */
 export const ATTRIBUTE_BOOST_WIRE_ATTRIBUTES = ["attack", "defense", "speed", "health", "special"] as const;
 export const MAX_HOLOBOT_NAME_LENGTH = 64;
 

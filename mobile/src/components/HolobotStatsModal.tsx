@@ -45,7 +45,7 @@ type Props = {
   onClose: () => void;
   onMint: (tierLabel: UpgradeTierLabel) => void;
   onRankUpgrade: (tierLabel: UpgradeTierLabel) => void;
-  onUpgrade: (attribute: "attack" | "defense" | "speed" | "health") => void;
+  onUpgrade: (attribute: "attack" | "defense" | "special" | "health" | "speed") => void;
   onUpgradeSync: (stat: SyncStatKey) => void;
   onEquipSyncAbility: (abilityId: string) => void;
   visible: boolean;
@@ -156,10 +156,13 @@ export function HolobotStatsModal({
       ? 1
       : Math.min(1, blueprintCount / BLUEPRINT_TIERS[0].required);
 
+  // DECISIONS #72.77/#72.78: five rows in ATK / DEF / SPECIAL / HP / SPEED order; SPECIAL is points-buyable (+1)
+  // and a NEW HP point grants +3 (was +10; HP already allocated is kept — boostedAttributes.health is the HP sum).
   const stats = [
-    { baseValue: base.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+10 HP" },
     { baseValue: base.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
     { baseValue: base.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
+    { baseValue: base.intelligence, bonus: boosts.special || 0, key: "special" as const, label: "Special", upgrade: "+1 SPC" },
+    { baseValue: base.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+3 HP" },
     { baseValue: base.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
   ];
   const syncRows: Array<{ key: SyncStatKey; value: number }> = [

@@ -9,7 +9,7 @@ const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.m
 describe("roster card stats are on the host displayStats scale", () => {
   const ace = { name: "ACE", level: 12, boostedAttributes: { attack: 2 } };
 
-  it("known-bad: holobot.stats is the attribute chart scale, floored at 15 (ACE LV 12 finals 14 / 9 / 10 all clamp up)", () => {
+  it("known-bad: holobot.stats is the attribute chart scale, floored at 15 (ACE LV 12 finals 14 / 9 / 9 all clamp up)", () => {
     const config = read("../../../config/holobots.ts");
     expect(config).toContain("attack: Math.min(100, Math.max(15, finalAttack)),");
     const shown = getHolobotDisplayStats(ace.name, ace.level, ace.boostedAttributes);
@@ -18,7 +18,7 @@ describe("roster card stats are on the host displayStats scale", () => {
 
   it("LV 12 ACE (+2 ATK boost) reads the Training numbers, not the chart floor", () => {
     const shown = getHolobotDisplayStats(ace.name, ace.level, ace.boostedAttributes);
-    expect({ attack: shown.attack, defense: shown.defense, speed: shown.speed, hp: shown.hp }).toEqual({ attack: 14, defense: 9, speed: 10, hp: 232 });
+    expect({ attack: shown.attack, defense: shown.defense, speed: shown.speed, hp: shown.hp }).toEqual({ attack: 14, defense: 9, speed: 9, hp: 232 }); // #72.78: ACE base speed 7 -> 6
   });
 
   it("the card renders getHolobotDisplayStats, never holobot.stats", () => {

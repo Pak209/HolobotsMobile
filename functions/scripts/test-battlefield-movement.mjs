@@ -24,7 +24,9 @@ test('host speed changes map monotonically with integer floor and explicit clamp
  assert.throws(()=>M.battlefieldMovement('fake',50,'player'));assert.throws(()=>M.battlefieldMovement('wolf',50,'client'));
 });
 test('JUSAN fallback identity and calibration provenance are explicit without new progression stats',()=>{
- assert.deepEqual(M.movementReference('jusan','player'),{referenceSpeedStat:70,referenceSourceHolobotId:'ace',provisional:true});
+ // DECISIONS #72.78 (2): ACE base speed 7 -> 6, so the ACE-fallback reference is 60 (was 70). Movement is self-normalised
+ // (sourceSpeedStat / the bot's own LV 1 stat), so every fleet bot's LV 1 run speed is unchanged (test above).
+ assert.deepEqual(M.movementReference('jusan','player'),{referenceSpeedStat:60,referenceSourceHolobotId:'ace',provisional:true});
  assert.deepEqual(M.movementReference('jusan','rival'),{referenceSpeedStat:50,referenceSourceHolobotId:'wolf',provisional:true});
 });
 test('desktop v3 publishes fleet and owned resolved speeds; v1/v2 remain unchanged',()=>{

@@ -49,7 +49,7 @@ type Props = {
   onClose: () => void;
   onMint: (tierLabel: UpgradeTierLabel) => void;
   onRankUpgrade: (tierLabel: UpgradeTierLabel) => void;
-  onUpgrade: (attribute: "attack" | "defense" | "speed" | "health") => void;
+  onUpgrade: (attribute: "attack" | "defense" | "special" | "health" | "speed") => void;
   onUpgradeSync: (stat: SyncStatKey) => void;
   onEquipSyncAbility: (abilityId: string) => void;
   visible: boolean;
@@ -166,9 +166,12 @@ export function HolobotStatsModal({
   // a LV 12 ACE read HP 150 here and HP 232 on Training. Display only; the boosts are added as before.
   const levelBase = getHolobotDisplayStats(holobot.name, normalizedOwnedHolobot?.level ?? holobot.level ?? 1);
   const stats = [
-    { baseValue: levelBase.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+10 HP" },
+    // DECISIONS #72.77/#72.78: ATK / DEF / SPECIAL / HP / SPEED; SPECIAL is points-buyable (+1) and a NEW HP point
+    // grants +3 (was +10; HP already allocated is kept — boostedAttributes.health is the HP sum, not a point count).
     { baseValue: levelBase.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
     { baseValue: levelBase.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
+    { baseValue: levelBase.special, bonus: boosts.special || 0, key: "special" as const, label: "Special", upgrade: "+1 SPC" },
+    { baseValue: levelBase.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+3 HP" },
     { baseValue: levelBase.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
   ];
   const syncRows: Array<{ key: SyncStatKey; value: number }> = [
