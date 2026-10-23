@@ -110,19 +110,39 @@ export function applyHolobotExperience(rawHolobot: unknown, expGain: number): Se
 // ---- Battle stats (mirror of mobile/src/lib/progression.ts getHolobotBattleStats) ----
 
 export const HOLOBOT_BASE_STATS = {
-  ACE: { attack: 8, defense: 6, hp: 150, intelligence: 5, speed: 7 },
-  KUMA: { attack: 7, defense: 5, hp: 200, intelligence: 4, speed: 3 },
+  ACE: { attack: 8, defense: 6, hp: 150, intelligence: 5, speed: 6 },
+  KUMA: { attack: 7, defense: 5, hp: 200, intelligence: 4, speed: 4 },
   SHADOW: { attack: 5, defense: 7, hp: 170, intelligence: 3, speed: 4 },
   ERA: { attack: 5, defense: 4, hp: 165, intelligence: 4, speed: 6 },
   HARE: { attack: 4, defense: 5, hp: 160, intelligence: 3, speed: 4 },
   TORA: { attack: 5, defense: 4, hp: 180, intelligence: 4, speed: 6 },
   WAKE: { attack: 6, defense: 3, hp: 170, intelligence: 4, speed: 4 },
-  GAMA: { attack: 6, defense: 5, hp: 180, intelligence: 4, speed: 3 },
+  GAMA: { attack: 6, defense: 5, hp: 180, intelligence: 4, speed: 4 },
   KEN: { attack: 7, defense: 3, hp: 150, intelligence: 5, speed: 6 },
-  KURAI: { attack: 4, defense: 6, hp: 190, intelligence: 3, speed: 3 },
+  KURAI: { attack: 4, defense: 6, hp: 190, intelligence: 3, speed: 4 },
   TSUIN: { attack: 6, defense: 4, hp: 160, intelligence: 4, speed: 5 },
   WOLF: { attack: 5, defense: 5, hp: 175, intelligence: 4, speed: 5 },
 } as const;
+
+/**
+ * DECISIONS #72.78 (2): base SPEED narrowed from 3-7 to 4-6 (3->4, 4->4, 5->5, 6->6, 7->6) in
+ * HOLOBOT_BASE_STATS above. This is the pre-#72.78 column, frozen for provenance and for any
+ * consumer that must reproduce a pre-#72.78 output. Read by getLegacyBattleSpeed (quest / training
+ * power score, a frozen economy surface). The legacy duel resolver and battlefield-movement-1 take
+ * speed as an input (movement normalises by the bot's own LV 1 stat) and read the live column.
+ * Never edit.
+ */
+export const LEGACY_BASE_SPEED_PRE_72_78 = {
+  ACE: 7, KUMA: 3, SHADOW: 4, ERA: 6, HARE: 4, TORA: 6, WAKE: 4, GAMA: 3, KEN: 6, KURAI: 3, TSUIN: 5, WOLF: 5,
+} as const;
+
+/** The pre-#72.78 battle-scale speed: getHolobotBattleStats(...).speed computed on LEGACY_BASE_SPEED_PRE_72_78. */
+export function getLegacyBattleSpeed(name: string, level = 1, boostedAttributes?: unknown): number {
+  const normalizedName = String(name || "").trim().toUpperCase() as keyof typeof LEGACY_BASE_SPEED_PRE_72_78;
+  const base = LEGACY_BASE_SPEED_PRE_72_78[normalizedName] ?? LEGACY_BASE_SPEED_PRE_72_78.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+  return Math.floor(base * 10 * levelBonus) + boostValue(boostedAttributes, "speed");
+}
 
 export const HOLOBOT_ARCHETYPES = {
   ACE: "balanced",
@@ -208,13 +228,20 @@ export function getHolobotDisplayStats(name: string, level = 1, boostedAttribute
 
 // ---- Attribute boosts (DECISIONS #53-2; mirror of mobile applyAttributeBoost) ----
 
-/** Points buy attack / defense / speed / HP. SPECIAL is tied to SYNC (focus) and is not boostable. */
-export const BOOSTABLE_ATTRIBUTES = ["attack", "defense", "speed", "health"] as const;
+/**
+ * Points buy attack / defense / speed / SPECIAL (+1 each) or HP (+3). DECISIONS #72.78 (4)+(5):
+ * SPECIAL became points-buyable (+1, stored as boostedAttributes.special, which battle stats
+ * already read as intelligence); the HP grant dropped from 10 to 3 per point for NEW points.
+ * boostedAttributes.health stores HP units (the running sum), not a point count, so HP already
+ * allocated at +10/point keeps its value by construction — nothing converts it back to points.
+ */
+export const BOOSTABLE_ATTRIBUTES = ["attack", "defense", "speed", "health", "special"] as const;
 export type BoostableAttribute = (typeof BOOSTABLE_ATTRIBUTES)[number];
 export const ATTRIBUTE_BOOST_AMOUNTS: Record<BoostableAttribute, number> = {
   attack: 1,
   defense: 1,
-  health: 10,
+  health: 3,
+  special: 1,
   speed: 1,
 };
 export type AttributeBoostRefusal = "attribute_not_boostable" | "no_attribute_points";

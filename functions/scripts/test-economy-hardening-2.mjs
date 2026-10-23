@@ -110,8 +110,12 @@ test('item 4: training start rolls boosts on the host; the claim uses the record
 
 test('item 4: HOLOCITY_LEGACY_QUEST_TIMERS is on only for exactly "1"; the power score is the client formula', () => {
   for (const [v, on] of [['1', true], [undefined, false], ['', false], ['0', false], ['true', false], [' 1', false]]) assert.equal(PT.legacyQuestTimersEnabled({ HOLOCITY_LEGACY_QUEST_TIMERS: v }), on, String(v));
-  const s = require('../lib/lib/progression.js').getHolobotBattleStats('ACE', 5, { attack: 4 });
-  assert.equal(PE.getHolobotPowerScore({ name: 'ACE', level: 5, boostedAttributes: { attack: 4 } }), Math.round(s.maxHP * 4 + s.attack * 6 + s.defense * 5 + s.speed * 4 + s.intelligence * 5));
+  const P = require('../lib/lib/progression.js'), s = P.getHolobotBattleStats('ACE', 5, { attack: 4 });
+  // DECISIONS #72.78: the power score keeps the pre-#72.78 speed column (quest odds unchanged); 2316 is the pre-ruling value.
+  const legacySpeed = P.getLegacyBattleSpeed('ACE', 5, { attack: 4 });
+  assert.equal(PE.getHolobotPowerScore({ name: 'ACE', level: 5, boostedAttributes: { attack: 4 } }), Math.round(s.maxHP * 4 + s.attack * 6 + s.defense * 5 + legacySpeed * 4 + s.intelligence * 5));
+  assert.equal(PE.getHolobotPowerScore({ name: 'ACE', level: 5, boostedAttributes: { attack: 4 } }), 2316);
+  assert.equal(legacySpeed, 84); assert.equal(s.speed, 72);
 });
 
 // ---- item 5: dailyMissionLedger summary on desktop-account replies ----

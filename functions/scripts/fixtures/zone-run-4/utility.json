@@ -743,7 +743,7 @@
               "currentHealth": 885,
               "attack": 472,
               "defense": 354,
-              "speed": 413,
+              "speed": 354,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {
@@ -797,7 +797,7 @@
               "currentHealth": 1180,
               "attack": 413,
               "defense": 295,
-              "speed": 177,
+              "speed": 236,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {
@@ -1489,7 +1489,7 @@
               "currentHealth": 885,
               "attack": 472,
               "defense": 354,
-              "speed": 413,
+              "speed": 354,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {
@@ -1543,7 +1543,7 @@
               "currentHealth": 1180,
               "attack": 413,
               "defense": 295,
-              "speed": 177,
+              "speed": 236,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {
@@ -2254,7 +2254,7 @@
               "currentHealth": 885,
               "attack": 472,
               "defense": 354,
-              "speed": 413,
+              "speed": 354,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {
@@ -2308,7 +2308,7 @@
               "currentHealth": 1180,
               "attack": 413,
               "defense": 295,
-              "speed": 177,
+              "speed": 236,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {
@@ -2970,7 +2970,7 @@
               "currentHealth": 885,
               "attack": 472,
               "defense": 354,
-              "speed": 413,
+              "speed": 354,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {
@@ -3024,7 +3024,7 @@
               "currentHealth": 1180,
               "attack": 413,
               "defense": 295,
-              "speed": 177,
+              "speed": 236,
               "maxStamina": 7,
               "staminaRegen": 0.5,
               "moveset": {

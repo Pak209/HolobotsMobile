@@ -1,4 +1,4 @@
-import { applyHolobotExperience, getHolobotBattleStats, normalizeUserHolobot } from "@/lib/progression";
+import { applyHolobotExperience, getHolobotBattleStats, getLegacyBattleSpeed, normalizeUserHolobot } from "@/lib/progression";
 import { getTodayMissionKey, normalizeRewardSystem, type MobileRewardSystem } from "@/lib/dailyMissions";
 import type { UserHolobot, UserProfile } from "@/types/profile";
 
@@ -322,7 +322,10 @@ export function refreshQuestBoard(system: unknown, date = new Date()): MobilePro
 
 export function getHolobotPowerScore(holobot: UserHolobot) {
   const stats = getHolobotBattleStats(holobot.name, holobot.level, holobot.boostedAttributes);
-  return Math.round(stats.maxHP * 4 + stats.attack * 6 + stats.defense * 5 + stats.speed * 4 + stats.intelligence * 5);
+  // DECISIONS #72.78: the speed narrowing is a fight ruling, not a quest/training rebalance — the power score keeps
+  // the pre-#72.78 speed column (getLegacyBattleSpeed), so quest odds and stored holobotPower values are unchanged.
+  const speed = getLegacyBattleSpeed(holobot.name, holobot.level, holobot.boostedAttributes);
+  return Math.round(stats.maxHP * 4 + stats.attack * 6 + stats.defense * 5 + speed * 4 + stats.intelligence * 5);
 }
 
 export function startTrainingSession(

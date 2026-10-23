@@ -214,3 +214,30 @@ required `chase` block with ten integer keys, in hash order: `chaserSpeedPm` 110
   every tick hash, event and witness, with a `duel-rules-3` known-bad control. `Schemas/fixtures/duel-receipt-2-chase.fixture.json`
   is a host-issued chase duel; the Unity C# verifier reproduces its receipt byte for byte.
 
+
+## `duel-rules-5`: SPEED / SPECIAL as fight inputs (lane `speed-special-p2-1`, DECISIONS #72.77 / #72.78)
+
+Contract-Change approved. The TS twin follows HolobotsUnity `claude/speed-special-p2-1` (`FightAttrRules.cs` + the FightCore /
+FightBrain deltas). `Schemas/duel-rules-5.json` is a byte copy. It is `duel-rules-4` with `simVersion` `duel-sim-4`, a required
+`attrs` block (18 integer keys, `ATTR_KEYS` = C# `FightAttrRules.Keys` order, defaults = Pak's v3 numbers) and a required
+`speed` / `special` on every fighter (the issued battle speed / intelligence, 0..100000).
+
+- **Off by default.** `attrs` null = the `duel-rules-3` / `-4` core byte for byte (state prefix, events, brain draws). The host
+  issues `duel-rules-5` only with `HOLOCITY_FIGHT_ATTRS=1` (`FIGHT_ATTRS_FLAG`) **and** `HOLOCITY_FIGHT_CHASE=1` and
+  `HOLOCITY_FIGHT_REPLAY=1`; the attrs flag alone changes nothing. rulesId prefix `duel-rules-5:`. Turn it on only once the
+  floor client parses `duel-rules-5`.
+- **Rules.** Every curve is per-mille of the pair edge `e = (own - opp) * 1000 / (own + opp)`: SPEED scales run / back / strafe and
+  the escape run (a chaser at a tagged runner never drops below its kit speed), gives a seeded evade on clean hits
+  (`rollPm` = murmur3 fmix32 of the `evadeWord(seed)`, attacker side, attacker roll index; a Contact Evaded with value `-1`),
+  wins same-tick trades (event `Stuffed` 27) and shortens opener telegraphs; SPECIAL scales every SYNC gain (milli-SYNC carry)
+  and Special damage. `retreatChainMax` retreats in a row without a strike refuse the next (Denied 13).
+- **Hashes.** Rules: SHA-256 over ASCII `duel-rules-5`, globals, chase, attrs, fighter count, then per fighter the `duel-rules-3`
+  bytes + speed + special (`rulesHash(rules, chase, attrs)`). State: prefix `duel-sim-4`, the rules-5 hash, each member's
+  fields + `syncAcc, evadeRolls, retreatChain`, the chase tail, then ASCII `fight-attrs-1` + the 18 attrs ints (`decodeState`
+  reads it).
+- **CPU.** `FightCoreBrain` sets `syncSpend` (and the half / full SYNC costs) only on an attrs core; the brain's section S then
+  spends the 50 / 100 tiers by rank (`SYNC_DISCIPLINE`, `SYNC_*_RATE_BPS`, `rankIndex`; counts in `brain.stats`).
+- **Parity.** `test-fight-rules5-parity` replays the 11 Unity vectors (`scripts/fixtures/duel-rules-5`, copied verbatim) on
+  every tick hash, event, witness and final SYNC, plus the 5 FightCoreBrain-vs-FightCoreBrain CPU vectors (every 30th tick hash,
+  half / full spends, special telegraphs), the strict parser codes, the curve / roll pins and a `duel-rules-4` known-bad control.
+  `test-fight-replay` pins the flag-off issue (identical to today) and a verified `duel-rules-5` round trip.

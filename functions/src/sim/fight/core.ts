@@ -3,12 +3,16 @@ import {
   FightOutcome, FightPress, FightRng, FightState, Guard, Loco, Move, MOVE_NAMES, NO_PICK, Outcome, OUTCOME_NAMES, Press, State,
 } from './contracts';
 import { clamp, dist, div, hex, Int32Writer, mulDiv, rngSeedWord, seedBytes, sha256 } from './math';
-import { CHASE_KEYS, cloneRules, FightChaseRules, FightFighterDef, FightRules, rosterOf, rulesHashBytes, validateChaseRules, validateRules } from './rules';
+import {
+  ATTR_KEYS, attrEdge, CHASE_KEYS, cloneRules, evadeChance, evadeWord, FightAttrRules, FightChaseRules, FightFighterDef, FightRules, moveMul, rollPm, rosterOf,
+  rulesCanonicalBytes5, rulesHashBytes, SIM_VERSION_4, specialDmgMul, syncMul, tempoTicks, validateAttrRules, validateChaseRules, validateRules,
+} from './rules';
 import { FightWitness } from './witness';
 
 /**
  * duel-sim-3 fight core, a line-for-line port of HolobotsUnity `Sim/Fight/FightCore.cs` (fight-core-1 + fight-tune-1 r2 + fight-tune-2 r3
- * + fight-chase-1 #72.65 behind a duel-rules-4 chase block: `chase` null = today's core byte for byte).
+ * + fight-chase-1 #72.65 behind a duel-rules-4 chase block: `chase` null = today's core byte for byte; + duel-rules-5 SPEED / SPECIAL
+ * #72.77/#72.78 behind the attrs block, which needs the chase block: `attrs` null = the duel-rules-3/-4 core byte for byte).
  * Tick order (identical): 0 timers + pending forced Backstep, 1 inputs side 0 then side 1, 2 telegraph starts -> exchange clock,
  * 3 movement, 4+5 contacts (one frozen state, simultaneous contacts both land), 6 regen, 7 forced breaks, 7b KO forced swap,
  * 8 pair state + break exits + witness, 9 KO/timeout, 10 state hash. Integer only; see math.ts for the division rule.
@@ -42,6 +46,8 @@ export class FightFighter {
   shieldUntil = 0;
   /** r3: tick the current/last quick escape started (-1 never). */
   escStart = -1;
+  /** duel-sim-4 (rules-5 only, hashed then): milli-SYNC carry; evade-roll index (as attacker); retreats since its last strike. */
+  syncAcc = 0; evadeRolls = 0; retreatChain = 0;
   /** r3: the FIGHT max HP (issued maxHp x the pair HP scale; = def.maxHp when hpScaleLights is 0). Not hashed (a function of the rules). */
   maxHp: number;
   // identity (not hashed)
@@ -59,7 +65,7 @@ export class FightChaseSide {
 }
 export const CHASE_SIDE_FIELDS = ['tagged', 'retreatStart', 'retreatReadyAt', 'chasedAt', 'drainAcc', 'escapedThisRetreat', 'caught', 'retreats', 'ringStops', 'ringStopTick'] as const;
 
-type Contact = { side: number; move: FightMove; outcome: FightOutcome; counter: boolean; hard: boolean; damage: number; drain: number };
+type Contact = { side: number; move: FightMove; outcome: FightOutcome; counter: boolean; hard: boolean; speedEvade: boolean; damage: number; drain: number };
 
 const B = (b: boolean) => (b ? 1 : 0);
 
@@ -81,6 +87,11 @@ export class FightCore {
   readonly chase: FightChaseRules | null;
   /** fight-chase-1: per-side chase state (null when `chase` is null). */
   readonly chaseState: FightChaseSide[] | null;
+  /** duel-rules-5 (#72.77/#72.78): the SPEED / SPECIAL rules, or null = the duel-rules-3/-4 core exactly (events, state hash). */
+  readonly attrs: FightAttrRules | null;
+  private readonly evadeWordV: number = 0;
+  /** duel-rules-5 witness counters (not hashed; pure functions of the hashed stream): per side. */
+  readonly speedEvades = [0, 0]; readonly stuffed = [0, 0]; readonly tempoTicksSaved = [0, 0]; readonly syncMilliGained = [0, 0];
   tick = -1;
   exchangeActive = false;
   exchangeStartTick = -1;
@@ -103,13 +114,17 @@ export class FightCore {
   /** Emit events? (the witness and hashes do not depend on it; replay skips the strings for speed only when asked). */
   recordEvents = true;
 
-  constructor(rules: FightRules, seedHex: string, chase: FightChaseRules | null = null) {
+  constructor(rules: FightRules, seedHex: string, chase: FightChaseRules | null = null, attrs: FightAttrRules | null = null) {
+    if (attrs && !chase) throw new RangeError('invalid_attrs_without_chase');
+    if (attrs) { validateAttrRules(attrs); this.attrs = { ...attrs }; } else this.attrs = null;
     validateRules(rules);
     if (chase) { validateChaseRules(chase); this.chase = { ...chase }; this.chaseState = [new FightChaseSide(), new FightChaseSide()]; }
     else { this.chase = null; this.chaseState = null; }
     this.rules = cloneRules(rules);
-    this.rulesHashB = rulesHashBytes(this.rules);
+    // duel-rules-5: the state carries the issued rules-5 hash (fighters' speed / special + chase + attrs); else today's bytes
+    this.rulesHashB = this.attrs ? sha256(rulesCanonicalBytes5(this.rules, this.chase, this.attrs)) : rulesHashBytes(this.rules);
     this.seed = seedBytes(seedHex);
+    if (this.attrs) this.evadeWordV = evadeWord(this.seed);
     const meanLightsMilli = this.rules.hpScaleLights > 0 ? meanLightsToKoMilli(this.rules) : 0;
     for (let s = 0; s < 2; s++) {
       const idx = rosterOf(this.rules, s);
@@ -326,7 +341,7 @@ export class FightCore {
       else if (!f.inBreak) {
         // #72.65 (2): a retreat costs stamina and has a cooldown
         const cs = this.chaseState![s];
-        if (t < cs.retreatReadyAt) this.deny(s, Deny.RetreatCooldown);
+        if (t < cs.retreatReadyAt || this.chainBlocked(f)) this.deny(s, Deny.RetreatCooldown);
         else { this.spend(f, this.rail(this.chase.retreatCostPm, rail)); this.enterBreak(s, false); this.startTag(s, t); executed = true; }
       } else executed = true;
     } else if (press === Press.Shove) {
@@ -400,6 +415,7 @@ export class FightCore {
     const shortTel = move === Move.Light && inChain;
     f.chainCount = inChain ? f.chainCount + 1 : 1;
     let tel = move === Move.Charge ? R.chargeTelegraphTicks : shortTel ? R.chainTelegraphTicks + R.chainDecayTicks * (f.chainCount - 2) : R.telegraphTicks;
+    if (this.attrs && move !== Move.Charge && !shortTel) { const cut = Math.min(tel - 1, tempoTicks(this.attrs, this.speedEdge(s))); tel -= cut; this.tempoTicksSaved[s] += cut; }
     tel += f.sta === 0 ? R.emptyTelegraphTicks : f.sta < R.breakLinePm ? R.gassedTelegraphTicks : 0;
     let baseCost = move === Move.Light || move === Move.Charge ? R.costLightPm : move === Move.Heavy ? R.costHeavyPm : R.costSpecialPm;
     if (shortTel) for (let k = 1; k < f.chainCount; k++) baseCost = mulDiv(baseCost, R.chainCostPm, 1000);
@@ -407,7 +423,7 @@ export class FightCore {
     this.spend(f, cost + dashTopUp);
     f.sync -= syncNeed;
     const [ux, uz] = unit(o.x - f.x, o.z - f.z, s);
-    f.action = Action.Telegraph; f.atkMove = move; f.atkStart = t; f.atkContact = t + tel; f.atkFacingX = ux; f.atkFacingZ = uz;
+    f.retreatChain = 0; f.action = Action.Telegraph; f.atkMove = move; f.atkStart = t; f.atkContact = t + tel; f.atkFacingX = ux; f.atkFacingZ = uz;
     f.atkCost = cost; f.atkTier = move === Move.Special ? tier : 0; f.atkCounter = t < f.counterWindowUntil; f.actionUntil = f.atkContact;
     const d = dist(o.x - f.x, o.z - f.z);
     this.telegraphStarts.push({ side: s, inReach: d <= this.reach(s, move) + this.lunge(f, move) });
@@ -455,13 +471,14 @@ export class FightCore {
     // #72.65 (2): a new retreat waits for the cooldown; the one escape out of a Disengage retreat continues that retreat
     const cs = this.chaseState ? this.chaseState[s] : null;
     const continues = cs !== null && cs.tagged && !cs.escapedThisRetreat;
-    if (cs && !continues && t < cs.retreatReadyAt) { this.deny(s, Deny.RetreatCooldown); return false; }
+    if (cs && !continues && (t < cs.retreatReadyAt || this.chainBlocked(f))) { this.deny(s, Deny.RetreatCooldown); return false; }
     this.spend(f, this.rail(R.costEscapePm, rail));
     if (f.guard !== Guard.Down) { f.guard = Guard.Down; this.emit(s, EventKind.GuardLower, Move.None, 0); }
     const [ux, uz] = unit(o.x - f.x, o.z - f.z, s);
     f.action = Action.Escape; f.escStart = t; f.actionUntil = t + R.escapeTurnTicks + R.escapeRunTicks + R.escapeTurnBackTicks;
     f.stepKind = Loco.EscapeRun; f.stepDirX = -ux; f.stepDirZ = -uz; f.stepTicks = R.escapeRunTicks; f.stepElapsed = 0; f.stepForced = false;
-    f.stepTotal = div(d.runMmPerSec * R.escapeRunTicks, 30);
+    const runMm = this.attrs ? mulDiv(d.runMmPerSec, moveMul(this.attrs, this.speedEdge(s)), 1000) : d.runMmPerSec;
+    f.stepTotal = div(runMm * R.escapeRunTicks, 30);
     f.chainCount = 0; clearBuffer(f);
     f.punishableUntil = Math.max(f.punishableUntil, t + R.escapeNoGuardTicks);
     if (!f.inBreak) this.enterBreak(s, false);
@@ -562,6 +579,11 @@ export class FightCore {
           if (fwd > lat) { speed = def.runMmPerSec; loco = Loco.Forward; }
           else if (-fwd > lat) { speed = def.backMmPerSec; loco = Loco.Backpedal; }
           else { speed = def.strafeMmPerSec; loco = cross > 0 ? Loco.StrafeL : Loco.StrafeR; }
+          if (this.attrs) {
+            let mm = moveMul(this.attrs, this.speedEdge(s));
+            if (this.attrs.chaseParity !== 0 && this.chase && loco === Loco.Forward && this.chaseState![1 - s].tagged && mm < 1000) mm = 1000;
+            speed = mulDiv(speed, mm, 1000);
+          }
           if (f.guard !== Guard.Down) speed = mulDiv(speed, R.guardMovePm, 1000);
           if (this.chase && loco === Loco.Forward && this.chaseState![1 - s].tagged) {
             // #72.65 (2): the chaser's slight edge, paid for (a spend: its regen waits like after any spend)
@@ -644,6 +666,13 @@ export class FightCore {
       list.push(this.resolve(s, t));
     }
     if (list.length === 0) return;
+    if (this.attrs && this.attrs.initiativeMinEdgePm > 0 && list.length === 2 && lands(list[0]) && lands(list[1])) {
+      const e0 = this.speedEdge(0);
+      if (Math.abs(e0) >= this.attrs.initiativeMinEdgePm) {
+        const slow = e0 > 0 ? 1 : 0, at = list[0].side === slow ? 0 : 1;
+        this.stuffed[slow]++; this.emit(slow, EventKind.Stuffed, list[at].move, 0); list.splice(at, 1);
+      }
+    }
     if (list.length === 2) this.witness.count(0, EventKind.Contact, true);
     for (const c of list) {
       const f = this.F[c.side], m = c.move;
@@ -667,7 +696,7 @@ export class FightCore {
         case Outcome.Hit:
         case Outcome.GuardBreak: {
           o.hp = Math.max(0, o.hp - c.damage);
-          f.sync = Math.min(R.maxSync, f.sync + gain);
+          this.addSync(f, c.side, gain, 1000);
           if (c.outcome === Outcome.GuardBreak) { this.spend(o, c.drain); o.guard = Guard.Down; }
           let stun = c.hard ? Math.min(od.hitHeavyTicks, R.hitStunHeavyMaxTicks) : Math.min(od.hitLightTicks, R.hitStunLightMaxTicks);
           if (c.outcome === Outcome.GuardBreak) stun = Math.max(stun, R.guardBreakStaggerTicks);
@@ -697,7 +726,7 @@ export class FightCore {
         case Outcome.Blocked:
           o.hp = Math.max(0, o.hp - c.damage);
           this.spend(o, c.drain);
-          f.sync = Math.min(R.maxSync, f.sync + mulDiv(gain, R.syncBlockedPm, 1000));
+          this.addSync(f, c.side, gain, R.syncBlockedPm);
           if (c.move === Move.Charge) { const [ux, uz] = unit(o.x - f.x, o.z - f.z, c.side); push(o, ux, uz, R.chargePushMm, R.chargePushTicks); }
           else if (c.move !== Move.Light) { const [ux, uz] = unit(o.x - f.x, o.z - f.z, c.side); push(o, ux, uz, R.heavyPushbackMm, R.pushbackTicks); }
           break;
@@ -707,14 +736,14 @@ export class FightCore {
       }
       if (o.hp === 0 && !o.ko) { o.ko = true; interrupt(o); o.action = Action.Ko; o.guard = Guard.Down; }
       if (this.exchangeActive && (c.outcome === Outcome.Hit || c.outcome === Outcome.Blocked || c.outcome === Outcome.Perfect || c.outcome === Outcome.GuardBreak)) this.lastContactTick = t;
-      this.emit(c.side, EventKind.Contact, c.move, c.damage, c.outcome, c.counter);
+      this.emit(c.side, EventKind.Contact, c.move, c.speedEvade ? -1 : c.damage, c.outcome, c.counter);   // rules-5: a SPEED evade reads value -1
       this.witness.contact(c.side, c.outcome, c.counter);
     }
   }
 
   private resolve(s: number, t: number): Contact {
     const R = this.rules, f = this.F[s], o = this.F[1 - s], m = f.atkMove;
-    const c: Contact = { side: s, move: m, outcome: Outcome.Hit, counter: false, hard: false, damage: 0, drain: 0 };
+    const c: Contact = { side: s, move: m, outcome: Outcome.Hit, counter: false, hard: false, speedEvade: false, damage: 0, drain: 0 };
     const vx = o.x - f.x, vz = o.z - f.z, d = dist(vx, vz);
     const inReach = d <= this.reach(s, m);
     const dot = f.atkFacingX * vx + f.atkFacingZ * vz;
@@ -733,6 +762,7 @@ export class FightCore {
       c.damage = this.damage(s, m, false, m === Move.Special ? R.chipSpecialPm : R.chipPm, d);
       return c;
     }
+    if (this.attrs && this.evadeRoll(s, m, c.counter)) { c.outcome = Outcome.Evaded; c.speedEvade = true; this.speedEvades[1 - s]++; return c; }
     c.outcome = Outcome.Hit;
     c.damage = this.damage(s, m, c.counter, 1000, d);
     c.hard = c.damage * 1000 >= R.hardHitHpPm * o.maxHp || (c.counter && !lightClass(m));
@@ -745,6 +775,7 @@ export class FightCore {
     let dmg = mulDiv(df.attack, scale, 1000);
     dmg = mulDiv(dmg, 100, 100 + od.defense);
     if (m === Move.Special) dmg = mulDiv(dmg, f.atkTier === 2 ? R.specialFullEffectPm : R.specialHalfEffectPm, 1000);
+    if (m === Move.Special && this.attrs) dmg = mulDiv(dmg, specialDmgMul(this.attrs, this.specialEdge(s)), 1000);
     if (counter) dmg = mulDiv(dmg, R.counterPm, 1000);
     if (m === Move.Light && this.closeKit(f) && d <= R.closeKitReachMm && R.closeKitDamagePm !== 1000) dmg = mulDiv(dmg, R.closeKitDamagePm, 1000);
     if (f.sta === 0) dmg = mulDiv(dmg, R.emptyDamagePm, 1000);
@@ -811,7 +842,7 @@ export class FightCore {
 
   private startTag(s: number, t: number): void {
     const cs = this.chaseState![s];
-    cs.tagged = true; cs.retreatStart = t; cs.chasedAt = t; cs.escapedThisRetreat = false; cs.retreats++;
+    cs.tagged = true; cs.retreatStart = t; cs.chasedAt = t; cs.escapedThisRetreat = false; cs.retreats++; this.F[s].retreatChain++;
     cs.retreatReadyAt = t + this.chase!.retreatCooldownTicks;
     this.emit(s, EventKind.Retreat, Move.None, cs.retreatReadyAt);
   }
@@ -841,6 +872,34 @@ export class FightCore {
     }
   }
 
+  // ================================================================ duel-rules-5 attributes (#72.77 / #72.78)
+
+  /** Side s's SPEED edge over the fielded opponent, -1000..1000 per-mille (0 when both are 0). */
+  speedEdge(s: number): number { return attrEdge(this.F[s].def.speed ?? 0, this.F[1 - s].def.speed ?? 0); }
+  specialEdge(s: number): number { return attrEdge(this.F[s].def.special ?? 0, this.F[1 - s].def.special ?? 0); }
+  private chainBlocked(f: FightFighter): boolean { return this.attrs !== null && this.attrs.retreatChainMax > 0 && f.retreatChain >= this.attrs.retreatChainMax; }
+
+  private addSync(f: FightFighter, s: number, gain: number, pm: number): void {
+    const R = this.rules;
+    if (!this.attrs) { f.sync = Math.min(R.maxSync, f.sync + mulDiv(gain, pm, 1000)); return; }
+    const milli = div(gain * pm * syncMul(this.attrs, this.specialEdge(s)), 1000) + f.syncAcc;
+    this.syncMilliGained[s] += milli - f.syncAcc;
+    f.sync = Math.min(R.maxSync, f.sync + div(milli, 1000)); f.syncAcc = milli % 1000;
+  }
+
+  /** Seeded, stateless evade roll: hash(seed word, attacker side, attacker's roll index). Only eligible strikes consume an index. */
+  private evadeRoll(s: number, m: FightMove, counter: boolean): boolean {
+    const f = this.F[s], o = this.F[1 - s], A = this.attrs!;
+    if (counter || (m === Move.Special && A.evadeSpecials === 0)) return false;
+    const free = o.action === Action.Idle || (o.action === Action.Step && !o.stepForced);
+    const wide = A.evadeWide !== 0 && (o.action === Action.Recovery || o.action === Action.FeintRecovery || o.action === Action.Shove);
+    if (!free && !wide) return false;
+    const chance = evadeChance(A, this.speedEdge(1 - s));
+    if (chance <= 0) return false;
+    const roll = rollPm(this.evadeWordV, s, f.evadeRolls++);
+    return roll < chance;
+  }
+
   private emit(side: number, kind: FightEventKind, move: FightMove, value: number, outcome: FightOutcome = Outcome.Hit, counter = false): void {
     if (this.recordEvents) this.events.push({ tick: this.tick, side, kind, move, value, outcome, counter });
   }
@@ -854,7 +913,7 @@ export class FightCore {
    * roster member in rules array order (STATE_FIGHTER_FIELDS).
    */
   stateBytes(): Buffer {
-    const w = new Int32Writer(1024).ascii('duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
+    const w = new Int32Writer(1024).ascii(this.attrs ? SIM_VERSION_4 : 'duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
     w.int(this.tick).int(B(this.exchangeActive)).int(this.exchangeStartTick).int(this.lastTelegraphTick).int(this.lastContactTick)
       .int(this.exchangePresses).int(B(this.railFired)).int(this.pairState).int(this.distanceMm).int(this.rangeRMm).int(this.winner).int(B(this.ended));
     for (let s = 0; s < 2; s++) {
@@ -862,13 +921,18 @@ export class FightCore {
         .int(this.rng[s].state).int(this.rng[s].draws);
     }
     const cursor = [0, 0];
-    for (const d of this.rules.fighters) writeFighter(w, this.roster[d.side][cursor[d.side]++]);
+    for (const d of this.rules.fighters) {
+      const m = this.roster[d.side][cursor[d.side]++]; writeFighter(w, m);
+      if (this.attrs) w.int(m.syncAcc).int(m.evadeRolls).int(m.retreatChain);
+    }
     // fight-chase-1: only with the chase rules on (off = today's bytes exactly): 'fight-chase-1', the rules, then side 0, side 1
     if (this.chase) {
       w.ascii('fight-chase-1');
       for (const k of CHASE_KEYS) w.int(this.chase[k]);
       for (const cs of this.chaseState!) writeChaseSide(w, cs);
     }
+    // duel-rules-5: 'fight-attrs-1' + the attrs block after the chase tail (off = the duel-rules-3/-4 bytes exactly)
+    if (this.attrs) { w.ascii('fight-attrs-1'); for (const k of ATTR_KEYS) w.int(this.attrs[k]); }
     return w.done();
   }
   stateHash(): string { return hex(sha256(this.stateBytes())); }
@@ -888,6 +952,8 @@ export const STATE_FIGHTER_FIELDS = [
 export const STATE_HEADER_FIELDS = ['tick', 'exchangeActive', 'exchangeStartTick', 'lastTelegraphTick', 'lastContactTick', 'exchangePresses',
   'railFired', 'pairState', 'distanceMm', 'rangeRMm', 'winner', 'ended'] as const;
 export const STATE_SIDE_FIELDS = ['active', 'swapLockedUntil', 'switches', 'forcedSwaps', 'targetPick', 'rngState', 'rngDraws'] as const;
+/** duel-sim-4 (rules-5): the three extra int32s written after each member's STATE_FIGHTER_FIELDS. */
+export const STATE_FIGHTER_FIELDS_4 = ['syncAcc', 'evadeRolls', 'retreatChain'] as const;
 
 function writeFighter(w: Int32Writer, f: FightFighter): void {
   w.int(f.x).int(f.z).int(f.hp).int(f.sta).int(f.sync).int(f.regenAcc).int(f.regenBlockedUntil).int(f.action).int(f.actionUntil)
@@ -913,6 +979,7 @@ function moveOf(p: FightPress): FightMove {
   return p === Press.Light ? Move.Light : p === Press.Heavy ? Move.Heavy : p === Press.Special ? Move.Special : Move.None;
 }
 function lightClass(m: FightMove): boolean { return m === Move.Light || m === Move.Charge; }
+function lands(c: Contact): boolean { return c.outcome === Outcome.Hit || c.outcome === Outcome.GuardBreak; }
 
 /** r3 HP scale (FightCore.MeanLightsToKoMilli): the roster-average count (x1000) of clean lights to KO each member at its issued
  * HP, hit by the opposing side's mean attack (light scale, own defense; at least 1 per hit). Rules-array order, truncating. */

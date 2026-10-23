@@ -181,7 +181,7 @@ export async function useExpBoosterAuthoritative(): Promise<{ activeUntil: numbe
 }
 
 const ATTRIBUTE_BOOST_REFUSAL_MESSAGES: Record<Exclude<AttributeBoostReason, "already_processed">, string> = {
-  attribute_not_boostable: "SPECIAL grows with the Sync Focus stat, not with attribute points.",
+  attribute_not_boostable: "That attribute cannot be boosted with attribute points.",
   no_attribute_points: "This Holobot has no attribute points available to spend.",
 };
 
@@ -191,8 +191,8 @@ export function makeAttributeBoostRequestId(): string {
 }
 
 /**
- * Spend one attribute point server-side (DECISIONS #53-2): +1 attack /
- * defense / speed or +10 HP. The profile listener picks up the write; the
+ * Spend one attribute point server-side (DECISIONS #53-2, #72.78): +1 attack /
+ * defense / speed / special or +3 HP. The profile listener picks up the write; the
  * reply's holobot is the authoritative record. Typed refusals throw a readable
  * Error; a replayed request id (already_processed) resolves without spending.
  */

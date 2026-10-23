@@ -23,19 +23,43 @@ export const HOLOBOT_NAMES = [
 ] as const;
 
 export const HOLOBOT_BASE_STATS = {
-  ACE: { attack: 8, defense: 6, hp: 150, intelligence: 5, speed: 7 },
-  KUMA: { attack: 7, defense: 5, hp: 200, intelligence: 4, speed: 3 },
+  ACE: { attack: 8, defense: 6, hp: 150, intelligence: 5, speed: 6 },
+  KUMA: { attack: 7, defense: 5, hp: 200, intelligence: 4, speed: 4 },
   SHADOW: { attack: 5, defense: 7, hp: 170, intelligence: 3, speed: 4 },
   ERA: { attack: 5, defense: 4, hp: 165, intelligence: 4, speed: 6 },
   HARE: { attack: 4, defense: 5, hp: 160, intelligence: 3, speed: 4 },
   TORA: { attack: 5, defense: 4, hp: 180, intelligence: 4, speed: 6 },
   WAKE: { attack: 6, defense: 3, hp: 170, intelligence: 4, speed: 4 },
-  GAMA: { attack: 6, defense: 5, hp: 180, intelligence: 4, speed: 3 },
+  GAMA: { attack: 6, defense: 5, hp: 180, intelligence: 4, speed: 4 },
   KEN: { attack: 7, defense: 3, hp: 150, intelligence: 5, speed: 6 },
-  KURAI: { attack: 4, defense: 6, hp: 190, intelligence: 3, speed: 3 },
+  KURAI: { attack: 4, defense: 6, hp: 190, intelligence: 3, speed: 4 },
   TSUIN: { attack: 6, defense: 4, hp: 160, intelligence: 4, speed: 5 },
   WOLF: { attack: 5, defense: 5, hp: 175, intelligence: 4, speed: 5 },
 } as const;
+
+/**
+ * DECISIONS #72.78 (2): base SPEED narrowed from 3-7 to 4-6 (3->4, 4->4, 5->5, 6->6, 7->6) in
+ * HOLOBOT_BASE_STATS above. This is the pre-#72.78 column, frozen for provenance and for any
+ * consumer that must reproduce a pre-#72.78 output. Read by getLegacyBattleSpeed (quest / training
+ * power score, a frozen economy surface). The legacy duel resolver and battlefield-movement-1 take
+ * speed as an input (movement normalises by the bot's own LV 1 stat) and read the live column.
+ * Never edit.
+ */
+export const LEGACY_BASE_SPEED_PRE_72_78 = {
+  ACE: 7, KUMA: 3, SHADOW: 4, ERA: 6, HARE: 4, TORA: 6, WAKE: 4, GAMA: 3, KEN: 6, KURAI: 3, TSUIN: 5, WOLF: 5,
+} as const;
+
+/** The pre-#72.78 battle-scale speed: getHolobotBattleStats(...).speed computed on LEGACY_BASE_SPEED_PRE_72_78. */
+export function getLegacyBattleSpeed(
+  name: string,
+  level = 1,
+  boostedAttributes?: UserHolobot["boostedAttributes"],
+) {
+  const normalizedName = name.trim().toUpperCase() as keyof typeof LEGACY_BASE_SPEED_PRE_72_78;
+  const base = LEGACY_BASE_SPEED_PRE_72_78[normalizedName] ?? LEGACY_BASE_SPEED_PRE_72_78.ACE;
+  const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
+  return Math.floor(base * 10 * levelBonus) + (boostedAttributes?.speed || 0);
+}
 
 export const HOLOBOT_ARCHETYPES = {
   ACE: "balanced",
@@ -165,18 +189,21 @@ export function applyHolobotExperience(holobot: UserHolobot, expGain: number): U
 }
 
 /**
- * DECISIONS #53-2 (Pak, 2026-10-06): attribute points buy attack / defense /
- * speed / HP only. SPECIAL (intelligence) is tied to the SYNC stat (focus) and
- * is NOT boostable with points. 1 point → +1 attack/defense/speed, +10 HP.
+ * DECISIONS #53-2 (Pak, 2026-10-06), amended by #72.78 (4)+(5): attribute points
+ * buy attack / defense / speed / SPECIAL (+1 each) or HP (+3; was +10). SPECIAL is
+ * stored as boostedAttributes.special (battle stats read it as intelligence).
+ * boostedAttributes.health stores HP units (the sum), not a point count, so HP
+ * allocated at +10/point before #72.78 keeps its value; new points add 3.
  * Applied server-side by the `boostHolobotAttribute` callable; the server
  * mirror is functions/src/lib/progression.ts (attributeBoostParity.test.ts).
  */
-export const BOOSTABLE_ATTRIBUTES = ["attack", "defense", "speed", "health"] as const;
+export const BOOSTABLE_ATTRIBUTES = ["attack", "defense", "speed", "health", "special"] as const;
 export type BoostableAttribute = (typeof BOOSTABLE_ATTRIBUTES)[number];
 export const ATTRIBUTE_BOOST_AMOUNTS: Record<BoostableAttribute, number> = {
   attack: 1,
   defense: 1,
-  health: 10,
+  health: 3,
+  special: 1,
   speed: 1,
 };
 export type AttributeBoostRefusal = "attribute_not_boostable" | "no_attribute_points";
@@ -188,7 +215,7 @@ export function isBoostableAttribute(value: unknown): value is BoostableAttribut
   return typeof value === "string" && (BOOSTABLE_ATTRIBUTES as readonly string[]).includes(value);
 }
 
-/** The InventoryScreen boost math (spend 1 point), with SPECIAL refused. Pure. */
+/** The InventoryScreen boost math (spend 1 point). Unknown attributes are refused. Pure. */
 export function applyAttributeBoost(holobot: UserHolobot, attribute: string): AttributeBoostResult {
   const normalized = normalizeUserHolobot(holobot);
   if (!isBoostableAttribute(attribute)) {

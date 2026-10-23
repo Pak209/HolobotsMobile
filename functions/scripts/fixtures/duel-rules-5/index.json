@@ -1,0 +1,17 @@
+{
+  "vectorVersion": "duel-rules-5-vectors-1",
+  "vectors": [
+    "attrs-move-run",
+    "attrs-escape-chase-parity",
+    "attrs-evade-sure",
+    "attrs-evade-roll",
+    "attrs-initiative-stuff",
+    "attrs-gap-neutral",
+    "attrs-tempo-opener",
+    "attrs-sync-special",
+    "attrs-retreat-chain",
+    "attrs-tuned-numbers",
+    "cpu-stub-attrs-smoke-0",
+    "cpu-stub-attrs-smoke-1"
+  ]
+}

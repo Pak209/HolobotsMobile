@@ -121,7 +121,7 @@ export function InventoryScreen() {
       );
     });
 
-  const handleUpgradeStat = async (attribute: "attack" | "defense" | "speed" | "health") => {
+  const handleUpgradeStat = async (attribute: "attack" | "defense" | "special" | "health" | "speed") => {
     if (!profile?.holobots || !selectedOwnedHolobot) {
       return;
     }
@@ -132,7 +132,7 @@ export function InventoryScreen() {
       return;
     }
 
-    // Server-authoritative (DECISIONS #53-2): the boostHolobotAttribute
+    // Server-authoritative (DECISIONS #53-2, #72.78 SPECIAL +1 / HP +3): the boostHolobotAttribute
     // callable applies the same math (lib/progression applyAttributeBoost);
     // the profile listener redraws from the confirmed write.
     try {
