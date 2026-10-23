@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "zell-crash-1",
+  "title": "zellCrashHost (zell-crash-1): the Zell crash story event + the two catch-duels",
+  "description": "Byte-identical in HolobotsMobile Schemas/ and HolobotsUnity Schemas/. DECISIONS #72.74 / #72.75; beat sheet HolobotsUnity Documentation/HANDOFFS/2026-10-23-zell-crash-beat-sheet.md. Host-owned (hard rule 1): the host records the crash once (zellCrash.seen, trophy stolen), flips storyFlags.holoZonesArcBuilt, meets Zell, issues each catch-duel (duel-rules-4 input-log block + the catch-escape-1 condition) and settles it from its own replay, always `escaped`. Nothing is granted, charged or healed. Unity presents only. Default off (host env HOLOCITY_ZELL_CRASH=1); off = every operation refuses `unavailable`.",
+  "$defs": {
+    "request": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "operation"],
+          "properties": { "schemaVersion": { "const": "zell-crash-1" }, "operation": { "enum": ["status", "crash"] } } },
+        { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "operation", "catchIndex", "duelInputs"],
+          "properties": { "schemaVersion": { "const": "zell-crash-1" }, "operation": { "const": "issueCatch" }, "catchIndex": { "enum": [0, 1] },
+            "duelInputs": { "const": "duel-inputs-2", "description": "Capability: the client records + uploads duel-inputs-2." } } },
+        { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "operation", "catchIndex", "catchId", "inputLog"],
+          "properties": { "schemaVersion": { "const": "zell-crash-1" }, "operation": { "const": "settleCatch" }, "catchIndex": { "enum": [0, 1] },
+            "catchId": { "type": "string", "pattern": "^zc_[a-f0-9]{24}$" },
+            "inputLog": { "description": "The duel-inputs-2 log (object or compact wire string), ending on the first tick the issued escape condition holds, or on the core's own end." } } }
+      ]
+    },
+    "catchEscape": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "caughtPulls", "ringStops", "runnerHpPm", "maxTicks"],
+      "description": "Checked after every tick on the core state, side 1 = the runner (Zell's JUSAN). The duel stops on the first tick ANY enabled threshold holds; 0 disables a threshold. Order of the reported cause: caught, ring_stop, runner_hp, time. Never part of the rules hash or state hash.",
+      "properties": {
+        "schemaVersion": { "const": "catch-escape-1" },
+        "caughtPulls": { "type": "integer", "minimum": 0, "maximum": 50, "description": "FightChaseSide.Caught of side 1 >= this (#72.65 (3))." },
+        "ringStops": { "type": "integer", "minimum": 0, "maximum": 50, "description": "FightChaseSide.RingStops of side 1 >= this (#72.65 (6))." },
+        "runnerHpPm": { "type": "integer", "minimum": 0, "maximum": 999, "description": "Active side-1 fighter: Hp * 1000 <= runnerHpPm * MaxHp (fight HP)." },
+        "maxTicks": { "type": "integer", "minimum": 30, "maximum": 7200, "description": "Tick + 1 >= maxTicks." }
+      }
+    },
+    "cause": { "enum": ["caught", "ring_stop", "runner_hp", "time", "player_ko", "runner_ko"] },
+    "zellCrashView": {
+      "type": "object", "additionalProperties": false, "required": ["seen", "trophy", "catches"],
+      "properties": {
+        "seen": { "type": "boolean", "description": "zellCrashSeen: the host recorded the crash event." },
+        "trophy": { "enum": ["stolen", "recovered", null], "description": "null until the crash; `recovered` is reserved for the band-3 guardian lane (not set by zell-crash-1)." },
+        "catches": { "type": "array", "minItems": 2, "maxItems": 2, "items": {
+          "type": "object", "additionalProperties": false, "required": ["catchIndex", "state", "cause"],
+          "properties": { "catchIndex": { "enum": [0, 1] }, "state": { "enum": ["locked", "ready", "open", "escaped"] },
+            "cause": { "oneOf": [{ "$ref": "#/$defs/cause" }, { "type": "null" }] } } } }
+      }
+    },
+    "storyFlags": {
+      "type": "object", "additionalProperties": false,
+      "required": ["arenaGatheringSeen", "tournamentsWon", "arenaArcBuilt", "holoZonesArcBuilt"],
+      "description": "Unchanged four keys (Unity readers pin this set); zellCrashSeen travels in zellCrash.seen.",
+      "properties": { "arenaGatheringSeen": { "type": "boolean" }, "tournamentsWon": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "arenaArcBuilt": { "type": "boolean" }, "holoZonesArcBuilt": { "type": "boolean" } }
+    },
+    "catchReceipt": {
+      "type": "object",
+      "description": "duel-receipt-2's fields (Schemas/duel-receipt-2.json) as the HOST replay computed them, except: schemaVersion `zell-catch-receipt-1`; reason adds `escaped` (the escape condition stopped the duel before the core ended); plus outcome (always `escaped`) and cause.",
+      "required": ["schemaVersion", "simVersion", "battleId", "rulesId", "rulesHash", "seed", "inputsHash", "verified", "winner", "reason", "endTick", "tickCount", "playerSide", "playerFinal", "opponentFinal", "checkpoints", "witness", "outcome", "cause"],
+      "properties": {
+        "schemaVersion": { "const": "zell-catch-receipt-1" },
+        "battleId": { "type": "string", "pattern": "^zc_[a-f0-9]{24}$", "description": "= catchId." },
+        "reason": { "enum": ["ko", "timeout", "escaped"] },
+        "winner": { "enum": ["player", "opponent", "draw"] },
+        "outcome": { "const": "escaped" },
+        "cause": { "$ref": "#/$defs/cause" }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["schemaVersion", "operation", "storyFlags", "zellCrash", "zellPhase", "roster"],
+  "properties": {
+    "schemaVersion": { "const": "zell-crash-1" },
+    "operation": { "enum": ["status", "crash", "issueCatch", "settleCatch"] },
+    "storyFlags": { "$ref": "#/$defs/storyFlags" },
+    "zellCrash": { "$ref": "#/$defs/zellCrashView" },
+    "zellPhase": { "enum": ["unmet", "rival", "ally"], "description": "zell-story-1 phase; the crash meets Zell (unmet -> rival)." },
+    "roster": { "type": "array", "minItems": 8, "maxItems": 8, "description": "The arena-gathering-1 roster rows (same host function): the 8 citizen-pilots who fall in beat 3." },
+    "alreadySeen": { "type": "boolean", "description": "crash only: true = the event was already recorded; nothing was written." },
+    "catchIndex": { "enum": [0, 1], "description": "issueCatch / settleCatch." },
+    "catchId": { "type": "string", "pattern": "^zc_[a-f0-9]{24}$" },
+    "alreadyIssued": { "type": "boolean", "description": "issueCatch: true = the open catch's same immutable block (no new seed)." },
+    "duel": { "description": "issueCatch: the rival-battle input-log issue block (FightReplayIssueWire) on duel-rules-4: rulesId `duel-rules-4:<catchId>`, the travel squad at full HP vs JUSAN, the runner-biased CPU profile." },
+    "escape": { "$ref": "#/$defs/catchEscape" },
+    "alreadyProcessed": { "type": "boolean", "description": "settleCatch: true = replay of the stored ruling; nothing was written." },
+    "outcome": { "const": "escaped" },
+    "cause": { "$ref": "#/$defs/cause" },
+    "catchReceipt": { "$ref": "#/$defs/catchReceipt" }
+  },
+  "x-refusals": {
+    "unavailable": "flag off, malformed stored state, or no account",
+    "invalid_request": "request shape",
+    "arena_arc_required": "crash before the third tournament win",
+    "crash_required": "a catch before the crash event",
+    "catch_locked": "catch 2 before catch 1 escaped",
+    "catch_settled": "issue on an escaped catch",
+    "squad_required": "empty travel squad",
+    "unknown_catch": "settle with a catchId the account was not issued",
+    "invalid_log": "the log does not decode",
+    "replay_mismatch": "the log does not reproduce the issued duel, or does not end on the escape tick"
+  }
+}
