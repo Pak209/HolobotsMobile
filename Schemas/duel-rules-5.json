@@ -917,13 +917,13 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 1000,
-          "description": "[per-mille (1000 = x1.0 / 100 %); default 900]"
+          "description": "[per-mille (1000 = x1.0 / 100 %); default 940]"
         },
         "moveMaxPm": {
           "type": "integer",
           "minimum": 1000,
           "maximum": 2000,
-          "description": "[per-mille (1000 = x1.0 / 100 %); default 1100]"
+          "description": "[per-mille (1000 = x1.0 / 100 %); default 1060]"
         },
         "chaseParity": {
           "type": "integer",
@@ -947,7 +947,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 1000,
-          "description": "SPEED evade cap [per-mille (1000 = x1.0 / 100 %); default 150]"
+          "description": "SPEED evade cap [per-mille (1000 = x1.0 / 100 %); default 100]"
         },
         "evadeWide": {
           "type": "integer",

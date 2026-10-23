@@ -122,7 +122,7 @@ test('every scripted vector shows its rule (the C# pins)', () => {
   assert.ok(sure.some(e => e.includes(' s1 Contact Light Hit') && e.includes('COUNTER')), 'a counter hit is never evaded');
   const roll = ev('attrs-evade-roll');
   const evaded = roll.filter(e => e.includes('Contact Light Evaded -1')).length, hits = roll.filter(e => e.includes(' s1 Contact Light Hit')).length;
-  assert.ok(evaded > 0); assert.ok(hits > evaded, 'a 15 % cap: most clean lights still land');
+  assert.ok(evaded > 0); assert.ok(hits > evaded, 'a 10 % cap: most clean lights still land');
   assert.ok(ev('attrs-initiative-stuff').includes('15 s1 Stuffed Light 0'));
   assert.ok(ev('attrs-initiative-stuff').some(e => e.startsWith('15 s0 Contact Light Hit')));
   assert.ok(ev('attrs-tempo-opener').includes('0 s0 Telegraph Light 13'), 'the faster opener\'s contact tick is 13');
@@ -143,8 +143,8 @@ test('every scripted vector shows its rule (the C# pins)', () => {
 test('the curves and the roll are pinned (C# TheCurvesAndTheRollArePinned)', () => {
   const a = F.defaultAttrRules();
   assert.equal(F.attrEdge(60, 40), 200); assert.equal(F.attrEdge(40, 60), -200); assert.equal(F.attrEdge(0, 0), 0);
-  assert.equal(F.moveMul(a, 200), 1100); assert.equal(F.moveMul(a, -200), 900); assert.equal(F.moveMul(a, 91), 1054);
-  assert.equal(F.evadeChance(a, 91), 91); assert.equal(F.evadeChance(a, 400), 150); assert.equal(F.evadeChance(a, -50), 0);
+  assert.equal(F.moveMul(a, 200), 1060); assert.equal(F.moveMul(a, -200), 940); assert.equal(F.moveMul(a, 100), 1060); assert.equal(F.moveMul(a, 91), 1054);
+  assert.equal(F.evadeChance(a, 91), 91); assert.equal(F.evadeChance(a, 400), 100); assert.equal(F.evadeChance(a, 100), 100); assert.equal(F.evadeChance(a, -50), 0);
   assert.equal(F.tempoTicks(a, 74), 0); assert.equal(F.tempoTicks(a, 75), 1); assert.equal(F.tempoTicks(a, 150), 2); assert.equal(F.tempoTicks(a, 900), 2);
   assert.equal(F.syncMul(a, 111), 1222); assert.equal(F.syncMul(a, -400), 750); assert.equal(F.syncMul(a, 400), 1400);
   assert.equal(F.specialDmgMul(a, 100), 1200); assert.equal(F.specialDmgMul(a, -500), 700);

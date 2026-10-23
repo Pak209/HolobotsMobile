@@ -77,11 +77,14 @@ const clampI = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi
 
 /** duel-rules-5 SYNC spend table by rank (Rookie .. Legendary; #72.78 producer pick, Pak tunes), FightBrain.SyncDiscipline /
  * SyncHalfRateBps / SyncFullRateBps. Discipline: 0 = any in-reach moment, 1 = + the target is not guarding, 2 = + not stepping /
- * bursting / escaping and the spend keeps it above the break line, prime windows at twice the rate and the half tier outside one at
- * a third, 3 = the half tier only in prime windows. */
+ * bursting / escaping and the spend keeps it above the break line, prime windows at twice the rate; outside one the half tier is
+ * spent only below SYNC_BANK_FROM (then x SYNC_OFF_PRIME_HALF_PM / 1000), 3 = discipline 2 at the top rates (#72.79 tune). */
 export const SYNC_DISCIPLINE: readonly number[] = [0, 1, 1, 2, 3, 3];
-export const SYNC_HALF_RATE_BPS: readonly number[] = [2500, 3500, 4500, 5500, 6500, 7500];
-export const SYNC_FULL_RATE_BPS: readonly number[] = [3500, 4500, 6000, 7500, 9000, 10000];
+export const SYNC_HALF_RATE_BPS: readonly number[] = [2500, 3500, 4500, 6000, 7500, 9000];
+export const SYNC_FULL_RATE_BPS: readonly number[] = [3500, 4500, 6000, 8000, 10000, 10000];
+/** FightBrain.SyncOffPrimeHalfPm / SyncBankFrom (#72.79). */
+export const SYNC_OFF_PRIME_HALF_PM: readonly number[] = [1000, 1000, 1000, 1000, 1000, 1000];
+export const SYNC_BANK_FROM: readonly number[] = [100, 100, 100, 80, 70, 70];
 /** FightBrain.RankIndex: the issued rank's row in RANKS (case-insensitive); an unknown rank reads Champion. */
 export function rankIndex(rank: string): number {
   const r = String(rank).toLowerCase();
@@ -374,7 +377,7 @@ export class FightBrain {
           // prime windows: punishable recovery, breaking, staggered, own counter window, target below 35 % HP
           const prime = (o.act === Act.Recovery && o.punishable) || o.breaking || o.act === Act.Stagger || s.counterUntilTick >= t || o.hp * 100 <= 35 * o.maxHp;
           if (prime) rate = Math.min(10000, rate * 2);
-          else if (!full) rate = disc >= 3 ? 0 : div(rate, 3);
+          else if (!full) rate = s.sync >= SYNC_BANK_FROM[rank] ? 0 : div(rate * SYNC_OFF_PRIME_HALF_PM[rank], 1000);
         }
         if (roll(rng, div(rate, div(30, THINK_EVERY)))) {
           press = AiPress.Finisher; if (full) this.stats.fullSpends++; else this.stats.halfSpends++;

@@ -67,7 +67,7 @@ export function defaultChaseRules(): FightChaseRules { return { ...CHASE_DEFAULT
 
 /** FightAttrRules field initialisers (duel-rules-5 `attrs`, Pak's approved v3 numbers #72.78), in FightAttrRules.Keys (= hash) order. */
 export const ATTR_DEFAULTS = {
-  moveEdgePm: 600, moveMinPm: 900, moveMaxPm: 1100, chaseParity: 1, evadeBasePm: 0, evadeEdgePm: 1000, evadeMaxPm: 150, evadeWide: 1, evadeSpecials: 0,
+  moveEdgePm: 600, moveMinPm: 940, moveMaxPm: 1060, chaseParity: 1, evadeBasePm: 0, evadeEdgePm: 1000, evadeMaxPm: 100, evadeWide: 1, evadeSpecials: 0,
   initiativeMinEdgePm: 1, tempoMaxTicks: 2, tempoFullEdgePm: 150, syncEdgePm: 2000, syncMinPm: 750, syncMaxPm: 1400, specialDmgEdgePm: 2000, specialDmgMaxPm: 1300,
   retreatChainMax: 3,
 };
