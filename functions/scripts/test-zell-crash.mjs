@@ -209,3 +209,19 @@ test('every reply validates against Schemas/zell-crash-1.json (and the requests 
     ok(request, { schemaVersion: S, ...r });
   assert.equal(request({ schemaVersion: S, operation: 'crash', extra: 1 }), false, 'known-bad request');
 });
+
+test('cross-repo fixture: one account\'s replies (status, crash, issueCatch, settleCatch) validate and are frozen for the Unity mirror', async () => {
+  const path = new URL('./fixtures/zell-crash-1/replies.fixture.json', import.meta.url);
+  if (process.env.ZELL_CRASH_REGEN === '1' || !existsSync(path)) {
+    const db = memoryFirestore(), uid = await setup(db);
+    const status = await call(db, uid, { operation: 'status' }), crash = await call(db, uid, { operation: 'crash' });
+    const issue = await issueCatch(db, uid, 0), settled = await settle(db, uid, issue, clientLog(issue).wire);
+    writeFileSync(path, JSON.stringify({ status, crash, issueCatch: issue, settleCatch: settled }, null, 1) + '\n');
+  }
+  const Ajv2020 = require('ajv/dist/2020').default;
+  const schema = JSON.parse(readFileSync(new URL('../../Schemas/zell-crash-1.json', import.meta.url), 'utf8'));
+  const v = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  const fx = JSON.parse(readFileSync(path, 'utf8'));
+  for (const k of ['status', 'crash', 'issueCatch', 'settleCatch']) assert.ok(v(fx[k]), k + ' ' + JSON.stringify(v.errors));
+  assert.equal(fx.settleCatch.catchId, fx.issueCatch.catchId); assert.equal(fx.settleCatch.outcome, 'escaped');
+});

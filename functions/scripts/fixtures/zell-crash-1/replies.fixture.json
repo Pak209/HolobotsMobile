@@ -1,0 +1,926 @@
+{
+ "status": {
+  "schemaVersion": "zell-crash-1",
+  "operation": "status",
+  "storyFlags": {
+   "arenaGatheringSeen": true,
+   "tournamentsWon": 3,
+   "arenaArcBuilt": true,
+   "holoZonesArcBuilt": false
+  },
+  "zellCrash": {
+   "seen": false,
+   "trophy": null,
+   "catches": [
+    {
+     "catchIndex": 0,
+     "state": "locked",
+     "cause": null
+    },
+    {
+     "catchIndex": 1,
+     "state": "locked",
+     "cause": null
+    }
+   ]
+  },
+  "zellPhase": "unmet",
+  "roster": [
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+    "pilotName": "Campus Magenta",
+    "holobotId": "era",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_PlazaSignal_00",
+    "pilotName": "Plaza Signal",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusWhite_09",
+    "pilotName": "Campus White",
+    "holobotId": "hare",
+    "rank": "Rookie",
+    "ringColor": "#B07CFF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN4_DepotOlive_07",
+    "pilotName": "Depot Olive",
+    "holobotId": "wolf",
+    "rank": "Rookie",
+    "ringColor": "#FF7A1A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusAmber_04",
+    "pilotName": "Campus Amber",
+    "holobotId": "shadow",
+    "rank": "Rookie",
+    "ringColor": "#FF3D8B"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_TransitCyan_10",
+    "pilotName": "Transit Cyan",
+    "holobotId": "ken",
+    "rank": "Rookie",
+    "ringColor": "#FFD21A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_MarketAmber_05",
+    "pilotName": "Market Amber",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN1_FerryOlive_01",
+    "pilotName": "Ferry Olive",
+    "holobotId": "kuma",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   }
+  ]
+ },
+ "crash": {
+  "schemaVersion": "zell-crash-1",
+  "operation": "crash",
+  "alreadySeen": false,
+  "storyFlags": {
+   "arenaGatheringSeen": true,
+   "tournamentsWon": 3,
+   "arenaArcBuilt": true,
+   "holoZonesArcBuilt": true
+  },
+  "zellCrash": {
+   "seen": true,
+   "trophy": "stolen",
+   "catches": [
+    {
+     "catchIndex": 0,
+     "state": "ready",
+     "cause": null
+    },
+    {
+     "catchIndex": 1,
+     "state": "locked",
+     "cause": null
+    }
+   ]
+  },
+  "zellPhase": "rival",
+  "roster": [
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+    "pilotName": "Campus Magenta",
+    "holobotId": "era",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_PlazaSignal_00",
+    "pilotName": "Plaza Signal",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusWhite_09",
+    "pilotName": "Campus White",
+    "holobotId": "hare",
+    "rank": "Rookie",
+    "ringColor": "#B07CFF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN4_DepotOlive_07",
+    "pilotName": "Depot Olive",
+    "holobotId": "wolf",
+    "rank": "Rookie",
+    "ringColor": "#FF7A1A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusAmber_04",
+    "pilotName": "Campus Amber",
+    "holobotId": "shadow",
+    "rank": "Rookie",
+    "ringColor": "#FF3D8B"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_TransitCyan_10",
+    "pilotName": "Transit Cyan",
+    "holobotId": "ken",
+    "rank": "Rookie",
+    "ringColor": "#FFD21A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_MarketAmber_05",
+    "pilotName": "Market Amber",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN1_FerryOlive_01",
+    "pilotName": "Ferry Olive",
+    "holobotId": "kuma",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   }
+  ]
+ },
+ "issueCatch": {
+  "schemaVersion": "zell-crash-1",
+  "operation": "issueCatch",
+  "catchIndex": 0,
+  "catchId": "zc_0b27ab6431e0150c5123280e",
+  "alreadyIssued": false,
+  "duel": {
+   "mode": "input-log",
+   "schemaVersion": "duel-receipt-2",
+   "inputsSchema": "duel-inputs-2",
+   "simVersion": "duel-sim-3",
+   "rulesId": "duel-rules-4:zc_0b27ab6431e0150c5123280e",
+   "rulesHash": "4499e2a7b2b0c533b8f13296dad5c11edf834630ef3675693a87f0a54bdf22ab",
+   "rules": {
+    "schemaVersion": "duel-rules-4",
+    "simVersion": "duel-sim-3",
+    "tickHz": 30,
+    "rules": {
+     "maxTicks": 5400,
+     "ringRadiusMm": 6000,
+     "minGapMm": 1000,
+     "closeRangeMm": 1300,
+     "edgeBandMm": 1500,
+     "exchangeGapTicks": 30,
+     "exchangeMinPresses": 2,
+     "regenOutPmPerSec": 200,
+     "regenEdgePmPerSec": 80,
+     "regenExchangePmPerSec": 15,
+     "regenClosePmPerSec": 10,
+     "regenBreakPmPerSec": 200,
+     "breakRegenDelayTicks": 9,
+     "regenDelayTicks": 12,
+     "guardRegenPm": 500,
+     "costLightPm": 80,
+     "costHeavyPm": 180,
+     "costSpecialPm": 200,
+     "costFeintPm": 30,
+     "costStepPm": 60,
+     "costBurstPm": 100,
+     "costShovePm": 80,
+     "multBlockedPm": 1150,
+     "multWhiffPm": 1800,
+     "multEvadedPm": 2500,
+     "railTicks": 180,
+     "railMultPm": 1500,
+     "breakLinePm": 300,
+     "breakMinTicks": 30,
+     "breakMaxTicks": 75,
+     "gassedTelegraphTicks": 3,
+     "emptyTelegraphTicks": 6,
+     "gassedDamagePm": 700,
+     "emptyDamagePm": 500,
+     "gassedDrainPm": 1500,
+     "telegraphTicks": 15,
+     "chainTelegraphTicks": 9,
+     "chainGapTicks": 9,
+     "chainMax": 4,
+     "chainDecayTicks": 2,
+     "chainCostPm": 1200,
+     "recoveryLightTicks": 8,
+     "recoveryHeavyTicks": 14,
+     "recoverySpecialTicks": 20,
+     "whiffHeavyExtraTicks": 11,
+     "whiffLightExtraTicks": 8,
+     "blockedRecoveryMinTicks": 18,
+     "feintWindowTicks": 10,
+     "feintRecoveryTicks": 5,
+     "facingCosPm": 707,
+     "lungeLightMm": 150,
+     "lungeHeavyMm": 300,
+     "lungeSpecialMm": 500,
+     "bufferTicks": 6,
+     "closeKitReachMm": 1500,
+     "closeKitLungeMm": 1800,
+     "closeKitDamagePm": 1300,
+     "guardRaiseTicks": 3,
+     "guardLowerTicks": 2,
+     "guardMovePm": 600,
+     "chipPm": 300,
+     "chipSpecialPm": 500,
+     "drainLightPm": 40,
+     "drainHeavyPm": 100,
+     "drainSpecialPm": 160,
+     "guardBreakStaggerTicks": 15,
+     "heavyPushbackMm": 300,
+     "pushbackTicks": 6,
+     "perfectGuardTicks": 5,
+     "perfectRecoveryExtraTicks": 9,
+     "counterWindowTicks": 18,
+     "counterPm": 1500,
+     "hardHitHpPm": 120,
+     "hitStunLightMaxTicks": 12,
+     "hitStunHeavyMaxTicks": 24,
+     "knockbackMm": 1000,
+     "knockbackTicks": 9,
+     "scaleLightPm": 1000,
+     "scaleHeavyPm": 1550,
+     "scaleSpecialPm": 2000,
+     "specialHalfEffectPm": 500,
+     "specialFullEffectPm": 1000,
+     "specialHalfSync": 50,
+     "specialFullSync": 100,
+     "syncLight": 10,
+     "syncHeavy": 14,
+     "syncBlockedPm": 500,
+     "maxSync": 100,
+     "shoveTicks": 8,
+     "shovePushMm": 800,
+     "shovePushTicks": 8,
+     "swapLockoutTicks": 90,
+     "swapShieldTicks": 23,
+     "hpScaleLights": 19,
+     "shoveOnHeavyInClose": 1,
+     "costEscapePm": 100,
+     "escapeTurnTicks": 8,
+     "escapeNoGuardTicks": 12,
+     "escapeRunTicks": 24,
+     "escapeTurnBackTicks": 6,
+     "chargeWindowTicks": 6,
+     "chargeTelegraphTicks": 10,
+     "chargeRecoveryTicks": 7,
+     "costChargeDashPm": 100,
+     "chargeDashMm": 2500,
+     "chargeReachMm": 1500,
+     "scaleChargePm": 1200,
+     "chargePushMm": 600,
+     "chargePushTicks": 6
+    },
+    "fighters": [
+     {
+      "id": "ace",
+      "side": 0,
+      "maxHp": 187,
+      "hp": 187,
+      "attack": 100,
+      "defense": 75,
+      "startStaminaPm": 1000,
+      "startSync": 0,
+      "startXMm": -3500,
+      "startZMm": 0,
+      "radiusMm": 300,
+      "primaryReachMm": 4000,
+      "reachLightMm": 1500,
+      "reachHeavyMm": 4000,
+      "reachSpecialMm": 8000,
+      "runMmPerSec": 3200,
+      "strafeMmPerSec": 600,
+      "backMmPerSec": 600,
+      "backstepMm": 750,
+      "backstepTicks": 17,
+      "sidestepMm": 750,
+      "sidestepTicks": 17,
+      "forwardJumpMm": 900,
+      "forwardJumpTicks": 31,
+      "hitLightTicks": 14,
+      "hitHeavyTicks": 29
+     },
+     {
+      "id": "cpu-jusan",
+      "side": 1,
+      "maxHp": 244,
+      "hp": 244,
+      "attack": 70,
+      "defense": 70,
+      "startStaminaPm": 1000,
+      "startSync": 0,
+      "startXMm": 3500,
+      "startZMm": 0,
+      "radiusMm": 300,
+      "primaryReachMm": 1500,
+      "reachLightMm": 4000,
+      "reachHeavyMm": 4000,
+      "reachSpecialMm": 4000,
+      "runMmPerSec": 2400,
+      "strafeMmPerSec": 625,
+      "backMmPerSec": 625,
+      "backstepMm": 750,
+      "backstepTicks": 22,
+      "sidestepMm": 750,
+      "sidestepTicks": 22,
+      "forwardJumpMm": 900,
+      "forwardJumpTicks": 31,
+      "hitLightTicks": 24,
+      "hitHeavyTicks": 36
+     }
+    ],
+    "chase": {
+     "chaserSpeedPm": 1100,
+     "chaseDrainPmPerSec": 30,
+     "retreatCostPm": 60,
+     "retreatCooldownTicks": 45,
+     "chaseLapseTicks": 15,
+     "caughtStaggerTicks": 15,
+     "caughtGapMm": 1300,
+     "caughtPullMm": 3000,
+     "caughtPullTicks": 9,
+     "ringStop": 1
+    }
+   },
+   "seed": "fe9c7056c6483ab31b0cb2f31dab9c845afd40d9fd742a2e7bb5e913690a598e",
+   "playerSide": 0,
+   "player": {
+    "roster": [
+     {
+      "fighterId": "ace",
+      "holobotId": "ace"
+     }
+    ]
+   },
+   "cpu": {
+    "side": 1,
+    "rank": {
+     "rank": "starter",
+     "reactionTicks": 13,
+     "feintReadPm": 400,
+     "perfectGuardPm": 110
+    },
+    "profile": {
+     "id": "jusan",
+     "aggressionPmPerSec": 300,
+     "engageMinStaminaPm": 850,
+     "preferredBand": 1,
+     "preferredBandOffsetMm": 0,
+     "chainMeanMilli": 3000,
+     "heavyRatioPm": 350,
+     "feintRatePm": 200,
+     "guardRatePm": 500,
+     "counterRatePm": 500,
+     "breakAtStaminaPm": 800,
+     "circleBiasPm": 550,
+     "shoveRatePm": 200,
+     "specialPolicy": 5,
+     "beatSharePm": 250,
+     "burstInPm": 500,
+     "lowHpRiskPm": 1000,
+     "escapeRatePm": 0,
+     "chargeSharePm": 250
+    },
+    "roster": [
+     {
+      "fighterId": "cpu-jusan",
+      "holobotId": "jusan",
+      "profile": "jusan"
+     }
+    ]
+   },
+   "profilesVersion": 2
+  },
+  "escape": {
+   "schemaVersion": "catch-escape-1",
+   "caughtPulls": 2,
+   "ringStops": 0,
+   "runnerHpPm": 450,
+   "maxTicks": 1350
+  },
+  "storyFlags": {
+   "arenaGatheringSeen": true,
+   "tournamentsWon": 3,
+   "arenaArcBuilt": true,
+   "holoZonesArcBuilt": true
+  },
+  "zellCrash": {
+   "seen": true,
+   "trophy": "stolen",
+   "catches": [
+    {
+     "catchIndex": 0,
+     "state": "open",
+     "cause": null
+    },
+    {
+     "catchIndex": 1,
+     "state": "locked",
+     "cause": null
+    }
+   ]
+  },
+  "zellPhase": "rival",
+  "roster": [
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+    "pilotName": "Campus Magenta",
+    "holobotId": "era",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_PlazaSignal_00",
+    "pilotName": "Plaza Signal",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusWhite_09",
+    "pilotName": "Campus White",
+    "holobotId": "hare",
+    "rank": "Rookie",
+    "ringColor": "#B07CFF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN4_DepotOlive_07",
+    "pilotName": "Depot Olive",
+    "holobotId": "wolf",
+    "rank": "Rookie",
+    "ringColor": "#FF7A1A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusAmber_04",
+    "pilotName": "Campus Amber",
+    "holobotId": "shadow",
+    "rank": "Rookie",
+    "ringColor": "#FF3D8B"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_TransitCyan_10",
+    "pilotName": "Transit Cyan",
+    "holobotId": "ken",
+    "rank": "Rookie",
+    "ringColor": "#FFD21A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_MarketAmber_05",
+    "pilotName": "Market Amber",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN1_FerryOlive_01",
+    "pilotName": "Ferry Olive",
+    "holobotId": "kuma",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   }
+  ]
+ },
+ "settleCatch": {
+  "schemaVersion": "zell-crash-1",
+  "operation": "settleCatch",
+  "catchIndex": 0,
+  "catchId": "zc_0b27ab6431e0150c5123280e",
+  "alreadyProcessed": false,
+  "outcome": "escaped",
+  "cause": "time",
+  "catchReceipt": {
+   "schemaVersion": "zell-catch-receipt-1",
+   "simVersion": "duel-sim-3",
+   "battleId": "zc_0b27ab6431e0150c5123280e",
+   "rulesId": "duel-rules-4:zc_0b27ab6431e0150c5123280e",
+   "rulesHash": "4499e2a7b2b0c533b8f13296dad5c11edf834630ef3675693a87f0a54bdf22ab",
+   "seed": "fe9c7056c6483ab31b0cb2f31dab9c845afd40d9fd742a2e7bb5e913690a598e",
+   "inputsHash": "e6fd33daa6a51a05d6b22d4b222ad04d4c4141c5256582a0d650230a5ee1779a",
+   "verified": true,
+   "winner": "draw",
+   "reason": "escaped",
+   "endTick": 1349,
+   "tickCount": 1350,
+   "playerSide": 0,
+   "playerFinal": [
+    {
+     "fighterId": "ace",
+     "holobotId": "ace",
+     "currentHealth": 172,
+     "maxHealth": 187,
+     "staminaPm": 541,
+     "sync": 86,
+     "knockedOut": false,
+     "fielded": true
+    }
+   ],
+   "opponentFinal": [
+    {
+     "fighterId": "cpu-jusan",
+     "holobotId": "jusan",
+     "currentHealth": 113,
+     "maxHealth": 244,
+     "staminaPm": 713,
+     "sync": 20,
+     "knockedOut": false,
+     "fielded": true
+    }
+   ],
+   "checkpoints": {
+    "hashEvery": 30,
+    "hashes": "032b91dbeba01b3cdd872b09a5a5d7f51c0bef866e2a2f5a89dfb2b8597d30773b1cf4f1e0063e2444547aca02f498287a85e145bc58de23194814dc593507f6ab7d32c68e965912481017b31758bd65520140d34d038709526a6a8fa108297e53344b8a8cbb2fe00ca9d0adc80c745418839a4f512356e3b267ac7b302a84717039e7c39329c0ece12b7145879a326e1f542df2fdbc005021edd0756e8617093a58471a9e0d6f604549d1bb3b4b88ae28a742f02e1010733eb307a2b605fcb9f32245cd48b41cbecb08cdd8efdcedf300efa1d808d4af2904708507c6e955cb6c1cdb8b4cae9cf8fbe3a3cfce79f336b4522a1fa01423ec231819c8d3c2fae7ea61b21a8bb0ce137f9015e8d985ac88c69ff99d78cd4d5add079bffb45f75172f7d1e1ddb3ad83fd1080457c8746b2402d67f13d8c24c81ef78f5d30ad96f38c6d96a5f68852f2cae55d6f8b10c630d00ddf7dc4c65d76e051fc5e6868a3c0fd566d92978ef6e65",
+    "finalHash": "d566d92978ef6e656cd7705ce7d6c644760f46f945b4e86f3919c828fee54a35"
+   },
+   "witness": {
+    "ticks": 1350,
+    "exchangeLengths": [
+     136,
+     68,
+     64,
+     144,
+     58,
+     64
+    ],
+    "exchangeHistogram1s": [
+     0,
+     1,
+     3,
+     0,
+     2,
+     0,
+     0,
+     0
+    ],
+    "exchangesIn2To5Pm": 833,
+    "exchangeMedianTicks": 68,
+    "probeLengths": [],
+    "trades": 0,
+    "railFires": 0,
+    "sides": [
+     {
+      "ticksInState": [
+       8,
+       729,
+       453,
+       58,
+       102
+      ],
+      "forcedBreaks": 1,
+      "voluntaryBreaks": 2,
+      "lineCrossings": 2,
+      "breakLengths": [
+       30,
+       42,
+       30
+      ],
+      "telegraphs": 13,
+      "feints": 0,
+      "feintBaits": 0,
+      "steps": 3,
+      "shoves": 0,
+      "hits": 5,
+      "blocks": 4,
+      "perfectGuards": 1,
+      "guardBreaks": 0,
+      "whiffs": 0,
+      "evades": 1,
+      "counters": 1,
+      "hardHits": 0,
+      "swaps": 0,
+      "forcedSwaps": 0,
+      "escapes": 0,
+      "charges": 0,
+      "stamina": [
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       820,
+       828,
+       719,
+       722,
+       543,
+       517,
+       381,
+       301,
+       394,
+       454,
+       494,
+       534,
+       567,
+       531,
+       351,
+       358,
+       365,
+       394,
+       434,
+       474,
+       514,
+       554,
+       594,
+       634,
+       674,
+       714,
+       548,
+       522,
+       528,
+       469,
+       391,
+       219,
+       219,
+       219,
+       251,
+       291,
+       331,
+       371,
+       411,
+       451,
+       491,
+       531,
+       571,
+       611,
+       651,
+       691,
+       731,
+       771,
+       811,
+       851,
+       891,
+       931,
+       785,
+       759,
+       761,
+       585,
+       559,
+       564,
+       451,
+       317,
+       297,
+       370,
+       442,
+       456,
+       377,
+       382,
+       389,
+       425,
+       465,
+       505,
+       545,
+       585,
+       625,
+       665,
+       705,
+       745,
+       709,
+       711,
+       675,
+       677,
+       688,
+       529,
+       534
+      ]
+     },
+     {
+      "ticksInState": [
+       8,
+       771,
+       442,
+       39,
+       90
+      ],
+      "forcedBreaks": 0,
+      "voluntaryBreaks": 3,
+      "lineCrossings": 0,
+      "breakLengths": [
+       30,
+       30,
+       30
+      ],
+      "telegraphs": 5,
+      "feints": 0,
+      "feintBaits": 0,
+      "steps": 4,
+      "shoves": 0,
+      "hits": 1,
+      "blocks": 2,
+      "perfectGuards": 3,
+      "guardBreaks": 0,
+      "whiffs": 0,
+      "evades": 1,
+      "counters": 0,
+      "hardHits": 0,
+      "swaps": 0,
+      "forcedSwaps": 0,
+      "escapes": 0,
+      "charges": 1,
+      "stamina": [
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       900,
+       905,
+       912,
+       875,
+       876,
+       881,
+       727,
+       827,
+       849,
+       854,
+       877,
+       917,
+       957,
+       907,
+       896,
+       899,
+       906,
+       911,
+       937,
+       977,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       920,
+       801,
+       816,
+       856,
+       896,
+       936,
+       976,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       1000,
+       900,
+       903,
+       907,
+       914,
+       875,
+       878,
+       892,
+       645,
+       671,
+       768,
+       772,
+       808,
+       848,
+       888,
+       928,
+       968,
+       1000,
+       900,
+       918,
+       958,
+       897,
+       902,
+       733,
+       733,
+       738,
+       765,
+       708
+      ]
+     }
+    ]
+   },
+   "outcome": "escaped",
+   "cause": "time"
+  },
+  "storyFlags": {
+   "arenaGatheringSeen": true,
+   "tournamentsWon": 3,
+   "arenaArcBuilt": true,
+   "holoZonesArcBuilt": true
+  },
+  "zellCrash": {
+   "seen": true,
+   "trophy": "stolen",
+   "catches": [
+    {
+     "catchIndex": 0,
+     "state": "escaped",
+     "cause": "time"
+    },
+    {
+     "catchIndex": 1,
+     "state": "ready",
+     "cause": null
+    }
+   ]
+  },
+  "zellPhase": "rival",
+  "roster": [
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusMagenta_14",
+    "pilotName": "Campus Magenta",
+    "holobotId": "era",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_PlazaSignal_00",
+    "pilotName": "Plaza Signal",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusWhite_09",
+    "pilotName": "Campus White",
+    "holobotId": "hare",
+    "rank": "Rookie",
+    "ringColor": "#B07CFF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN4_DepotOlive_07",
+    "pilotName": "Depot Olive",
+    "holobotId": "wolf",
+    "rank": "Rookie",
+    "ringColor": "#FF7A1A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN2_CampusAmber_04",
+    "pilotName": "Campus Amber",
+    "holobotId": "shadow",
+    "rank": "Rookie",
+    "ringColor": "#FF3D8B"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_TransitCyan_10",
+    "pilotName": "Transit Cyan",
+    "holobotId": "ken",
+    "rank": "Rookie",
+    "ringColor": "#FFD21A"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN5_MarketAmber_05",
+    "pilotName": "Market Amber",
+    "holobotId": "tora",
+    "rank": "Rookie",
+    "ringColor": "#2FE6FF"
+   },
+   {
+    "citizenId": "CV1_HB_CITIZEN1_FerryOlive_01",
+    "pilotName": "Ferry Olive",
+    "holobotId": "kuma",
+    "rank": "Rookie",
+    "ringColor": "#7CFF4F"
+   }
+  ]
+ }
+}
