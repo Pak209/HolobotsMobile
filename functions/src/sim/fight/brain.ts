@@ -57,7 +57,7 @@ type AiRules = {
 const costOf = (r: AiRules, s: number) => (s === Strike.Heavy ? r.heavyCost : s === Strike.Special ? r.specialCost : r.lightCost);
 type AiObs = {
   tick: number; side: number; self: AiView; opponent: AiView; selfKit: AiKit; opponentKit: AiKit; phase: number;
-  exchangeTicks: number; pairReachMm: number; ringRadiusMm: number;
+  exchangeTicks: number; pairReachMm: number; ringRadiusMm: number; selfTagged: boolean;
 };
 type AiIntent = { moveX: number; moveZ: number; guard: boolean; press: number; stepX: number; stepZ: number };
 
@@ -357,6 +357,15 @@ export class FightBrain {
       }
     }
 
+    // A tagged runner cannot recover STA. Once the core's BREAK ends, use a legal
+    // stationary guard to turn and clear the tag; the core still owns tag/regen rules.
+    if (this.mode === Mode.Retreat && obs.selfTagged && !s.breaking && free && press === AiPress.None) {
+      // Match the normal issued guard window, rather than flashing a one-tick tap.
+      this.guardFrom = t;
+      this.guardUntil = Math.max(this.guardUntil, t + R.guardRaiseTicks + R.perfectGuardTicks);
+      return { moveX: 0, moveZ: 0, guard: true, press: AiPress.None, stepX: 0, stepZ: 0 };
+    }
+
     // ---- J. the held stick ----
     let radial: number, tang: number, mag: number;
     let pd = P.prefersClose ? R.closeRangeMm - 200 : Math.max(R.minGapMm + 300, Math.min(edgeOuter - 100, obs.pairReachMm + 500 + P.bandOffsetMm));
@@ -470,6 +479,7 @@ export class FightCoreBrain implements FightBrainDriver {
       : d <= ar.closeRangeMm ? Phase.Close : d > R + ar.edgeBandMm ? Phase.Out : Phase.Edge;
     const obs: AiObs = {
       tick: t, side: this.side, self: mapView(self), opponent: mapView(opp), selfKit: kitOf(v.selfDef, v.rules), opponentKit: kitOf(v.opponentDef, v.rules),
+      selfTagged: v.core.tagged(this.side),
       phase, exchangeTicks: v.exchangeActive ? t - v.exchangeStartTick : 0, pairReachMm: R, ringRadiusMm: v.rules.ringRadiusMm,
     };
     const it = this.inner!.think(obs, rng);
