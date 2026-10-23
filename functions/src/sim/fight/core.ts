@@ -672,7 +672,7 @@ export class FightCore {
           let stun = c.hard ? Math.min(od.hitHeavyTicks, R.hitStunHeavyMaxTicks) : Math.min(od.hitLightTicks, R.hitStunLightMaxTicks);
           if (c.outcome === Outcome.GuardBreak) stun = Math.max(stun, R.guardBreakStaggerTicks);
           interrupt(o);
-          const caught = this.chase !== null && this.chaseState![1 - c.side].tagged && o.hp > c.damage;   // (post-damage HP, as C#)
+          const caught = this.chase !== null && this.chaseState![1 - c.side].tagged && o.hp > 0;   // chase-caught-rule-1: any hit the runner survives catches it (a KO hit never does), as C#
           if (caught) stun = Math.max(stun, this.chase!.caughtStaggerTicks);
           o.action = Action.Stun; o.actionUntil = t + 1 + stun;
           if (o.guard !== Guard.Down) o.guard = Guard.Down;
