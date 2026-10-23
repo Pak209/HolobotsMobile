@@ -4,6 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { parseArgs } from 'node:util';
+import { DEFAULT_BOT_MAX_BYTES, HARE_STRICT_MAX_BYTES, botMaxBytes } from '../tools/bot-assets/hare-budget.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -26,7 +27,9 @@ assert.deepEqual(Object.keys(manifest.bots).sort(), Object.keys(source.bots).sor
 assert.equal(Object.keys(manifest.bots).length, 12);
 await WasmDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': NativeDecoder });
-const report = { sourceCommit: source.commit, maxBotBytes: 2_000_000, maxTextureDimension: 1024, bots: [] };
+assert.equal(manifest.maxBotBytes, DEFAULT_BOT_MAX_BYTES);
+assert.deepEqual(manifest.maxBotBytesByBot ?? {}, { hare: HARE_STRICT_MAX_BYTES });
+const report = { sourceCommit: source.commit, maxBotBytes: DEFAULT_BOT_MAX_BYTES, maxBotBytesByBot: manifest.maxBotBytesByBot, maxTextureDimension: 1024, bots: [] };
 for (const [id, entry] of Object.entries(manifest.bots)) {
   const expected = source.bots[id];
   const fight = fightSource?.bots[id];
@@ -38,7 +41,7 @@ for (const [id, entry] of Object.entries(manifest.bots)) {
   assert.equal(bytes.readUInt32LE(4), 2);
   assert.equal(bytes.readUInt32LE(8), bytes.length);
   assert.equal(bytes.length, entry.bytes);
-  assert.ok(bytes.length <= 2_000_000, `${id}: exceeds strict 2 MB decimal budget`);
+  assert.ok(bytes.length <= botMaxBytes(id), `${id}: exceeds its approved bot-byte budget`);
   assert.equal(hash(bytes), entry.sha256);
   assert.equal(entry.originalBytes, expected.bytes);
   const jsonLength = bytes.readUInt32LE(12);

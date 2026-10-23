@@ -15,7 +15,7 @@ import { ARENA_SETTLED, ARENA_STARTED, tooFast } from './arenaPolishFixtures';
  * match, so CONTINUE FIGHT brings up the round on the park-arena 3D stage. Known-bad control first.
  */
 const match = ARENA_STARTED.match!;
-type Cell = { title: string; caption: string; opponentHp: number; opponentBot?: string; settle: () => ArenaReply; gate?: false; vfx?: false };
+type Cell = { title: string; caption: string; opponentHp: number; settle: () => ArenaReply; gate?: false; vfx?: false };
 const unavailable = () => { throw Object.assign(Error('unavailable'), { code: 'functions/unavailable', details: { rejectionCode: 'unavailable' } }); };
 const CELLS: Record<string, Cell> = {
     ArenaStageRound: { title: 'ROUND ON 3D STAGE', caption: 'CONTINUE FIGHT: park plate, GLB bots, FighterHud with LV corner tabs, command bar.', opponentHp: match.opponent.maxHealth, settle: unavailable },
@@ -24,22 +24,17 @@ const CELLS: Record<string, Cell> = {
     // lite-vfx-port-1 control: the same round with the combat VFX off (today's no-VFX hit; the fps baseline).
     ArenaStageRoundNoVfx: { title: 'ROUND · NO VFX', caption: 'QA control: the round without the combat VFX (lite-vfx-port-1 known-bad / fps baseline).', opponentHp: match.opponent.maxHealth, settle: unavailable, vfx: false },
     ArenaStageConfirming: { title: 'CONFIRMING ON STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the City answers too_fast: confirming over the stage.', opponentHp: 1, settle: () => { throw tooFast(600_000); } },
-    ArenaStageKoReceipt: { title: 'KO → RECEIPT', caption: 'SYNTHETIC KUMA model / recorded stats. One STRIKE KOs; real ArenaScreen holds the KO endpoint before CITY RECEIPT.', opponentHp: 1, opponentBot: 'KUMA', settle: () => ARENA_SETTLED },
+    ArenaStageKoReceipt: { title: 'KO → RECEIPT', caption: 'HARE model / recorded HARE stats. One STRIKE KOs; real ArenaScreen holds the KO endpoint before CITY RECEIPT.', opponentHp: 1, settle: () => ARENA_SETTLED },
     ArenaStageReceipt: { title: 'RECEIPT AFTER STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the recorded settle shows the CITY RECEIPT.', opponentHp: 1, settle: () => ARENA_SETTLED },
 };
 
 function cellFlow(cell: Cell) {
-    // Explicit QA model variant, not a new host reply: all recorded numbers and lifecycle operations remain unchanged.
-    const modelVariant = (reply: ArenaReply): ArenaReply => cell.opponentBot && reply.match ? {
-        ...reply, match: { ...reply.match, opponent: { ...reply.match.opponent,
-            holobotId: cell.opponentBot.toLowerCase(), displayName: cell.opponentBot } },
-    } : reply;
     let issue: ArenaIssue | null = null, ack: string | null = null;
     let checkpoint: ArenaCheckpoint | null = { matchId: match.matchId, report: { playerFinalHealth: match.entrant.currentHealth ?? match.entrant.maxHealth, opponentFinalHealth: cell.opponentHp, combosCompleted: 0, perfectDefenses: 0 } };
     let settle: ArenaPendingSettle | null = null;
     return new ArenaMatchFlow(async (request) => {
-        if (request.operation === 'resume') return modelVariant(ARENA_STARTED);
-        if (request.operation === 'settle') return modelVariant(cell.settle());
+        if (request.operation === 'resume') return ARENA_STARTED;
+        if (request.operation === 'settle') return cell.settle();
         return unavailable();
     }, { get: async () => issue, set: async v => { issue = v; } }, () => true, undefined, {
         settles: { get: async () => settle, set: async v => { settle = v; } },
