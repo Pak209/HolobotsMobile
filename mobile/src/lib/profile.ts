@@ -6,6 +6,7 @@ import type { SyncRank, UserHolobot, UserProfile } from "@/types/profile";
 import { computeLeaderboardScore } from "@/lib/progression";
 import { getSyncRank } from "@/lib/syncProgression";
 import { readCityStoryFlags } from "@/lib/cityHub";
+import { readSyncReadiness } from "@/lib/readiness";
 
 export { computeLeaderboardScore };
 
@@ -42,6 +43,7 @@ const DEFAULT_USER_PROFILE = {
 type FirestoreUserDocument = {
   storyFlags?: unknown;
   holobotVitals?: unknown;
+  syncReadiness?: unknown;
   username?: string;
   dailyEnergy?: number;
   maxDailyEnergy?: number;
@@ -157,6 +159,7 @@ export function mapFirestoreToUserProfile(userId: string, data: FirestoreUserDoc
   return {
     ...(isLiteEnabled() ? { storyFlags: readCityStoryFlags(data.storyFlags) } : {}),
     ...(isLiteEnabled() ? { holobotVitals: readHolobotVitals(data.holobotVitals) } : {}),
+    syncReadiness: readSyncReadiness(data.syncReadiness),
     id: userId,
     username: data.username || `pilot_${userId.slice(0, 8)}`,
     holobots: data.holobots || [],
