@@ -1,18 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
 import { HomeCogButton } from "@/components/HomeCogButton";
 import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
-import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster, normalizeUserHolobot } from "@/config/holobots";
+import { getExpProgress, getHolobotDisplayStats, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
-import { claimTrainingSessionAuthoritative, useEnergyRefillAuthoritative } from "@/lib/progressionClient";
+import {
+  claimTrainingSessionAuthoritative,
+  isUnknownStartOutcome,
+  makeStartRequestId,
+  startTrainingSessionAuthoritative,
+  updateRewardSystemPreferences,
+  useEnergyRefillAuthoritative,
+} from "@/lib/progressionClient";
 import {
   getTrainingCourse,
   isSessionComplete,
   normalizeProgressionSystem,
-  startTrainingSession,
   TRAINING_COURSES,
 } from "@/lib/progressionSystems";
 
@@ -25,8 +31,19 @@ function formatCountdown(endsAt: string, nowTick: number) {
 }
 
 export function TrainingScreen() {
-  const { profile, updateProfile } = useAuth();
+  const { profile, updateProfile, user } = useAuth();
+  const uid = user?.uid ?? null;
   useEnergyRegen();
+  const [starting, setStarting] = useState(false);
+  // One request id per (kind, id, holobot) until the host answers, so a retry after an unknown outcome replays.
+  const pendingStarts = useRef(new Map<string, string>());
+  const requestIdFor = (key: string) => {
+    const existing = pendingStarts.current.get(key);
+    if (existing) return existing;
+    const id = makeStartRequestId();
+    pendingStarts.current.set(key, id);
+    return id;
+  };
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -52,7 +69,7 @@ export function TrainingScreen() {
   }, [selectedHolobot]);
 
   const handleStartTraining = async (courseId: (typeof TRAINING_COURSES)[number]["id"]) => {
-    if (!profile || !selectedHolobot) {
+    if (starting || !profile || !selectedHolobot) {
       return;
     }
 
@@ -72,13 +89,20 @@ export function TrainingScreen() {
       return;
     }
 
+    // energy-quest-server-1: the host (startTrainingSession) checks the slot and energy, regenerates and debits the
+    // energy, rolls the boost and stamps the session with its clock. A finished, unclaimed session must be claimed
+    // first (the host refuses training_active). No client write.
+    const key = `training:${courseId}:${ownedHolobot.name.toUpperCase()}`;
+    setStarting(true);
     try {
-      await updateProfile({
-        dailyEnergy: Math.max(0, (profile.dailyEnergy || 0) - course.energyCost),
-        rewardSystem: startTrainingSession(profile.rewardSystem, normalizeUserHolobot(ownedHolobot), courseId),
-      });
+      await startTrainingSessionAuthoritative({ courseId, holobotName: ownedHolobot.name, requestId: requestIdFor(key) });
+      pendingStarts.current.delete(key);
     } catch (error) {
+      // Unknown outcome: keep the request id so a retry is the identical request (the host replays it, never twice).
+      if (!isUnknownStartOutcome(error)) pendingStarts.current.delete(key);
       Alert.alert("Training Failed", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -96,17 +120,13 @@ export function TrainingScreen() {
   };
 
   const handleToggleSyncBoost = async () => {
-    if (!profile) {
+    if (!profile || !uid) {
       return;
     }
 
     try {
-      await updateProfile({
-        rewardSystem: {
-          ...progression,
-          syncBoostEnabled: !progression.syncBoostEnabled,
-        },
-      });
+      // One preference key, never the whole rewardSystem map (the run display copies are the host's).
+      await updateRewardSystemPreferences(uid, { syncBoostEnabled: !progression.syncBoostEnabled });
     } catch (error) {
       Alert.alert("Update Failed", error instanceof Error ? error.message : "Please try again.");
     }

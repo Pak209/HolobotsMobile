@@ -17,7 +17,8 @@ const uids = [];
 after(async () => { for (const uid of uids) await db.doc(`users/${uid}`).delete(); });
 async function setup(extra = {}) {
   const uid = `timers_${Date.now()}_${serial++}`; uids.push(uid);
-  await db.doc(`users/${uid}`).set({ dailyEnergy: 100, syncPoints: 0, lifetimeSyncPoints: 0, seasonSyncPoints: 0, inventory: {},
+  // energy-quest-server-1: starts regen first; an energy day already begun now keeps a seeded balance as seeded.
+  await db.doc(`users/${uid}`).set({ dailyEnergy: 100, lastEnergyRefresh: new Date(), syncPoints: 0, lifetimeSyncPoints: 0, seasonSyncPoints: 0, inventory: {},
     holobots: [{ name: 'ACE', level: 5, experience: 0, nextLevelExp: 1300, attributePoints: 0, boostedAttributes: {} }, { name: 'KUMA', level: 1, experience: 0, nextLevelExp: 400 }],
     rewardSystem: { activeQuests: [], activeTraining: null, availableQuestIds: ['forest_patrol', 'factory_raid'], syncBoostEnabled: true }, ...extra });
   return uid;

@@ -1,21 +1,20 @@
 import { useEffect, useRef } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { computeEnergyRegen } from "@/lib/energy";
+import { computeEnergyRegen, shouldRefreshEnergy } from "@/lib/energy";
+import { refreshEnergyOnHost } from "@/lib/energyClient";
 
-// Shared across every mounted screen that calls the hook, so two screens
-// observing the same stale profile snapshot don't race duplicate writes.
-let inFlightSignature: string | null = null;
+// energy-quest-server-1: regen runs on the host (refreshEnergy); this hook only decides WHEN to ask. Shared across
+// every mounted screen that calls the hook, so two screens never race duplicate requests.
+let inFlight: Promise<void> | null = null;
+const state = { uid: null as string | null, lastCallAtMs: null as number | null, lastReplyChanged: true, nextResetAtMs: null as number | null };
 
 const REGEN_CHECK_INTERVAL_MS = 60 * 1000;
 
 export function useEnergyRegen() {
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile } = useAuth();
   const profileRef = useRef(profile);
-  const updateProfileRef = useRef(updateProfile);
-
   profileRef.current = profile;
-  updateProfileRef.current = updateProfile;
 
   const uid = user?.uid ?? null;
 
@@ -23,60 +22,47 @@ export function useEnergyRegen() {
     if (!uid) {
       return;
     }
+    if (state.uid !== uid) {
+      Object.assign(state, { uid, lastCallAtMs: null, lastReplyChanged: true, nextResetAtMs: null });
+    }
 
-    const applyRegen = () => {
+    const check = (force: boolean) => {
       const currentProfile = profileRef.current;
-      if (!currentProfile) {
+      if (!currentProfile || inFlight) {
         return;
       }
-
-      const result = computeEnergyRegen({
+      const nowMs = Date.now();
+      const locallyDue = computeEnergyRegen({
         dailyEnergy: currentProfile.dailyEnergy,
         lastEnergyRefresh: currentProfile.lastEnergyRefresh,
         maxDailyEnergy: currentProfile.maxDailyEnergy,
         stepEnergyDate: currentProfile.stepEnergyDate,
         stepEnergyGrantedToday: currentProfile.stepEnergyGrantedToday,
         todaySteps: currentProfile.todaySteps,
-      });
-
-      if (!result.changed) {
+      }, new Date(nowMs)).changed;
+      if (!shouldRefreshEnergy({ force, nowMs, locallyDue, lastCallAtMs: state.lastCallAtMs, lastReplyChanged: state.lastReplyChanged, nextResetAtMs: state.nextResetAtMs })) {
         return;
       }
-
-      const signature = `${uid}:${result.dailyEnergy}:${result.lastEnergyRefresh}:${result.stepEnergyDate}:${result.stepEnergyGrantedToday}`;
-      if (inFlightSignature === signature) {
-        return;
-      }
-
-      inFlightSignature = signature;
-      void updateProfileRef
-        .current({
-          dailyEnergy: result.dailyEnergy,
-          lastEnergyRefresh: result.lastEnergyRefresh,
-          stepEnergyDate: result.stepEnergyDate,
-          stepEnergyGrantedToday: result.stepEnergyGrantedToday,
+      state.lastCallAtMs = nowMs;
+      inFlight = refreshEnergyOnHost()
+        .then((reply) => {
+          if (state.uid !== uid) return;
+          state.lastReplyChanged = reply.changed;
+          const next = new Date(reply.nextResetAt).getTime();
+          state.nextResetAtMs = Number.isFinite(next) ? next : null;
         })
         .catch((error) => {
-          console.error("[Energy] Failed to persist energy regeneration", error);
+          // Offline / old host: the shown energy is the last host value; the next tick retries.
+          console.warn("[Energy] refreshEnergy failed", error);
         })
         .finally(() => {
-          if (inFlightSignature === signature) {
-            inFlightSignature = null;
-          }
+          inFlight = null;
         });
     };
 
-    applyRegen();
-    const intervalId = setInterval(applyRegen, REGEN_CHECK_INTERVAL_MS);
+    check(state.lastCallAtMs === null);
+    const intervalId = setInterval(() => check(false), REGEN_CHECK_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [
-    uid,
-    profile?.dailyEnergy,
-    profile?.lastEnergyRefresh,
-    profile?.maxDailyEnergy,
-    profile?.stepEnergyDate,
-    profile?.stepEnergyGrantedToday,
-    profile?.todaySteps,
-  ]);
+  }, [uid]);
 }

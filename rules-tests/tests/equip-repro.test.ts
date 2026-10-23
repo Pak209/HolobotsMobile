@@ -112,9 +112,9 @@ describe("client writes on a mature (fat) account doc", () => {
     );
   });
 
-  it("allows energy regen writes", async () => {
+  it("denies the old client energy regen write (server-only since energy-quest-server-1: refreshEnergy)", async () => {
     await seedUser(env, "alice", FAT_ACCOUNT);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(authedDb(env, "alice"), "users/alice"), {
         dailyEnergy: 80,
         lastEnergyRefresh: Timestamp.fromDate(new Date()),
@@ -129,11 +129,11 @@ describe("client writes on a mature (fat) account doc", () => {
     await assertSucceeds(updateDoc(aliceDoc, { referralCode: "ALICE1", presenceOptOut: true }));
   });
 
-  it("allows a full-profile merge that only changes energy (budget: one MapDiff per check)", async () => {
+  it("allows a full-profile merge that only changes a setting (budget: one MapDiff per check)", async () => {
     await seedUser(env, "alice", FAT_ACCOUNT);
     const { setDoc } = await import("firebase/firestore");
     await assertSucceeds(
-      setDoc(doc(authedDb(env, "alice"), "users/alice"), { ...FAT_ACCOUNT, dailyEnergy: 70 }, { merge: true }),
+      setDoc(doc(authedDb(env, "alice"), "users/alice"), { ...FAT_ACCOUNT, referralCode: "RC70" }, { merge: true }),
     );
   });
 
