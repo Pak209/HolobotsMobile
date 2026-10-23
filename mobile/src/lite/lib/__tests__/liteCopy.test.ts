@@ -27,6 +27,8 @@ const FILES = [
   "../../vfx/specialCameraBeat.ts",
   // lite-hud-row-1: the PvP live battle body.
   "../../components/arena/PvpLiveBattle.tsx",
+  // lite-pvp-3d-1: PvP's 3D stage.
+  "../../components/duel/DuelBotStage.tsx", "../../components/arena/pvpStageAction.ts",
 ] as const;
 /** Type tags that never reach the screen: the receipt/trace discriminator `"host"` and the move template id prefix. */
 const NOT_ON_SCREEN = new Set(["'host'", '"host"', "`host.${id}`"]);
