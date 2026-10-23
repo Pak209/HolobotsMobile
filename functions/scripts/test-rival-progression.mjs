@@ -48,8 +48,7 @@ test('issue: playerCombatants carry the real stats (getPlayerBattleStats) and pr
   const stats = E.getPlayerBattleStats(bots()[0]);
   assert.deepEqual({ maxHealth: ace.maxHealth, attack: ace.attack, defense: ace.defense, speed: ace.speed, intelligence: ace.intelligence }, { maxHealth: stats.maxHP, attack: stats.attack, defense: stats.defense, speed: stats.speed, intelligence: stats.intelligence });
   // ACE L4: base x10 x 1.15 + boosts, then power/guard/tempo/focus multipliers.
-  // DECISIONS #72.78 (2): ACE base speed 7 -> 6 (speed 80 -> 69).
-  assert.deepEqual([ace.maxHealth, ace.attack, ace.defense, ace.speed, ace.intelligence], [192, 96, 71, 69, 60]);
+  assert.deepEqual([ace.maxHealth, ace.attack, ace.defense, ace.speed, ace.intelligence], [192, 96, 71, 80, 60]);
   assert.deepEqual({ level: ace.level, experience: ace.experience, nextLevelExp: ace.nextLevelExp, attributePoints: ace.attributePoints, rank: ace.rank }, { level: 4, experience: 1700, nextLevelExp: 2500, attributePoints: 1, rank: 'Starter' });
   assert.deepEqual(ace.boostedAttributes, { attack: 3, defense: 0, speed: 0, special: 0, health: 20 });
   assert.equal(wolf.level, 12); assert.equal(wolf.rank, 'Champion');

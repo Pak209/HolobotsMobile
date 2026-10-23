@@ -10,10 +10,12 @@ import {
 /**
  * DECISIONS #53-2 (Pak, 2026-10-06): server-authoritative attribute boost.
  * Request {holobotName, attribute: attack|defense|speed|health|special, requestId}.
- * Spends one attribute point: +1 attack/defense/speed/special or +3 HP (DECISIONS
- * #72.78; HP was +10 — already-allocated HP is kept, boostedAttributes.health is a
- * sum of HP units). The mobile InventoryScreen math, lib/progression.ts
- * applyAttributeBoost. Idempotent per requestId
+ * Spends one attribute point: +1 attack/defense/speed or +10 HP, "special" refused
+ * (applied:false, attribute_not_boostable). With the rules-5 host flag
+ * HOLOCITY_FIGHT_ATTRS=1 (DECISIONS #72.78, ships with duel-rules-5): +1
+ * attack/defense/speed/special or +3 HP (already-allocated HP is kept,
+ * boostedAttributes.health is a sum of HP units). The mobile InventoryScreen
+ * math, lib/progression.ts applyAttributeBoost. Idempotent per requestId
  * (users/{uid}.attributeBoostRequestIds keeps the last 20 applied ids; a replay
  * returns applied:false, reason already_processed, and writes nothing).
  * Callers: mobile InventoryScreen, Unity HoloCity dashboard (HOLOBOT STATS).

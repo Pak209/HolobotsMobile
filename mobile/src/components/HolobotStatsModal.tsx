@@ -20,6 +20,7 @@ import {
   normalizeSyncStats,
   type SyncStatKey,
 } from "@/lib/syncProgression";
+import { progressionRules5Enabled } from "@/lib/progression";
 import type { UserHolobot } from "@/types/profile";
 import { ArenaControlFrame } from "@/components/arena/ArenaTierFrames";
 import { GameDialogFrame, GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
@@ -156,15 +157,23 @@ export function HolobotStatsModal({
       ? 1
       : Math.min(1, blueprintCount / BLUEPRINT_TIERS[0].required);
 
-  // DECISIONS #72.77/#72.78: five rows in ATK / DEF / SPECIAL / HP / SPEED order; SPECIAL is points-buyable (+1)
-  // and a NEW HP point grants +3 (was +10; HP already allocated is kept — boostedAttributes.health is the HP sum).
-  const stats = [
-    { baseValue: base.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
-    { baseValue: base.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
-    { baseValue: base.intelligence, bonus: boosts.special || 0, key: "special" as const, label: "Special", upgrade: "+1 SPC" },
-    { baseValue: base.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+3 HP" },
-    { baseValue: base.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
-  ];
+  // Flag off (default): the pre-#72.78 rows HP (+10) / ATK / DEF / SPD — SPECIAL comes from SYNC and has no button.
+  // Rules-5 flag on (DECISIONS #72.77/#72.78, ships with duel-rules-5): ATK / DEF / SPECIAL / HP / SPEED; SPECIAL is
+  // points-buyable (+1) and a NEW HP point grants +3 (HP already allocated is kept — boostedAttributes.health is the sum).
+  const stats = progressionRules5Enabled()
+    ? [
+        { baseValue: base.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
+        { baseValue: base.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
+        { baseValue: base.intelligence, bonus: boosts.special || 0, key: "special" as const, label: "Special", upgrade: "+1 SPC" },
+        { baseValue: base.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+3 HP" },
+        { baseValue: base.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
+      ]
+    : [
+        { baseValue: base.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+10 HP" },
+        { baseValue: base.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
+        { baseValue: base.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
+        { baseValue: base.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
+      ];
   const syncRows: Array<{ key: SyncStatKey; value: number }> = [
     { key: "power", value: syncStats.power },
     { key: "guard", value: syncStats.guard },

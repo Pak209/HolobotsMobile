@@ -112,7 +112,8 @@ export const MAX_CLAIMED_HOLOBOT_POWER = 50000;
 export function getHolobotPowerScore(holobot: { name: string; level?: number; boostedAttributes?: unknown }): number {
   const stats = getHolobotBattleStats(holobot.name, holobot.level, holobot.boostedAttributes);
   // DECISIONS #72.78: the speed narrowing is a fight ruling, not a quest/training rebalance — the power score keeps
-  // the pre-#72.78 speed column (getLegacyBattleSpeed), so quest odds and stored holobotPower values are unchanged.
+  // the pre-#72.78 speed column (getLegacyBattleSpeed) whatever the rules-5 flag, so quest odds and stored holobotPower
+  // values are unchanged. Flag off, getLegacyBattleSpeed === stats.speed (same column).
   const speed = getLegacyBattleSpeed(holobot.name, holobot.level, holobot.boostedAttributes);
   return Math.round(stats.maxHP * 4 + stats.attack * 6 + stats.defense * 5 + speed * 4 + stats.intelligence * 5);
 }
@@ -531,8 +532,8 @@ export function isSyncUpgradeRefusal(
 export const ATTRIBUTE_BOOST_REQUEST_IDS_FIELD = "attributeBoostRequestIds";
 export const MAX_ATTRIBUTE_BOOST_REQUEST_IDS = 20;
 export const ATTRIBUTE_BOOST_REQUEST_ID = /^[a-zA-Z0-9_-]{1,128}$/;
-/** Accepted on the wire. Since DECISIONS #72.78 every wire attribute is boostable (BOOSTABLE_ATTRIBUTES); the typed
- * attribute_not_boostable refusal stays for a wire/boostable drift. */
+/** Accepted on the wire. With the rules-5 flag off "special" is accepted only to be refused with a typed reason
+ * (attribute_not_boostable; SPECIAL comes from SYNC); with it on (DECISIONS #72.78) every wire attribute is boostable. */
 export const ATTRIBUTE_BOOST_WIRE_ATTRIBUTES = ["attack", "defense", "speed", "health", "special"] as const;
 export const MAX_HOLOBOT_NAME_LENGTH = 64;
 
