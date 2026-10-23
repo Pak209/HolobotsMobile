@@ -1,0 +1,9 @@
+# Holographic Parts phase 2 — Mobile and Lite companion
+
+The nine exact `part.*` listing IDs now use the approved transparent holographic 256 px sprites in both `mobile/assets/game/` (standard Mobile) and `mobile/assets/items/` (Lite). The 1254 px masters, raw sources, prompt ledger and 256/64/48/grayscale contact sheet live in `/Users/pak/HolobotsVault/UI/workshop-part-icons-holographic/`; legacy art is preserved in `/Users/pak/HolobotsVault/UI/part-icons-legacy-solid-20261023/`. No economy, inventory, slot, price, rarity, stat or gameplay data changed. Standard Mobile's `LegPart.png` fallback has no City listing and stays unchanged.
+
+`mobile/src/config/gameAssets.ts` resolves all nine exact IDs, and distinct Alloy/Reinforced and Energy/Quantum assets replace its old shared torso/core mapping. The Lite config retains the exact `itemIcons` resolution and now likewise keeps the two pairs distinct in name-based fallback. `mobile/assets/items/part-holographic-manifest.json` pins the version and 1254/256 hashes. `sync-holo-ui.mjs` checks all nine source hashes before copying anything, so syncing from the archived solid City icons fails without modifying the installed set. CI runs `verify-holo-ui.mjs`, which verifies all item icons and both standard and Lite Part copies.
+
+Local checks: Mobile `npm run typecheck` green; Vitest **1573 passed / 3 skipped** (117 files passed, 1 skipped); `verify-holo-ui.mjs` green for 105 indexed icons and all nine standard Part copies. Known-bad stale City source refused at `part.combatMask` before copy; `part.boxerGloves` hash unchanged across the failed attempt. Source-sync from the City companion checkout passed, then the verifier passed. A full simulator/card witness is for the Mobile reviewer; the user-visible art is captured in the vault contact sheet. No deploy or account use.
+
+The on-bot 3D overlay lane is separate; changing inventory sprites does not attach any projection to a bot rig.
