@@ -79,10 +79,10 @@ service cloud.firestore {
     // MapDiff hasOnly = one expression regardless of how many fields the
     // account has populated (EVALUATION BUDGET note below). Writing any other
     // field with its UNCHANGED value stays legal (full-profile merges).
-    //   dailyEnergy, lastEnergyRefresh, stepEnergyDate, stepEnergyGrantedToday:
-    //     the client-side regen tick (mobile/src/hooks/useEnergyRegen.ts) and
-    //     the main-app quest / training start spend. Capped by energyNotInflated.
-    //     Moving regen to the host is the remaining follow-up (local-day reset).
+    //   (dailyEnergy, lastEnergyRefresh, stepEnergyDate, stepEnergyGrantedToday
+    //   left this list in energy-quest-server-1, 2026-10-23: regen runs on the
+    //   host — refreshEnergy and the quest / training start callables — with the
+    //   daily reset at the account's local midnight, see functions/src/lib/energyRegen.ts.)
     //   rewardSystem: quest-board / sync-boost preferences + the display copy of
     //     quest / training runs and daily missions. Nothing pays from it: payouts
     //     validate against progressionTimers / dailyMissionLedger (server-only).
@@ -90,7 +90,6 @@ service cloud.firestore {
     //   referralCodeSane), presenceOptOut (bool): settings, no economy.
     function clientWritableKeys() {
       return [
-        'dailyEnergy', 'lastEnergyRefresh', 'stepEnergyDate', 'stepEnergyGrantedToday',
         'rewardSystem',
         'syncDistanceUnit', 'referralCode', 'presenceOptOut'
       ];
@@ -98,16 +97,6 @@ service cloud.firestore {
 
     function onlyClientWritableKeysChanged(data, existing) {
       return data.diff(existing).affectedKeys().hasOnly(clientWritableKeys());
-    }
-
-    // A client may spend energy or regenerate it up to maxDailyEnergy
-    // (server-only), never past it. A balance the host already put above the
-    // cap (refill items) may still be spent down.
-    function energyNotInflated(data, existing) {
-      return !('dailyEnergy' in data)
-        || data.dailyEnergy == existing.get('dailyEnergy', 0)
-        || data.dailyEnergy <= existing.get('maxDailyEnergy', 100)
-        || data.dailyEnergy <= existing.get('dailyEnergy', 0);
     }
 
     function syncDistanceUnitSane(data, existing) {
@@ -137,8 +126,9 @@ service cloud.firestore {
     // clientWritableKeys() above is the whole client surface.
     // Daily missions (2026-10-17 critic review S2): the counters and claims
     // claimDailyMission pays from live in dailyMissionLedger, server-only
-    // below. rewardSystem itself stays owner-writable until the quest/training
-    // starts (QuestsScreen / TrainingScreen, main app + lite) move to callables.
+    // below. rewardSystem stays owner-writable for the quest-board / sync-boost
+    // preferences; since energy-quest-server-1 every quest / training START
+    // (main app + lite) goes through startQuestRun / startTrainingSession.
     // Quest / training timers (S3, hardening-2): claimQuestRun /
     // claimTrainingSession validate against progressionTimers, server-only
     // below and written only by startQuestRun / startTrainingSession; the
@@ -178,7 +168,11 @@ service cloud.firestore {
         'holobots', 'equippedParts', 'battle_cards', 'arena_deck_template_ids',
         'starter_deck_claimed', 'inventory', 'leaderboardScore', 'prestigeCount',
         'asyncBattleTickets', 'lastAsyncTicketRefresh', 'maxDailyEnergy',
-        'attributeBoostRequestIds'
+        'attributeBoostRequestIds',
+        // energy-quest-server-1: energy balance + regen clocks + the account's
+        // stored reset zone (refreshEnergy / startQuestRun / startTrainingSession).
+        'dailyEnergy', 'lastEnergyRefresh', 'stepEnergyDate', 'stepEnergyGrantedToday',
+        'energyDayKey', 'energyDayStartedAt', 'energyTimeZone', 'energyTimeZoneChangedAt'
       ]);
     }
 
@@ -267,7 +261,6 @@ service cloud.firestore {
 
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly(clientCreateKeys())
-        && energyNotInflated(request.resource.data, {})
         && syncDistanceUnitSane(request.resource.data, {})
         && noPrivilegeEscalation(request.resource.data)
         && economyFieldsSane(request.resource.data)
@@ -284,7 +277,6 @@ service cloud.firestore {
         && onlyClientWritableKeysChanged(request.resource.data, resource.data)
         && economyFieldsSane(request.resource.data)
         && protectedFieldsUntouched(request.resource.data, resource.data)
-        && energyNotInflated(request.resource.data, resource.data)
         && syncDistanceUnitSane(request.resource.data, resource.data)
         && referralCodeSane(request.resource.data)
         && presenceOptOutSane(request.resource.data);

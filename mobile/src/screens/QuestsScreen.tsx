@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { HolobotPickerModal } from "@/components/HolobotPickerModal";
@@ -7,7 +7,13 @@ import { GameSurfaceFrame } from "@/components/ui/GameSurfaceFrame";
 import { mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnergyRegen } from "@/hooks/useEnergyRegen";
-import { claimQuestRunAuthoritative } from "@/lib/progressionClient";
+import {
+  claimQuestRunAuthoritative,
+  isUnknownStartOutcome,
+  makeStartRequestId,
+  startQuestRunAuthoritative,
+  updateRewardSystemPreferences,
+} from "@/lib/progressionClient";
 import {
   getEligibleQuestHolobots,
   getHolobotPowerScore,
@@ -16,7 +22,6 @@ import {
   normalizeProgressionSystem,
   QUEST_DEFINITIONS,
   refreshQuestBoard,
-  startQuestRun,
 } from "@/lib/progressionSystems";
 
 function formatQuestDuration(minutes: number) {
@@ -34,8 +39,19 @@ function formatRemaining(endsAt: string, nowTick: number) {
 }
 
 export function QuestsScreen() {
-  const { profile, updateProfile } = useAuth();
+  const { profile, updateProfile, user } = useAuth();
+  const uid = user?.uid ?? null;
   useEnergyRegen();
+  const [sending, setSending] = useState(false);
+  // One request id per (kind, id, holobot) until the host answers, so a retry after an unknown outcome replays.
+  const pendingStarts = useRef(new Map<string, string>());
+  const requestIdFor = (key: string) => {
+    const existing = pendingStarts.current.get(key);
+    if (existing) return existing;
+    const id = makeStartRequestId();
+    pendingStarts.current.set(key, id);
+    return id;
+  };
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -66,15 +82,20 @@ export function QuestsScreen() {
   }, [eligibleRoster, selectedHolobot]);
 
   const handleRefreshBoard = async () => {
-    if (!profile) return;
+    if (!profile || !uid) return;
     if (progression.questRefreshesRemaining <= 0) {
       Alert.alert("No Refreshes Left", "Come back tomorrow for more quest refreshes.");
       return;
     }
 
     try {
-      await updateProfile({
-        rewardSystem: refreshQuestBoard(profile.rewardSystem),
+      // energy-quest-server-1: the board is a client preference; only its keys, never the whole rewardSystem map
+      // (the host's run display copies would be overwritten by a stale snapshot).
+      const board = refreshQuestBoard(profile.rewardSystem);
+      await updateRewardSystemPreferences(uid, {
+        availableQuestIds: board.availableQuestIds,
+        lastQuestRefreshDate: board.lastQuestRefreshDate,
+        questRefreshesRemaining: board.questRefreshesRemaining,
       });
     } catch (error) {
       Alert.alert("Refresh Failed", error instanceof Error ? error.message : "Please try again.");
@@ -82,6 +103,7 @@ export function QuestsScreen() {
   };
 
   const handleSendQuest = async (questId: (typeof QUEST_DEFINITIONS)[number]["id"]) => {
+    if (sending) return;
     if (!profile || !selectedHolobot) {
       Alert.alert("Select a Holobot", "Choose a Holobot to send on this quest first.");
       return;
@@ -101,13 +123,19 @@ export function QuestsScreen() {
       return;
     }
 
+    // energy-quest-server-1: the host (startQuestRun) validates the bot / slots / energy, regenerates and debits the
+    // energy, and stamps the run with its clock; the listener shows the run it records. No client write.
+    const key = `quest:${questId}:${ownedHolobot.name.toUpperCase()}`;
+    setSending(true);
     try {
-      await updateProfile({
-        dailyEnergy: Math.max(0, (profile.dailyEnergy || 0) - quest.energyCost),
-        rewardSystem: startQuestRun(profile.rewardSystem, ownedHolobot, questId),
-      });
+      await startQuestRunAuthoritative({ questId, holobotName: ownedHolobot.name, requestId: requestIdFor(key) });
+      pendingStarts.current.delete(key);
     } catch (error) {
+      // Unknown outcome: keep the request id so a retry is the identical request (the host replays it, never twice).
+      if (!isUnknownStartOutcome(error)) pendingStarts.current.delete(key);
       Alert.alert("Quest Failed", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setSending(false);
     }
   };
 

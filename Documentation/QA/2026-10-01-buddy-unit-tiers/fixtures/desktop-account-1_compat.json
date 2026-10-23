@@ -56,7 +56,7 @@
   ],
   "dailyMissionLedger": {
     "schemaVersion": "daily-mission-ledger-1",
-    "day": "2026-10-18",
+    "day": "2026-10-23",
     "arenaBattlesToday": 0,
     "boosterPacksToday": 0,
     "claimed": {
@@ -64,6 +64,13 @@
       "arena_v2_battle": false,
       "open_booster_pack": false
     }
+  },
+  "onboarding": {
+    "schemaVersion": "onboarding-1",
+    "step": 7,
+    "stepId": "done",
+    "skipped": true,
+    "stepAt": null
   },
   "holobots": [
     {

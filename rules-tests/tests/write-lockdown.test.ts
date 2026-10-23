@@ -56,7 +56,7 @@ function preLockdownRules(): string {
   const weakened = rules
     .replace("        && onlyClientWritableKeysChanged(request.resource.data, resource.data)\n", "")
     .replace("        && energyNotInflated(request.resource.data, resource.data)\n", "")
-    .replace(/,\n\s*\/\/ holobots-write-lockdown-1: the roster[\s\S]*?'attributeBoostRequestIds'\n/, "\n");
+    .replace(/,\n\s*\/\/ holobots-write-lockdown-1: the roster[\s\S]*?'energyTimeZoneChangedAt'\n/, "\n");
   expect(weakened).not.toEqual(rules);
   expect(weakened).not.toContain("onlyClientWritableKeysChanged(request.resource.data");
   expect(weakened).not.toContain("'attributeBoostRequestIds'");
@@ -98,7 +98,7 @@ describe("holobots write lockdown", () => {
     await assertSucceeds(updateDoc(doc(authedDb(legacy, "alice"), "users/alice"), { dailyEnergy: 100000000 }));
   });
 
-  it("allows the cosmetic / settings writes (exact keys) and the energy + rewardSystem writes", async () => {
+  it("allows the cosmetic / settings writes (exact keys) and the rewardSystem writes", async () => {
     await seedUser(env, "alice", SEEDED);
     const alice = doc(authedDb(env, "alice"), "users/alice");
     await assertSucceeds(updateDoc(alice, { syncDistanceUnit: "mi" }));
@@ -109,34 +109,15 @@ describe("holobots write lockdown", () => {
     await assertSucceeds(updateDoc(alice, { presenceOptOut: true }));
     await assertSucceeds(updateDoc(alice, { rewardSystem: { syncBoostEnabled: true } }));
     await assertSucceeds(updateDoc(alice, { "rewardSystem.questRefreshesUsed": 1 }));
-    await assertSucceeds(updateDoc(alice, { dailyEnergy: 80, lastEnergyRefresh: new Date(), stepEnergyDate: "2026-10-23", stepEnergyGrantedToday: 4 }));
+    // energy-quest-server-1: the energy fields left the allowlist (energy-server-only.test.ts).
+    await assertFails(updateDoc(alice, { dailyEnergy: 80, lastEnergyRefresh: new Date(), stepEnergyDate: "2026-10-23", stepEnergyGrantedToday: 4 }));
     // A cosmetic key riding along with a locked one denies the whole write.
     await assertFails(updateDoc(alice, { syncDistanceUnit: "mi", holobots: [{ ...ACE, level: 9 }] }));
   });
 
   it("a full-profile merge with every locked field UNCHANGED still passes", async () => {
     await seedUser(env, "alice", SEEDED);
-    await assertSucceeds(setDoc(doc(authedDb(env, "alice"), "users/alice"), { ...SEEDED, dailyEnergy: 61 }, { merge: true }));
-  });
-
-  it("energy: regen up to maxDailyEnergy, never past it; a host top-up above max may be spent down", async () => {
-    const alice = () => doc(authedDb(env, "alice"), "users/alice");
-    await seedUser(env, "alice", SEEDED);
-    await assertSucceeds(updateDoc(alice(), { dailyEnergy: 100 }));
-    await assertFails(updateDoc(alice(), { dailyEnergy: 101 }));
-
-    await seedUser(env, "alice", { ...SEEDED, maxDailyEnergy: 150 });
-    await assertSucceeds(updateDoc(alice(), { dailyEnergy: 150 }));
-    await assertFails(updateDoc(alice(), { dailyEnergy: 151 }));
-
-    await seedUser(env, "alice", { ...SEEDED, dailyEnergy: 180, maxDailyEnergy: 100 });
-    await assertSucceeds(updateDoc(alice(), { dailyEnergy: 170 }));
-    await assertFails(updateDoc(alice(), { dailyEnergy: 190 }));
-
-    const { maxDailyEnergy: _drop, ...noMax } = SEEDED;
-    await seedUser(env, "alice", noMax);
-    await assertSucceeds(updateDoc(alice(), { dailyEnergy: 100 }));
-    await assertFails(updateDoc(alice(), { dailyEnergy: 101 }));
+    await assertSucceeds(setDoc(doc(authedDb(env, "alice"), "users/alice"), { ...SEEDED, referralCode: "RC61" }, { merge: true }));
   });
 
   it("client create: only clientCreateKeys(); never holobots, cards, items or a full energy overfill", async () => {

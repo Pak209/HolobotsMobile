@@ -17,7 +17,7 @@ describe('server-owned travel squad',()=>{
   await assertFails(updateDoc(ref,{'travelSquad.holobotIds':['wolf']}));
   await assertFails(updateDoc(ref,{'travelSquad.revision':2}));
   await assertFails(updateDoc(ref,{travelSquad:deleteField()}));
-  await assertSucceeds(updateDoc(ref,{travelSquad:squad,dailyEnergy:42}));
+  await assertSucceeds(updateDoc(ref,{travelSquad:squad,referralCode:'RC42'}));
   await assertSucceeds(getDoc(ref));
  });
  it('denies client direct session or receipt writes',async()=>{

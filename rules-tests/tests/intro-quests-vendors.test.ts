@@ -45,6 +45,6 @@ describe('server-only intro quests and vendor receipts', () => {
     await assertFails(updateDoc(ref, { holosTokens: 99999 }));
     await assertFails(updateDoc(ref, { gachaTickets: 50 }));
     for (const t of ['light', 'medium', 'heavy']) await assertFails(updateDoc(ref, { [`buddyUnits.${t}`]: 9 }));
-    await assertSucceeds(updateDoc(ref, { dailyEnergy: 10 }));
+    await assertSucceeds(updateDoc(ref, { referralCode: "RC10" }));
   });
 });

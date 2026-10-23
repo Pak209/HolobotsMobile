@@ -53,12 +53,11 @@ describe("daily mission ledger is server-only", () => {
     // QuestsScreen start/refresh and TrainingScreen start/toggle send the whole normalized rewardSystem,
     // including the mirrored mission keys (zeroed on a new UTC day).
     await assertSucceeds(updateDoc(aliceDoc, {
-      dailyEnergy: 40,
       rewardSystem: { arenaBattlesToday: 0, boosterPacksToday: 0, lastDailyMissionReset: "2026-10-18", missionClaims: {}, activeQuests: [{ questId: "scrapyard", endsAt: "2026-10-18T01:00:00.000Z" }] },
     }));
     await assertSucceeds(updateDoc(aliceDoc, { "rewardSystem.syncBoostEnabled": true }));
     // Clearing the mirror is allowed and inert: nothing pays from it.
     await assertSucceeds(updateDoc(aliceDoc, { "rewardSystem.missionClaims": {} }));
-    await assertSucceeds(setDoc(aliceDoc, { dailyMissionLedger: ledger(), dailyEnergy: 30 }, { merge: true }));
+    await assertSucceeds(setDoc(aliceDoc, { dailyMissionLedger: ledger(), referralCode: "RC30" }, { merge: true }));
   });
 });

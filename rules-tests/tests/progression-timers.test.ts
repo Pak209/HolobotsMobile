@@ -67,14 +67,14 @@ describe("progression timers are server-only", () => {
     await assertSucceeds(setDoc(doc(authedDb(env, "carol"), "users/carol"), buildClientCreateDoc()));
   });
 
-  it("keeps the census rewardSystem / dailyEnergy writes working and an unchanged-timers merge", async () => {
+  it("keeps the census rewardSystem preference writes working and an unchanged-timers merge", async () => {
     const aliceDoc = doc(authedDb(env, "alice"), "users/alice");
-    // Legacy QuestsScreen / TrainingScreen starts still write rewardSystem + dailyEnergy; inert without a server record.
+    // A stale full-map rewardSystem write (old builds) stays legal and inert without a server record; the energy debit
+    // that used to ride with it is server-only since energy-quest-server-1 (starts go through startQuestRun / startTrainingSession).
     await assertSucceeds(updateDoc(aliceDoc, {
-      dailyEnergy: 40,
       rewardSystem: { activeQuests: [{ id: "quest_legacy", questId: "forest_patrol", endsAt: "2026-01-01T00:00:00.000Z" }], activeTraining: null },
     }));
     await assertSucceeds(updateDoc(aliceDoc, { "rewardSystem.syncBoostEnabled": true }));
-    await assertSucceeds(setDoc(aliceDoc, { progressionTimers: timers(), dailyEnergy: 30 }, { merge: true }));
+    await assertSucceeds(setDoc(aliceDoc, { progressionTimers: timers(), referralCode: "RC30" }, { merge: true }));
   });
 });

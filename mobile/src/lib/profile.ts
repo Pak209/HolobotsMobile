@@ -268,13 +268,10 @@ export function subscribeToUserProfile(
  * clientWritableKeys, holobots-write-lockdown-1). Everything else — holobots,
  * currency, items, cards, parts, leaderboard inputs — is written by the
  * callables; adding a field here without adding it to the rules allowlist
- * makes every write that carries it PERMISSION_DENIED.
+ * makes every write that carries it PERMISSION_DENIED. Energy (dailyEnergy and
+ * its regen clocks) is server-only since energy-quest-server-1: refreshEnergy.
  */
 export type UserProfileUpdates = Partial<{
-  dailyEnergy: number;
-  lastEnergyRefresh: string;
-  stepEnergyDate: string;
-  stepEnergyGrantedToday: number;
   rewardSystem: Record<string, unknown>;
   syncDistanceUnit: "km" | "mi";
   referralCode: string;
@@ -284,16 +281,6 @@ export async function updateUserProfile(userId: string, updates: UserProfileUpda
   const userRef = doc(db, "users", userId);
   const firestoreUpdates: Record<string, unknown> = {};
 
-  if (updates.dailyEnergy !== undefined) firestoreUpdates.dailyEnergy = updates.dailyEnergy;
-  if (updates.lastEnergyRefresh !== undefined) {
-    // The web app (holobots-fun) writes and reads this field as a Firestore
-    // Timestamp; writing a string here would break its `?.toDate?.()` reader.
-    firestoreUpdates.lastEnergyRefresh = Timestamp.fromDate(new Date(updates.lastEnergyRefresh));
-  }
-  if (updates.stepEnergyDate !== undefined) firestoreUpdates.stepEnergyDate = updates.stepEnergyDate;
-  if (updates.stepEnergyGrantedToday !== undefined) {
-    firestoreUpdates.stepEnergyGrantedToday = updates.stepEnergyGrantedToday;
-  }
   if (updates.rewardSystem !== undefined) firestoreUpdates.rewardSystem = updates.rewardSystem;
   if (updates.syncDistanceUnit !== undefined) firestoreUpdates.syncDistanceUnit = updates.syncDistanceUnit;
   if (updates.referralCode !== undefined) firestoreUpdates.referralCode = updates.referralCode;

@@ -101,3 +101,30 @@ export function computeEnergyRegen(input: EnergyRegenInput, now = new Date()): E
     stepEnergyGrantedToday: nextGrantedToday,
   };
 }
+
+/** After a refresh that found nothing to apply, wait this long before asking again on a local "due" guess alone. */
+export const IDLE_REFRESH_BACKOFF_MS = 5 * 60 * 1000;
+export const BUSY_REFRESH_INTERVAL_MS = 60 * 1000;
+
+/**
+ * energy-quest-server-1: when to ask the host (refreshEnergy) to apply regen. The host is the authority; the local
+ * computeEnergyRegen pass above is only a cheap "something looks due" hint so an idle screen does not call every
+ * minute. Always on mount / sign-in (`force`), when the host's own nextResetAt has passed, or when the hint says due
+ * — at most once a minute, and only once per IDLE_REFRESH_BACKOFF_MS after a refresh that changed nothing (the
+ * device's zone or clock can disagree with the account's; the host's answer wins).
+ */
+export function shouldRefreshEnergy(input: {
+  force: boolean;
+  nowMs: number;
+  lastCallAtMs: number | null;
+  lastReplyChanged: boolean;
+  nextResetAtMs: number | null;
+  locallyDue: boolean;
+}): boolean {
+  if (input.force || input.lastCallAtMs === null) return true;
+  const sinceLast = input.nowMs - input.lastCallAtMs;
+  if (sinceLast < BUSY_REFRESH_INTERVAL_MS) return false;
+  if (input.nextResetAtMs !== null && input.nowMs >= input.nextResetAtMs) return true;
+  if (!input.locallyDue) return false;
+  return input.lastReplyChanged || sinceLast >= IDLE_REFRESH_BACKOFF_MS;
+}

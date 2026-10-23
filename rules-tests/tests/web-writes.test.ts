@@ -35,10 +35,10 @@ describe("web app write/read patterns", () => {
     );
   });
 
-  it("allows the owner to spend energy via the web app's updateUserEnergy write", async () => {
+  it("DENIES the web app's updateUserEnergy write (energy is server-only since energy-quest-server-1)", async () => {
     await seedUser(env, "alice", buildUserDoc());
 
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(authedDb(env, "alice"), "users/alice"), WEB_ENERGY_UPDATE),
     );
   });

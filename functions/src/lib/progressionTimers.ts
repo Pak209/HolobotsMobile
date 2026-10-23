@@ -20,8 +20,8 @@
  * not have coexisted with (one training slot; one quest per holobot; 3 quest slots) is refused not_started_on_host.
  * A forged never-started legacy run is therefore held to the legitimate rate; only turning the flag off removes it.
  *
- * Not hardened here (owner-writable by design today): dailyEnergy itself (client-side regen) and the holobot's
- * level / boosts the power score is computed from (S4 census).
+ * dailyEnergy is server-only since energy-quest-server-1: the start callables regenerate it (lib/energyRegen.ts, the
+ * account's local-midnight reset on the host clock) before the energy check, and refreshEnergy applies it on demand.
  *
  * Pure module: no firebase imports, safe to import from tests.
  */

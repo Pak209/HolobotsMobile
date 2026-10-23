@@ -50,8 +50,8 @@ describe("economy field freeze", () => {
     await seedUser(env, "alice", buildUserDoc());
     const aliceDoc = doc(authedDb(env, "alice"), "users/alice");
 
-    // Quest/training starts + energy regen.
-    await assertSucceeds(updateDoc(aliceDoc, { dailyEnergy: 40 }));
+    // Energy (quest/training starts, regen) is server-only since energy-quest-server-1.
+    await assertFails(updateDoc(aliceDoc, { dailyEnergy: 40 }));
     // Mission/quest display state.
     await assertSucceeds(updateDoc(aliceDoc, { rewardSystem: { arenaBattlesToday: 1 } }));
   });
@@ -77,10 +77,10 @@ describe("economy field freeze", () => {
 
     // setDoc merge with the SAME holosTokens value (post-merge equality).
     await assertSucceeds(
-      setDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 10, holosTokens: 500 }, { merge: true }),
+      setDoc(doc(aliceDb, "users/alice"), { referralCode: "RC10", holosTokens: 500 }, { merge: true }),
     );
     await assertFails(
-      setDoc(doc(aliceDb, "users/alice"), { dailyEnergy: 10, holosTokens: 501 }, { merge: true }),
+      setDoc(doc(aliceDb, "users/alice"), { referralCode: "RC10", holosTokens: 501 }, { merge: true }),
     );
   });
 
