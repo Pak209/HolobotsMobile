@@ -1,4 +1,5 @@
 import { theme } from "@/lite/theme";
+import { useCompactText } from "@/lite/components/FigmaCanvas";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { GameDialogFrame, GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
@@ -10,13 +11,14 @@ import type { DashboardZoneRow } from "@/lite/lib/hostDashboard";
  * Copy marked PLACEHOLDER is for Lex.
  */
 export function DashboardZonesPanel({ summary, zones, onRetry }: { summary: string; zones: readonly DashboardZoneRow[] | null; onRetry?: () => void }) {
+  const fit = useCompactText();
   const [open, setOpen] = useState(false);
   return <>
     <Pressable style={styles.entry} testID="dashboard-zones-entry" accessibilityRole="button" accessibilityLabel={`Zones. ${summary}`} onPress={() => setOpen(true)}>
       <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy} />
       {/* PLACEHOLDER copy */}
-      <Text style={styles.entryTitle}>ZONES</Text>
-      <Text style={styles.entrySummary} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{summary}</Text>
+      <Text style={[styles.entryTitle, fit(styles.entryTitle)]} numberOfLines={1}>ZONES</Text>
+      <Text style={[styles.entrySummary, fit(styles.entrySummary)]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{summary}</Text>
     </Pressable>
     <Modal visible={open} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => setOpen(false)}>
       <View style={styles.backdrop}><View style={styles.sheet}>

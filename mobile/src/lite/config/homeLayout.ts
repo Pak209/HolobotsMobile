@@ -19,6 +19,18 @@ export function fitArtboard(pageWidth: number, pageHeight: number) {
   return { scale, width, height, left: (pageWidth - width) / 2, top: (pageHeight - height) / 2 };
 }
 
+/**
+ * lite-sim-fixes-1: the artboard scale on a 402 pt-wide phone (iPhone 16/17 Pro), the size the Home overlays were tuned
+ * at. Points-sized native overlays (the right-hand rail, the ZONES / TRAVEL SQUAD text) shrink by
+ * `homeCompactFactor` when the artboard is drawn smaller than this (iPhone SE: 375 x 667 pt, height-bound), and are
+ * untouched at 402 and 430 pt, where the factor is 1.
+ */
+export const HOME_REFERENCE_SCALE = 402 / ARTBOARD_WIDTH;
+export function homeCompactFactor(scale: number): number {
+  if (!(scale > 0)) return 1;
+  return Math.max(0.6, Math.min(1, scale / HOME_REFERENCE_SCALE));
+}
+
 /** HomeScreen pads its canvas page by the safe-area insets plus these points. */
 export const HOME_PAGE_PADDING = { top: 8, bottom: 12 } as const;
 export function homeCanvasFrame(window: { width: number; height: number }, insets: { top: number; bottom: number }) {

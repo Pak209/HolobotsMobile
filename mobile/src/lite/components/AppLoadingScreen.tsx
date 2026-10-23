@@ -13,9 +13,17 @@ const logoImage = require("../../../assets/loading-logo.png");
 
 type AppLoadingScreenProps = {
   ready?: boolean;
+  /**
+   * lite-sim-fixes-1: true while expo-font is still registering HoloDisplay / HoloBody. Text laid out with those alias
+   * families during registration makes React Native cache an empty font list for the alias (RCTFont
+   * fontNamesForFamilyName), which can outlive the load: "Unrecognized font family" and the whole app then draws the
+   * heavy system face instead of Rajdhani, on some launches only. So this screen uses the system face until fonts land.
+   */
+  fontsPending?: boolean;
 };
 
-export function AppLoadingScreen({ ready = false }: AppLoadingScreenProps) {
+export function AppLoadingScreen({ ready = false, fontsPending = false }: AppLoadingScreenProps) {
+  const face = fontsPending ? styles.systemFace : null;
   const [progress, setProgress] = useState(0);
   const glow = useRef(new Animated.Value(0.45)).current;
   const dots = useMemo(
@@ -102,8 +110,8 @@ export function AppLoadingScreen({ ready = false }: AppLoadingScreenProps) {
           <Image source={logoImage} style={styles.logo} resizeMode="contain" />
         </View>
 
-        <Text style={styles.title}>HOLOBOTS</Text>
-        <Text style={styles.subtitle}>SYNC • TRAIN • BATTLE</Text>
+        <Text style={[styles.title, face]}>HOLOBOTS</Text>
+        <Text style={[styles.subtitle, face]}>SYNC • TRAIN • BATTLE</Text>
 
         <View style={styles.progressWrap}>
           <View style={styles.progressFrame}>
@@ -112,8 +120,8 @@ export function AppLoadingScreen({ ready = false }: AppLoadingScreenProps) {
             </View>
           </View>
           <View style={styles.progressMeta}>
-            <Text style={styles.progressLabel}>LOADING</Text>
-            <Text style={styles.progressValue}>{progress}%</Text>
+            <Text style={[styles.progressLabel, face]}>LOADING</Text>
+            <Text style={[styles.progressValue, face]}>{progress}%</Text>
           </View>
         </View>
 
@@ -149,6 +157,9 @@ export function AppLoadingScreen({ ready = false }: AppLoadingScreenProps) {
 }
 
 const styles = StyleSheet.create({
+  systemFace: {
+    fontFamily: "System",
+  },
   borderBottom: {
     bottom: 0,
   },

@@ -10,6 +10,7 @@ import Svg, { Path } from "react-native-svg";
 import {
   getExpProgress,
   getHolobotBaseProfile,
+  getHolobotDisplayStats,
   getHolobotRank,
   normalizeUserHolobot,
   type HolobotRosterEntry,
@@ -160,11 +161,15 @@ export function HolobotStatsModal({
       ? 1
       : Math.min(1, blueprintCount / BLUEPRINT_TIERS[0].required);
 
+  // lite-sim-fixes-1: the level-scaled base, i.e. the host's displayStats scale (functions getHolobotDisplayStats:
+  // floor(base x levelBonus) + boost), which Training already shows. The row used to print the LV 1 base profile, so
+  // a LV 12 ACE read HP 150 here and HP 232 on Training. Display only; the boosts are added as before.
+  const levelBase = getHolobotDisplayStats(holobot.name, normalizedOwnedHolobot?.level ?? holobot.level ?? 1);
   const stats = [
-    { baseValue: base.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+10 HP" },
-    { baseValue: base.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
-    { baseValue: base.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
-    { baseValue: base.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
+    { baseValue: levelBase.hp, bonus: boosts.health || 0, key: "health" as const, label: "HP", upgrade: "+10 HP" },
+    { baseValue: levelBase.attack, bonus: boosts.attack || 0, key: "attack" as const, label: "Attack", upgrade: "+1 ATK" },
+    { baseValue: levelBase.defense, bonus: boosts.defense || 0, key: "defense" as const, label: "Defense", upgrade: "+1 DEF" },
+    { baseValue: levelBase.speed, bonus: boosts.speed || 0, key: "speed" as const, label: "Speed", upgrade: "+1 SPD" },
   ];
   const syncRows: Array<{ key: SyncStatKey; value: number }> = [
     { key: "power", value: syncStats.power },
@@ -199,6 +204,10 @@ export function HolobotStatsModal({
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.card}>
+          {/* lite-sim-fixes-1: the opaque navy plate the other dialogs draw (HolobotPickerModal, DashboardSettingsModal).
+              The frame on top stays transparent so it can outline the scrolled content; without this backing the
+              Inventory list read through the card. */}
+          <GameDialogFrame accent={theme.colors.accent} fill={theme.plates.navy} />
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <Pressable
               disabled={activeTab !== "stats" || !careerSummary}
