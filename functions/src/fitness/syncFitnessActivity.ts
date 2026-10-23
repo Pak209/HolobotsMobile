@@ -13,6 +13,7 @@ import {
 } from "../lib/referrals";
 
 import { db } from "../admin";
+import { accrueWorkoutReadiness, readinessAccrualEnabled } from "../lib/syncReadiness";
 import {
   computeFitnessSyncOutcome,
   sanitizeFitnessSyncRequest,
@@ -84,12 +85,21 @@ export const syncFitnessActivity = onCall(async (request): Promise<SyncFitnessAc
 
     const userData = userSnapshot.data() ?? {};
     const dailyData = dailySnapshot.data() ?? {};
-    const sanitized = sanitizeFitnessSyncRequest(dailyData, parsed, new Date());
+    const nowMs = Date.now();
+    const sanitized = sanitizeFitnessSyncRequest(dailyData, parsed, new Date(nowMs));
     const outcome = computeFitnessSyncOutcome(userData, dailyData, sanitized);
 
     if (outcome.alreadyProcessed || !outcome.userUpdates) {
-      return outcome.response;
+      return readinessAccrualEnabled() ? { ...outcome.response, readiness: null } : outcome.response;
     }
+
+    const readiness = accrueWorkoutReadiness(userData, {
+      activityId: parsed.activityId?.trim() || parsed.eventId?.trim() || "",
+      counted: sanitized.sessionIncrement === 1,
+      holobotName: parsed.holobotName,
+      elapsedSeconds: Number(sanitized.workoutMinutes || 0) * 60,
+      nowMs,
+    });
 
     // Referral qualification (genesis-squad-monetization-plan.md): the
     // invited player's FIRST settled workout is what makes their referral
@@ -138,6 +148,7 @@ export const syncFitnessActivity = onCall(async (request): Promise<SyncFitnessAc
       userRef,
       {
         ...withRankHealingReward(userData,outcome.userUpdates),
+        ...(readiness?.update ? { syncReadiness: readiness.update } : {}),
         ...welcomeUpdates,
         lastFitnessSyncAt: FieldValue.serverTimestamp(),
         lastStepSync: FieldValue.serverTimestamp(),
@@ -170,6 +181,8 @@ export const syncFitnessActivity = onCall(async (request): Promise<SyncFitnessAc
       );
     }
 
-    return outcome.response;
+    return readinessAccrualEnabled()
+      ? { ...outcome.response, readiness: readiness?.award ?? null }
+      : outcome.response;
   });
 });
