@@ -2,7 +2,7 @@ import { hostTierLabel } from "@/lite/components/dashboard/holobotPresentation";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { HolobotViewer } from "@/lite/components/HolobotViewer";
 import { GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
-import { getExpProgress, type HolobotRosterEntry } from "@/config/holobots";
+import { getExpProgress, getHolobotDisplayStats, type HolobotRosterEntry } from "@/config/holobots";
 import { slotAccent, theme } from "@/lite/theme";
 
 type Props = {
@@ -21,6 +21,10 @@ export function HolobotRosterCard({ holobot, slot = 0, selected = false, live = 
   const accent = slotAccent(false, slot);
   const tier = hostTierLabel(holobot.hostRank);
   const progress = Math.max(0, Math.min(1, holobot.owned ? getExpProgress(holobot) : blueprintCount / 5));
+  // lite-inventory-stats-1: the card used to print holobot.stats, which is the attribute CHART scale (clamped to
+  // 15..100), so every low-level bot read ATK 15 / DEF 15 / SPD 15. The numbers come from the host displayStats
+  // formula instead (floor(base x levelBonus) + boost), the same values Training and the detail view show.
+  const stats = getHolobotDisplayStats(holobot.name, holobot.level, holobot.boostedAttributes);
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={actionLabel || `${holobot.name}, ${holobot.owned ? `level ${holobot.level}` : "unminted"}. Open details`}
@@ -46,7 +50,7 @@ export function HolobotRosterCard({ holobot, slot = 0, selected = false, live = 
         </View>
         <View style={styles.track}><View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: accent }]} /></View>
         {!compact && <View style={styles.stats}>
-          {[['ATK', holobot.stats.attack], ['DEF', holobot.stats.defense], ['SPD', holobot.stats.speed]].map(([label, value]) =>
+          {[['ATK', stats.attack], ['DEF', stats.defense], ['SPD', stats.speed]].map(([label, value]) =>
             <View key={label} style={styles.stat}><Text style={styles.caption}>{label}</Text><Text style={styles.statValue}>{value}</Text></View>)}
         </View>}
         <Text style={[styles.action, { color: accent }]}>{actionLabel || (holobot.owned ? "OPEN HOLOBOT  ›" : "VIEW BLUEPRINTS  ›")}</Text>
