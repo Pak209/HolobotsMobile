@@ -1,3 +1,4 @@
+import { KoPresentationGate, type TerminalPresentation } from '../../lib/bots/koPresentation';
 import { BattlePaceQueue, fightTiming, type FightTiming, type PresentationAcceptance } from '../../lib/bots/battlePace';
 import type { ResolvedBattlePace } from '../../lib/bots/resolvedBattlePace';
 import fightClipTiming from '../../lib/bots/fightClipTiming.json';
@@ -26,7 +27,7 @@ export type BotStageHandle = { present(cue: ResolvedBattlePace): PresentationAcc
 export type PerfArmResult = { arm: string; knobs: StagePerfKnobs; contextId: number; drawWidth: number; drawHeight: number; loadMs: number; renderer: unknown; defaultFramebufferSamples: unknown; reactRendersPerSecond: number; glCallsByNamePerFrame: Record<string, number>; summary: PerfArmSummary };
 /** Dev-only cost knobs (ignored outside __DEV__). Production callers never pass this. */
 export type BotStagePerf = { arm: string; knobs: StagePerfKnobs; onArmDone?: (result: PerfArmResult) => void };
-type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onPresentationDrain?: () => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf;
+type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onPresentationDrain?: () => void; terminal?: TerminalPresentation; onTerminalComplete?: (id: string) => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf;
   /** Production render settings (MSAA, buffer scale, mixer Hz). Omitted: production defaults. Dev `perf` knobs override it. */
   quality?: StageRenderQuality;
   /** lite-vfx-port-1: load the combat-VFX pack and accept fx() cues (duel stages only). Off: no VFX code runs. */
@@ -38,7 +39,7 @@ type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?
 type TimedStageCue = ResolvedBattlePace & { timing: FightTiming; clip: string };
 type Actor = { paceAction?: THREE.AnimationAction; koAt?: number; freezeUntil?: number; flashMaterials: { material: THREE.MeshStandardMaterial; color: THREE.Color; intensity: number }[]; id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>; anchors?: VfxAnchors };
 
-export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onPresentationDrain, onError, onMetrics, showMetrics = false, perf, quality, vfx = false, vfxUnbuiltKits = false, specialCamera = false }, ref) {
+export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onPresentationDrain, terminal, onTerminalComplete, onError, onMetrics, showMetrics = false, perf, quality, vfx = false, vfxUnbuiltKits = false, specialCamera = false }, ref) {
   const perfRun = __DEV__ ? perf : undefined;
   const renderSettings = resolveStageRender(quality, perfRun?.knobs);
   const scale = Math.max(0.25, Math.min(1, renderScale)) * renderSettings.resolution;
@@ -57,9 +58,11 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
   const [metrics, setMetrics] = useState<BotMetrics | null>(null);
   const actors = useRef(new Map<string, Actor>());
   const pace = useRef(new BattlePaceQueue<TimedStageCue>());
+  const terminalRef = useRef(terminal); terminalRef.current = terminal;
+  const koGate = useRef(new KoPresentationGate());
   const activeRef = useRef(active);
-  const callbacks = useRef({ onReady, onPresentationDrain, onError, onMetrics });
-  callbacks.current = { onReady, onPresentationDrain, onError, onMetrics };
+  const callbacks = useRef({ onReady, onPresentationDrain, onTerminalComplete, onError, onMetrics });
+  callbacks.current = { onReady, onPresentationDrain, onTerminalComplete, onError, onMetrics };
   const disposeRef = useRef<() => void>(() => {});
   const generation = useRef(0);
   const mounted = useRef(true);
@@ -178,7 +181,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       if (!alive) return;
       alive = false;
       cancelAnimationFrame(frameId);
-      pace.current.reset();
+      pace.current.reset(); koGate.current.reset();
       appSubscription.remove();
       localActors.forEach(actor => { actor.mixer.stopAllAction(); actor.mixer.uncacheRoot(actor.root); });
       ownedRoots.forEach(disposeBot);
@@ -360,7 +363,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           if (event.type === 'cancel') continue;
           if (event.type === 'start') {
             if (play(cue.attacker, cue.clip)) { actor.paceAction = actor.current; actor.current!.setEffectiveTimeScale(0); }
-            if (cue.kind === 'guard') actor.guardAt = poseNow;
+            if (cue.kind === 'guard') { actor.guardAt = poseNow; if (__DEV__) console.info('[HolobotPace:guard] ' + JSON.stringify({ id: cue.id, bot: actor.id, clip: cue.clip, phase: 'start', clockMs: poseNow, utc: new Date().toISOString() })); }
             else cameraCue.current.strikeAt = poseNow;
             for (const effect of cue.effects ?? []) fireFx(effect, cue.timing.windupMs);
           } else if (event.type === 'contact') {
@@ -368,7 +371,8 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
               const struck = localActors.get(cue.damaged);
               if (struck && struck.koAt === undefined) {
                 const reaction = cue.ko === cue.damaged ? 'FightKO' : cue.kind === 'light' ? 'FightHitLight' : 'FightHitHeavy';
-                if (!play(cue.damaged, reaction)) play(cue.damaged, 'Idle');
+                if (!play(cue.damaged, reaction) && cue.ko !== cue.damaged) play(cue.damaged, 'Idle');
+                if (cue.ko === cue.damaged && !struck.animations.some(c => c.name === 'FightKO') && struck.current) struck.current.paused = true;
                 if (cue.ko === cue.damaged) struck.koAt = poseNow;
                 struck.hitAt = poseNow; struck.freezeUntil = poseNow + cue.timing.stopMs;
                 cameraCue.current.shakeFrames = 2;
@@ -377,10 +381,20 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
             if (__DEV__) console.info('[HolobotPace:contact] ' + JSON.stringify({ id: cue.id, bot: actor.id, clip: cue.clip, contactSeconds: cue.timing.contactSeconds, windupMs: cue.timing.windupMs, clockMs: poseNow, ko: cue.ko }));
           } else if (actor.paceAction && actor.current === actor.paceAction && actor.koAt === undefined) {
             actor.paceAction = undefined;
+            if (cue.kind === 'guard' && __DEV__) console.info('[HolobotPace:guard] ' + JSON.stringify({ id: cue.id, bot: actor.id, clip: cue.clip, phase: 'idle', clockMs: poseNow, utc: new Date().toISOString() }));
             if (!play(cue.attacker, 'FightIdle')) play(cue.attacker, 'Idle');
           }
         }
         if (events.some(event => event.type === 'finish' || event.type === 'cancel')) callbacks.current.onPresentationDrain?.();
+        const terminalNow = terminalRef.current;
+        if (terminalNow && pace.current.idle) for (const side of terminalNow.defeated) {
+          const actor = localActors.get(side);
+          if (actor && actor.koAt === undefined) {
+            const hasKo = play(side, 'FightKO');
+            if (!hasKo && actor.current) actor.current.paused = true; // legacy bundle: hold the visible pose, never fake a KO clip
+            actor.koAt = poseNow;
+          }
+        }
         const pose = pace.current.sample();
         localActors.forEach((actor, side) => {
           const ownsAttack = pose?.cue.attacker === side && actor.paceAction === actor.current && actor.koAt === undefined;
@@ -431,6 +445,17 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         if (Platform.OS !== 'web') gl.finish();
         gl.endFrameEXP();
         if (Platform.OS !== 'web') gl.flushEXP();
+        const koReady = !!terminalNow && pace.current.idle && terminalNow.defeated.every(side => {
+          const actor = localActors.get(side);
+          return !actor || (actor.koAt !== undefined && (!actor.animations.some(c => c.name === 'FightKO') || !actor.current || actor.current.time >= actor.current.getClip().duration - 0.0001));
+        });
+        const hadEndpoint = koGate.current.finalPoseSince !== null;
+        const terminalDone = koGate.current.advance(terminalNow?.id ?? null, poseNow, koReady);
+        if (__DEV__ && !hadEndpoint && koGate.current.finalPoseSince !== null) console.info('[HolobotPace:ko-endpoint] ' + JSON.stringify({ id: terminalNow?.id, clockMs: poseNow, utc: new Date().toISOString() }));
+        if (terminalDone) {
+          if (__DEV__) console.info('[HolobotPace:terminal] ' + JSON.stringify({ id: terminalNow!.id, clockMs: poseNow, finalPoseHoldMs: 2000, utc: new Date().toISOString() }));
+          callbacks.current.onTerminalComplete?.(terminalNow!.id);
+        }
         frames++; sampleFrames++;
         if (knobs && !perfWindow.done) {
           const completed = performance.now();

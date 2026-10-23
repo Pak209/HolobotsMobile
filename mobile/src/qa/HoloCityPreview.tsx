@@ -1,3 +1,4 @@
+import { battleTerminalPreviewScreens } from './BattleTerminalPreview';
 import { previewInitialScreen, ARENA_CAPTURE_ROUTES } from "./previewRoutes";
 import { ArenaAdmittedRoundPreview, ArenaAdmittedResultPreview, ArenaAdmittedKnownBadPreview } from "./ArenaAdmittedPreview";
 import { ArenaHostLevelsPreview, ArenaHostLevelsKnownBadPreview } from "./ArenaHostLevelsPreview";
@@ -110,7 +111,7 @@ const screens: Record<string, React.ComponentType<any>> = {
   ...cityScreens,
   ...cityMarketPreviewScreens,
   ...pvpFightersPreviewScreens,
-  ...pvpBattlePreviewScreens,
+  ...pvpBattlePreviewScreens, ...battleTerminalPreviewScreens,
   HostDuel: HostDuelPreview, ...hostDuelCaptureScreens, HostDuelPerfSweep: HostDuelPerfSweepPreview,
   Duel: DuelPreview, DuelReceipt: ReceiptPreview, ...duelCaptureScreens,
   ArenaHostLevels: ArenaHostLevelsPreview,

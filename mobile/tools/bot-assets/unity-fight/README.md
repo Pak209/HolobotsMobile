@@ -35,3 +35,9 @@ node mobile/scripts/validate-bots.mjs --report "$PACE_OUT/asset-validation.json"
 - TSUIN GuardHold is the vault-authored candidate from `2026-10-20-tsuin-guard-clips-1`; Unity's installed fallback was AttackBasic and its native blend witness remains queued. No exact shipped-guard parity is claimed.
 
 `render_proof.py` renders decoded packed candidates, four contact/end poses, the worst sampled clamp pose, and the same action on the original weights. These are Blender Workbench skin/rig checks, not native game-lighting evidence. `make_sheets.py` produces inventoried six-cell sheets and paired worst-pose crops. Native simulator evidence and the full gate table are in `~/HolobotsVault/QA/2026-10-23-astra-lite-battle-pace/`; Unity's QA README records holds and the full test run.
+
+## lite-battle-pace-2 continuation
+
+`compact_defaults.mjs` removes only explicit GLB JSON defaults (`normalized:false`, zero byte offsets, `LINEAR` interpolation). It asserts valid GLB framing and preserves all following BIN chunks byte-for-byte. `pack.mjs` applies it after strict packing; the 2,000,000-byte cap and 1e-7 tolerance remain unchanged. Run `node --test mobile/tools/bot-assets/unity-fight/compact_defaults.test.mjs`.
+
+HARE is still held: the prior loose candidate now fits at 1,987,352 B but fails decoded pose (2.291864 mm / 0.217491 degrees); a strict repack passes pose (0.0697288 mm / 0.0781415 degrees) but is 2,210,316 B. Both failures and commands are archived in the pace-2 vault; no third attempt or HARE installation. See `Documentation/QA/2026-10-23-lite-battle-pace-2.md` for the rule citation, native KO-to-result and TSUIN guard witness, and FPS limits.

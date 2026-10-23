@@ -44,6 +44,7 @@ export class BattlePaceQueue<T extends TimedCue> {
     this.pending.push(cue);
     return true;
   }
+  get idle(): boolean { return this.pending.length === 0 && this.running === null; }
   reset(): void { this.pending = []; this.running = null; this.seen.clear(); this.clockMs = 0; }
   advance(elapsedMs: number, canStart: (cue: T) => boolean = () => true): PaceEvent<T>[] {
     this.clockMs += Math.max(0, Math.min(1000, Number.isFinite(elapsedMs) ? elapsedMs : 0));
@@ -86,6 +87,7 @@ export class BattlePaceQueue<T extends TimedCue> {
 export class PresentationCursor<T extends { id: string }> {
   private key: string | null = null;
   private completed = new Set<string>();
+  hasPending(rows: readonly T[]): boolean { return rows.some(row => !this.completed.has(row.id)); }
   consume(key: string, rows: readonly T[], ready: boolean, accept: (row: T) => boolean | PresentationAcceptance): number {
     if (key !== this.key) { this.key = key; this.completed.clear(); ready = false; }
     if (!ready) { for (const row of rows) this.completed.add(row.id); return 0; }
