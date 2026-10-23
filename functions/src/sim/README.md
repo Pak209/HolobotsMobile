@@ -207,7 +207,10 @@ required `chase` block with ten integer keys, in hash order: `chaserSpeedPm` 110
   `decodeState` names these fields.
 - **Events and deny code.** Events 23 Retreat, 24 Caught, 25 RingStop, 26 ChaseEnd (value = `ChaseEnd` reason); deny 13
   `RetreatCooldown`. The witness and the receipt are unchanged.
-- **Parity.** `test-fight-rules4-parity` replays the 13 Unity vectors (`scripts/fixtures/duel-rules-4`, copied verbatim) on
+- **Caught rule (lane `chase-caught-rule-1`, Pak 2026-10-22: "yes hit should bring the retreating bot back").** A landed hit
+  (Hit or GuardBreak) catches a tagged runner whenever the runner survives it (HP after the hit > 0); a KO hit never catches.
+  The first cut caught only while the post-damage HP was still above the damage. Changed in place: the flag was never on.
+- **Parity.** `test-fight-rules4-parity` replays the 15 Unity vectors (`scripts/fixtures/duel-rules-4`, copied verbatim) on
   every tick hash, event and witness, with a `duel-rules-3` known-bad control. `Schemas/fixtures/duel-receipt-2-chase.fixture.json`
   is a host-issued chase duel; the Unity C# verifier reproduces its receipt byte for byte.
 

@@ -7,6 +7,8 @@
     "chase-escape-cooldown",
     "chase-disengage-then-escape",
     "chase-caught-pull",
+    "chase-caught-survivable",
+    "chase-caught-ko",
     "chase-turn-and-fight",
     "chase-ring-stop",
     "chase-timeline",

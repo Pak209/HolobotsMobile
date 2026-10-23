@@ -28,9 +28,9 @@ function replay(doc, asRules3 = false) {
   return F.runFight(rules, doc.seed, drv(), drv(), { tickHashes: true, chase });
 }
 
-test('13 duel-rules-4 vectors are listed', () => {
+test('15 duel-rules-4 vectors are listed', () => {
   assert.equal(index.vectorVersion, 'duel-rules-4-vectors-1');
-  assert.equal(index.vectors.length, 13);
+  assert.equal(index.vectors.length, 15);
 });
 
 for (const name of index.vectors) {
@@ -74,6 +74,12 @@ test('the rules-4 vectors show their rule (the C# pins)', () => {
   assert.ok(ev('chase-disengage-chased').includes('0 s0 Retreat 45'));
   assert.ok(ev('chase-escape-cooldown').includes('44 s0 Denied 13'));
   assert.ok(ev('chase-caught-pull').some(e => e.includes(' s0 Caught Heavy ')));
+  // chase-caught-rule-1 (Pak 2026-10-22): any hit the runner survives catches it; a KO hit never does
+  assert.ok(ev('chase-caught-survivable').some(e => e.startsWith('16 s0 Caught Heavy ')), 'a hit leaving 1 HP (< the 103 damage) catches');
+  assert.ok(ev('chase-caught-survivable').includes('16 s1 Contact Heavy Hit 103'));
+  assert.equal(load('chase-caught-survivable').expected.finalHp[0], 1);
+  assert.equal(ev('chase-caught-ko').some(e => e.includes(' Caught ')), false, 'a KO hit never catches');
+  assert.equal(load('chase-caught-ko').expected.reason, 'ko');
   assert.ok(ev('chase-ring-stop').some(e => e.endsWith(' s0 RingStop 6000')));
   assert.ok(ev('chase-squad-ko-bench').includes('15 s1 ChaseEnd 6') && ev('chase-squad-ko-bench').includes('66 s0 ChaseEnd 6'));
   assert.equal(ev('chase-tuned-numbers').some(e => e.includes(' RingStop ')), false, 'ringStop 0 = today\'s clamp');
