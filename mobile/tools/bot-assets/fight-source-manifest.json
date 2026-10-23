@@ -1,0 +1,1525 @@
+{
+  "unityCommit": "1252e63acc6da12be0ab2cbdbde1408e2687251f",
+  "originalMobileCommit": "cdf6318d961c532f43d9428e75c00154b5b4f8ad",
+  "bots": {
+    "ace": {
+      "reference": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_Mixar_JabCross.anim",
+      "referenceSha256": "03e0f47e456b2882f3bacd510fbf2e2ca7f2138bd167583bf17a88ced05bad01",
+      "referenceTake": "JabCross",
+      "controller": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_MixarTrial.controller",
+      "controllerSha256": "ccd3e38b696f4d0f6e2132c432fc4bfe32b5c678874f68d79e610f18593f6937",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 1.7666668,
+          "unityClip": "HB_ACE_Mixar_JabCross"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.3666668,
+          "unityClip": "HB_ACE_Mixar_MeteorHammer"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 1.9666668,
+          "unityClip": "HB_ACE_Mixar_Skybreaker"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.4666666666666667,
+          "unityClip": "HB_ACE_Anim_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 0.9666666666666667,
+          "unityClip": "HB_ACE_Anim_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 2.966667,
+          "unityClip": "HB_ACE_Mixar_FableGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.5,
+          "unityClip": "HB_ACE_Anim_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 4.0,
+          "unityClip": "HB_ACE_Mixar_FableHover"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 4.0,
+          "unityClip": "HB_ACE_Mixar_FableHover"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_Mixar_JabCross.anim",
+          "speed": 1.5588235,
+          "guid": "1021350e93a8049e28bc9bcee7485797",
+          "state": "JabCross",
+          "sha256": "03e0f47e456b2882f3bacd510fbf2e2ca7f2138bd167583bf17a88ced05bad01",
+          "duration": 1.7666668,
+          "contact": 0.98725486
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_Mixar_MeteorHammer.anim",
+          "speed": 1.7749999,
+          "guid": "83306cdd51ab849aab1d821333b591de",
+          "state": "MeteorHammer",
+          "sha256": "29cd228ce9fb2b194f8f0bb5c7e27fb713a318459f7e2972ef2372f92b5dfd46",
+          "duration": 2.3666668,
+          "contact": 1.1241666
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_Mixar_Skybreaker.anim",
+          "speed": 1.4047619,
+          "guid": "885dc617a7bfb478bae7310bfbe42c65",
+          "state": "Skybreaker",
+          "sha256": "b332d5da4724ebd89a2d483a34031caf605292b292d6728c76d6d0c366b354aa",
+          "duration": 1.9666668,
+          "contact": 0.74920636
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/ACE/Animations/HB_ACE_Anim_HitLight.fbx",
+          "speed": 1.0,
+          "guid": "8416487cea44246be8a488371d29fecb",
+          "state": "HitLight",
+          "sha256": "2d158d0cc92b2a8d113ef8259fc53dfb6de049f82550446f468342d6b63d3770",
+          "duration": 0.4666666666666667,
+          "contact": null,
+          "kind": "fbx",
+          "take": "Scene"
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/ACE/Animations/HB_ACE_Anim_HitHeavy.fbx",
+          "speed": 1.0,
+          "guid": "2e33aee723e274a7b828bca110137e43",
+          "state": "HitHeavy",
+          "sha256": "dbfd2e31ae92370567896398167332e9349c00deee11145b987d329830732e58",
+          "duration": 0.9666666666666667,
+          "contact": null,
+          "kind": "fbx",
+          "take": "Scene"
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_Mixar_FableGuard.anim",
+          "speed": 1.0,
+          "guid": "c6206c541f58540acbacec30e1276c1c",
+          "state": "InterceptGuardXD",
+          "sha256": "410c001f76b17a14778b75db727165e9584faad381898bd539e6c79913fe4596",
+          "duration": 2.966667,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/ACE/Animations/HB_ACE_Anim_Defeat.fbx",
+          "speed": 1.0,
+          "guid": "12ee534175aa440e085543413464aa28",
+          "state": "Defeat",
+          "sha256": "403c788d8c9bcf3129371f8f759383ebf89ede1a1b19f9638c3cfef7019cec79",
+          "duration": 1.5,
+          "contact": null,
+          "kind": "fbx",
+          "take": "Scene"
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_Mixar_FableHover.anim",
+          "sha256": "640435a74ab023d75bd7fd83c1e757e79ce7b623dd6dfe5888d7c6da48878388",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 4.0,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/ACE/MixarTrial_20261008/HB_ACE_Mixar_FableHover.anim",
+          "sha256": "640435a74ab023d75bd7fd83c1e757e79ce7b623dd6dfe5888d7c6da48878388",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 4.0,
+          "contact": null,
+          "provenance": "Installed Hover locomotionMode=1 / groundedInCombat=0: CombatLocomotionHover.Forward uses BattleReady/FableHover. Legacy baked Run is an incompatible rig and is not used."
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "bf9d4819c9a368736981cc7b4d80d1080e891cb1e1a5aee1cce2d51a28b6ae78"
+    },
+    "era": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_Mixar_Idle.anim",
+      "referenceSha256": "a2197fd1990bffbe8d84d7a98c580f15b2f363a373ed0c4dbc58c68915adda86",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_Mixar.controller",
+      "controllerSha256": "224ed73c7f532b75d4f5ff9d34dcfb0eee6191854d36a2eb4136370fa432a720",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.1666667,
+          "unityClip": "HB_ERA_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.1666667,
+          "unityClip": "HB_ERA_MixarState_WingShear"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.6666667,
+          "unityClip": "HB_ERA_MixarState_DivingEdge"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.46666667,
+          "unityClip": "HB_ERA_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 0.96666664,
+          "unityClip": "HB_ERA_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_ERA_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.9666667,
+          "unityClip": "HB_ERA_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.0,
+          "unityClip": "HB_ERA_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.8333334,
+          "unityClip": "HB_ERA_Mixar_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_MixarState_AttackBasic.anim",
+          "speed": 2.2413795,
+          "guid": "3fc2a0490d3cf499780f5f84c255c343",
+          "state": "AttackBasic",
+          "sha256": "335351ed2c6baf1a87985758b9218553537ef8007a663f839061c17afb4a5fc9",
+          "duration": 2.1666667,
+          "contact": 0.9712645
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_MixarState_WingShear.anim",
+          "speed": 1.8055556,
+          "guid": "ca8df9f9e277b417d849e653d8e2d889",
+          "state": "WingShear",
+          "sha256": "2f91aa1f7b97a2677d43fde15e4be0264818dfbad5480e9c4cc8370efbbd96f4",
+          "duration": 2.1666667,
+          "contact": 1.0231482
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_MixarState_DivingEdge.anim",
+          "speed": 1.9047618,
+          "guid": "43cb6ec7c7a16485694fb55fd2e14aa7",
+          "state": "DivingEdge",
+          "sha256": "d76462aba5c1e6d2dc561ecbd1bc2920ccd1c317d523f589cf2dabb64e4d9220",
+          "duration": 2.6666667,
+          "contact": 1.5238094
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "7fe550097ff834ebc9a8665fe258b18c",
+          "state": "HitLight",
+          "sha256": "4f55490281c52d3c9ade399ee094ed22c21f6ee9b84fc13509974783ee8a6805",
+          "duration": 0.46666667,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "7ab411fe30d8040ee86feb644d73c502",
+          "state": "HitHeavy",
+          "sha256": "c7edc8c9b2aa14220c413ba2f016f24d8792543015748eb7194a8ab688686a49",
+          "duration": 0.96666664,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "12eafa2177a5e401bbfc9a90a2c27f03",
+          "state": "InterceptGuard",
+          "sha256": "6b5c59c8abcc82a22158eaa6ee9a9bac278d2e135aadfd455a00c8b46b3bed72",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "5f1ad65763ddc46428fd6c471dd53837",
+          "state": "Defeat",
+          "sha256": "bba018c7811d978b89871bbb028e25796607a332c28c962522f5b2f51ed69116",
+          "duration": 1.9666667,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_Mixar_Idle.anim",
+          "sha256": "a2197fd1990bffbe8d84d7a98c580f15b2f363a373ed0c4dbc58c68915adda86",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 2.0,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/ERA/HB_ERA_Mixar_Run.anim",
+          "sha256": "d6ed518988b88f8ee16abd2e85e4c8d4df33fa3a03c44d207edaff7d9073a064",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.8333334,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "7cf4410b0947823809e8001db0b136b1e970894f36480d9ad96a72a3931fbb0b"
+    },
+    "gama": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_Mixar_Idle.anim",
+      "referenceSha256": "90cc99d42496fccc1cb3116b141e3f57fc075721d956251aaa86cb6a9b321a8e",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_Mixar.controller",
+      "controllerSha256": "62d5e6421b7d2a204beb4813f69eb5ecb6806d0b173955a3c1c8b284df12909f",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.0416667,
+          "unityClip": "HB_GAMA_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.4583335,
+          "unityClip": "HB_GAMA_MixarState_LowSweep"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.4583335,
+          "unityClip": "HB_GAMA_Mixar_DiveKick"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.46666667,
+          "unityClip": "HB_GAMA_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 0.96666664,
+          "unityClip": "HB_GAMA_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_GAMA_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.8666668,
+          "unityClip": "HB_GAMA_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.9583335,
+          "unityClip": "HB_GAMA_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.625,
+          "unityClip": "HB_GAMA_Mixar_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_MixarState_AttackBasic.anim",
+          "speed": 3.0625,
+          "guid": "c389867d4585e44bea1db2a642e782f8",
+          "state": "AttackBasic",
+          "sha256": "d6a2282b18b4525d9ff71b45d52167953bdb708ee2732edb2afb62ba1a01b7c7",
+          "duration": 2.0416667,
+          "contact": 0.8166667
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_MixarState_LowSweep.anim",
+          "speed": 1.8437499,
+          "guid": "1f02552a74e354753baf62c584a0e827",
+          "state": "LowSweep",
+          "sha256": "112ec0d4779e2e8dc08daaf1db4f246ae043c73fd8c784fa234038426a583015",
+          "duration": 2.4583335,
+          "contact": 1.3520833
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_Mixar_DiveKick.anim",
+          "speed": 1.0,
+          "guid": "8b286a1a07bb544e782e33628452a69d",
+          "state": "DiveKick",
+          "sha256": "9c45175aa40b2b73e259007ef3e0e6a8eb8552cc595a61761ffffae09f919409",
+          "duration": 2.4583335,
+          "contact": 1.3520834
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "d4b2b3de52d4041f18ad14d9232df78a",
+          "state": "HitLight",
+          "sha256": "b803922a1f8062e47138ec1186e67023566ea550c642e98e2ceeaaa47a5fbbe4",
+          "duration": 0.46666667,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "a052eda5a874a427ca1e7818d4c9d746",
+          "state": "HitHeavy",
+          "sha256": "c6bf15214eb0c38678674d91d3821f452db590e7e9087987490ef697adff751e",
+          "duration": 0.96666664,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "9e5a54697daba4ea1aaf16d94c4830d8",
+          "state": "InterceptGuard",
+          "sha256": "72b91de75a8797e71df6722d1569b8bbcc6f70645dc2449c3214a6b736328b14",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "5623ff39da245420b847a193e060ca54",
+          "state": "Defeat",
+          "sha256": "f3981ce2a89fbf26dcd07af856a7ee0161859c2069da2469dce512f849c42492",
+          "duration": 1.8666668,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_Mixar_Idle.anim",
+          "sha256": "90cc99d42496fccc1cb3116b141e3f57fc075721d956251aaa86cb6a9b321a8e",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 2.9583335,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/GAMA/HB_GAMA_Mixar_Run.anim",
+          "sha256": "d2d1ac43a0c410daca86dfd8e9f7212277c79c734b07497d0dab3c5c776bf383",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.625,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "ae7eca2f2f26f816aae0c770450cadb7c959635725760dbdf536e76fcf3102dd"
+    },
+    "ken": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_Mixar_Idle.anim",
+      "referenceSha256": "f178d458fb2f7decd70ffae8c9de1b3e12b79b78cbba5d7f6b8303a4fee5c10b",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_Mixar.controller",
+      "controllerSha256": "92a807438ee20aa11d0e066211a77e72d9ff9634985960e48713ab258074e4c6",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.2916667,
+          "unityClip": "HB_KEN_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.875,
+          "unityClip": "HB_KEN_MixarState_CrownDrop"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.875,
+          "unityClip": "HB_KEN_MixarState_CrownDrop"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.56666666,
+          "unityClip": "HB_KEN_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 1.1666667,
+          "unityClip": "HB_KEN_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_KEN_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.7666668,
+          "unityClip": "HB_KEN_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.9583335,
+          "unityClip": "HB_KEN_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.7916667,
+          "unityClip": "HB_KEN_Mixar_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_MixarState_AttackBasic.anim",
+          "speed": 2.3706899,
+          "guid": "5c1107837f8e04674b172910a71c3ed0",
+          "state": "AttackBasic",
+          "sha256": "8f4de35c737a169023da89f1a89c4dd986a145107bc5b462475161e8696a0a46",
+          "duration": 2.2916667,
+          "contact": 1.0272989
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_MixarState_CrownDrop.anim",
+          "speed": 2.1562498,
+          "guid": "5ae737118665f41aabfb598af13add36",
+          "state": "CrownDrop",
+          "sha256": "4e5a60be52c65f729ac4e131668031a2d51737246d3653e5ed4ff3b6597a150b",
+          "duration": 2.875,
+          "contact": 1.3656248
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_MixarState_CrownDrop.anim",
+          "speed": 2.1562498,
+          "guid": "5ae737118665f41aabfb598af13add36",
+          "state": "CrownDrop",
+          "sha256": "4e5a60be52c65f729ac4e131668031a2d51737246d3653e5ed4ff3b6597a150b",
+          "duration": 2.875,
+          "contact": 1.3656248
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "52494308071a54763bb987b5a60bff3a",
+          "state": "HitLight",
+          "sha256": "051dcb0051f805d4b3d2db4cc0bff850bdd4bad2e8c347af6d91c9e67996baee",
+          "duration": 0.56666666,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "dd2a252660007426e9a6bcc5ad640669",
+          "state": "HitHeavy",
+          "sha256": "199435076c6023ed00d9e5c85d175cddb46c1bae2f9961011c35621869d48b65",
+          "duration": 1.1666667,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "8561d9361412f403b86803f0cec08b4f",
+          "state": "InterceptGuard",
+          "sha256": "1826a20a9f9a390063fd748d653b8457dc48c2fa936ef5644fd4754dad8ded5f",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "f2fa742e21d574415900eb14d3690e88",
+          "state": "Defeat",
+          "sha256": "2810411b3e4245b179192c953f5b21e06b2d09db199049ef4f54dd2e4b93fc3d",
+          "duration": 1.7666668,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_Mixar_Idle.anim",
+          "sha256": "f178d458fb2f7decd70ffae8c9de1b3e12b79b78cbba5d7f6b8303a4fee5c10b",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 2.9583335,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KEN/HB_KEN_Mixar_Run.anim",
+          "sha256": "d79e56937b878987c2cee0b3610f3a99e86e48d9522e3a9724a86b9eb886c83c",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.7916667,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "2bbb477a0e2c858cf1be6b15bc7684cc009ce611fdd10785998e96538097caf1"
+    },
+    "kuma": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_Mixar_Idle.anim",
+      "referenceSha256": "62a2ce102afecf0c47ebfb206db078a3031a9360d99c6b328fb503e27895b1fa",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_Mixar.controller",
+      "controllerSha256": "d9ff574549a70e593b8f87c5e64e8aeb2ce7cd2535ddd2b64af1a89bd5b41d1c",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.3333335,
+          "unityClip": "HB_KUMA_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.6666667,
+          "unityClip": "HB_KUMA_MixarState_DoubleHammer"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.6666667,
+          "unityClip": "HB_KUMA_MixarState_DoubleHammer"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.7666667,
+          "unityClip": "HB_KUMA_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 1.5666668,
+          "unityClip": "HB_KUMA_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_KUMA_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 2.1666667,
+          "unityClip": "HB_KUMA_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 3.0,
+          "unityClip": "HB_KUMA_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.8333334,
+          "unityClip": "HB_KUMA_Mixar_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_MixarState_AttackBasic.anim",
+          "speed": 1.7948718,
+          "guid": "f3b1f5c969ca54f2589273b4d7d767bd",
+          "state": "AttackBasic",
+          "sha256": "17c3a2a836ca134815553d05fc958a2d0e9ff6ce3a660fa1ed3f10718a95e3e5",
+          "duration": 2.3333335,
+          "contact": 1.076923
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_MixarState_DoubleHammer.anim",
+          "speed": 1.9999999,
+          "guid": "7c84129d3331a4770bc79fbac160fb47",
+          "state": "DoubleHammer",
+          "sha256": "0d74512a486bfea97649e2c1cd96d9b91c60c195d30bc24dab0de03a4407e087",
+          "duration": 2.6666667,
+          "contact": 1.4666666
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_MixarState_DoubleHammer.anim",
+          "speed": 1.9999999,
+          "guid": "7c84129d3331a4770bc79fbac160fb47",
+          "state": "DoubleHammer",
+          "sha256": "0d74512a486bfea97649e2c1cd96d9b91c60c195d30bc24dab0de03a4407e087",
+          "duration": 2.6666667,
+          "contact": 1.4666666
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "2d46a68e607cb43648b457293026eccc",
+          "state": "HitLight",
+          "sha256": "41f78c48c0403a8a9e2c90a1d3afdbfa35cfec15f06e48710ac552083d978d83",
+          "duration": 0.7666667,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "56394a56bc336423cbbae233620af265",
+          "state": "HitHeavy",
+          "sha256": "277cc7f4d5a8106a983d129928b07ec53baf7c5d82f1485e4a3aa7c7a0fb8ab0",
+          "duration": 1.5666668,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "d30e6bc18512a4e5f9513b3ff45fa15f",
+          "state": "InterceptGuard",
+          "sha256": "f27f6aebc5d4925c796d4adaae1056b38924d638c88f8c29e86802b6c2db9756",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "269f209b68c2c40b2890096fc1a0903d",
+          "state": "Defeat",
+          "sha256": "826d7bde4972f25d94dd1e2550b853a9429a3673b2fb99596a0a8618caae61c9",
+          "duration": 2.1666667,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_Mixar_Idle.anim",
+          "sha256": "62a2ce102afecf0c47ebfb206db078a3031a9360d99c6b328fb503e27895b1fa",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 3.0,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KUMA/HB_KUMA_Mixar_Run.anim",
+          "sha256": "5933fd6a698f8e86c9df7e836954b58834648269c196ca440d075c558c332732",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.8333334,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "055c6a3b93c95e5b9539f4a64e0f8fdc78609c94892ae5d25622642e26aa708a"
+    },
+    "kurai": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_Mixar_Idle.anim",
+      "referenceSha256": "73bcf58b0654f0a8c25969ef4817aa5ce6ae2646a35247448716861cd1a8d8dc",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_Mixar.controller",
+      "controllerSha256": "7e9f08e80759eef3545838542517d11e6ab5d0742382e8fa8b4a891546f30081",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.3333335,
+          "unityClip": "HB_KURAI_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.6666667,
+          "unityClip": "HB_KURAI_MixarState_RisingEdge"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.6666667,
+          "unityClip": "HB_KURAI_MixarState_RisingEdge"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.5,
+          "unityClip": "HB_KURAI_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 1.0333334,
+          "unityClip": "HB_KURAI_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_KURAI_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.5666668,
+          "unityClip": "HB_KURAI_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 3.0,
+          "unityClip": "HB_KURAI_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.8333334,
+          "unityClip": "HB_KURAI_Mixar_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_MixarState_AttackBasic.anim",
+          "speed": 3.0434783,
+          "guid": "d66eeca3e656440a9a44d9525abafdf0",
+          "state": "AttackBasic",
+          "sha256": "e66682ea71d2a5b19115ec52949a6d92b56933b8689d6bbc7b64bffe933619b0",
+          "duration": 2.3333335,
+          "contact": 1.0144928
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_MixarState_RisingEdge.anim",
+          "speed": 1.9999999,
+          "guid": "708bb652b982d4e69bc202cdb9901017",
+          "state": "RisingEdge",
+          "sha256": "7fd1fffffa909b5e1d7e88b197f58883da27a57937ae1711b347aa4fd5a5b530",
+          "duration": 2.6666667,
+          "contact": 1.3333333
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_MixarState_RisingEdge.anim",
+          "speed": 1.9999999,
+          "guid": "708bb652b982d4e69bc202cdb9901017",
+          "state": "RisingEdge",
+          "sha256": "7fd1fffffa909b5e1d7e88b197f58883da27a57937ae1711b347aa4fd5a5b530",
+          "duration": 2.6666667,
+          "contact": 1.3333333
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "e0ee0a6a39571401990afc67d629c110",
+          "state": "HitLight",
+          "sha256": "20cbb1e2950179986707bb36edd6222fdc04223a72f387bebab2fb344aef9767",
+          "duration": 0.5,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "97a359d3229964836a4f17dad928d67a",
+          "state": "HitHeavy",
+          "sha256": "a57c6dc5b44e67d4045bb775f446d3a0eec66b8c98fa1610aa43709d7b1a439f",
+          "duration": 1.0333334,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "44ef5d27b5eec43539190e6625c7a503",
+          "state": "InterceptGuard",
+          "sha256": "8713774f6c0de61b9b82993e9fbbe28270d52fa2c63ca4456f1071d1f81d3b21",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "c89541a74517f4c56af6863e5c7885e1",
+          "state": "Defeat",
+          "sha256": "28480a69e1628f999f5ef28fe1b1973fe85d6d0562d9b9109d1fe47a0bfdbc50",
+          "duration": 1.5666668,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_Mixar_Idle.anim",
+          "sha256": "73bcf58b0654f0a8c25969ef4817aa5ce6ae2646a35247448716861cd1a8d8dc",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 3.0,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/KURAI/HB_KURAI_Mixar_Run.anim",
+          "sha256": "77afaa9d7ca3261483e85e2e49c1e8d488aea24fa75119844625987a7c0d1da4",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.8333334,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "11f5e8452f9fab5009679eaedaa5ca9e5c128a808ead67b62e4ba8a0bd6ab19c"
+    },
+    "shadow": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_Mixar_Idle.anim",
+      "referenceSha256": "3d79cb4979fc02c82427c07cccc07d402ca19bd643d1d9da36f5a58055cbcb5d",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_Mixar.controller",
+      "controllerSha256": "16c2d7a6caa5b045cfdc3078d91004c66c812c155cbdc4450bf300b1bc0d9b58",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.125,
+          "unityClip": "HB_SHADOW_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.2916667,
+          "unityClip": "HB_SHADOW_MixarState_DiagonalCut"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.875,
+          "unityClip": "HB_SHADOW_Mixar_JumpSlash"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.5,
+          "unityClip": "HB_SHADOW_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 1.0333334,
+          "unityClip": "HB_SHADOW_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_SHADOW_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.5666668,
+          "unityClip": "HB_SHADOW_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.9583335,
+          "unityClip": "HB_SHADOW_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.7916667,
+          "unityClip": "HB_SHADOW_Mixar_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_MixarState_AttackBasic.anim",
+          "speed": 2.361111,
+          "guid": "a3f934abaf86445e2b52c60e61af3135",
+          "state": "AttackBasic",
+          "sha256": "1a426b8301b59b1c4315ed919b153f763143bbb93ab8b25575ee0f06effc3919",
+          "duration": 2.125,
+          "contact": 0.94444436
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_MixarState_DiagonalCut.anim",
+          "speed": 1.8092104,
+          "guid": "325d6dde2202e454fb1b40b2ff3854c7",
+          "state": "DiagonalCut",
+          "sha256": "4602add106ebcca7d6aacaa4b1e10ff39c184add1601aca22a6d5fb548fdbae7",
+          "duration": 2.2916667,
+          "contact": 1.0252192
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_Mixar_JumpSlash.anim",
+          "speed": 1.0,
+          "guid": "5301822243aea4a60802d71fe4d97fbb",
+          "state": "JumpSlash",
+          "sha256": "f4c90c7578c1de8ad1263a65aaa00afe58e69cac389cde970c2f5dec960622d6",
+          "duration": 2.875,
+          "contact": 1.5812501
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "f382b35137c3c408ab50f81e671645ed",
+          "state": "HitLight",
+          "sha256": "0cff991535bf06b579f8f5943f326df2c0bfe54d61a54de68ccd6fd57e6c6ef9",
+          "duration": 0.5,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "1ab44b4d6460c41ecbf9501d733d50cf",
+          "state": "HitHeavy",
+          "sha256": "9ee14da202be24b53fc28a3765bff449cc53675b9f556db01fd056231fcf8c80",
+          "duration": 1.0333334,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "bce5cf60c90134ec9bf837e51d6589de",
+          "state": "InterceptGuard",
+          "sha256": "8305b3fa00944d3c8a6144b02ccfcae0bed22efa9a7fc48f874de31994b30454",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "929a3bc33dd2f49a0a3dbae063fb8a42",
+          "state": "Defeat",
+          "sha256": "caff0af929c3919dd601ca28f42a4f5b6f78c233cefcd398ae418690f5412809",
+          "duration": 1.5666668,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_Mixar_Idle.anim",
+          "sha256": "3d79cb4979fc02c82427c07cccc07d402ca19bd643d1d9da36f5a58055cbcb5d",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 2.9583335,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/SHADOW/HB_SHADOW_Mixar_Run.anim",
+          "sha256": "3dd6b233ca052191e1675149a8c8d6a37e4ff0443c5c4af2d05d8bcb3b1b06a5",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.7916667,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "df0d263d82a285b8c3cf1025eec697c58c0e96af859fa72ae4f37a57caa9c1d2"
+    },
+    "tora": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_Mixar_Idle.anim",
+      "referenceSha256": "72582855f81a33a73614a3b3119cbd102deb0a7835c37620a57fb684f471fd85",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_Mixar.controller",
+      "controllerSha256": "5b54abf722dbb05e7db7d7ec46a0eb4dd95dbe0d4961543c7eefc59c2460d332",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.125,
+          "unityClip": "HB_TORA_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.125,
+          "unityClip": "HB_TORA_MixarState_TigerPalm"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.9583335,
+          "unityClip": "HB_TORA_MixarState_PounceCrush"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.7666667,
+          "unityClip": "HB_TORA_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 1.3666668,
+          "unityClip": "HB_TORA_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_TORA_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 2.1666667,
+          "unityClip": "HB_TORA_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 1.9583334,
+          "unityClip": "HB_TORA_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.7916667,
+          "unityClip": "HB_TORA_Mixar_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_MixarState_AttackBasic.anim",
+          "speed": 1.9921874,
+          "guid": "81d2304c25c1949e6853e218ce80ba77",
+          "state": "AttackBasic",
+          "sha256": "bceb1164d9dca40a2075c7da25ed31dba25cb7a75d55070c9ee7abaec183edae",
+          "duration": 2.125,
+          "contact": 1.0625
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_MixarState_TigerPalm.anim",
+          "speed": 1.8749998,
+          "guid": "b651d2860700a4ee5aabdabda9ce8db7",
+          "state": "TigerPalm",
+          "sha256": "cf23ed0c9cea4775240bc21d1d0cd21bee0818f41a1a964294c60f1120d9ca37",
+          "duration": 2.125,
+          "contact": 0.99999994
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_MixarState_PounceCrush.anim",
+          "speed": 2.0170453,
+          "guid": "e95f1048f240b4a9ca6130df7ed6161e",
+          "state": "PounceCrush",
+          "sha256": "e0bcd062aad612874d6d87117b2e540dc923f68c980a3de2742bff0d2debf654",
+          "duration": 2.9583335,
+          "contact": 1.5464014
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "e4e64aa1d7f594ea6ab002841c6054ec",
+          "state": "HitLight",
+          "sha256": "c2ac46d7ffadcf9d0057467d6deae77a68efa34ce27184d7b80630667c828fd0",
+          "duration": 0.7666667,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "8150b43ddff74465e91eb33847b825fd",
+          "state": "HitHeavy",
+          "sha256": "8f721485258419c84bf9f0ae2c9789c71a61b55464d88f069dac2f8f7633e628",
+          "duration": 1.3666668,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "68061209e381c4353bf374a55a7be187",
+          "state": "InterceptGuard",
+          "sha256": "65240d71d7ff9d8c63e929f16adbe20db0081f54dbbd6ad23035dfa4b62f0460",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "28de04924fb2e41358e590b68e8d0481",
+          "state": "Defeat",
+          "sha256": "e0ec4a2e3e23144d83a97101b245fe84ef57196c2434e5d0ee2c2b3ce549f0f9",
+          "duration": 2.1666667,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_Mixar_Idle.anim",
+          "sha256": "72582855f81a33a73614a3b3119cbd102deb0a7835c37620a57fb684f471fd85",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 1.9583334,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TORA/HB_TORA_Mixar_Run.anim",
+          "sha256": "99ed42be999f39b9c67a725db4c768d86f1a460a8a8235d69a2c2c2dd2bb24ec",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.7916667,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "556029b79af9fadaaeaf9d922f74d954897b9b74abb56ec6c28926f9d879a4bc"
+    },
+    "tsuin": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_Mixar_Idle.anim",
+      "referenceSha256": "12012ceb8eeaa436df417de330baa51270900fe6691f677e19b2344fe2cdc6d3",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_Mixar.controller",
+      "controllerSha256": "5db12e6a1ef66df5944c4c96cdb41cc32837dbe9d2d6081bfd07f929e66fee12",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 1.6666667,
+          "unityClip": "HB_TSUIN_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.0,
+          "unityClip": "HB_TSUIN_MixarState_LeapCleave"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.0,
+          "unityClip": "HB_TSUIN_MixarState_LeapCleave"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.3666667,
+          "unityClip": "HB_TSUIN_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 0.8666667,
+          "unityClip": "HB_TSUIN_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1,
+          "unityClip": "TSUIN_Guard_v1"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.4666668,
+          "unityClip": "HB_TSUIN_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.0,
+          "unityClip": "HB_TSUIN_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.5,
+          "unityClip": "HB_TSUIN_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_MixarState_AttackBasic.anim",
+          "speed": 2.5,
+          "guid": "17f7d7cc87bb141368f1c7da3b4b5cb1",
+          "state": "AttackBasic",
+          "sha256": "af51faf157983f7be7c99485eb5297e22ecc67e1b854622a8bbeaed12a1f1042",
+          "duration": 1.6666667,
+          "contact": 0.6666667
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_MixarState_LeapCleave.anim",
+          "speed": 1.4999999,
+          "guid": "0cb9f2d7340e245749e59142f5df678a",
+          "state": "LeapCleave",
+          "sha256": "b51ca095dfa5a9ce4758e743c0368c8b1c1baf50014bcd2b3af9ecf4b4ea3415",
+          "duration": 2.0,
+          "contact": 1.0999999
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_MixarState_LeapCleave.anim",
+          "speed": 1.4999999,
+          "guid": "0cb9f2d7340e245749e59142f5df678a",
+          "state": "LeapCleave",
+          "sha256": "b51ca095dfa5a9ce4758e743c0368c8b1c1baf50014bcd2b3af9ecf4b4ea3415",
+          "duration": 2.0,
+          "contact": 1.0999999
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "188267ffff98d4b9fbc641e8b0f88fd7",
+          "state": "HitLight",
+          "sha256": "1edc544ca91edf6cdf5db33825f809761fb1f66b2fa89e0aa3c079f3e9ae6746",
+          "duration": 0.3666667,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "777f81c11277d47ce8be220364c871c8",
+          "state": "HitHeavy",
+          "sha256": "eb8749aa1ad0dbc3ee733b7c65df4f8da81edca415cf23b99082d0f9616cd4cd",
+          "duration": 0.8666667,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "/Users/pak/HolobotsVault/AnimationSources/2026-10-20-TSUIN-Guard/TSUIN_Guard_v1.fbx",
+          "sha256": "934c6dd28cd44e8fe9b62ef4e2e46764d07fb1c584635833fe1a9573431d4430",
+          "kind": "fbx",
+          "take": "TSUIN_GuardHold",
+          "duration": 1,
+          "contact": null,
+          "speed": 1,
+          "state": "vault-authored GuardHold; Unity installed fallback is AttackBasic",
+          "provenance": "2026-10-20-tsuin-guard-clips-1; native blend witness remains queued"
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "2288a86089322458da0029f44f5b7d0b",
+          "state": "Defeat",
+          "sha256": "aa56f5411117b85cb91bcc97c0fc52b58090c98e0bc59ad6d3922b029aaf726a",
+          "duration": 1.4666668,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_Mixar_Idle.anim",
+          "sha256": "12012ceb8eeaa436df417de330baa51270900fe6691f677e19b2344fe2cdc6d3",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 2.0,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/TSUIN/HB_TSUIN_Run.anim",
+          "sha256": "48ba55202581b872ce36728d608bc81e7842996563044e39b235b8e31965f7f5",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.5,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "053df138dfecc34b47e4b0d87adb66a1e2a3737ce12e531032299602b11d2666"
+    },
+    "wake": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_Mixar_Idle.anim",
+      "referenceSha256": "0f67832dccd464b5f3e770ee375994a4c6a043d971ea294f7d4688ed861e1173",
+      "referenceTake": "Idle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_Mixar.controller",
+      "controllerSha256": "a343d77d076b1b3449f628601cd1ed586fefcc10d5fcdd6d5a795f9fa31732e9",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.0,
+          "unityClip": "HB_WAKE_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.6666667,
+          "unityClip": "HB_WAKE_MixarState_AnchorSlam"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.6666667,
+          "unityClip": "HB_WAKE_MixarState_AnchorSlam"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.6666667,
+          "unityClip": "HB_WAKE_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 1.4666668,
+          "unityClip": "HB_WAKE_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.3333335,
+          "unityClip": "HB_WAKE_MixarAdapted_InterceptGuard"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 2.0666668,
+          "unityClip": "HB_WAKE_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.0,
+          "unityClip": "HB_WAKE_Mixar_Idle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.6666667,
+          "unityClip": "HB_WAKE_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_MixarState_AttackBasic.anim",
+          "speed": 2.0689657,
+          "guid": "58dcf0824b672428d8152d9e5398b1d3",
+          "state": "AttackBasic",
+          "sha256": "c2a02fc402140cab46c57fbb7f11b23bc234e53d0150ac5f756ed046e77dca81",
+          "duration": 2.0,
+          "contact": 1.0344827
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_MixarState_AnchorSlam.anim",
+          "speed": 1.9999999,
+          "guid": "198c43e5aaf464dad930d5ca936c6542",
+          "state": "AnchorSlam",
+          "sha256": "ff81647d31a5bd3d4b8233a249dead3fa6ff151aed809ff6f52e199d550c4b50",
+          "duration": 2.6666667,
+          "contact": 1.4666666
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_MixarState_AnchorSlam.anim",
+          "speed": 1.9999999,
+          "guid": "198c43e5aaf464dad930d5ca936c6542",
+          "state": "AnchorSlam",
+          "sha256": "ff81647d31a5bd3d4b8233a249dead3fa6ff151aed809ff6f52e199d550c4b50",
+          "duration": 2.6666667,
+          "contact": 1.4666666
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "1b00733ccc1cd4f359771e95af40a49f",
+          "state": "HitLight",
+          "sha256": "92939102bfc7978cd71a99ab7123c193e9a65ee99a55c79e1f25f654c8d6f361",
+          "duration": 0.6666667,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "4b1369480aab8478aa52381b57bc6d8c",
+          "state": "HitHeavy",
+          "sha256": "391dd5a71447298636c2e99c105e3d413331e2ad929800e74ec901a1125096f4",
+          "duration": 1.4666668,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_MixarAdapted_InterceptGuard.anim",
+          "speed": 1.0,
+          "guid": "086562217b97e48a49497bffe41d1992",
+          "state": "InterceptGuard",
+          "sha256": "e83dbb60f02d4f59435bb0e1dae3e165f4e1ecd5b2788b4a076fc697437ea90e",
+          "duration": 1.3333335,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "9d407de666f5543eaafd374d7178612e",
+          "state": "Defeat",
+          "sha256": "c66ad64c70e16fb40cd176127d558d697e9c768009db8ed84b99b468227a0d89",
+          "duration": 2.0666668,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_Mixar_Idle.anim",
+          "sha256": "0f67832dccd464b5f3e770ee375994a4c6a043d971ea294f7d4688ed861e1173",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 2.0,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WAKE/HB_WAKE_Run.anim",
+          "sha256": "51e87161c0439a1510541a24853a83fa5c332006dd86fcfc7bef4fb79a2439ad",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.6666667,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "daf04a64b9dbd8a82f588801c04fcf34f416772ac167b272279d8608beaf4753"
+    },
+    "wolf": {
+      "reference": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_Mixar_HoverIdle.anim",
+      "referenceSha256": "2e13a4c967e232a4c806a050d70beeadd521b981dd856aba0199e9589c53d4c5",
+      "referenceTake": "HoverIdle",
+      "controller": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_Mixar.controller",
+      "controllerSha256": "7e278d3e0f06528c4b367d5824b6249884db3ff3498d40cf0001b577442ee4f3",
+      "clips": [
+        {
+          "name": "FightLight",
+          "seconds": 2.2916667,
+          "unityClip": "HB_WOLF_MixarState_AttackBasic"
+        },
+        {
+          "name": "FightHeavy",
+          "seconds": 2.2916667,
+          "unityClip": "HB_WOLF_MixarState_StepCross"
+        },
+        {
+          "name": "FightSpecial",
+          "seconds": 2.375,
+          "unityClip": "HB_WOLF_Mixar_SupermanPunch"
+        },
+        {
+          "name": "FightHitLight",
+          "seconds": 0.43333337,
+          "unityClip": "HB_WOLF_MixarAdapted_HitLight"
+        },
+        {
+          "name": "FightHitHeavy",
+          "seconds": 0.90000004,
+          "unityClip": "HB_WOLF_MixarAdapted_HitHeavy"
+        },
+        {
+          "name": "FightGuard",
+          "seconds": 1.0,
+          "unityClip": "HB_WOLF_GuardHold"
+        },
+        {
+          "name": "FightKO",
+          "seconds": 1.3666668,
+          "unityClip": "HB_WOLF_MixarAdapted_Defeat"
+        },
+        {
+          "name": "FightIdle",
+          "seconds": 2.9583335,
+          "unityClip": "HB_WOLF_Mixar_HoverIdle"
+        },
+        {
+          "name": "FightRun",
+          "seconds": 0.33333334,
+          "unityClip": "HB_WOLF_Run"
+        }
+      ],
+      "timing": {
+        "FightLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_MixarState_AttackBasic.anim",
+          "speed": 2.9891303,
+          "guid": "705a5a241f84a44719427d9866089edc",
+          "state": "AttackBasic",
+          "sha256": "3fd01711809ce2939559d182612a975cc9bc71f30052763dde542e0856f0764f",
+          "duration": 2.2916667,
+          "contact": 0.9963767
+        },
+        "FightHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_MixarState_StepCross.anim",
+          "speed": 2.2916665,
+          "guid": "acb8a9565d4a44f91b05b65f998d9622",
+          "state": "StepCross",
+          "sha256": "0c75ed7a60aaf031acbf5a484ec4e659e487a5b0897a34efba91d4e120303c7b",
+          "duration": 2.2916667,
+          "contact": 1.1458333
+        },
+        "FightSpecial": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_Mixar_SupermanPunch.anim",
+          "speed": 1.0,
+          "guid": "ba6f9396a7b004f5bbc129dbd720685f",
+          "state": "SupermanPunch",
+          "sha256": "9c4d9ae0db2ac1447997a62cf68463c6a23e68c8991639b3c89ff2bc6f6e1077",
+          "duration": 2.375,
+          "contact": 1.30625
+        },
+        "FightHitLight": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_MixarAdapted_HitLight.anim",
+          "speed": 1.0,
+          "guid": "cff400da0c14d4437af0e8aa8daec75b",
+          "state": "HitLight",
+          "sha256": "ea4ee0774baccca17e786807f9e8a12e35235680b50345f39a0a719e66e7d1ea",
+          "duration": 0.43333337,
+          "contact": null
+        },
+        "FightHitHeavy": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_MixarAdapted_HitHeavy.anim",
+          "speed": 1.0,
+          "guid": "b4b25c08ab02f47e4bc9bd2923afb4fa",
+          "state": "HitHeavy",
+          "sha256": "cefbdf2646083dc37f6e8e048e688f565f678c34cebe14422499e8c104f5efcb",
+          "duration": 0.90000004,
+          "contact": null
+        },
+        "FightGuard": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_GuardHold.anim",
+          "speed": 1.0,
+          "guid": "25b9b44b92bd744c689a1791c182f1b4",
+          "state": "InterceptGuard",
+          "sha256": "fd6819db5e85b9f517177236c5b423d295f07135d99e6d64e8a09e9888cfd462",
+          "duration": 1.0,
+          "contact": null
+        },
+        "FightKO": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_MixarAdapted_Defeat.anim",
+          "speed": 1.0,
+          "guid": "326f671b506664f51973d925406d1050",
+          "state": "Defeat",
+          "sha256": "931efbe04b539177194df30664a612a747c2126a9c44997f84f09331963149b8",
+          "duration": 1.3666668,
+          "contact": null
+        },
+        "FightIdle": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_Mixar_HoverIdle.anim",
+          "sha256": "2e13a4c967e232a4c806a050d70beeadd521b981dd856aba0199e9589c53d4c5",
+          "state": "FightIdle",
+          "speed": 1,
+          "duration": 2.9583335,
+          "contact": null
+        },
+        "FightRun": {
+          "source": "Assets/Holobots/MixarFleet_20261009/WOLF/HB_WOLF_Run.anim",
+          "sha256": "b37e35ba5393a3eeac1473ea5c3721b0b7fb3268947b2ad4c7d8ee8d6fe989b9",
+          "state": "FightRun",
+          "speed": 1,
+          "duration": 0.33333334,
+          "contact": null
+        }
+      },
+      "maxWeights": 2,
+      "packedSha256": "6f8d6086d2366b1b1c99f8e52ebfa1f7b2870a910cc50506a0e1149286021cdb"
+    }
+  },
+  "held": {
+    "hare": "2,011,580 bytes >2,000,000 cap after two attempts; original asset retained"
+  }
+}

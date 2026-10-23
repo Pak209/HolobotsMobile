@@ -7,17 +7,19 @@ import { parseArgs } from 'node:util';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const require = createRequire(resolve(root, 'mobile/tools/bot-assets/package.json'));
+const require = createRequire(process.env.BOT_TOOLS_PACKAGE ?? resolve(root, 'mobile/tools/bot-assets/package.json'));
 const { MeshoptDecoder: WasmDecoder } = require('meshoptimizer');
 const { NodeIO } = require('@gltf-transform/core');
 const { ALL_EXTENSIONS } = require('@gltf-transform/extensions');
 const sharp = require('sharp');
 const validator = require('gltf-validator');
-const { MeshoptDecoder: NativeDecoder } = await import(pathToFileURL(resolve(root, 'mobile/tools/bot-assets/node_modules/meshoptimizer/meshopt_decoder_reference.js')));
+const { MeshoptDecoder: NativeDecoder } = await import(pathToFileURL(resolve(dirname(require.resolve('meshoptimizer')), 'meshopt_decoder_reference.js')));
 const { values } = parseArgs({ options: { directory: { type: 'string' }, report: { type: 'string' }, 'comparison-dir': { type: 'string' } } });
 const directory = resolve(values.directory ?? resolve(root, 'mobile/assets/bots'));
 const manifest = JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8'));
 const source = JSON.parse(await readFile(resolve(root, 'mobile/tools/bot-assets/source-manifest.json'), 'utf8'));
+const fightSource = manifest.fightPort ? JSON.parse(await readFile(resolve(root, 'mobile/tools/bot-assets/fight-source-manifest.json'), 'utf8')) : null;
+if(fightSource) assert.equal(manifest.fightPort.unityCommit, fightSource.unityCommit);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 assert.equal(manifest.sourceCommit, source.commit);
 assert.deepEqual(Object.keys(manifest.bots).sort(), Object.keys(source.bots).sort());
@@ -27,6 +29,8 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 const report = { sourceCommit: source.commit, maxBotBytes: 2_000_000, maxTextureDimension: 1024, bots: [] };
 for (const [id, entry] of Object.entries(manifest.bots)) {
   const expected = source.bots[id];
+  const fight = fightSource?.bots[id];
+  assert.deepEqual(entry.fightClips ?? [], fight?.clips ?? [], `${id}: additional take provenance`);
   assert.equal(entry.file, expected.file);
   assert.deepEqual(entry.clips, expected.clips, `${id}: manifest cannot redefine source takes`);
   const bytes = await readFile(resolve(directory, entry.file));
@@ -57,7 +61,7 @@ for (const [id, entry] of Object.entries(manifest.bots)) {
   const document = await io.read(resolve(directory, entry.file));
   const animations = document.getRoot().listAnimations();
   const clips = animations.map(clip => clip.getName());
-  assert.deepEqual([...clips].sort(), expected.clips.map(clip => clip.name).sort());
+  assert.deepEqual([...clips].sort(), [...expected.clips,...(fight?.clips ?? [])].map(clip => clip.name).sort());
   assert.ok(clips.includes(entry.idleClip));
   assert.ok(document.getRoot().listSkins().length >= 1);
   for (const animation of animations) {
@@ -69,12 +73,18 @@ for (const [id, entry] of Object.entries(manifest.bots)) {
         lastKeySeconds = Math.max(lastKeySeconds, time);
       }
     }
-    const expectedTimeline = expected.animationTimelines[animation.getName()];
+    const fightClip = fight?.clips.find(clip => clip.name === animation.getName());
+    const expectedTimeline = fightClip ? {firstKeySeconds:0,lastKeySeconds:fightClip.seconds} : expected.animationTimelines[animation.getName()];
     assert.ok(Math.abs(firstKeySeconds - expectedTimeline.firstKeySeconds) <= 0.00001, `${id}/${animation.getName()}: first key changed`);
     assert.ok(Math.abs(lastKeySeconds - expectedTimeline.lastKeySeconds) <= 0.00001, `${id}/${animation.getName()}: last key changed`);
     // The source manifest measures last-first, not the absolute final key time.
-    const expectedDuration = expected.clips.find(clip => clip.name === animation.getName()).seconds;
+    const expectedDuration = (fightClip ?? expected.clips.find(clip => clip.name === animation.getName())).seconds;
     assert.ok(Math.abs(lastKeySeconds - firstKeySeconds - expectedDuration) <= 0.001, `${id}/${animation.getName()}: source clip span changed`);
+  }
+  if(fight) for(const mesh of document.getRoot().listMeshes()) for(const primitive of mesh.listPrimitives()){
+    assert.ok(!primitive.getAttribute('WEIGHTS_1'), `${id}: extra influences`);
+    const weights=primitive.getAttribute('WEIGHTS_0')?.getArray();
+    if(weights)for(let i=0;i<weights.length;i+=4)assert.ok(Array.from(weights.slice(i,i+4)).filter(n=>n>1e-6).length<=2, `${id}: >2 skin influences`);
   }
   const textures = [];
   for (const texture of document.getRoot().listTextures()) {
@@ -93,6 +103,6 @@ report.totalBytes = report.bots.reduce((n,b)=>n+b.bytes,0);
 report.sourceBytes = report.bots.reduce((n,b)=>n+b.sourceBytes,0);
 report.totalClips = report.bots.reduce((n,b)=>n+b.clips.length,0);
 report.totalDecodedBufferViews = report.bots.reduce((n,b)=>n+b.decodedBufferViews,0);
-assert.equal(report.totalClips, 86);
+assert.equal(report.totalClips, 86 + (fightSource ? Object.values(fightSource.bots).reduce((n,b)=>n+b.clips.length,0) : 0));
 if (values.report) await writeFile(resolve(values.report), JSON.stringify(report,null,2)+'\n');
 console.log(`PASS: 12 bots, ${report.totalClips} clips, ${report.totalDecodedBufferViews} identical JS/WASM buffers, ${report.totalBytes} bytes total`);

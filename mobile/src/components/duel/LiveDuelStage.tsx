@@ -9,13 +9,12 @@ import { HudActionStrip, HudRoundPlate } from './HoloHudArt';
 import { liveDuelCommandMove, liveDuelCommands } from './liveDuelCommands';
 import { liveDuelVfxCues } from '../../vfx/liveDuelVfx';
 import { FighterHud } from '../../screens/DuelPlaybackScreen';
-import { getActionSides } from '../arena/battleVisualStates';
+import { PresentationCursor } from '../../lib/bots/battlePace';
+import { resolvedBattlePace } from '../../lib/bots/resolvedBattlePace';
 import { FINISHER_POLICY, type FinisherPower } from '../../features/arena/finisherPolicy';
 import type { ActionCard, BattleState } from '../../types/arena';
 import { theme } from '../../theme';
 
-/** The contact beat after an action lands on the stage (the hit recoil and the VFX landing phase). */
-const IMPACT_MS = 300;
 
 export type LiveDuelStageProps = {
   battle: BattleState;
@@ -67,40 +66,35 @@ export type LiveDuelStageProps = {
 export function LiveDuelStage({ battle, moves, onPlay, onSignature, onLeave, pending, caption, leaveLabel, leaveDisabled = pending, levels, levelTab = false, signature: signatureAllowed = true, playableIds, holdUntilReady = true, chrome, active = true, renderQuality, perf, onStageReady, onMetrics, showMetrics = false, vfx = false, vfxUnbuiltKits = false, specialCamera = true }: LiveDuelStageProps) {
   const insets = useSafeAreaInsets();
   const stage = useRef<BotStageHandle>(null);
-  const [ready, setReady] = useState(false);
+  const [readyScene, setReadyScene] = useState<string | null>(null);
+  const [drained, setDrained] = useState(0);
   const [error, setError] = useState(false);
   const [power, setPower] = useState<FinisherPower>('half');
   const player = resolveBotId(battle.player.name);
   const rival = resolveBotId(battle.opponent.name);
+  const sceneKey = `${battle.battleId}:${player}:${rival}`;
+  const ready = readyScene === sceneKey;
   const action = battle.actionHistory.at(-1);
   const stageReady = useRef(onStageReady);
   stageReady.current = onStageReady;
   const settled = ready || error || !player || !rival;
   useEffect(() => { if (settled) stageReady.current?.(); }, [settled]);
+  const presented = useRef(new PresentationCursor<BattleState['actionHistory'][number]>());
   useEffect(() => {
-    if (!ready || !action) return;
-    const { attacker, damaged } = getActionSides(action, battle);
-    const side = attacker === 'player' ? 'player' : 'rival';
-    const target = side === 'player' ? 'rival' : 'player';
-    const type = action.actionType ?? action.card.type;
-    if (type === 'defense') stage.current?.guard(side);
-    else { stage.current?.play(side, type === 'combo' ? 'Heavy' : type === 'finisher' ? 'Finisher' : 'Strike'); stage.current?.strike(side); }
-    // lite-vfx-port-1: the effect fires here, where the stage presents the action the store just applied to HP; its contact
-    // is the same +300 ms as the hit recoil below. Presentation only.
-    if (vfx) for (const cue of liveDuelVfxCues(action, battle, { player, rival })) stage.current?.fx(cue, IMPACT_MS);
-    const impact = setTimeout(() => {
-      if (damaged) stage.current?.hit(damaged === 'player' ? 'player' : 'rival');
-      else if (action.outcome === 'dodged' || action.outcome === 'missed') stage.current?.play(target, 'Evade');
-    }, IMPACT_MS);
-    return () => clearTimeout(impact);
-  }, [action?.id, ready]);
+    const history = battle.actionHistory;
+    presented.current.consume(sceneKey, history, ready, row => {
+      const cue = resolvedBattlePace(row, battle, row.id === action?.id);
+      cue.effects = vfx ? liveDuelVfxCues(row, battle, { player, rival }) : [];
+      return stage.current?.present(cue) ?? 'backpressure';
+    });
+  }, [battle.actionHistory, action?.id, ready, sceneKey, drained]);
   const waiting = holdUntilReady && !ready && !error && !!player && !!rival;
   const commands = liveDuelCommands(HOLOCITY_COMMANDS, { battle, moves, power, signature: signatureAllowed, playableIds, blocked: pending || waiting });
   const finisherReadiness = commands.find(command => command.id === 'finisher')?.readiness;
   const state = (fighter: BattleState['player']) => ({ hp: fighter.currentHP, maxHp: fighter.maxHP, stamina: fighter.stamina, maxStamina: fighter.maxStamina });
   return <View style={styles.screen} testID="live-duel-stage">
     <Image source={require('../../../assets/battle/holocity-park.jpg')} style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]} resizeMode="cover" />
-    {player && rival && <BotStage ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReady(true)} onError={() => setError(true)} active={active} quality={renderQuality} perf={perf} onMetrics={onMetrics} showMetrics={showMetrics} vfx={vfx} vfxUnbuiltKits={vfxUnbuiltKits} specialCamera={specialCamera} />}
+    {player && rival && <BotStage key={sceneKey} ref={stage} variant="duelPortrait" transparentBackdrop bots={[{ id: player, side: 'player' }, { id: rival, side: 'rival' }]} style={StyleSheet.absoluteFillObject} onReady={() => setReadyScene(sceneKey)} onPresentationDrain={() => setDrained(n => n + 1)} onError={() => setError(true)} active={active} quality={renderQuality} perf={perf} onMetrics={onMetrics} showMetrics={showMetrics} vfx={vfx} vfxUnbuiltKits={vfxUnbuiltKits} specialCamera={specialCamera} />}
     <View style={[styles.top, { paddingTop: chrome?.top ?? insets.top + 4 }]}>
       <View style={[styles.toolbar, chrome ? { marginRight: chrome.right } : null]}><Text style={styles.caption}>{caption}</Text><Pressable accessibilityRole="button" onPress={onLeave} disabled={leaveDisabled} style={styles.button}><Text style={styles.caption}>{leaveLabel}</Text></Pressable></View>
       <View style={styles.hud}><FighterHud name={battle.player.name} state={state(battle.player)} level={levels.player} levelTab={levelTab} /><HudRoundPlate testID="live-duel-turn" label="TURN" value={String(action?.turnNumber ?? 1).padStart(2, '0')} /><FighterHud name={battle.opponent.name} state={state(battle.opponent)} level={levels.rival} levelTab={levelTab} rival /></View>
