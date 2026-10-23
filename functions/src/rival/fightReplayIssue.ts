@@ -2,7 +2,7 @@ import {
   FIGHT_INPUTS_SCHEMA, FIGHT_RECEIPT_SCHEMA, FIGHT_REPLAY_MODE, FIGHT_SIM_VERSION, FightReplayIssueWire,
 } from '../shared/fightReplayContract';
 import { duelFighterFromCombatant } from '../lib/duelResolver';
-import { defaultRulesValues, FightFighterDef, FightRules, KIT_IDS, kitFighter, rulesHash, rulesToJson, validateRules } from '../sim/fight/rules';
+import { defaultChaseRules, defaultRulesValues, FightFighterDef, FightRules, KIT_IDS, kitFighter, RULES_SCHEMA, RULES_SCHEMA_4, rulesDocToJson, rulesHash, validateRules } from '../sim/fight/rules';
 import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_VERSION, RANKS } from '../sim/fight/profiles';
 
 /**
@@ -11,6 +11,8 @@ import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_
  * CPU profile/rank. Stats are the same host numbers the resolver pins (duelFighterFromCombatant: rounded attack/defense/
  * max HP, floored current HP); the kit/movement rows are FightKitDefaults; every other number is the duel-rules-3 default.
  * Returns null when the lineup cannot be expressed (a bot with no kit/profile row): the caller keeps the existing mode.
+ * duel-rules-4-1: `chase` true (host flag HOLOCITY_FIGHT_CHASE, default off) issues duel-rules-4 = the same snapshot + the
+ * fight-chase-1 chase block at its defaults (#72.65); false/absent issues today's duel-rules-3, byte for byte.
  */
 export const FIGHT_START_GAP_MM = 7000;
 export const FIGHT_HASH_EVERY = 30;
@@ -26,7 +28,7 @@ type Combatant = Parameters<typeof duelFighterFromCombatant>[0];
 
 export function buildFightReplayIssue(input: {
   battleId: string; seed: string; tier: number; mentor: boolean;
-  player: readonly Combatant[]; opponent: readonly Combatant[];
+  player: readonly Combatant[]; opponent: readonly Combatant[]; chase?: boolean;
 }): FightReplayIssueWire | null {
   const { player, opponent } = input;
   if (player.length < 1 || player.length > 3 || opponent.length < 1 || opponent.length > 3) return null;
@@ -50,11 +52,12 @@ export function buildFightReplayIssue(input: {
   };
   try { validateRules(rules); } catch { return null; }
   if (!rules.fighters.some(f => f.side === 0 && f.hp > 0)) return null;
-  const hash = rulesHash(rules);
+  const chase = input.chase ? defaultChaseRules() : null;
+  const hash = rulesHash(rules, chase);
   const lead = opponent[0].holobotId;
   return {
     mode: FIGHT_REPLAY_MODE, schemaVersion: FIGHT_RECEIPT_SCHEMA, inputsSchema: FIGHT_INPUTS_SCHEMA, simVersion: FIGHT_SIM_VERSION,
-    rulesId: `duel-rules-3:${input.battleId}`, rulesHash: hash, rules: rulesToJson(rules) as unknown as FightReplayIssueWire['rules'],
+    rulesId: `${chase ? RULES_SCHEMA_4 : RULES_SCHEMA}:${input.battleId}`, rulesHash: hash, rules: rulesDocToJson(rules, chase) as unknown as FightReplayIssueWire['rules'],
     seed: input.seed, playerSide: 0,
     player: { roster: player.map(c => ({ fighterId: c.holobotId, holobotId: c.holobotId })) },
     cpu: {

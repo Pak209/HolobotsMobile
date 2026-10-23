@@ -1,7 +1,7 @@
 import { collapse, FightInput, FightProfile, FightSkill, idleInput, NO_PICK, Press } from './contracts';
 import { FightBrainDriver, FightView } from './brain';
 import { FightCore, FightEvent } from './core';
-import { FightRules, rulesHash } from './rules';
+import { FightChaseRules, FightRules, rulesHash } from './rules';
 import { WitnessJson } from './witness';
 
 /** One side's driver: a replayed/scripted input source, or an in-core brain (FightDriver). */
@@ -18,6 +18,8 @@ export type FightRunOptions = {
   /** Called after every tick with the tick and the side-1 (or side-0) input the brain produced (CPU stream check). */
   onTick?: (tick: number, inputs: [FightInput, FightInput]) => void;
   recordEvents?: boolean;
+  /** duel-rules-4: the issued chase block (null / absent = duel-rules-3, today's core). rulesHash is then duel-rules-4's. */
+  chase?: FightChaseRules | null;
 };
 
 export type FightResult = {
@@ -35,9 +37,9 @@ function read(d: FightDriver, view: FightView, core: FightCore, t: number, s: nu
 
 /** FightRunner.Run: per tick, side 0 then side 1 produce inputs (brains see the end of the previous tick), then Step. */
 export function runFight(rules: FightRules, seed: string, d0: FightDriver, d1: FightDriver, opts: FightRunOptions = {}): FightResult {
-  const core = new FightCore(rules, seed);
+  const core = new FightCore(rules, seed, opts.chase ?? null);
   core.recordEvents = opts.recordEvents !== false;
-  const res = { rulesHash: rulesHash(core.rules), initialHash: core.stateHash(), tickHashes: new Map<number, string>() } as FightResult;
+  const res = { rulesHash: rulesHash(core.rules, core.chase), initialHash: core.stateHash(), tickHashes: new Map<number, string>() } as FightResult;
   const drivers = [d0, d1];
   const views = [new FightView(core, 0), new FightView(core, 1)];
   for (let s = 0; s < 2; s++) { const d = drivers[s]; if ('brain' in d) d.brain.begin(s, d.profile, d.skill); }

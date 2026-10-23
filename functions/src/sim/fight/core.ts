@@ -1,13 +1,14 @@
 import {
-  Action, checkInput, Deny, EVENT_NAMES, EventKind, FightAction, FightEventKind, FightFighterView, FightGuard, FightInput, FightLoco, FightMove,
+  Action, ChaseEnd, checkInput, Deny, EVENT_NAMES, EventKind, FightAction, FightEventKind, FightFighterView, FightGuard, FightInput, FightLoco, FightMove,
   FightOutcome, FightPress, FightRng, FightState, Guard, Loco, Move, MOVE_NAMES, NO_PICK, Outcome, OUTCOME_NAMES, Press, State,
 } from './contracts';
 import { clamp, dist, div, hex, Int32Writer, mulDiv, rngSeedWord, seedBytes, sha256 } from './math';
-import { cloneRules, FightFighterDef, FightRules, rosterOf, rulesHashBytes, validateRules } from './rules';
+import { CHASE_KEYS, cloneRules, FightChaseRules, FightFighterDef, FightRules, rosterOf, rulesHashBytes, validateChaseRules, validateRules } from './rules';
 import { FightWitness } from './witness';
 
 /**
- * duel-sim-3 fight core, a line-for-line port of HolobotsUnity `Sim/Fight/FightCore.cs` (fight-core-1 + fight-tune-1 r2 + fight-tune-2 r3).
+ * duel-sim-3 fight core, a line-for-line port of HolobotsUnity `Sim/Fight/FightCore.cs` (fight-core-1 + fight-tune-1 r2 + fight-tune-2 r3
+ * + fight-chase-1 #72.65 behind a duel-rules-4 chase block: `chase` null = today's core byte for byte).
  * Tick order (identical): 0 timers + pending forced Backstep, 1 inputs side 0 then side 1, 2 telegraph starts -> exchange clock,
  * 3 movement, 4+5 contacts (one frozen state, simultaneous contacts both land), 6 regen, 7 forced breaks, 7b KO forced swap,
  * 8 pair state + break exits + witness, 9 KO/timeout, 10 state hash. Integer only; see math.ts for the division rule.
@@ -49,6 +50,15 @@ export class FightFighter {
   staStart = 0; hardHitThisTick = false;
 }
 
+/** fight-chase-1 per-side chase state (C# FightChaseSide; hashed only with the chase rules on, CHASE_SIDE_FIELDS order). */
+export class FightChaseSide {
+  tagged = false; retreatStart = -1; retreatReadyAt = 0; chasedAt = -1; drainAcc = 0; escapedThisRetreat = false;
+  caught = 0; retreats = 0; ringStops = 0; ringStopTick = -1;
+  /** transient (not hashed): no forced Backstep after a caught hit */
+  caughtThisTick = false;
+}
+export const CHASE_SIDE_FIELDS = ['tagged', 'retreatStart', 'retreatReadyAt', 'chasedAt', 'drainAcc', 'escapedThisRetreat', 'caught', 'retreats', 'ringStops', 'ringStopTick'] as const;
+
 type Contact = { side: number; move: FightMove; outcome: FightOutcome; counter: boolean; hard: boolean; damage: number; drain: number };
 
 const B = (b: boolean) => (b ? 1 : 0);
@@ -67,6 +77,10 @@ export class FightCore {
   readonly rng: FightRng[] = [];
   readonly witness = new FightWitness();
   readonly events: FightEvent[] = [];
+  /** fight-chase-1: the issued duel-rules-4 chase block, or null = today's core exactly (events and state hash). */
+  readonly chase: FightChaseRules | null;
+  /** fight-chase-1: per-side chase state (null when `chase` is null). */
+  readonly chaseState: FightChaseSide[] | null;
   tick = -1;
   exchangeActive = false;
   exchangeStartTick = -1;
@@ -89,8 +103,10 @@ export class FightCore {
   /** Emit events? (the witness and hashes do not depend on it; replay skips the strings for speed only when asked). */
   recordEvents = true;
 
-  constructor(rules: FightRules, seedHex: string) {
+  constructor(rules: FightRules, seedHex: string, chase: FightChaseRules | null = null) {
     validateRules(rules);
+    if (chase) { validateChaseRules(chase); this.chase = { ...chase }; this.chaseState = [new FightChaseSide(), new FightChaseSide()]; }
+    else { this.chase = null; this.chaseState = null; }
     this.rules = cloneRules(rules);
     this.rulesHashB = rulesHashBytes(this.rules);
     this.seed = seedBytes(seedHex);
@@ -203,6 +219,7 @@ export class FightCore {
       const f = this.F[s]; if (f.ko) continue;
       const crossed = this.exchangeActive && f.staStart >= R.breakLinePm && f.sta < R.breakLinePm;
       if (crossed || f.hardHitThisTick) this.enterBreak(s, true);
+      if (this.chaseState && this.chaseState[s].caughtThisTick) { f.backstepPending = false; this.chaseState[s].caughtThisTick = false; }   // #72.65 (3)
     }
     // 7b. a KO forces the bench swap to the next standing member (wrapping), regardless of the lockout
     for (let s = 0; s < 2; s++) {
@@ -213,6 +230,7 @@ export class FightCore {
     }
     // 8. pair state, break exits, witness
     this.updatePair(t, true);
+    if (this.chase) this.chaseTags(t);
     // 9. KO / timeout
     const ko0 = this.F[0].ko, ko1 = this.F[1].ko;
     if (ko0 || ko1) { this.ended = true; this.endReason = 'ko'; this.winner = ko0 && ko1 ? 2 : ko0 ? 1 : 0; }
@@ -245,6 +263,7 @@ export class FightCore {
 
   private switchTo(s: number, to: number, forced: boolean): void {
     const outgoing = this.F[s], incoming = this.roster[s][to];
+    if (this.chase) this.endTag(s, ChaseEnd.Benched);
     incoming.x = outgoing.x; incoming.z = outgoing.z;
     bench(outgoing); bench(incoming);
     incoming.shieldUntil = this.tick + this.rules.swapShieldTicks; incoming.state = this.pairState;
@@ -286,7 +305,8 @@ export class FightCore {
     // r3 (#72.26 P5): the heavy press inside CLOSE is the shove (the pair state at the start of the tick decides)
     if (press === Press.Heavy && R.shoveOnHeavyInClose !== 0 && pairAtStart === State.CloseRange) press = Press.Shove;
     // r3 quick escape: after the no-guard window a guard press ends the escape early
-    if (f.action === Action.Escape && edgeDown && t - f.escStart >= R.escapeNoGuardTicks) {
+    const turnPress = this.chase !== null && (press === Press.Light || press === Press.Heavy || press === Press.Special || press === Press.Step || press === Press.Shove);
+    if (f.action === Action.Escape && (edgeDown || turnPress) && t - f.escStart >= R.escapeNoGuardTicks) {
       f.action = Action.Idle; f.actionUntil = t; f.stepKind = Loco.Still; f.stepElapsed = 0; f.stepTicks = 0; f.stepTotal = 0; f.stepDirX = 0; f.stepDirZ = 0;
     }
 
@@ -302,8 +322,13 @@ export class FightCore {
 
     let executed = false;
     if (press === Press.Disengage) {
-      if (!f.inBreak) this.enterBreak(s, false);
-      executed = true;
+      if (!this.chase) { if (!f.inBreak) this.enterBreak(s, false); executed = true; }
+      else if (!f.inBreak) {
+        // #72.65 (2): a retreat costs stamina and has a cooldown
+        const cs = this.chaseState![s];
+        if (t < cs.retreatReadyAt) this.deny(s, Deny.RetreatCooldown);
+        else { this.spend(f, this.rail(this.chase.retreatCostPm, rail)); this.enterBreak(s, false); this.startTag(s, t); executed = true; }
+      } else executed = true;
     } else if (press === Press.Shove) {
       if (pairAtStart !== State.CloseRange) this.deny(s, Deny.NotClose);
       else if (!this.free(f) || inp.guard) this.deny(s, Deny.Busy);
@@ -427,6 +452,10 @@ export class FightCore {
     const f = this.F[s], o = this.F[1 - s], R = this.rules, d = f.def, t = this.tick;
     if (!this.away(s, sx, sz)) return false;
     if (this.pairState !== State.EdgeOfRange && !f.inBreak) { this.deny(s, Deny.NotEdgeOrBreak); return false; }
+    // #72.65 (2): a new retreat waits for the cooldown; the one escape out of a Disengage retreat continues that retreat
+    const cs = this.chaseState ? this.chaseState[s] : null;
+    const continues = cs !== null && cs.tagged && !cs.escapedThisRetreat;
+    if (cs && !continues && t < cs.retreatReadyAt) { this.deny(s, Deny.RetreatCooldown); return false; }
     this.spend(f, this.rail(R.costEscapePm, rail));
     if (f.guard !== Guard.Down) { f.guard = Guard.Down; this.emit(s, EventKind.GuardLower, Move.None, 0); }
     const [ux, uz] = unit(o.x - f.x, o.z - f.z, s);
@@ -437,6 +466,7 @@ export class FightCore {
     f.punishableUntil = Math.max(f.punishableUntil, t + R.escapeNoGuardTicks);
     if (!f.inBreak) this.enterBreak(s, false);
     this.emit(s, EventKind.Escape, Move.None, f.stepTotal); this.witness.count(s, EventKind.Escape);
+    if (cs) { if (!continues) this.startTag(s, t); cs.escapedThisRetreat = true; }
     return true;
   }
 
@@ -533,6 +563,13 @@ export class FightCore {
           else if (-fwd > lat) { speed = def.backMmPerSec; loco = Loco.Backpedal; }
           else { speed = def.strafeMmPerSec; loco = cross > 0 ? Loco.StrafeL : Loco.StrafeR; }
           if (f.guard !== Guard.Down) speed = mulDiv(speed, R.guardMovePm, 1000);
+          if (this.chase && loco === Loco.Forward && this.chaseState![1 - s].tagged) {
+            // #72.65 (2): the chaser's slight edge, paid for (a spend: its regen waits like after any spend)
+            speed = mulDiv(speed, this.chase.chaserSpeedPm, 1000);
+            const cs = this.chaseState![s]; cs.drainAcc += this.chase.chaseDrainPmPerSec;
+            const drain = div(cs.drainAcc, 30); cs.drainAcc %= 30;
+            if (drain > 0) this.spend(f, drain);
+          }
           const len = dist(mx, mz), mag = Math.min(127, len);
           const acc = f.moveAcc + speed * mag;
           const stepMm = div(acc, 127 * 30); f.moveAcc = acc % (127 * 30);
@@ -551,9 +588,33 @@ export class FightCore {
         if (f.loco === Loco.Still) f.loco = Loco.Pushed;
       }
     }
-    for (let s = 0; s < 2; s++) { this.F[s].x += dx[s]; this.F[s].z += dz[s]; this.clampRing(s); }
+    for (let s = 0; s < 2; s++) {
+      if (this.chase && this.chase.ringStop !== 0 && this.chaseState![s].tagged && this.ringStop(s, dx[s], dz[s])) continue;
+      this.F[s].x += dx[s]; this.F[s].z += dz[s]; this.clampRing(s);
+    }
     this.separate();
     for (let s = 0; s < 2; s++) this.clampRing(s);
+  }
+
+  /** fight-chase-1 #72.65 (6) (FightCore.RingStop): a tagged runner whose move would leave the ring stops where its path meets
+   * it (the largest k/1024 of the move that stays inside, integer bisection; no slide) and its escape run ends. */
+  private ringStop(s: number, dx: number, dz: number): boolean {
+    const f = this.F[s], radius = this.rules.ringRadiusMm - f.def.radiusMm;
+    if (dist(f.x + dx, f.z + dz) <= radius) return false;
+    let lo = 0, hi = 1024;
+    if (dist(f.x, f.z) > radius) lo = hi = 0;
+    while (lo < hi) {
+      const mid = div(lo + hi + 1, 2);
+      if (dist(f.x + div(dx * mid, 1024), f.z + div(dz * mid, 1024)) <= radius) lo = mid; else hi = mid - 1;
+    }
+    f.x += div(dx * lo, 1024); f.z += div(dz * lo, 1024); this.clampRing(s);
+    f.moveAcc = 0;
+    if (f.action === Action.Escape) f.stepElapsed = f.stepTicks;
+    if (f.action === Action.Step) f.stepElapsed = f.stepTicks;
+    const cs = this.chaseState![s];
+    if (cs.ringStopTick < cs.retreatStart) this.emit(s, EventKind.RingStop, Move.None, this.rules.ringRadiusMm);   // once per retreat
+    cs.ringStopTick = this.tick; cs.ringStops++;
+    return true;
   }
 
   private clampRing(s: number): void {
@@ -611,9 +672,21 @@ export class FightCore {
           let stun = c.hard ? Math.min(od.hitHeavyTicks, R.hitStunHeavyMaxTicks) : Math.min(od.hitLightTicks, R.hitStunLightMaxTicks);
           if (c.outcome === Outcome.GuardBreak) stun = Math.max(stun, R.guardBreakStaggerTicks);
           interrupt(o);
+          const caught = this.chase !== null && this.chaseState![1 - c.side].tagged && o.hp > c.damage;   // (post-damage HP, as C#)
+          if (caught) stun = Math.max(stun, this.chase!.caughtStaggerTicks);
           o.action = Action.Stun; o.actionUntil = t + 1 + stun;
           if (o.guard !== Guard.Down) o.guard = Guard.Down;
-          if (c.hard) {
+          if (caught) {
+            // #72.65 (3): the caught runner is pulled back toward the hitter (replaces the knockback / charge push)
+            const ch = this.chase!;
+            const dd = dist(o.x - f.x, o.z - f.z), pull = Math.max(0, Math.min(ch.caughtPullMm, dd - ch.caughtGapMm));
+            const [px, pz] = unit(f.x - o.x, f.z - o.z, 1 - c.side);
+            push(o, px, pz, pull, ch.caughtPullTicks);
+            if (c.hard) { o.hardHitThisTick = true; this.emit(1 - c.side, EventKind.HardHit, c.move, c.damage); this.witness.count(c.side, EventKind.HardHit); }
+            const cs = this.chaseState![1 - c.side]; cs.caught++; cs.caughtThisTick = true;
+            this.emit(1 - c.side, EventKind.Caught, c.move, pull);
+            this.endTag(1 - c.side, ChaseEnd.Caught);
+          } else if (c.hard) {
             const [ux, uz] = unit(o.x - f.x, o.z - f.z, c.side);
             push(o, ux, uz, R.knockbackMm, R.knockbackTicks);
             o.hardHitThisTick = true;
@@ -685,6 +758,7 @@ export class FightCore {
   private regen(s: number, t: number): void {
     const R = this.rules, f = this.F[s];
     if (f.ko || t < f.regenBlockedUntil || f.sta >= 1000) return;
+    if (this.chaseState && this.chaseState[s].tagged) return;   // #72.65 (1): no regen while retreating / chased
     let rate: number;
     if (f.inBreak) rate = t - f.breakStart < R.breakRegenDelayTicks ? 0 : R.regenBreakPmPerSec;
     else switch (f.state) {
@@ -730,6 +804,43 @@ export class FightCore {
     }
   }
 
+  // ================================================================ fight-chase-1 tags (#72.65)
+
+  /** True while `side`'s fielded bot is a tagged runner (always false with the chase rules off). */
+  tagged(side: number): boolean { return this.chaseState !== null && this.chaseState[side].tagged; }
+
+  private startTag(s: number, t: number): void {
+    const cs = this.chaseState![s];
+    cs.tagged = true; cs.retreatStart = t; cs.chasedAt = t; cs.escapedThisRetreat = false; cs.retreats++;
+    cs.retreatReadyAt = t + this.chase!.retreatCooldownTicks;
+    this.emit(s, EventKind.Retreat, Move.None, cs.retreatReadyAt);
+  }
+
+  private endTag(s: number, reason: number): void {
+    const cs = this.chaseState![s];
+    if (!cs.tagged) return;
+    cs.tagged = false; cs.escapedThisRetreat = false;
+    this.emit(s, EventKind.ChaseEnd, Move.None, reason);
+  }
+
+  /** After the pair update (FightCore.ChaseTags): the opponent advancing keeps a tag alive; turning to fight, CLOSE, a KO, or
+   * (retreat motion over) no advance for chaseLapseTicks ends it. The start tick never ends it. */
+  private chaseTags(t: number): void {
+    for (let s = 0; s < 2; s++) {
+      const cs = this.chaseState![s]; if (!cs.tagged) continue;
+      const f = this.F[s], o = this.F[1 - s];
+      if (o.loco === Loco.Forward || o.loco === Loco.ForwardJump || o.loco === Loco.Lunge) cs.chasedAt = t;
+      if (f.ko) { this.endTag(s, ChaseEnd.Ko); continue; }
+      if (t === cs.retreatStart) continue;
+      const turned = f.action === Action.Telegraph || f.action === Action.Shove || f.guard === Guard.Raising || f.guard === Guard.Up
+        || f.loco === Loco.Forward || f.loco === Loco.ForwardJump;
+      if (turned) { this.endTag(s, ChaseEnd.Turned); continue; }
+      if (this.distanceMm <= this.rules.closeRangeMm) { this.endTag(s, ChaseEnd.Closed); continue; }
+      const moving = f.action === Action.Escape || (f.inBreak && !f.breakForced);
+      if (!moving && t - cs.chasedAt >= this.chase!.chaseLapseTicks) this.endTag(s, ChaseEnd.Lapsed);
+    }
+  }
+
   private emit(side: number, kind: FightEventKind, move: FightMove, value: number, outcome: FightOutcome = Outcome.Hit, counter = false): void {
     if (this.recordEvents) this.events.push({ tick: this.tick, side, kind, move, value, outcome, counter });
   }
@@ -752,6 +863,12 @@ export class FightCore {
     }
     const cursor = [0, 0];
     for (const d of this.rules.fighters) writeFighter(w, this.roster[d.side][cursor[d.side]++]);
+    // fight-chase-1: only with the chase rules on (off = today's bytes exactly): 'fight-chase-1', the rules, then side 0, side 1
+    if (this.chase) {
+      w.ascii('fight-chase-1');
+      for (const k of CHASE_KEYS) w.int(this.chase[k]);
+      for (const cs of this.chaseState!) writeChaseSide(w, cs);
+    }
     return w.done();
   }
   stateHash(): string { return hex(sha256(this.stateBytes())); }
@@ -781,6 +898,11 @@ function writeFighter(w: Int32Writer, f: FightFighter): void {
     .int(f.pushDirX).int(f.pushDirZ).int(f.pushTotal).int(f.pushTicks).int(f.pushElapsed)
     .int(B(f.inBreak)).int(B(f.breakForced)).int(B(f.backstepPending)).int(f.breakStart).int(f.breakUntil).int(f.lastSelfMoveTick).int(B(f.ko)).int(f.loco).int(f.state).int(f.shieldUntil)
     .int(f.escStart);
+}
+
+function writeChaseSide(w: Int32Writer, cs: FightChaseSide): void {
+  w.int(B(cs.tagged)).int(cs.retreatStart).int(cs.retreatReadyAt).int(cs.chasedAt).int(cs.drainAcc).int(B(cs.escapedThisRetreat))
+    .int(cs.caught).int(cs.retreats).int(cs.ringStops).int(cs.ringStopTick);
 }
 
 function clamp127(v: number): number { return v < -127 ? -127 : v > 127 ? 127 : v; }

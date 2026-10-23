@@ -189,3 +189,25 @@ double-tap, from #134, additive: codes 1–7 encode exactly as before, schemaVer
 The 13-profile table gains `escapeRatePm` (HARE 600, KURAI 500, ERA 500, else 0) and `chargeSharePm`; `PROFILES_VERSION` 2.
 Parity: the 21 frozen vectors (`scripts/fixtures/duel-sim-3`, copied verbatim from Unity) match every tick hash, and the 12 brain
 vectors were re-emitted by `scripts/fight-sim3-oracle/oracle.py --ref 95e924186` (C# at the lane commit).
+
+## `duel-rules-4`: the chase / retreat rules (lane `duel-rules-4-1`, DECISIONS #72.65)
+
+Contract-Change approved by Pak on 2026-10-22 ("approve duel-rules-4"). The TS twin follows HolobotsUnity `claude/duel-rules-4-1`,
+which stacks on Holocity #201 (fight-chase-1). `Schemas/duel-rules-4.json` is a byte copy. It is `duel-rules-3` plus a
+required `chase` block with ten integer keys, in hash order: `chaserSpeedPm` 1100, `chaseDrainPmPerSec` 30, `retreatCostPm` 60,
+`retreatCooldownTicks` 45, `chaseLapseTicks` 15, `caughtStaggerTicks` 15, `caughtGapMm` 1300, `caughtPullMm` 3000,
+`caughtPullTicks` 9, `ringStop` 1. The core is the same duel-sim-3 core, so `simVersion` stays `duel-sim-3`.
+
+- **Off by default.** A `duel-rules-3` snapshot runs today's core, byte for byte. The host issues `duel-rules-4` only with
+  `HOLOCITY_FIGHT_CHASE=1` and `HOLOCITY_FIGHT_REPLAY=1` together. Turn it on only when the floor client parses `duel-rules-4`.
+- **Rules hash.** SHA-256 over ASCII `duel-rules-4`, then the globals, then the 10 chase ints, then the fighters exactly as
+  in `duel-rules-3`. `rulesHash(rules, chase)`; the one-argument form is still `duel-rules-3`.
+- **State bytes.** When the chase rules are on, the state ends with a tail: ASCII `fight-chase-1`, the 10 rules, then per side
+  `tagged, retreatStart, retreatReadyAt, chasedAt, drainAcc, escapedThisRetreat, caught, retreats, ringStops, ringStopTick`.
+  `decodeState` names these fields.
+- **Events and deny code.** Events 23 Retreat, 24 Caught, 25 RingStop, 26 ChaseEnd (value = `ChaseEnd` reason); deny 13
+  `RetreatCooldown`. The witness and the receipt are unchanged.
+- **Parity.** `test-fight-rules4-parity` replays the 13 Unity vectors (`scripts/fixtures/duel-rules-4`, copied verbatim) on
+  every tick hash, event and witness, with a `duel-rules-3` known-bad control. `Schemas/fixtures/duel-receipt-2-chase.fixture.json`
+  is a host-issued chase duel; the Unity C# verifier reproduces its receipt byte for byte.
+

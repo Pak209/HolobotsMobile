@@ -12,8 +12,8 @@ export const combatant = (holobotId, maxHealth = 480, attack = 90, defense = 45,
   ({ holobotId, maxHealth, attack, defense, ...(currentHealth === undefined ? {} : { currentHealth }) });
 
 export function issueFor({ battleId = 'rb_fixture000000000000000000', seed = '5eed'.repeat(16), tier = 4, mentor = false,
-  player = [combatant('ace')], opponent = [combatant('wolf', 450, 85, 40)] } = {}) {
-  const issue = buildFightReplayIssue({ battleId, seed, tier, mentor, player, opponent });
+  player = [combatant('ace')], opponent = [combatant('wolf', 450, 85, 40)], chase = false } = {}) {
+  const issue = buildFightReplayIssue({ battleId, seed, tier, mentor, player, opponent, chase });
   if (!issue) throw Error('unexpressible lineup');
   return issue;
 }
@@ -23,12 +23,12 @@ export function scriptedPlayer(keys) { return F.FightScript.fromJson(keys.map(k 
 
 /** Run 1: brain(profileId, rank) vs the issued CPU; its side-0 decisions become a plain per-tick input list. */
 export function smartPlayer(issue, profileId = 'ace', rank = 'Legendary') {
-  const rules = F.rulesFromJson(issue.rules);
+  const { rules, chase } = F.rulesDocFromJson(issue.rules);
   const rec = [];
   F.runFight(rules, issue.seed,
     { brain: new F.FightCoreBrain(), profile: F.issuedProfile(F.brainProfile(profileId)), skill: F.issuedSkill(rank) },
     { brain: new F.FightCoreBrain(), profile: issue.cpu.profile, skill: issue.cpu.rank },
-    { recordEvents: false, onTick: (_t, inputs) => rec.push(F.toRecord(inputs[0])) });
+    { recordEvents: false, chase, onTick: (_t, inputs) => rec.push(F.toRecord(inputs[0])) });
   return { read: t => (t < rec.length ? F.toInput(rec[t]) : F.toInput(F.idleRecord())) };
 }
 

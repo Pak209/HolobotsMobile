@@ -1,0 +1,18 @@
+{
+  "vectorVersion": "duel-rules-4-vectors-1",
+  "vectors": [
+    "chase-disengage-chased",
+    "chase-lapse-unchased",
+    "chase-edge-drain-escape",
+    "chase-escape-cooldown",
+    "chase-disengage-then-escape",
+    "chase-caught-pull",
+    "chase-turn-and-fight",
+    "chase-ring-stop",
+    "chase-timeline",
+    "chase-tuned-numbers",
+    "chase-squad-ko-bench",
+    "cpu-stub-chase-smoke-0",
+    "cpu-stub-chase-smoke-1"
+  ]
+}
