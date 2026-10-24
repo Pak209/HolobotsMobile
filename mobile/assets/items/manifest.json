@@ -1,10 +1,10 @@
 {
   "sourceRepository": "https://github.com/Pak209/Holocity.git",
-  "sourceCommit": "58f4eb96edc44b732d4e1836f76f5ee1386c2764",
+  "sourceCommit": "74b7bdf78869694bac7876b22bf2ea4877e69faa",
   "sourcePath": "Assets/UI/Resources/HoloUI/Items",
   "requestedCount": 92,
   "actualCount": 105,
-  "totalBytes": 18763763,
+  "totalBytes": 18800900,
   "note": "The current tracked Unity source contains 105 distinct item, part and clothing filenames; all are preserved, including additions beyond the requested 92.",
   "icons": [
     {
@@ -592,8 +592,8 @@
     {
       "id": "part.boxerGloves",
       "file": "part.boxerGloves.png",
-      "bytes": 24947,
-      "sha256": "00c9e9d9d7dbbe49b5f9e4be051a90dffa755d25e0c1721fce59e2e43a311446"
+      "bytes": 62084,
+      "sha256": "f6099607f231169e528d005e718182a44cce855149cce3722fb3cec14cc8e4be"
     },
     {
       "id": "part.combatMask",

@@ -116,14 +116,14 @@
         256,
         256
       ],
-      "sha256": "047b8e8fd09134de2f95da84594052f2de1d802547ce458359b96373938b7840",
-      "sha256_256": "00c9e9d9d7dbbe49b5f9e4be051a90dffa755d25e0c1721fce59e2e43a311446",
-      "sourceSha256": "8618eda9afbd62294dfe6057e09b8a07d5566150cddd40c55a6997b235759ae7",
+      "sha256": "51dc658eeeb0d1c61e9933719df7fff5ccba3f75f43ea88118ae67328cc67fad",
+      "sha256_256": "f6099607f231169e528d005e718182a44cce855149cce3722fb3cec14cc8e4be",
+      "sourceSha256": "67899a2226dd17bd14e5d63493ea2d0589abd8b54124735f8d1a62e280060aef",
       "alphaBounds": [
         75,
-        348,
-        1178,
-        905
+        113,
+        1179,
+        1140
       ]
     },
     "part.plasmaCannon": {
