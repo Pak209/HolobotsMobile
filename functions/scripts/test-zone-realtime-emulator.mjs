@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {T,CONFIG,profile} from './zone-expedition-fixtures.mjs';
-import {recordFightLog,smartPlayer} from './lib/fight-replay-helpers.mjs';
+import {recordFightLog,smartPlayer,scriptedPlayer} from './lib/fight-replay-helpers.mjs';
 const require=createRequire(import.meta.url);
 if(!process.env.FIRESTORE_EMULATOR_HOST||!process.env.GCLOUD_PROJECT?.startsWith('demo-'))throw Error('demo emulator required');
 const {db}=require('../lib/admin.js'),{transactExpedition}=require('../lib/holozone/expeditionStore.js');
@@ -39,4 +39,14 @@ test('tampered log is refused without consuming the pending fight or second ener
  const client=recordFightLog(issue.fightIssue,smartPlayer(issue.fightIssue));client.wire.seed='0'.repeat(64);
  await assert.rejects(()=>call(who,c('fight_settle',runId,{fightId:issue.run.pendingFight.fightId,inputLog:client.wire}),T+120000),/replay_mismatch/);
  const status=await call(who,c('status'));assert.equal(status.run.energy,80);assert.equal(status.run.pendingFight.fightId,issue.run.pendingFight.fightId);
+});
+test('a verified loss wipes once and banks only the protected haul row',async()=>{
+ const {who,runId}=await start(1),ref=db.doc(`holoZoneRuns/${who}/expeditions/${runId}`);
+ await ref.update({haul:[{id:'safe_row',kind:'blueprint_fragment',amount:1,protected:true},{id:'bulky_row',kind:'bulky_salvage',amount:1,protected:false}]});
+ const issue=await call(who,c('engage',runId,{duelInputs:'duel-inputs-2'}));
+ const client=recordFightLog(issue.fightIssue,scriptedPlayer([]));assert.equal(client.winner,1);
+ const reply=await call(who,c('fight_settle',runId,{fightId:issue.run.pendingFight.fightId,inputLog:client.wire}),T+180000);
+ assert.equal(reply.schemaVersion,'zone-run-6');assert.equal(reply.encounterResult.outcome,'wipe');
+ assert.deepEqual(reply.receipt.banked.map(x=>x.id),['safe_row']);assert.deepEqual(reply.receipt.lost.map(x=>x.id),['bulky_row']);
+ assert.ok(reply.run.squad.every(x=>x.currentHealth===0));assert.equal((await ref.get()).data().state,'closed');
 });

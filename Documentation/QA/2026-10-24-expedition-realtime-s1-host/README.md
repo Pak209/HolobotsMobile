@@ -1,5 +1,7 @@
 # Expedition real-time S1 host — review and producer handoff
 
+Host PR: https://github.com/Pak209/HolobotsMobile/pull/215; Unity schema mirror: https://github.com/Pak209/Holocity/pull/232.
+
 Source: `functions/src/holozone/expedition.ts`, `expeditionStore.ts`, `holoZoneHost.ts`, shared fight issue types, and `Schemas/zone-run-6.json`. Unity's `Schemas/zone-run-6.json` and `Schemas/duel-receipt-2.json` are byte-identical to the Mobile copies. This is host code and contract only; no Unity scene or Player build was touched.
 
 ## Wire and rulings
@@ -21,7 +23,7 @@ Sheet: `/Users/pak/HolobotsVault/QA/2026-10-24-expedition-realtime-s1-host/COLD_
 
 - `npm run build` / `check:shared`: pass.
 - Full functions unit suite: 628 passed, 1 existing skip (includes 9 S1 pure tests).
-- Throwaway emulator S1 tests: 3 passed (flag/capability, durable verified settle/idempotency, tamper refusal).
+- Throwaway emulator S1 tests: 4 passed (flag/capability, durable verified settle/idempotency, tamper refusal, verified-loss wipe and protected haul).
 - Broader zone emulator: 29/30 passed. The unchanged `test-zone-expedition-emulator.mjs:91` rules fixture expects a permitted `presenceOptOut` update; it fails `PERMISSION_DENIED` under current main's rules, also when isolated. S1 does not edit those rules or that fixture.
 
 ## Producer's Unity/editor steps
