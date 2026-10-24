@@ -42,12 +42,13 @@ export type ArenaResultPresentation = {
 };
 
 // DECISIONS #71: the authority is "the City". Lex packet 2 (DECISIONS #72.8) reviewed qaStandIn, cityReceipt,
-// cityNothingGranted, rewardsTitle and consolationTitle; the other strings stay PLACEHOLDER until Lex signs them off.
+// cityNothingGranted, rewardsTitle and consolationTitle; Lex packet 3 (group 8) reviewed cityNothingGranted, cityNoRewards
+// and withheld. The other strings stay PLACEHOLDER until Lex signs them off.
 export const ARENA_RESULT_COPY = {
   qaStandIn: "QA / SIMULATED / NO REWARDS",
   cityReceipt: "CITY RECEIPT",
-  cityNothingGranted: "CITY RECEIPT · NO REWARDS GRANTED",
-  cityNoRewards: "CITY RECEIPT · NO REWARDS",
+  cityNothingGranted: "CITY RECEIPT · NOTHING GRANTED",
+  cityNoRewards: "CITY RECEIPT · NO REWARDS THIS MATCH",
   rewardsTitle: "REWARDS",
   consolationTitle: "REWARDS",
   victory: "VICTORY!",
@@ -55,8 +56,8 @@ export const ARENA_RESULT_COPY = {
   forfeit: "FORFEIT",
   refunded: "ENTRY REFUNDED",
   withheld: {
-    daily_cap: "Daily Arena rewards reached · resets 00:00 UTC",
-    under_floor: "Quick loss · no rewards",
+    daily_cap: "Daily Arena reward cap reached · resets 00:00 UTC",
+    under_floor: "Battle too brief for rewards",
   },
 } as const;
 

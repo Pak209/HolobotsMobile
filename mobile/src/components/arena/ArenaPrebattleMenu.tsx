@@ -69,7 +69,7 @@ function FlipPreviewCard({
             <Image source={selectedHolobot.imageSource} style={styles.previewHeroArt} resizeMode="contain" />
             <View style={styles.previewHeroMeta}>
               <Text style={styles.previewHeroName}>{selectedHolobot.name}</Text>
-              <Text style={styles.previewHeroLevel}>{`Lv ${selectedHolobot.level}`}</Text>
+              <Text style={styles.previewHeroLevel}>{`LV ${selectedHolobot.level}`}</Text>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${getExpProgress(selectedHolobot) * 100}%` }]} />
               </View>
@@ -211,7 +211,7 @@ export function ArenaPrebattleMenu({
               <Image source={selectedHolobot.imageSource} style={styles.changeHolobotArt} resizeMode="contain" />
               <View style={styles.changeHolobotBody}>
                 <Text style={styles.changeHolobotName}>{selectedHolobot.name}</Text>
-                <Text style={[styles.changeHolobotMeta, selectedKo && styles.koMeta]}>{selectedKo ? "KO · heal it before entering · Tap to change" : `Lv ${selectedHolobot.level} • Tap to change`}</Text>
+                <Text style={[styles.changeHolobotMeta, selectedKo && styles.koMeta]}>{selectedKo ? "KO · heal it before entering · Tap to change" : `LV ${selectedHolobot.level} • Tap to change`}</Text>
               </View>
             </Pressable>
           </View>
@@ -253,7 +253,7 @@ export function ArenaPrebattleMenu({
                       <>
                         <Image source={entry.imageSource} style={styles.teamSlotArt} resizeMode="contain" />
                         <Text numberOfLines={1} style={styles.teamSlotName}>{entry.name}</Text>
-                        <Text style={styles.teamSlotMeta}>{`Lv ${entry.level}`}</Text>
+                        <Text style={styles.teamSlotMeta}>{`LV ${entry.level}`}</Text>
                       </>
                     ) : (
                       <View style={styles.teamSlotEmpty}>
