@@ -1,0 +1,1638 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "zone-run-6",
+  "title": "zone-run-6 real-time expedition host request or reply",
+  "description": "Flagged host-issued real-time expedition encounters. Existing zone-run-3/4 runs and zone-extract-1 replies retain their own schemas. engage issues a duel-inputs-2 fight; fight_settle applies only the host-verified duel-receipt-2. Flee and reconnect make one seeded free attempt.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/reply"
+    }
+  ],
+  "$defs": {
+    "haul": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "blueprint_fragment",
+            "rare_blueprint_fragment",
+            "bulky_salvage"
+          ]
+        },
+        "amount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "protected": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "amount",
+        "protected"
+      ]
+    },
+    "supplies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "energy": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "extractionCharges": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "energy",
+        "extractionCharges"
+      ]
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^zone-config-[a-zA-Z0-9_-]{1,64}$"
+        },
+        "energyCapacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "energyPackUnits": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "energyPackPrice": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "sectorEnergyCost": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "fightEnergyCost": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "extractionChargePrice": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "cacheFragments": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "bulkySalvageUnits": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "rareBlueprintChanceBasisPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "bandLevels": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "version",
+        "energyCapacity",
+        "energyPackUnits",
+        "energyPackPrice",
+        "sectorEnergyCost",
+        "fightEnergyCost",
+        "extractionChargePrice",
+        "cacheFragments",
+        "bulkySalvageUnits",
+        "rareBlueprintChanceBasisPoints",
+        "bandLevels"
+      ]
+    },
+    "sector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "band": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "safe": {
+          "type": "boolean"
+        },
+        "beacon": {
+          "type": "boolean"
+        },
+        "neighbors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cache": {
+          "type": "boolean"
+        },
+        "rareDiscovery": {
+          "type": "boolean"
+        },
+        "guardian": {
+          "type": "boolean"
+        },
+        "utility": {
+          "enum": [
+            "ace",
+            "shadow",
+            "kuma",
+            null
+          ]
+        },
+        "glimpse": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Host-authored preview line for this sector (presentation copy, placeholder until Lex/Pak approve)."
+        },
+        "dangerLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Host danger label of the sector's band (bands 1-3; absent on entry). Presentation copy."
+        }
+      },
+      "required": [
+        "id",
+        "band",
+        "safe",
+        "beacon",
+        "neighbors",
+        "cache",
+        "rareDiscovery",
+        "guardian",
+        "utility"
+      ]
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "sectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sector"
+          },
+          "minItems": 10,
+          "maxItems": 10
+        }
+      },
+      "required": [
+        "day",
+        "seed",
+        "sectors"
+      ]
+    },
+    "move": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "moveId": {
+          "type": "string"
+        },
+        "staminaCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "damageScale": {
+          "type": "number",
+          "minimum": 0
+        },
+        "syncGain": {
+          "type": "number",
+          "minimum": 0
+        },
+        "syncCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "staminaRestore": {
+          "type": "number",
+          "minimum": 0
+        },
+        "guardReduction": {
+          "type": "number",
+          "minimum": 0
+        },
+        "source": {
+          "enum": [
+            "issued-move",
+            "host-policy-fallback",
+            "derived-host-heavy"
+          ]
+        }
+      },
+      "required": [
+        "moveId",
+        "staminaCost",
+        "damageScale",
+        "syncGain",
+        "syncCost",
+        "staminaRestore",
+        "guardReduction",
+        "source"
+      ]
+    },
+    "fighter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "holobotId": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currentHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "attack": {
+          "type": "number",
+          "minimum": 0
+        },
+        "defense": {
+          "type": "number",
+          "minimum": 0
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxStamina": {
+          "type": "number",
+          "minimum": 0
+        },
+        "staminaRegen": {
+          "type": "number",
+          "minimum": 0
+        },
+        "moveset": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strike": {
+              "$ref": "#/$defs/move"
+            },
+            "heavy": {
+              "$ref": "#/$defs/move"
+            },
+            "defend": {
+              "$ref": "#/$defs/move"
+            },
+            "finisher": {
+              "$ref": "#/$defs/move"
+            }
+          },
+          "required": [
+            "strike",
+            "heavy",
+            "defend",
+            "finisher"
+          ]
+        }
+      },
+      "required": [
+        "holobotId",
+        "level",
+        "tier",
+        "maxHealth",
+        "attack",
+        "defense",
+        "speed",
+        "maxStamina",
+        "staminaRegen",
+        "moveset"
+      ]
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "zone-run-6"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "issuedAtMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "config": {
+          "$ref": "#/$defs/config"
+        },
+        "layout": {
+          "$ref": "#/$defs/layout"
+        },
+        "opponents": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/fighter"
+          }
+        },
+        "sectorId": {
+          "type": "string"
+        },
+        "visited": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        },
+        "cleared": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        },
+        "looted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "maxItems": 10
+        },
+        "squad": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/carriedFighter"
+          },
+          "minItems": 1,
+          "maxItems": 3
+        },
+        "energy": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "charge": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "haul": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/haul"
+          },
+          "maxItems": 9
+        },
+        "guardianDefeated": {
+          "type": "boolean"
+        },
+        "extraction": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "startedAtMs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "startedAtMs"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "zone-extract-1#/$defs/receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "band": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "sector": {
+          "type": "string"
+        },
+        "protectedSlot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/haul"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "utilityUsed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+          },
+          "uniqueItems": true,
+          "maxItems": 10,
+          "description": "Sector ids whose companion utility was spent this run (one-shot per run+sector)."
+        },
+        "pendingFight": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fightId": {
+                  "type": "string"
+                },
+                "sectorId": {
+                  "type": "string"
+                },
+                "issuedAtMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "settleByMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ambush": {
+                  "const": "none"
+                },
+                "fleeAttempted": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "fightId",
+                "sectorId",
+                "issuedAtMs",
+                "settleByMs",
+                "ambush",
+                "fleeAttempted"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "state",
+        "issuedAtMs",
+        "config",
+        "layout",
+        "opponents",
+        "sectorId",
+        "visited",
+        "cleared",
+        "looted",
+        "squad",
+        "energy",
+        "kits",
+        "charge",
+        "haul",
+        "guardianDefeated",
+        "extraction",
+        "receipt",
+        "revision",
+        "seed",
+        "band",
+        "sector",
+        "protectedSlot",
+        "utilityUsed",
+        "pendingFight"
+      ]
+    },
+    "request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "status"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "layout"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "buy"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "itemId": {
+              "enum": [
+                "item.expedition_energy",
+                "item.extraction_charge",
+                "item.repair_kit"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "itemId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "issue"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "repairKits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 99
+            },
+            "carryExtractionCharge": {
+              "type": "boolean"
+            },
+            "duelInputs": {
+              "const": "duel-inputs-2"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "repairKits",
+            "carryExtractionCharge",
+            "duelInputs"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "move"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "sectorId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "sectorId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "cache"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "protect"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "haulId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "haulId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "heal"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "holobotId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "holobotId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "reorder"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "order": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+              },
+              "minItems": 1,
+              "maxItems": 3,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "order"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "utility"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "utility": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "utility"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "engage"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "duelInputs": {
+              "const": "duel-inputs-2"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "duelInputs"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "fight_settle"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "fightId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "inputLog": {
+              "oneOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 262144
+                }
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "fightId",
+            "inputLog"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "flee"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "fightId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "fightId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "resume"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            "fightId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "requestId",
+            "runId",
+            "fightId"
+          ]
+        }
+      ]
+    },
+    "reply": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "layout": {
+              "$ref": "#/$defs/layout"
+            },
+            "config": {
+              "$ref": "#/$defs/config"
+            },
+            "serverNowMs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "layout",
+            "config",
+            "serverNowMs"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "supplies": {
+              "$ref": "#/$defs/supplies"
+            },
+            "repairKits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "run": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/run"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "serverNowMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fightIssue": {
+              "$ref": "#/$defs/fightIssue"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "enabled",
+            "supplies",
+            "repairKits",
+            "run",
+            "serverNowMs"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "buy"
+            },
+            "itemId": {
+              "enum": [
+                "item.expedition_energy",
+                "item.extraction_charge",
+                "item.repair_kit"
+              ]
+            },
+            "holosTokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "supplies": {
+              "$ref": "#/$defs/supplies"
+            },
+            "repairKits": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            },
+            "serverNowMs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "itemId",
+            "holosTokens",
+            "supplies",
+            "repairKits",
+            "alreadyProcessed",
+            "serverNowMs"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "issue"
+            },
+            "run": {
+              "$ref": "#/$defs/run"
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            },
+            "serverNowMs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "run",
+            "alreadyProcessed",
+            "serverNowMs"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "enum": [
+                "move",
+                "cache",
+                "protect",
+                "heal",
+                "reorder",
+                "engage",
+                "fight_settle",
+                "flee",
+                "resume"
+              ]
+            },
+            "run": {
+              "$ref": "#/$defs/run"
+            },
+            "receipt": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "zone-extract-1#/$defs/receipt"
+                }
+              ]
+            },
+            "duelReceipt": {
+              "$ref": "duel-receipt-1"
+            },
+            "interrupted": {
+              "const": true
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            },
+            "serverNowMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fightIssue": {
+              "$ref": "#/$defs/fightIssue"
+            },
+            "fightReceipt": {
+              "$ref": "duel-receipt-2"
+            },
+            "encounterResult": {
+              "$ref": "#/$defs/encounterResult"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "run",
+            "receipt",
+            "alreadyProcessed",
+            "serverNowMs"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "const": "zone-run-6"
+            },
+            "operation": {
+              "const": "utility"
+            },
+            "run": {
+              "$ref": "#/$defs/run"
+            },
+            "receipt": {
+              "type": "null"
+            },
+            "utilityResult": {
+              "$ref": "#/$defs/utilityResult"
+            },
+            "alreadyProcessed": {
+              "type": "boolean"
+            },
+            "serverNowMs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "operation",
+            "run",
+            "receipt",
+            "utilityResult",
+            "alreadyProcessed",
+            "serverNowMs"
+          ]
+        }
+      ]
+    },
+    "utilityResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the host resolved for this utility use. effect none = nothing to do here (route already open, barrier already down, haul full): not spent, no cooldown.",
+      "properties": {
+        "sectorId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+        },
+        "utility": {
+          "enum": [
+            "ace",
+            "shadow",
+            "kuma"
+          ]
+        },
+        "effect": {
+          "enum": [
+            "route",
+            "cache",
+            "clear",
+            "none"
+          ]
+        },
+        "opensSectorId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "haul": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/haul"
+          },
+          "maxItems": 9,
+          "description": "Rows this use added; also present (unbanked) in run.haul."
+        },
+        "spent": {
+          "type": "boolean"
+        },
+        "cooldownMs": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "sectorId",
+        "utility",
+        "effect",
+        "opensSectorId",
+        "haul",
+        "spent",
+        "cooldownMs"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "spent": {
+                "const": false
+              },
+              "cooldownMs": {
+                "type": "null"
+              },
+              "opensSectorId": {
+                "type": "null"
+              },
+              "haul": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "spent": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "const": "route"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opensSectorId": {
+                "type": "string"
+              },
+              "haul": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "const": "cache"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opensSectorId": {
+                "type": "null"
+              },
+              "haul": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "const": "clear"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "opensSectorId": {
+                "type": "null"
+              },
+              "haul": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "carriedFighter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "holobotId": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tier": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currentHealth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "attack": {
+          "type": "number",
+          "minimum": 0
+        },
+        "defense": {
+          "type": "number",
+          "minimum": 0
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxStamina": {
+          "type": "number",
+          "minimum": 0
+        },
+        "staminaRegen": {
+          "type": "number",
+          "minimum": 0
+        },
+        "moveset": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strike": {
+              "$ref": "#/$defs/move"
+            },
+            "heavy": {
+              "$ref": "#/$defs/move"
+            },
+            "defend": {
+              "$ref": "#/$defs/move"
+            },
+            "finisher": {
+              "$ref": "#/$defs/move"
+            }
+          },
+          "required": [
+            "strike",
+            "heavy",
+            "defend",
+            "finisher"
+          ]
+        },
+        "staminaPm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "required": [
+        "holobotId",
+        "level",
+        "tier",
+        "maxHealth",
+        "attack",
+        "defense",
+        "speed",
+        "maxStamina",
+        "staminaRegen",
+        "moveset",
+        "staminaPm"
+      ]
+    },
+    "fightIssue": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "const": "input-log"
+        },
+        "schemaVersion": {
+          "const": "duel-receipt-2"
+        },
+        "inputsSchema": {
+          "const": "duel-inputs-2"
+        },
+        "rulesId": {
+          "type": "string"
+        },
+        "rulesHash": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "object"
+        },
+        "seed": {
+          "type": "string"
+        },
+        "playerSide": {
+          "const": 0
+        },
+        "player": {
+          "type": "object"
+        },
+        "cpu": {
+          "type": "object"
+        },
+        "encounter": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "expedition"
+            },
+            "runId": {
+              "type": "string"
+            },
+            "sectorId": {
+              "type": "string"
+            },
+            "ambush": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind",
+            "runId",
+            "sectorId",
+            "ambush"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "schemaVersion",
+        "inputsSchema",
+        "rulesId",
+        "rulesHash",
+        "rules",
+        "seed",
+        "playerSide",
+        "player",
+        "cpu",
+        "encounter"
+      ]
+    },
+    "encounterResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "enum": [
+            "cleared",
+            "wipe",
+            "fled"
+          ]
+        },
+        "sectorId": {
+          "type": "string"
+        },
+        "ambush": {
+          "const": "none"
+        },
+        "carry": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "holobotId": {
+                "type": "string"
+              },
+              "currentHealth": {
+                "type": "number",
+                "minimum": 0
+              },
+              "staminaPm": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              }
+            },
+            "required": [
+              "holobotId",
+              "currentHealth",
+              "staminaPm"
+            ]
+          }
+        }
+      },
+      "required": [
+        "outcome",
+        "sectorId",
+        "ambush",
+        "carry"
+      ]
+    }
+  }
+}

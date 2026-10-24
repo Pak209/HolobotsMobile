@@ -17,7 +17,7 @@ import { transactHoloZoneRun } from './holoZoneStore';
 export const holoZoneHost = onCall(async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in to enter a HoloZone.');
-  const expeditionRequest=['zone-run-3','zone-run-4','zone-extract-1'].includes(request.data?.schemaVersion);
+  const expeditionRequest=['zone-run-3','zone-run-4','zone-run-6','zone-extract-1'].includes(request.data?.schemaVersion);
   try {
     if(expeditionRequest)return await transactExpedition(db,uid,request.data);
     return await transactHoloZoneRun(db, uid, request.data);
