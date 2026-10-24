@@ -28,7 +28,7 @@ describe("L10 · STORY appears only when the overworld would load", () => {
     expect(hub).toContain('(district.destination !== "Overworld" || STORY_AVAILABLE)');
   });
   it("gates the pilot menu entry and never prints the address on the blocked screen", () => {
-    expect(source("../../components/HomeCogButton.tsx")).toContain('...(STORY_AVAILABLE ? [{ label: "STORY"');
+    expect(source("../../components/HomeCogButton.tsx")).toContain('...(isStoryOverworldAvailable() ? [{ label: "STORY"');
     const overworld = source("../../screens/OverworldScreen.tsx").split("\n");
     const printed = overworld.filter((line) => line.includes("${STORY_OVERWORLD_URL}") || line.includes("{STORY_OVERWORLD_URL}"));
     // The only remaining mention is the developer hint, compiled out of release builds.

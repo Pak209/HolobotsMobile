@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   ARTBOARD_HEIGHT, ARTBOARD_WIDTH, FOOTER_LABEL_SIZE, FOOTER_LABEL_Y, FOOTER_PLATE, HEADER_PLATE_LOWER_EDGE_Y, HEADER_PLATE_PATH,
   HOME_FOOTER_ITEMS, HOME_NATIVE_CITY_ENTRY, HOME_PAGE_PADDING, HOME_STATUS_STRIP, HUD_FONT_LINE, PART_OVERLAY, PART_SLOT_HEIGHT, PART_SLOT_WIDTH, PART_SLOT_XS,
-  PART_SLOT_Y, STATUS_STRIP_TEXT_PT, footerIconArtRect, headerDiagonalX, homeCanvasFrame, type ArtRect,
+  PART_SLOT_Y, STATUS_STRIP_TEXT_PT, footerIconArtRect, headerDiagonalX, homeCanvasFrame, homePagePadding, type ArtRect,
 } from "../homeLayout";
 
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url) as unknown as string), "utf8");
@@ -22,7 +22,7 @@ const PHONES = [
   { name: "iPhone 15/16 Pro Max 430×932", window: { width: 430, height: 932 }, insets: { top: 59, bottom: 34 } },
 ] as const;
 const pageHeight = (phone: (typeof PHONES)[number]) =>
-  phone.window.height - phone.insets.top - HOME_PAGE_PADDING.top - phone.insets.bottom - HOME_PAGE_PADDING.bottom;
+  phone.window.height - phone.insets.top - homePagePadding(phone.window, phone.insets).top - phone.insets.bottom - homePagePadding(phone.window, phone.insets).bottom;
 const smallestScale = Math.min(...PHONES.map((phone) => homeCanvasFrame(phone.window, phone.insets).scale));
 
 /** The pre-fix FigmaCanvas (fillHeight): width from the window, height from the page. Known-bad control. */
@@ -59,7 +59,7 @@ describe("L12 · Home artboard scale", () => {
     const canvas = read("../../components/FigmaCanvas.tsx");
     expect(canvas).toMatch(/const frame = fitArtboard\(/);
     expect(canvas).toContain("{ width: frame.width, height: frame.height }");
-    expect(read("../../screens/HomeScreen.tsx")).toMatch(/paddingTop: insets\.top \+ HOME_PAGE_PADDING\.top, paddingBottom: insets\.bottom \+ HOME_PAGE_PADDING\.bottom/);
+    expect(read("../../screens/HomeScreen.tsx")).toMatch(/paddingTop: insets\.top \+ pagePadding\.top, paddingBottom: insets\.bottom \+ pagePadding\.bottom/);
   });
   it("known-bad control: the old canvas stretched every phone (SE squashed to 0.94)", () => {
     const ratios = PHONES.map((phone) => { const { scaleX, scaleY } = legacyCanvas(phone); return scaleY / scaleX; });
@@ -69,9 +69,8 @@ describe("L12 · Home artboard scale", () => {
 });
 
 describe("L13 · footer nav and part slots are centred", () => {
-  it("puts the footer label centroid within 1% of the artboard centre (was 809.5 of 900)", () => {
-    const centroid = HOME_FOOTER_ITEMS.reduce((sum, item) => sum + item.labelX, 0) / HOME_FOOTER_ITEMS.length;
-    expect(Math.abs(centroid - ARTBOARD_WIDTH / 2)).toBeLessThanOrEqual(ONE_PERCENT);
+  it("restores OG footer label anchors and keeps the four buttons in their columns", () => {
+    expect(HOME_FOOTER_ITEMS.map((item) => item.labelX)).toEqual([210, 622, 1008, 1398]);
     expect(HOME_FOOTER_ITEMS.map((item) => item.label)).toEqual(["ARENA", "INVENTORY", "SYNC", "MARKET"]);
   });
   it.each(HOME_FOOTER_ITEMS)("records the $key icon's real PNG size", (item) => {

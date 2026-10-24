@@ -100,8 +100,8 @@ export function InventoryScreen() {
       key={holobot.key}
       holobot={holobot}
       slot={index}
-      live={focused && index === 0 && selectedHolobotKey === null}
       blueprintCount={profile?.blueprints?.[holobot.key] || 0}
+      navGutter={index === 0}
       onPress={() => setSelectedHolobotKey(holobot.key)}
     />
   ));
@@ -312,14 +312,14 @@ export function InventoryScreen() {
 
   return (
     <View style={styles.page}>
-      <HomeCogButton showStats={false} />
+      <HomeCogButton />
       <CompactSectionHeader
         eyebrow="LOADOUT"
         meta={`Parts ${profile?.parts?.length || 0} • Items ${items.length} • Moves ${Object.keys(profile?.battle_cards || {}).length}`}
         title="Inventory"
       />
 
-      <AngularPageTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
+      <View style={styles.tabNavGutter}><AngularPageTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} /></View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {activeTab === "Holobots" ? renderHolobots() : null}
@@ -352,6 +352,7 @@ export function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  tabNavGutter: { marginRight: 68 },
   boosterActiveText: {
     color: theme.colors.success,
     fontFamily: "HoloBody",

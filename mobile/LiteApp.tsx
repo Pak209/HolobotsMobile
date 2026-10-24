@@ -92,6 +92,7 @@ function AuthedApp() {
           initialRouteName="Home"
           screenOptions={{
             headerShown: false,
+            freezeOnBlur: true,
             tabBarStyle: {
               display: "none",
             },

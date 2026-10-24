@@ -166,7 +166,7 @@ export function QuestsScreen({ cityPreview }: { cityPreview?: CityProgression } 
 
   return (
     <View style={styles.page}>
-      <HomeCogButton showStats={false} />
+      <HomeCogButton />
       <ScrollView bounces={false} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>QUESTS</Text>
         <Text style={styles.subcopy}>Send your Holobots on quests to earn rewards while you&apos;re away.</Text>
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accent,
     justifyContent: "center",
     marginTop: 6,
-    minHeight: 30,
+    minHeight: 44,
   },
   sendButtonText: {
     color: theme.colors.carbon,
