@@ -5,6 +5,7 @@ export const gameAssets = {
   arenaPass: itemIcons["item.arena_pass"],
   blueprint: itemIcons["item_blueprint_fragment"],
   corePart: itemIcons["part.energyCore"],
+  quantumCorePart: itemIcons["part.quantumCore"],
   expBoost: itemIcons["item_training_booster"],
   energyRefill: itemIcons["item_energy_refill"],
   gachaTicket: itemIcons["item_holo_pack"],
@@ -15,7 +16,8 @@ export const gameAssets = {
   armsPartInfernoClaws: itemIcons["part.infernoClaws"],
   headPartCombatMask: itemIcons["part.combatMask"],
   headPartVoidMask: itemIcons["part.voidMask"],
-  torsoPart: itemIcons["part.alloyChassis"],
+  torsoPart: itemIcons["part.reinforcedChassis"],
+  alloyChassisPart: itemIcons["part.alloyChassis"],
 } as const;
 
 function normalizePartName(name: string) {
@@ -24,7 +26,7 @@ function normalizePartName(name: string) {
 
 const partNameImageMap: Record<string, number> = {
   "advanced scanner": gameAssets.headPartCombatMask,
-  "alloy chassis": gameAssets.torsoPart,
+  "alloy chassis": gameAssets.alloyChassisPart,
   "boxer gloves": gameAssets.armsPartBoxer,
   "body armor": gameAssets.torsoPart,
   "chest plate": gameAssets.torsoPart,
@@ -36,7 +38,7 @@ const partNameImageMap: Record<string, number> = {
   "plasma cannon": gameAssets.armPartPlasmaCannon,
   "plasma cannons": gameAssets.armPartPlasmaCannon,
   "power core": gameAssets.corePart,
-  "quantum core": gameAssets.corePart,
+  "quantum core": gameAssets.quantumCorePart,
   "reinforced chassis": gameAssets.torsoPart,
   "steel torso": gameAssets.torsoPart,
   "torso part": gameAssets.torsoPart,

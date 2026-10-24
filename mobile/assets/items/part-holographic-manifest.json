@@ -1,0 +1,230 @@
+{
+  "packageVersion": "parts-holographic-2",
+  "icons": {
+    "part.combatMask": {
+      "file": "part.combatMask.png",
+      "file256": "256/part.combatMask.png",
+      "displayName": "Combat Mask",
+      "slot": "head",
+      "rarity": "common",
+      "nonColourCue": "one open visor frame",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "fa6a25492cd0871ac1b81a0d7c57bfb532f973669ddf10d459f60ecc803d6e77",
+      "sha256_256": "90a46b79b0d98845f4212c929ac6073207fcc6003f4d5680df7c3a25bed7016d",
+      "sourceSha256": "c063482a1d04a6022788c87c0c9ca29d34c3aa5ba531f31dfe283a994eb649fb",
+      "alphaBounds": [
+        96,
+        75,
+        1158,
+        1179
+      ]
+    },
+    "part.voidMask": {
+      "file": "part.voidMask.png",
+      "file256": "256/part.voidMask.png",
+      "displayName": "Void Mask",
+      "slot": "head",
+      "rarity": "epic",
+      "nonColourCue": "three rails and faceted mark",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "717a002f0d6d5fc6ef03f4198a6d3dd9b20ddcbeb2e2b3645ad11394f538bd12",
+      "sha256_256": "72c669abffd962b8d6d3365a8cd20c6926f652b34b35abf6ef894f6bb7643281",
+      "sourceSha256": "b97c35fe616f8e91bacb50917af9aa84b784f57410671719a539797f6c045413",
+      "alphaBounds": [
+        81,
+        75,
+        1173,
+        1179
+      ]
+    },
+    "part.reinforcedChassis": {
+      "file": "part.reinforcedChassis.png",
+      "file256": "256/part.reinforcedChassis.png",
+      "displayName": "Reinforced Chassis",
+      "slot": "torso",
+      "rarity": "common",
+      "nonColourCue": "stacked U shield",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "54bdc5ab3458030ec70a09a30a6337512940575e0884f6b7910c593dd3e72a19",
+      "sha256_256": "8f3359a0ca3de4de475931f895369f2db64eb959f19dd35257950e4950cf3c75",
+      "sourceSha256": "999db53197aaaa7058f7299c0b94981af70c557d22be9b547754c89a7c7c92fb",
+      "alphaBounds": [
+        75,
+        153,
+        1179,
+        1101
+      ]
+    },
+    "part.alloyChassis": {
+      "file": "part.alloyChassis.png",
+      "file256": "256/part.alloyChassis.png",
+      "displayName": "Alloy Chassis",
+      "slot": "torso",
+      "rarity": "rare",
+      "nonColourCue": "split V chevrons",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "d58281a6f75cc36617e93a2be9ef1cea3ec812068130ddacd214865e01c5c144",
+      "sha256_256": "2737c2eeb4ad6e14ceb96eebf45841ea6409419e0408c5f944839f96a6c1b16a",
+      "sourceSha256": "87ccd182d0c9a1a5aff68c5454dcd5fec40a6ccc288da4058893d7a0ee0725b3",
+      "alphaBounds": [
+        75,
+        139,
+        1179,
+        1115
+      ]
+    },
+    "part.boxerGloves": {
+      "file": "part.boxerGloves.png",
+      "file256": "256/part.boxerGloves.png",
+      "displayName": "Boxer Gloves",
+      "slot": "arms",
+      "rarity": "common",
+      "nonColourCue": "paired open mitts",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "51dc658eeeb0d1c61e9933719df7fff5ccba3f75f43ea88118ae67328cc67fad",
+      "sha256_256": "f6099607f231169e528d005e718182a44cce855149cce3722fb3cec14cc8e4be",
+      "sourceSha256": "67899a2226dd17bd14e5d63493ea2d0589abd8b54124735f8d1a62e280060aef",
+      "alphaBounds": [
+        75,
+        113,
+        1179,
+        1140
+      ]
+    },
+    "part.plasmaCannon": {
+      "file": "part.plasmaCannon.png",
+      "file256": "256/part.plasmaCannon.png",
+      "displayName": "Plasma Cannon",
+      "slot": "arms",
+      "rarity": "rare",
+      "nonColourCue": "two rings and long barrel",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "cb6e46db6d72d146fde250a1f0bc5782a74882a757a410413f11db7e9a2db413",
+      "sha256_256": "00661457b8d484d3bf455c663a12f8ce90093202755af7c9689b05f4bb497d47",
+      "sourceSha256": "3895fad5d9480078ff4bea223dc86ebe120ed07f744d911721163a5b975bb9e2",
+      "alphaBounds": [
+        75,
+        271,
+        1179,
+        983
+      ]
+    },
+    "part.infernoClaws": {
+      "file": "part.infernoClaws.png",
+      "file256": "256/part.infernoClaws.png",
+      "displayName": "Inferno Claws",
+      "slot": "arms",
+      "rarity": "epic",
+      "nonColourCue": "three talons per arm",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "00cbd09956fa8984549ed133295adc70d3760dc8acda795d492546b1f4068bf3",
+      "sha256_256": "865b8bc326a5c51152ef1becf9c3e0cfc4fe8ecaa6b95606791a8e4c076a0077",
+      "sourceSha256": "201f161925413f63c6c1247a20ec179b0b61d4f78fed281bc3c3d62d80f71893",
+      "alphaBounds": [
+        75,
+        84,
+        1179,
+        1169
+      ]
+    },
+    "part.energyCore": {
+      "file": "part.energyCore.png",
+      "file256": "256/part.energyCore.png",
+      "displayName": "Energy Core",
+      "slot": "core",
+      "rarity": "common",
+      "nonColourCue": "single round ring",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "0f5f95c38571506d4657b1e6523249af0fc31ddb53feacc960c61bcf2e2dde9b",
+      "sha256_256": "a0113700262242700addbfc41737fcccd914eb62bf8fd83ac638f025231a147d",
+      "sourceSha256": "2afe845bad4aac5ec4dbab713764f061fc6675068bbea3ee4a6ee9f445ce2f64",
+      "alphaBounds": [
+        75,
+        129,
+        1179,
+        1125
+      ]
+    },
+    "part.quantumCore": {
+      "file": "part.quantumCore.png",
+      "file256": "256/part.quantumCore.png",
+      "displayName": "Quantum Core",
+      "slot": "core",
+      "rarity": "epic",
+      "nonColourCue": "faceted orbit frames",
+      "size": [
+        1254,
+        1254
+      ],
+      "size256": [
+        256,
+        256
+      ],
+      "sha256": "646051496b4a5911012c5fed0124ab0adbe45d79d8236aef3d061c6d3eccf043",
+      "sha256_256": "ebe6e2bac7060ef554f13fe330753299259cbab27ce083b3d4b9f583ba8b9ed8",
+      "sourceSha256": "3b476a3f0dc466b2ac85dfb9668867f2ba497ae6bc6acb4afa4bbab531a9d546",
+      "alphaBounds": [
+        75,
+        145,
+        1179,
+        1108
+      ]
+    }
+  }
+}
