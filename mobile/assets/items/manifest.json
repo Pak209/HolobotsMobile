@@ -1,10 +1,10 @@
 {
   "sourceRepository": "https://github.com/Pak209/Holocity.git",
-  "sourceCommit": "99a1b23fb5d335c8317a2740f02f1a75c9a299b5",
+  "sourceCommit": "74b7bdf78869694bac7876b22bf2ea4877e69faa",
   "sourcePath": "Assets/UI/Resources/HoloUI/Items",
   "requestedCount": 92,
   "actualCount": 105,
-  "totalBytes": 18938563,
+  "totalBytes": 18800900,
   "note": "The current tracked Unity source contains 105 distinct item, part and clothing filenames; all are preserved, including additions beyond the requested 92.",
   "icons": [
     {
@@ -586,56 +586,56 @@
     {
       "id": "part.alloyChassis",
       "file": "part.alloyChassis.png",
-      "bytes": 78685,
-      "sha256": "750c07e2861ac15b7097c8379e12e6e7cb2815e72e48306a4267dbf93396f777"
+      "bytes": 51612,
+      "sha256": "2737c2eeb4ad6e14ceb96eebf45841ea6409419e0408c5f944839f96a6c1b16a"
     },
     {
       "id": "part.boxerGloves",
       "file": "part.boxerGloves.png",
-      "bytes": 76632,
-      "sha256": "1fff2c2bc6f3bb67c2bdf90d0fde36ada9210e13b4a28f2f53228bf8a52ba2fa"
+      "bytes": 62084,
+      "sha256": "f6099607f231169e528d005e718182a44cce855149cce3722fb3cec14cc8e4be"
     },
     {
       "id": "part.combatMask",
       "file": "part.combatMask.png",
-      "bytes": 76680,
-      "sha256": "bedff78857be998dbf9c33671c545595ce61e5d048bce602a4af091dcc46b90a"
+      "bytes": 46071,
+      "sha256": "90a46b79b0d98845f4212c929ac6073207fcc6003f4d5680df7c3a25bed7016d"
     },
     {
       "id": "part.energyCore",
       "file": "part.energyCore.png",
-      "bytes": 61988,
-      "sha256": "ad12102ca1e055ac0c99636b040434a8de6697cb98ed5d0975b388abef881e43"
+      "bytes": 63069,
+      "sha256": "a0113700262242700addbfc41737fcccd914eb62bf8fd83ac638f025231a147d"
     },
     {
       "id": "part.infernoClaws",
       "file": "part.infernoClaws.png",
-      "bytes": 58743,
-      "sha256": "1059daacb1bf32d0b8165058702321839b3301c7e95b5bc4a015e858c99e814b"
+      "bytes": 47280,
+      "sha256": "865b8bc326a5c51152ef1becf9c3e0cfc4fe8ecaa6b95606791a8e4c076a0077"
     },
     {
       "id": "part.plasmaCannon",
       "file": "part.plasmaCannon.png",
-      "bytes": 63793,
-      "sha256": "adcc908dcdb78cea228556c090ed9c7dd31312fc5484a8524c641f18442ccf60"
+      "bytes": 34836,
+      "sha256": "00661457b8d484d3bf455c663a12f8ce90093202755af7c9689b05f4bb497d47"
     },
     {
       "id": "part.quantumCore",
       "file": "part.quantumCore.png",
-      "bytes": 89232,
-      "sha256": "6cc786de26e8ec9a27cf61aea775a5f2cc967e8be7737673b3b6365358d28ed1"
+      "bytes": 73690,
+      "sha256": "ebe6e2bac7060ef554f13fe330753299259cbab27ce083b3d4b9f583ba8b9ed8"
     },
     {
       "id": "part.reinforcedChassis",
       "file": "part.reinforcedChassis.png",
-      "bytes": 70081,
-      "sha256": "2056f2025fdf57dedda3e3d7d243c1b8db8a90783a0ba3331657e838bea259db"
+      "bytes": 81890,
+      "sha256": "8f3359a0ca3de4de475931f895369f2db64eb959f19dd35257950e4950cf3c75"
     },
     {
       "id": "part.voidMask",
       "file": "part.voidMask.png",
-      "bytes": 75335,
-      "sha256": "2f6a478f84341ca295f32b0a5f2e94683bbe2216eee72a6fc71c0d584cbc3af5"
+      "bytes": 52974,
+      "sha256": "72c669abffd962b8d6d3365a8cd20c6926f652b34b35abf6ef894f6bb7643281"
     }
   ]
 }

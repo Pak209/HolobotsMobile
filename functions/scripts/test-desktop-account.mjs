@@ -78,16 +78,14 @@ test('v3: every holobot normalised (mobile defaults) with battleStats = getPlaye
   assert.deepEqual(r.travelSquad, profile.travelSquad);
   const [a, k, w] = r.holobots;
   // ACE L4 (+3 atk / +20 HP, sync power 10 / guard 20 / tempo 5 / focus 30): the rival-battle-3 combatant numbers.
-  // DECISIONS #72.78 (2): ACE base speed 7 -> 6, so battle speed 80 -> 69 (floor(60 x 1.15) under tempo 5).
-  assert.deepEqual(a.battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 69, intelligence: 60 });
-  assert.deepEqual(a.displayStats, { attack: 12, defense: 6, hp: 192, special: 5, speed: 6 });
+  assert.deepEqual(a.battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 80, intelligence: 60 });
+  assert.deepEqual(a.displayStats, { attack: 12, defense: 6, hp: 192, special: 5, speed: 8 });
   assert.deepEqual(a.career, { workouts: 2 }, 'extra keys kept'); assert.deepEqual(a.syncStats, ace().syncStats);
   assert.deepEqual(Object.keys(a).slice(-3), ['battleStats', 'battlefieldMovement', 'displayStats']);
   // KUMA with only name + level: the mobile defaults.
   assert.deepEqual({ level: k.level, experience: k.experience, nextLevelExp: k.nextLevelExp, attributePoints: k.attributePoints, rank: k.rank, boostedAttributes: k.boostedAttributes }, { level: 1, experience: 0, nextLevelExp: 400, attributePoints: 1, rank: 'Rookie', boostedAttributes: {} });
-  // #72.78 (2): KUMA base speed 3 -> 4.
-  assert.deepEqual(k.battleStats, { attack: 70, defense: 50, maxHP: 200, speed: 40, intelligence: 40 });
-  assert.deepEqual(k.displayStats, { attack: 7, defense: 5, hp: 200, special: 4, speed: 4 });
+  assert.deepEqual(k.battleStats, { attack: 70, defense: 50, maxHP: 200, speed: 30, intelligence: 40 });
+  assert.deepEqual(k.displayStats, { attack: 7, defense: 5, hp: 200, special: 4, speed: 3 });
   assert.equal(w.level, 1); assert.equal(w.nextLevelExp, 400);
   for (const h of r.holobots) {
     const s = E.getPlayerBattleStats(h);

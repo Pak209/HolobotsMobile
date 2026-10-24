@@ -9,7 +9,7 @@ import { getSignatureFinisher, resolveCombatKit } from "@/features/arena/moveKit
 import { publishRivalCooldown } from "@/lite/hooks/useRivalStatus";
 import { cityActionMessage, cityRivalCooldownEnd, type ArenaCitizen } from "@/lite/lib/cityHub";
 import { CITY_LIVE_DUEL_HOLD, issueCityRival } from "@/lite/lib/cityHubClient";
-import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, type CityRivalIssue } from "@/lite/lib/cityRivalBattle";
+import { CITY_KO_HOLD_MS, cityBattleRounds, cityCombatantFighter, cityDuelPhase, cityObservedActions, readCityRivalIssue, type CityObservedAction, type CityRivalIssue } from "@/lite/lib/cityRivalBattle";
 import { DuelPlaybackScreen } from "@/lite/screens/DuelPlaybackScreen";
 import type { BattleState } from "@/lite/types/arena";
 import { theme } from "@/lite/theme";
@@ -47,8 +47,12 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
   const observed = useRef<BattleState | null>(null);
   const appActive = useRef(AppState.currentState === "active");
   const settlementAttempted = useRef(false);
+  // lite-ko-continue-bug-1: engine HP/stamina observed around each action, so the replay bars are not empty.
+  const observedActions = useRef<CityObservedAction[]>([]);
+  const [koAt, setKoAt] = useState<number | null>(null);
+  const [clock, setClock] = useState(0);
 
-  function commit(next: BattleState) { observed.current = next; setBattle(next); }
+  function commit(next: BattleState) { observedActions.current = [...observedActions.current, ...cityObservedActions(observed.current, next)]; observed.current = next; setBattle(next); }
   function enterBattle(admitted: CityRivalIssue) {
     const player = cityCombatantFighter(admitted.player, "player", uid);
     const opponent = cityCombatantFighter(admitted.opponent, "rival", uid);
@@ -124,24 +128,35 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     if (!issue || receipt || !preview) return;
     settlementAttempted.current = true; setReceipt({ battleId: "offline-city-duel", didWin });
   }
+  // lite-ko-continue-bug-1: the KO is the end of the fight. Hold the KO'd stage for the 2 s beat, then the result.
+  useEffect(() => {
+    if (battle?.status !== "completed" || koAt !== null) return;
+    const now = Date.now(); setKoAt(now); setClock(now);
+  }, [battle?.status, koAt]);
+  useEffect(() => {
+    if (koAt === null) return;
+    const timer = setTimeout(() => setClock(Date.now()), CITY_KO_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [koAt]);
+  const phase = cityDuelPhase(battle?.status, koAt, clock);
   useEffect(() => {
     if (!battle || battle.status !== "completed" || settlementAttempted.current || receipt) return;
     const result = ArenaCombatEngine.checkWinCondition(battle);
     const didWin = result.winnerId === battle.player.holobotId;
-    if (preview || !didWin || Date.now() >= receivedAt.current + 20_000) settle(didWin);
-  }, [battle, receipt, waitSeconds]);
+    if (preview ? phase === "result" : !didWin || Date.now() >= receivedAt.current + 20_000) settle(didWin);
+  }, [battle, receipt, waitSeconds, phase]);
 
   // Leaving records nothing: only the offline preview can be in a battle while live duels are held.
   function forfeit() { onClose(); }
   const replayReceipt = useMemo(() => ({ issue: issue?.raw, settlement: receipt }), [issue, receipt]);
-  const replayRounds = useMemo(() => cityBattleRounds(battle?.actionHistory ?? []), [battle?.actionHistory]);
+  const replayRounds = useMemo(() => cityBattleRounds(battle?.actionHistory ?? [], observedActions.current), [battle?.actionHistory]);
   if (__DEV__ && preview && hostPreview && process.env.EXPO_PUBLIC_HOLOCITY_RECEIPT_QA === "1") {
     const fixture = require("@/lite/qa/fixtures/duel-receipt-1.json");
     return <DuelPlaybackScreen fixture receipt={fixture.receipt} onClose={onClose} />;
   }
-  if (receipt && issue) return <DuelPlaybackScreen accountSnapshot={accountSnapshot} fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
+  if (receipt && issue) return <DuelPlaybackScreen accountSnapshot={accountSnapshot} fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} startAtResult={preview} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
 
-  if (battle?.status === "active") return <CityLiveBattleView accountSnapshot={accountSnapshot} hostIssue={issue?.raw} battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
+  if (battle?.status === "active" || (preview && battle?.status === "completed" && !receipt)) return <CityLiveBattleView accountSnapshot={accountSnapshot} hostIssue={issue?.raw} battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
 
   return <View style={[styles.screen, styles.center, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
     <Text style={styles.label}>CITY RIVAL CHALLENGE</Text>

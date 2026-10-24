@@ -9,11 +9,11 @@
  * archetype band. JUSAN gets his own row (twin blades / crosscut striker: fast, sharp, light) instead of the ACE fallback.
  *
  * NOT live progression: display stats, quests, training, battlefield movement and the legacy duel resolver keep reading
- * HOLOBOT_BASE_STATS. Only buildFightReplayIssue applies these rows, and only on a duel-rules-5 issue (host flags
+ * the flag-selected progression table (getHolobotBaseStatsTable). Only buildFightReplayIssue applies these rows, and only on a duel-rules-5 issue (host flags
  * HOLOCITY_FIGHT_ATTRS + HOLOCITY_FIGHT_CHASE, default off), as a per-bot delta on progression-sourced combatants. Promoting
  * them to HOLOBOT_BASE_STATS is a separate call (it would move displayed stats, quest power and rival tiers).
  */
-import { getHolobotBattleStats, HOLOBOT_BASE_STATS } from './progression';
+import { HOLOBOT_BASE_STATS_RULES5 } from './progression';
 
 type Row = { attack: number; defense: number; hp: number; intelligence: number; speed: number };
 
@@ -36,18 +36,21 @@ export const HOLOBOT_FIGHT_BASE_STATS_72_80: Record<string, Row> = {
 export type FightStatDelta = { attack: number; defense: number; maxHP: number; intelligence: number; speed: number };
 
 /** Unboosted fight-row battle stats minus unboosted progression battle stats at this level (0s for an unknown bot). Boosts are
- * flat on both sides, so adding this to a boosted progression combatant gives the fight-row stats with the same boosts. */
+ * flat on both sides, so adding this to a boosted progression combatant gives the fight-row stats with the same boosts.
+ * The progression side is the rules-5 table (HOLOBOT_BASE_STATS_RULES5) — a duel-rules-5 issue needs the rules-5 host flag,
+ * which is also what makes that table live (progression.ts progressionRules5Enabled), so in production the two always agree. */
 export function getHolobotFightStatDelta(name: string, level = 1): FightStatDelta {
   const key = String(name || '').trim().toUpperCase();
   const row = HOLOBOT_FIGHT_BASE_STATS_72_80[key];
   if (!row) return { attack: 0, defense: 0, maxHP: 0, intelligence: 0, speed: 0 };
   const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
-  const now = getHolobotBattleStats(key in HOLOBOT_BASE_STATS ? key : 'ACE', level);
+  const base = HOLOBOT_BASE_STATS_RULES5[(key in HOLOBOT_BASE_STATS_RULES5 ? key : 'ACE') as keyof typeof HOLOBOT_BASE_STATS_RULES5];
+  const x10 = (row: number, now: number) => Math.floor(row * 10 * levelBonus) - Math.floor(now * 10 * levelBonus);
   return {
-    attack: Math.floor(row.attack * 10 * levelBonus) - now.attack,
-    defense: Math.floor(row.defense * 10 * levelBonus) - now.defense,
-    maxHP: Math.floor(row.hp * levelBonus) - now.maxHP,
-    intelligence: Math.floor(row.intelligence * 10 * levelBonus) - now.intelligence,
-    speed: Math.floor(row.speed * 10 * levelBonus) - now.speed,
+    attack: x10(row.attack, base.attack),
+    defense: x10(row.defense, base.defense),
+    maxHP: Math.floor(row.hp * levelBonus) - Math.floor(base.hp * levelBonus),
+    intelligence: x10(row.intelligence, base.intelligence),
+    speed: x10(row.speed, base.speed),
   };
 }

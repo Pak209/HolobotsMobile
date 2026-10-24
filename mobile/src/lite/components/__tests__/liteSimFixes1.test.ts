@@ -91,10 +91,9 @@ describe('6 · the loading screen does not touch the alias fonts while they regi
 });
 
 describe('7 · holobot detail stats are on the host displayStats scale', () => {
-  it('LV 12 ACE: the detail rows match Training (232 / 12 / 9 / 9), not the LV 1 profile (150 / 8 / 6 / 6)', () => {
-    // DECISIONS #72.78 (2): ACE base speed 7 -> 6, so LV 12 speed floor(6 x 1.55) = 9 (was 10).
+  it('LV 12 ACE: the detail rows match Training (232 / 12 / 9 / 10), not the LV 1 profile (150 / 8 / 6 / 7)', () => {
     const scaled = getHolobotDisplayStats('ACE', 12);
-    expect({ hp: scaled.hp, attack: scaled.attack, defense: scaled.defense, speed: scaled.speed }).toEqual({ hp: 232, attack: 12, defense: 9, speed: 9 });
+    expect({ hp: scaled.hp, attack: scaled.attack, defense: scaled.defense, speed: scaled.speed }).toEqual({ hp: 232, attack: 12, defense: 9, speed: 10 });
     // Known-bad: the old rows printed the base profile.
     const base = HOLOBOT_BASE_STATS.ACE;
     expect([base.hp, base.attack]).toEqual([150, 8]);

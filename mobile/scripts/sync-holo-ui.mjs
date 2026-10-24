@@ -10,6 +10,21 @@ const unity = resolve(process.argv[2] || '../HolobotsUnity');
 const relativeSource = 'Assets/UI/Resources/HoloUI';
 const source = resolve(unity, relativeSource);
 const destination = resolve(mobile, 'assets/items');
+// The old City vault package contains solid-armour part sprites. Check every
+// source part before the first copy so a stale checkout cannot replace the
+// approved holographic set in Lite.
+const partManifest = JSON.parse(await readFile(resolve(destination, 'part-holographic-manifest.json'), 'utf8'));
+const expectedPartIds = ['part.combatMask', 'part.voidMask', 'part.reinforcedChassis', 'part.alloyChassis',
+  'part.boxerGloves', 'part.plasmaCannon', 'part.infernoClaws', 'part.energyCore', 'part.quantumCore'];
+if (partManifest.packageVersion !== 'parts-holographic-2' ||
+    expectedPartIds.some(id => !partManifest.icons[id]) || Object.keys(partManifest.icons).length !== expectedPartIds.length)
+  throw new Error('Expected the pinned nine-icon holographic Parts manifest');
+for (const [id, spec] of Object.entries(partManifest.icons)) {
+  const file = `${id}.png`;
+  const bytes = await readFile(resolve(source, 'Items', file));
+  const sha = createHash('sha256').update(bytes).digest('hex');
+  if (sha !== spec.sha256_256) throw new Error(`Refusing stale Part source ${file}: ${sha} != ${spec.sha256_256}`);
+}
 await mkdir(destination, { recursive: true });
 const files = (await readdir(resolve(source, 'Items'))).filter(name => name.endsWith('.png')).sort();
 if (!files.length) throw new Error('No Unity item icons found');

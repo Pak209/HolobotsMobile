@@ -4,6 +4,7 @@ export const gameAssets = {
   arenaPass: require("../../assets/game/ArenaPass.png"),
   blueprint: require("../../assets/game/Blueprint.png"),
   corePart: require("../../assets/game/CorePart.png"),
+  quantumCorePart: require("../../assets/game/CorePartQuantum.png"),
   expBoost: require("../../assets/game/EXPBoost.png"),
   energyRefill: require("../../assets/game/Energyrefill.png"),
   gachaTicket: require("../../assets/game/GachaTicket.png"),
@@ -15,7 +16,20 @@ export const gameAssets = {
   headPartCombatMask: require("../../assets/game/HeadPartCombatMask.png"),
   headPartVoidMask: require("../../assets/game/HeadPartVoidMask.png"),
   torsoPart: require("../../assets/game/TorsoPart.png"),
+  alloyChassisPart: require("../../assets/game/TorsoPartAlloy.png"),
 } as const;
+
+const partIdImageMap: Record<string, number> = {
+  "part.combatMask": gameAssets.headPartCombatMask,
+  "part.voidMask": gameAssets.headPartVoidMask,
+  "part.reinforcedChassis": gameAssets.torsoPart,
+  "part.alloyChassis": gameAssets.alloyChassisPart,
+  "part.boxerGloves": gameAssets.armsPartBoxer,
+  "part.plasmaCannon": gameAssets.armPartPlasmaCannon,
+  "part.infernoClaws": gameAssets.armsPartInfernoClaws,
+  "part.energyCore": gameAssets.corePart,
+  "part.quantumCore": gameAssets.quantumCorePart,
+};
 
 function normalizePartName(name: string) {
   return name.replace(/\s*\([^)]*\)\s*$/i, "").trim().toLowerCase();
@@ -23,7 +37,7 @@ function normalizePartName(name: string) {
 
 const partNameImageMap: Record<string, number> = {
   "advanced scanner": gameAssets.headPartCombatMask,
-  "alloy chassis": gameAssets.torsoPart,
+  "alloy chassis": gameAssets.alloyChassisPart,
   "boxer gloves": gameAssets.armsPartBoxer,
   "body armor": gameAssets.torsoPart,
   "chest plate": gameAssets.torsoPart,
@@ -35,7 +49,7 @@ const partNameImageMap: Record<string, number> = {
   "plasma cannon": gameAssets.armPartPlasmaCannon,
   "plasma cannons": gameAssets.armPartPlasmaCannon,
   "power core": gameAssets.corePart,
-  "quantum core": gameAssets.corePart,
+  "quantum core": gameAssets.quantumCorePart,
   "reinforced chassis": gameAssets.torsoPart,
   "steel torso": gameAssets.torsoPart,
   "torso part": gameAssets.torsoPart,
@@ -56,6 +70,8 @@ const slotFallbackImageMap: Record<string, number> = {
 
 export function getPartImageSource(partName?: string | null, slot?: string | null) {
   if (partName) {
+    const exact = partIdImageMap[partName];
+    if (exact) return exact;
     const mapped = partNameImageMap[normalizePartName(partName)];
     if (mapped) {
       return mapped;

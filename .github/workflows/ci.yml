@@ -30,6 +30,8 @@ jobs:
       - name: Install mobile deps
         working-directory: mobile
         run: npm ci
+      - name: Verify pinned holographic Part assets
+        run: node mobile/scripts/verify-holo-ui.mjs
       - name: Typecheck
         working-directory: mobile
         run: npx tsc --noEmit
