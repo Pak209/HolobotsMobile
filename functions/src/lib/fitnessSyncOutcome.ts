@@ -25,6 +25,7 @@ import {
   normalizeUserHolobot,
 } from "./progression";
 import { clampWorkoutReward } from "../shared/workoutRewardLimits";
+import type { ReadinessAward } from "./syncReadiness";
 
 export const STEPS_PER_SYNC_POINT = 1000;
 export const DAILY_WORKOUT_CAP = 4;
@@ -52,6 +53,7 @@ export type SyncFitnessActivityResponse = {
   todaySteps: number;
   totalSyncPoints: number;
   workoutSessionsCompleted: number;
+  readiness?: ReadinessAward | null;
 };
 
 export type FitnessSyncOutcome = {

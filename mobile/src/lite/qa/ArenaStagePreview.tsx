@@ -24,6 +24,7 @@ const CELLS: Record<string, Cell> = {
     // lite-vfx-port-1 control: the same round with the combat VFX off (today's no-VFX hit; the fps baseline).
     ArenaStageRoundNoVfx: { title: 'ROUND · NO VFX', caption: 'QA control: the round without the combat VFX (lite-vfx-port-1 known-bad / fps baseline).', opponentHp: match.opponent.maxHealth, settle: unavailable, vfx: false },
     ArenaStageConfirming: { title: 'CONFIRMING ON STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the City answers too_fast: confirming over the stage.', opponentHp: 1, settle: () => { throw tooFast(600_000); } },
+    ArenaStageKoReceipt: { title: 'KO → RECEIPT', caption: 'HARE model / recorded HARE stats. One STRIKE KOs; real ArenaScreen holds the KO endpoint before CITY RECEIPT.', opponentHp: 1, settle: () => ARENA_SETTLED },
     ArenaStageReceipt: { title: 'RECEIPT AFTER STAGE', caption: 'One STRIKE KOs (checkpoint HP 1); the recorded settle shows the CITY RECEIPT.', opponentHp: 1, settle: () => ARENA_SETTLED },
 };
 

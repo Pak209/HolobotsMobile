@@ -1,3 +1,7 @@
+import { KoPresentationGate, type TerminalPresentation } from '../../lib/bots/koPresentation';
+import { BattlePaceQueue, fightTiming, type FightTiming, type PresentationAcceptance } from '../../lib/bots/battlePace';
+import type { ResolvedBattlePace } from '../../lib/bots/resolvedBattlePace';
+import fightClipTiming from '../../lib/bots/fightClipTiming.json';
 import { guardVisual } from '../../lib/bots/guardVisual';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, PixelRatio, Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -17,13 +21,13 @@ import { isSpecialCue, restartSpecialBeat, specialCameraPose, specialCameraWeigh
 
 export type BotMetrics = { botId: string; loadMs: number; fps: number; frames: number; assetBytes: number; platform: string; drawWidth: number; drawHeight: number; contextId: number; materialQuality: BotMaterialQuality; renderScale: number };
 export type StageBot = { id: BotId; side: string };
-export type BotStageHandle = { play(side: string, clipName: string): boolean; strike(side: string): void; hit(side: string): void; guard(side: string): void;
+export type BotStageHandle = { present(cue: ResolvedBattlePace): PresentationAcceptance; play(side: string, clipName: string): boolean; strike(side: string): void; hit(side: string): void; guard(side: string): void;
   /** lite-vfx-port-1: plays a HoloCity combat-VFX cue (presentation only). False when VFX are off, not loaded, or the kit is not in the pack. */
   fx(cue: LiveDuelVfxCue, impactMs: number): boolean };
 export type PerfArmResult = { arm: string; knobs: StagePerfKnobs; contextId: number; drawWidth: number; drawHeight: number; loadMs: number; renderer: unknown; defaultFramebufferSamples: unknown; reactRendersPerSecond: number; glCallsByNamePerFrame: Record<string, number>; summary: PerfArmSummary };
 /** Dev-only cost knobs (ignored outside __DEV__). Production callers never pass this. */
 export type BotStagePerf = { arm: string; knobs: StagePerfKnobs; onArmDone?: (result: PerfArmResult) => void };
-type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf;
+type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?: 'viewer' | 'duelPortrait'; transparentBackdrop?: boolean; renderScale?: number; materialQuality?: BotMaterialQuality; active?: boolean; onReady?: () => void; onPresentationDrain?: () => void; terminal?: TerminalPresentation; onTerminalComplete?: (id: string) => void; onError?: (message: string) => void; onMetrics?: (metrics: BotMetrics) => void; showMetrics?: boolean; perf?: BotStagePerf;
   /** Production render settings (MSAA, buffer scale, mixer Hz). Omitted: production defaults. Dev `perf` knobs override it. */
   quality?: StageRenderQuality;
   /** lite-vfx-port-1: load the combat-VFX pack and accept fx() cues (duel stages only). Off: no VFX code runs. */
@@ -32,9 +36,10 @@ type Props = { bots: readonly StageBot[]; style?: StyleProp<ViewStyle>; variant?
   specialCamera?: boolean;
   /** Dev QA only (ignored outside __DEV__): also play pack kits Unity has not built yet (WOLF). */
   vfxUnbuiltKits?: boolean };
-type Actor = { id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>; anchors?: VfxAnchors };
+type TimedStageCue = ResolvedBattlePace & { timing: FightTiming; clip: string };
+type Actor = { paceAction?: THREE.AnimationAction; koAt?: number; freezeUntil?: number; flashMaterials: { material: THREE.MeshStandardMaterial; color: THREE.Color; intensity: number }[]; id: BotId; root: THREE.Group; mixer: THREE.AnimationMixer; animations: THREE.AnimationClip[]; current?: THREE.AnimationAction; hitAt?: number; guardAt?: number; base: THREE.Vector3; away: THREE.Vector3; guardRim?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>; anchors?: VfxAnchors };
 
-export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onError, onMetrics, showMetrics = false, perf, quality, vfx = false, vfxUnbuiltKits = false, specialCamera = false }, ref) {
+export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bots, style, variant = 'viewer', transparentBackdrop = false, renderScale = Platform.OS === 'web' ? 1 : 1 / PixelRatio.get(), materialQuality = 'balanced', active = true, onReady, onPresentationDrain, terminal, onTerminalComplete, onError, onMetrics, showMetrics = false, perf, quality, vfx = false, vfxUnbuiltKits = false, specialCamera = false }, ref) {
   const perfRun = __DEV__ ? perf : undefined;
   const renderSettings = resolveStageRender(quality, perfRun?.knobs);
   const scale = Math.max(0.25, Math.min(1, renderScale)) * renderSettings.resolution;
@@ -52,9 +57,12 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
   const [loaded, setLoaded] = useState(false);
   const [metrics, setMetrics] = useState<BotMetrics | null>(null);
   const actors = useRef(new Map<string, Actor>());
+  const pace = useRef(new BattlePaceQueue<TimedStageCue>());
+  const terminalRef = useRef(terminal); terminalRef.current = terminal;
+  const koGate = useRef(new KoPresentationGate());
   const activeRef = useRef(active);
-  const callbacks = useRef({ onReady, onError, onMetrics });
-  callbacks.current = { onReady, onError, onMetrics };
+  const callbacks = useRef({ onReady, onPresentationDrain, onTerminalComplete, onError, onMetrics });
+  callbacks.current = { onReady, onPresentationDrain, onTerminalComplete, onError, onMetrics };
   const disposeRef = useRef<() => void>(() => {});
   const generation = useRef(0);
   const mounted = useRef(true);
@@ -71,41 +79,29 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
 
   const play = useCallback((side: string, clipName: string) => {
     const actor = actors.current.get(side);
-    if (!actor) return false;
+    if (!actor || (actor.koAt !== undefined && clipName !== 'FightKO')) return false;
     const resolved = resolveClipName(clipName, actor.animations.map(clip => clip.name), BOT_MANIFEST[actor.id].idleClip, actor.id);
     const clip = actor.animations.find(candidate => candidate.name === resolved);
     if (!clip) return false;
     const next = actor.mixer.clipAction(clip);
     if (actor.current === next && next.isRunning()) return true;
-    const loop = resolved === BOT_MANIFEST[actor.id].idleClip || /^(Walk|Run)$/i.test(resolved ?? '');
+    const loop = resolved === BOT_MANIFEST[actor.id].idleClip || /^(Walk|Run|FightIdle|FightRun)$/i.test(resolved ?? '');
     next.reset().setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
     next.clampWhenFinished = !loop;
     next.enabled = true;
     next.setEffectiveTimeScale(1).setEffectiveWeight(1).play();
-    actor.current?.fadeOut(0.14);
-    next.fadeIn(0.14);
+    const fade = clipName.startsWith('Fight') ? .08 : .14;
+    actor.current?.fadeOut(fade);
+    next.fadeIn(fade);
+    actor.paceAction = undefined;
     actor.current = next;
     return true;
   }, []);
-  useImperativeHandle(ref, () => ({
-    play,
-    strike(side) { if (actors.current.has(side)) cameraCue.current.strikeAt = performance.now(); },
-    hit(side) {
-      const actor = actors.current.get(side);
-      if (!actor) return;
-      play(side, 'Idle'); actor.hitAt = performance.now(); cameraCue.current.shakeFrames = 2;
-    },
-    guard(side) {
-      const actor = actors.current.get(side);
-      if (!actor) return;
-      if (!play(side, 'InterceptGuard') && !play(side, 'Guard')) play(side, 'Idle');
-      actor.guardAt = performance.now();
-    },
-    fx(cue, impactMs) {
+  const fireFx = useCallback((cue: LiveDuelVfxCue, impactMs: number) => {
       const vfxStage = vfxRef.current;
       const caster = actors.current.get(cue.caster)?.anchors, target = actors.current.get(cue.target)?.anchors;
       if (!vfxStage || !caster || !target || (cue.kit === null && cue.effect !== 'guard')) return false;
-      const now = performance.now() / 1000;
+      const now = pace.current.clockMs / 1000;
       const played = vfxStage.player.fire({ kit: cue.kit ?? '', effect: cue.effect, caster, target, impactS: impactMs / 1000, phases: cue.phases, flash: cue.flash }, now);
       // lite-2305-1: a played special holds the pulled-back camera for the effect's own manifest duration (presentation only).
       const beatS = played && specialCameraRef.current && isSpecialCue(cue) ? specialEffectDurationS(cue.kit, cue.effect, cue.phases, impactMs / 1000) : null;
@@ -122,8 +118,34 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         console.info('[HolobotVfx:fire] ' + JSON.stringify({ kit: cue.kit, effect: cue.effect, flash: cue.flash, phases: cue.phases, firedAtMs: Math.round(now * 1000), impactAtMs: Math.round(now * 1000 + impactMs), pointFrac: [Math.round((point.x + 1) / 2 * 1e4) / 1e4, Math.round((1 - point.y) / 2 * 1e4) / 1e4], hFrac: Math.round(Math.abs(top.y - point.y) / 2 * 1e4) / 1e4, stats: vfxStage.player.stats }));
       }
       return played;
+  }, []);
+  useImperativeHandle(ref, () => ({
+    present(cue) {
+      const actor = actors.current.get(cue.attacker);
+      if (!actor) return 'skipped';
+      const family = cue.kind === 'light' ? 'FightLight' : cue.kind === 'heavy' ? 'FightHeavy' : cue.kind === 'special' ? 'FightSpecial' : 'FightGuard';
+      const fallback = cue.kind === 'light' ? 'Strike' : cue.kind === 'heavy' ? 'Heavy' : cue.kind === 'special' ? 'Finisher' : 'InterceptGuard';
+      const clip = actor.animations.find(c => c.name === family) ?? actor.animations.find(c => c.name === resolveClipName(fallback, actor.animations.map(c => c.name), BOT_MANIFEST[actor.id].idleClip, actor.id))
+        ?? (cue.kind === 'guard' ? actor.animations.find(c => c.name === BOT_MANIFEST[actor.id].idleClip) : undefined);
+      if (!clip) return 'skipped';
+      const source = clip.name === family ? fightClipTiming.clips[actor.id][family] : { duration: clip.duration, contact: clip.duration / 2, speed: 1 };
+      return pace.current.enqueue({ ...cue, clip: clip.name, timing: fightTiming(cue.kind, source, cue.damaged !== null) }) ? 'accepted' : 'backpressure';
     },
-  }), [play]);
+    play,
+    strike(side) { if (actors.current.has(side)) cameraCue.current.strikeAt = pace.current.clockMs; },
+    hit(side) {
+      const actor = actors.current.get(side);
+      if (!actor) return;
+      if (!play(side, 'FightHitLight')) play(side, 'Idle'); actor.hitAt = pace.current.clockMs; cameraCue.current.shakeFrames = 2;
+    },
+    guard(side) {
+      const actor = actors.current.get(side);
+      if (!actor) return;
+      if (!play(side, 'FightGuard') && !play(side, 'InterceptGuard') && !play(side, 'Guard')) play(side, 'Idle');
+      actor.guardAt = pace.current.clockMs;
+    },
+    fx: fireFx,
+  }), [play, fireFx]);
 
   const createContext = useCallback(async (gl: ExpoWebGLRenderingContext) => {
     disposeRef.current();
@@ -159,6 +181,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       if (!alive) return;
       alive = false;
       cancelAnimationFrame(frameId);
+      pace.current.reset(); koGate.current.reset();
       appSubscription.remove();
       localActors.forEach(actor => { actor.mixer.stopAllAction(); actor.mixer.uncacheRoot(actor.root); });
       ownedRoots.forEach(disposeBot);
@@ -230,16 +253,21 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           root.rotation.y = index === 0 ? Math.atan2(1, -2 * Math.sqrt(0.56)) : Math.atan2(-1, 2 * Math.sqrt(0.56));
         }
         const mixer = new THREE.AnimationMixer(gltf.scene);
-        const actor: Actor = { id: bot.id, root, mixer, animations: gltf.animations, base: root.position.clone(), away: new THREE.Vector3(root.position.x, 0, root.position.z).normalize() };
+        const flashMaterials: Actor['flashMaterials'] = [];
+        gltf.scene.traverse(object => {
+          if (!(object instanceof THREE.Mesh)) return;
+          for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material instanceof THREE.MeshStandardMaterial && !flashMaterials.some(row => row.material === material)) flashMaterials.push({ material, color: material.emissive.clone(), intensity: material.emissiveIntensity });
+        });
+        const actor: Actor = { id: bot.id, root, mixer, animations: gltf.animations, flashMaterials, base: root.position.clone(), away: new THREE.Vector3(root.position.x, 0, root.position.z).normalize() };
         localActors.set(bot.side, actor); scene.add(root); ownedRoots.push(root);
         if (knobs?.hideRival && bot.side === 'rival') root.visible = false;
-        mixer.addEventListener('finished', event => { if (event.action === actor.current) play(bot.side, 'Idle'); });
+        mixer.addEventListener('finished', event => { if (event.action === actor.current && actor.koAt === undefined && !actor.paceAction) play(bot.side, actor.animations.some(c => c.name === 'FightIdle') && isDuel ? 'FightIdle' : 'Idle'); });
       }));
       if (!alive || ticket !== generation.current || !mounted.current) return;
       phase = 'animation setup';
       actors.current = localActors;
       cameraCue.current = { strikeAt: -Infinity, shakeFrames: 0 };
-      bots.forEach(bot => play(bot.side, 'Idle'));
+      bots.forEach(bot => { if (!isDuel || !play(bot.side, 'FightIdle')) play(bot.side, 'Idle'); });
       if (portrait) {
         localActors.forEach(actor => {
           actor.mixer.update(0.12); actor.root.updateMatrixWorld(true);
@@ -300,6 +328,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       const perfWindow = { start: Infinity, end: Infinity, renders: 0, names: {} as Record<string, number>, armed: false, done: false };
 
       let loadMs = 0;
+      const whiteFlash = new THREE.Color('#FFFFFF');
       const cameraHome = camera.position.clone();
       const cameraFovHome = camera.fov;
       let cameraFov = camera.fov;
@@ -326,14 +355,65 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         const glCallsAtFrame = glCalls;
         const step = animHz ? throttledMixerStep(mixerPendingMs, elapsed, animHz) : null;
         if (step) mixerPendingMs = step.pendingMs;
-        localActors.forEach(actor => {
+        const events = pace.current.advance(elapsed, cue => localActors.has(cue.attacker) && localActors.get(cue.attacker)!.koAt === undefined);
+        const poseNow = pace.current.clockMs;
+        for (const event of events) {
+          const cue = event.cue, actor = localActors.get(cue.attacker);
+          if (!actor) continue;
+          if (event.type === 'cancel') continue;
+          if (event.type === 'start') {
+            if (play(cue.attacker, cue.clip)) { actor.paceAction = actor.current; actor.current!.setEffectiveTimeScale(0); }
+            if (cue.kind === 'guard') { actor.guardAt = poseNow; if (__DEV__) console.info('[HolobotPace:guard] ' + JSON.stringify({ id: cue.id, bot: actor.id, clip: cue.clip, phase: 'start', clockMs: poseNow, utc: new Date().toISOString() })); }
+            else cameraCue.current.strikeAt = poseNow;
+            for (const effect of cue.effects ?? []) fireFx(effect, cue.timing.windupMs);
+          } else if (event.type === 'contact') {
+            if (cue.damaged) {
+              const struck = localActors.get(cue.damaged);
+              if (struck && struck.koAt === undefined) {
+                const reaction = cue.ko === cue.damaged ? 'FightKO' : cue.kind === 'light' ? 'FightHitLight' : 'FightHitHeavy';
+                if (!play(cue.damaged, reaction) && cue.ko !== cue.damaged) play(cue.damaged, 'Idle');
+                if (cue.ko === cue.damaged && !struck.animations.some(c => c.name === 'FightKO') && struck.current) struck.current.paused = true;
+                if (cue.ko === cue.damaged) struck.koAt = poseNow;
+                struck.hitAt = poseNow; struck.freezeUntil = poseNow + cue.timing.stopMs;
+                cameraCue.current.shakeFrames = 2;
+              }
+            } else if (cue.evade) play(cue.target, 'Evade');
+            if (__DEV__) console.info('[HolobotPace:contact] ' + JSON.stringify({ id: cue.id, bot: actor.id, clip: cue.clip, contactSeconds: cue.timing.contactSeconds, windupMs: cue.timing.windupMs, clockMs: poseNow, ko: cue.ko }));
+          } else if (actor.paceAction && actor.current === actor.paceAction && actor.koAt === undefined) {
+            actor.paceAction = undefined;
+            if (cue.kind === 'guard' && __DEV__) console.info('[HolobotPace:guard] ' + JSON.stringify({ id: cue.id, bot: actor.id, clip: cue.clip, phase: 'idle', clockMs: poseNow, utc: new Date().toISOString() }));
+            if (!play(cue.attacker, 'FightIdle')) play(cue.attacker, 'Idle');
+          }
+        }
+        if (events.some(event => event.type === 'finish' || event.type === 'cancel')) callbacks.current.onPresentationDrain?.();
+        const terminalNow = terminalRef.current;
+        if (terminalNow && pace.current.idle) for (const side of terminalNow.defeated) {
+          const actor = localActors.get(side);
+          if (actor && actor.koAt === undefined) {
+            const hasKo = play(side, 'FightKO');
+            if (!hasKo && actor.current) actor.current.paused = true; // legacy bundle: hold the visible pose, never fake a KO clip
+            actor.koAt = poseNow;
+          }
+        }
+        const pose = pace.current.sample();
+        localActors.forEach((actor, side) => {
+          const ownsAttack = pose?.cue.attacker === side && actor.paceAction === actor.current && actor.koAt === undefined;
+          if (ownsAttack && actor.current) actor.current.time = pose.clipSeconds;
+          else if (actor.current) actor.current.setEffectiveTimeScale(poseNow < (actor.freezeUntil ?? 0) ? 0 : 1);
           if (!step) actor.mixer.update(elapsed / 1000);
           else if (step.applyMs !== null) actor.mixer.update(step.applyMs / 1000);
-          const hitElapsed = actor.hitAt === undefined ? Infinity : now - actor.hitAt;
-          // The source fleet has no HitLight take; a short additive recoil is presentation only.
-          actor.root.position.copy(actor.base).addScaledVector(actor.away, hitElapsed < 280 ? Math.sin(hitElapsed / 280 * Math.PI) * 0.08 : 0);
+          else if (events.length) actor.mixer.update(0); // never skip the first contact pose at low mixer Hz
+          const hitElapsed = actor.hitAt === undefined ? Infinity : poseNow - actor.hitAt;
+          actor.root.position.copy(actor.base)
+            .addScaledVector(actor.away, ownsAttack ? -pose.lungeM : 0)
+            .addScaledVector(actor.away, hitElapsed < 180 ? Math.sin(hitElapsed / 180 * Math.PI) * .06 : 0);
+          for (const row of actor.flashMaterials) {
+            row.material.emissive.copy(row.color);
+            row.material.emissiveIntensity = row.intensity;
+            if (hitElapsed < 50) { row.material.emissive.lerp(whiteFlash, .55); row.material.emissiveIntensity = Math.max(.6, row.intensity); }
+          }
           if (actor.guardRim) {
-            const guard = guardVisual(now, actor.guardAt);
+            const guard = guardVisual(poseNow, actor.guardAt);
             actor.guardRim.material.opacity = guard.opacity;
             actor.guardRim.visible = guard.visible;
           }
@@ -342,20 +422,20 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         if (portrait) {
           // lite-2305-1 special beat; at weight 0 this is exactly the home pose (same position, aim and FOV as before).
           const beat = cameraCue.current.beat;
-          const weight = beat ? specialCameraWeight(now / 1000, beat.startS, beat.holdEndS) : 0;
-          if (beat && weight === 0 && now / 1000 > beat.holdEndS) cameraCue.current.beat = null;
+          const weight = beat ? specialCameraWeight(poseNow / 1000, beat.startS, beat.holdEndS) : 0;
+          if (beat && weight === 0 && poseNow / 1000 > beat.holdEndS) cameraCue.current.beat = null;
           const pose = specialCameraPose(weight, { y: cameraHome.y, z: cameraHome.z, aimY: 0.9, fovDeg: cameraFovHome });
           camera.position.y = pose.y; camera.position.z = pose.z;
           camera.lookAt(0, pose.aimY, 0);
           if (pose.fovDeg !== cameraFov) { cameraFov = pose.fovDeg; camera.fov = cameraFov; camera.updateProjectionMatrix(); }
         }
-        const strikeElapsed = now - cameraCue.current.strikeAt;
+        const strikeElapsed = poseNow - cameraCue.current.strikeAt;
         if (portrait && strikeElapsed < 700) camera.position.z -= 0.18 * Math.sin(strikeElapsed / 700 * Math.PI);
         if (cameraCue.current.shakeFrames > 0) { camera.position.x += cameraCue.current.shakeFrames === 2 ? 0.012 : -0.012; cameraCue.current.shakeFrames--; }
         // Expo's native presentation can leave another framebuffer bound between frames.
         // Three caches its null binding, so restore Expo's current default explicitly.
         camera.updateMatrixWorld();
-        vfxRef.current?.player.update(now / 1000);
+        vfxRef.current?.player.update(poseNow / 1000);
         const prepEnd = knobs ? performance.now() : 0;
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         renderer!.render(scene, camera);
@@ -365,6 +445,17 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         if (Platform.OS !== 'web') gl.finish();
         gl.endFrameEXP();
         if (Platform.OS !== 'web') gl.flushEXP();
+        const koReady = !!terminalNow && pace.current.idle && terminalNow.defeated.every(side => {
+          const actor = localActors.get(side);
+          return !actor || (actor.koAt !== undefined && (!actor.animations.some(c => c.name === 'FightKO') || !actor.current || actor.current.time >= actor.current.getClip().duration - 0.0001));
+        });
+        const hadEndpoint = koGate.current.finalPoseSince !== null;
+        const terminalDone = koGate.current.advance(terminalNow?.id ?? null, poseNow, koReady);
+        if (__DEV__ && !hadEndpoint && koGate.current.finalPoseSince !== null) console.info('[HolobotPace:ko-endpoint] ' + JSON.stringify({ id: terminalNow?.id, clockMs: poseNow, utc: new Date().toISOString() }));
+        if (terminalDone) {
+          if (__DEV__) console.info('[HolobotPace:terminal] ' + JSON.stringify({ id: terminalNow!.id, clockMs: poseNow, finalPoseHoldMs: 2000, utc: new Date().toISOString() }));
+          callbacks.current.onTerminalComplete?.(terminalNow!.id);
+        }
         frames++; sampleFrames++;
         if (knobs && !perfWindow.done) {
           const completed = performance.now();
@@ -402,7 +493,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
       setError(message); callbacks.current.onError?.(message);
       if (__DEV__) console.warn('[HolobotViewer:error] ' + JSON.stringify({ phase, message, stack: cause instanceof Error ? cause.stack : String(cause) }));
     }
-  }, [signature, play, showMetrics, vfx, vfxUnbuiltKits]);
+  }, [signature, play, fireFx, showMetrics, vfx, vfxUnbuiltKits]);
 
   return <View collapsable={false} onLayout={({ nativeEvent }) => { const { width, height } = nativeEvent.layout; if (width > 0 && height > 0) setLayout(current => current.width === width && current.height === height ? current : { width, height }); }} style={[styles.container, transparentBackdrop && { backgroundColor: 'transparent' }, StyleSheet.flatten(style)?.position !== 'absolute' && { height: 260 }, style]} accessibilityLabel={bots.map(bot => bot.id.toUpperCase()).join(' versus ') + ' 3D Holobot viewer'}>
     {layout.width > 0 && layout.height > 0 && <GLView key={signature} collapsable={false} style={{ position: 'absolute', width: layout.width * scale, height: layout.height * scale, left: layout.width * (1 - scale) / 2, top: layout.height * (1 - scale) / 2, transform: [{ scale: 1 / scale }] }} onContextCreate={createContext} msaaSamples={renderSettings.msaaSamples} />}

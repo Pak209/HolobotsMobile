@@ -160,7 +160,7 @@ service cloud.firestore {
         // 2026-10-17 critic review S2: daily-mission counters + claims.
         'dailyMissionLedger',
         // 2026-10-17 critic review S3 (hardening-2): host-clock quest / training start records.
-        'progressionTimers',
+        'progressionTimers', 'syncReadiness',
         // onboarding-host-1 (DECISIONS #72.3–#72.5): the host-owned onboarding step.
         'onboarding',
         // holobots-write-lockdown-1: the roster (stats / levels / XP / attributes / sync
@@ -215,6 +215,7 @@ service cloud.firestore {
         && !('expeditionBank' in data)
         && !('dailyMissionLedger' in data)
         && !('progressionTimers' in data)
+        && !('syncReadiness' in data)
         && !('onboarding' in data)
         && !('expBoosterActiveUntil' in data)
         && !('lastWildcardPackAt' in data)

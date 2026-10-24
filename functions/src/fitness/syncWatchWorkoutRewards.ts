@@ -10,6 +10,7 @@ import {
   getSyncRank,
 } from "../lib/progression";
 import { RawWorkoutRewardInput, clampWorkoutReward } from "../shared/workoutRewardLimits";
+import { accrueWorkoutReadiness, readinessAccrualEnabled, type ReadinessAward } from "../lib/syncReadiness";
 
 const DAILY_WORKOUT_CAP = 4;
 
@@ -31,6 +32,7 @@ type WorkoutRewardResult = {
   awarded: { syncPoints: number; holos: number; exp: number };
   totalSyncPoints: number;
   workoutSessionsCompleted: number;
+  readiness?: ReadinessAward | null;
 };
 
 async function persistWatchWorkoutReward(
@@ -105,6 +107,13 @@ async function persistWatchWorkoutReward(
     const awardedHolos = clampedReward.holos;
     const awardedExp = clampedReward.exp;
     const nextSessionsCompleted = Math.min(DAILY_WORKOUT_CAP, previousSessionsCompleted + 1);
+    const readiness = accrueWorkoutReadiness(userData, {
+      activityId,
+      counted: true,
+      holobotName: workout.holobotName,
+      elapsedSeconds: clampedReward.elapsedSeconds,
+      nowMs: Date.now(),
+    });
 
     const currentHolobots: unknown[] = Array.isArray(userData.holobots) ? userData.holobots : [];
     const normalizedTargetName =
@@ -167,6 +176,7 @@ async function persistWatchWorkoutReward(
 
     transaction.set(userRef, {
       ...withRankHealingReward(userData,{holobots:nextHolobots}),
+      ...(readiness?.update ? { syncReadiness: readiness.update } : {}),
       fitnessSource: "watch",
       holobots: nextHolobots,
       holosTokens: nextHolosTokens,
@@ -191,6 +201,7 @@ async function persistWatchWorkoutReward(
       awarded: { syncPoints: awardedSyncPoints, holos: awardedHolos, exp: awardedExp },
       totalSyncPoints: nextSyncPoints,
       workoutSessionsCompleted: nextSessionsCompleted,
+      ...(readinessAccrualEnabled() ? { readiness: readiness?.award ?? null } : {}),
     };
   });
 }
@@ -237,6 +248,7 @@ export const syncWatchWorkoutRewards = onCall(async (request) => {
     syncPoints: number;
     holos: number;
     exp: number;
+    readiness?: ReadinessAward | null;
   }> = [];
 
   for (const workout of workouts) {
@@ -253,6 +265,7 @@ export const syncWatchWorkoutRewards = onCall(async (request) => {
       syncPoints: result.awarded.syncPoints,
       holos: result.awarded.holos,
       exp: result.awarded.exp,
+      ...(readinessAccrualEnabled() ? { readiness: result.readiness ?? null } : {}),
     });
   }
 

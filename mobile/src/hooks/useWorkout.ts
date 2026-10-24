@@ -31,6 +31,7 @@ export type WorkoutCompletionResult = {
   id: string;
   /** True when rewards were persisted by the sync transaction. */
   rewardsPersisted: boolean;
+  readiness?: import("@/lib/readiness").ReadinessAward | null;
   sessionsCompleted: number;
   sessionsRemaining: number;
   syncPointBoostCount: number;
@@ -379,6 +380,7 @@ function useLiveWorkout(
             ...current,
             cooldownEndsAt: result.cooldownEndsAt,
             rewardsPersisted: true,
+            readiness: result.readiness,
             sessionsCompleted: result.workoutSessionsCompleted,
             sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - result.workoutSessionsCompleted),
             totalSyncPoints: result.totalSyncPoints,
@@ -602,6 +604,7 @@ function useLiveWorkout(
         displayUnit: unitPreference,
         id: completionId,
         rewardsPersisted: result != null,
+        readiness: result?.readiness,
         sessionsCompleted: resolvedSessionsCompleted,
         sessionsRemaining: Math.max(0, MAX_DAILY_SESSION_CAP - resolvedSessionsCompleted),
         totalSyncPoints: result?.totalSyncPoints ?? null,
