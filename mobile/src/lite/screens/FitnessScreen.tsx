@@ -1,5 +1,4 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HolobotRosterCard } from "@/lite/components/HolobotRosterCard";
 import { HomeCogButton } from "@/lite/components/HomeCogButton";
 import { GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
 import { theme } from "@/lite/theme";
@@ -18,7 +17,8 @@ import { useIsFocused, useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
 import { HolobotPickerModal } from "@/lite/components/HolobotPickerModal";
-import { Svg, Path } from "@/components/FigmaSvg";
+import { Svg, Path, Circle } from "@/components/FigmaSvg";
+import { fitnessAssets } from "@/config/figmaAssets";
 import { getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWatchWorkoutPresence } from "@/hooks/useWatchBridge";
@@ -71,6 +71,10 @@ export function FitnessScreen() {
   });
   const displayDistance = distanceUnit === "mi" ? workout.displayDistanceKm * KM_TO_MILES : workout.displayDistanceKm;
   const displaySpeed = distanceUnit === "mi" ? workout.liveSpeedKmh * KM_TO_MILES : workout.liveSpeedKmh;
+  const gaugeAngle = -150 + Math.min(1, Math.max(0, displaySpeed / 20)) * 120;
+  const gaugeRadian = gaugeAngle * Math.PI / 180;
+  const gaugeNeedleX = 100 + 66 * Math.cos(gaugeRadian);
+  const gaugeNeedleY = 98 + 66 * Math.sin(gaugeRadian);
 
   const handleDistanceUnitChange = (nextUnit: DistanceUnit) => {
     setLocalDistanceUnit(nextUnit);
@@ -181,33 +185,55 @@ export function FitnessScreen() {
         <View style={[styles.headerRow, styles.navClear]}>
           <View><RNText style={styles.eyebrow}>PILOT FITNESS / SYNC LINK</RNText><RNText style={styles.pageTitle}>SYNC WORKOUT</RNText></View>
         </View>
-        <View style={[styles.syncPlate, shortViewport && styles.shortSyncPlate, styles.navContentInset]}>
+        <View style={[styles.ogSyncHeader, shortViewport && styles.shortOgSyncHeader, styles.navContentInset]}>
           <GameSurfaceFrame strong />
-          <View style={styles.headerRow}><RNText style={styles.eyebrow}>SYNC POINTS</RNText><RNText style={styles.liveStatus}>{workout.isRunning ? "● LIVE" : "STANDBY"}</RNText></View>
-          <RNText style={[styles.syncValue, shortViewport && styles.shortSyncValue]}>+{workout.syncPointsReward}</RNText>
-          <View style={styles.headerRow}><RNText style={styles.telemetryLabel}>SESSION PROGRESS</RNText><RNText style={styles.telemetryLabel}>{workout.remainingMinutes} / {TOTAL_SYNC_MINUTES} MIN LEFT</RNText></View>
+          <View style={styles.headerRow}><RNText style={styles.eyebrow}>SYNC POINT</RNText><RNText style={styles.liveStatus}>{workout.isRunning ? "● LIVE" : "STANDBY"}</RNText></View>
+          <View style={styles.headerRow}>
+            <RNText style={[styles.syncValue, shortViewport && styles.shortSyncValue]}>+{workout.syncPointsReward}</RNText>
+            <RNText style={styles.ogTime}>{`Time: ${String(workout.remainingMinutes).padStart(2, "0")}/${String(TOTAL_SYNC_MINUTES).padStart(2, "0")}`}</RNText>
+          </View>
           <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(0,Math.min(1,workout.progress))*100}%` }]} /></View>
           <RNText style={styles.hudHelp}>{workout.sessionsCompleted}/4 SESSIONS TODAY · {workout.sessionsRemaining} AVAILABLE</RNText>
         </View>
-        <HolobotRosterCard holobot={selectedHolobot} slot={selectedHolobotIndex} compact selected navGutter onPress={() => setIsPickerOpen(true)} actionLabel="CHANGE WORKOUT PARTNER ›" />
+        <Pressable onPress={() => setIsPickerOpen(true)} style={[styles.ogPartner, shortViewport && styles.shortOgPartner, styles.navContentInset]} accessibilityRole="button" accessibilityLabel="Change Holobot workout partner">
+          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy} />
+          {selectedHolobot ? <RNImage source={selectedHolobot.imageSource} style={styles.ogPortrait} resizeMode="contain" /> : null}
+          <View style={styles.ogPartnerInfo}>
+            <RNText style={styles.ogPartnerName}>{selectedHolobot?.name ?? "HOLOBOT"}</RNText>
+            <RNText style={styles.ogPartnerLevel}>{`LV ${selectedHolobot?.level ?? 1}  ·  EXP ${selectedHolobot?.experience ?? 0}/${selectedHolobot?.nextLevelExp ?? 0}`}</RNText>
+            <View style={styles.ogPartnerExp}><View style={[styles.progressFill, { width: `${selectedHolobot ? Math.min(100, selectedHolobot.experience / Math.max(1, selectedHolobot.nextLevelExp) * 100) : 0}%` }]} /></View>
+            <View style={styles.ogChangeRow}><RNText style={styles.ogChangeCopy}>CHANGE HOLOBOT</RNText><Svg width="19" height="19" viewBox="0 0 24 24"><Path d="M20 7h-6l2-2M4 17h6l-2 2M5 10a8 8 0 0 1 14-4m0 8a8 8 0 0 1-14 4" fill="none" stroke={theme.colors.accent} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" /></Svg></View>
+          </View>
+        </Pressable>
         {readinessUiEnabled() && selectedHolobot ? (
-          <View accessibilityLabel={`${selectedHolobot.name} SYNC readiness ${readiness} of 100`}>
-            <RNText style={styles.hudHelp}>{`SYNC READINESS · ${selectedHolobot.name.toUpperCase()} · ${readiness}/100`}</RNText>
+          <View accessibilityLabel={`${selectedHolobot.name} SYNC readiness ${readiness} of 100`} style={styles.readinessStrip}>
+            <RNText style={styles.hudHelp}>{`SYNC READINESS · ${readiness}/100`}</RNText>
             <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${readiness}%` }]} /></View>
-            <RNText style={styles.hudHelp}>Train this Holobot to fill readiness.</RNText>
           </View>
         ) : null}
-        <View style={styles.telemetryRow}>
-          <View style={[styles.telemetry, shortViewport && styles.shortTelemetry]}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>DISTANCE</RNText><RNText style={styles.telemetryValue}>{displayDistance.toFixed(3)}</RNText><RNText style={styles.telemetryLabel}>{formatDistanceLabel(distanceUnit).toUpperCase()}</RNText></View>
-          <View style={[styles.telemetry, shortViewport && styles.shortTelemetry]}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>MOVEMENT SPEED</RNText><RNText style={styles.telemetryValue}>{Math.round(displaySpeed)}</RNText><RNText style={styles.telemetryLabel}>{distanceUnit === "mi" ? "MILES / HOUR" : "KM / HOUR"}</RNText></View>
+        <View style={[styles.ogGaugeCard, shortViewport && styles.shortOgGaugeCard]}>
+          <GameSurfaceFrame accent={theme.colors.border} fill={theme.plates.navy} />
+          <Svg width={shortViewport ? 146 : 188} height={shortViewport ? 88 : 112} viewBox="0 0 200 116">
+            <Path d="M23 99 A77 77 0 0 1 177 99" stroke={theme.colors.accent} strokeWidth={7} fill="none" />
+            <Path d="M33 99 A67 67 0 0 1 167 99" stroke={theme.colors.border} strokeWidth={2} fill="none" />
+            <Path d={`M100 98 L${gaugeNeedleX.toFixed(2)} ${gaugeNeedleY.toFixed(2)}`} stroke={theme.colors.cursor} strokeWidth={5} strokeLinecap="round" />
+            <Circle cx={100} cy={98} r={9} fill={theme.colors.cursor} />
+          </Svg>
+          <RNText style={styles.ogSpeed}>{Math.round(displaySpeed)} {distanceUnit === "mi" ? "mph" : "km/h"}</RNText>
+          <RNText style={styles.ogGaugeCaption}>MOVEMENT SPEED</RNText>
         </View>
-        <View style={[styles.rewardPreview, shortViewport && styles.shortRewardPreview]}>
-          <GameSurfaceFrame accent={theme.colors.border} />
-          <View><RNText style={styles.telemetryLabel}>HOLOS REWARD</RNText><RNText style={styles.rewardPreviewValue}>+{workout.holosReward}</RNText></View>
-          <View><RNText style={styles.telemetryLabel}>HOLOBOT EXPERIENCE</RNText><RNText style={styles.rewardPreviewValue}>+{workout.expReward}</RNText></View>
+        <View style={[styles.ogDistance, shortViewport && styles.shortOgDistance]}>
+          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy} />
+          <RNText style={styles.ogDistanceNumber}>{displayDistance.toFixed(3)}</RNText>
+          <RNText style={styles.telemetryLabel}>{formatDistanceLabel(distanceUnit).toUpperCase()}</RNText>
         </View>
-        <Pressable onPress={handleGoPress} onLongPress={workout.resetWorkout} style={styles.goButton} accessibilityRole="button" accessibilityLabel={blockedByWatch ? "Workout running on Apple Watch" : workout.isRunning ? "Pause workout" : "Start workout"}>
-          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.colors.accent} strong /><RNText style={styles.goText}>{goLabel}</RNText><RNText style={styles.goHint}>{workout.isRunning ? "TAP TO PAUSE · HOLD TO RESET" : "MOVEMENT BUILDS YOUR LINK"}</RNText>
+        <View style={[styles.ogRewards, shortViewport && styles.shortOgRewards]}>
+          {([ [fitnessAssets.rewardSync, workout.syncPointsReward, "SYNC"], [fitnessAssets.rewardHolos, workout.holosReward, "HOLOS"], [fitnessAssets.rewardExp, workout.expReward, "EXP"] ] as const).map(([source, amount, label]) =>
+            <View key={label} style={styles.ogReward}><RNImage source={source} style={styles.ogRewardIcon} resizeMode="contain" /><RNText style={styles.ogRewardValue}>+{amount}</RNText><RNText style={styles.ogRewardLabel}>{label}</RNText></View>)}
+        </View>
+        <Pressable onPress={handleGoPress} onLongPress={workout.resetWorkout} style={[styles.ogGoButton, shortViewport && styles.shortOgGoButton]} accessibilityRole="button" accessibilityLabel={blockedByWatch ? "Workout running on Apple Watch" : workout.isRunning ? "Pause workout" : "Start workout"}>
+          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.keycap} strong />
+          <RNText style={styles.ogGoText}>{goLabel}</RNText>
         </Pressable>
         <Pressable onPress={() => setIsSettingsOpen(true)} style={styles.syncOptions} accessibilityRole="button" accessibilityLabel="Open Sync settings"><RNText style={styles.syncOptionsText}>SYNC OPTIONS ›</RNText></Pressable>
         {syncBoostCopy && <RNText style={styles.boostCopy}>{syncBoostCopy}</RNText>}
@@ -413,6 +439,35 @@ const styles = StyleSheet.create({
   goHint: { ...theme.type.micro, color: theme.colors.carbon, letterSpacing: 1 },
   syncOptions: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
   syncOptionsText: { ...theme.type.label, color: theme.colors.accent },
+  ogSyncHeader: { padding: 11, gap: 5, minHeight: 100 },
+  shortOgSyncHeader: { minHeight: 78, padding: 7, gap: 2 },
+  ogTime: { ...theme.type.header, color: theme.colors.text, fontSize: 21 },
+  ogPartner: { minHeight: 100, flexDirection: "row", alignItems: "center", padding: 7, gap: 9, overflow: "hidden" },
+  shortOgPartner: { minHeight: 76 },
+  ogPortrait: { width: 82, height: 88 },
+  ogPartnerInfo: { flex: 1, minWidth: 0, gap: 3 },
+  ogPartnerName: { ...theme.type.header, color: theme.colors.text },
+  ogPartnerLevel: { ...theme.type.caption, color: theme.colors.muted },
+  ogPartnerExp: { height: 5, backgroundColor: theme.colors.graphite },
+  ogChangeRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 },
+  ogChangeCopy: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 0.8 },
+  readinessStrip: { gap: 3 },
+  ogGaugeCard: { height: 130, alignItems: "center", justifyContent: "center", gap: 0 },
+  shortOgGaugeCard: { height: 94 },
+  ogSpeed: { ...theme.type.header, color: theme.colors.text, position: "absolute", top: 30, left: 12, fontSize: 18 },
+  ogGaugeCaption: { ...theme.type.micro, color: theme.colors.muted, position: "absolute", top: 8, left: 12, letterSpacing: 0.7 },
+  ogDistance: { minHeight: 76, alignItems: "center", justifyContent: "center" },
+  shortOgDistance: { minHeight: 54 },
+  ogDistanceNumber: { ...theme.type.display, color: theme.colors.text, fontSize: 33 },
+  ogRewards: { flexDirection: "row", justifyContent: "space-around", minHeight: 55 },
+  shortOgRewards: { minHeight: 40 },
+  ogReward: { flexDirection: "row", alignItems: "center", gap: 3 },
+  ogRewardIcon: { width: 25, height: 25 },
+  ogRewardValue: { ...theme.type.header, color: theme.colors.text, fontSize: 18 },
+  ogRewardLabel: { ...theme.type.micro, color: theme.colors.muted },
+  ogGoButton: { minHeight: 90, alignItems: "center", justifyContent: "center" },
+  shortOgGoButton: { minHeight: 72 },
+  ogGoText: { ...theme.type.display, color: theme.colors.accent, fontSize: 48, letterSpacing: 2 },
   closeSettingsButton: {
     alignItems: "center",
     backgroundColor: theme.colors.carbon,
