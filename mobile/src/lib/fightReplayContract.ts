@@ -82,6 +82,8 @@ export type FightReplayIssueWire = {
    */
   cpu: { side: 1; rank: FightSkillWire; profile: FightProfileWire; roster: FightCpuRosterSlotWire[] };
   profilesVersion: number;
+  /** Presentation only; the rules fighters' startSync is authoritative. Absent with flag off. */
+  readinessStart?: { holobotId: string; readiness: number; cap: number; startSync: number }[];
 };
 
 export type FightFinalWire = {

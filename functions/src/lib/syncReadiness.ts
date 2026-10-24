@@ -2,6 +2,7 @@
 export const READINESS_MAX_MILLI = 100_000;
 export const READINESS_FULL_SESSION_SECONDS = 300;
 export const READINESS_BASE_FADE_FRACTION = 0.2;
+export const BATTLE_IQ_MAX = 100;
 const DAY_MS = 86_400_000;
 
 export type ReadinessEntry = { milli: number; atMs: number };
@@ -10,10 +11,13 @@ export type ReadinessAward = { holobotName: string; before: number; gained: numb
 export function readinessAccrualEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.HOLOCITY_READINESS_ACCRUE === "1";
 }
+export function battleIqEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.HOLOCITY_BATTLE_IQ === '1';
+}
 
-/** Reserved for a future hidden Battle IQ slowdown; R1 always returns the base rate. */
-export function readinessFadeFractionPerDay(_battleIq?: number): number {
-  return READINESS_BASE_FADE_FRACTION;
+/** IQ 0 retains the R1 rate; IQ 100 halves it. No client writes this field. */
+export function readinessFadeFractionPerDay(battleIq = 0): number {
+  return READINESS_BASE_FADE_FRACTION * (1 - Math.max(0, Math.min(BATTLE_IQ_MAX, finiteInt(battleIq))) / 200);
 }
 
 function finiteInt(value: unknown, fallback = 0): number {
@@ -37,6 +41,12 @@ function readinessMap(profile: Record<string, unknown>): Record<string, Readines
     : {};
 }
 
+export function battleIqFor(profile: Record<string, unknown>, name: string): number {
+  const map = profile.battleIq;
+  if (!map || typeof map !== 'object' || Array.isArray(map)) return 0;
+  return Math.max(0, Math.min(BATTLE_IQ_MAX, finiteInt((map as Record<string, unknown>)[name])));
+}
+
 export function readinessView(profile: Record<string, unknown>, nowMs: number): Record<string, { value: number; atMs: number; fadePerDay: number }> {
   const out: Record<string, { value: number; atMs: number; fadePerDay: number }> = {};
   const bots = Array.isArray(profile.holobots) ? profile.holobots : [];
@@ -44,7 +54,8 @@ export function readinessView(profile: Record<string, unknown>, nowMs: number): 
     if (!bot || typeof bot !== "object" || typeof bot.name !== "string") continue;
     const name = bot.name.trim().toUpperCase();
     if (!name || out[name]) continue;
-    out[name] = { value: Math.floor(fadedReadinessMilli(readinessMap(profile)[name], nowMs) / 1000), atMs: nowMs, fadePerDay: 20 };
+    const iq = battleIqEnabled() ? battleIqFor(profile, name) : 0;
+    out[name] = { value: Math.floor(fadedReadinessMilli(readinessMap(profile)[name], nowMs, iq) / 1000), atMs: nowMs, fadePerDay: Math.round(readinessFadeFractionPerDay(iq) * 100) };
   }
   return out;
 }
@@ -59,7 +70,7 @@ export function applyReadinessGain(profile: Record<string, unknown>, holobotName
   }
   const elapsed = Math.max(0, Math.min(READINESS_FULL_SESSION_SECONDS, finiteInt(elapsedSeconds)));
   const gain = Math.floor(READINESS_MAX_MILLI * elapsed / READINESS_FULL_SESSION_SECONDS);
-  const beforeMilli = fadedReadinessMilli(readinessMap(profile)[name], nowMs);
+  const beforeMilli = fadedReadinessMilli(readinessMap(profile)[name], nowMs, battleIqEnabled() ? battleIqFor(profile, name) : 0);
   const afterMilli = Math.min(READINESS_MAX_MILLI, beforeMilli + gain);
   return {
     update: { ...readinessMap(profile), [name]: { milli: afterMilli, atMs: nowMs } },

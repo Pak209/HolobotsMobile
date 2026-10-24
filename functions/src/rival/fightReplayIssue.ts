@@ -38,6 +38,8 @@ type Combatant = Parameters<typeof duelFighterFromCombatant>[0] & { intelligence
 export function buildFightReplayIssue(input: {
   battleId: string; seed: string; tier: number; mentor: boolean;
   player: readonly Combatant[]; opponent: readonly Combatant[]; chase?: boolean; attrs?: boolean;
+  playerStartSync?: Readonly<Record<string, number>>; cpuStartSync?: number;
+  readinessStart?: readonly {holobotId: string; readiness: number; cap: number; startSync: number}[];
 }): FightReplayIssueWire | null {
   const { player, opponent } = input;
   if (player.length < 1 || player.length > 3 || opponent.length < 1 || opponent.length > 3) return null;
@@ -64,6 +66,8 @@ export function buildFightReplayIssue(input: {
     f.maxHp = s.maxHealth; f.hp = Math.min(s.maxHealth, Math.max(0, s.currentHealth ?? s.maxHealth));
     f.attack = s.attack; f.defense = s.defense;
     f.startXMm = side === 0 ? -half : FIGHT_START_GAP_MM - half;
+    if (side === 0 && input.playerStartSync) f.startSync = input.playerStartSync[c.holobotId] ?? 0;
+    if (side === 1 && input.cpuStartSync !== undefined) f.startSync = input.cpuStartSync;
     // duel-rules-5: SPEED = the battle speed (duelFighterFromCombatant rounds it), SPECIAL = the battle intelligence, rounded
     if (issueAttrs) { f.speed = s.speed; f.special = Math.round(c.intelligence ?? 0); }
     return f;
@@ -89,5 +93,6 @@ export function buildFightReplayIssue(input: {
       roster: opponent.map(c => ({ fighterId: 'cpu-' + c.holobotId, holobotId: c.holobotId, profile: c.holobotId })),
     },
     profilesVersion: PROFILES_VERSION,
+    ...(input.readinessStart ? { readinessStart: [...input.readinessStart] } : {}),
   };
 }
