@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {pinFlags,withFlags} from './lib/flag-env.mjs';
+// Pre-existing tests pin the flag-OFF (pre-#72.78) speed table; the ON counterpart follows the JUSAN test.
+pinFlags({HOLOCITY_FIGHT_ATTRS:undefined});
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const M=require('../lib/lib/battlefieldMovement'),D=require('../lib/desktop/desktopAccountReply'),L=require('../lib/lib/rivalLadder');
@@ -26,6 +29,12 @@ test('host speed changes map monotonically with integer floor and explicit clamp
 test('JUSAN fallback identity and calibration provenance are explicit without new progression stats',()=>{
  assert.deepEqual(M.movementReference('jusan','player'),{referenceSpeedStat:70,referenceSourceHolobotId:'ace',provisional:true});
  assert.deepEqual(M.movementReference('jusan','rival'),{referenceSpeedStat:50,referenceSourceHolobotId:'wolf',provisional:true});
+});
+test('JUSAN fallback under production FIGHT_ATTRS=1: the ACE reference follows the rules-5 speed (60); rival reference unchanged',()=>{
+ withFlags({HOLOCITY_FIGHT_ATTRS:'1'},()=>{
+  assert.deepEqual(M.movementReference('jusan','player'),{referenceSpeedStat:60,referenceSourceHolobotId:'ace',provisional:true});
+  assert.deepEqual(M.movementReference('jusan','rival'),{referenceSpeedStat:50,referenceSourceHolobotId:'wolf',provisional:true});
+ });
 });
 test('desktop v3 publishes fleet and owned resolved speeds; v1/v2 remain unchanged',()=>{
  const profile={holobots:[{name:'WOLF',level:1,boostedAttributes:{speed:1}},{name:'JUSAN',level:1}]},units={light:0,medium:0,heavy:0};

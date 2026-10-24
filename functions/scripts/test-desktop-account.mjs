@@ -2,6 +2,10 @@
 // battleStats (combat scale) + displayStats (mobile display scale); v1 / v2 exactly the deployed shapes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { pinFlags, withFlags } from './lib/flag-env.mjs';
+// The pre-existing tests pin the flag-OFF shapes (no syncReadiness, pre-#72.78 stats); production (#72.86) has both ON,
+// pinned in the ON tests at the end of this file.
+pinFlags({ HOLOCITY_READINESS_ACCRUE: undefined, HOLOCITY_FIGHT_ATTRS: undefined });
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const S = require('../lib/desktop/desktopAccountReply.js');
@@ -145,4 +149,29 @@ test('HoloZones arc gate: Neon Forest is open (with its scene) only when storyFl
     const fields = desktopDashboardFields({ username: fixture.username, syncPoints: fixture.syncPoints, storyFlags: fixture.storyFlags });
     assert.deepEqual(Object.fromEntries(Object.keys(fields).map(k => [k, fixture[k]])), fields, file);
   }
+});
+
+test('production flags ON: READINESS_ACCRUE adds syncReadiness to every version after onboarding; FIGHT_ATTRS gives the rules-5 stats', () => {
+  withFlags({ HOLOCITY_READINESS_ACCRUE: '1', HOLOCITY_FIGHT_ATTRS: '1' }, () => {
+    const profile = profiles()[3], inv = readBuddyInventory(profile);
+    for (const version of ['desktop-account-1', 'desktop-account-2', 'desktop-account-3']) {
+      const r = S.buildDesktopAccountReply(structuredClone(profile), 'uid-1', version, inv.units);
+      const keys = Object.keys(r);
+      assert.equal(keys[keys.indexOf('onboarding') + 1], 'syncReadiness', version);
+      assert.equal(keys[keys.indexOf('syncReadiness') + 1], 'holobots', version);
+      assert.deepEqual(Object.keys(r.syncReadiness).sort(), profile.holobots.map(h => h.name).sort(), 'one view entry per owned bot');
+      for (const e of Object.values(r.syncReadiness)) assert.deepEqual({ value: e.value, fadePerDay: e.fadePerDay }, { value: 0, fadePerDay: 20 }, 'no stored readiness = 0, base fade');
+    }
+    const r = S.buildDesktopAccountReply(structuredClone(profile), 'uid-1', 'desktop-account-3', inv.units);
+    const [a, k] = r.holobots;
+    assert.deepEqual(a.battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 69, intelligence: 60 });
+    assert.deepEqual(a.displayStats, { attack: 12, defense: 6, hp: 192, special: 5, speed: 6 });
+    assert.deepEqual(k.battleStats, { attack: 70, defense: 50, maxHP: 200, speed: 40, intelligence: 40 });
+    assert.deepEqual(k.displayStats, { attack: 7, defense: 5, hp: 200, special: 4, speed: 4 });
+    for (const h of r.holobots) {
+      const s = E.getPlayerBattleStats(h);
+      assert.equal(h.battleStats.speed, s.speed);
+      assert.deepEqual(h.displayStats, P.getHolobotDisplayStats(h.name, h.level, h.boostedAttributes));
+    }
+  });
 });

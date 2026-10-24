@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
+import {childEnv} from './lib/flag-env.mjs';
 import {T,CONFIG,profile,issued} from './zone-expedition-fixtures.mjs';
 const require=createRequire(import.meta.url),Z=require('../lib/holozone/expedition.js'),C=require('../lib/config/zoneExpedition.js'),{expeditionRejection}=require('../lib/holozone/expeditionErrors.js');
 const {default:Ajv2020}=require('ajv/dist/2020');
@@ -111,6 +112,6 @@ test('frozen fixture: every reply validates against zone-run-4 (control against 
 test('fixture is reproducible from the host code (regenerate on any ruling change)',async()=>{
  const {execFileSync}=await import('node:child_process'),{mkdtempSync,rmSync}=await import('node:fs'),{tmpdir}=await import('node:os'),{join}=await import('node:path');
  const dir=mkdtempSync(join(tmpdir(),'zone-run-4-')),out=join(dir,'utility.json');
- try{execFileSync(process.execPath,[new URL('./generate-zone-run-4-fixture.mjs',import.meta.url).pathname,out],{stdio:'ignore'});
+ try{execFileSync(process.execPath,[new URL('./generate-zone-run-4-fixture.mjs',import.meta.url).pathname,out],{stdio:'ignore',env:childEnv({HOLOCITY_FIGHT_ATTRS:undefined})}); // the frozen fixture is the flag-OFF host output (rules-5 moves layout speeds)
   assert.equal(readFileSync(out,'utf8'),readFileSync(new URL('./fixtures/zone-run-4/utility.json',import.meta.url),'utf8'));}finally{rmSync(dir,{recursive:true,force:true});}
 });
