@@ -77,3 +77,5 @@ export { pvpRoomFighterHost } from "./pvp/pvpRoomFighterHost";
 export { equipSyncAbility } from "./progression/equipSyncAbility";
 export { equipHolobotPart } from "./progression/equipHolobotPart";
 export { claimStarterDeck } from "./account/claimStarterDeck";
+// zell-crash-1: the Act 1 -> Act 2 story event + the two catch-duels (default off: HOLOCITY_ZELL_CRASH).
+export { zellCrashHost } from "./story/zellCrashHost";

@@ -34,6 +34,8 @@ export type FightReplayVerdict = {
   /** Replay CPU time (ms, wall clock of this process; measurement only, never in the receipt). */
   replayMs: number;
   ticks: number;
+  /** zell-crash-1: true when the issued stop condition (VerifyOptions.stopWhen) ended the replay before the core ended. */
+  stopped: boolean;
 };
 
 /** Bounded structural validation of a stored issue block (the record is server-written; this fails closed if corrupted). */
@@ -89,7 +91,11 @@ function checkIdentity(issue: FightReplayIssueWire, log: FightInputLog): void {
   if (JSON.stringify(c.roster) !== JSON.stringify(issue.cpu.roster.map(r => ({ id: r.fighterId, profile: r.profile })))) mismatch('identity', { field: 'sides[1].roster' });
 }
 
-export type VerifyOptions = { battleId: string; now?: () => number };
+export type VerifyOptions = {
+  battleId: string; now?: () => number;
+  /** zell-crash-1 catch-duel: the host's issued escape condition; the log must end on the first tick it holds (or the KO). */
+  stopWhen?: (core: FightCore) => boolean;
+};
 
 export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: VerifyOptions): FightReplayVerdict {
   const { issue, rules, chase, attrs } = readIssue(storedIssue);
@@ -106,7 +112,7 @@ export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: V
   let result: ReturnType<typeof runFight>;
   try {
     result = runFight(rules, issue.seed, { inputs: logInputs(log, 0) }, { brain: new FightCoreBrain(), profile, skill }, {
-      hashAt: t => samples.has(t) || t === last, maxTicks: log.tickCount, recordEvents: true, chase, attrs,
+      hashAt: t => samples.has(t) || t === last, maxTicks: log.tickCount, recordEvents: true, chase, attrs, stopWhen: opts.stopWhen,
       onTick: (t: number, inputs: [FightInput, FightInput]) => {
         if (cpuDivergence < 0 && (t >= cpuTicks.length || !recordEquals(cpuTicks[t], toRecord(inputs[1])))) cpuDivergence = t;
       },
@@ -122,7 +128,7 @@ export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: V
   // the last partial window: the final hash differs, or the log runs past the tick the host's fight ended on
   if (k === log.hashes.length) mismatch('final_hash', { fromTick: log.hashes.length * log.hashEvery, toTick: last });
   // every hash matches but the fight is not over at the log's last tick: a sealed, unfinished fight has no outcome
-  if (!result.ended) mismatch('incomplete', { toTick: last });
+  if (!result.ended && !result.stopped) mismatch('incomplete', { toTick: last });
   if (cpuDivergence >= 0) mismatch('cpu_stream', { tick: cpuDivergence });
 
   const core = result.core;
@@ -145,7 +151,7 @@ export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: V
     witness: result.witness,
   };
   return {
-    receipt, winner: result.winner, replayMs, ticks: ticksRun,
+    receipt, winner: result.winner, replayMs, ticks: ticksRun, stopped: result.stopped,
     fieldedHolobotIds: receipt.playerFinal.filter(f => f.fielded).map(f => f.holobotId),
   };
 }
