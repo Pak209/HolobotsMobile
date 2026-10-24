@@ -1,3 +1,4 @@
+import { useBattlePresentation } from '@/lib/bots/useBattlePresentation';
 import { theme } from "@/theme";
 import type { FinisherPower } from "../../features/arena/finisherPolicy";
 import { useEffect, useMemo, useState } from "react";
@@ -36,7 +37,16 @@ type PvpArenaModalProps = {
   visible: boolean;
 };
 
-export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalProps) {
+export type PvpArenaSession = Pick<ReturnType<typeof useRealtimeArena>,
+  'cancelMatchmaking' | 'createRoom' | 'enterMatchmaking' | 'error' | 'hostSeatPending' | 'hostView' | 'joinRoom' |
+  'leaveRoom' | 'loading' | 'matchmakingStatus' | 'moveAvailability' | 'myRole' | 'opponentRole' | 'playMove' | 'room' |
+  'sendIn' | 'switchActive' | 'useSignature'>;
+export function PvpArenaModal(props: PvpArenaModalProps) {
+  const session = useRealtimeArena();
+  return <PvpArenaModalView {...props} session={session} />;
+}
+/** The same live UI, separated from transport so signed-out QA can supply recorded room transitions. */
+export function PvpArenaModalView({ onClose, userHolobots, visible, session }: PvpArenaModalProps & { session: PvpArenaSession }) {
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
   // Which slot the picker fills: the 1v1 fighter, or a 3v3 team slot.
   const [pickerTarget, setPickerTarget] = useState<"main" | 0 | 1 | 2 | null>(null);
@@ -62,7 +72,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     sendIn,
     switchActive,
     useSignature: fireSignature,
-  } = useRealtimeArena();
+  } = session;
 
   const roster = useMemo(
     () => mergeHolobotRoster(userHolobots).filter((holobot) => holobot.owned),
@@ -216,6 +226,7 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
     return myRole === "p1" ? state : { ...state, player: state.opponent, opponent: state.player };
   }, [myRole, room]);
 
+  const presentation = useBattlePresentation(battleState, inLiveBattle);
   const playerCards = myPlayer?.moves ?? [];
   const playableCardIds = useMemo(
     () => playerCards.filter((move) => moveAvailability[move.id]?.playable).map((move) => move.id),
@@ -270,13 +281,15 @@ export function PvpArenaModal({ onClose, userHolobots, visible }: PvpArenaModalP
         }
       : null;
 
-  if (inLiveBattle && battleState) {
+  if ((inLiveBattle || presentation.holding) && battleState) {
     // Live battle: the SAME arena battle screen as PvE — the opponent is
     // simply the other pilot. Lobby/waiting/results keep the card layout.
     return (
       <>
         <Modal animationType="fade" presentationStyle="overFullScreen" transparent visible={visible} onRequestClose={handleClose}>
           <PvpLiveBattle
+            terminal={presentation.terminal}
+            onTerminalComplete={presentation.onComplete}
             room={room!}
             myRole={myRole!}
             opponentName={opponent?.username || "PILOT"}

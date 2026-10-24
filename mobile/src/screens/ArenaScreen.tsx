@@ -1,3 +1,4 @@
+import { useBattlePresentation } from '@/lib/bots/useBattlePresentation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View, StyleSheet, ActivityIndicator, AppState, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -244,6 +245,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
     const stageGateFor = useRef<string | null>(null);
     const stageReadyFor = useRef<string | null>(null);
     const roundShown = !!battle && phase.kind === 'battle';
+    const presentation = useBattlePresentation(battle, roundShown);
     useEffect(() => { if (!roundShown || !battle || stageGateFor.current === battle.battleId || stageReadyFor.current === battle.battleId || preview?.cpuStageGate === false) return;
         stageGateFor.current = battle.battleId;
         holdCpuForStage(); }, [roundShown, battle?.battleId]);
@@ -306,10 +308,10 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
       store.useMove, a City-issued match has no signature, and QUIT goes through the in-app confirmation. The toolbar
       sits left of the pilot-menu cog (HomeCogButton, zIndex 100) so the cog never covers QUIT. Pak's call: the round renders
       with #133's fast mix (FAST_RENDER_QUALITY), since the real-time input unlock shares the JS thread with GL. */}
-  {battle && (phase.kind === 'battle' || phase.kind === 'confirming') ? <View style={styles.fight}>
-      <LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false} levelTab levels={{ player: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'entrant', battle.player.name), rival: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'opponent', battle.opponent.name) }} caption={COPY.stageCaption} leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === 'sending'} onLeave={quit} chrome={{ top: insets.top + 10, right: 60 }} active={phase.kind === 'battle' && !quitAsk} renderQuality={FAST_RENDER_QUALITY} perf={preview?.stagePerf} onMetrics={preview?.onStageMetrics} showMetrics={!!preview?.showStageMetrics} vfx={preview?.vfx ?? true} onStageReady={() => { stageReadyFor.current = battle.battleId; releaseCpuForStage(); }}/>
+  {battle && (phase.kind === 'battle' || phase.kind === 'confirming' || presentation.holding) ? <View style={styles.fight}>
+      <LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false} levelTab levels={{ player: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'entrant', battle.player.name), rival: arenaFighterLevel(reply, reply?.matchId ?? undefined, 'opponent', battle.opponent.name) }} caption={COPY.stageCaption} leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === 'sending'} onLeave={quit} chrome={{ top: insets.top + 10, right: 60 }} terminal={presentation.terminal} onTerminalComplete={presentation.onComplete} active={(phase.kind === 'battle' || presentation.holding) && !quitAsk} renderQuality={FAST_RENDER_QUALITY} perf={preview?.stagePerf} onMetrics={preview?.onStageMetrics} showMetrics={!!preview?.showStageMetrics} vfx={preview?.vfx ?? true} onStageReady={() => { stageReadyFor.current = battle.battleId; releaseCpuForStage(); }}/>
     </View> : null}
-  {phase.kind === 'confirming' ? <View style={[styles.overlay, { paddingTop: insets.top + 64 }]}><ArenaInterstitial eyebrow={COPY.confirmingEyebrow} title={winPending ? COPY.confirmingTitle : COPY.confirmingResult} body={COPY.confirmingBody} waiting actions={[{ label: COPY.forfeit, tone: 'danger', disabled: settlePhase.kind === 'sending', onPress: quit }]}/></View> : null}
+  {phase.kind === 'confirming' && !presentation.holding ? <View style={[styles.overlay, { paddingTop: insets.top + 64 }]}><ArenaInterstitial eyebrow={COPY.confirmingEyebrow} title={winPending ? COPY.confirmingTitle : COPY.confirmingResult} body={COPY.confirmingBody} waiting actions={[{ label: COPY.forfeit, tone: 'danger', disabled: settlePhase.kind === 'sending', onPress: quit }]}/></View> : null}
   {phase.kind === 'stalled' ? framed(<ArenaInterstitial tone="warning" eyebrow={COPY.stalledEyebrow} title={COPY.stalledTitle} body={COPY.stalledBody} actions={[
             { label: COPY.tryAgain, disabled: settlePhase.kind === 'sending', onPress: () => runConfirm('retry') },
             { label: COPY.forfeit, tone: 'danger', onPress: quit },
@@ -321,7 +323,7 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
             { label: COPY.checkAgain, onPress: () => void action(resumeAll) },
             { label: COPY.back, tone: 'secondary', onPress: () => setError(null) },
         ]}/>) : null}
-  {result ? <BattleResultsModal visible didWin={result.didWin} receipt={{ kind: 'host', rewards: result.rewards, withheld: result.payoutWithheld }} context={context} hideRematch onRematch={() => { }} onExit={() => void exit()}/> : null}
+  {result && !presentation.holding ? <BattleResultsModal visible didWin={result.didWin} receipt={{ kind: 'host', rewards: result.rewards, withheld: result.payoutWithheld }} context={context} hideRematch onRematch={() => { }} onExit={() => void exit()}/> : null}
   {closure && match ? <BattleResultsModal visible didWin={false} receipt={{ kind: 'host', rewards: { exp: 0, syncPoints: 0 } }} closure={{ closure, fighter: match.entrant.displayName }} context={context} hideRematch onRematch={() => { }} onExit={() => void exit()}/> : null}
   {busy || (!ready && phase.kind === 'menu') || (settlePhase.kind === 'sending' && phase.kind === 'battle') ? <View style={styles.loadingOverlay}><ActivityIndicator color={theme.colors.accent}/></View> : null}
   {/* An in-tree overlay, not a native Modal: the refund/forfeit receipt modal presents right after a confirm, and iOS
