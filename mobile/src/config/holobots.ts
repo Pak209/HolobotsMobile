@@ -11,6 +11,7 @@ import {
   getHolobotRank,
   HOLOBOT_ARCHETYPES,
   HOLOBOT_BASE_STATS,
+  getHolobotBaseStatsTable,
   HOLOBOT_NAMES,
   normalizeUserHolobot,
 } from "@/lib/progression";
@@ -103,9 +104,8 @@ function getNormalizedStatsForChart(
   level = 1,
   boostedAttributes?: UserHolobot["boostedAttributes"],
 ) {
-  const base =
-    HOLOBOT_BASE_STATS[name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS] ??
-    HOLOBOT_BASE_STATS.ACE;
+  const table = getHolobotBaseStatsTable();
+  const base = table[name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS] ?? table.ACE;
   const levelBonus = 1 + (Math.max(1, level) - 1) * 0.05;
 
   const finalAttack = Math.floor(base.attack * levelBonus) + (boostedAttributes?.attack || 0);
@@ -148,7 +148,8 @@ export function createGenesisStarterHolobot(name: "ACE" | "KUMA" | "SHADOW"): Us
 
 export function getHolobotBaseProfile(name: string) {
   const normalizedName = name.trim().toUpperCase() as keyof typeof HOLOBOT_BASE_STATS;
-  const base = HOLOBOT_BASE_STATS[normalizedName] ?? HOLOBOT_BASE_STATS.ACE;
+  const table = getHolobotBaseStatsTable();
+  const base = table[normalizedName] ?? table.ACE;
   const specialMove = HOLOBOT_SPECIAL_MOVES[normalizedName] ?? HOLOBOT_SPECIAL_MOVES.ACE;
 
   return {

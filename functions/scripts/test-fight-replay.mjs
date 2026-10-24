@@ -279,7 +279,8 @@ test('#72.80 fight rows: a duel-rules-5 issue applies the fight base-row delta t
   assert.equal(tierOpp.attack, o4.attack, 'a tier-curve opponent is untouched');
   assert.equal(JSON.stringify(off), JSON.stringify(issueFor({ ...lineup, chase: true, attrs: false })), 'flag off: rules-4, no delta');
   assert.deepEqual(HOLOBOT_FIGHT_BASE_STATS_72_80.JUSAN, { attack: 6, defense: 4, hp: 137, intelligence: 5, speed: 6 }, 'JUSAN has his own row');
-  for (const [id, r] of Object.entries(HOLOBOT_FIGHT_BASE_STATS_72_80)) if (P.HOLOBOT_BASE_STATS[id]) {
-    assert.equal(r.speed, P.HOLOBOT_BASE_STATS[id].speed, id + ': SPEED column untouched'); assert.equal(r.intelligence, P.HOLOBOT_BASE_STATS[id].intelligence, id + ': SPECIAL untouched');
+  // The rows were tuned on the rules-5 progression table (#72.78 SPEED 4-6); both ship behind the same host flag.
+  for (const [id, r] of Object.entries(HOLOBOT_FIGHT_BASE_STATS_72_80)) if (P.HOLOBOT_BASE_STATS_RULES5[id]) {
+    assert.equal(r.speed, P.HOLOBOT_BASE_STATS_RULES5[id].speed, id + ': SPEED column untouched'); assert.equal(r.intelligence, P.HOLOBOT_BASE_STATS_RULES5[id].intelligence, id + ': SPECIAL untouched');
   }
 });

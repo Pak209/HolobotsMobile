@@ -1,6 +1,6 @@
 import { db, doc, functions, httpsCallable, updateDoc } from "@/config/firebase";
 import { toServerActionError } from "@/lib/callables";
-import type { BoostableAttribute } from "@/lib/progression";
+import { progressionRules5Enabled, type BoostableAttribute } from "@/lib/progression";
 import type { ActiveQuestRecord, QuestId, TrainingCourseId, TrainingSessionRecord } from "@/lib/progressionSystems";
 import { type SyncStatKey } from "@/lib/syncProgression";
 import type { UserHolobot, UserProfile } from "@/types/profile";
@@ -237,7 +237,10 @@ export async function useExpBoosterAuthoritative(): Promise<{ activeUntil: numbe
 }
 
 const ATTRIBUTE_BOOST_REFUSAL_MESSAGES: Record<Exclude<AttributeBoostReason, "already_processed">, string> = {
-  attribute_not_boostable: "That attribute cannot be boosted with attribute points.",
+  // Rules-5 flag off, the only non-boostable wire attribute is SPECIAL (it grows with SYNC Focus); on, nothing on the wire is.
+  attribute_not_boostable: progressionRules5Enabled()
+    ? "That attribute cannot be boosted with attribute points."
+    : "SPECIAL grows with the Sync Focus stat, not with attribute points.",
   no_attribute_points: "This Holobot has no attribute points available to spend.",
 };
 
@@ -247,8 +250,8 @@ export function makeAttributeBoostRequestId(): string {
 }
 
 /**
- * Spend one attribute point server-side (DECISIONS #53-2, #72.78): +1 attack /
- * defense / speed / special or +3 HP. The profile listener picks up the write; the
+ * Spend one attribute point server-side (DECISIONS #53-2): +1 attack /
+ * defense / speed or +10 HP; with the rules-5 flag (#72.78) +1 special too and +3 HP. The profile listener picks up the write; the
  * reply's holobot is the authoritative record. Typed refusals throw a readable
  * Error; a replayed request id (already_processed) resolves without spending.
  */

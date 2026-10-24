@@ -75,3 +75,15 @@ test('HoloZones arc gate through the real callable: closed until storyFlags.holo
   const bad=await setup({storyFlags:{holoZonesArcBuilt:'true'}});
   await assert.rejects(()=>desktopAccountSnapshot.run({auth:{uid:bad},data:{schemaVersion:'desktop-account-3'}}),e=>e.code==='unavailable');
 });
+
+// rules5-progression-gate-1: the #72.78 progression changes are live only with the duel-rules-5 host flag (read at call time).
+const withRules5 = async fn => { const had = Object.hasOwn(process.env, 'HOLOCITY_FIGHT_ATTRS'), prev = process.env.HOLOCITY_FIGHT_ATTRS; process.env.HOLOCITY_FIGHT_ATTRS = '1'; try { return await fn(); } finally { if (had) process.env.HOLOCITY_FIGHT_ATTRS = prev; else delete process.env.HOLOCITY_FIGHT_ATTRS; } };
+
+test('rules-5 flag on (#72.78): v3 battleStats / displayStats read the SPEED 4-6 column (ACE LV4 speed 69, KUMA LV1 40)', () => withRules5(async () => {
+  const uid = await setup();
+  const r = await desktopAccountSnapshot.run({ auth: { uid }, data: { schemaVersion: 'desktop-account-3' } });
+  assert.deepEqual(r.holobots[0].battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 69, intelligence: 60 });
+  assert.deepEqual(r.holobots[0].displayStats, { attack: 12, defense: 6, hp: 192, special: 5, speed: 6 });
+  assert.deepEqual(r.holobots[1].battleStats, { attack: 70, defense: 50, maxHP: 200, speed: 40, intelligence: 40 });
+  assert.deepEqual(r.holobots[1].displayStats, { attack: 7, defense: 5, hp: 200, special: 4, speed: 4 });
+}));

@@ -13,7 +13,7 @@ const user = async uid => (await db.doc(`users/${uid}`).get()).data();
 const boost = (uid, data) => boostHolobotAttribute.run({ auth: uid ? { uid } : undefined, data });
 const ace = { name: 'ACE', level: 4, experience: 1700, nextLevelExp: 2500, rank: 'Starter', attributePoints: 2, boostedAttributes: { health: 10 }, career: { workouts: 3 } };
 
-test('applies one boost per request id, persists it, and replays without spending', async () => {
+test('flag off (default): applies one boost per request id, persists it, and replays without spending', async () => {
   const uid = await setup([ace, { name: 'KUMA', level: 1, experience: 0, nextLevelExp: 400, attributePoints: 0 }]);
   const r = await boost(uid, { holobotName: 'ACE', attribute: 'health', requestId: 'b1' });
   assert.equal(r.applied, true); assert.equal(r.holobot.attributePoints, 1); assert.equal(r.holobot.boostedAttributes.health, 20);
@@ -29,7 +29,7 @@ test('applies one boost per request id, persists it, and replays without spendin
   u = await user(uid); assert.deepEqual(u.attributeBoostRequestIds, ['b1', 'b2']); assert.equal(u.holobots[0].attributePoints, 0);
 });
 
-test('SPECIAL is refused (tied to SYNC): applied false, nothing written', async () => {
+test('flag off (default): SPECIAL is refused (tied to SYNC): applied false, nothing written', async () => {
   const uid = await setup([ace]);
   const before = await user(uid);
   const r = await boost(uid, { holobotName: 'ACE', attribute: 'special', requestId: 's1' });
@@ -53,3 +53,16 @@ test('concurrent duplicate request ids spend exactly one point', async () => {
   assert.equal(results.filter(r => r.applied).length, 1);
   const u = await user(uid); assert.equal(u.holobots[0].attributePoints, 4); assert.equal(u.holobots[0].boostedAttributes.attack, 1);
 });
+
+// rules5-progression-gate-1: the #72.78 progression changes are live only with the duel-rules-5 host flag (read at call time).
+const withRules5 = async fn => { const had = Object.hasOwn(process.env, 'HOLOCITY_FIGHT_ATTRS'), prev = process.env.HOLOCITY_FIGHT_ATTRS; process.env.HOLOCITY_FIGHT_ATTRS = '1'; try { return await fn(); } finally { if (had) process.env.HOLOCITY_FIGHT_ATTRS = prev; else delete process.env.HOLOCITY_FIGHT_ATTRS; } };
+
+test('rules-5 flag on (#72.78): a new HP point adds +3 on top of the grandfathered 10; SPECIAL is buyable (+1), persisted', () => withRules5(async () => {
+  const uid = await setup([ace]);
+  const r = await boost(uid, { holobotName: 'ACE', attribute: 'health', requestId: 'h1' });
+  assert.equal(r.applied, true); assert.equal(r.holobot.attributePoints, 1); assert.equal(r.holobot.boostedAttributes.health, 13);
+  const s = await boost(uid, { holobotName: 'ACE', attribute: 'special', requestId: 's1' });
+  assert.equal(s.applied, true); assert.equal(s.holobot.attributePoints, 0); assert.deepEqual(s.holobot.boostedAttributes, { health: 13, special: 1 });
+  const u = await user(uid);
+  assert.deepEqual(u.holobots[0], s.holobot); assert.deepEqual(u.attributeBoostRequestIds, ['h1', 's1']); assert.equal(u.holosTokens, 3);
+}));
