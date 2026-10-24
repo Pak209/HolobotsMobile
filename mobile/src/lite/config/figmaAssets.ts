@@ -43,3 +43,13 @@ export const fitnessAssets = {
 };
 
 export const fitnessAssetList = Object.values(fitnessAssets);
+
+/**
+ * OG Sync artwork re-skinned to the HoloCity palette by scripts/recolor_og_fitness.py:
+ * every static OG layer composited at its OG artboard position, shapes untouched,
+ * colours remapped (yellow ground -> navy, panel seams -> cyan, black -> keycap navy).
+ */
+export const fitnessHoloCityAssets = {
+  syncArt: require("../../../assets/figma/fitness-lite/syncArtHoloCity.png"),
+  speedometerNeedle: require("../../../assets/figma/fitness-lite/speedometerNeedleHoloCity.png"),
+};

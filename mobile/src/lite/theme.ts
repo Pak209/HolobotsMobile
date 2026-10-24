@@ -71,6 +71,9 @@ export const theme = {
       full: { fill: "rgba(255, 210, 26, 0.96)", text: "#0E1622" },
     },
   },
+  /** OG Sync page re-skin (scripts/recolor_og_fitness.py): the OG's yellow ground and black panels
+   * mapped so panels stay a distinctly darker solid than the ground, as in the paid design. */
+  ogSync: { ground: "#1B4257", stripe: "#14354A", panel: "#05080F" },
   type: {
     display: { fontFamily: "HoloDisplay", fontSize: 34, lineHeight: 38 },
     header: { fontFamily: "HoloDisplay", fontSize: 22, lineHeight: 28 },
