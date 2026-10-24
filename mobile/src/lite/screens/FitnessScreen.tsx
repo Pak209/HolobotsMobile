@@ -29,6 +29,8 @@ import type { RootTabs } from "../../../LiteApp";
  * positions, same proportions — re-skinned to the HoloCity palette. Only colours
  * differ: the static OG layers come pre-recoloured (fitnessHoloCityAssets), the
  * dynamic layers take theme tokens. Lite keeps a static bot portrait (no 3D).
+ * Text baselines are vertically centred in their OG panels (Pak 10-24: SYNC POINT,
+ * +N, level group, CHANGE HOLOBOT, kilometres and reward values sat against panel tops).
  */
 const NEEDLE_MIN_ANGLE = -150;
 const NEEDLE_MAX_ANGLE = -35;
@@ -217,17 +219,17 @@ export function FitnessScreen() {
         </View>
         <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`}>
           <Image href={fitnessHoloCityAssets.syncArt} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
-          <Text x={193} y={198.04} fill={c.ink} fontSize={106.012} fontWeight="700">SYNC POINT</Text>
-          <Text x={315} y={418.99} fill={c.syncPlus} fontSize={105.805} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
+          <Text x={193} y={238} fill={c.ink} fontSize={106.012} fontWeight="700">SYNC POINT</Text>
+          <Text x={315} y={458} fill={c.syncPlus} fontSize={105.805} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
 
           <Path d={`M 90 686.25 H ${90 + goalBarWidth} L ${Math.max(90, 90 + goalBarWidth - 40)} 766.25 H 90 Z`} fill={c.goalFill} />
           <Text x={103} y={672} fill={c.ink} fontSize={116} fontWeight="400">{formatGoalTime(workout.remainingMinutes)}</Text>
 
-          <Text x={72} y={921.5} fill={c.ink} fontSize={49.915}>{selectedHolobot?.name ?? "HOLOBOT"}</Text>
-          <Path d="M 72 1018 H 545 V 1043 H 72 Z" fill={c.expTrack} />
-          <Path d={`M 72 1018 H ${72 + expProgressWidth} V 1043 H 72 Z`} fill={c.expFill} />
-          <Text x={89} y={1009} fill={c.ink} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot?.experience ?? 0}/${selectedHolobot?.nextLevelExp ?? 0}`}</Text>
-          <Text x={71} y={1119.3} fill={c.ink} fontSize={100.722}>{`Lv ${selectedHolobot?.level ?? 1}`}</Text>
+          <Text x={72} y={939} fill={c.ink} fontSize={49.915}>{selectedHolobot?.name ?? "HOLOBOT"}</Text>
+          <Path d="M 72 1009 H 545 V 1034 H 72 Z" fill={c.expTrack} />
+          <Path d={`M 72 1009 H ${72 + expProgressWidth} V 1034 H 72 Z`} fill={c.expFill} />
+          <Text x={89} y={1000} fill={c.ink} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot?.experience ?? 0}/${selectedHolobot?.nextLevelExp ?? 0}`}</Text>
+          <Text x={71} y={1142} fill={c.ink} fontSize={100.722}>{`Lv ${selectedHolobot?.level ?? 1}`}</Text>
           {showReadiness ? (
             <G>
               <Text x={72} y={1262} fill={c.ink} fontSize={30} fontWeight="700">{`SYNC READINESS ${readiness}/100`}</Text>
@@ -236,7 +238,7 @@ export function FitnessScreen() {
             </G>
           ) : null}
 
-          <Text x={900} y={1160} fill={c.ink} fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
+          <Text x={900} y={1167} fill={c.ink} fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
 
           <G transform={`rotate(${needleAngle} ${NEEDLE_CENTER_X} ${NEEDLE_CENTER_Y})`}>
             <Image href={fitnessHoloCityAssets.speedometerNeedle} x={811} y={1621} width={366} height={211} preserveAspectRatio="none" />
@@ -249,16 +251,16 @@ export function FitnessScreen() {
               <Path d="M9 12H5.414a1 1 0 0 1-.707-1.707l6.586-6.586a1 1 0 0 1 1.414 0l6.586 6.586A1 1 0 0 1 18.586 12H15v3H9zm0 9h6m-6-3h6" stroke={c.boost} strokeWidth={2.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </G>
           ) : null}
-          <Text x={788} y={2074.31} fill={c.ink} fontSize={121.544}>{displayDistance.toFixed(3)}</Text>
-          <Text x={793} y={2180.08} fill={c.ink} fontSize={45.702} fontWeight="500">{formatDistanceLabel(distanceUnit)}</Text>
-          {syncBoostCopy ? <Text x={794} y={2232} fill={c.boost} fontSize={34} fontWeight="700">{syncBoostCopy}</Text> : null}
+          <Text x={788} y={2097} fill={c.ink} fontSize={121.544}>{displayDistance.toFixed(3)}</Text>
+          <Text x={793} y={2203} fill={c.ink} fontSize={45.702} fontWeight="500">{formatDistanceLabel(distanceUnit)}</Text>
+          {syncBoostCopy ? <Text x={794} y={2255} fill={c.boost} fontSize={34} fontWeight="700">{syncBoostCopy}</Text> : null}
 
           <Image href={fitnessAssets.rewardSync} x={244} y={2429} width={116} height={131} preserveAspectRatio="none" />
           <Image href={fitnessAssets.rewardHolos} x={740} y={2433} width={109} height={110} preserveAspectRatio="none" />
           <Image href={fitnessAssets.rewardExp} x={1196} y={2433} width={119} height={118} preserveAspectRatio="none" />
-          <Text x={410} y={2494} fill={c.ink} fontSize={96.929} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
-          <Text x={882} y={2494} fill={c.ink} fontSize={95.215} fontWeight="700">{`+${workout.holosReward}`}</Text>
-          <Text x={1353} y={2493.96} fill={c.ink} fontSize={91.406} fontWeight="700">{`+${workout.expReward}`}</Text>
+          <Text x={410} y={2530} fill={c.ink} fontSize={96.929} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
+          <Text x={882} y={2530} fill={c.ink} fontSize={95.215} fontWeight="700">{`+${workout.holosReward}`}</Text>
+          <Text x={1353} y={2530} fill={c.ink} fontSize={91.406} fontWeight="700">{`+${workout.expReward}`}</Text>
 
           {blockedByWatch ? <Text x={430} y={2588} fill={c.boost} fontSize={52} fontWeight="700">WORKOUT RUNNING ON APPLE WATCH</Text> : null}
           <Text
