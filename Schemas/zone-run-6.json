@@ -546,6 +546,9 @@
                 },
                 "ambush": {
                   "const": "none"
+                },
+                "fleeAttempted": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -553,7 +556,8 @@
                 "sectorId",
                 "issuedAtMs",
                 "settleByMs",
-                "ambush"
+                "ambush",
+                "fleeAttempted"
               ]
             }
           ]

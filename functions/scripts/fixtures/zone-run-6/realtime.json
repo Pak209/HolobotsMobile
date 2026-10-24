@@ -2869,7 +2869,8 @@
             "sectorId": "b1a",
             "issuedAtMs": 1792022402000,
             "settleByMs": 1792022642000,
-            "ambush": "none"
+            "ambush": "none",
+            "fleeAttempted": false
           },
           "seed": 2818554173,
           "band": 1,

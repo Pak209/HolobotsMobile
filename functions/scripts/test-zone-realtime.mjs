@@ -47,7 +47,7 @@ test('flee and reconnect use one seeded free attempt; failure resumes same issue
   const s=state(seed);enter(s);const x=step(s,'engage',{duelInputs:'duel-inputs-2'});const energy=s.r.energy;
   const a=step(s,'resume',{fightId:s.r.pendingFight.fightId},T+2000);
   assert.equal(s.r.energy,energy);
-  if(a.fightIssue){assert.deepEqual(a.fightIssue,x.fightIssue);assert.throws(()=>step(s,'flee',{fightId:`ef_test_run_${s.r.sectorId}`},T+3000),/flee_already_attempted/);
+  if(a.fightIssue){assert.deepEqual(a.fightIssue,x.fightIssue);assert.equal(Z.runView(s.r,'zone-run-6').pendingFight.fleeAttempted,true);assert.throws(()=>step(s,'flee',{fightId:`ef_test_run_${s.r.sectorId}`},T+3000),/flee_already_attempted/);
    const b=step(s,'resume',{fightId:`ef_test_run_${s.r.sectorId}`},T+3000);assert.deepEqual(b.fightIssue,x.fightIssue);}
   else assert.equal(a.encounterResult.outcome,'fled');
  }

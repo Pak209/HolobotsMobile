@@ -155,7 +155,7 @@ export function runView(run:ExpeditionRun,wire:ZoneRunWire=ZONE_RUN_SCHEMA){
   const {privateSeed:_seed,utilityUsed,utilityAtMs:_cooldown,realtime:_realtime,pendingFight:_pending,lastFight:_last,...view}=run;
   const shaped=wire===ZONE_RUN_SCHEMA_V6?{...view,schemaVersion:ZONE_RUN_SCHEMA_V6,layout:layoutView(run.layout,wire),utilityUsed,
     squad:run.squad.map(b=>({...b,staminaPm:b.staminaPm??1000})),
-    pendingFight:run.pendingFight?{fightId:run.pendingFight.fightId,sectorId:run.pendingFight.sectorId,issuedAtMs:run.pendingFight.issuedAtMs,settleByMs:run.pendingFight.settleByMs,ambush:run.pendingFight.ambush}:null}
+    pendingFight:run.pendingFight?{fightId:run.pendingFight.fightId,sectorId:run.pendingFight.sectorId,issuedAtMs:run.pendingFight.issuedAtMs,settleByMs:run.pendingFight.settleByMs,ambush:run.pendingFight.ambush,fleeAttempted:run.pendingFight.fleeAttempted}:null}
     :wire===ZONE_RUN_SCHEMA_V4?{...view,schemaVersion:ZONE_RUN_SCHEMA_V4,layout:layoutView(run.layout,wire),utilityUsed}
     :run.realtime?{...view,squad:run.squad.map(({staminaPm:_sta,...b})=>b)}:view;
   return structuredClone({...shaped,seed:run.layout.seed,band:sector(run).band,sector:run.sectorId,protectedSlot:run.haul.find(h=>h.protected)??null});
