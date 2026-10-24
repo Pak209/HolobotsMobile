@@ -13,7 +13,7 @@ import { buildPlaybackCues, normalizeDuelReceipt, ROUND_DURATION_MS, type DuelRo
 import { hostFighterLevel, levelBadge, receiptIssue } from '../lib/bots/hostFighterLevel';
 import { readLiveRivalPlayback } from '../lib/bots/liveRivalPlayback';
 export type { DuelRound } from '../lib/bots/duelPlayback';
-export type DuelPlaybackScreenProps = { receipt: unknown; accountSnapshot?: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number; /** Dev-only stage cost knobs (QA perf sweep). */ perf?: BotStagePerf; /** Dev-only: keep round 1 on screen with idle loops so every knob arm renders the same content. */ holdCues?: boolean };
+export type DuelPlaybackScreenProps = { receipt: unknown; accountSnapshot?: unknown; liveIssue?: unknown; rounds?: readonly DuelRound[]; attackerBotId?: string; defenderBotId?: string; onClose: () => void; onMetrics?: (metrics: BotMetrics) => void; fixture?: boolean; showMetrics?: boolean; /** Development capture stops the actual cue runner after this round's impact. */ captureRound?: number; /** Dev-only stage cost knobs (QA perf sweep). */ perf?: BotStagePerf; /** Dev-only: keep round 1 on screen with idle loops so every knob arm renders the same content. */ holdCues?: boolean; /** lite-ko-continue-bug-1: open on the recorded result card (the fight already ended at its KO); REPLAY ↻ plays it back. */ startAtResult?: boolean };
 
 type FighterSnapshot = ObservedFighterState;
 /** Portrait disc diameter on the fighter card (concept: the round portrait in the angled frame). */
@@ -45,7 +45,7 @@ export function FighterHud({ name, state, level, rival = false, levelTab = false
 }
 
 /** Receipt-only presentation. It never calculates damage, stamina, misses, winners or rewards. */
-export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound, perf, holdCues = false }: DuelPlaybackScreenProps) {
+export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds, attackerBotId, defenderBotId, onClose, onMetrics, fixture = false, showMetrics = false, captureRound, perf, holdCues = false, startAtResult = false }: DuelPlaybackScreenProps) {
   const insets = useSafeAreaInsets();
   const normalized = useMemo(() => liveIssue === undefined ? normalizeDuelReceipt(receipt, rounds) : readLiveRivalPlayback(liveIssue, receipt), [receipt, rounds, liveIssue]);
   const [actors, setActors] = useState({ player: normalized.attackerBotId, rival: normalized.defenderBotId });
@@ -53,7 +53,7 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
   const rival = resolveBotId(actors.rival ?? defenderBotId ?? '');
   const cues = useMemo(() => buildPlaybackCues(normalized.rounds), [normalized]);
   const duration = normalized.rounds.length * ROUND_DURATION_MS;
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(() => startAtResult ? duration : 0);
   const [ready, setReady] = useState(false);
   const [paused, setPaused] = useState(false);
   const [replay, setReplay] = useState(0);
@@ -67,7 +67,12 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
   const round = normalized.rounds[currentRound];
   const isSynthetic = fixture || normalized.synthetic;
   useEffect(() => { setReady(false); setStageError(false); }, [player, rival]);
-  useEffect(() => { elapsedRef.current = 0; nextCue.current = 0; setElapsed(0); setSnapshot(normalized.initialState); setActors({ player: normalized.attackerBotId, rival: normalized.defenderBotId }); setPaused(false); }, [normalized, replay]);
+  useEffect(() => {
+    const atResult = startAtResult && replay === 0;
+    elapsedRef.current = atResult ? duration : 0; nextCue.current = atResult ? cues.length : 0; setElapsed(elapsedRef.current);
+    setSnapshot(atResult ? normalized.finalState ?? normalized.rounds.at(-1)?.after ?? normalized.initialState : normalized.initialState);
+    setActors({ player: normalized.attackerBotId, rival: normalized.defenderBotId }); setPaused(false);
+  }, [normalized, replay]);
   useEffect(() => {
     if ((!ready && player && rival) || paused || complete || duration === 0 || (__DEV__ && holdCues)) return;
     let appActive = AppState.currentState === 'active';
@@ -123,7 +128,7 @@ export function DuelPlaybackScreen({ receipt, accountSnapshot, liveIssue, rounds
     {(normalized.receiptError || stageError || !player || !rival) && <View style={styles.warning}><Text style={styles.notice}>{normalized.receiptError ?? '3D presentation unavailable. The recorded result is preserved.'}</Text></View>}
     {complete && <View style={styles.result} testID="duel-result-card"><Text style={styles.resultEyebrow}>RECORDED RESULT</Text><Text style={[styles.resultTitle, normalized.didWin === false && { color: theme.colors.danger }]}>{result}</Text>{!isSynthetic && normalized.holosGranted !== null && <Text style={styles.reward}>+{normalized.holosGranted} HOLOS</Text>}{!normalized.rounds.length && <Text style={styles.notice}>This City reply contains no round trace.</Text>}<Pressable style={styles.returnButton} accessibilityRole="button" onPress={onClose}><Text style={styles.returnLabel}>RETURN TO CITY</Text></Pressable></View>}
     <View style={[styles.bottom, { paddingBottom: Math.max(12, insets.bottom) }]}>
-      <HudActionStrip text={!ready && player && rival ? 'LOADING ARENA' : actionLog} />
+      <HudActionStrip text={!ready && !complete && player && rival ? 'LOADING ARENA' : actionLog} />
       {!complete && <HoloCityCommandBar compact commands={commands} selected={round?.action?.toLowerCase() ?? null} />}
       <Text style={styles.source}>{traceLabel}</Text>
     </View>
