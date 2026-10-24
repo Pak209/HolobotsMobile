@@ -7,10 +7,11 @@ luminance masks, the same vector panels), then only colours are remapped:
 
 * OG yellow background            -> mid navy (`theme.ogSync.ground`)
 * OG darker-yellow stripe art      -> a darker navy stripe (`theme.ogSync.stripe`)
-* the thin yellow seams the OG art
-  shows *between and inside* its
-  black panels (frame lines, ticks,
-  cut-outs)                         -> cyan accent (`theme.colors.accent`)
+* yellow strips around/between panels
+  (OG ground showing through)       -> navy ground: panels read as clean cut-outs
+* functional accents only: gauge arc
+  ticks + GO frame lines (yellow cut
+  out *inside* one element)         -> cyan accent (`theme.colors.accent`)
 * black panels                     -> near-black navy (`theme.ogSync.panel`), shading kept by luminance
 * yellow art (swap arrows)         -> cyan accent
 
@@ -40,8 +41,7 @@ STRIPE = "#14354A"   # theme.ogSync.stripe (OG stripes are a darker shade of the
 PANEL = "#05080F"    # theme.ogSync.panel (OG black panels: near-black, well below the ground)
 ACCENT = "#62DDE8"   # theme.colors.accent
 STRIPE_ALPHA = 1.0
-SEAM_RADIUS = 25  # artboard px: background no wider than ~2x this between panels is a seam (OG seams ~30 px)
-SEAM_HUG = 40     # artboard px: a seam pixel also lies within this of a panel, so channel mouths stay square
+SEAM_RADIUS = 25  # artboard px: a cut-out this narrow inside the gauge / GO art is an accent line
 
 
 def rgb(hex_: str) -> np.ndarray:
@@ -89,24 +89,29 @@ def compose_foreground() -> Image.Image:
     return fg
 
 
+def accent_layers() -> list[Image.Image]:
+    """The elements whose own yellow cut-outs are functional accents (gauge, GO frame)."""
+    go = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    place(go, layer("goButton"), 20, 2606, 1695, 446)
+    return [masked("speedometerFill", "speedometerMask", 406, 1265, 954, 954), go]
+
+
 def recolour() -> Image.Image:
     fg = np.asarray(compose_foreground(), dtype=np.float32)
     alpha = fg[..., 3] / 255.0
     solid = alpha > 0.5
 
-    # Seams: background pixels the OG design encloses in thin gaps between/inside panels.
+    # Cyan only where the OG yellow is a functional accent *inside* one element:
+    # the gauge's arc/ticks and the GO button's frame lines (background pixels a
+    # single layer encloses). The yellow strips around and between panels are just
+    # the OG ground showing through, so they stay ground (navy) here: the solid
+    # panels sit on the navy as clean cut-outs (Pak, 10-24: no neon outlines).
     disk = np.hypot(*np.mgrid[-SEAM_RADIUS:SEAM_RADIUS + 1, -SEAM_RADIUS:SEAM_RADIUS + 1]) <= SEAM_RADIUS
-    seams = ndimage.binary_closing(solid, structure=disk) & ~solid
-    # ...and the thin channels the OG leaves between neighbouring panels (open at the
-    # ends, so closing misses them): background narrower than the disk. The artboard
-    # edge counts as open background, never as a wall.
-    pad = SEAM_RADIUS + 2
-    bg = np.pad(~solid, pad, constant_values=True)
-    # A square (not a disk) keeps channel mouths square-cut, like the OG panel edges.
-    square = np.ones((2 * SEAM_RADIUS + 1, 2 * SEAM_RADIUS + 1), dtype=bool)
-    bg_open = ndimage.binary_opening(bg, structure=square)[pad:-pad, pad:-pad]
-    hug = ndimage.distance_transform_edt(~solid) <= SEAM_HUG
-    seams |= ~solid & ~bg_open & hug
+    seams = np.zeros((H, W), dtype=bool)
+    for accent_layer in accent_layers():
+        own = np.asarray(accent_layer)[..., 3] > 127
+        seams |= ndimage.binary_closing(own, structure=disk) & ~own
+    seams &= ~solid
 
     # Background: OG base + stripes, recoloured.
     stripes = np.asarray(layer("backgroundDesign"), dtype=np.float32)[..., 3:4] / 255.0
