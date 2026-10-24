@@ -43,6 +43,7 @@ export type SyncFitnessActivityResponse = {
   todaySteps: number;
   totalSyncPoints: number;
   workoutSessionsCompleted: number;
+  readiness?: import("@/lib/readiness").ReadinessAward | null;
 };
 
 export type DailyWorkoutState = {

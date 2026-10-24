@@ -17,6 +17,7 @@ const syncWatchWorkoutRewards = httpsCallable<
       syncPoints: number;
       holos: number;
       exp: number;
+      readiness?: import("@/lib/readiness").ReadinessAward | null;
     }>;
     sessionsCompleted: number;
     sessionsRemaining: number;

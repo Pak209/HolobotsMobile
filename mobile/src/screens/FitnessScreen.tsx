@@ -21,6 +21,7 @@ import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
 import { computeLeaderboardScore } from "@/lib/profile";
 import { normalizeProgressionSystem } from "@/lib/progressionSystems";
 import { getSyncRank } from "@/lib/syncProgression";
+import { readinessResultCopy, readinessUiEnabled } from "@/lib/readiness";
 import type { UserHolobot } from "@/types/profile";
 import type { RootTabs } from "../../App";
 
@@ -475,6 +476,15 @@ export function FitnessScreen() {
                 </View>
               </View>
 
+              {readinessUiEnabled() && completionResult ? (
+                <View style={styles.readinessResultRow}>
+                  {completionResult.readiness ? <RNImage source={getHolobotFullImageSource(completionResult.readiness.holobotName)} style={styles.readinessResultPortrait} resizeMode="contain" /> : null}
+                  <RNText style={[styles.settingsMeta, styles.readinessResultText]}>
+                    {readinessResultCopy(completionResult.readiness, completionResult.rewardsPersisted)}
+                  </RNText>
+                </View>
+              ) : null}
+
               <RNText style={styles.settingsCopySmall}>
                 {`${completionResult?.sessionsCompleted ?? 0}/4 workouts used today`}
               </RNText>
@@ -518,6 +528,9 @@ export function FitnessScreen() {
 }
 
 const styles = StyleSheet.create({
+  readinessResultRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  readinessResultPortrait: { width: 36, height: 40 },
+  readinessResultText: { flex: 1 },
   changeHolobotHotspot: {
     position: "absolute",
     left: "43.6111%",
