@@ -288,7 +288,7 @@ export function ArenaPrebattleMenu({
             })}
           </View>
 
-          <View style={[styles.paymentRow, styles.paymentFullWidth]}>
+          <View style={styles.paymentRow}>
             <Pressable
               disabled={!canUseTokens || !teamReady}
               onPress={() => startPressed("tokens")}
@@ -712,7 +712,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   navClear: { marginRight: 68 },
-  paymentFullWidth: { marginRight: -68 },
   sectionTitle: {
     color: theme.colors.carbon,
     fontFamily: "HoloDisplay",
@@ -727,7 +726,8 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    width: "48%",
+    flexBasis: "48%",
+    flexGrow: 1,
   },
   tierCardSelected: {
     borderColor: theme.colors.accent,
