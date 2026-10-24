@@ -40,7 +40,7 @@ const TOTAL_SYNC_MINUTES = 5;
 
 /** OG colour -> HoloCity token. Shapes and positions are the OG's. */
 export const OG_SYNC_RESKIN = {
-  ground: theme.plates.raised,
+  ground: theme.ogSync.ground,
   ink: theme.colors.text,
   syncPlus: theme.hud.hpRival,
   goalFill: theme.colors.accent,

@@ -9,9 +9,9 @@ const constant = (name: string) => script.match(new RegExp(`^${name} = "(#[0-9A-
 
 describe("OG Sync art re-skin", () => {
   it("bakes the HoloCity theme tokens, so a token change shows up as a failing regenerate", () => {
-    expect(constant("BG")).toBe(theme.plates.raised);
-    expect(constant("STRIPE")).toBe(theme.colors.border);
-    expect(constant("PANEL")).toBe(theme.plates.keycap);
+    expect(constant("BG")).toBe(theme.ogSync.ground);
+    expect(constant("STRIPE")).toBe(theme.ogSync.stripe);
+    expect(constant("PANEL")).toBe(theme.ogSync.panel);
     expect(constant("ACCENT")).toBe(theme.colors.accent);
   });
 

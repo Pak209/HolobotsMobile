@@ -5,13 +5,13 @@ Shapes are untouched: every static OG layer is composited exactly as
 `src/screens/FitnessScreen.tsx` draws it (same artboard positions, the same
 luminance masks, the same vector panels), then only colours are remapped:
 
-* OG yellow background            -> HoloCity navy (`theme.plates.raised`)
-* OG darker-yellow stripe art      -> a lighter navy stripe (`theme.colors.border` at low alpha)
+* OG yellow background            -> mid navy (`theme.ogSync.ground`)
+* OG darker-yellow stripe art      -> a darker navy stripe (`theme.ogSync.stripe`)
 * the thin yellow seams the OG art
   shows *between and inside* its
   black panels (frame lines, ticks,
   cut-outs)                         -> cyan accent (`theme.colors.accent`)
-* black panels                     -> keycap navy (`theme.plates.keycap`), shading kept by luminance
+* black panels                     -> near-black navy (`theme.ogSync.panel`), shading kept by luminance
 * yellow art (swap arrows)         -> cyan accent
 
 Dynamic pieces (texts, goal/EXP bars, needle, reward icons, GO label) stay
@@ -35,13 +35,13 @@ W, H = 1800, 3200
 OUT_SCALE = 0.75  # 1350x2400: >= 3x of the widest phone canvas (402 pt)
 
 # src/lite/theme.ts tokens (kept in sync by src/lite/config/__tests__/ogSyncArt.test.ts)
-BG = "#102532"       # theme.plates.raised
-STRIPE = "#304956"   # theme.colors.border
-PANEL = "#030B12"    # theme.plates.keycap
+BG = "#1B4257"       # theme.ogSync.ground
+STRIPE = "#14354A"   # theme.ogSync.stripe (OG stripes are a darker shade of the ground)
+PANEL = "#05080F"    # theme.ogSync.panel (OG black panels: near-black, well below the ground)
 ACCENT = "#62DDE8"   # theme.colors.accent
-STRIPE_ALPHA = 0.55
+STRIPE_ALPHA = 1.0
 SEAM_RADIUS = 25  # artboard px: background no wider than ~2x this between panels is a seam (OG seams ~30 px)
-SEAM_HUG = 17     # artboard px: a seam pixel also lies within this of a panel, so channel mouths stay square
+SEAM_HUG = 40     # artboard px: a seam pixel also lies within this of a panel, so channel mouths stay square
 
 
 def rgb(hex_: str) -> np.ndarray:
