@@ -12,7 +12,7 @@ Pak's rule: retain the OG Home layout and direct navigation positions while usin
 
 ## Before / after, same offline fixture
 
-Source baseline: [lite-vs-og-ux-critique](../2026-10-24-lite-vs-og-ux-critique/README.md). Both measurements are iOS 26.5 Debug simulator builds with the real Lite screens under the disposable offline `UxHarness` and synthetic `previewProfile`. The harness was removed from the committed tree. The second video is the SE one-tap witness.
+Source baseline: [lite-vs-og-ux-critique](../2026-10-24-lite-vs-og-ux-critique/README.md). Both measurements are iOS 26.5 Debug simulator builds with the real Lite screens under the disposable offline `UxHarness` and synthetic `previewProfile`. The harness was removed from the committed tree. A clean Metro launch of the normal Lite preview also reached Home after the harness was removed.
 
 | Gate | Before | Restored 17 Pro | Restored SE |
 |---|---:|---:|---:|
@@ -29,8 +29,7 @@ The Pro Inventory entry had a 127 ms transient in one later rapid-navigation sam
 `~/HolobotsVault/QA/2026-10-24-lite-ux-restore-1/`
 
 - `SHEET_og_vs_restored.png` (1500 × 5390): five rows, each with **OG 17 Pro | restored 17 Pro | restored SE**. Rows: Home, Inventory, Sync, picker, Arena. Every cell is labelled in the sheet.
-- `SE_one_tap_flow.mp4`: Home → Inventory → Home → Sync → picker → Home → Arena, offline.
-- `Pro_offline_flow.mp4`: extended Pro offline flow; use the short SE video for the one-tap navigation gate.
+- `SE_one_tap_flow.mp4`: Maestro-rendered, frame-verified Home → Inventory → Home → Sync → picker → Home → Arena flow, offline. Decoded sample frames at 1/4/8/12 seconds and visually inspected the Sync/GO frame.
 - `shots/`: the final named Pro and SE captures, including City Hub and City Market. City views are new Lite routes and have no OG counterpart.
 - `raw/`: Metro UXLOG journal and Maestro flow logs. `PICKER` timing used a disposable `Modal.onShow` probe and the harness's touch timestamp; both were removed from source before tests.
 
