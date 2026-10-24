@@ -14,7 +14,7 @@ import type { RootTabs } from "../../../LiteApp";
 type HomeCogButtonProps = { onOpenPvp?: () => void; showSettings?: boolean; showStats?: boolean; topOffset?: number; onHome?: () => void };
 
 /** Keep the OG navigation silhouettes; only the ring and ink take the City palette. */
-function NavIcon({ kind }: { kind: string }) {
+export function NavIcon({ kind }: { kind: string }) {
   const ink = theme.colors.accent;
   if (kind === "STORY") return <Text style={styles.storyLabel}>STORY</Text>;
   const paths: Record<string, string[]> = {

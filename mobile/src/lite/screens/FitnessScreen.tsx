@@ -1,25 +1,22 @@
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HomeCogButton } from "@/lite/components/HomeCogButton";
-import { GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
-import { theme } from "@/lite/theme";
 import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Image as RNImage,
   Pressable,
   StyleSheet,
-  ScrollView,
   Text as RNText,
   View,
-  useWindowDimensions,
 } from "react-native";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
+import { FigmaCanvas } from "@/components/FigmaCanvas";
+import { Svg, G, Image, Path, Text } from "@/components/FigmaSvg";
+import { NavIcon } from "@/lite/components/HomeCogButton";
 import { HolobotPickerModal } from "@/lite/components/HolobotPickerModal";
-import { Svg, Path, Circle } from "@/components/FigmaSvg";
-import { fitnessAssets } from "@/config/figmaAssets";
-import { getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
+import { ARTBOARD_HEIGHT, ARTBOARD_WIDTH, fitnessAssets, fitnessHoloCityAssets } from "@/lite/config/figmaAssets";
+import { theme } from "@/lite/theme";
+import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWatchWorkoutPresence } from "@/hooks/useWatchBridge";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
@@ -27,8 +24,39 @@ import { normalizeProgressionSystem } from "@/lib/progressionSystems";
 import { readinessDisplayValue, readinessResultCopy, readinessUiEnabled } from "@/lib/readiness";
 import type { RootTabs } from "../../../LiteApp";
 
+/**
+ * The OG Sync page (src/screens/FitnessScreen.tsx) — same artboard, same layer
+ * positions, same proportions — re-skinned to the HoloCity palette. Only colours
+ * differ: the static OG layers come pre-recoloured (fitnessHoloCityAssets), the
+ * dynamic layers take theme tokens. Lite keeps a static bot portrait (no 3D).
+ */
+const NEEDLE_MIN_ANGLE = -150;
+const NEEDLE_MAX_ANGLE = -35;
+const NEEDLE_MAX_SPEED = 20;
+const NEEDLE_CENTER_X = 918;
+const NEEDLE_CENTER_Y = 1733;
 const KM_TO_MILES = 0.621371;
 const TOTAL_SYNC_MINUTES = 5;
+
+/** OG colour -> HoloCity token. Shapes and positions are the OG's. */
+export const OG_SYNC_RESKIN = {
+  ground: theme.plates.raised,
+  ink: theme.colors.text,
+  syncPlus: theme.hud.hpRival,
+  goalFill: theme.colors.accent,
+  expTrack: theme.colors.graphite,
+  expFill: theme.colors.warning,
+  boost: theme.colors.warning,
+  goLabel: theme.colors.accent,
+} as const;
+
+function formatGoalTime(remainingMinutes: number) {
+  return `Time:  ${String(remainingMinutes).padStart(2, "0")}/${String(TOTAL_SYNC_MINUTES).padStart(2, "0")}`;
+}
+
+function formatSpeed(speed: number, unit: DistanceUnit) {
+  return `${Math.round(speed)} ${unit === "mi" ? "mph" : "km/h"}`;
+}
 
 function formatDistanceLabel(unit: DistanceUnit) {
   return unit === "mi" ? "Miles" : "Kilometers";
@@ -44,8 +72,6 @@ function formatSyncBoostCopy(boostCount: number, unit: DistanceUnit) {
 }
 
 export function FitnessScreen() {
-  const { height: viewportHeight } = useWindowDimensions();
-  const shortViewport = viewportHeight <= 700;
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const { user, profile, updateProfile } = useAuth();
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
@@ -71,10 +97,10 @@ export function FitnessScreen() {
   });
   const displayDistance = distanceUnit === "mi" ? workout.displayDistanceKm * KM_TO_MILES : workout.displayDistanceKm;
   const displaySpeed = distanceUnit === "mi" ? workout.liveSpeedKmh * KM_TO_MILES : workout.liveSpeedKmh;
-  const gaugeAngle = -150 + Math.min(1, Math.max(0, displaySpeed / 20)) * 120;
-  const gaugeRadian = gaugeAngle * Math.PI / 180;
-  const gaugeNeedleX = 100 + 66 * Math.cos(gaugeRadian);
-  const gaugeNeedleY = 98 + 66 * Math.sin(gaugeRadian);
+  const needleAngle = NEEDLE_MIN_ANGLE + (Math.min(displaySpeed, NEEDLE_MAX_SPEED) / NEEDLE_MAX_SPEED) * (NEEDLE_MAX_ANGLE - NEEDLE_MIN_ANGLE);
+  const goalBarWidth = 698.125 * workout.progress;
+  const expProgressWidth = 473 * (selectedHolobot ? getExpProgress(selectedHolobot) : 0);
+  const showReadiness = readinessUiEnabled() && selectedHolobot != null;
 
   const handleDistanceUnitChange = (nextUnit: DistanceUnit) => {
     setLocalDistanceUnit(nextUnit);
@@ -176,71 +202,92 @@ export function FitnessScreen() {
     }
   };
 
-  const insets = useSafeAreaInsets();
-  const focused = useIsFocused();
+
+  const c = OG_SYNC_RESKIN;
   return (
-    <View style={styles.page}>
-      <HomeCogButton />
-      <ScrollView contentContainerStyle={[styles.content, shortViewport && styles.shortContent, { paddingTop: insets.top + (shortViewport ? 10 : 18), paddingBottom: insets.bottom + 28 }]} showsVerticalScrollIndicator={false}>
-        <View style={[styles.headerRow, styles.navClear]}>
-          <View><RNText style={styles.eyebrow}>PILOT FITNESS / SYNC LINK</RNText><RNText style={styles.pageTitle}>SYNC WORKOUT</RNText></View>
+    <FigmaCanvas backgroundColor={c.ground} fitToParent>
+      <View style={StyleSheet.absoluteFill}>
+        <View style={styles.utilityStack}>
+          <Pressable accessibilityLabel="Go to home dashboard" accessibilityRole="button" onPress={() => navigation.navigate("Home")} style={styles.utilityButton}>
+            <View style={styles.utilityInner}><NavIcon kind="HOME" /></View>
+          </Pressable>
+          <Pressable accessibilityLabel="Open Sync settings" accessibilityRole="button" onPress={() => setIsSettingsOpen(true)} style={styles.utilityButton}>
+            <View style={styles.utilityInner}><NavIcon kind="SET" /></View>
+          </Pressable>
         </View>
-        <View style={[styles.ogSyncHeader, shortViewport && styles.shortOgSyncHeader, styles.navContentInset]}>
-          <GameSurfaceFrame strong />
-          <View style={styles.headerRow}><RNText style={styles.eyebrow}>SYNC POINT</RNText><RNText style={styles.liveStatus}>{workout.isRunning ? "● LIVE" : "STANDBY"}</RNText></View>
-          <View style={styles.headerRow}>
-            <RNText style={[styles.syncValue, shortViewport && styles.shortSyncValue]}>+{workout.syncPointsReward}</RNText>
-            <RNText style={styles.ogTime}>{`Time: ${String(workout.remainingMinutes).padStart(2, "0")}/${String(TOTAL_SYNC_MINUTES).padStart(2, "0")}`}</RNText>
-          </View>
-          <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(0,Math.min(1,workout.progress))*100}%` }]} /></View>
-          <RNText style={styles.hudHelp}>{workout.sessionsCompleted}/4 SESSIONS TODAY · {workout.sessionsRemaining} AVAILABLE</RNText>
+        <Svg width="100%" height="100%" viewBox={`0 0 ${ARTBOARD_WIDTH} ${ARTBOARD_HEIGHT}`}>
+          <Image href={fitnessHoloCityAssets.syncArt} x={0} y={0} width={1800} height={3200} preserveAspectRatio="none" />
+          <Text x={193} y={198.04} fill={c.ink} fontSize={106.012} fontWeight="700">SYNC POINT</Text>
+          <Text x={315} y={418.99} fill={c.syncPlus} fontSize={105.805} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
+
+          <Path d={`M 90 686.25 H ${90 + goalBarWidth} L ${Math.max(90, 90 + goalBarWidth - 40)} 766.25 H 90 Z`} fill={c.goalFill} />
+          <Text x={103} y={672} fill={c.ink} fontSize={116} fontWeight="400">{formatGoalTime(workout.remainingMinutes)}</Text>
+
+          <Text x={72} y={921.5} fill={c.ink} fontSize={49.915}>{selectedHolobot?.name ?? "HOLOBOT"}</Text>
+          <Path d="M 72 1018 H 545 V 1043 H 72 Z" fill={c.expTrack} />
+          <Path d={`M 72 1018 H ${72 + expProgressWidth} V 1043 H 72 Z`} fill={c.expFill} />
+          <Text x={89} y={1009} fill={c.ink} fontSize={24.794} fontWeight="700">{`EXP ${selectedHolobot?.experience ?? 0}/${selectedHolobot?.nextLevelExp ?? 0}`}</Text>
+          <Text x={71} y={1119.3} fill={c.ink} fontSize={100.722}>{`Lv ${selectedHolobot?.level ?? 1}`}</Text>
+          {showReadiness ? (
+            <G>
+              <Text x={72} y={1262} fill={c.ink} fontSize={30} fontWeight="700">{`SYNC READINESS ${readiness}/100`}</Text>
+              <Path d="M 72 1278 H 545 V 1296 H 72 Z" fill={c.expTrack} />
+              <Path d={`M 72 1278 H ${72 + 4.73 * readiness} V 1296 H 72 Z`} fill={c.goalFill} />
+            </G>
+          ) : null}
+
+          <Text x={900} y={1160} fill={c.ink} fontSize={55} fontWeight="700">CHANGE HOLOBOT</Text>
+
+          <G transform={`rotate(${needleAngle} ${NEEDLE_CENTER_X} ${NEEDLE_CENTER_Y})`}>
+            <Image href={fitnessHoloCityAssets.speedometerNeedle} x={811} y={1621} width={366} height={211} preserveAspectRatio="none" />
+          </G>
+          <Text x={729} y={1540.12} fill={c.ink} fontSize={89.466} fontWeight="700">{formatSpeed(displaySpeed, distanceUnit)}</Text>
+          <Text x={729} y={1608} fill={c.ink} fontSize={37.004} fontWeight="700">Movement speed</Text>
+
+          {workout.syncPointBoostCount > 0 ? (
+            <G transform="translate(610 2020)">
+              <Path d="M9 12H5.414a1 1 0 0 1-.707-1.707l6.586-6.586a1 1 0 0 1 1.414 0l6.586 6.586A1 1 0 0 1 18.586 12H15v3H9zm0 9h6m-6-3h6" stroke={c.boost} strokeWidth={2.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </G>
+          ) : null}
+          <Text x={788} y={2074.31} fill={c.ink} fontSize={121.544}>{displayDistance.toFixed(3)}</Text>
+          <Text x={793} y={2180.08} fill={c.ink} fontSize={45.702} fontWeight="500">{formatDistanceLabel(distanceUnit)}</Text>
+          {syncBoostCopy ? <Text x={794} y={2232} fill={c.boost} fontSize={34} fontWeight="700">{syncBoostCopy}</Text> : null}
+
+          <Image href={fitnessAssets.rewardSync} x={244} y={2429} width={116} height={131} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.rewardHolos} x={740} y={2433} width={109} height={110} preserveAspectRatio="none" />
+          <Image href={fitnessAssets.rewardExp} x={1196} y={2433} width={119} height={118} preserveAspectRatio="none" />
+          <Text x={410} y={2494} fill={c.ink} fontSize={96.929} fontWeight="700">{`+${workout.syncPointsReward}`}</Text>
+          <Text x={882} y={2494} fill={c.ink} fontSize={95.215} fontWeight="700">{`+${workout.holosReward}`}</Text>
+          <Text x={1353} y={2493.96} fill={c.ink} fontSize={91.406} fontWeight="700">{`+${workout.expReward}`}</Text>
+
+          {blockedByWatch ? <Text x={430} y={2588} fill={c.boost} fontSize={52} fontWeight="700">WORKOUT RUNNING ON APPLE WATCH</Text> : null}
+          <Text
+            x={goLabel === "PAUSE" ? 635 : goLabel === "RESUME" ? 610 : goLabel === "ON WATCH" ? 480 : 740}
+            y={2868}
+            fill={c.goLabel}
+            fontSize={goLabel === "ON WATCH" ? 160 : 204.86}
+            fontWeight="700"
+          >
+            {goLabel}
+          </Text>
+          {workout.syncMessage ? (
+            <Text x={900} y={3130} fill={workout.syncState === "error" ? theme.colors.danger : theme.colors.muted} fontSize={40} fontWeight="700" textAnchor="middle">
+              {workout.syncMessage}
+            </Text>
+          ) : null}
+        </Svg>
+
+        <Pressable
+          accessibilityLabel={blockedByWatch ? "Workout running on Apple Watch" : workout.isRunning ? "Pause workout" : "Start workout"}
+          accessibilityRole="button"
+          onLongPress={workout.resetWorkout}
+          onPress={handleGoPress}
+          style={styles.goHotspot}
+        />
+        <Pressable accessibilityLabel="Change active holobot" accessibilityRole="button" onPress={() => setIsPickerOpen(true)} style={styles.changeHolobotHotspot} />
+        <View pointerEvents="none" style={styles.holobotPortrait}>
+          {selectedHolobot ? <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" /> : null}
         </View>
-        <Pressable onPress={() => setIsPickerOpen(true)} style={[styles.ogPartner, shortViewport && styles.shortOgPartner, styles.navContentInset]} accessibilityRole="button" accessibilityLabel="Change Holobot workout partner">
-          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy} />
-          {selectedHolobot ? <RNImage source={selectedHolobot.imageSource} style={styles.ogPortrait} resizeMode="contain" /> : null}
-          <View style={styles.ogPartnerInfo}>
-            <RNText style={styles.ogPartnerName}>{selectedHolobot?.name ?? "HOLOBOT"}</RNText>
-            <RNText style={styles.ogPartnerLevel}>{`LV ${selectedHolobot?.level ?? 1}  ·  EXP ${selectedHolobot?.experience ?? 0}/${selectedHolobot?.nextLevelExp ?? 0}`}</RNText>
-            <View style={styles.ogPartnerExp}><View style={[styles.progressFill, { width: `${selectedHolobot ? Math.min(100, selectedHolobot.experience / Math.max(1, selectedHolobot.nextLevelExp) * 100) : 0}%` }]} /></View>
-            <View style={styles.ogChangeRow}><RNText style={styles.ogChangeCopy}>CHANGE HOLOBOT</RNText><Svg width="19" height="19" viewBox="0 0 24 24"><Path d="M20 7h-6l2-2M4 17h6l-2 2M5 10a8 8 0 0 1 14-4m0 8a8 8 0 0 1-14 4" fill="none" stroke={theme.colors.accent} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" /></Svg></View>
-          </View>
-        </Pressable>
-        {readinessUiEnabled() && selectedHolobot ? (
-          <View accessibilityLabel={`${selectedHolobot.name} SYNC readiness ${readiness} of 100`} style={styles.readinessStrip}>
-            <RNText style={styles.hudHelp}>{`SYNC READINESS · ${readiness}/100`}</RNText>
-            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${readiness}%` }]} /></View>
-          </View>
-        ) : null}
-        <View style={[styles.ogGaugeCard, shortViewport && styles.shortOgGaugeCard]}>
-          <GameSurfaceFrame accent={theme.colors.border} fill={theme.plates.navy} />
-          <Svg width={shortViewport ? 146 : 188} height={shortViewport ? 88 : 112} viewBox="0 0 200 116">
-            <Path d="M23 99 A77 77 0 0 1 177 99" stroke={theme.colors.accent} strokeWidth={7} fill="none" />
-            <Path d="M33 99 A67 67 0 0 1 167 99" stroke={theme.colors.border} strokeWidth={2} fill="none" />
-            <Path d={`M100 98 L${gaugeNeedleX.toFixed(2)} ${gaugeNeedleY.toFixed(2)}`} stroke={theme.colors.cursor} strokeWidth={5} strokeLinecap="round" />
-            <Circle cx={100} cy={98} r={9} fill={theme.colors.cursor} />
-          </Svg>
-          <RNText style={styles.ogSpeed}>{Math.round(displaySpeed)} {distanceUnit === "mi" ? "mph" : "km/h"}</RNText>
-          <RNText style={styles.ogGaugeCaption}>MOVEMENT SPEED</RNText>
-        </View>
-        <View style={[styles.ogDistance, shortViewport && styles.shortOgDistance]}>
-          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.navy} />
-          <RNText style={styles.ogDistanceNumber}>{displayDistance.toFixed(3)}</RNText>
-          <RNText style={styles.telemetryLabel}>{formatDistanceLabel(distanceUnit).toUpperCase()}</RNText>
-        </View>
-        <View style={[styles.ogRewards, shortViewport && styles.shortOgRewards]}>
-          {([ [fitnessAssets.rewardSync, workout.syncPointsReward, "SYNC"], [fitnessAssets.rewardHolos, workout.holosReward, "HOLOS"], [fitnessAssets.rewardExp, workout.expReward, "EXP"] ] as const).map(([source, amount, label]) =>
-            <View key={label} style={styles.ogReward}><RNImage source={source} style={styles.ogRewardIcon} resizeMode="contain" /><RNText style={styles.ogRewardValue}>+{amount}</RNText><RNText style={styles.ogRewardLabel}>{label}</RNText></View>)}
-        </View>
-        <Pressable onPress={handleGoPress} onLongPress={workout.resetWorkout} style={[styles.ogGoButton, shortViewport && styles.shortOgGoButton]} accessibilityRole="button" accessibilityLabel={blockedByWatch ? "Workout running on Apple Watch" : workout.isRunning ? "Pause workout" : "Start workout"}>
-          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.keycap} strong />
-          <RNText style={styles.ogGoText}>{goLabel}</RNText>
-        </Pressable>
-        <Pressable onPress={() => setIsSettingsOpen(true)} style={styles.syncOptions} accessibilityRole="button" accessibilityLabel="Open Sync settings"><RNText style={styles.syncOptionsText}>SYNC OPTIONS ›</RNText></Pressable>
-        {syncBoostCopy && <RNText style={styles.boostCopy}>{syncBoostCopy}</RNText>}
-        {workout.syncMessage && <RNText style={workout.syncState === "error" ? styles.hudError : styles.hudHelp}>{workout.syncMessage}</RNText>}
-        {blockedByWatch && <RNText style={styles.hudHelp}>WORKOUT RUNNING ON APPLE WATCH</RNText>}
-        {workout.isCooldownActive && <View style={styles.cooldownPlate}><GameSurfaceFrame accent={theme.colors.cursor} /><RNText style={styles.telemetryLabel}>RECOVERY WINDOW</RNText><RNText style={styles.cooldownValue}>{workout.cooldownRemainingMinutes} MIN</RNText><RNText style={styles.hudHelp}>Open Sync settings to use Quick Refill.</RNText></View>}
-      </ScrollView>
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
           onSelect={(index) => {
@@ -398,76 +445,33 @@ export function FitnessScreen() {
             </View>
           </View>
         </Modal>
-    </View>
+      </View>
+    </FigmaCanvas>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: theme.colors.carbon },
-  content: { paddingHorizontal: 18, gap: 10, width: "100%", maxWidth: 620, alignSelf: "center" },
-  shortContent: { gap: 6 },
-  navClear: { marginRight: 68 },
-  navContentInset: { paddingRight: 84 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 6 },
-  headerActions: { flexDirection: "row", gap: 6 },
-  headerAction: { width: 44, height: 48, alignItems: "center", justifyContent: "center" },
-  headerGlyph: { fontSize: 24, color: theme.colors.accent },
-  eyebrow: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1 },
-  pageTitle: { ...theme.type.header, color: theme.colors.text },
-  syncPlate: { padding: 12, gap: 8 },
-  shortSyncPlate: { padding: 8, gap: 4 },
-  liveStatus: { ...theme.type.micro, color: theme.colors.success, letterSpacing: 1 },
-  syncValue: { ...theme.type.display, fontSize: 50, lineHeight: 54, color: theme.colors.text },
-  shortSyncValue: { fontSize: 42, lineHeight: 46 },
-  progressTrack: { height: 8, backgroundColor: theme.colors.graphite },
-  progressFill: { height: "100%", backgroundColor: theme.colors.accent },
-  rewardPreview: { flexDirection: "row", justifyContent: "space-between", padding: 10, gap: 12 },
-  shortRewardPreview: { padding: 7 },
-  rewardPreviewValue: { ...theme.type.header, color: theme.colors.accent, marginTop: 4 },
-  telemetryRow: { flexDirection: "row", gap: 12 },
-  telemetry: { flex: 1, padding: 12, gap: 6 },
-  shortTelemetry: { padding: 8, gap: 2 },
-  telemetryValue: { ...theme.type.display, color: theme.colors.text },
-  telemetryLabel: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1 },
-  hudHelp: { ...theme.type.caption, color: theme.colors.muted },
-  hudError: { ...theme.type.body, color: theme.colors.danger },
-  boostCopy: { ...theme.type.label, color: theme.colors.success, textAlign: "center" },
-  cooldownPlate: { padding: 16, gap: 6 },
-  cooldownValue: { ...theme.type.header, color: theme.colors.cursor },
-  goButton: { alignItems: "center", justifyContent: "center", minHeight: 96, gap: 4 },
-  goText: { ...theme.type.display, color: theme.colors.carbon, letterSpacing: 2 },
-  goHint: { ...theme.type.micro, color: theme.colors.carbon, letterSpacing: 1 },
-  syncOptions: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
-  syncOptionsText: { ...theme.type.label, color: theme.colors.accent },
-  ogSyncHeader: { padding: 11, gap: 5, minHeight: 100 },
-  shortOgSyncHeader: { minHeight: 78, padding: 7, gap: 2 },
-  ogTime: { ...theme.type.header, color: theme.colors.text, fontSize: 21 },
-  ogPartner: { minHeight: 100, flexDirection: "row", alignItems: "center", padding: 7, gap: 9, overflow: "hidden" },
-  shortOgPartner: { minHeight: 76 },
-  ogPortrait: { width: 82, height: 88 },
-  ogPartnerInfo: { flex: 1, minWidth: 0, gap: 3 },
-  ogPartnerName: { ...theme.type.header, color: theme.colors.text },
-  ogPartnerLevel: { ...theme.type.caption, color: theme.colors.muted },
-  ogPartnerExp: { height: 5, backgroundColor: theme.colors.graphite },
-  ogChangeRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 },
-  ogChangeCopy: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 0.8 },
-  readinessStrip: { gap: 3 },
-  ogGaugeCard: { height: 130, alignItems: "center", justifyContent: "center", gap: 0 },
-  shortOgGaugeCard: { height: 94 },
-  ogSpeed: { ...theme.type.header, color: theme.colors.text, position: "absolute", top: 30, left: 12, fontSize: 18 },
-  ogGaugeCaption: { ...theme.type.micro, color: theme.colors.muted, position: "absolute", top: 8, left: 12, letterSpacing: 0.7 },
-  ogDistance: { minHeight: 76, alignItems: "center", justifyContent: "center" },
-  shortOgDistance: { minHeight: 54 },
-  ogDistanceNumber: { ...theme.type.display, color: theme.colors.text, fontSize: 33 },
-  ogRewards: { flexDirection: "row", justifyContent: "space-around", minHeight: 55 },
-  shortOgRewards: { minHeight: 40 },
-  ogReward: { flexDirection: "row", alignItems: "center", gap: 3 },
-  ogRewardIcon: { width: 25, height: 25 },
-  ogRewardValue: { ...theme.type.header, color: theme.colors.text, fontSize: 18 },
-  ogRewardLabel: { ...theme.type.micro, color: theme.colors.muted },
-  ogGoButton: { minHeight: 90, alignItems: "center", justifyContent: "center" },
-  shortOgGoButton: { minHeight: 72 },
-  ogGoText: { ...theme.type.display, color: theme.colors.accent, fontSize: 48, letterSpacing: 2 },
+  /** OG hotspot and overlay rectangles, as artboard percentages. */
+  changeHolobotHotspot: { position: "absolute", left: "43.6111%", top: "34.125%", width: "51.6667%", height: "9.0625%" },
+  goHotspot: { position: "absolute", left: "1.111%", top: "81.4375%", width: "94.1667%", height: "13.9375%" },
+  holobotPortrait: { position: "absolute", left: "51.2%", top: "9.6%", width: "34.4444%", height: "21.5%" },
+  fillImage: { width: "100%", height: "100%" },
+  utilityStack: { gap: 10, position: "absolute", right: 18, top: 72, zIndex: 20 },
+  utilityButton: {},
+  utilityInner: {
+    alignItems: "center",
+    backgroundColor: theme.plates.keycap,
+    borderColor: theme.colors.accent,
+    borderRadius: 26,
+    borderWidth: 2,
+    height: 52,
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    width: 52,
+  },
   closeSettingsButton: {
     alignItems: "center",
     backgroundColor: theme.colors.carbon,
