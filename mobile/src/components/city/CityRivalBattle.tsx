@@ -9,7 +9,7 @@ import { getSignatureFinisher, resolveCombatKit } from "@/features/arena/moveKit
 import { publishRivalCooldown } from "@/hooks/useRivalStatus";
 import { cityActionMessage, cityRivalCooldownEnd, type ArenaCitizen } from "@/lib/cityHub";
 import { CITY_LIVE_DUEL_HOLD, issueCityRival } from "@/lib/cityHubClient";
-import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, type CityRivalIssue } from "@/lib/cityRivalBattle";
+import { CITY_RIVAL_NO_ENTRANT, cityBattleRounds, cityCombatantFighter, readCityRivalIssue, type CityRivalIssue } from "@/lib/cityRivalBattle";
 import { DuelPlaybackScreen } from "@/screens/DuelPlaybackScreen";
 import type { BattleState } from "@/types/arena";
 import { theme } from "@/theme";
@@ -50,6 +50,8 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
 
   function commit(next: BattleState) { observed.current = next; setBattle(next); }
   function enterBattle(admitted: CityRivalIssue) {
+    // Local play needs host-issued entrant stats; never substitute the displayed profile.
+    if (!admitted.player) throw new Error(CITY_RIVAL_NO_ENTRANT);
     const player = cityCombatantFighter(admitted.player, "player", uid);
     const opponent = cityCombatantFighter(admitted.opponent, "rival", uid);
     for (const fighter of [player, opponent]) {
@@ -139,7 +141,7 @@ export function CityRivalBattle({ uid, rival, onClose, preview = false, initialC
     const fixture = require("@/qa/fixtures/duel-receipt-1.json");
     return <DuelPlaybackScreen fixture receipt={fixture.receipt} onClose={onClose} />;
   }
-  if (receipt && issue) return <DuelPlaybackScreen accountSnapshot={accountSnapshot} fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
+  if (receipt && issue) return <DuelPlaybackScreen accountSnapshot={accountSnapshot} fixture={preview} receipt={preview ? replayReceipt : receipt} liveIssue={preview ? undefined : issue.raw} rounds={preview ? replayRounds : undefined} attackerBotId={issue.player?.holobotId} defenderBotId={issue.opponent.holobotId} onClose={onClose} />;
 
   if (battle?.status === "active") return <CityLiveBattleView accountSnapshot={accountSnapshot} hostIssue={issue?.raw} battle={battle} moves={moves} onPlay={play} onSignature={signature} onLeave={forfeit} pending={pending} preview={preview} />;
 

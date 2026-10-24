@@ -1,0 +1,14 @@
+
+ RUN  v3.2.4 /Users/pak/Projects/HolobotsMobile-lite/.claude/worktrees/nice-gates-e03b0a/mobile
+
+stdout | src/lib/__tests__/cityHost.integration.test.ts > HoloCity mobile against the real host + loopback Firestore
+[cityHost.integration] host <scratch>/functions: src/ is the pinned deployed host a90d061996bd789779abb89f5552ea60d9721fe2 (tree 3db577e512bca092070a915125c4139302450d60); lib/ is newer than src/
+
+ ✓ src/lib/__tests__/cityHost.integration.test.ts (3 tests) 1120ms
+   ✓ HoloCity mobile against the real host + loopback Firestore > reads every assigned citizen issue without a player snapshot and parses settlement/replay/cooldown replies  613ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  17:10:36
+   Duration  1.83s (transform 65ms, setup 0ms, collect 306ms, tests 1.12s, environment 0ms, prepare 94ms)
+

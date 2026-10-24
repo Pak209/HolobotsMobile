@@ -88,3 +88,23 @@ export function rivalTierDamageScale(tier: number): number {
   const target = RIVAL_DAMAGE_RETAINED_ROOKIE + (RIVAL_DAMAGE_RETAINED_TOP - RIVAL_DAMAGE_RETAINED_ROOKIE) * progress;
   return target / RIVAL_CUT_SWING_CPU_RETENTION;
 }
+
+/** W72 / #68: named story rival. Balance is explicitly provisional, copied from WOLF. */
+export const RIVAL_NAMED_PROFILES = {
+  jusan: {
+    sizeTier: "Medium",
+    balancePlaceholder: { sourceHolobotId: "wolf", pendingTuning: true },
+    // WOLF has no sky_launch row: its break_heavy values are the explicit temporary source.
+    moves: [
+      { moveId: "gap_closer", staminaCost: 22, damageScale: 1.35, breakPower: 14, chargeable: true },
+      { moveId: "break_heavy", staminaCost: 38, damageScale: 1.55, breakPower: 42, chargeable: true },
+      { moveId: "sky_launch", staminaCost: 38, damageScale: 1.55, breakPower: 42, chargeable: true },
+      { moveId: "intercept", staminaCost: 18, damageScale: 0.45, breakPower: 6, chargeable: false },
+    ],
+    // Presentation names; these do not introduce additional resolver commands or costs.
+    specials: [
+      { specialId: "rising_edge", displayName: "Rising Edge", damageScale: 1.55 },
+      { specialId: "nova_burst", displayName: "Nova Burst", damageScale: 1.55 },
+    ],
+  },
+} as const;
