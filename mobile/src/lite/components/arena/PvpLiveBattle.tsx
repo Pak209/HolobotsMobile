@@ -1,3 +1,4 @@
+import type { TerminalPresentation } from '@/lite/lib/bots/koPresentation';
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { BattleArenaView, type TeamHudProps } from "@/lite/components/arena/BattleArenaView";
@@ -15,8 +16,10 @@ import type { BattleRoom, PlayerRole } from "@/types/battle-room";
  * lite-hud-row-1: the seat-snapshot levels ride the HoloCity fighter cards' LV corner tabs (the compact seat strip that
  * repeated both portraits above the fight is gone; the lobby keeps PvpSeatBadges). lite-pvp-3d-1: the fight is on the Arena
  * round's 3D stage (`stage3d`: models, pack VFX, SKY / BREAK camera beat), the HUD unchanged. */
-export function PvpLiveBattle({ room, myRole, opponentName, hostView, battle, playerCards, playableCardIds, cardAvailability, team, onClose, onCardPlay, onSignaturePlay }: {
+export function PvpLiveBattle({ room, myRole, opponentName, hostView, battle, playerCards, playableCardIds, cardAvailability, team, onClose, onCardPlay, onSignaturePlay, terminal, onTerminalComplete }: {
   room: BattleRoom;
+  terminal?: TerminalPresentation;
+  onTerminalComplete?: (id: string) => void;
   myRole: PlayerRole;
   opponentName: string;
   hostView: PvpHostView | null;
@@ -50,15 +53,17 @@ export function PvpLiveBattle({ room, myRole, opponentName, hostView, battle, pl
         battle={battle}
         roundProgress={null}
         playerCards={playerCards}
-        playableCardIds={playableCardIds}
+        playableCardIds={terminal ? [] : playableCardIds}
         cardAvailability={cardAvailability}
         lastAction={lastAction}
-        isAnimating={false}
+        isAnimating={!!terminal}
         onCardPlay={onCardPlay}
         onSignaturePlay={onSignaturePlay}
         team={team}
         levels={levels}
         stage3d
+        terminal={terminal}
+        onTerminalComplete={onTerminalComplete}
         stageBleedTop={barHeight}
       />
     </View>

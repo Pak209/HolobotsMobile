@@ -76,7 +76,7 @@ describe('Arena round on the shared 3D stage', () => {
         expect(screen).not.toContain('BattleArenaView');
         expect(screen).toContain('<LiveDuelStage battle={battle} moves={store.playerMoves} playableIds={store.getPlayableMoves().map(m => m.id)} pending={store.isAnimating} onPlay={store.useMove} onSignature={() => { }} signature={!battle.hostSnapshot} holdUntilReady={false}');
         expect(screen).toContain('leaveLabel={COPY.quitInBattle} leaveDisabled={settlePhase.kind === \'sending\'} onLeave={quit}');
-        expect(screen).toContain("battle && (phase.kind === 'battle' || phase.kind === 'confirming') ? <View style={styles.fight}>");
+        expect(screen).toContain("battle && (phase.kind === 'battle' || phase.kind === 'confirming' || presentation.holding) ? <View style={styles.fight}>");
     });
 
     it('critic #1: the toolbar clears the pilot-menu cog (48 pt at insets.top + 10, right 18), so QUIT stays reachable', () => {
@@ -91,8 +91,8 @@ describe('Arena round on the shared 3D stage', () => {
         expect(stage).toMatch(/button: \{ minHeight: 44/);
     });
 
-    it('critic #7: the GL scene pauses under the confirming / quit overlays (presentation only)', () => {
-        expect(screen).toContain("active={phase.kind === 'battle' && !quitAsk}");
+    it('critic #7: the terminal hold keeps GL alive; normal confirming and quit overlays pause it', () => {
+        expect(screen).toContain("active={(phase.kind === 'battle' || presentation.holding) && !quitAsk}");
         expect(stage).toContain('active={active}');
     });
 

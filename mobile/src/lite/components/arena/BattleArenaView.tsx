@@ -1,3 +1,4 @@
+import type { TerminalPresentation } from '@/lite/lib/bots/koPresentation';
 import { arenaFighterLevel } from "@/lite/lib/bots/arenaFighterLevel";
 import { hostFighterLevel, levelBadge } from "@/lite/lib/bots/hostFighterLevel";
 import { slotAccent, theme } from "@/lite/theme";
@@ -79,6 +80,8 @@ type BattleArenaViewProps = {
   /** lite-pvp-3d-1: PvP draws the Arena round's 3D stage (DuelBotStage: models, pack VFX, SKY / BREAK camera beat) behind
    * this HUD instead of the 2D sprite floor. The sprite floor stays only as the fallback (no 3D model, or GL failed). */
   stage3d?: boolean;
+  terminal?: TerminalPresentation;
+  onTerminalComplete?: (id: string) => void;
   /** How far the 3D stage extends above this view (PvP: its room bar), so it frames the fighters on the same full-height
    * plate as the Arena round. The caller keeps that chrome above the stage (zIndex). */
   stageBleedTop?: number;
@@ -196,11 +199,12 @@ export function BattleArenaView({
   team,
   embedded = false,
   levels,
-  stage3d = false,
+  stage3d = false, terminal, onTerminalComplete,
   stageBleedTop = 0,
 }: BattleArenaViewProps) {
   const [stageFailed, setStageFailed] = useState(false);
   useEffect(() => { setStageFailed(false); }, [battle.battleId]);
+  useEffect(() => { if (terminal && (!stage3d || stageFailed || !hasDuelBotStage(battle))) onTerminalComplete?.(terminal.id); }, [terminal?.id, stage3d, stageFailed, battle, onTerminalComplete]);
   const show3d = stage3d && !stageFailed && hasDuelBotStage(battle);
   const [transientVisualStates, setTransientVisualStates] = useState<FighterVisualStates>({
     player: "idle",
@@ -328,7 +332,7 @@ export function BattleArenaView({
     <View style={styles.screen}>
     {/* lite-pvp-3d-1: the 3D stage sits behind the (transparent) scroll body and fills the battle view, as the Arena
         round's does; the send-in overlay pauses it. */}
-    {show3d ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { top: -stageBleedTop }]}><DuelBotStage battle={battle} action={lastAction} active={!team?.sendIn} onError={() => setStageFailed(true)} /></View> : null}
+    {show3d ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { top: -stageBleedTop }]}><DuelBotStage battle={battle} action={lastAction} active={!!terminal || !team?.sendIn} terminal={terminal} onTerminalComplete={onTerminalComplete} onError={() => setStageFailed(true)} /></View> : null}
     <ScrollView style={[styles.screen, show3d ? styles.screen3d : null]} contentContainerStyle={[styles.screenContent, { paddingTop: embedded ? 0 : insets.top, paddingBottom: embedded ? 0 : insets.bottom }]} bounces={false}>
       {show3d ? null : <View pointerEvents="none" style={styles.backgroundAngles}>
         <Image source={ARENA_STAGE} style={styles.stageBackdrop} resizeMode="cover" />
