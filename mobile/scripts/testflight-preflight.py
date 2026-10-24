@@ -17,6 +17,14 @@ RELEASE_HOLDS = [
     'Physical-device release acceptance, live citizen admission, native diagnostics and performance gates remain unresolved.',
 ]
 GATE = 'EXPO_PUBLIC_HOLOCITY_LITE'
+# Client flags the release build turns ON with the gate (2026-10-23 "turn on all of the switches"): each is the
+# client twin of a host flag merged on main. key -> the exported function the bundle inlines it into.
+# Unmerged features (signatures, Zell, expedition) and __DEV__-only QA flags (PREVIEW*, RECEIPT_QA) stay off.
+RELEASE_CLIENT_FLAGS = {
+    'EXPO_PUBLIC_HOLOCITY_FIGHT_ATTRS': 'progressionRules5Enabled',
+    'EXPO_PUBLIC_HOLOCITY_READINESS': 'readinessUiEnabled',
+}
+BUNDLE_FUNCTIONS = {GATE: 'isLiteEnabled', **RELEASE_CLIENT_FLAGS}
 # Versions already approved in App Store Connect; their trains are closed to new builds.
 RELEASED_VERSIONS = ('1.0',)
 # Order the "Bundle React Native code and images" phase sources them; later wins.
@@ -41,26 +49,38 @@ def shell_assignments(text, key):
             values.append(m.group(2).strip().strip('"\''))
     return values
 
-def bundle_gate(path):
-    """'1' / '0' for what the bundled isLiteEnabled() returns, or an error string."""
-    data = path.read_bytes()
-    if data[:8] == HERMES_MAGIC:
-        return None, 'Hermes bytecode bundle cannot be inspected; pass the JS bundle from `expo export:embed`'
-    text = data.decode('utf-8', 'replace')
-    if f'process.env.{GATE}' in text:
-        return None, f'Bundle reads process.env.{GATE} at runtime (gate was not inlined)'
+def bundle_flag(text, key, fn):
+    """'1' / '0' for what the bundled fn() returns for flag key, or an error string."""
+    if f'process.env.{key}' in text:
+        return None, f'Bundle reads process.env.{key} at runtime (flag was not inlined)'
     patterns = [
-        r'isLiteEnabled\s*=\s*function\s*\(\)\s*\{\s*return\s*(!0|!1|true|false)\b',
-        r'function\s+isLiteEnabled\s*\(\)\s*\{\s*return\s*(!0|!1|true|false)\b',
+        rf'{fn}\s*=\s*function\s*\(\)\s*\{{\s*return\s*(!0|!1|true|false)\b',
+        rf'function\s+{fn}\s*\(\)\s*\{{\s*return\s*(!0|!1|true|false)\b',
     ]
     found = [m.group(1) for p in patterns for m in re.finditer(p, text)]
-    for m in re.finditer(r'\bisLiteEnabled\s*=\s*([A-Za-z_$][\w$]*)\b', text):
-        d = re.search(rf'function\s+{re.escape(m.group(1))}\s*\(\)\s*\{{\s*return\s*(!0|!1|true|false)\b', text[max(0, m.start() - 400):m.start()])
+    for m in re.finditer(rf'\b{fn}\s*=\s*([A-Za-z_$][\w$]*)\b', text):
+        # Minified exports alias a hoisted local (`e.fn=n` ... `function n(){return!0}`) that may sit
+        # anywhere in the same Metro module, before or after the export.
+        start = text.rfind('__d(', 0, m.start()); end = text.find('__d(', m.end())
+        module = text[max(0, start):end if end != -1 else len(text)]
+        d = re.search(rf'function\s+{re.escape(m.group(1))}\s*\(\)\s*\{{\s*return\s*(!0|!1|true|false)\b', module)
         if d: found.append(d.group(1))
     values = {'1' if v in ('!0', 'true') else '0' for v in found}
     if len(values) != 1:
-        return None, f'Could not read isLiteEnabled() from the bundle (found {sorted(values) or "nothing"})'
+        return None, f'Could not read {fn}() from the bundle (found {sorted(values) or "nothing"})'
     return values.pop(), None
+
+def bundle_flags(path, keys):
+    """{key: value} plus errors; a Hermes bytecode bundle is one error for all keys."""
+    data = path.read_bytes()
+    if data[:8] == HERMES_MAGIC:
+        return {k: None for k in keys}, ['Hermes bytecode bundle cannot be inspected; pass the JS bundle from `expo export:embed`']
+    text = data.decode('utf-8', 'replace')
+    values, errors = {}, []
+    for key in keys:
+        values[key], error = bundle_flag(text, key, BUNDLE_FUNCTIONS[key])
+        if error: errors.append(error)
+    return values, errors
 
 def tracked(root, relative):
     """True/False for git-tracked, None outside a git work tree."""
@@ -70,6 +90,40 @@ def tracked(root, relative):
         return subprocess.run(['git', 'ls-files', '--error-unmatch', relative], cwd=root, capture_output=True).returncode == 0
     except OSError:
         return None
+
+def resolve_flag(root, project, key, env):
+    """(effective value, sources) for one EXPO_PUBLIC_* key: every source that can reach the Release bundle, in precedence order."""
+    sources, effective = [], env.get(key)
+    sources.append({'source': f'process environment ({key})', 'values': [effective] if effective is not None else []})
+    # Xcode: xcconfig values sit below the target's own build settings.
+    for xc in (root / 'ios').glob('**/*.xcconfig'):
+        if 'Pods' in xc.parts: continue
+        values = [v.strip() for v in re.findall(rf'^\s*{key}\s*=\s*(.*)$', xc.read_text(), re.M)]
+        sources.append({'source': str(xc.relative_to(root)), 'values': values, 'tracked': tracked(root, str(xc.relative_to(root)))})
+        if values: effective = values[-1]
+    settings = re.findall(rf'^\s*{key}\s*=\s*"?([^";\n]*)"?;\s*$', project, re.M)
+    sources.append({'source': 'ios/HolobotsMobile.xcodeproj build settings', 'values': settings})
+    if settings: effective = settings[-1]
+    # Script phases that set it inline (shellScript bodies are escaped strings).
+    inline = re.findall(rf'{key}=([^\\\s;"]*)', ' '.join(re.findall(r'shellScript = "((?:[^"\\]|\\.)*)";', project)))
+    sources.append({'source': 'ios/HolobotsMobile.xcodeproj shellScript phases', 'values': inline})
+    seen = set()
+    for relative in XCODE_ENV_FILES:
+        path = root / relative
+        if not path.exists(): continue
+        values = shell_assignments(path.read_text(), key)
+        if relative not in seen:
+            sources.append({'source': relative, 'values': values, 'tracked': tracked(root, relative)})
+            seen.add(relative)
+        if values: effective = values[-1]
+    for relative in EXPO_ENV_FILES:
+        path = root / relative
+        if not path.exists(): continue
+        values = re.findall(rf'^\s*(?:export\s+)?{key}\s*=\s*(.*)$', path.read_text(), re.M)
+        values = [v.strip().strip('"\'') for v in values]
+        sources.append({'source': f'{relative} (@expo/env, only if unset above)', 'values': values, 'tracked': tracked(root, relative)})
+        if values and effective is None: effective = values[-1]
+    return effective, sources
 
 def inspect(root, expo_config=None, *, expect_lite=None, last_uploaded=None, released_versions=RELEASED_VERSIONS, bundle=None, environ=None):
     failures, inventory = [], {}
@@ -116,38 +170,8 @@ def inspect(root, expo_config=None, *, expect_lite=None, last_uploaded=None, rel
         check(isinstance(row, dict) and bool(row.get('NSPrivacyAccessedAPIType')) and isinstance(row.get('NSPrivacyAccessedAPITypeReasons'), list) and bool(row.get('NSPrivacyAccessedAPITypeReasons')), 'Malformed required-reason API entry')
     inventory['privacyManifest'] = privacy
 
-    # Lite gate: every source that can reach the Release bundle, in precedence order.
     env = os.environ if environ is None else environ
-    sources, effective = [], env.get(GATE)
-    sources.append({'source': f'process environment ({GATE})', 'values': [effective] if effective is not None else []})
-    # Xcode: xcconfig values sit below the target's own build settings.
-    for xc in (root / 'ios').glob('**/*.xcconfig'):
-        if 'Pods' in xc.parts: continue
-        values = [v.strip() for v in re.findall(rf'^\s*{GATE}\s*=\s*(.*)$', xc.read_text(), re.M)]
-        sources.append({'source': str(xc.relative_to(root)), 'values': values, 'tracked': tracked(root, str(xc.relative_to(root)))})
-        if values: effective = values[-1]
-    settings = re.findall(rf'^\s*{GATE}\s*=\s*"?([^";\n]*)"?;\s*$', project, re.M)
-    sources.append({'source': 'ios/HolobotsMobile.xcodeproj build settings', 'values': settings})
-    if settings: effective = settings[-1]
-    # Script phases that set it inline (shellScript bodies are escaped strings).
-    inline = re.findall(rf'{GATE}=([^\\\s;"]*)', ' '.join(re.findall(r'shellScript = "((?:[^"\\]|\\.)*)";', project)))
-    sources.append({'source': 'ios/HolobotsMobile.xcodeproj shellScript phases', 'values': inline})
-    seen = set()
-    for relative in XCODE_ENV_FILES:
-        path = root / relative
-        if not path.exists(): continue
-        values = shell_assignments(path.read_text(), GATE)
-        if relative not in seen:
-            sources.append({'source': relative, 'values': values, 'tracked': tracked(root, relative)})
-            seen.add(relative)
-        if values: effective = values[-1]
-    for relative in EXPO_ENV_FILES:
-        path = root / relative
-        if not path.exists(): continue
-        values = re.findall(rf'^\s*(?:export\s+)?{GATE}\s*=\s*(.*)$', path.read_text(), re.M)
-        values = [v.strip().strip('"\'') for v in values]
-        sources.append({'source': f'{relative} (@expo/env, only if unset above)', 'values': values, 'tracked': tracked(root, relative)})
-        if values and effective is None: effective = values[-1]
+    effective, sources = resolve_flag(root, project, GATE, env)
     inventory['liteGate'] = {'effective': effective, 'sources': sources}
     if expect_lite == 'on':
         check(effective == '1', f'Lite gate resolves to {effective!r}, expected "1"')
@@ -159,12 +183,30 @@ def inspect(root, expo_config=None, *, expect_lite=None, last_uploaded=None, rel
         check(effective != '1', 'Lite gate resolves ON in a build expected to be gate-off')
         for s in sources:
             check('1' not in s['values'], f"Lite gate source turns lite on: {s['source']}")
+    # Client flags the release build turns on with the gate; same sources, same D6 rule.
+    flags = {}
+    for key in RELEASE_CLIENT_FLAGS:
+        flag_effective, flag_sources = resolve_flag(root, project, key, env)
+        flags[key] = {'effective': flag_effective, 'sources': flag_sources}
+        if expect_lite == 'on':
+            check(flag_effective == '1', f'Client flag {key} resolves to {flag_effective!r}, expected "1"')
+            for s in flag_sources:
+                check(all(v == '1' for v in s['values']), f"Client flag {key} source disagrees: {s['source']} sets {s['values']}")
+            xcode_env = next((s for s in flag_sources if s['source'] == 'ios/.xcode.env'), None)
+            check(bool(xcode_env and xcode_env['values'] and xcode_env.get('tracked') is not False), f'Client flag {key} must come from the versioned ios/.xcode.env (D6)')
+    inventory['clientFlags'] = flags
     if bundle is not None:
-        value, error = bundle_gate(Path(bundle))
+        keys = [GATE, *RELEASE_CLIENT_FLAGS] if expect_lite == 'on' else [GATE]
+        values, errors = bundle_flags(Path(bundle), keys)
+        value = values[GATE]
         inventory['bundleLiteGate'] = value
-        check(error is None, error or '')
+        inventory['bundleClientFlags'] = {k: v for k, v in values.items() if k != GATE}
+        for error in errors: check(False, error)
         if value is not None and expect_lite is not None:
             check(value == ('1' if expect_lite == 'on' else '0'), f'Bundle isLiteEnabled() returns {value}, expected lite {expect_lite}')
+        for key, v in inventory['bundleClientFlags'].items():
+            if v is not None:
+                check(v == '1', f'Bundle {BUNDLE_FUNCTIONS[key]}() returns {v}, expected client flag {key} on')
 
     # The lite renderer needs ExpoGL linked natively; a JS dependency alone is not enough.
     package = json.loads((root / 'package.json').read_text()) if (root / 'package.json').exists() else {}
@@ -199,7 +241,7 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--mobile-root', type=Path, default=Path(__file__).resolve().parents[1])
     p.add_argument('--expo-config', type=Path, help='Explicit config overlay for an isolated integration checkout')
-    p.add_argument('--expect-lite', choices=['on', 'off'], help='Assert the lite gate value from every source (and --bundle)')
+    p.add_argument('--expect-lite', choices=['on', 'off'], help='Assert the lite gate value from every source (and --bundle); on also asserts every RELEASE_CLIENT_FLAGS key ON')
     p.add_argument('--last-uploaded', type=int, help='Highest build number already in App Store Connect; the build must exceed it')
     p.add_argument('--released-version', action='append', help=f'Marketing version already released (default: {", ".join(RELEASED_VERSIONS)})')
     p.add_argument('--bundle', type=Path, help='JS bundle from `expo export:embed` to check isLiteEnabled() in')

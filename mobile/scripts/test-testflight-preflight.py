@@ -10,7 +10,16 @@ preflight = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preflight)
 SOURCE = Path(__file__).resolve().parents[1]
 GATE_ON = 'export EXPO_PUBLIC_HOLOCITY_LITE=1\n'
+FLAGS_ON = ''.join(f'export {k}=1\n' for k in preflight.RELEASE_CLIENT_FLAGS)
+RELEASE_ON = GATE_ON + FLAGS_ON
 EXPO_GL_LOCK = '\nPODS:\n  - ExpoGL (15.1.7):\n\nSPEC CHECKSUMS:\n  ExpoGL: e21f853b0359861f49eb7f69f97d92f1cb8445d4\n'
+
+LITE_BUNDLE = '__d(function(g,r,i,a,m,e,d){function n(){return!0}Object.defineProperty(e,"__esModule",{value:!0}),e.isLiteEnabled=n},565,[]);'
+def flags_bundle(off=None, skip=None):
+    """One minified Metro module per client flag, export aliasing a hoisted local declared after it."""
+    return ''.join(f'__d(function(g,r,i,a,m,e,d){{e.{fn}=n;function n(){{return{"!1" if key == off else "!0"}}}}},{900 + j},[]);'
+                   for j, (key, fn) in enumerate(preflight.RELEASE_CLIENT_FLAGS.items()) if key != skip)
+FLAGS_BUNDLE = flags_bundle()
 
 class PreflightTests(unittest.TestCase):
     def setUp(self):
@@ -71,7 +80,7 @@ class PreflightTests(unittest.TestCase):
         self.assertTrue(any('ExpoGL is not in ios/Podfile.lock' in x for x in self.run_preflight()['localFailures']))
 
     def test_gate_on_from_xcode_env(self):
-        (self.root/'ios/.xcode.env').write_text(GATE_ON)
+        (self.root/'ios/.xcode.env').write_text(RELEASE_ON)
         report = self.run_preflight(expect_lite='on')
         self.assertTrue(report['localChecksPassed'], report['localFailures']); self.assertEqual(report['inventory']['liteGate']['effective'], '1')
     def test_gate_on_expected_but_absent(self):
@@ -105,9 +114,9 @@ class PreflightTests(unittest.TestCase):
     def test_process_environment_seen(self):
         self.assertFalse(self.run_preflight(expect_lite='off', environ={'EXPO_PUBLIC_HOLOCITY_LITE': '1'})['localChecksPassed'])
     def test_unexported_assignment_does_not_count(self):
-        (self.root/'ios/.xcode.env').write_text('EXPO_PUBLIC_HOLOCITY_LITE=1\n')
+        (self.root/'ios/.xcode.env').write_text('EXPO_PUBLIC_HOLOCITY_LITE=1\n' + FLAGS_ON)
         self.assertFalse(self.run_preflight(expect_lite='on')['localChecksPassed'])
-        (self.root/'ios/.xcode.env').write_text('EXPO_PUBLIC_HOLOCITY_LITE=1\nexport EXPO_PUBLIC_HOLOCITY_LITE\n')
+        (self.root/'ios/.xcode.env').write_text('EXPO_PUBLIC_HOLOCITY_LITE=1\nexport EXPO_PUBLIC_HOLOCITY_LITE\n' + FLAGS_ON)
         self.assertTrue(self.run_preflight(expect_lite='on')['localChecksPassed'])
     def test_gate_in_shell_script_phase_seen(self):
         p = self.root/'ios/HolobotsMobile.xcodeproj/project.pbxproj'
@@ -121,10 +130,67 @@ class PreflightTests(unittest.TestCase):
 
     def test_bundle_gate_minified(self):
         on = '__d(function(g,r,i,a,m,e,d){function n(){return!0}Object.defineProperty(e,"__esModule",{value:!0}),e.isLiteEnabled=n,e.isLitePreviewEnabled=function(){return!1}},565,[]);'
-        (self.root/'ios/.xcode.env').write_text(GATE_ON)
-        self.assertTrue(self.run_preflight(expect_lite='on', bundle=self.bundle(on))['localChecksPassed'])
-        report = self.run_preflight(expect_lite='on', bundle=self.bundle(on.replace('return!0', 'return!1')))
+        (self.root/'ios/.xcode.env').write_text(RELEASE_ON)
+        self.assertTrue(self.run_preflight(expect_lite='on', bundle=self.bundle(on + FLAGS_BUNDLE))['localChecksPassed'])
+        report = self.run_preflight(expect_lite='on', bundle=self.bundle(on.replace('return!0', 'return!1') + FLAGS_BUNDLE))
         self.assertIn('Bundle isLiteEnabled() returns 0, expected lite on', report['localFailures'])
+
+    # Client flags (2026-10-23): --expect-lite on asserts every RELEASE_CLIENT_FLAGS key ON, from ios/.xcode.env and in the bundle.
+    def test_release_client_flags_cover_the_merged_host_twins(self):
+        self.assertEqual(set(preflight.RELEASE_CLIENT_FLAGS), {'EXPO_PUBLIC_HOLOCITY_FIGHT_ATTRS', 'EXPO_PUBLIC_HOLOCITY_READINESS'})
+        for key, fn in preflight.RELEASE_CLIENT_FLAGS.items():
+            with self.subTest(key=key):  # the function the bundle check reads must really read that key
+                sources = [p.read_text() for p in (SOURCE/'src').rglob('*.ts') if '__tests__' not in p.parts and f'function {fn}(' in p.read_text()]
+                self.assertEqual(len(sources), 1); self.assertIn(f'process.env.{key} === "1"', sources[0])
+    def test_real_release_xcode_env_turns_every_client_flag_on(self):
+        text = (SOURCE/'ios/.xcode.env').read_text()
+        for key in [preflight.GATE, *preflight.RELEASE_CLIENT_FLAGS]:
+            with self.subTest(key=key): self.assertEqual(preflight.shell_assignments(text, key), ['1'])
+    def test_gate_on_without_client_flags_rejected(self):
+        (self.root/'ios/.xcode.env').write_text(GATE_ON)
+        failures = self.run_preflight(expect_lite='on')['localFailures']
+        for key in preflight.RELEASE_CLIENT_FLAGS:
+            with self.subTest(key=key):
+                self.assertIn(f'Client flag {key} resolves to None, expected "1"', failures)
+                self.assertIn(f'Client flag {key} must come from the versioned ios/.xcode.env (D6)', failures)
+    def test_each_client_flag_missing_rejected(self):
+        for key in preflight.RELEASE_CLIENT_FLAGS:
+            with self.subTest(key=key):
+                (self.root/'ios/.xcode.env').write_text(RELEASE_ON.replace(f'export {key}=1\n', ''))
+                report = self.run_preflight(expect_lite='on')
+                self.assertFalse(report['localChecksPassed']); self.assertTrue(all(key in x for x in report['localFailures']), report['localFailures'])
+    def test_client_flag_local_override_off_rejected(self):
+        key = next(iter(preflight.RELEASE_CLIENT_FLAGS))
+        (self.root/'ios/.xcode.env').write_text(RELEASE_ON)
+        (self.root/'ios/.xcode.env.local').write_text(f'export {key}=0\n')
+        report = self.run_preflight(expect_lite='on')
+        self.assertEqual(report['inventory']['clientFlags'][key]['effective'], '0')
+        self.assertIn(f'Client flag {key} resolves to \'0\', expected "1"', report['localFailures'])
+    def test_client_flag_only_in_local_env_rejected(self):
+        key = next(iter(preflight.RELEASE_CLIENT_FLAGS))
+        (self.root/'ios/.xcode.env').write_text(RELEASE_ON.replace(f'export {key}=1\n', ''))
+        (self.root/'ios/.xcode.env.local').write_text(f'export {key}=1\n')
+        self.assertIn(f'Client flag {key} must come from the versioned ios/.xcode.env (D6)', self.run_preflight(expect_lite='on')['localFailures'])
+    def test_gate_off_build_does_not_require_client_flags(self):
+        report = self.run_preflight(expect_lite='off', bundle=self.bundle('function isLiteEnabled() {\n  return false;\n}\n'))
+        self.assertTrue(report['localChecksPassed'], report['localFailures']); self.assertEqual(report['inventory']['bundleClientFlags'], {})
+    def test_bundle_client_flag_off_rejected(self):
+        (self.root/'ios/.xcode.env').write_text(RELEASE_ON)
+        for key, fn in preflight.RELEASE_CLIENT_FLAGS.items():
+            with self.subTest(key=key):
+                report = self.run_preflight(expect_lite='on', bundle=self.bundle(LITE_BUNDLE + flags_bundle(off=key)))
+                self.assertIn(f'Bundle {fn}() returns 0, expected client flag {key} on', report['localFailures'])
+    def test_bundle_client_flag_missing_or_runtime_read_rejected(self):
+        (self.root/'ios/.xcode.env').write_text(RELEASE_ON)
+        key, fn = next(iter(preflight.RELEASE_CLIENT_FLAGS.items()))
+        missing = self.run_preflight(expect_lite='on', bundle=self.bundle(LITE_BUNDLE + flags_bundle(skip=key)))
+        self.assertIn(f'Could not read {fn}() from the bundle (found nothing)', missing['localFailures'])
+        runtime = self.run_preflight(expect_lite='on', bundle=self.bundle(LITE_BUNDLE + FLAGS_BUNDLE + f'function {fn}(){{return process.env.{key}==="1"}}'))
+        self.assertIn(f'Bundle reads process.env.{key} at runtime (flag was not inlined)', runtime['localFailures'])
+    def test_bundle_hoisted_alias_after_export_read(self):
+        # Real export:embed shape: `e.progressionRules5Enabled=n` comes BEFORE the hoisted `function n(){return!0}` in the module.
+        value, error = preflight.bundle_flag('__d(function(g,r,i,a,m,e,d){e.f=1,e.progressionRules5Enabled=n;' + 'x' * 3000 + 'function n(){return!0}},1,[]);__d(function(g,r,i,a,m,e,d){function n(){return!1}},2,[]);', 'EXPO_PUBLIC_HOLOCITY_FIGHT_ATTRS', 'progressionRules5Enabled')
+        self.assertEqual((value, error), ('1', None))
     def test_bundle_gate_unminified(self):
         report = self.run_preflight(expect_lite='off', bundle=self.bundle('function isLiteEnabled() {\n  return false;\n}\n'))
         self.assertEqual(report['inventory']['bundleLiteGate'], '0'); self.assertTrue(report['localChecksPassed'], report['localFailures'])

@@ -12,6 +12,10 @@ Release census: `Documentation/QA/2026-10-17-lite-release-facts-1/README.md`.
 - Source: branch `release/lite-1.1.0`. Its last commit exports `EXPO_PUBLIC_HOLOCITY_LITE=1`
   in the versioned `mobile/ios/.xcode.env` (D6). `main` never carries that line, so a normal
   archive from `main` ships the gate-off app.
+- Client flags (2026-10-23, "turn on all of the switches"): the same file also exports
+  `EXPO_PUBLIC_HOLOCITY_FIGHT_ATTRS=1` and `EXPO_PUBLIC_HOLOCITY_READINESS=1`, the client twins
+  of host flags merged on main (`RELEASE_CLIENT_FLAGS` in the preflight). Their host flags must be
+  ON in the deployed functions too. Signatures, Zell and expedition stay off (unmerged).
 - Purchases stay off: `config/monetization.iapEnabled` is one remote flag for every
   installed build (D7).
 
@@ -47,12 +51,16 @@ Edit the Xcode project and `app.json` by hand and keep them in step (the preflig
    `--last-uploaded`, any gate source (process env, Xcode build settings, `ios/.xcode.env*`,
    `mobile/.env*`) that disagrees with `--expect-lite`, the gate not coming from the
    versioned `ios/.xcode.env`, a phone NSHealth string, and a missing `ExpoGL` lock entry.
+   `--expect-lite on` applies the same source and D6 checks to every `RELEASE_CLIENT_FLAGS` key.
 5. Bundle proof (required): build the JS bundle the way the Xcode phase does and pass it in.
 
    ```sh
    (source ios/.xcode.env && CI=1 NODE_ENV=production npx expo export:embed --platform ios --dev false --bundle-output /tmp/lite.jsbundle --assets-dest /tmp/lite-assets)
    python3 scripts/testflight-preflight.py --expect-lite on --bundle /tmp/lite.jsbundle --local-only
    ```
+
+   With `--expect-lite on` the bundle check also reads `progressionRules5Enabled()` and
+   `readinessUiEnabled()` and fails unless both return true.
 
    The archived `main.jsbundle` is Hermes bytecode, which the preflight refuses to guess at.
    Archive right after this, with the same environment and the cache from step 3 untouched.
