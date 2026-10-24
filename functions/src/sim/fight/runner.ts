@@ -22,6 +22,9 @@ export type FightRunOptions = {
   chase?: FightChaseRules | null;
   /** duel-rules-5: the issued attrs block (needs `chase`; null / absent = duel-rules-3/-4). rulesHash is then duel-rules-5's. */
   attrs?: FightAttrRules | null;
+  /** zell-crash-1 catch-duel: an issued stop condition checked after every tick (the run ends there, `stopped` true, the core
+   * itself not ended). Absent = today's run exactly. Never part of the rules hash or the state hash. */
+  stopWhen?: (core: FightCore) => boolean;
 };
 
 export type FightResult = {
@@ -29,6 +32,8 @@ export type FightResult = {
   /** tick -> full state hash: every tick when tickHashes, else only the requested sample ticks. */
   tickHashes: Map<number, string>;
   winner: number; endTick: number; reason: string; ended: boolean;
+  /** True when `stopWhen` ended the run before the core ended (zell-crash-1 catch-duel escape). */
+  stopped: boolean;
   witness: WitnessJson; events: FightEvent[]; core: FightCore;
 };
 
@@ -46,16 +51,18 @@ export function runFight(rules: FightRules, seed: string, d0: FightDriver, d1: F
   const views = [new FightView(core, 0), new FightView(core, 1)];
   for (let s = 0; s < 2; s++) { const d = drivers[s]; if ('brain' in d) d.brain.begin(s, d.profile, d.skill); }
   const cap = opts.maxTicks ?? Number.MAX_SAFE_INTEGER;
-  while (!core.ended && core.tick + 1 < cap) {
+  let stopped = false;
+  while (!core.ended && core.tick + 1 < cap && !stopped) {
     const t = core.tick + 1;
     const a = read(drivers[0], views[0], core, t, 0);
     const b = read(drivers[1], views[1], core, t, 1);
     core.step(a, b);
     opts.onTick?.(t, [a, b], core);
     if (opts.tickHashes || opts.hashAt?.(t)) res.tickHashes.set(t, core.stateHash());
+    if (!core.ended && opts.stopWhen?.(core)) stopped = true;
   }
   res.finalHash = res.tickHashes.get(core.tick) ?? core.stateHash();
-  res.winner = core.winner; res.reason = core.endReason; res.endTick = core.tick; res.ended = core.ended;
+  res.winner = core.winner; res.reason = core.endReason; res.endTick = core.tick; res.ended = core.ended; res.stopped = stopped;
   res.witness = core.witness.toJson(); res.events = core.events; res.core = core;
   return res;
 }
