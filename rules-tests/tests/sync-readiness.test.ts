@@ -25,7 +25,7 @@ describe("syncReadiness is a protected top-level host field", () => {
 
   it("permits unrelated owner updates and unchanged full-profile merge", async () => {
     const alice = doc(authedDb(env, "alice"), "users/alice");
-    await assertSucceeds(updateDoc(alice, { dailyEnergy: 40 }));
-    await assertSucceeds(setDoc(alice, { syncReadiness: readiness, dailyEnergy: 39 }, { merge: true }));
+    await assertSucceeds(updateDoc(alice, { presenceOptOut: true }));
+    await assertSucceeds(setDoc(alice, { syncReadiness: readiness, presenceOptOut: false }, { merge: true }));
   });
 });
