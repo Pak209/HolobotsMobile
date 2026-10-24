@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "duel-receipt-2",
-  "title": "Host-verified fight receipt (duel-sim-3 replay); value of rival settle reply.fightReceipt",
+  "title": "Host-verified fight receipt (duel-sim-3 replay); value of rival or expedition settle reply.fightReceipt",
   "description": "fight-flow H1 (HolobotsMobile fight-host-1, DECISIONS #72.18, brief C0). In rival-battle mode input-log the host re-runs the client's duel-inputs-2 log through its bit-exact duel-sim-3 twin under the ISSUED duel-rules-3 snapshot, seed and CPU profile/rank, verifies the client's hash trail, and settles the outcome IT computed; this receipt is that outcome plus the evidence for the post-fight card. It is persisted once with the settlement and returned verbatim on every replayed settle. A rejected log produces no receipt (callable failed-precondition, rejectionCode replay_mismatch with the first divergent window). Shape validation does not establish authenticity; only the host's own replay does. duel-receipt-1 (resolver) is unchanged and stays the async/lite fallback.",
   "type": "object",
   "additionalProperties": false,
@@ -33,7 +33,7 @@
     },
     "battleId": {
       "type": "string",
-      "pattern": "^rb_[a-zA-Z0-9_-]{1,128}(?![\\s\\S])"
+      "pattern": "^(?:rb_|ef_)[a-zA-Z0-9_-]{1,128}(?![\\s\\S])"
     },
     "rulesId": {
       "type": "string",

@@ -6,14 +6,24 @@ import { requireLivingVitals, issueVitals, Vitals } from '../lib/rivalHealth';
 import { healingDelta, healingStock, healingItem } from '../lib/repairItems';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { readStoryFlags } from '../story/storyFlags';
+import { FightReceiptWire, FightReplayIssueWire, FIGHT_INPUTS_SCHEMA } from '../shared/fightReplayContract';
+import { buildFightReplayIssue } from '../rival/fightReplayIssue';
+import { manualReadinessStart, cpuStartSync } from '../lib/readinessFight';
+import { fightLearningAfterSettle } from '../lib/readinessFight';
 
 /** Storage version of every run document AND the zone-run-3 wire. zone-run-4 is a reply shape over the same rulings. */
 export const ZONE_RUN_SCHEMA = 'zone-run-3';
 /** zone-run-4 (additive over zone-run-3): run.utilityUsed + utility reply utilityResult. A zone-run-3 request still gets
  * exactly the zone-run-3 shapes (no utilityUsed / utilityResult, same key order); rulings are identical in both. */
 export const ZONE_RUN_SCHEMA_V4 = 'zone-run-4';
-export type ZoneRunWire = typeof ZONE_RUN_SCHEMA | typeof ZONE_RUN_SCHEMA_V4;
-export const ZONE_RUN_WIRES:readonly string[] = [ZONE_RUN_SCHEMA, ZONE_RUN_SCHEMA_V4];
+/** Real-time encounters. Old run documents and their reply bytes remain on their issued wire. */
+export const ZONE_RUN_SCHEMA_V6 = 'zone-run-6';
+export const ZONE_REALTIME_FLAG = 'HOLOZONE_EXPEDITION_REALTIME';
+export type ZoneRunWire = typeof ZONE_RUN_SCHEMA | typeof ZONE_RUN_SCHEMA_V4 | typeof ZONE_RUN_SCHEMA_V6;
+export const ZONE_RUN_WIRES:readonly string[] = [ZONE_RUN_SCHEMA, ZONE_RUN_SCHEMA_V4, ZONE_RUN_SCHEMA_V6];
+export const FIGHT_SETTLE_GRACE_MS = 60_000;
+export const FIGHT_CAP_MS = 180_000;
+export const FLEE_SUCCESS_BASIS_POINTS = 5000;
 export const ZONE_EXTRACT_SCHEMA = 'zone-extract-1';
 export const EXTRACTION_CHANNEL_MS = ZONE_EXPEDITION_RULES.extraction.channelMs;
 export const UTILITY_COOLDOWN_MS = ZONE_EXPEDITION_RULES.utility.cooldownMs;
@@ -67,19 +77,23 @@ export function dailyLayout(now:number):Layout {
 }
 export type Haul={id:string;kind:'blueprint_fragment'|'rare_blueprint_fragment'|'bulky_salvage';amount:number;protected:boolean};
 export type ExtractionReceipt={schemaVersion:typeof ZONE_EXTRACT_SCHEMA;runId:string;outcome:'normal'|'emergency'|'wipe';closedAtMs:number;banked:Haul[];lost:Haul[];guardianDefeated:boolean;finalVitals:Vitals};
+export type PendingExpeditionFight={fightId:string;sectorId:string;issuedAtMs:number;settleByMs:number;ambush:'none';issue:FightReplayIssueWire;fleeAttempted:boolean};
 export type ExpeditionRun={schemaVersion:typeof ZONE_RUN_SCHEMA;runId:string;state:'open'|'closed';issuedAtMs:number;config:ExpeditionConfig;layout:Layout;privateSeed:number;
-  opponents:Record<string,DuelFighterStats>;sectorId:string;visited:string[];cleared:string[];looted:string[];squad:DuelFighterStats[];energy:number;kits:number;charge:number;haul:Haul[];guardianDefeated:boolean;
+  opponents:Record<string,DuelFighterStats>;sectorId:string;visited:string[];cleared:string[];looted:string[];squad:(DuelFighterStats&{staminaPm?:number})[];energy:number;kits:number;charge:number;haul:Haul[];guardianDefeated:boolean;
   extraction:{startedAtMs:number}|null;receipt:ExtractionReceipt|null;revision:number;
   /** Sector ids whose utility has been spent this run (one-shot). Absent on documents issued before zone-run-4 = []. */
   utilityUsed:string[];
   /** Host clock of the last spent utility (cooldown anchor). Internal: never in a run view. */
-  utilityAtMs:number|null};
+  utilityAtMs:number|null;
+  /** Omitted on legacy documents so their views and rulings remain byte-identical. */
+  realtime?:boolean;pendingFight?:PendingExpeditionFight|null;lastFight?:{fightId:string;receipt:FightReceiptWire;encounterResult:EncounterResult}|null};
+export type EncounterResult={outcome:'cleared'|'wipe'|'fled';sectorId:string;ambush:'none';carry:{holobotId:string;currentHealth:number;staminaPm:number}[]};
 export type UtilityEffect='route'|'cache'|'clear'|'none';
 /** zone-run-4 utility reply field. haul = rows this use added (also present in run.haul, unbanked until extraction). */
 export type UtilityResult={sectorId:string;utility:'ace'|'shadow'|'kuma';effect:UtilityEffect;opensSectorId:string|null;haul:Haul[];spent:boolean;cooldownMs:number|null};
 export type ExpeditionCommand={schemaVersion:string;operation:string;requestId?:string;runId?:string;itemId?:string;repairKits?:number;carryExtractionCharge?:boolean;
-  sectorId?:string;holobotId?:string;order?:string[];haulId?:string;utility?:string;playerIntents?:unknown};
-const fields:Record<string,string[]>={status:[],layout:[],buy:['itemId'],issue:['repairKits','carryExtractionCharge'],move:['sectorId'],fight:['playerIntents'],cache:[],protect:['haulId'],heal:['holobotId'],reorder:['order'],utility:['utility'],extract:['mode'],emergency_start:[],emergency_finish:[],wipe:[]};
+  sectorId?:string;holobotId?:string;order?:string[];haulId?:string;utility?:string;playerIntents?:unknown;duelInputs?:string;fightId?:string;inputLog?:unknown};
+const fields:Record<string,string[]>={status:[],layout:[],buy:['itemId'],issue:['repairKits','carryExtractionCharge','duelInputs'],move:['sectorId'],fight:['playerIntents'],engage:['duelInputs'],fight_settle:['fightId','inputLog'],flee:['fightId'],resume:['fightId'],cache:[],protect:['haulId'],heal:['holobotId'],reorder:['order'],utility:['utility'],extract:['mode'],emergency_start:[],emergency_finish:[],wipe:[]};
 export function validateExpeditionCommand(raw:unknown):ExpeditionCommand {
   if(!object(raw)||typeof raw.operation!=='string'||!Object.hasOwn(fields,raw.operation))return fail('invalid_request');
   const op=raw.operation,read=op==='status'||op==='layout',town=op==='issue'||op==='buy',extract=op==='extract'||op.startsWith('emergency_')||op==='wipe';
@@ -91,6 +105,12 @@ export function validateExpeditionCommand(raw:unknown):ExpeditionCommand {
   if(['move','heal','protect','utility'].includes(op)&&!id(raw[fields[op][0]]))return fail('invalid_request');
   if(op==='reorder'&&(!Array.isArray(raw.order)||raw.order.length<1||raw.order.length>3||!raw.order.every(id)||new Set(raw.order).size!==raw.order.length))return fail('invalid_request');
   if(op==='fight'){try{validateDuelIntents(raw.playerIntents);}catch{return fail('invalid_intents');}}
+  if(op==='fight'&&raw.schemaVersion===ZONE_RUN_SCHEMA_V6)return fail('client_update_required');
+  if(['engage','fight_settle','flee','resume'].includes(op)&&raw.schemaVersion!==ZONE_RUN_SCHEMA_V6)return fail('invalid_request');
+  if(op==='engage'&&raw.duelInputs!==FIGHT_INPUTS_SCHEMA)return fail('client_update_required');
+  if(op==='issue'&&raw.schemaVersion===ZONE_RUN_SCHEMA_V6&&raw.duelInputs!==FIGHT_INPUTS_SCHEMA)return fail('client_update_required');
+  if(['fight_settle','flee','resume'].includes(op)&&!id(raw.fightId))return fail('invalid_request');
+  if(op==='fight_settle'&&raw.inputLog===undefined)return fail('invalid_request');
   if(op==='extract'&&raw.mode!=='normal')return fail('invalid_request');
   return structuredClone(raw) as ExpeditionCommand;
 }
@@ -120,17 +140,24 @@ export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionComma
   if(healingStock(profile,'item.repair_kit')<kits)return fail('no_kit');
   if(supplies.extractionCharges<charge)return fail('no_extraction_charge');
   const squad=players.map(p=>duelFighterFromCombatant({...p,currentHealth:vitals[p.holobotId].currentHealth}));
-  const layout=dailyLayout(now),opponents=Object.fromEntries(layout.sectors.filter(s=>!s.safe).map(at=>[at.id,buildThreat(config,at)]));
+  const realtime=c.schemaVersion===ZONE_RUN_SCHEMA_V6;
+  const meanLevel=Math.round(squad.reduce((n,b)=>n+b.level,0)/squad.length);
+  const layout=dailyLayout(now),opponents=Object.fromEntries(layout.sectors.filter(s=>!s.safe).map(at=>[at.id,buildThreat(config,at,realtime?meanLevel:undefined)]));
   const run:ExpeditionRun={schemaVersion:ZONE_RUN_SCHEMA,runId:id,state:'open',issuedAtMs:now,config:structuredClone(config),layout,privateSeed:seed,opponents,
     sectorId:'entry',visited:['entry'],cleared:[],looted:[],squad,energy:supplies.energy,kits,charge,haul:[],guardianDefeated:false,extraction:null,receipt:null,revision:0,
-    utilityUsed:[],utilityAtMs:null};
+    utilityUsed:[],utilityAtMs:null,...(realtime?{realtime:true,pendingFight:null,lastFight:null}: {})};
+  if(realtime)run.squad=run.squad.map(b=>({...b,staminaPm:1000}));
   return {run,updates:{...healingDelta(profile,'item.repair_kit',-kits),holobotVitals:vitals,expeditionSupplies:{...supplies,extractionCharges:supplies.extractionCharges-charge}}};
 }
 /** zone-run-3 view: the deployed shape, byte for byte (utility bookkeeping stripped). zone-run-4 view: schemaVersion
  * "zone-run-4" plus utilityUsed. The cooldown anchor and private seed never leave the host. */
 export function runView(run:ExpeditionRun,wire:ZoneRunWire=ZONE_RUN_SCHEMA){
-  const {privateSeed:_seed,utilityUsed,utilityAtMs:_cooldown,...view}=run;
-  const shaped=wire===ZONE_RUN_SCHEMA_V4?{...view,schemaVersion:ZONE_RUN_SCHEMA_V4,layout:layoutView(run.layout,wire),utilityUsed}:view;
+  const {privateSeed:_seed,utilityUsed,utilityAtMs:_cooldown,realtime:_realtime,pendingFight:_pending,lastFight:_last,...view}=run;
+  const shaped=wire===ZONE_RUN_SCHEMA_V6?{...view,schemaVersion:ZONE_RUN_SCHEMA_V6,layout:layoutView(run.layout,wire),utilityUsed,
+    squad:run.squad.map(b=>({...b,staminaPm:b.staminaPm??1000})),
+    pendingFight:run.pendingFight?{fightId:run.pendingFight.fightId,sectorId:run.pendingFight.sectorId,issuedAtMs:run.pendingFight.issuedAtMs,settleByMs:run.pendingFight.settleByMs,ambush:run.pendingFight.ambush}:null}
+    :wire===ZONE_RUN_SCHEMA_V4?{...view,schemaVersion:ZONE_RUN_SCHEMA_V4,layout:layoutView(run.layout,wire),utilityUsed}
+    :run.realtime?{...view,squad:run.squad.map(({staminaPm:_sta,...b})=>b)}:view;
   return structuredClone({...shaped,seed:run.layout.seed,band:sector(run).band,sector:run.sectorId,protectedSlot:run.haul.find(h=>h.protected)??null});
 }
 /** The host-authored preview line for a sector, from its role in the daily layout table. */
@@ -140,16 +167,19 @@ export function sectorGlimpse(at:Sector):string{
 }
 /** zone-run-3 layout: unchanged. zone-run-4 layout: every sector adds glimpse; band 1-3 sectors add their band's dangerLabel. */
 export function layoutView(layout:Layout,wire:ZoneRunWire=ZONE_RUN_SCHEMA):Layout{
-  if(wire!==ZONE_RUN_SCHEMA_V4)return structuredClone(layout);
+  if(wire!==ZONE_RUN_SCHEMA_V4&&wire!==ZONE_RUN_SCHEMA_V6)return structuredClone(layout);
   return {...structuredClone(layout),sectors:layout.sectors.map(s=>({...structuredClone(s),glimpse:sectorGlimpse(s),
     ...(s.band>0?{dangerLabel:ZONE_EXPEDITION_RULES.layoutCopy.dangerLabels[s.band-1]}:{})}))};
 }
 /** Reply to a run-advancing operation. A closing reply stays zone-extract-1 with the zone-run-3 run view (that schema
  * references zone-run-3's run); only an open zone-run-4 reply carries utilityResult. */
-export function advanceReply(wire:ZoneRunWire,operation:string,run:ExpeditionRun,result:{duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult}){
-  const closed=run.receipt!==null,v4=wire===ZONE_RUN_SCHEMA_V4&&!closed;
-  return {schemaVersion:closed?ZONE_EXTRACT_SCHEMA:wire,operation,run:runView(run,closed?ZONE_RUN_SCHEMA:wire),receipt:run.receipt,
+export function advanceReply(wire:ZoneRunWire,operation:string,run:ExpeditionRun,result:{duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult;fightIssue?:FightReplayIssueWire;fightReceipt?:FightReceiptWire;encounterResult?:EncounterResult},now=Date.now()){
+  const closed=run.receipt!==null,realtimeFight=wire===ZONE_RUN_SCHEMA_V6&&operation==='fight_settle',v4=(wire===ZONE_RUN_SCHEMA_V4||wire===ZONE_RUN_SCHEMA_V6)&&!closed;
+  // A wiped fight remains on zone-run-6 so its verified receipt/result are never mislabelled as the frozen extract wire.
+  return {schemaVersion:closed&&!realtimeFight?ZONE_EXTRACT_SCHEMA:wire,operation,run:runView(run,closed&&!realtimeFight?ZONE_RUN_SCHEMA:wire),receipt:run.receipt,
     ...(result.duelReceipt?{duelReceipt:result.duelReceipt}:{}),...(result.interrupted?{interrupted:true}:{}),
+    ...(result.fightIssue?{fightIssue:result.fightIssue}:{}),...(result.fightReceipt?{fightReceipt:result.fightReceipt}:{}),
+    ...(result.encounterResult?{encounterResult:result.encounterResult}:{}),...(wire===ZONE_RUN_SCHEMA_V6?{serverNowMs:now}:{}),
     ...(v4&&result.utilityResult?{utilityResult:structuredClone(result.utilityResult)}:{}),alreadyProcessed:false};
 }
 export function readExpedition(raw:unknown):ExpeditionRun{
@@ -171,6 +201,12 @@ export function readExpedition(raw:unknown):ExpeditionRun{
   const used=r.utilityUsed??[],at=r.utilityAtMs??null;
   if(!Array.isArray(used)||used.length>10||new Set(used).size!==used.length||used.some(id=>typeof id!=='string'||!r.layout.sectors.some(s=>s.id===id&&s.utility!==null))
     ||(at!==null&&!whole(at,8_640_000_000_000_000))||(used.length>0)!==(at!==null))return fail('unavailable');
+  if(r.realtime!==undefined){
+    if(r.realtime!==true||!('pendingFight' in r)||!('lastFight' in r))return fail('unavailable');
+    const p=r.pendingFight;
+    if(p!==null&&(!object(p)||typeof p.fightId!=='string'||typeof p.sectorId!=='string'||p.ambush!=='none'||!whole(p.issuedAtMs,8_640_000_000_000_000)||!whole(p.settleByMs,8_640_000_000_000_000)||typeof p.fleeAttempted!=='boolean'||!object(p.issue)))return fail('unavailable');
+    if(r.squad.some(b=>!whole(b.staminaPm,1000)))return fail('unavailable');
+  }
   return structuredClone({...r,utilityUsed:used,utilityAtMs:at});
 }
 function sector(run:ExpeditionRun):Sector {return run.layout.sectors.find(s=>s.id===run.sectorId)??fail('unavailable');}
@@ -198,8 +234,8 @@ function resolveUtility(run:ExpeditionRun,at:Sector,now:number):UtilityResult{
   run.utilityUsed.push(at.id);run.utilityAtMs=now;
   return {sectorId:at.id,utility,effect,opensSectorId,haul,spent:true,cooldownMs:UTILITY_COOLDOWN_MS>0?UTILITY_COOLDOWN_MS:null};
 }
-function buildThreat(config:ExpeditionConfig,at:Sector):DuelFighterStats{
-  const level=config.bandLevels[Math.max(0,at.band-1)];
+function buildThreat(config:ExpeditionConfig,at:Sector,meanLevel?:number):DuelFighterStats{
+  const level=meanLevel===undefined?config.bandLevels[Math.max(0,at.band-1)]:Math.max(1,Math.min(99,meanLevel+[-2,0,2][Math.max(0,at.band-1)]));
   // Existing WOLF curve/commands only. The parked 13th bot is never fabricated or granted.
   return duelFighterFromCombatant({...playerCombatant('wolf',{name:'WOLF',level}),tier:at.band-1,holobotId:at.guardian?'zell_guardian_placeholder':'neon_beast'});
 }
@@ -218,6 +254,75 @@ function terminal(profile:Record<string,unknown>,run:ExpeditionRun,outcome:Extra
     expeditionSupplies:{energy:run.energy,extractionCharges:supplies.extractionCharges+run.charge},holobotVitals:{...(profile.holobotVitals as Vitals??{}),...vitals},
     expeditionBank:{...bank,rareBlueprints:count(bank.rareBlueprints)+banked.filter(h=>h.kind==='rare_blueprint_fragment').reduce((n,h)=>n+h.amount,0),
       bulkySalvage:count(bank.bulkySalvage)+banked.filter(h=>h.kind==='bulky_salvage').reduce((n,h)=>n+h.amount,0),guardianDefeated:bank.guardianDefeated===true||run.guardianDefeated}};
+}
+/** Real-time S1 is a separate transition over the same pinned run. The old resolver path never calls this function. */
+export function advanceRealtimeExpedition(profile:Record<string,unknown>,original:ExpeditionRun,c:ExpeditionCommand,now:number,
+  verified?:FightReceiptWire):{run:ExpeditionRun;updates:Record<string,unknown>;fightIssue?:FightReplayIssueWire;fightReceipt?:FightReceiptWire;encounterResult?:EncounterResult}{
+  const run=structuredClone(original);if(!run.realtime||run.state!=='open')return fail('run_closed');
+  if(now<run.issuedAtMs)return fail('invalid_request');
+  const at=sector(run),pending=run.pendingFight,lastFight=run.lastFight;
+  if(pending&&!['fight_settle','flee','resume'].includes(c.operation))return fail('fight_pending');
+  if(c.operation==='engage'){
+    if(run.extraction)return fail('extraction_in_progress');
+    if(at.safe)return fail('safe_room');if(run.cleared.includes(at.id))return fail('already_cleared');
+    if(!run.squad.some(b=>(b.currentHealth??b.maxHealth)>0))return fail('holobot_ko');
+    const fightId=`ef_${run.runId}_${at.id}`;
+    const beast=threat(run,at),cpu=playerCombatant('wolf',{name:'WOLF',level:beast.level});
+    const starts=process.env.HOLOCITY_READINESS_START==='1'?run.squad.map(b=>manualReadinessStart(profile,b.holobotId,now)):undefined;
+    const issue=buildFightReplayIssue({battleId:fightId,seed:createHash('sha256').update(`${run.privateSeed}:realtime:${at.id}`).digest('hex'),
+      tier:Math.max(0,at.band-1),mentor:false,player:run.squad.map(b=>({...b,currentHealth:Math.floor(b.currentHealth??b.maxHealth)})),
+      opponent:[{...cpu,currentHealth:beast.currentHealth??beast.maxHealth}],
+      chase:process.env.HOLOCITY_FIGHT_CHASE==='1',attrs:process.env.HOLOCITY_FIGHT_ATTRS==='1',
+      playerStartStaminaPm:Object.fromEntries(run.squad.map(b=>[b.holobotId,b.staminaPm??1000])),hpScaleLights:19,
+      ...(starts?{playerStartSync:Object.fromEntries(starts.map(s=>[s.holobotId,s.startSync])),cpuStartSync:cpuStartSync('champion'),readinessStart:starts}:{}),
+      encounter:{kind:'expedition',runId:run.runId,sectorId:at.id,ambush:'none'}});
+    if(!issue)return fail('unavailable');
+    run.energy=Math.max(0,run.energy-run.config.fightEnergyCost); // An entered fight stays playable at zero energy.
+    run.pendingFight={fightId,sectorId:at.id,issuedAtMs:now,settleByMs:now+FIGHT_CAP_MS+FIGHT_SETTLE_GRACE_MS,ambush:'none',issue,fleeAttempted:false};
+    run.revision++;
+    return {run,updates:{expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy}},fightIssue:issue};
+  }
+  if(['fight_settle','flee','resume'].includes(c.operation)){
+    if(!pending&&c.operation==='fight_settle'&&lastFight&&lastFight.fightId===c.fightId)
+      return {run,updates:{},fightReceipt:lastFight.receipt,encounterResult:lastFight.encounterResult};
+    if(!pending)return fail('no_pending_fight');
+    if(c.fightId!==pending.fightId)return fail('no_pending_fight');
+    if(c.operation==='fight_settle'){
+      if(now>pending.settleByMs)return fail('fight_expired');
+      if(!verified||verified.battleId!==pending.fightId||verified.rulesHash!==pending.issue.rulesHash||verified.seed!==pending.issue.seed)return fail('replay_mismatch');
+      if(verified.winner==='player'&&now-pending.issuedAtMs<Math.max(0,verified.endTick*1000/30-3000))return fail('too_fast');
+      run.squad=run.squad.map(b=>{const f=verified.playerFinal.find(x=>x.holobotId===b.holobotId);if(!f)return fail('unavailable');
+        return {...b,currentHealth:f.currentHealth,staminaPm:f.staminaPm};});
+      run.pendingFight=null;
+      let updates:Record<string,unknown>={};
+      if(verified.winner==='player'){run.cleared.push(at.id);if(at.guardian)run.guardianDefeated=true;}
+      else updates=terminal(profile,run,'wipe',now);
+      const encounterResult:EncounterResult={outcome:verified.winner==='player'?'cleared':'wipe',sectorId:at.id,ambush:'none',
+        carry:run.squad.map(b=>({holobotId:b.holobotId,currentHealth:b.currentHealth??b.maxHealth,staminaPm:b.staminaPm??1000}))};
+      run.lastFight={fightId:pending.fightId,receipt:verified,encounterResult};run.revision++;
+      if(run.state==='open')updates={expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy},holobotVitals:{...(profile.holobotVitals as Vitals??{}),...vitalsOf(run)}};
+      if(process.env.HOLOCITY_BATTLE_IQ==='1')Object.assign(updates,fightLearningAfterSettle(profile,verified.playerFinal.filter(f=>f.fielded).map(f=>f.holobotId),verified.winner==='player',threat(run,at).level));
+      return {run,updates,fightReceipt:verified,encounterResult};
+    }
+    // Flee is free and seeded from the private run entropy. Resume after a disconnect counts as the same one attempt.
+    if(pending.fleeAttempted){
+      if(c.operation==='flee')return fail('flee_already_attempted');
+      // A failed flee never becomes a hidden HP or haul penalty on reconnect. The duel continues from its pinned issue.
+      if(now>pending.settleByMs){pending.settleByMs=now+FIGHT_CAP_MS+FIGHT_SETTLE_GRACE_MS;run.revision++;}
+      return {run,updates:{},fightIssue:pending.issue};
+    }
+    pending.fleeAttempted=true;
+    const escaped=seed32(`${run.privateSeed}:flee:${pending.fightId}`)%10000<FLEE_SUCCESS_BASIS_POINTS;
+    if(escaped){run.pendingFight=null;run.revision++;return {run,updates:{},encounterResult:{outcome:'fled',sectorId:at.id,ambush:'none',
+      carry:run.squad.map(b=>({holobotId:b.holobotId,currentHealth:b.currentHealth??b.maxHealth,staminaPm:b.staminaPm??1000}))}};}
+    // A failed attempt resumes the exact same issued fight. It does not charge energy or reroll the seed.
+    if(now>pending.settleByMs)pending.settleByMs=now+FIGHT_CAP_MS+FIGHT_SETTLE_GRACE_MS;
+    run.revision++;return {run,updates:{},fightIssue:pending.issue};
+  }
+  if(c.operation==='fight')return fail('client_update_required');
+  const legacy=advanceExpedition(profile,run,c,now);
+  if(c.operation==='move')legacy.run.squad=legacy.run.squad.map(b=>({...b,staminaPm:sector(legacy.run).safe?1000:Math.min(1000,(b.staminaPm??1000)+250)}));
+  return legacy;
 }
 export function advanceExpedition(profile:Record<string,unknown>,original:ExpeditionRun,c:ExpeditionCommand,now:number):{run:ExpeditionRun;updates:Record<string,unknown>;duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult}{
   const run=structuredClone(original);if(run.state!=='open')return fail('run_closed');

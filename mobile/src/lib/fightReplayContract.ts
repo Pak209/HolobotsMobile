@@ -84,6 +84,8 @@ export type FightReplayIssueWire = {
   profilesVersion: number;
   /** Presentation only; the rules fighters' startSync is authoritative. Absent with flag off. */
   readinessStart?: { holobotId: string; readiness: number; cap: number; startSync: number }[];
+  /** Present only on a host-issued expedition encounter; rival issues remain unchanged. */
+  encounter?: { kind: 'expedition'; runId: string; sectorId: string; ambush: 'none' };
 };
 
 export type FightFinalWire = {

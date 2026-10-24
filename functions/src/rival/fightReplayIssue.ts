@@ -39,6 +39,9 @@ export function buildFightReplayIssue(input: {
   battleId: string; seed: string; tier: number; mentor: boolean;
   player: readonly Combatant[]; opponent: readonly Combatant[]; chase?: boolean; attrs?: boolean;
   playerStartSync?: Readonly<Record<string, number>>; cpuStartSync?: number;
+  /** Expedition carry and sizing. Omitted for rival/Arena, retaining their issued bytes. */
+  playerStartStaminaPm?: Readonly<Record<string, number>>; hpScaleLights?: number;
+  encounter?: {kind:'expedition';runId:string;sectorId:string;ambush:'none'};
   readinessStart?: readonly {holobotId: string; readiness: number; cap: number; startSync: number}[];
 }): FightReplayIssueWire | null {
   const { player, opponent } = input;
@@ -67,6 +70,7 @@ export function buildFightReplayIssue(input: {
     f.attack = s.attack; f.defense = s.defense;
     f.startXMm = side === 0 ? -half : FIGHT_START_GAP_MM - half;
     if (side === 0 && input.playerStartSync) f.startSync = input.playerStartSync[c.holobotId] ?? 0;
+    if (side === 0 && input.playerStartStaminaPm) f.startStaminaPm = input.playerStartStaminaPm[c.holobotId] ?? 1000;
     if (side === 1 && input.cpuStartSync !== undefined) f.startSync = input.cpuStartSync;
     // duel-rules-5: SPEED = the battle speed (duelFighterFromCombatant rounds it), SPECIAL = the battle intelligence, rounded
     if (issueAttrs) { f.speed = s.speed; f.special = Math.round(c.intelligence ?? 0); }
@@ -76,6 +80,7 @@ export function buildFightReplayIssue(input: {
     ...defaultRulesValues(),
     fighters: [...player.map(c => fighter(c, 0, c.holobotId)), ...opponent.map(c => fighter(c, 1, 'cpu-' + c.holobotId))],
   };
+  if (input.hpScaleLights !== undefined) rules.hpScaleLights = input.hpScaleLights;
   try { validateRules(rules); } catch { return null; }
   if (!rules.fighters.some(f => f.side === 0 && f.hp > 0)) return null;
   const chase = input.chase ? defaultChaseRules() : null;
@@ -94,5 +99,6 @@ export function buildFightReplayIssue(input: {
     },
     profilesVersion: PROFILES_VERSION,
     ...(input.readinessStart ? { readinessStart: [...input.readinessStart] } : {}),
+    ...(input.encounter ? { encounter: input.encounter } : {}),
   };
 }
