@@ -5,6 +5,7 @@ import { theme } from "@/lite/theme";
 import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
+  Image as RNImage,
   Pressable,
   StyleSheet,
   ScrollView,
@@ -16,11 +17,12 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
 import { HolobotPickerModal } from "@/lite/components/HolobotPickerModal";
 import { Svg, Path } from "@/components/FigmaSvg";
-import { mergeHolobotRoster } from "@/config/holobots";
+import { getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWatchWorkoutPresence } from "@/hooks/useWatchBridge";
 import { useWorkout, type DistanceUnit } from "@/hooks/useWorkout";
 import { normalizeProgressionSystem } from "@/lib/progressionSystems";
+import { readinessDisplayValue, readinessResultCopy, readinessUiEnabled } from "@/lib/readiness";
 import type { RootTabs } from "../../../LiteApp";
 
 const KM_TO_MILES = 0.621371;
@@ -57,6 +59,7 @@ export function FitnessScreen() {
   const distanceUnit = profile?.syncDistanceUnit ?? localDistanceUnit;
   const roster = useMemo(() => mergeHolobotRoster(profile?.holobots, "full"), [profile?.holobots]);
   const selectedHolobot = roster[selectedHolobotIndex] ?? roster[0];
+  const readiness = readinessDisplayValue(profile?.syncReadiness?.[selectedHolobot?.name?.toUpperCase() ?? ""], Date.now());
   const syncBoostMultiplier = normalizeProgressionSystem(profile?.rewardSystem).syncBoostEnabled ? 1.2 : 1;
   const workout = useWorkout(user?.uid ?? null, distanceUnit, {
     expMultiplier: syncBoostMultiplier,
@@ -186,6 +189,13 @@ export function FitnessScreen() {
           <RNText style={styles.hudHelp}>{workout.sessionsCompleted}/4 SESSIONS TODAY · {workout.sessionsRemaining} AVAILABLE</RNText>
         </View>
         <HolobotRosterCard holobot={selectedHolobot} slot={selectedHolobotIndex} compact selected live={focused && !isPickerOpen && !isSettingsOpen && !completionResult} onPress={() => setIsPickerOpen(true)} actionLabel="CHANGE WORKOUT PARTNER ›" />
+        {readinessUiEnabled() && selectedHolobot ? (
+          <View accessibilityLabel={`${selectedHolobot.name} SYNC readiness ${readiness} of 100`}>
+            <RNText style={styles.hudHelp}>{`SYNC READINESS · ${selectedHolobot.name.toUpperCase()} · ${readiness}/100`}</RNText>
+            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${readiness}%` }]} /></View>
+            <RNText style={styles.hudHelp}>Train this Holobot to fill readiness.</RNText>
+          </View>
+        ) : null}
         <View style={styles.telemetryRow}>
           <View style={styles.telemetry}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>DISTANCE</RNText><RNText style={styles.telemetryValue}>{displayDistance.toFixed(3)}</RNText><RNText style={styles.telemetryLabel}>{formatDistanceLabel(distanceUnit).toUpperCase()}</RNText></View>
           <View style={styles.telemetry}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>MOVEMENT SPEED</RNText><RNText style={styles.telemetryValue}>{Math.round(displaySpeed)}</RNText><RNText style={styles.telemetryLabel}>{distanceUnit === "mi" ? "MILES / HOUR" : "KM / HOUR"}</RNText></View>
@@ -313,6 +323,15 @@ export function FitnessScreen() {
                   <RNText style={styles.rewardValue}>{`+${completionResult?.expReward ?? 0}`}</RNText>
                 </View>
               </View>
+
+              {readinessUiEnabled() && completionResult ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  {completionResult.readiness ? <RNImage source={getHolobotFullImageSource(completionResult.readiness.holobotName)} style={{ width: 36, height: 40 }} resizeMode="contain" /> : null}
+                  <RNText style={[styles.settingsMeta, { flex: 1 }]}>
+                    {readinessResultCopy(completionResult.readiness, completionResult.rewardsPersisted)}
+                  </RNText>
+                </View>
+              ) : null}
 
               <RNText style={styles.settingsCopySmall}>
                 {`${completionResult?.sessionsCompleted ?? 0}/4 workouts used today`}

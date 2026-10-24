@@ -56,6 +56,8 @@ export type UserProfile = {
   /** Server-owned City HP ledger (host-written on settles), mapped only in lite builds for the Arena KO guard. Read only:
    * mobile never writes or computes it. Same shape as src/lite/lib/arenaVitals.ts `HostVitals`. */
   readonly holobotVitals?: Readonly<Record<string, Readonly<{ currentHealth: number; maxHealth: number }>>> | null;
+  /** Protected host field; display only. Never included in profile writes. */
+  readonly syncReadiness?: Readonly<Record<string, Readonly<{ milli: number; atMs: number }>>> | null;
   id: string;
   username: string;
   holobots: UserHolobot[];

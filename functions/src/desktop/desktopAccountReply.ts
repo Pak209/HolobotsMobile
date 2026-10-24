@@ -25,6 +25,7 @@ import { getHolobotDisplayStats, HolobotDisplayStats, normalizeUserHolobot } fro
 import { getPlayerBattleStats } from '../lib/progressionEconomy';
 import { dailyMissionLedgerSummary } from '../lib/economy';
 import { onboardingView, readOnboarding } from '../lib/onboarding';
+import { readinessAccrualEnabled, readinessView } from '../lib/syncReadiness';
 
 /** Deployed 2026-09-30: buddyUnits is an int. Still served to clients that don't ask for a later version. */
 export const DESKTOP_ACCOUNT_V1 = 'desktop-account-1';
@@ -87,6 +88,7 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     tournamentUnlocks: tournamentUnlocks(profile),
     dailyMissionLedger: dailyMissionLedgerSummary(profile, new Date(nowMs)),
     onboarding: onboardingView(readOnboarding(profile.onboarding)),
+    ...(readinessAccrualEnabled() ? { syncReadiness: readinessView(profile, nowMs) } : {}),
     holobots,
     blueprints: profile.blueprints ?? {},
     travelSquad: readTravelSquad(profile),
