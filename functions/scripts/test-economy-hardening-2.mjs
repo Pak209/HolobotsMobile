@@ -2,6 +2,9 @@
 // test-arena-match-emulator.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { pinFlags, withFlags } from './lib/flag-env.mjs';
+// Stat-derived assertions pin the pre-#72.78 (flag OFF) tables; the ON counterpart is in the item 4 test below.
+pinFlags({ HOLOCITY_FIGHT_ATTRS: undefined });
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const E = require('../lib/lib/economy.js');
@@ -112,6 +115,14 @@ test('item 4: HOLOCITY_LEGACY_QUEST_TIMERS is on only for exactly "1"; the power
   for (const [v, on] of [['1', true], [undefined, false], ['', false], ['0', false], ['true', false], [' 1', false]]) assert.equal(PT.legacyQuestTimersEnabled({ HOLOCITY_LEGACY_QUEST_TIMERS: v }), on, String(v));
   const s = require('../lib/lib/progression.js').getHolobotBattleStats('ACE', 5, { attack: 4 });
   assert.equal(PE.getHolobotPowerScore({ name: 'ACE', level: 5, boostedAttributes: { attack: 4 } }), Math.round(s.maxHP * 4 + s.attack * 6 + s.defense * 5 + s.speed * 4 + s.intelligence * 5));
+  // Production (#72.86): FIGHT_ATTRS ON moves the fight speed (rules-5 table) but the power score keeps the pre-#72.78
+  // speed column (getLegacyBattleSpeed), so quest odds and stored holobotPower values are unchanged.
+  const offScore = PE.getHolobotPowerScore({ name: 'ACE', level: 5, boostedAttributes: { attack: 4 } });
+  withFlags({ HOLOCITY_FIGHT_ATTRS: '1' }, () => {
+    const on = require('../lib/lib/progression.js').getHolobotBattleStats('ACE', 5, { attack: 4 });
+    assert.notEqual(on.speed, s.speed, 'the rules-5 table really moved ACE speed');
+    assert.equal(PE.getHolobotPowerScore({ name: 'ACE', level: 5, boostedAttributes: { attack: 4 } }), offScore);
+  });
 });
 
 // ---- item 5: dailyMissionLedger summary on desktop-account replies ----

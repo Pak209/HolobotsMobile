@@ -2,6 +2,9 @@
 // typed refusals (SPECIAL tied to SYNC, no points), idempotency per requestId.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { pinFlags, withFlags } from './lib/flag-env.mjs';
+// The OFF tests below pin the pre-#72.78 rules; the ON test pins the production (#72.86) rules.
+pinFlags({ HOLOCITY_FIGHT_ATTRS: undefined });
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const E = require('../lib/lib/progressionEconomy.js');
@@ -83,4 +86,16 @@ test('ledger keeps the last 20 ids and ignores junk entries', () => {
   assert.equal(r.updates.attributeBoostRequestIds.length, E.MAX_ATTRIBUTE_BOOST_REQUEST_IDS);
   assert.equal(r.updates.attributeBoostRequestIds.at(-1), 'new'); assert.equal(r.updates.attributeBoostRequestIds[0], 'old_1');
   assert.equal(E.buildAttributeBoostRaw({ ...p, attributeBoostRequestIds: 'junk' }, req()).reply.applied, true);
+});
+
+test('rules-5 (HOLOCITY_FIGHT_ATTRS=1, production): SPECIAL is buyable +1, HP is +3 per point, speed +1', () => {
+  withFlags({ HOLOCITY_FIGHT_ATTRS: '1' }, () => {
+    for (const [attribute, key, after] of [['special', 'special', 1], ['health', 'health', 3], ['speed', 'speed', 1]]) {
+      const r = E.buildAttributeBoostRaw(profile(), req({ attribute }));
+      assert.equal(r.reply.applied, true, attribute); assert.equal('reason' in r.reply, false);
+      assert.equal(r.reply.holobot.attributePoints, 1);
+      assert.equal(r.reply.holobot.boostedAttributes[key], after, attribute);
+      assert.deepEqual(Object.keys(r.updates).sort(), ['attributeBoostRequestIds', 'holobots']);
+    }
+  });
 });

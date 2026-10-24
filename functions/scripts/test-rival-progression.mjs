@@ -2,6 +2,9 @@
 // (one battle table, fielded bots only, EXP Booster, once per battleId), and the exact v2/v1 projections.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { pinFlags, withFlags } from './lib/flag-env.mjs';
+// The pre-existing tests pin the flag-OFF stats ([192, 96, 71, 80, 60]); the ON counterpart follows the issue test.
+pinFlags({ HOLOCITY_FIGHT_ATTRS: undefined });
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const L = require('../lib/lib/rivalLadder.js');
@@ -56,6 +59,14 @@ test('issue: playerCombatants carry the real stats (getPlayerBattleStats) and pr
   // #53 amendment 1: v3 opponents are WOLF at level 1 + 4t (tier 0 = a fresh L1 WOLF).
   for (const c of i.reply.encounter.opponentSquad) assert.deepEqual([c.level, c.maxHealth, c.attack, c.defense, c.speed, c.intelligence], [1, 175, 50, 50, 50, 40]);
   assert.deepEqual(issue(profile(), []).reply.playerCombatants, [], 'empty travel squad → []');
+});
+
+test('issue under production FIGHT_ATTRS=1: the same ACE L4 combatant carries the rules-5 speed (69), everything else unchanged', () => {
+  withFlags({ HOLOCITY_FIGHT_ATTRS: '1' }, () => {
+    const [ace] = issue(profile(), ['ace', 'wolf']).reply.playerCombatants;
+    assert.deepEqual([ace.maxHealth, ace.attack, ace.defense, ace.speed, ace.intelligence], [192, 96, 71, 69, 60]);
+    assert.equal(ace.speed, E.getPlayerBattleStats(bots()[0]).speed);
+  });
 });
 
 test('v2 / v1 projections of issue and settle are the pre-#53 shapes exactly', () => {
