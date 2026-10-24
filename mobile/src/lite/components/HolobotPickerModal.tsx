@@ -1,4 +1,3 @@
-import { HolobotRosterCard } from "@/lite/components/HolobotRosterCard";
 import { theme } from "@/lite/theme";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, Image } from "react-native";
 
@@ -23,7 +22,7 @@ export function HolobotPickerModal({
 }: HolobotPickerModalProps) {
   return (
     <Modal
-      animationType="fade"
+      animationType="none"
       presentationStyle="overFullScreen"
       transparent
       visible={visible}
@@ -42,16 +41,13 @@ export function HolobotPickerModal({
             showsVerticalScrollIndicator={false}
           >
             {roster.map((holobot, index) => (
-              <HolobotRosterCard
-                key={holobot.key}
-                holobot={holobot}
-                slot={index}
-                compact
-                selected={index === selectedIndex}
-                live={visible && index === selectedIndex}
-                onPress={holobot.owned ? () => onSelect(index) : undefined}
-                actionLabel={holobot.owned ? (index === selectedIndex ? "ACTIVE HOLOBOT" : "SELECT HOLOBOT  ›") : "BLUEPRINTS REQUIRED"}
-              />
+              <Pressable key={holobot.key} accessibilityRole="button" accessibilityLabel={`${holobot.name}, ${holobot.owned ? `level ${holobot.level}` : "blueprints required"}`} accessibilityState={{ selected: index === selectedIndex, disabled: !holobot.owned }}
+                disabled={!holobot.owned} onPress={() => onSelect(index)} style={styles.pickerRow}>
+                <GameSurfaceFrame accent={index === selectedIndex ? theme.colors.accent : theme.colors.border} fill={theme.plates.navy} strong={index === selectedIndex} />
+                <Image source={holobot.imageSource} style={styles.portrait} resizeMode="contain" />
+                <View style={styles.rowCopy}><Text style={styles.rowName} numberOfLines={1}>{holobot.name}</Text><Text style={styles.rowMeta}>{holobot.owned ? `LV ${holobot.level}` : "BLUEPRINTS REQUIRED"}</Text></View>
+                <Text style={styles.rowSelect}>{index === selectedIndex ? "ACTIVE" : holobot.owned ? "SELECT ›" : "LOCKED"}</Text>
+              </Pressable>
             ))}
           </ScrollView>
 
@@ -115,8 +111,14 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 12,
-    gap: 8,
+    gap: 4,
   },
+  pickerRow: { height: 72, position: "relative", flexDirection: "row", alignItems: "center", paddingHorizontal: 8, gap: 8 },
+  portrait: { width: 58, height: 66 },
+  rowCopy: { flex: 1, minWidth: 0 },
+  rowName: { ...theme.type.label, color: theme.colors.text },
+  rowMeta: { ...theme.type.micro, color: theme.colors.muted },
+  rowSelect: { ...theme.type.micro, color: theme.colors.accent },
   backButton: {
     alignSelf: "center",
     marginTop: 2,

@@ -79,13 +79,13 @@ describe('Arena round on the shared 3D stage', () => {
         expect(screen).toContain("battle && (phase.kind === 'battle' || phase.kind === 'confirming' || presentation.holding) ? <View style={styles.fight}>");
     });
 
-    it('critic #1: the toolbar clears the pilot-menu cog (48 pt at insets.top + 10, right 18), so QUIT stays reachable', () => {
+    it('the toolbar clears the direct 52 pt key column, so QUIT stays reachable', () => {
         const cog = read('../../HomeCogButton.tsx');
         expect(cog).toContain('insets.top + 10');
         expect(cog).toMatch(/right: 18 \+ insets\.right/);
-        expect(cog).toMatch(/trigger: \{ position: "absolute", width: 48, height: 48/);
+        expect(cog).toMatch(/key: \{ width: 52, height: 52/);
         // top: 12 pt container inset + 60 pt reserve = 72 pt >= 18 + 48 pt cog; the HUD starts at top + 44 + 8 = +62 > +58.
-        expect(screen).toContain('chrome={{ top: insets.top + 10, right: 60 }}');
+        expect(screen).toContain('chrome={{ top: insets.top + 10, right: 76 }}');
         expect(stage).toContain('chrome ? { marginRight: chrome.right } : null');
         expect(stage).toMatch(/top: \{ position: 'absolute', top: 0, left: 12, right: 12 \}/);
         expect(stage).toMatch(/button: \{ minHeight: 44/);

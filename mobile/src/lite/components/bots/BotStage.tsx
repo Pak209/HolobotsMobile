@@ -209,7 +209,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
           (gl as unknown as Record<string, unknown>)[name] = (...args: unknown[]) => { glCalls++; glCallNames[name] = (glCallNames[name] ?? 0) + 1; return (method as (...values: unknown[]) => unknown).apply(gl, args); };
         }
       }
-      renderer = new Renderer({ gl, antialias: true, alpha: transparentBackdrop });
+      renderer = new Renderer({ gl, antialias: bots.length > 1, alpha: transparentBackdrop });
       phase = 'renderer configuration';
       // Expo's drawingBuffer dimensions are initial values, not live layout getters.
       let renderWidth = drawSize.current.width, renderHeight = drawSize.current.height;
@@ -343,6 +343,8 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         if (!alive) return;
         frameId = requestAnimationFrame(render);
         const now = performance.now();
+        // Detail-only single-bot viewers never need a 60 Hz GL loop. Keep duel stages untouched.
+        if (!isDuel && now - lastFrame < 1000 / 30) return;
         const elapsed = Math.min(now - lastFrame, 1000);
         lastFrame = now;
         if (!activeRef.current || !appActive) { sampleStart = now; sampleFrames = 0; return; }
@@ -442,7 +444,7 @@ export const BotStage = forwardRef<BotStageHandle, Props>(function BotStage({ bo
         const renderEnd = knobs ? performance.now() : 0;
         // Bound native work to one frame. endFrameEXP alone queues asynchronously,
         // which can report 60 JS fps while a software GPU builds an unbounded backlog.
-        if (Platform.OS !== 'web') gl.finish();
+        if (isDuel && Platform.OS !== 'web') gl.finish();
         gl.endFrameEXP();
         if (Platform.OS !== 'web') gl.flushEXP();
         const koReady = !!terminalNow && pace.current.idle && terminalNow.defeated.every(side => {

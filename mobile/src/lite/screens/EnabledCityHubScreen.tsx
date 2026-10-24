@@ -16,6 +16,7 @@ import { isStoryOverworldAvailable } from "@/lite/config/storyMode";
 import type { CityHubFixture } from "@/lite/lib/cityHubFixtures";
 import { useCityRivalCooldowns } from "@/lite/hooks/useRivalStatus";
 import { theme } from "@/lite/theme";
+import { HomeCogButton } from "@/lite/components/HomeCogButton";
 
 const MAP_WIDTH = 360;
 const MAP_HEIGHT = 380;
@@ -103,7 +104,7 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
     setMessage(null);
     if (district.destination === "Workshop") { setPanel("workshop"); return; }
     if (district.destination === "Rivals") { setPanel("rivals"); return; }
-    if (fixture) { fixture.onNavigate?.(district.destination); setMessage(`${district.name} selected · ${district.activity}`); return; }
+    if (fixture?.onNavigate) { fixture.onNavigate(district.destination); setMessage(`${district.name} selected · ${district.activity}`); return; }
     navigation.navigate(district.destination);
   }
   function pickRival(rival: ArenaCitizen) {
@@ -115,14 +116,14 @@ export function CityHubScreen({ fixture }: { fixture?: CityHubFixture } = {}) {
   }
   function browseSupplies() {
     setPanel(null);
-    if (fixture) fixture.onNavigate?.("CityMarket"); else navigation.navigate("CityMarket", { from: "CityHub" });
+    if (fixture?.onNavigate) fixture.onNavigate("CityMarket"); else navigation.navigate("CityMarket", { from: "CityHub" });
   }
 
   return <View style={styles.screen}>
+    <HomeCogButton onHome={fixture?.onNavigate ? () => fixture.onNavigate?.("Home") : undefined} />
     <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + 24 }}>
       <View style={styles.header}>
         <View><Text style={styles.kicker}>HOLOCITY / MOBILE LINK</Text><Text style={styles.title}>THE CITY IS YOURS.</Text></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back to dashboard" onPress={() => fixture ? fixture.onNavigate?.("Home") : navigation.navigate("Home")} style={styles.home}><Text style={styles.homeText}>⌂</Text></Pressable>
       </View>
       <View style={styles.statusRow}>
         <View style={styles.signal}><View style={styles.signalDot} /><Text style={styles.statusText}>{period === "night" ? "NIGHT CYCLE" : "DAY CYCLE"}</Text></View>
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.carbon }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 22, gap: 8 },
   kicker: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1.8, marginBottom: 6 }, title: { ...theme.type.header, color: theme.colors.text, fontSize: 24 },
   home: { width: 48, height: 48, alignItems: "center", justifyContent: "center", borderColor: theme.colors.border, borderWidth: 1, borderRadius: theme.radius.md }, homeText: { color: theme.colors.accent, fontSize: 30 },
-  statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 22, marginTop: 22, marginBottom: 14 }, signal: { flexDirection: "row", alignItems: "center", gap: 7 }, signalDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: theme.colors.accent }, statusText: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1.1 },
+  statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingLeft: 22, paddingRight: 84, marginTop: 22, marginBottom: 14 }, signal: { flexDirection: "row", alignItems: "center", gap: 7 }, signalDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: theme.colors.accent }, statusText: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1.1 },
   mapFrame: { marginHorizontal: 14, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 16, overflow: "hidden" }, mapDistrict: { position: "absolute", width: 94, minHeight: 62, alignItems: "center", zIndex: 2 },
   districtSymbol: { width: 35, height: 35, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: 9, backgroundColor: theme.plates.keycap, alignItems: "center", justifyContent: "center" }, symbolText: { fontSize: 24, color: theme.colors.accent, lineHeight: 30 }, lockedSymbol: { borderColor: theme.colors.disabled }, districtLabel: { ...theme.type.micro, fontSize: 9, lineHeight: 13, color: theme.colors.text, textAlign: "center", backgroundColor: theme.plates.navy, paddingHorizontal: 5, marginTop: 5, borderRadius: 3 },
   rivalPin: { position: "absolute", width: 44, height: 44, alignItems: "center", justifyContent: "center", zIndex: 3 }, rivalDot: { width: 21, height: 21, borderWidth: 2, borderRadius: 11, backgroundColor: theme.plates.keycap, alignItems: "center", justifyContent: "center" }, pinInitial: { ...theme.type.micro, fontSize: 9 },

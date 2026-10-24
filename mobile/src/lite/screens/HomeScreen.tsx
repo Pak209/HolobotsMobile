@@ -1,8 +1,8 @@
-import { type ReactNode, useMemo, useState } from "react";
-import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View, type DimensionValue, type ImageSourcePropType } from "react-native";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { Alert, Image as RNImage, Modal, Pressable, ScrollView, StyleSheet, Text as RNText, View, useWindowDimensions, type DimensionValue, type ImageSourcePropType } from "react-native";
 import { Defs, Filter, FeColorMatrix, Image as SvgImage } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 
 import { DashboardSettingsModal } from "@/lite/components/DashboardSettingsModal";
 import { FigmaCanvas, useHomeCompactFactor } from "@/lite/components/FigmaCanvas";
@@ -19,13 +19,14 @@ import { describePartBoosts, getEquippedPartBoosts, getPartStars } from "@/lib/p
 import { Svg, G, Line, Path, Rect, Text } from "@/components/FigmaSvg";
 import { homeAssets } from "@/lite/config/figmaAssets";
 import {
-  ARTBOARD_HEIGHT, ARTBOARD_WIDTH, FOOTER_LABEL_SIZE, FOOTER_LABEL_Y, HEADER_PLATE_PATH, HOME_FOOTER_ITEMS, HOME_NATIVE_CITY_ENTRY, HOME_PAGE_PADDING, HOME_STATUS_STRIP,
-  PART_OVERLAY, PART_SLOT_HEIGHT, PART_SLOT_WIDTH, PART_SLOT_XS, PART_SLOT_Y, STATUS_STRIP_TEXT_PT, artboardPercentX, artboardPercentY, type HomeFooterKey,
+  ARTBOARD_HEIGHT, ARTBOARD_WIDTH, FOOTER_LABEL_SIZE, FOOTER_LABEL_Y, HEADER_PLATE_PATH, HOME_FOOTER_ITEMS, HOME_NATIVE_CITY_ENTRY, HOME_STATUS_STRIP,
+  PART_OVERLAY, PART_SLOT_HEIGHT, PART_SLOT_WIDTH, PART_SLOT_XS, PART_SLOT_Y, STATUS_STRIP_TEXT_PT, artboardPercentX, artboardPercentY, homePagePadding, type HomeFooterKey,
 } from "@/lite/config/homeLayout";
 import { getPartImageSource } from "@/lite/config/gameAssets";
 import { getExpProgress, getHolobotFullImageSource, mergeHolobotRoster } from "@/config/holobots";
 import { theme } from "@/lite/theme";
 import { useRivalStatus, type RivalHudPreview } from "@/lite/hooks/useRivalStatus";
+import { formatRivalCountdown, type RivalCooldown } from "@/lite/lib/rivalHud";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHostDashboard } from "@/lite/hooks/useHostDashboard";
 import { presentHostDashboard, type HostDashboardState } from "@/lite/lib/hostDashboard";
@@ -222,6 +223,8 @@ function ArtImage({
 export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: RivalHudPreview; dashboardPreview?: HostDashboardState } = {}) {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const pagePadding = homePagePadding(window, insets);
   const { profile, profileError, profileLoading, retryProfile, updateProfile, user } = useAuth();
   const rival = useRivalStatus(user?.uid, rivalPreview);
   // Header pilot / SYNC / HOLOS, squad LV and zone rows: host reads only (desktopAccountSnapshot + desktopItemsHost).
@@ -288,7 +291,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
     SPEED: Math.min(100, selectedHolobot.stats.speed + partBoosts.speed),
   };
   return (
-    <View style={{ flex: 1, paddingTop: insets.top + HOME_PAGE_PADDING.top, paddingBottom: insets.bottom + HOME_PAGE_PADDING.bottom, backgroundColor: theme.colors.carbon }}>
+    <View style={{ flex: 1, paddingTop: insets.top + pagePadding.top, paddingBottom: insets.bottom + pagePadding.bottom, backgroundColor: theme.colors.carbon }}>
     <FigmaCanvas>
       <View style={StyleSheet.absoluteFill}>
         <ArtImage tintColor={theme.colors.carbon} source={homeAssets.backgroundBase} x={0} y={0} width={1800} height={3200} />
@@ -541,6 +544,9 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
               </Svg>
             </View>
           </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Explore HoloCity and rivals" onPress={() => navigation.navigate("CityHub")} style={styles.statsButton}>
+            <View style={styles.statsButtonInner}><RNText style={styles.railCityLabel}>CITY</RNText></View>
+          </Pressable>
         </HomeUtilityRail>
         {rosterAvailable ? <View pointerEvents="none" style={styles.holobotPortrait}>
           <RNImage source={getHolobotFullImageSource(selectedHolobot.name)} style={styles.fillImage} resizeMode="contain" />
@@ -585,9 +591,7 @@ export function HomeScreen({ rivalPreview, dashboardPreview }: { rivalPreview?: 
           <View style={styles.statusRow}>
             {/* HOLOS = desktopItemsHost read; SYNC = desktopAccountSnapshot.syncPoints. PLACEHOLDER copy. */}
             <RNText testID="dashboard-header-counters" style={[styles.statusText, styles.statusCounters]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{[rival.status ? `TIER ${rival.status.tier}` : null, dashboard.holos, dashboard.sync].filter(Boolean).join(" · ")}</RNText>
-            <Pressable accessibilityRole="button" accessibilityLabel="Explore HoloCity and rivals" hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} onPress={() => navigation.navigate("CityHub")}>
-              <RNText style={styles.cityText}>CITY › {rival.countdown || "RIVALS"}</RNText>
-            </Pressable>
+            <RNText style={styles.cityText}>CITY · <RivalCountdown cooldown={rival.cooldown} /></RNText>
           </View>
           {/* desktopAccountSnapshot.username; a failed read offers a retry, never a fallback name. PLACEHOLDER copy. */}
           <Pressable disabled={!dashboard.unavailable} accessibilityRole={dashboard.unavailable ? "button" : "text"} accessibilityLabel={dashboard.unavailable ? `${dashboard.pilot}. Retry account read` : dashboard.pilot} hitSlop={6} onPress={host.retry} style={styles.pilotRow}>
@@ -702,9 +706,22 @@ function HomeCityEntry() {
 /** The right-hand rail (pilot stats, quests, training, settings) is sized in points. lite-sim-fixes-1: on a smaller
  * artboard (iPhone SE) it shrinks with the art from its top-right corner, so the settings gear stays above the CHANGE
  * HOLOBOT bar instead of covering its swap icon. Factor 1 (unchanged) at 402 and 430 pt. */
+function RivalCountdown({ cooldown }: { cooldown: RivalCooldown | null }) {
+  const focused = useIsFocused();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!focused || !cooldown) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [focused, cooldown?.endsAtMs]);
+  return <>{cooldown ? formatRivalCountdown(cooldown.endsAtMs, now) : "RIVALS"}</>;
+}
+
 function HomeUtilityRail({ children }: { children: ReactNode }) {
   const k = useHomeCompactFactor();
-  return <View testID="home-utility-rail" style={[styles.utilityStack, k < 1 ? { transform: [{ scale: k }], transformOrigin: "top right" } : null]}>{children}</View>;
+  const keyScale = Math.max(48 / 52, k);
+  return <View testID="home-utility-rail" style={[styles.utilityStack, keyScale < 1 ? { transform: [{ scale: keyScale }], transformOrigin: "top right" } : null]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -718,6 +735,7 @@ const styles = StyleSheet.create({
   pilotRow: { alignSelf: "flex-start", maxWidth: "70%" },
   pilotText: { color: theme.colors.text },
   cityText: { color: theme.colors.accent, fontFamily: HUD_FONT, fontSize: STATUS_STRIP_TEXT_PT, fontWeight: "800" },
+  railCityLabel: { color: theme.colors.accent, fontFamily: "HoloDisplay", fontSize: 11, fontWeight: "900" },
   artImageFrame: {
     position: "absolute",
   },
@@ -741,7 +759,9 @@ const styles = StyleSheet.create({
     gap: 10,
     position: "absolute",
     right: 18,
-    top: "14.5%",
+    // The HoloCity artboard is letterboxed 15 pt lower than OG at 402 pt;
+    // 57 here puts the first key back at OG's ~177 pt screen coordinate.
+    top: 57,
     zIndex: 25,
   },
   statsButton: {

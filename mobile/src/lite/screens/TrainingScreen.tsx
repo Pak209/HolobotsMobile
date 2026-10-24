@@ -154,7 +154,7 @@ export function TrainingScreen({ cityPreview }: { cityPreview?: CityProgression 
 
   return (
     <View style={styles.page}>
-      <HomeCogButton showStats={false} />
+      <HomeCogButton />
       <ScrollView bounces={false} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>TRAINING</Text>
         <Text style={styles.subcopy}>Choose a training course to focus your Holobot&apos;s growth.</Text>
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accent,
     justifyContent: "center",
     marginTop: 2,
-    minHeight: 26,
+    minHeight: 44,
     paddingHorizontal: 8,
   },
   selectButtonText: {

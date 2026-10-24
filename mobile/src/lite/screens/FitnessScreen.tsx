@@ -1,5 +1,6 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HolobotRosterCard } from "@/lite/components/HolobotRosterCard";
+import { HomeCogButton } from "@/lite/components/HomeCogButton";
 import { GameSurfaceFrame } from "@/lite/components/ui/GameSurfaceFrame";
 import { theme } from "@/lite/theme";
 import { useEffect, useMemo, useState } from "react";
@@ -11,6 +12,7 @@ import {
   ScrollView,
   Text as RNText,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
@@ -42,6 +44,8 @@ function formatSyncBoostCopy(boostCount: number, unit: DistanceUnit) {
 }
 
 export function FitnessScreen() {
+  const { height: viewportHeight } = useWindowDimensions();
+  const shortViewport = viewportHeight <= 700;
   const navigation = useNavigation<BottomTabNavigationProp<RootTabs>>();
   const { user, profile, updateProfile } = useAuth();
   const [selectedHolobotIndex, setSelectedHolobotIndex] = useState(0);
@@ -172,23 +176,20 @@ export function FitnessScreen() {
   const focused = useIsFocused();
   return (
     <View style={styles.page}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 28 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
+      <HomeCogButton />
+      <ScrollView contentContainerStyle={[styles.content, shortViewport && styles.shortContent, { paddingTop: insets.top + (shortViewport ? 10 : 18), paddingBottom: insets.bottom + 28 }]} showsVerticalScrollIndicator={false}>
+        <View style={[styles.headerRow, styles.navClear]}>
           <View><RNText style={styles.eyebrow}>PILOT FITNESS / SYNC LINK</RNText><RNText style={styles.pageTitle}>SYNC WORKOUT</RNText></View>
-          <View style={styles.headerActions}>
-            <Pressable style={styles.headerAction} onPress={() => navigation.navigate("Home")} accessibilityRole="button" accessibilityLabel="Go to home dashboard"><GameSurfaceFrame /><RNText style={styles.headerGlyph}>⌂</RNText></Pressable>
-            <Pressable style={styles.headerAction} onPress={() => setIsSettingsOpen(true)} accessibilityRole="button" accessibilityLabel="Open Sync settings"><GameSurfaceFrame /><RNText style={styles.headerGlyph}>⚙</RNText></Pressable>
-          </View>
         </View>
-        <View style={styles.syncPlate}>
+        <View style={[styles.syncPlate, shortViewport && styles.shortSyncPlate, styles.navContentInset]}>
           <GameSurfaceFrame strong />
           <View style={styles.headerRow}><RNText style={styles.eyebrow}>SYNC POINTS</RNText><RNText style={styles.liveStatus}>{workout.isRunning ? "● LIVE" : "STANDBY"}</RNText></View>
-          <RNText style={styles.syncValue}>+{workout.syncPointsReward}</RNText>
+          <RNText style={[styles.syncValue, shortViewport && styles.shortSyncValue]}>+{workout.syncPointsReward}</RNText>
           <View style={styles.headerRow}><RNText style={styles.telemetryLabel}>SESSION PROGRESS</RNText><RNText style={styles.telemetryLabel}>{workout.remainingMinutes} / {TOTAL_SYNC_MINUTES} MIN LEFT</RNText></View>
           <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(0,Math.min(1,workout.progress))*100}%` }]} /></View>
           <RNText style={styles.hudHelp}>{workout.sessionsCompleted}/4 SESSIONS TODAY · {workout.sessionsRemaining} AVAILABLE</RNText>
         </View>
-        <HolobotRosterCard holobot={selectedHolobot} slot={selectedHolobotIndex} compact selected live={focused && !isPickerOpen && !isSettingsOpen && !completionResult} onPress={() => setIsPickerOpen(true)} actionLabel="CHANGE WORKOUT PARTNER ›" />
+        <HolobotRosterCard holobot={selectedHolobot} slot={selectedHolobotIndex} compact selected navGutter onPress={() => setIsPickerOpen(true)} actionLabel="CHANGE WORKOUT PARTNER ›" />
         {readinessUiEnabled() && selectedHolobot ? (
           <View accessibilityLabel={`${selectedHolobot.name} SYNC readiness ${readiness} of 100`}>
             <RNText style={styles.hudHelp}>{`SYNC READINESS · ${selectedHolobot.name.toUpperCase()} · ${readiness}/100`}</RNText>
@@ -197,21 +198,22 @@ export function FitnessScreen() {
           </View>
         ) : null}
         <View style={styles.telemetryRow}>
-          <View style={styles.telemetry}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>DISTANCE</RNText><RNText style={styles.telemetryValue}>{displayDistance.toFixed(3)}</RNText><RNText style={styles.telemetryLabel}>{formatDistanceLabel(distanceUnit).toUpperCase()}</RNText></View>
-          <View style={styles.telemetry}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>MOVEMENT SPEED</RNText><RNText style={styles.telemetryValue}>{Math.round(displaySpeed)}</RNText><RNText style={styles.telemetryLabel}>{distanceUnit === "mi" ? "MILES / HOUR" : "KM / HOUR"}</RNText></View>
+          <View style={[styles.telemetry, shortViewport && styles.shortTelemetry]}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>DISTANCE</RNText><RNText style={styles.telemetryValue}>{displayDistance.toFixed(3)}</RNText><RNText style={styles.telemetryLabel}>{formatDistanceLabel(distanceUnit).toUpperCase()}</RNText></View>
+          <View style={[styles.telemetry, shortViewport && styles.shortTelemetry]}><GameSurfaceFrame accent={theme.colors.border} /><RNText style={styles.eyebrow}>MOVEMENT SPEED</RNText><RNText style={styles.telemetryValue}>{Math.round(displaySpeed)}</RNText><RNText style={styles.telemetryLabel}>{distanceUnit === "mi" ? "MILES / HOUR" : "KM / HOUR"}</RNText></View>
         </View>
-        <View style={styles.rewardPreview}>
+        <View style={[styles.rewardPreview, shortViewport && styles.shortRewardPreview]}>
           <GameSurfaceFrame accent={theme.colors.border} />
           <View><RNText style={styles.telemetryLabel}>HOLOS REWARD</RNText><RNText style={styles.rewardPreviewValue}>+{workout.holosReward}</RNText></View>
           <View><RNText style={styles.telemetryLabel}>HOLOBOT EXPERIENCE</RNText><RNText style={styles.rewardPreviewValue}>+{workout.expReward}</RNText></View>
         </View>
+        <Pressable onPress={handleGoPress} onLongPress={workout.resetWorkout} style={styles.goButton} accessibilityRole="button" accessibilityLabel={blockedByWatch ? "Workout running on Apple Watch" : workout.isRunning ? "Pause workout" : "Start workout"}>
+          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.colors.accent} strong /><RNText style={styles.goText}>{goLabel}</RNText><RNText style={styles.goHint}>{workout.isRunning ? "TAP TO PAUSE · HOLD TO RESET" : "MOVEMENT BUILDS YOUR LINK"}</RNText>
+        </Pressable>
+        <Pressable onPress={() => setIsSettingsOpen(true)} style={styles.syncOptions} accessibilityRole="button" accessibilityLabel="Open Sync settings"><RNText style={styles.syncOptionsText}>SYNC OPTIONS ›</RNText></Pressable>
         {syncBoostCopy && <RNText style={styles.boostCopy}>{syncBoostCopy}</RNText>}
         {workout.syncMessage && <RNText style={workout.syncState === "error" ? styles.hudError : styles.hudHelp}>{workout.syncMessage}</RNText>}
         {blockedByWatch && <RNText style={styles.hudHelp}>WORKOUT RUNNING ON APPLE WATCH</RNText>}
         {workout.isCooldownActive && <View style={styles.cooldownPlate}><GameSurfaceFrame accent={theme.colors.cursor} /><RNText style={styles.telemetryLabel}>RECOVERY WINDOW</RNText><RNText style={styles.cooldownValue}>{workout.cooldownRemainingMinutes} MIN</RNText><RNText style={styles.hudHelp}>Open Sync settings to use Quick Refill.</RNText></View>}
-        <Pressable onPress={handleGoPress} onLongPress={workout.resetWorkout} style={styles.goButton} accessibilityRole="button" accessibilityLabel={blockedByWatch ? "Workout running on Apple Watch" : workout.isRunning ? "Pause workout" : "Start workout"}>
-          <GameSurfaceFrame accent={theme.colors.accent} fill={theme.plates.raised} strong /><RNText style={styles.goText}>{goLabel}</RNText><RNText style={styles.goHint}>{workout.isRunning ? "TAP TO PAUSE · HOLD TO RESET" : "MOVEMENT BUILDS YOUR LINK"}</RNText>
-        </Pressable>
       </ScrollView>
         <HolobotPickerModal
           onClose={() => setIsPickerOpen(false)}
@@ -376,22 +378,29 @@ export function FitnessScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: theme.colors.carbon },
-  content: { paddingHorizontal: 18, gap: 16, width: "100%", maxWidth: 620, alignSelf: "center" },
+  content: { paddingHorizontal: 18, gap: 10, width: "100%", maxWidth: 620, alignSelf: "center" },
+  shortContent: { gap: 6 },
+  navClear: { marginRight: 68 },
+  navContentInset: { paddingRight: 84 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 6 },
   headerActions: { flexDirection: "row", gap: 6 },
   headerAction: { width: 44, height: 48, alignItems: "center", justifyContent: "center" },
   headerGlyph: { fontSize: 24, color: theme.colors.accent },
   eyebrow: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1 },
   pageTitle: { ...theme.type.header, color: theme.colors.text },
-  syncPlate: { padding: 20, gap: 12 },
+  syncPlate: { padding: 12, gap: 8 },
+  shortSyncPlate: { padding: 8, gap: 4 },
   liveStatus: { ...theme.type.micro, color: theme.colors.success, letterSpacing: 1 },
-  syncValue: { ...theme.type.display, fontSize: 60, lineHeight: 66, color: theme.colors.text },
+  syncValue: { ...theme.type.display, fontSize: 50, lineHeight: 54, color: theme.colors.text },
+  shortSyncValue: { fontSize: 42, lineHeight: 46 },
   progressTrack: { height: 8, backgroundColor: theme.colors.graphite },
   progressFill: { height: "100%", backgroundColor: theme.colors.accent },
-  rewardPreview: { flexDirection: "row", justifyContent: "space-between", padding: 16, gap: 12 },
+  rewardPreview: { flexDirection: "row", justifyContent: "space-between", padding: 10, gap: 12 },
+  shortRewardPreview: { padding: 7 },
   rewardPreviewValue: { ...theme.type.header, color: theme.colors.accent, marginTop: 4 },
   telemetryRow: { flexDirection: "row", gap: 12 },
-  telemetry: { flex: 1, padding: 16, gap: 10 },
+  telemetry: { flex: 1, padding: 12, gap: 6 },
+  shortTelemetry: { padding: 8, gap: 2 },
   telemetryValue: { ...theme.type.display, color: theme.colors.text },
   telemetryLabel: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1 },
   hudHelp: { ...theme.type.caption, color: theme.colors.muted },
@@ -400,8 +409,10 @@ const styles = StyleSheet.create({
   cooldownPlate: { padding: 16, gap: 6 },
   cooldownValue: { ...theme.type.header, color: theme.colors.cursor },
   goButton: { alignItems: "center", justifyContent: "center", minHeight: 96, gap: 4 },
-  goText: { ...theme.type.display, color: theme.colors.accent, letterSpacing: 2 },
-  goHint: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1 },
+  goText: { ...theme.type.display, color: theme.colors.carbon, letterSpacing: 2 },
+  goHint: { ...theme.type.micro, color: theme.colors.carbon, letterSpacing: 1 },
+  syncOptions: { alignSelf: "center", minHeight: 44, justifyContent: "center" },
+  syncOptionsText: { ...theme.type.label, color: theme.colors.accent },
   closeSettingsButton: {
     alignItems: "center",
     backgroundColor: theme.colors.carbon,

@@ -28,7 +28,7 @@ const readStatus = httpsCallable<{ operation: "status"; schemaVersion: "rival-ba
 export function useRivalStatus(uid?: string, preview?: RivalHudPreview) {
   const [status, setStatus] = useState<RivalHudStatus | null>(preview?.status ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [, setRevision] = useState(0);
   const lifecycle = useRef({ mounted: false, uid, request: 0 });
   lifecycle.current.uid = uid;
   useEffect(() => {
@@ -57,11 +57,12 @@ export function useRivalStatus(uid?: string, preview?: RivalHudPreview) {
     return () => subscription.remove();
   }, [refresh]);
   useEffect(() => {
-    const update = () => { setNow(Date.now()); if (!preview) setStatus(statuses.get(uid || "") ?? null); };
-    listeners.add(update); const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => { listeners.delete(update); clearInterval(timer); };
+    const update = () => { setRevision(value => value + 1); if (!preview) setStatus(statuses.get(uid || "") ?? null); };
+    listeners.add(update);
+    return () => { listeners.delete(update); };
   }, [uid, preview]);
   const observed = preview?.cooldowns ?? [...(observations.get(uid || "") ?? [])].map(([pilotId, endsAtMs]) => ({ pilotId, endsAtMs }));
+  const now = Date.now();
   const cooldown = nextRivalCooldown(observed, now);
   return { status, error, refresh, cooldown, countdown: cooldown ? formatRivalCountdown(cooldown.endsAtMs, now) : null };
 }

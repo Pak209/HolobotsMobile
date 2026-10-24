@@ -11,6 +11,7 @@ import { createCityMarketController, fixtureCityMarketHost, liveCityMarketHost, 
 import { cityRequestId } from "@/lite/lib/cityHubClient";
 import { createCityRequestJournal } from "@/lite/lib/cityRequestJournal";
 import { theme } from "@/lite/theme";
+import { HomeCogButton } from "@/lite/components/HomeCogButton";
 
 const journal = createCityRequestJournal(AsyncStorage, cityRequestId);
 const copy = CITY_MARKET_COPY;
@@ -55,10 +56,10 @@ function CityMarketPage({ uid, fixture }: { uid?: string; fixture?: CityMarketFi
   const back = () => navigation.navigate(fromHome ? "Home" : "CityHub");
 
   return <View style={styles.screen}>
+    <HomeCogButton />
     <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: insets.bottom + (view.confirm ? 220 : 24) }}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}><Text style={styles.kicker}>{copy.kicker}</Text><Text style={styles.title}>{copy.title}</Text></View>
-        <Pressable accessibilityRole="button" accessibilityLabel={fromHome ? copy.backHomeLabel : copy.backLabel} onPress={back} style={styles.home}><Text style={styles.homeText}>‹</Text></Pressable>
       </View>
       <View style={styles.statusRow}>
         <View style={styles.signal}><View style={styles.signalDot} /><Text style={styles.statusText}>{copy.status}</Text></View>
@@ -124,14 +125,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 22, gap: 8 },
   kicker: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1.8, marginBottom: 6 }, title: { ...theme.type.header, color: theme.colors.text, fontSize: 24 },
   home: { width: 48, height: 48, alignItems: "center", justifyContent: "center", borderColor: theme.colors.border, borderWidth: 1, borderRadius: theme.radius.md }, homeText: { color: theme.colors.accent, fontSize: 30, lineHeight: 34 },
-  statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 22, marginTop: 22, marginBottom: 14 },
+  statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingLeft: 22, paddingRight: 84, marginTop: 22, marginBottom: 14 },
   signal: { flexDirection: "row", alignItems: "center", gap: 7 }, signalDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: theme.colors.accent },
   statusText: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 1.1 }, holos: { ...theme.type.value, color: theme.colors.warning },
-  card: { marginHorizontal: 20, padding: 18, borderColor: theme.colors.border, borderWidth: 1, backgroundColor: theme.plates.navy, borderRadius: theme.radius.md, gap: 8 },
+  card: { marginLeft: 20, marginRight: 80, padding: 18, borderColor: theme.colors.border, borderWidth: 1, backgroundColor: theme.plates.navy, borderRadius: theme.radius.md, gap: 8 },
   cardTitle: { ...theme.type.label, color: theme.colors.text }, body: { ...theme.type.body, color: theme.colors.muted }, caption: { ...theme.type.micro, color: theme.colors.muted, letterSpacing: 0.8 },
   notice: { ...theme.type.body, marginHorizontal: 20, marginTop: 16 }, noticeOk: { color: theme.colors.success }, noticeRefused: { color: theme.colors.warning }, noticeInfo: { color: theme.colors.accent },
   loading: { alignItems: "center", gap: 10, padding: 32 },
-  plate: { marginHorizontal: 20, marginTop: 18, padding: 18, gap: 12, borderWidth: 1, borderColor: theme.colors.warning, borderRadius: theme.radius.md, backgroundColor: theme.plates.raised },
+  plate: { marginLeft: 20, marginRight: 80, marginTop: 18, padding: 18, gap: 12, borderWidth: 1, borderColor: theme.colors.warning, borderRadius: theme.radius.md, backgroundColor: theme.plates.raised },
   plateTitle: { ...theme.type.header, color: theme.colors.warning },
   section: { marginHorizontal: 20, marginTop: 22, gap: 10 }, sectionTitle: { ...theme.type.micro, color: theme.colors.accent, letterSpacing: 1.8 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, backgroundColor: theme.plates.navy },

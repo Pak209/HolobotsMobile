@@ -33,8 +33,14 @@ export function homeCompactFactor(scale: number): number {
 
 /** HomeScreen pads its canvas page by the safe-area insets plus these points. */
 export const HOME_PAGE_PADDING = { top: 8, bottom: 12 } as const;
+/** Keep the OG width-bound canvas origin; retain safe padding on height-bound phones. */
+export function homePagePadding(window: { width: number; height: number }, insets: { top: number; bottom: number }) {
+  const available = window.height - insets.top - insets.bottom;
+  return available >= window.width * ARTBOARD_HEIGHT / ARTBOARD_WIDTH ? { top: 0, bottom: 0 } : HOME_PAGE_PADDING;
+}
 export function homeCanvasFrame(window: { width: number; height: number }, insets: { top: number; bottom: number }) {
-  return fitArtboard(window.width, window.height - insets.top - HOME_PAGE_PADDING.top - insets.bottom - HOME_PAGE_PADDING.bottom);
+  const padding = homePagePadding(window, insets);
+  return fitArtboard(window.width, window.height - insets.top - padding.top - insets.bottom - padding.bottom);
 }
 
 /** Percent of the artboard, for absolutely positioned overlays that must stay on their art. */
@@ -59,13 +65,13 @@ export const PART_SLOT_XS: readonly number[] = [0, 1, 2, 3, 4].map((index) => PA
 // is centred over its label. The hotspot is the item's column: it covers the art and the label
 // and stops short of the neighbouring column.
 
-export const FOOTER_LABEL_Y = 3072;
+export const FOOTER_LABEL_Y = 2987;
 export const FOOTER_LABEL_SIZE = 50;
-export const FOOTER_PLATE = { x: 0, y: 2540, width: ARTBOARD_WIDTH, height: 630 } as const;
-const FOOTER_PITCH = 400;
-const FOOTER_HOTSPOT_WIDTH = 390;
-const FOOTER_HOTSPOT_TOP = 2624;
-const FOOTER_HOTSPOT_BOTTOM = 3100;
+export const FOOTER_PLATE = { x: 0, y: 2530, width: ARTBOARD_WIDTH, height: 630 } as const;
+const FOOTER_CENTRES = [210, 622, 1008, 1398] as const;
+const FOOTER_HOTSPOT_WIDTH = 376;
+const FOOTER_HOTSPOT_TOP = 2539;
+const FOOTER_HOTSPOT_BOTTOM = 3015;
 
 /** Source PNG size and its opaque bounds (alpha > 24, ≥3 px per row/column), measured from assets/figma/home. */
 export type IconArt = Readonly<{ pixels: readonly [number, number]; opaque: readonly [number, number, number, number] }>;
@@ -84,7 +90,7 @@ export type HomeFooterItem = Readonly<{
   hotspot: ArtRect;
 }>;
 
-const footerCentre = (index: number) => ARTBOARD_WIDTH / 2 + (index - 1.5) * FOOTER_PITCH;
+const footerCentre = (index: number) => FOOTER_CENTRES[index];
 const footerHotspot = (index: number): ArtRect => ({
   x: footerCentre(index) - FOOTER_HOTSPOT_WIDTH / 2, y: FOOTER_HOTSPOT_TOP, width: FOOTER_HOTSPOT_WIDTH, height: FOOTER_HOTSPOT_BOTTOM - FOOTER_HOTSPOT_TOP,
 });
@@ -92,13 +98,13 @@ const footerHotspot = (index: number): ArtRect => ({
 export const HOME_FOOTER_ITEMS: readonly HomeFooterItem[] = [
   // The arena PNG is mostly transparent on its left (opaque x 264..585 of 586), so its box sits left of the column.
   { key: "arena", label: "ARENA", route: "Arena", accessibilityLabel: "Open arena portal", labelX: footerCentre(0),
-    icon: { x: -13, y: 2638, width: 432, height: 392 }, iconArt: { pixels: [586, 339], opaque: [264, 4, 585, 338] }, hotspot: footerHotspot(0) },
+    icon: { x: -103, y: 2553, width: 432, height: 392 }, iconArt: { pixels: [586, 339], opaque: [264, 4, 585, 338] }, hotspot: footerHotspot(0) },
   { key: "inventory", label: "INVENTORY", route: "Inventory", accessibilityLabel: "Open inventory portal", labelX: footerCentre(1),
-    icon: { x: 540, y: 2680, width: 320, height: 320 }, iconArt: { pixels: [388, 364], opaque: [0, 0, 387, 363] }, hotspot: footerHotspot(1) },
+    icon: { x: 462, y: 2595, width: 320, height: 320 }, iconArt: { pixels: [388, 364], opaque: [0, 0, 387, 363] }, hotspot: footerHotspot(1) },
   { key: "sync", label: "SYNC", route: "Fitness", accessibilityLabel: "Open Sync fitness page", labelX: footerCentre(2),
-    icon: { x: 950, y: 2690, width: 300, height: 300 }, iconArt: { pixels: [275, 318], opaque: [0, 0, 274, 317] }, hotspot: footerHotspot(2) },
+    icon: { x: 858, y: 2605, width: 300, height: 300 }, iconArt: { pixels: [275, 318], opaque: [0, 0, 274, 317] }, hotspot: footerHotspot(2) },
   { key: "market", label: "MARKET", route: "CityMarket", accessibilityLabel: "Open marketplace portal", labelX: footerCentre(3),
-    icon: { x: 1350, y: 2690, width: 300, height: 300 }, iconArt: { pixels: [371, 347], opaque: [0, 0, 370, 346] }, hotspot: footerHotspot(3) },
+    icon: { x: 1248, y: 2605, width: 300, height: 300 }, iconArt: { pixels: [371, 347], opaque: [0, 0, 370, 346] }, hotspot: footerHotspot(3) },
 ];
 
 /** Where the opaque part of an icon lands when its PNG is drawn "contain" in its box. */

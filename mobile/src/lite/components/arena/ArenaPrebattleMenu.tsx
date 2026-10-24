@@ -204,7 +204,7 @@ export function ArenaPrebattleMenu({
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {mode === "1v1" ? (
-          <View style={styles.section}>
+          <View style={[styles.section, styles.navClear]}>
             <GameSectionLabel label="Holobot" />
             <Pressable onPress={() => setPickerTarget("main")} style={styles.changeHolobotBar}>
               <GameSurfaceFrame strong />
@@ -217,7 +217,7 @@ export function ArenaPrebattleMenu({
           </View>
         ) : null}
 
-        <View style={styles.section}>
+        <View style={[styles.section, styles.navClear]}>
           <GameSectionLabel label="Mode" />
           <View style={styles.modeRow}>
             <Pressable
@@ -266,14 +266,9 @@ export function ArenaPrebattleMenu({
               })}
             </View>
           ) : null}
-          {unavailable3v3Copy ? (
-            <Text style={styles.teamHint}>{unavailable3v3Copy}</Text>
-          ) : !canField3v3 ? (
-            <Text style={styles.teamHint}>Own at least 3 Holobots to enter 3v3 Showdown.</Text>
-          ) : null}
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, styles.navClear]}>
           <GameSectionLabel label="Arena Tiers" />
           <View style={styles.tierGrid}>
             {ARENA_TIERS.map((tier) => {
@@ -293,7 +288,7 @@ export function ArenaPrebattleMenu({
             })}
           </View>
 
-          <View style={styles.paymentRow}>
+          <View style={[styles.paymentRow, styles.paymentFullWidth]}>
             <Pressable
               disabled={!canUseTokens || !teamReady}
               onPress={() => startPressed("tokens")}
@@ -324,6 +319,11 @@ export function ArenaPrebattleMenu({
               </View>
             </Pressable>
           </View>
+          {unavailable3v3Copy ? (
+            <Text style={styles.teamHint}>{unavailable3v3Copy}</Text>
+          ) : !canField3v3 ? (
+            <Text style={styles.teamHint}>Own at least 3 Holobots to enter 3v3 Showdown.</Text>
+          ) : null}
         </View>
 
         <FlipPreviewCard
@@ -711,6 +711,8 @@ const styles = StyleSheet.create({
   section: {
     gap: 8,
   },
+  navClear: { marginRight: 68 },
+  paymentFullWidth: { marginRight: -68 },
   sectionTitle: {
     color: theme.colors.carbon,
     fontFamily: "HoloDisplay",

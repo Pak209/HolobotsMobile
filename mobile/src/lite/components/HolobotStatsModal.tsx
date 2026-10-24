@@ -4,7 +4,7 @@ import { theme } from "@/lite/theme";
 import { getAbility } from "@/features/arena/abilities";
 import { getSignatureFinisher, SPECIAL_METER_SEGMENTS } from "@/features/arena/moveKits";
 import { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import {
@@ -127,6 +127,7 @@ export function HolobotStatsModal({
   const [innateExpanded, setInnateExpanded] = useState(false);
   const [syncAbilitiesExpanded, setSyncAbilitiesExpanded] = useState(false);
   const [profileFlipped, setProfileFlipped] = useState(false);
+  const [show3d, setShow3d] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -134,6 +135,7 @@ export function HolobotStatsModal({
       setInnateExpanded(false);
       setSyncAbilitiesExpanded(false);
       setProfileFlipped(false);
+      setShow3d(false);
     }
   }, [visible]);
 
@@ -250,7 +252,10 @@ export function HolobotStatsModal({
                     </View>}
                   </View>
                   <Text style={styles.nameText}>{holobot.name}</Text>
-                  {visible && <HolobotViewer botId={holobot.key} active={visible} style={{ height: 240, width: "100%" }} />}
+                  <Pressable accessibilityRole="button" accessibilityLabel={show3d ? "Show Holobot portrait" : "View Holobot in 3D"} onPress={() => setShow3d(value => !value)} style={{ height: 240, width: "100%" }}>
+                    {show3d && visible ? <HolobotViewer botId={holobot.key} active style={{ height: 240, width: "100%" }} /> : <Image source={holobot.imageSource} resizeMode="contain" style={{ height: 240, width: "100%" }} />}
+                    <Text style={{ color: theme.colors.accent, position: "absolute", bottom: 4, right: 8, fontFamily: "HoloDisplay", fontSize: 12 }}>{show3d ? "SHOW PORTRAIT" : "VIEW 3D"}</Text>
+                  </Pressable>
                   <View style={styles.expRow}>
                     <Text style={styles.mutedLabel}>{normalizedOwnedHolobot ? "XP" : "BLUEPRINTS"}</Text>
                     <Text style={styles.expValue}>
