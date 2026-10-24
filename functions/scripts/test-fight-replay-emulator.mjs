@@ -59,6 +59,23 @@ test('input-log issue pins duel-rules-3 + seed + CPU profile/rank on the record 
   await assert.rejects(() => issueInputLog(uid), /too_many_open/);
 });
 
+test('R2 issue uses host readiness/streak and CPU tier SYNC; first verified settle trains once', async () => {
+  const uid = await setup({level:99,syncReadiness:{ACE:{milli:80_000,atMs:now}},syncMomentum:{ACE:2},battleIq:{ACE:10}});
+  const options={...ON,readinessStart:true,battleIq:true};
+  const issue=await issueInputLog(uid, {readinessStart:[{holobotId:'ace',startSync:100}]}, options);
+  assert.deepEqual(issue.duel.readinessStart,[{holobotId:'ace',readiness:80,cap:50,startSync:50}]);
+  assert.equal(issue.duel.rules.fighters[0].startSync,50);
+  assert.equal(issue.duel.rules.fighters[1].startSync,0,'tier zero CPU Rookie starts at zero');
+  const log=clientLog(issue.duel), expected=verifyFightReplay(issue.duel,log,{battleId:issue.battleId}).receipt;
+  const settle={operation:'settle',battleId:issue.battleId,inputLog:log,didWin:expected.winner!=='player'};
+  await call(uid,settle,later,options);
+  const first=await user(uid);
+  assert.equal(first.battleIq.ACE,10+(expected.winner==='player'?4:0));
+  assert.equal(first.syncMomentum.ACE,expected.winner==='player'?3:0);
+  await call(uid,settle,later+1000,options);
+  assert.deepEqual(await user(uid),first,'a replay cannot train or increment momentum twice');
+});
+
 test('settle: the host replays the log and settles ITS outcome; forged didWin/health/fielded/damage are ignored', async () => {
   const uid = await setup({ level: 99, bench: true });
   const issue = await issueInputLog(uid);

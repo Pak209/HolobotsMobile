@@ -233,7 +233,7 @@ FightBrain deltas). `Schemas/duel-rules-5.json` is a byte copy. It is `duel-rule
   and Special damage. `retreatChainMax` retreats in a row without a strike refuse the next (Denied 13).
 - **Hashes.** Rules: SHA-256 over ASCII `duel-rules-5`, globals, chase, attrs, fighter count, then per fighter the `duel-rules-3`
   bytes + speed + special (`rulesHash(rules, chase, attrs)`). State: prefix `duel-sim-4`, the rules-5 hash, each member's
-  fields + `syncAcc, evadeRolls, retreatChain`, the chase tail, then ASCII `fight-attrs-1` + the 18 attrs ints (`decodeState`
+  fields + `syncAcc, evadeRolls, retreatChain`, the chase tail, then ASCII `fight-attrs-1` + the 20 attrs ints (`decodeState`
   reads it).
 - **CPU.** `FightCoreBrain` sets `syncSpend` (and the half / full SYNC costs) only on an attrs core; the brain's section S then
   spends the 50 / 100 tiers by rank (`SYNC_DISCIPLINE`, `SYNC_*_RATE_BPS`, `rankIndex`; counts in `brain.stats`).

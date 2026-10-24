@@ -5,6 +5,7 @@ import { authedDb, initTestEnv, seedUser } from "../src/helpers";
 import { buildUserDoc } from "../src/fixtures";
 
 const readiness = { ACE: { milli: 80_000, atMs: 1_782_259_200_000 } };
+const protectedFight = { battleIq: { ACE: 20 }, syncMomentum: { ACE: 2 } };
 
 describe("syncReadiness is a protected top-level host field", () => {
   let env: RulesTestEnvironment;
@@ -12,7 +13,7 @@ describe("syncReadiness is a protected top-level host field", () => {
   afterAll(async () => { await env.cleanup(); });
   beforeEach(async () => {
     await env.clearFirestore();
-    await seedUser(env, "alice", buildUserDoc({ syncReadiness: readiness }));
+    await seedUser(env, "alice", buildUserDoc({ syncReadiness: readiness, ...protectedFight }));
   });
 
   it("refuses owner create, replace, nested gain and deletion", async () => {
@@ -21,11 +22,16 @@ describe("syncReadiness is a protected top-level host field", () => {
     await assertFails(updateDoc(alice, { syncReadiness: { ACE: { milli: 100_000, atMs: 1_782_259_200_000 } } }));
     await assertFails(updateDoc(alice, { "syncReadiness.ACE.milli": 100_000 }));
     await assertFails(updateDoc(alice, { syncReadiness: deleteField() }));
+    await assertFails(setDoc(doc(authedDb(env, "mallory"), "users/mallory"), buildUserDoc(protectedFight)));
+    await assertFails(updateDoc(alice, { "battleIq.ACE": 100 }));
+    await assertFails(updateDoc(alice, { "syncMomentum.ACE": 3 }));
+    await assertFails(updateDoc(alice, { battleIq: deleteField() }));
+    await assertFails(updateDoc(alice, { syncMomentum: deleteField() }));
   });
 
   it("permits unrelated owner updates and unchanged full-profile merge", async () => {
     const alice = doc(authedDb(env, "alice"), "users/alice");
     await assertSucceeds(updateDoc(alice, { presenceOptOut: true }));
-    await assertSucceeds(setDoc(alice, { syncReadiness: readiness, presenceOptOut: false }, { merge: true }));
+    await assertSucceeds(setDoc(alice, { syncReadiness: readiness, ...protectedFight, presenceOptOut: false }, { merge: true }));
   });
 });

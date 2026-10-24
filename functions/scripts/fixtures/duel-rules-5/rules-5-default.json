@@ -205,6 +205,8 @@
     "syncMaxPm": 1400,
     "specialDmgEdgePm": 2000,
     "specialDmgMaxPm": 1300,
+    "specialOpenPm": 5000,
+    "finisherTempoCutTicks": 6,
     "retreatChainMax": 3
   }
 }

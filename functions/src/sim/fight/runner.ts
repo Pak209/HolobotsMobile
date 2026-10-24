@@ -16,7 +16,7 @@ export type FightRunOptions = {
   /** Stop after this many ticks even if the fight is still running (a short log; the caller rejects). */
   maxTicks?: number;
   /** Called after every tick with the tick and the side-1 (or side-0) input the brain produced (CPU stream check). */
-  onTick?: (tick: number, inputs: [FightInput, FightInput]) => void;
+  onTick?: (tick: number, inputs: [FightInput, FightInput], core: FightCore) => void;
   recordEvents?: boolean;
   /** duel-rules-4: the issued chase block (null / absent = duel-rules-3, today's core). rulesHash is then duel-rules-4's. */
   chase?: FightChaseRules | null;
@@ -51,7 +51,7 @@ export function runFight(rules: FightRules, seed: string, d0: FightDriver, d1: F
     const a = read(drivers[0], views[0], core, t, 0);
     const b = read(drivers[1], views[1], core, t, 1);
     core.step(a, b);
-    opts.onTick?.(t, [a, b]);
+    opts.onTick?.(t, [a, b], core);
     if (opts.tickHashes || opts.hashAt?.(t)) res.tickHashes.set(t, core.stateHash());
   }
   res.finalHash = res.tickHashes.get(core.tick) ?? core.stateHash();

@@ -1,4 +1,6 @@
 import { battlefieldIssueMovement } from '../lib/battlefieldMovement';
+import { battleIqEnabled, cpuStartSync, fightLearningAfterSettle, manualReadinessStart, readinessStartEnabled } from '../lib/readinessFight';
+import { fightRankForTier } from './fightReplayIssue';
 // Dormant internal verification seam; no current callable or issuance routes here.
 export { verifyRivalInputLog } from './rivalInputVerification';
 import { DUEL_RECEIPT_SCHEMA, DUEL_MAX_ROUNDS, duelFighterFromCombatant, resolveDuel, validateDuelIntents, DuelReceipt } from '../lib/duelResolver';
@@ -90,7 +92,7 @@ async function preVerifyFightReplay(db: Firestore, uid: string, request: Record<
   }
 }
 
-export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean; fightChase?: boolean; fightAttrs?: boolean } = {}) {
+export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean; fightChase?: boolean; fightAttrs?: boolean; readinessStart?: boolean; battleIq?: boolean } = {}) {
   // One-release server flag. Requests cannot select or downgrade a stored mode.
   const legacyMode = options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER !== '1';
   // fight-host-1: "replay verification ON" (HOLOCITY_FIGHT_REPLAY=1, default off) issues input-log to clients that declare
@@ -100,6 +102,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   const fightChase = options.fightChase ?? process.env[FIGHT_CHASE_FLAG] === '1';
   // duel-rules-5: HOLOCITY_FIGHT_ATTRS=1 (default off) + the chase flag makes them duel-rules-5 (SPEED / SPECIAL, #72.77/#72.78)
   const fightAttrs = options.fightAttrs ?? process.env[FIGHT_ATTRS_FLAG] === '1';
+  const applyReadinessStart = options.readinessStart ?? readinessStartEnabled();
+  const applyBattleIq = options.battleIq ?? battleIqEnabled();
   const capability = (raw as Record<string, unknown> | null)?.[FIGHT_INPUTS_CAPABILITY_FIELD];
   if (capability !== undefined && capability !== FIGHT_INPUTS_SCHEMA) throw new RivalError('invalid_request');
   const allowLegacySettlement = options.allowLegacySettlement ?? process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN !== '0';
@@ -160,8 +164,12 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         storyState = nextStory;
       }
       if (citizenId !== undefined) bindGatheringRival(uid,profile,citizenId,r);
+      const starts = applyReadinessStart && inputLogIssue && !mentor && !story.issueZell
+        ? r.reply.playerCombatants.map(c => manualReadinessStart(profile, c.holobotId, nowMs)) : undefined;
       const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
-        player:r.reply.playerCombatants, opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs}) : null;
+        player:r.reply.playerCombatants, opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs,
+        ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
+          cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
       if (fightIssue) r.battle.duel = fightIssue;
       else if (legacyMode) r.battle.duel = {mode:'legacy'};
       else {
@@ -231,6 +239,11 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     if (r.battleUpdates?.settlement?.didWin) {
       try { r.userUpdates.pilotRank = pilotRankAfterWin(profile.pilotRank); }
       catch (e) { if (e instanceof PilotRankError) throw new RivalError('unavailable'); throw e; }
+    }
+    if (applyBattleIq && r.battleUpdates) {
+      const fielded = settleCommand.fielded ?? [];
+      const opponentLevel = Math.max(1, ...record.lineup.opponentSquad.map(bot => bot.level));
+      Object.assign(r.userUpdates, fightLearningAfterSettle(profile, fielded, !!r.battleUpdates.settlement?.didWin, opponentLevel));
     }
     // A delayed pre-Arena battle must not settle rewards/HP into the current Arena activity.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
