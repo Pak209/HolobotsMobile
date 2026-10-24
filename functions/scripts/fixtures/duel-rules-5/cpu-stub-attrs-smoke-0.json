@@ -210,6 +210,8 @@
       "syncMaxPm": 1400,
       "specialDmgEdgePm": 2000,
       "specialDmgMaxPm": 1300,
+      "specialOpenPm": 5000,
+      "finisherTempoCutTicks": 6,
       "retreatChainMax": 3
     }
   },
@@ -219,22 +221,22 @@
   ],
   "script": [],
   "expected": {
-    "rulesHash": "7a1f63f7c560f22ba6f8bf52577097f2cf828287e891926085840d3175548387",
-    "initialHash": "f5cbff8fd2df4a763cb6158d5936bc3e0d5e1d1d458021fd96bb2fb89497c84d",
-    "finalHash": "836d9656d0028fd3242666484b36141062fea42a096b3704cd05146b1942b606",
+    "rulesHash": "48fb7e856631046c91d6ffa2b2753be0a24ace0a2d4c8f57443053206c0eefe8",
+    "initialHash": "b32b2e25eaebf495b3738f7c3fb961c1f7a7e07038bc560bf366b44b084cee41",
+    "finalHash": "cb52fda38f9db79a7ba84008ac675328ac27d5ce42107ead3d9808b80cc34385",
     "winner": 1,
-    "reason": "timeout",
-    "endTick": 1799,
+    "reason": "ko",
+    "endTick": 1436,
     "finalHp": [
-      51,
-      56
+      0,
+      457
     ],
     "finalStaminaPm": [
-      353,
-      154
+      429,
+      280
     ],
     "witness": {
-      "ticks": 1800,
+      "ticks": 1437,
       "exchangeLengths": [
         80,
         126,
@@ -243,8 +245,7 @@
         107,
         144,
         72,
-        75,
-        377
+        75
       ],
       "exchangeHistogram1s": [
         0,
@@ -254,9 +255,9 @@
         3,
         0,
         0,
-        1
+        0
       ],
-      "exchangesIn2To5Pm": 777,
+      "exchangesIn2To5Pm": 875,
       "exchangeMedianTicks": 107,
       "probeLengths": [
         45,
@@ -268,19 +269,19 @@
         45
       ],
       "trades": 0,
-      "railFires": 1,
+      "railFires": 0,
       "sides": [
         {
           "ticksInState": [
             26,
-            182,
-            723,
-            430,
-            439
+            173,
+            589,
+            362,
+            287
           ],
-          "forcedBreaks": 13,
+          "forcedBreaks": 9,
           "voluntaryBreaks": 0,
-          "lineCrossings": 12,
+          "lineCrossings": 8,
           "breakLengths": [
             30,
             30,
@@ -290,20 +291,16 @@
             36,
             30,
             31,
-            33,
-            39,
-            39,
-            41,
             33
           ],
-          "telegraphs": 22,
+          "telegraphs": 17,
           "feints": 0,
           "feintBaits": 0,
-          "steps": 15,
-          "shoves": 4,
-          "hits": 14,
+          "steps": 11,
+          "shoves": 3,
+          "hits": 9,
           "blocks": 2,
-          "perfectGuards": 2,
+          "perfectGuards": 1,
           "guardBreaks": 0,
           "whiffs": 0,
           "evades": 0,
@@ -409,44 +406,20 @@
             357,
             278,
             324,
-            424,
-            432,
-            237,
-            290,
-            390,
-            428,
-            436,
-            350,
-            353,
-            240,
-            340,
-            422,
-            426,
-            431,
-            312,
-            319,
-            325,
-            239,
-            339,
-            431,
-            367,
-            372,
-            289,
-            389,
-            427
+            424
           ]
         },
         {
           "ticksInState": [
             26,
-            180,
-            647,
-            289,
-            658
+            165,
+            510,
+            252,
+            484
           ],
-          "forcedBreaks": 19,
+          "forcedBreaks": 14,
           "voluntaryBreaks": 0,
-          "lineCrossings": 21,
+          "lineCrossings": 16,
           "breakLengths": [
             33,
             33,
@@ -460,20 +433,15 @@
             31,
             31,
             50,
-            30,
-            36,
-            42,
-            30,
-            50,
-            31
+            30
           ],
-          "telegraphs": 28,
+          "telegraphs": 22,
           "feints": 0,
           "feintBaits": 0,
-          "steps": 20,
+          "steps": 14,
           "shoves": 2,
-          "hits": 13,
-          "blocks": 10,
+          "hits": 10,
+          "blocks": 9,
           "perfectGuards": 3,
           "guardBreaks": 0,
           "whiffs": 0,
@@ -580,70 +548,40 @@
             336,
             423,
             429,
-            254,
-            307,
-            407,
-            426,
-            434,
-            357,
-            362,
-            220,
-            320,
-            420,
-            431,
-            315,
-            298,
-            371,
-            427,
-            434,
-            178,
-            158,
-            258,
-            326,
-            287,
-            320,
-            420,
-            344,
-            348
+            254
           ]
         }
       ]
     },
     "tickHashesEvery60": [
-      "0d30e7ffab34077784e123c7670398a033292c5e111ad036e70066df2b2b6519",
-      "e6284f0e1977c713066f45d2aec2569f4eadf5eeecdd35ebde76662b0e3c0eef",
-      "db03eca86a5a9fd14f1a321d6485356f0a3829c44012023c3b4ac208c3f3c80d",
-      "b42fed96740de6813e0929b3ddf63f3187db2101ad07eeb9d6b9fa6968881de0",
-      "47c5cf521a76103bdacc5c336c4028d9e27e6caf431ca3558e5e069d77e90b7a",
-      "5191d246f9498455d8bb0be79a15099607c97bf546cf081c11f1b981a6d037c1",
-      "df41a8de0854c209ce5769bcc9068cfb3d064c091245374efa7bcf0f9f99eb60",
-      "7d68471feed9d39fc84e88f18ee24b46b744c7666c01cbdc85662861badd8a6a",
-      "e130fc211d439e8e7b9b139f485cb3f09f582b539a592a87cf59c99036455798",
-      "2625debfc672e9fbe5408968c25a722102bed9da60ecb4421e2af1822baf9511",
-      "7c70688e73bf5f631a9ae44663e5e593604d7405622f95e3af135788f2d80e49",
-      "900725f1020144f5a3301965eb8232d6a888fef86de9b0ab8b5a05ae883c3b72",
-      "2488d07889eee7688d737f8497dcd72e333acae0971faf1ce4d02ffc58f2f7db",
-      "1f2823ab8b263b1f072f1dd69c73ceb0ae59c48ef155cba6eda3b28eb374d6d5",
-      "dad70702da76b64e19780e544a5f57aaca40048eba8ab8b21039dbdf15639bd3",
-      "5b58d163b9f81ebd34408d3890fab7026e4a66706822d02c60d5d266ac7ccc48",
-      "5f97495102a6fb24f08de9fb07445275fc18bf67f7fd39a4db9647334df103c1",
-      "2fbbcae154f3f9825eeac0ecce83899b68b1c7dda67026dbb5ec736865f4da72",
-      "dad543a726938a65b6dd42822f9b37044d8400a8bf5fb5644bca00a8f5fa3c1e",
-      "bea2588de84fd6331feefce57415973497ec6d7583efa3165c9e0114cdd64a23",
-      "9808b5af00a5c80ec4029631cf2c58ef325efec05dc5def8008d4ee37d2aa025",
-      "93b971254c170d003c0e1f3a4b186b1eb4d241dea81685b30a3841f40393caaf",
-      "83b275a7c02291b2584a7263f3abaffe2989da8865521cd5da20f2b7101ca4af",
-      "b13b8d838941e7313dc969a34cd9535fb404c3f1d41a5acdec4007836c2904e8",
-      "8c439885396896edf672b4256c4e75925344b4783248fd6082bc3d586b30d0a8",
-      "a9c7c6593ca47b83f2c40e5d912fdb070be038d22824c356eac90f36ee497991",
-      "53cfc2724c7667bcd08bcb4435796bc0a9292ed8a5d5d16453a0b869e8c98933",
-      "a99e4f3548416c53625555c4c4fc45c5bfcd9bf7efdda8a2d8de61b4b95a6833",
-      "0dc4f9f0fbcd7032a28b17f858008bd2bc8680d93c5a60d3108493fc9d2574e3",
-      "7b8f6edefd0db92a8ce8415717fe171dde9006d8fd6e29b5b49b6157a7a5fb3c"
+      "303e2e635f1585c7c630cdbc8ae8e07f358fa974891fcff8eb83ae0106e101ea",
+      "6e2b0843321ab3e467dd4a9b6e670daa8923e83d37d86f24d4a60a1595f48e63",
+      "1babf3f42a0c69b2502d401ee6d73fabe16ada307a22e1cdad5a240387487b09",
+      "ed59a3b470dd2c16b0f5ef6b862afeb009780c0523437bf84452e2091133740c",
+      "e93d53ec9e0022c69f292eac2e4cd15e20ab1ff6026fd59c8ee07e4a557d20d6",
+      "33b8b9d397d57c18372cfc008958da8be2449330b126c53b1b9386c44befe4a6",
+      "d3777b10e125249c4c30e39942e5a023eef4b3269d83e524271719aa0f95e276",
+      "e24a891a6bf75bc503830dde64bdcf3f98e1660d41a5e3d698e7ad42cd0bfb9b",
+      "d1003b8ef89fc7bad7957eca2fdeecce230efc45e6508d3c957d90e67a29f980",
+      "b050957d6f2755e7591db47d33a36e26a8c7abce21c1529b0edc437f3d3a45c3",
+      "6637405fa6bcf8966f9dfd1226cc11f0e6316751d88faf434cea2b8b8ff9b340",
+      "2b7a39f1f18393c1ffc178bee70ef899573fa102b72a0de9a4dc6fc812ac914a",
+      "2b06c78988729dc83b8d5bf3d848de943a2bc06680aba487f448d95d2868d83f",
+      "8fe773fbe7b53f2048a1365c13a7f2cd1005821483ba57a918941934a6fa72e1",
+      "120aeb8378ea72c7368da568f19ad35139a05bf970a80703d00fd6e7af417363",
+      "2a3e1d42cde2991dfae44ed47506994e7a7983fe7a3756a30083a6ca97ddf989",
+      "c3901aea186726b76d8a38b10ada2495c6f677034b41b9a29e7b59566736be1b",
+      "241ff18f0c9fb393afe57aa009aef500e16025515c4e62c2c16b03be97675698",
+      "180c5849d42ac836bf41c7ff755f4d149875575a752971f29938cbe461874960",
+      "eda009ebbc5a7a99b096d92cf1c49788db844c924b2a8b0f0372d6cb1b431e0e",
+      "b7200ec34bbaab326bd3b557c96c587a29b5b96982f9bb148fbd81be695637f2",
+      "7a0c85146f90938f840c49e739d169dbdd87ecdbb3c383992c0d6c2bf2ff8c1f",
+      "eb89191d8af3e8722563ab683628838cfe4f72f769bd2fa60dd764443f535a11",
+      "0f8bfb92619d404e90c78ebe06422db4e490268ec125a834554015403caceccc"
     ],
     "finalSync": [
-      49,
-      0
+      100,
+      22
     ]
   }
 }

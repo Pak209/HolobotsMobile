@@ -904,6 +904,8 @@
         "syncMaxPm",
         "specialDmgEdgePm",
         "specialDmgMaxPm",
+        "specialOpenPm",
+        "finisherTempoCutTicks",
         "retreatChainMax"
       ],
       "properties": {
@@ -1008,6 +1010,18 @@
           "minimum": 1000,
           "maximum": 2000,
           "description": "[per-mille (1000 = x1.0 / 100 %); default 1300]"
+        },
+        "specialOpenPm": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 5000,
+          "description": "duel-rules-5 unguarded SPECIAL damage multiplier after SPECIAL stat scaling; guard and chip do not receive it [per-mille; default 5000]"
+        },
+        "finisherTempoCutTicks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "extra telegraph ticks removed from a full 100-SYNC finisher after SPEED tempo, minimum 1 tick [ticks; default 6]"
         },
         "retreatChainMax": {
           "type": "integer",

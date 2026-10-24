@@ -43,7 +43,7 @@ export function decodeState(bytes: Uint8Array, rules: FightRules): Record<string
     for (const k of CHASE_KEYS) out[`chase.${k}`] = take();
     for (let s = 0; s < 2; s++) for (const k of CHASE_SIDE_FIELDS) out[`chase${s}.${k}`] = take();
   }
-  // duel-rules-5 tail: ASCII 'fight-attrs-1' then the 18 attrs rules
+  // duel-rules-5 tail: ASCII 'fight-attrs-1' then the 20 attrs rules
   const atag = 'fight-attrs-1';
   if (b.length - at >= atag.length && b.toString('ascii', at, at + atag.length) === atag) {
     at += atag.length;

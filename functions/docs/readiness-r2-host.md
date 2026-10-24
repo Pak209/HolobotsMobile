@@ -11,7 +11,7 @@ Source: HolobotsUnity `Documentation/HANDOFFS/2026-10-23-expedition-autobattle-r
 
 ## Promotion gate
 
-The readiness start flag must stay **off**. Current-main basis: `93def8c` (#206 progression rules-5 gate), with `HOLOCITY_FIGHT_ATTRS=1` set by the sweep script for the published rows. The 50 SYNC edge target is +10–15 win-rate points; the cold equal-stat 1,000 paired-seed ACE↔WOLF/tier 0/4/9 sweep gave +2.7, −3.0, +0.3, −2.3, +0.3, +2.9 points (pooled +0.15). `node functions/scripts/sweep-readiness-r2.mjs 1000` reproduces those cells. The same script with `published` runs all 13 LV10 mirror bots on the current #72.80 fight rows and rules-5, with Champion side-0 brain, tier-4 CPU start 12, using the published `astra-battle-scaling-1/seed/<i>` seeds. The exact command is `cd functions && node scripts/sweep-readiness-r2.mjs 1000 published`. This uses `getHolobotBattleStats` with the #72.80 fight-row delta at LV10, not an invented equal-stat row. The completed table is:
+The readiness start flag must stay **off until the producer's native feel witness and Pak's release decision**. The following was the pre-#72.85 balance failure on the published #72.80 rows. The original command, `cd functions && node scripts/sweep-readiness-r2.mjs 1000 published`, uses Champion side-0 brain, tier-4 CPU start 12 and the `astra-battle-scaling-1/seed/<i>` stream. It remains the known-bad control:
 
 | LV10 bot | Wins at 0 / 1000 | Wins at 50 / 1000 | Edge, points |
 |---|---:|---:|---:|
@@ -29,6 +29,8 @@ The readiness start flag must stay **off**. Current-main basis: `93def8c` (#206 
 | WAKE | 494 | 499 | +0.5 |
 | JUSAN | 506 | 492 | -1.4 |
 
-Pooled edge: **−1.38 points** across 13,000 paired seed blocks. The 95% normal CI over the 1,000 paired seed-block means is **−2.59 to −0.16 points** (each block averages 13 per-bot win differences; no independence assumption among bots in a block). A paired published WOLF LV10 seed-0 trace confirms the meter is used: 0 SYNC first SPECIAL telegraph at tick 744, 50 SYNC at tick 51. Both runs still telegraph three specials; their special-hit damage totals are 131 versus 122, and both win. The early special changes timing and counter/defense interactions rather than guaranteeing an extra finishing hit. These are CPU-vs-CPU proxies; an editor feel witness is still required before flag promotion.
+Pooled pre-tune edge: **−1.38 points** across 13,000 paired seed blocks (95% paired-block interval −2.59 to −0.16). A WOLF trace moves first SPECIAL from tick 744 to 51 but yields no extra special and less special damage, 122 versus 131. This diagnosed the low half-SYNC damage and the guarded full finisher.
+
+**#72.85 cold correction:** the rules-5 attrs block now has `specialOpenPm=5000` for an unguarded SPECIAL hit and `finisherTempoCutTicks=6` for a full finisher. Both are hashed and mirrored byte-for-byte in Unity; duel-rules-3/-4 stay unchanged. `node scripts/sweep-sync-value.mjs 1000 2,10,21` is the revised 13-bot paired sweep. The side-0 50-vs-0 edges at levels 2/10/21 are **+11.22 / +11.26 / +11.38 points**; median durations are **46.03 / 46.03 / 45.90 seconds** at start 50 and 50.43 / 50.43 / 50.33 at start 0. A separate LV10 side-1 sensitivity is **+10.65 points**, medians 50.43 / 45.75 seconds. Full-finisher land is 92–95%, SPECIAL guard contacts 33–37%, and no start-0/50 arm telegraphed a full finisher in the first second. A +10 SPECIAL probe remains measurable. See the Unity `Documentation/QA/2026-10-23-sync-value-balance-1/README.md` and this PR's sweep table. These are CPU-vs-CPU proxies; the native feel witness is still required before flag promotion.
 
 No function was deployed and no account was accessed.

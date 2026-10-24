@@ -416,6 +416,7 @@ export class FightCore {
     f.chainCount = inChain ? f.chainCount + 1 : 1;
     let tel = move === Move.Charge ? R.chargeTelegraphTicks : shortTel ? R.chainTelegraphTicks + R.chainDecayTicks * (f.chainCount - 2) : R.telegraphTicks;
     if (this.attrs && move !== Move.Charge && !shortTel) { const cut = Math.min(tel - 1, tempoTicks(this.attrs, this.speedEdge(s))); tel -= cut; this.tempoTicksSaved[s] += cut; }
+    if (this.attrs && move === Move.Special && tier === 2) tel = Math.max(1, tel - this.attrs.finisherTempoCutTicks);
     tel += f.sta === 0 ? R.emptyTelegraphTicks : f.sta < R.breakLinePm ? R.gassedTelegraphTicks : 0;
     let baseCost = move === Move.Light || move === Move.Charge ? R.costLightPm : move === Move.Heavy ? R.costHeavyPm : R.costSpecialPm;
     if (shortTel) for (let k = 1; k < f.chainCount; k++) baseCost = mulDiv(baseCost, R.chainCostPm, 1000);
@@ -765,6 +766,7 @@ export class FightCore {
     if (this.attrs && this.evadeRoll(s, m, c.counter)) { c.outcome = Outcome.Evaded; c.speedEvade = true; this.speedEvades[1 - s]++; return c; }
     c.outcome = Outcome.Hit;
     c.damage = this.damage(s, m, c.counter, 1000, d);
+    if (this.attrs && m === Move.Special && !guarding) c.damage = mulDiv(c.damage, this.attrs.specialOpenPm, 1000);
     c.hard = c.damage * 1000 >= R.hardHitHpPm * o.maxHp || (c.counter && !lightClass(m));
     return c;
   }

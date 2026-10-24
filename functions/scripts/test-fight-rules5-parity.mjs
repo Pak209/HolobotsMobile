@@ -137,7 +137,39 @@ test('every scripted vector shows its rule (the C# pins)', () => {
   const dmg5 = ev('attrs-sync-special').filter(e => e.includes('Contact Special Hit')).map(e => Number(e.split(' ').pop()));
   const dmg0 = replay(flat, false, flat.rules).events.filter(e => e.kind === F.EventKind.Contact && e.move === F.Move.Special).map(e => e.value);
   assert.equal(dmg5.length, 1); assert.equal(dmg0.length, 1);
-  assert.ok(Math.abs(dmg5[0] - Math.trunc(dmg0[0] * 1300 / 1000)) <= 1, 'SPECIAL edge 250: finisher damage x1.30 (cap)');
+  assert.ok(Math.abs(dmg5[0] - Math.trunc(dmg0[0] * 1300 / 1000)) <= 6, 'SPECIAL edge 250: x1.30 before the separately truncated open-hit multiplier');
+});
+
+test('SYNC value: unguarded special damage, full finisher tempo, and +10 SPECIAL remain visible', () => {
+  const half = load('attrs-sync-special');
+  const contact = doc => replay(doc, false, doc.rules).events.find(e => e.kind === F.EventKind.Contact && e.move === F.Move.Special).value;
+  const open = contact(half);
+  half.rules.attrs.specialOpenPm = 1000;
+  assert.ok(open > contact(half) * 4);
+  const full = load('attrs-evade-sure');
+  const telegraph = doc => replay(doc, false, doc.rules).events.find(e => e.kind === F.EventKind.Telegraph && e.move === F.Move.Special).value;
+  const fast = telegraph(full);
+  full.rules.attrs.finisherTempoCutTicks = 0;
+  assert.equal(telegraph(full) - fast, 6);
+  full.rules.attrs.finisherTempoCutTicks = 6;
+  full.rules.fighters[0].special = 40;
+  full.rules.fighters[1].special = 30;
+  const boosted = contact(full);
+  full.rules.fighters[1].special = 20;
+  assert.ok(boosted > contact(full));
+  const guarded = load('attrs-evade-sure');
+  guarded.script.push({t:75,s:0,guard:true});
+  const blocked = replay(guarded, false, guarded.rules).events.find(e => e.kind === F.EventKind.Contact && e.move === F.Move.Special);
+  assert.equal(blocked.outcome, F.Outcome.Blocked);
+  guarded.rules.attrs.specialOpenPm = 1000;
+  assert.equal(blocked.value, contact(guarded), 'open-hit damage never increases guard chip');
+  const opener = load('attrs-evade-sure');
+  opener.script = [{t:0,s:1,press:'special',tier:2}];
+  const opening = replay(opener, false, opener.rules);
+  const openingHit = opening.events.find(e => e.kind === F.EventKind.Contact && e.move === F.Move.Special);
+  assert.ok(openingHit.tick < 30);
+  assert.ok(openingHit.value < opener.rules.fighters[0].maxHp, 'a full meter is not a first-second KO');
+  assert.ok(opening.endTick > 30);
 });
 
 test('the curves and the roll are pinned (C# TheCurvesAndTheRollArePinned)', () => {

@@ -69,6 +69,7 @@ export function defaultChaseRules(): FightChaseRules { return { ...CHASE_DEFAULT
 export const ATTR_DEFAULTS = {
   moveEdgePm: 600, moveMinPm: 940, moveMaxPm: 1060, chaseParity: 1, evadeBasePm: 0, evadeEdgePm: 1000, evadeMaxPm: 100, evadeWide: 1, evadeSpecials: 0,
   initiativeMinEdgePm: 47, tempoMaxTicks: 2, tempoFullEdgePm: 150, syncEdgePm: 2000, syncMinPm: 750, syncMaxPm: 1400, specialDmgEdgePm: 2000, specialDmgMaxPm: 1300,
+  specialOpenPm: 5000, finisherTempoCutTicks: 6,
   retreatChainMax: 3,
 };
 export type AttrKey = keyof typeof ATTR_DEFAULTS;
@@ -283,6 +284,7 @@ export function validateAttrRules(a: FightAttrRules): void {
   for (const k of ATTR_KEYS) if (!Number.isSafeInteger(a[k]) || a[k] < 0) fail('invalid_attrs_' + k);
   if (a.moveMinPm > 1000 || a.moveMaxPm < 1000 || a.moveMaxPm > 2000 || a.moveEdgePm > 2000 || a.evadeMaxPm > 1000 || a.evadeBasePm > 1000 || a.evadeEdgePm > 5000
     || a.syncMinPm > 1000 || a.syncMaxPm < 1000 || a.syncMaxPm > 3000 || a.syncEdgePm > 10000 || a.specialDmgMaxPm < 1000 || a.specialDmgMaxPm > 2000 || a.specialDmgEdgePm > 10000
+    || a.specialOpenPm < 1000 || a.specialOpenPm > 5000 || a.finisherTempoCutTicks > 10
     || a.chaseParity > 1 || a.evadeWide > 1 || a.evadeSpecials > 1 || a.tempoMaxTicks > 10 || a.initiativeMinEdgePm > 1000 || a.retreatChainMax > 100) fail('invalid_attrs_rules');
 }
 
