@@ -16,7 +16,7 @@ import { tournamentUnlocks } from '../story/tournamentUnlocks';
  *                 (TrainingScreen): floor(base x levelBonus) + boost, no x10, no sync, no parts.
  * buddyUnits is the {light, medium, heavy} map from v2 on.
  */
-import { readStoryFlags } from '../story/storyFlags';
+import { readStoryFlagsTolerant } from '../story/storyFlags';
 import { readPilotRank } from '../account/pilotRank';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { BuddyInventory, totalBuddyUnits } from '../lib/buddyUnits';
@@ -75,6 +75,7 @@ export function desktopHolobotV3(raw: Record<string, unknown>): Record<string, u
  */
 export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: string, version: DesktopAccountVersion, units: BuddyInventory, nowMs: number = Date.now()): Record<string, unknown> {
   const stored: unknown[] = Array.isArray(profile.holobots) ? profile.holobots : [];
+  const story = readStoryFlagsTolerant(profile.storyFlags);
   const holobots = version === DESKTOP_ACCOUNT_V3
     ? stored.filter((h): h is Record<string, unknown> => !!h && typeof h === 'object' && !Array.isArray(h) && typeof (h as { name?: unknown }).name === 'string').map(desktopHolobotV3)
     : stored;
@@ -83,9 +84,10 @@ export function buildDesktopAccountReply(profile: Record<string, unknown>, uid: 
     ...(version === DESKTOP_ACCOUNT_V3 ? {battlefieldMovement: battlefieldMovementCatalog()} : {}),
     uid,
     ...desktopDashboardFields(profile),
-    storyFlags: readStoryFlags(profile.storyFlags),
+    storyFlags: story.flags,
     pilotRank: readPilotRank(profile.pilotRank),
-    tournamentUnlocks: tournamentUnlocks(profile),
+    // A non-exact (display fallback) story read never announces a tournament unlock.
+    tournamentUnlocks: story.exact ? tournamentUnlocks(profile) : [],
     dailyMissionLedger: dailyMissionLedgerSummary(profile, new Date(nowMs)),
     onboarding: onboardingView(readOnboarding(profile.onboarding)),
     ...(readinessAccrualEnabled() ? { syncReadiness: readinessView(profile, nowMs) } : {}),

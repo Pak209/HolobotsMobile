@@ -6,6 +6,7 @@ import { ARENA_TIERS } from '../lib/arenaEconomy';
 import { ActivityError, arenaOpen } from '../lib/arenaActivity';
 import { duelFighterFromCombatant } from '../lib/duelResolver';
 import { HealthError } from '../lib/rivalHealth';
+import { recordAccountRepair } from '../lib/accountRepairAudit';
 import { playerCombatant, RivalError } from '../lib/rivalLadder';
 import { ARENA_TOURNAMENT_SCHEMA, tournamentAdmission } from './arenaTournament';
 import { applyPartBoosts, EMPTY_PART_BOOSTS, ledgerHealthAfterFight } from '../lib/partStats';
@@ -103,7 +104,7 @@ export async function transactTournamentBracket(db:Firestore,uid:string,raw:unkn
         const opponent=next.entrants.find(e=>e.entrantId===opponentId)!;
         const opponentStats={...opponent.fighter,level:m.opponent.level,name:opponent.holobotId.toUpperCase()};
         const closed=settleArenaBracketRecord(profile,m,opponentStats,ledgerHealthAfterFight(next.health[player.entrantId],player.fighter.maxHealth,m.entrant),next.health[opponentId],next.playerAlive,nowMs);
-        tx.update(userRef,closed.updates);tx.set(matchRef,closed.match);tx.set(leaseRef,{...lease,open:false,closedAtMs:nowMs});
+        tx.update(userRef,closed.updates);tx.set(matchRef,closed.match);recordAccountRepair(db,tx,uid,'tournamentBracketHost.settle',closed.repairs,nowMs);tx.set(leaseRef,{...lease,open:false,closedAtMs:nowMs});
       }
       tx.set(bracketRef,{schemaVersion:ARENA_BRACKET_SCHEMA,bracket:next,cancelled:false});
       return arenaBracketReply(next,false);
