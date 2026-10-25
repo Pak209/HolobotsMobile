@@ -461,19 +461,20 @@ export function PvpArenaModalView({ onClose, userHolobots, visible, session }: P
             )}
           </View>
         </View>
+        {/* Inside the PvP Modal, not beside it: iOS presents one Modal per presenting controller, so a sibling picker
+            never appeared while this one was up (HOLOBOT bar and 3v3 slots were dead taps; lite-button-crawl-1). */}
+        <HolobotPickerModal
+          visible={pickerTarget !== null}
+          roster={roster}
+          selectedIndex={
+            pickerTarget === "main" || pickerTarget === null
+              ? selectedHolobotIndex
+              : roster.findIndex((holobot) => holobot.name === teamNames[pickerTarget])
+          }
+          onClose={() => setPickerTarget(null)}
+          onSelect={handlePickerSelect}
+        />
       </Modal>
-
-      <HolobotPickerModal
-        visible={pickerTarget !== null}
-        roster={roster}
-        selectedIndex={
-          pickerTarget === "main" || pickerTarget === null
-            ? selectedHolobotIndex
-            : roster.findIndex((holobot) => holobot.name === teamNames[pickerTarget])
-        }
-        onClose={() => setPickerTarget(null)}
-        onSelect={handlePickerSelect}
-      />
     </>
   );
 }

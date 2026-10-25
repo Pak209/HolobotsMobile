@@ -46,6 +46,11 @@ type AuthContextValue = {
   sessionLocked: boolean;
   profileLoading: boolean;
   profileError: string | null;
+  /**
+   * True from CREATE PILOT until createGenesisProfile has answered. The new account is signed in (onAuthStateChanged)
+   * before the host has written users/{uid}, so anything that reads the account on mount must wait for this.
+   */
+  creatingProfile: boolean;
   /** Re-subscribe to the profile after a failed read. */
   retryProfile: () => void;
   login: (email: string, password: string, options?: { rememberMe?: boolean; faceId?: boolean }) => Promise<void>;
@@ -101,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [creatingProfile, setCreatingProfile] = useState(false);
   // Bumped only by retryProfile(); while it stays 0 the profile subscription behaves exactly as before.
   const [profileRevision, setProfileRevision] = useState(0);
   const profileReadRef = useRef<{ uid: string; revision: number } | null>(null);
@@ -285,6 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionLocked,
       profileLoading,
       profileError,
+      creatingProfile,
       retryProfile: () => setProfileRevision((revision) => revision + 1),
       login: async (email, password, options) => {
         const normalizedEmail = email.trim();
@@ -370,97 +377,102 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         manualLoginRef.current = true;
 
         let createdUser: User | null = null;
+        setCreatingProfile(true);
 
         try {
-          // Deadline (bake bug 1): the CREATE PILOT spinner hung forever on
-          // stalled auth/Firestore calls — every await in this flow now has
-          // a timeout with a readable error.
-          const userCredential = await withTimeout(
-            createUserWithEmailAndPassword(auth, normalizedEmail, password),
-            AUTH_TIMEOUT_MS,
-            "Signup timed out. Check your connection and try again.",
-          );
-          createdUser = userCredential.user;
+          try {
+            // Deadline (bake bug 1): the CREATE PILOT spinner hung forever on
+            // stalled auth/Firestore calls — every await in this flow now has
+            // a timeout with a readable error.
+            const userCredential = await withTimeout(
+              createUserWithEmailAndPassword(auth, normalizedEmail, password),
+              AUTH_TIMEOUT_MS,
+              "Signup timed out. Check your connection and try again.",
+            );
+            createdUser = userCredential.user;
 
-          setUser(createdUser);
-          setSessionLocked(false);
-          setProfile({
-            ...localProfile,
-            id: createdUser.uid,
-          });
-          setLoading(false);
-          setProfileLoading(false);
-          setProfileError(null);
+            setUser(createdUser);
+            setSessionLocked(false);
+            setProfile({
+              ...localProfile,
+              id: createdUser.uid,
+            });
+            setLoading(false);
+            setProfileLoading(false);
+            setProfileError(null);
 
-          await withTimeout(
-            createGenesisProfileAuthoritative(starterHolobot, normalizedUsername),
-            CALLABLE_TIMEOUT_MS,
-            "Creating your profile timed out. Check your connection and try again.",
-          ).catch((error) => {
-            console.error("[Auth] Failed to persist new user profile", error);
-          });
-        } catch (error) {
-          const errorCode =
-            typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code) : "";
+            await withTimeout(
+              createGenesisProfileAuthoritative(starterHolobot, normalizedUsername),
+              CALLABLE_TIMEOUT_MS,
+              "Creating your profile timed out. Check your connection and try again.",
+            ).catch((error) => {
+              console.error("[Auth] Failed to persist new user profile", error);
+            });
+          } catch (error) {
+            const errorCode =
+              typeof error === "object" && error && "code" in error ? String((error as { code?: string }).code) : "";
 
-          if (errorCode === "auth/email-already-in-use") {
-            try {
-              const existingCredential = await withTimeout(
-                signInWithEmailAndPassword(auth, normalizedEmail, password),
-                AUTH_TIMEOUT_MS,
-                "That email is already registered, and checking it timed out. Please try Sign In instead.",
-              );
-              const existingUser = existingCredential.user;
-              const existingProfileRef = doc(db, "users", existingUser.uid);
-              const existingProfileSnap = await withTimeout(
-                getDoc(existingProfileRef),
-                FIRESTORE_TIMEOUT_MS,
-                "That email is already registered, and loading its account timed out. Please try Sign In instead.",
-              );
-
-              if (!existingProfileSnap.exists()) {
-                await withTimeout(
-                  createGenesisProfileAuthoritative(starterHolobot, normalizedUsername),
-                  CALLABLE_TIMEOUT_MS,
-                  "Restoring this account timed out. Check your connection and try again.",
+            if (errorCode === "auth/email-already-in-use") {
+              try {
+                const existingCredential = await withTimeout(
+                  signInWithEmailAndPassword(auth, normalizedEmail, password),
+                  AUTH_TIMEOUT_MS,
+                  "That email is already registered, and checking it timed out. Please try Sign In instead.",
                 );
-                setUser(existingUser);
-                setSessionLocked(false);
-                setProfile({
-                  ...localProfile,
-                  id: existingUser.uid,
-                });
+                const existingUser = existingCredential.user;
+                const existingProfileRef = doc(db, "users", existingUser.uid);
+                const existingProfileSnap = await withTimeout(
+                  getDoc(existingProfileRef),
+                  FIRESTORE_TIMEOUT_MS,
+                  "That email is already registered, and loading its account timed out. Please try Sign In instead.",
+                );
+
+                if (!existingProfileSnap.exists()) {
+                  await withTimeout(
+                    createGenesisProfileAuthoritative(starterHolobot, normalizedUsername),
+                    CALLABLE_TIMEOUT_MS,
+                    "Restoring this account timed out. Check your connection and try again.",
+                  );
+                  setUser(existingUser);
+                  setSessionLocked(false);
+                  setProfile({
+                    ...localProfile,
+                    id: existingUser.uid,
+                  });
+                  setLoading(false);
+                  setProfileLoading(false);
+                  setProfileError(null);
+                  return;
+                }
+
+                await signOut(auth).catch(() => undefined);
                 setLoading(false);
-                setProfileLoading(false);
-                setProfileError(null);
-                return;
+                throw new Error("That email already has a Holobots account. Please sign in instead.");
+              } catch (recoveryError) {
+                const recoveryCode =
+                  typeof recoveryError === "object" && recoveryError && "code" in recoveryError
+                    ? String((recoveryError as { code?: string }).code)
+                    : "";
+
+                setLoading(false);
+
+                if (recoveryCode === "auth/invalid-credential" || recoveryCode === "auth/wrong-password") {
+                  throw new Error("That email is already registered. Sign in instead, or use the original password to recover setup.");
+                }
+
+                throw recoveryError;
               }
-
-              await signOut(auth).catch(() => undefined);
-              setLoading(false);
-              throw new Error("That email already has a Holobots account. Please sign in instead.");
-            } catch (recoveryError) {
-              const recoveryCode =
-                typeof recoveryError === "object" && recoveryError && "code" in recoveryError
-                  ? String((recoveryError as { code?: string }).code)
-                  : "";
-
-              setLoading(false);
-
-              if (recoveryCode === "auth/invalid-credential" || recoveryCode === "auth/wrong-password") {
-                throw new Error("That email is already registered. Sign in instead, or use the original password to recover setup.");
-              }
-
-              throw recoveryError;
             }
-          }
 
-          if (createdUser) {
-            await signOut(auth).catch(() => undefined);
-          }
+            if (createdUser) {
+              await signOut(auth).catch(() => undefined);
+            }
 
-          setLoading(false);
-          throw error;
+            setLoading(false);
+            throw error;
+          }
+        } finally {
+          setCreatingProfile(false);
         }
       },
       logout: async () => {
@@ -529,6 +541,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authPreferences.rememberMe,
       authPreferences.rememberedEmail,
       bootLoading,
+      creatingProfile,
       faceIdAvailable,
       loading,
       profile,
@@ -577,6 +590,7 @@ export function OfflinePreviewAuthProvider({
       sessionLocked: false,
       profileLoading: false,
       profileError: null,
+      creatingProfile: false,
       retryProfile: () => {},
       login: unavailable,
       signup: unavailable,
