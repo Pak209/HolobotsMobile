@@ -63,6 +63,9 @@ const COPY: Record<string, ArenaCopyBlock> = {
     pending_issue: { title: ARENA_SCREEN_COPY.pendingIssueTitle, body: ARENA_SCREEN_COPY.pendingIssueBody },
     confirming: { title: ARENA_SCREEN_COPY.confirmingResult, body: ARENA_SCREEN_COPY.confirmingBody },
     offline: { title: 'NO ANSWER FROM THE CITY', body: "The City didn't answer in time. Nothing new was charged; try again in a moment." },
+    // Host #221: a legacy Holobot record the City cannot read (failed-precondition, so a definite refusal: F2 clears the
+    // stored issue). Retrying the same bot can never succeed, so the copy points elsewhere. PLACEHOLDER until Lex.
+    holobot_record_invalid: { title: 'HOLOBOT RECORD NEEDS REPAIR', body: "This Holobot's saved progress can't be read by the City. Nothing was charged. Pick another Holobot or contact support." },
 };
 const ALIAS: Record<string, keyof typeof COPY> = {
     holobot_ko: 'holobot_ko', insufficient_funds: 'insufficient_funds', activity_conflict: 'activity_conflict', match_expired: 'match_expired',
@@ -75,6 +78,7 @@ const ALIAS: Record<string, keyof typeof COPY> = {
     arena_moves_unavailable: 'unreadable', arena_not_started: 'unreadable',
     arena_session_changed: 'session', arena_issue_pending: 'pending_issue', too_fast: 'confirming',
     unavailable: 'offline', arena_busy: 'offline', 'deadline-exceeded': 'offline', internal: 'offline',
+    holobot_record_invalid: 'holobot_record_invalid',
 };
 
 /** The machine code of an Arena failure: host rejectionCode, then a local `arena_*` code, then the HTTPS code. */
@@ -84,6 +88,12 @@ export function arenaErrorCode(e: unknown): string {
     const message = e instanceof Error ? e.message : typeof e === 'string' ? e : '';
     if (/^arena_[a-z0-9_]+$/.test(message)) return message;
     return arenaCallCode(e) ?? 'unknown';
+}
+/** The host's machine reason for a refusal (details.reason, e.g. holobot_record_invalid's experience_over_level): for
+ * logs only, never shown to the player. */
+export function arenaRefusalReason(e: unknown): string | null {
+    const details = (e !== null && typeof e === 'object' ? (e as { details?: unknown }).details : null) as { reason?: unknown } | null;
+    return details && typeof details === 'object' && typeof details.reason === 'string' ? details.reason : null;
 }
 /** L1: player copy for any Arena failure, never raw. An unknown code the City sent as a refusal reads "not accepted";
  * only a missing answer (timeout, dropped reply, no code) reads "no answer". */

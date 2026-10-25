@@ -16,7 +16,7 @@ import type { UserHolobot } from '@/types/profile';
 import { createArenaMatchClient } from '@/lite/lib/arenaMatchClient';
 import { arenaClosureResult, arenaIssuePayoutCapped, arenaReceiptResult, type ArenaCheckpoint, type ArenaMatchFlow, type ArenaReply, type ArenaSettleReport } from '@/lite/lib/arenaMatchFlow';
 import { ArenaSettleConfirmer, type ArenaSettlePhase } from '@/lite/lib/arenaSettleConfirm';
-import { ARENA_SCREEN_COPY as COPY, arenaForfeitHp, arenaQuitPrompt, arenaScreenPhase, type ArenaQuitPrompt } from '@/lite/lib/arenaCopy';
+import { ARENA_SCREEN_COPY as COPY, arenaErrorCode, arenaForfeitHp, arenaQuitPrompt, arenaRefusalReason, arenaScreenPhase, type ArenaQuitPrompt } from '@/lite/lib/arenaCopy';
 import { ARENA_3V3_UNAVAILABLE_COPY } from '@/lite/lib/arenaMatch3v3';
 import { arenaHostBattle } from '@/lite/lib/arenaHostBattle';
 import { readHostVitals } from '@/lite/lib/arenaVitals';
@@ -107,6 +107,9 @@ export function ArenaScreen({ preview }: { preview?: ArenaScreenPreview } = {}) 
         if (!mine())
             return;
         setPendingIssue(!!issue);
+        // holobot_record_invalid's reason (which field is malformed) goes to the log; the player sees City copy only.
+        if (arenaErrorCode(e) === 'holobot_record_invalid')
+            console.warn('[Arena] holobot_record_invalid', arenaRefusalReason(e) ?? 'no reason');
         setError(e);
     };
     /** Mount / foreground: re-read the City's view; a stored settle for the open match is resent unchanged. */

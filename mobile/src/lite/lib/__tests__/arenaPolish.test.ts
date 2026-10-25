@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ArenaMatchFlow, arenaClosureResult, arenaIssuePayoutCapped, arenaReceiptResult, readArenaReply, type ArenaIssue, type ArenaReply } from '../arenaMatchFlow';
-import { ARENA_SCREEN_COPY, arenaErrorCode, arenaErrorCopy, arenaForfeitHp, arenaQuitPrompt, arenaScreenPhase } from '../arenaCopy';
+import { ARENA_SCREEN_COPY, arenaErrorCode, arenaErrorCopy, arenaForfeitHp, arenaQuitPrompt, arenaRefusalReason, arenaScreenPhase } from '../arenaCopy';
 import { hostKnockedOut, readHostVitals } from '../arenaVitals';
 import { ARENA_ISSUE_REQUEST, ARENA_ISSUED, ARENA_SETTLED, ARENA_STARTED, arenaForfeitReply, arenaPayoutCappedIssue, arenaRefundReply, arenaRefusal, arenaWithheldReply, tooFast } from '../../qa/arenaPolishFixtures';
 
@@ -258,5 +258,30 @@ describe('L1: player copy, never raw codes', () => {
     it('every Arena copy string says "the City", never "host"', () => {
         for (const text of Object.values(ARENA_SCREEN_COPY)) expect(text).not.toMatch(/\bhost\b/i);
         expect(tooFast(1).details.retryAfterMs).toBe(1);
+    });
+});
+
+describe('host #221: holobot_record_invalid (lite-button-crawl-1 RC7)', () => {
+    const REASONS = ['experience_over_level', 'level_malformed', 'experience_malformed', 'attribute_points_malformed', 'boosted_attributes_malformed'];
+    const refusal = (reason?: string) => arenaRefusal('holobot_record_invalid', 'failed-precondition', reason === undefined ? {} : { reason });
+    it.each([...REASONS, 'some_future_reason', undefined])('reason %s maps to the repair copy, never the reason itself', (reason) => {
+        const copy = arenaErrorCopy(refusal(reason));
+        expect(copy).toEqual({ title: 'HOLOBOT RECORD NEEDS REPAIR', body: "This Holobot's saved progress can't be read by the City. Nothing was charged. Pick another Holobot or contact support." });
+        expect(`${copy.title} ${copy.body}`).not.toMatch(/holobot_record_invalid|_malformed|experience_over_level|some_future_reason/);
+        // Not the transient "no answer, try again" copy the old 'unavailable' code produced.
+        expect(copy.title).not.toBe('NO ANSWER FROM THE CITY');
+        expect(arenaRefusalReason(refusal(reason))).toBe(reason ?? null);
+    });
+    it('is a definite refusal: the stored issue is cleared, so the next pick is not wedged', async () => {
+        const { flow, pending } = setup(async () => { throw refusal('experience_over_level'); });
+        await expect(flow.issue(ARENA_ISSUE_REQUEST)).rejects.toThrow('holobot_record_invalid');
+        expect(pending()).toBeNull();
+        await expect(flow.issue({ ...ARENA_ISSUE_REQUEST, requestId: 'lite_arena_other_bot' })).rejects.toThrow('holobot_record_invalid');
+        expect(pending()).toBeNull();
+    });
+    it('the screen error phase shows the repair copy and the reason only reaches the log', () => {
+        expect(phase({ error: refusal('level_malformed') })).toEqual({ kind: 'error', copy: arenaErrorCopy(refusal()), matchOpen: false });
+        const screen = readFileSync(fileURLToPath(new URL('../../screens/ArenaScreen.tsx', import.meta.url) as unknown as string), 'utf8');
+        expect(screen).toContain("console.warn('[Arena] holobot_record_invalid', arenaRefusalReason(e) ?? 'no reason');");
     });
 });
