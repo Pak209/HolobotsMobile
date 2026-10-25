@@ -619,17 +619,27 @@ test('corrupted persisted quote, charge binding, entrant, opponent or timestamps
 test('malformed current entrant progression fails before the XP loop or any settlement write', async () => {
   // Only run against the candidate pre-progression guard. Infinite inputs are NEVER
   // executed through the pinned legacy progression loop.
+  // host-crawl-fixes-1 (RC7): an unhealable record is a NON-transient holobot_record_invalid (was 'unavailable').
   const corruptions = [
     { experience: Infinity }, { experience: '1e309' }, { experience: -1 }, { experience: 1e300 },
     { experience: 2500 }, { level: Infinity }, { level: '4' }, { level: -1 },
-    { nextLevelExp: Infinity }, { nextLevelExp: '2500' }, { nextLevelExp: 1 },
     { attributePoints: Infinity }, { boostedAttributes: { attack: -1 } },
   ];
   for (const fields of corruptions) {
     const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
     const profile = await user(uid);
     await db.doc(`users/${uid}`).update({ holobots: [{ ...profile.holobots[0], ...fields }, profile.holobots[1]] });
-    await refused(uid, () => settle(uid, issued.matchId), /unavailable|invalid_request/);
+    await refused(uid, () => settle(uid, issued.matchId), e => e.code === 'holobot_record_invalid' && typeof e.reason === 'string', JSON.stringify(fields));
+  }
+  // A stale / malformed DERIVED threshold is healed from level (calculateExperience(level + 1)), never refused, and
+  // never levels the bot early: ACE LV4 1700 XP + the rookie win stays LV4 under the real 2500 threshold.
+  for (const fields of [{ nextLevelExp: Infinity }, { nextLevelExp: '2500' }, { nextLevelExp: 1 }]) {
+    const uid = await setup(); const issued = await issue(uid); await start(uid, issued.matchId);
+    const profile = await user(uid);
+    await db.doc(`users/${uid}`).update({ holobots: [{ ...profile.holobots[0], ...fields }, profile.holobots[1]] });
+    await settle(uid, issued.matchId);
+    const ace = (await user(uid)).holobots[0];
+    assert.equal(ace.level, 4, JSON.stringify(fields)); assert.equal(ace.nextLevelExp, 2500, JSON.stringify(fields));
   }
   const uid = await setup({ holobots: [{ name: 'UNRECOGNIZED_SPECIES', level: 1, experience: 0, nextLevelExp: 400, attributePoints: 0 }], holobotVitals: {} });
   await refused(uid, () => call(uid, issueData('unknown_owned_species', { holobotId: 'unrecognized_species' })), /invalid_request|unavailable/);

@@ -19,6 +19,8 @@ import { readHoloZoneRuns, HoloZoneError } from '../lib/holoZoneRuns';
 import { HealthError, requireLivingVitals, settleVitals, Vitals } from '../lib/rivalHealth';
 import { applyHolobotExperience, calculateExperience, HOLOBOT_BASE_STATS } from '../lib/progression';
 import { toHolobotKey } from '../lib/mintingEconomy';
+import { repairHolobotProgression } from '../lib/holobotRecordRepair';
+import { recordAccountRepair, RepairChange } from '../lib/accountRepairAudit';
 
 export const ARENA_MATCH_SCHEMA = 'arena-match-1';
 export const ARENA_MATCH_TTL_MS = 30 * 60 * 1000;
@@ -63,7 +65,10 @@ function paidToday(raw: unknown, nowMs: number): number {
   if (!object(raw) || raw.schemaVersion !== ARENA_CPU_PAYOUTS_SCHEMA || typeof raw.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.day) || !whole(raw.paidSettles)) return fail('unavailable');
   return raw.day === utcDay(nowMs) ? raw.paidSettles : 0;
 }
-export class ArenaError extends Error { constructor(public code: string, public retryAfterMs?: number) { super(code); } }
+export class ArenaError extends Error { constructor(public code: string, public retryAfterMs?: number, public reason?: string) { super(code); } }
+/** host-crawl-fixes-1 (RC7): a stored holobot record the host cannot normalize. NON-transient (never 'unavailable'):
+ * retrying cannot help; details.reason is a lib/holobotRecordRepair HolobotRepairRefusal. */
+export const ARENA_HOLOBOT_RECORD_INVALID = 'holobot_record_invalid';
 type Data = Record<string, any>;
 type Command = Data & { operation: 'issue'|'start'|'resume'|'settle'|'cancel' };
 type Match = Data & { matchId: string; state: 'issued'|'active'|'settled'|'cancelled'|'expired' };
@@ -206,19 +211,19 @@ function counter(profile: Data, key: string): number {
   if (!whole(n)) return fail('unavailable');
   return n;
 }
-function uniqueEntrant(profile: Data, id: string): Data {
+/** The one owned record for `id`, with its derived progression fields self-healed (lib/holobotRecordRepair: never
+ * raises level / XP / points / boosts). `holobots` is the profile array with that record replaced; `changes` lists
+ * what the heal rewrote (empty = stored record already canonical). Unhealable -> holobot_record_invalid + reason. */
+function uniqueEntrant(profile: Data, id: string): { bot: Data; holobots: Data[]; changes: RepairChange[] } {
   if (!Array.isArray(profile.holobots)) return fail('unavailable');
+  const index = profile.holobots.findIndex((h: unknown) => object(h) && typeof h.name === 'string' && toHolobotKey(h.name) === id);
   const found = profile.holobots.filter((h: unknown) => object(h) && typeof h.name === 'string' && toHolobotKey(h.name) === id);
   if (found.length !== 1 || !Object.hasOwn(HOLOBOT_BASE_STATS,id.toUpperCase())) return fail('invalid_request');
-  const bot = found[0];
-  // These legacy profile fields are owner-writable. Validate before calling the progression loop.
-  const level = bot.level ?? 1, exp = bot.experience ?? 0;
-  if (!whole(level) || level < 1 || !whole(exp)) return fail('unavailable');
-  const threshold = calculateExperience(level + 1);
-  if (!whole(threshold) || exp >= threshold || (bot.nextLevelExp !== undefined && bot.nextLevelExp !== threshold)
-    || (bot.attributePoints !== undefined && !whole(bot.attributePoints))) return fail('unavailable');
-  if (bot.boostedAttributes !== undefined && (!object(bot.boostedAttributes) || Object.values(bot.boostedAttributes).some(n => !whole(n)))) return fail('unavailable');
-  return bot;
+  // These legacy profile fields were owner-writable. Heal or refuse before calling the progression loop.
+  const healed = repairHolobotProgression(found[0], `holobots.${id}`);
+  if (!healed.ok) throw new ArenaError(ARENA_HOLOBOT_RECORD_INVALID, undefined, healed.reason);
+  const holobots = profile.holobots.map((h: Data, i: number) => i === index ? healed.holobot : h);
+  return { bot: healed.holobot, holobots, changes: healed.changes };
 }
 function reply(m: Match, alreadyProcessed = false) {
   const tier = ARENA_TIERS.findIndex(row => row.id === m.tierId);
@@ -244,14 +249,14 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
   const syncPoints = pays ? Math.floor(r.syncPoints * (won ? bonus : r.lossSyncFraction)) : 0;
   const holos = won && pays ? r.holos : 0;
   const awardedExp = exp * (finite(profile.expBoosterActiveUntil) && profile.expBoosterActiveUntil > now ? r.expBoosterMultiplier : 1);
-  uniqueEntrant(profile, m.entrant.holobotId);
+  const entrant = uniqueEntrant(profile, m.entrant.holobotId);
   const blueprints = { ...(profile.blueprints ?? {}) };
   if (!object(profile.blueprints ?? {} ) || Object.values(blueprints).some(n => !whole(n))) fail('unavailable');
   const blueprint = won && pays ? { holobotKey: m.opponent.name.toLowerCase(), amount: r.blueprints } : null;
   if (blueprint) blueprints[blueprint.holobotKey] = (blueprints[blueprint.holobotKey] ?? 0) + blueprint.amount;
   const updates: Data = {
     blueprints,
-    holobots: profile.holobots.map((h: Data) => object(h) && typeof h.name === 'string' && toHolobotKey(h.name) === m.entrant.holobotId ? applyHolobotExperience(h, awardedExp) : h),
+    holobots: entrant.holobots.map((h: Data) => h === entrant.bot ? applyHolobotExperience(h, awardedExp) : h),
     holosTokens: counter(profile,'holosTokens') + holos,
     wins: counter(profile,'wins') + (won ? 1 : 0), losses: counter(profile,'losses') + (won ? 0 : 1),
     syncPoints: counter(profile,'syncPoints') + syncPoints,
@@ -259,7 +264,7 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
     ...dailyMissionCounterUpdates(profile, 'arenaBattlesToday', new Date(now)),
   };
   assertFiniteTree(updates);
-  return { updates, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}) }, outcome: won ? 'win' : 'loss' };
+  return { updates, repairs: entrant.changes, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}) }, outcome: won ? 'win' : 'loss' };
 }
 
 export async function transactArenaMatch(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now()) {
@@ -298,9 +303,9 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const duel = await tx.get(firestore.doc(`duelHealingRuns/${uid}`));
         if(expeditionOpen(zone.data()))return fail('activity_conflict');
         guardOtherActivities(rival.data(),zone.data(),duel.data(),nowMs);
-        const owned = uniqueEntrant(profile,c.holobotId);
+        const entrant = uniqueEntrant(profile,c.holobotId), owned = entrant.bot;
         requireLivingVitals(profile,[c.holobotId]); // Validates the whole ledger; NEVER invoke city 40% revival.
-        const player = buildPlayerCombatants(profile,[c.holobotId])[0];
+        const player = buildPlayerCombatants({...profile,holobots:entrant.holobots},[c.holobotId])[0];
         const tournament = c.tournamentId === undefined ? undefined : tournamentAdmission(profile.storyFlags,c.tournamentId,player?.level,profile.pilotRank);
         if (!player || !finite(player.maxHealth) || player.maxHealth <= 0) return fail('unavailable');
         const current = profile.holobotVitals?.[c.holobotId];
@@ -324,7 +329,9 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         };
         match(m,generatedId);
         tx.update(userRef,{[field]:before-amount,holobotVitals:vitals,
+          ...(entrant.changes.length ? {holobots:entrant.holobots} : {}),
           ...(tournament && profile.pilotRank === undefined ? {pilotRank:tournament.pilotRankAtAdmission} : {})});
+        recordAccountRepair(firestore,tx,uid,'arenaMatchHost.issue',entrant.changes,nowMs);
         tx.create(parentRef.collection('matches').doc(generatedId),m);
         tx.create(requestRef,{schemaVersion:ARENA_MATCH_SCHEMA,identity,matchId:generatedId,createdAtMs:nowMs});
         tx.set(parentRef,{schemaVersion:'arena-healing-1',recordSchemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,open:true,issuedAtMs:nowMs,expiresAtMs:m.expiresAtMs});
@@ -386,6 +393,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           const withheld = elapsedMs < ARENA_MIN_SETTLE_MS_CPU ? 'under_floor' : paid >= ARENA_CPU_DAILY_PAYOUT_CAP ? 'daily_cap' : undefined;
           const result = rewards(profile,m,reported,nowMs,undefined,withheld);
           updates = withRankHealingReward(profile, result.updates); // #72 rank-tier Kit, moved off the closed legacy settle.
+          recordAccountRepair(firestore,tx,uid,'arenaMatchHost.settle',result.repairs,nowMs);
           receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:c.playerFinalHealth,opponentFinalHealth:c.opponentFinalHealth,combosCompleted:reported.combosCompleted,perfectDefenses:reported.perfectDefenses},closedAtMs:nowMs};
           if (withheld === undefined) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
           nextState = 'settled';
@@ -436,7 +444,7 @@ export function settleArenaBracketRecord(profile:Data, raw:unknown, opponent:Dat
     settlement:result.settlement,report:{playerFinalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,bracketWinner:won?'player':'opponent'},closedAtMs:nowMs,
     finalVitals:{[m.entrant.holobotId]:finalVitals[m.entrant.holobotId]}}};
   assertFiniteTree(updates);match(next,m.matchId);
-  return {updates,match:next};
+  return {updates,match:next,repairs:result.repairs};
 }
 
 /** A bound bracket can be abandoned using host-observed HP, including after expiry. */

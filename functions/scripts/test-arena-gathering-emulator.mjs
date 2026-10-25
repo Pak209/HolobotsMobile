@@ -94,12 +94,14 @@ test('callable auth and strict gathering/tournament input refusals',async()=>{
  await assert.rejects(()=>tournamentResultHost.run({auth:{uid},data:{schemaVersion:T,tournamentId:'starter',matchId:'am_'+'a'.repeat(32)}}),e=>e.code==='not-found'&&e.details.rejectionCode==='unknown_match');
 });
 
-test('malformed story state fails closed; partial absent fields default without resetting existing progress',async()=>{
+test('malformed story state fails closed for writers; partial absent fields default without resetting existing progress',async()=>{
  for(const storyFlags of [null,[],{tournamentsWon:4},{tournamentsWon:-1},{tournamentsWon:1.5},{arenaArcBuilt:true},{arenaGatheringSeen:'yes'},{holoZonesArcBuilt:null}]) {
   const uid=await setup(21,{storyFlags});
   await refused(uid,()=>gather(uid),'unavailable');
   await refused(uid,()=>result(uid,'starter','am_'+'a'.repeat(32)),'unavailable');
-  await assert.rejects(()=>desktopAccountSnapshot.run({auth:{uid},data:{schemaVersion:'desktop-account-3'}}),hasCode('unavailable'));
+  // host-crawl-fixes-1: the Home snapshot still answers (display fallback, never persisted, no unlock announced).
+ const snap=await desktopAccountSnapshot.run({auth:{uid},data:{schemaVersion:'desktop-account-3'}});
+ assert.deepEqual(snap.tournamentUnlocks,[]);assert.deepEqual((await profile(uid)).storyFlags,storyFlags);
  }
  const uid=await setup(21,{storyFlags:{arenaGatheringSeen:true}});
  assert.deepEqual((await gather(uid)).storyFlags,{...defaults,arenaGatheringSeen:true});

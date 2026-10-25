@@ -1,17 +1,19 @@
 import { HOLOZONE_ZONE_TIERS } from '../lib/holoZoneRuns';
-import { readStoryFlags } from '../story/storyFlags';
+import { readStoryFlagsTolerant } from '../story/storyFlags';
 
 /** Dashboard catalog mirrored from Unity db265127c dashboard-preview.json; not its fabricated pilot data.
  * zoneId is the stable destination identity. PortalTravel routes by sceneName and has no separate portal ID.
  * These are destination availability flags, never permission to issue a run or bypass its host gates.
  * A non-town zone is open only when its tier is configured (HOLOZONE_ZONE_TIERS) AND the account's host-owned
  * storyFlags.holoZonesArcBuilt is true (critic review 2026-10-17 top #1; DECISIONS #59 am. 1: the HoloZones portal
- * stays shut until the arc is built). A closed row carries sceneName null (not travelable). Malformed story flags
- * fail closed here; the snapshot callable refuses them as unavailable before this runs.
+ * stays shut until the arc is built). A closed row carries sceneName null (not travelable). Malformed or
+ * inconsistent story flags fail closed here (every non-town zone closed); the snapshot still answers.
  */
 export function desktopDashboardFields(profile: Record<string, unknown>) {
-  let holoZonesArcBuilt = false;
-  try { holoZonesArcBuilt = readStoryFlags(profile.storyFlags).holoZonesArcBuilt; } catch { holoZonesArcBuilt = false; }
+  // host-crawl-fixes-1: never throws; a non-exact (malformed / inconsistent) record shows every zone closed, matching
+  // the HoloZone gates, which read the flags strictly and refuse it.
+  const story = readStoryFlagsTolerant(profile.storyFlags);
+  const holoZonesArcBuilt = story.exact && story.flags.holoZonesArcBuilt;
   const open = (id: string) => holoZonesArcBuilt && Object.prototype.hasOwnProperty.call(HOLOZONE_ZONE_TIERS, id);
   return {
     username: typeof profile.username === 'string' && profile.username.trim().length > 0 ? profile.username : null,
