@@ -29,6 +29,8 @@ static int HBArgc;
 @implementation HolobotsUnityRuntime
 RCT_EXPORT_MODULE(HolobotsUnityRuntime)
 + (BOOL)requiresMainQueueSetup { return YES; }
+// The module registers in every build; JS offers the 3D city only when the framework is actually linked (L17).
+- (NSDictionary *)constantsToExport { return @{@"unityEmbedded": @(HB_HAS_UNITY == 1)}; }
 - (dispatch_queue_t)methodQueue { return dispatch_get_main_queue(); }
 - (NSArray<NSString *> *)supportedEvents { return @[@"UnityMessage"]; }
 - (instancetype)init {

@@ -7,9 +7,13 @@ import { readTravelSquad } from '../../../lib/travelSquadClient';
 
 let activeClose: (() => Promise<void>) | undefined;
 
-/** True only in builds that ship the native Unity runtime; without it the 3D city entry is not shown (L17). */
+/**
+ * True only in builds that ship the native Unity runtime; without it the 3D city entry is not shown (L17).
+ * The native module registers even when UnityFramework is not linked (its open() then rejects), so presence alone
+ * is not enough: it reports `unityEmbedded` (lite-button-crawl-1: ENTER HOLOCITY failed on every tap in 1.1.0 r3).
+ */
 export function hasNativeUnity(): boolean {
-  return !!NativeModules.HolobotsUnityRuntime;
+  return NativeModules.HolobotsUnityRuntime?.unityEmbedded === true;
 }
 
 // PLACEHOLDER copy (Lex) for the 3D city entry and its failure dialog.
