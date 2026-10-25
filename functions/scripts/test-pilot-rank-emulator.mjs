@@ -203,6 +203,6 @@ test('client rules deny pilotRank creation, addition, increment, decrease, delet
   for(const pilotRank of [6,4,'5',null]) await assertFails(updateDoc(ref,{pilotRank}));
   await assertFails(updateDoc(ref,{pilotRank:deleteField()}));
   await assertFails(setDoc(ref,{displayName:'erase rank'}));await assertFails(deleteDoc(ref));
-  await assertSucceeds(updateDoc(ref,{pilotRank:5,displayName:'Throwaway'}));
+  await assertSucceeds(updateDoc(ref,{pilotRank:5,presenceOptOut:true})); // unchanged server field + an allowlisted key (clientWritableKeys)
   assert.equal((await profile(uid)).pilotRank,5);
 });
