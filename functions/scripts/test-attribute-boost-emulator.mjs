@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { withFlagsAsync } from './lib/flag-env.mjs';
 const require = createRequire(import.meta.url);
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulator required; never run against production');
 process.env.GCLOUD_PROJECT ||= 'demo-holobots-boost-tests';
@@ -13,7 +14,9 @@ const user = async uid => (await db.doc(`users/${uid}`).get()).data();
 const boost = (uid, data) => boostHolobotAttribute.run({ auth: uid ? { uid } : undefined, data });
 const ace = { name: 'ACE', level: 4, experience: 1700, nextLevelExp: 2500, rank: 'Starter', attributePoints: 2, boostedAttributes: { health: 10 }, career: { workouts: 3 } };
 
-test('flag off (default): applies one boost per request id, persists it, and replays without spending', async () => {
+// The OFF tests pin the pre-#72.78 rules; production runs HOLOCITY_FIGHT_ATTRS=1 (#72.86) and the ON test below pins that.
+const rules5Off = fn => () => withFlagsAsync({ HOLOCITY_FIGHT_ATTRS: undefined }, fn);
+test('flag off (default): applies one boost per request id, persists it, and replays without spending', rules5Off(async () => {
   const uid = await setup([ace, { name: 'KUMA', level: 1, experience: 0, nextLevelExp: 400, attributePoints: 0 }]);
   const r = await boost(uid, { holobotName: 'ACE', attribute: 'health', requestId: 'b1' });
   assert.equal(r.applied, true); assert.equal(r.holobot.attributePoints, 1); assert.equal(r.holobot.boostedAttributes.health, 20);
@@ -27,15 +30,15 @@ test('flag off (default): applies one boost per request id, persists it, and rep
   const out = await boost(uid, { holobotName: 'ACE', attribute: 'attack', requestId: 'b3' });
   assert.equal(out.applied, false); assert.equal(out.reason, 'no_attribute_points');
   u = await user(uid); assert.deepEqual(u.attributeBoostRequestIds, ['b1', 'b2']); assert.equal(u.holobots[0].attributePoints, 0);
-});
+}));
 
-test('flag off (default): SPECIAL is refused (tied to SYNC): applied false, nothing written', async () => {
+test('flag off (default): SPECIAL is refused (tied to SYNC): applied false, nothing written', rules5Off(async () => {
   const uid = await setup([ace]);
   const before = await user(uid);
   const r = await boost(uid, { holobotName: 'ACE', attribute: 'special', requestId: 's1' });
   assert.equal(r.applied, false); assert.equal(r.reason, 'attribute_not_boostable'); assert.equal(r.holobot.attributePoints, 2);
   assert.deepEqual(await user(uid), before);
-});
+}));
 
 test('rejections: unauthenticated, invalid request, not owned, no profile', async () => {
   await assert.rejects(() => boost(undefined, { holobotName: 'ACE', attribute: 'attack', requestId: 'x' }), e => e.code === 'unauthenticated');
@@ -55,7 +58,7 @@ test('concurrent duplicate request ids spend exactly one point', async () => {
 });
 
 // rules5-progression-gate-1: the #72.78 progression changes are live only with the duel-rules-5 host flag (read at call time).
-const withRules5 = async fn => { const had = Object.hasOwn(process.env, 'HOLOCITY_FIGHT_ATTRS'), prev = process.env.HOLOCITY_FIGHT_ATTRS; process.env.HOLOCITY_FIGHT_ATTRS = '1'; try { return await fn(); } finally { if (had) process.env.HOLOCITY_FIGHT_ATTRS = prev; else delete process.env.HOLOCITY_FIGHT_ATTRS; } };
+const withRules5 = fn => withFlagsAsync({ HOLOCITY_FIGHT_ATTRS: '1' }, fn);
 
 test('rules-5 flag on (#72.78): a new HP point adds +3 on top of the grandfathered 10; SPECIAL is buyable (+1), persisted', () => withRules5(async () => {
   const uid = await setup([ace]);
