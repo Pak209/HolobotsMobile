@@ -56,3 +56,15 @@ describe('lite Arena UX rows', () => {
         expect(screen).toContain('<ArenaFighterCard snapshot={match.entrant} side="entrant"/>');
     });
 });
+
+describe('lite PvP lobby picker (lite-button-crawl-1)', () => {
+    it('presents the Holobot picker from inside the PvP Modal, never as a sibling Modal', () => {
+        const pvp = read('../PvpArenaModal.tsx');
+        // The lobby return: its outer <Modal ...> ... </Modal> must contain the picker (a sibling never presents on iOS).
+        const lobby = pvp.slice(pvp.lastIndexOf('<Modal '));
+        const close = lobby.indexOf('</Modal>');
+        expect(close).toBeGreaterThan(0);
+        expect(lobby.slice(0, close)).toContain('<HolobotPickerModal');
+        expect(lobby.slice(close)).not.toContain('<HolobotPickerModal');
+    });
+});
