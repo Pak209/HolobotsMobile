@@ -1,5 +1,7 @@
 import { acknowledgeTournamentUnlock, readTournamentAcknowledged, tournamentUnlocks } from '../story/tournamentUnlocks';
-import { readStoryFlags, StoryError } from '../story/storyFlags';
+import { readStoryFlagsTolerant, StoryError } from '../story/storyFlags';
+import { sanitizeEconomyFields } from '../lib/economyFieldSanitizer';
+import { recordAccountRepair } from '../lib/accountRepairAudit';
 import { readPilotRank, PilotRankError } from '../account/pilotRank';
 import { acknowledgeOnboarding, OnboardingError, OnboardingIntent, readOnboarding, validateOnboardingIntent } from '../lib/onboarding';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -52,14 +54,21 @@ export const desktopAccountSnapshot = onCall(async request => {
     const inv = readBuddyInventory(profile);
     if (!inv) throw new HttpsError('unavailable', 'unavailable', { rejectionCode: 'unavailable' });
     const squad = projectFirstTravelHolobot(profile);
-    let storyFlags, pilotRank;
-    try { storyFlags = readStoryFlags(profile.storyFlags); pilotRank = readPilotRank(profile.pilotRank); }
+    // host-crawl-fixes-1: malformed legacy economy fields (firestore.rules economyFieldsSane) are clamped here too, so
+    // Home load alone unblocks the account's client writes. Never raises a stored number; audited.
+    const economy = sanitizeEconomyFields(profile, nowMs);
+    // host-crawl-fixes-1: malformed / inconsistent story flags no longer refuse the whole snapshot (that blanked
+    // HOLOS / SYNC / PILOT / ZONES and the squad LV on Home). A non-exact read is display-only: it is never persisted,
+    // tournament unlocks are withheld, and every story writer / gate still reads the flags strictly and fails closed.
+    const story = readStoryFlagsTolerant(profile.storyFlags), storyFlags = story.flags;
+    let pilotRank;
+    try { pilotRank = readPilotRank(profile.pilotRank); }
     catch (e) {
-      if (e instanceof StoryError || e instanceof PilotRankError) throw new HttpsError('unavailable','unavailable',{rejectionCode:'unavailable'});
+      if (e instanceof PilotRankError) throw new HttpsError('unavailable','unavailable',{rejectionCode:'unavailable'});
       throw e;
     }
-    let tournamentUpdates;
-    try {
+    let tournamentUpdates = {};
+    if (story.exact || ack) try {
       const tournamentUnlockAcknowledged = ack ? acknowledgeTournamentUnlock(profile,data?.tournamentId) : readTournamentAcknowledged(profile.tournamentUnlockAcknowledged);
       tournamentUpdates = {tournamentUnlockAcknowledged, tournamentUnlocks: tournamentUnlocks({...profile,tournamentUnlockAcknowledged})};
     } catch (e) {
@@ -78,10 +87,11 @@ export const desktopAccountSnapshot = onCall(async request => {
       throw e;
     }
     const changedTournamentUpdates = Object.fromEntries(Object.entries(tournamentUpdates).filter(([key,value]) => JSON.stringify(profile[key]) !== JSON.stringify(value)));
-    const updates = { ...changedTournamentUpdates, ...onboardingUpdates, ...inv.updates, ...squad.updates,
+    const updates = { ...economy.updates, ...changedTournamentUpdates, ...onboardingUpdates, ...inv.updates, ...squad.updates,
       ...(profile.pilotRank === undefined ? {pilotRank} : {}),
-      ...(JSON.stringify(profile.storyFlags) !== JSON.stringify(storyFlags) ? {storyFlags} : {}) };
+      ...(story.exact && JSON.stringify(profile.storyFlags) !== JSON.stringify(storyFlags) ? {storyFlags} : {}) };
     if (Object.keys(updates).length) tx.update(userRef, updates);
+    recordAccountRepair(db, tx, uid, 'desktopAccountSnapshot', economy.changes, nowMs);
     return buildDesktopAccountReply({ ...profile, ...updates }, uid, version, inv.units);
   });
 });

@@ -4,6 +4,8 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { db } from "../admin";
 import { readRefreshEnergyRequest } from "../lib/energyRegen";
 import { regenInTransaction } from "./energyRegenStore";
+import { sanitizeEconomyFields } from "../lib/economyFieldSanitizer";
+import { recordAccountRepair } from "../lib/accountRepairAudit";
 
 /**
  * energy-quest-server-1: the daily energy regen, on the host (lib/energyRegen.ts has the time-zone design).
@@ -13,6 +15,9 @@ import { regenInTransaction } from "./energyRegenStore";
  * (server-only in firestore.rules). Idempotent: a pass with nothing due writes nothing (changed: false).
  * Reply: lib/energyRegen EnergyRegenOutcome.reply (schemaVersion 'energy-regen-1').
  * Refusals (details.rejectionCode): invalid_request, unavailable.
+ * host-crawl-fixes-1: first normalizes malformed legacy economy fields (lib/economyFieldSanitizer: clamp, never raise)
+ * so the account passes firestore.rules economyFieldsSane again; audited in accountRepairs/{uid}. Regen then runs on
+ * the sanitized profile. Idempotent: a sane profile is untouched.
  */
 export async function transactRefreshEnergy(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now()) {
   const request = readRefreshEnergyRequest(raw);
@@ -21,8 +26,11 @@ export async function transactRefreshEnergy(firestore: Firestore, uid: string, r
   return firestore.runTransaction(async (tx) => {
     const snapshot = await tx.get(userRef);
     if (!snapshot.exists) throw new HttpsError("not-found", "User profile not found.", { rejectionCode: "unavailable" });
-    const regen = await regenInTransaction(firestore, tx, uid, snapshot.data() ?? {}, nowMs, request.timeZone);
-    if (regen.updates) tx.update(userRef, regen.updates);
+    const sanitized = sanitizeEconomyFields(snapshot.data() ?? {}, nowMs);
+    const regen = await regenInTransaction(firestore, tx, uid, { ...(snapshot.data() ?? {}), ...sanitized.updates }, nowMs, request.timeZone);
+    const updates = { ...sanitized.updates, ...(regen.updates ?? {}) };
+    if (Object.keys(updates).length) tx.update(userRef, updates);
+    recordAccountRepair(firestore, tx, uid, "refreshEnergy", sanitized.changes, nowMs);
     return regen.outcome.reply;
   });
 }

@@ -9,10 +9,11 @@ import { removePresence } from "../presence/presenceStore";
  * subcollections; the server-only trees live outside it (DECISIONS #43
  * rival battles + open-battle ledger, #40 wild sessions + receipts, #46 intro
  * quest state, #47 Buddy Unit purchase receipts, #53 amendment 1 HoloZone runs,
- * #57 Arena activity lease, durable matches, entry/settlement receipts, and tournament brackets).
+ * #57 Arena activity lease, durable matches, entry/settlement receipts, tournament brackets, and the
+ * host-crawl-fixes-1 accountRepairs audit trail).
  */
 export async function deleteUserData(firestore: Firestore, uid: string): Promise<void> {
-  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`, `arenaMatches/${uid}`, `arenaBrackets/${uid}`, `duelHealingRuns/${uid}`, `workshopHeals/${uid}`, `workshopCrafts/${uid}`]) {
+  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`, `arenaMatches/${uid}`, `arenaBrackets/${uid}`, `duelHealingRuns/${uid}`, `workshopHeals/${uid}`, `workshopCrafts/${uid}`, `accountRepairs/${uid}`]) {
     await firestore.recursiveDelete(firestore.doc(path));
   }
   // Grant verification checks profile existence; deletion fails closed even if cleanup retries.

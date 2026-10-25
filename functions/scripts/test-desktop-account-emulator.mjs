@@ -61,7 +61,7 @@ test('dashboard projection ignores request overrides and preserves stored accoun
   assert.deepEqual(stored.privateSentinel,{keep:true});assert.equal(stored.zones,undefined);
 });
 
-test('HoloZones arc gate through the real callable: closed until storyFlags.holoZonesArcBuilt, then open with its scene; malformed flags refuse', async () => {
+test('HoloZones arc gate through the real callable: closed until storyFlags.holoZonesArcBuilt, then open with its scene; malformed flags fail closed', async () => {
   const flags=built=>({arenaGatheringSeen:true,tournamentsWon:3,arenaArcBuilt:true,holoZonesArcBuilt:built});
   for(const [storyFlags,open] of [[flags(false),false],[flags(true),true]]){
     const uid=await setup({storyFlags});
@@ -73,7 +73,10 @@ test('HoloZones arc gate through the real callable: closed until storyFlags.holo
     }
   }
   const bad=await setup({storyFlags:{holoZonesArcBuilt:'true'}});
-  await assert.rejects(()=>desktopAccountSnapshot.run({auth:{uid:bad},data:{schemaVersion:'desktop-account-3'}}),e=>e.code==='unavailable');
+  // host-crawl-fixes-1: malformed flags no longer refuse the snapshot (blanked Home); the zone fails closed, nothing is persisted.
+  const r=await desktopAccountSnapshot.run({auth:{uid:bad},data:{schemaVersion:'desktop-account-3'}});
+  assert.equal(r.zones[1].isOpen,false);assert.equal(r.storyFlags.holoZonesArcBuilt,false);
+  assert.deepEqual((await db.doc(`users/${bad}`).get()).data().storyFlags,{holoZonesArcBuilt:'true'});
 });
 
 // rules5-progression-gate-1: the #72.78 progression changes are live only with the duel-rules-5 host flag (read at call time).
