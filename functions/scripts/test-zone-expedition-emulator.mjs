@@ -92,7 +92,7 @@ test('client Firestore writes cannot mint inventory, bank, leases, receipts, or 
  const rr=createRequire(new URL('../../rules-tests/package.json',import.meta.url));const {initializeTestEnvironment,assertFails,assertSucceeds}=rr('@firebase/rules-unit-testing'),{doc,setDoc,updateDoc}=rr('firebase/firestore');
  const [host,port]=process.env.FIRESTORE_EMULATOR_HOST.split(':'),env=await initializeTestEnvironment({projectId:process.env.GCLOUD_PROJECT,firestore:{host,port:Number(port),rules:readFileSync(new URL('../../firestore.rules',import.meta.url),'utf8')}});
  try{const uid=await setup(),client=env.authenticatedContext(uid).firestore();await assertSucceeds(updateDoc(doc(client,'users',uid),{presenceOptOut:true}));
- const fresh=id(),freshClient=env.authenticatedContext(fresh).firestore();await assertSucceeds(setDoc(doc(freshClient,'users',fresh),{displayName:'Demo control'}));
+ const fresh=id(),freshClient=env.authenticatedContext(fresh).firestore();await assertSucceeds(setDoc(doc(freshClient,'users',fresh),{syncDistanceUnit:'km',fitnessSource:'mobile'})); // a legal client create carries only clientCreateKeys()
  for(const field of ['expeditionSupplies','expeditionBank']){const forged=id(),fc=env.authenticatedContext(forged).firestore();await assertFails(setDoc(doc(fc,'users',forged),{[field]:{energy:999}}));}
  for(const field of ['expeditionSupplies','expeditionBank'])await assertFails(updateDoc(doc(client,'users',uid),{[field]:{energy:999,rareBlueprints:999}}));
  for(const path of [`holoZoneRuns/${uid}`,`holoZoneRuns/${uid}/expeditions/fake`,`holoZoneRuns/${uid}/expeditionRequests/fake`])await assertFails(setDoc(doc(client,path),{privateSeed:1,open:true}));

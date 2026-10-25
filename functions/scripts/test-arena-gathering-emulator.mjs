@@ -223,7 +223,7 @@ test('rules deny client story creation, nested edits, replacement, deletion, for
  for(const [key,value] of Object.entries({arenaGatheringSeen:false,tournamentsWon:3,arenaArcBuilt:true,holoZonesArcBuilt:true})) await assertFails(updateDoc(userRef,{[`storyFlags.${key}`]:value}));
  await assertFails(updateDoc(userRef,{storyFlags:deleteField()}));await assertFails(updateDoc(userRef,{'storyFlags.arenaArcBuilt':deleteField()}));
  await assertFails(setDoc(userRef,{displayName:'erase flags'}));await assertFails(deleteDoc(userRef));
- await assertSucceeds(updateDoc(userRef,{storyFlags:flags,displayName:'Throwaway'}));await assertSucceeds(getDoc(userRef));
+ await assertSucceeds(updateDoc(userRef,{storyFlags:flags,presenceOptOut:true})); // unchanged server field + an allowlisted key (clientWritableKeys; displayName is not client-writable since holobots-write-lockdown-1)await assertSucceeds(getDoc(userRef));
  await assertFails(getDoc(doc(env.authenticatedContext('gathering_rules_foreign').firestore(),`users/${uid}`)));
  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),`users/${uid}`)));
  await assertFails(setDoc(doc(client,`arenaMatches/${uid}/matches/am_${'a'.repeat(32)}`),{state:'settled',settlementReceipt:{outcome:'win'}}));
