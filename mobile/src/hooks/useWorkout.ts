@@ -178,7 +178,8 @@ function useLiveWorkout(
   });
   const [permissionState, setPermissionState] = useState<PermissionState>("idle");
   const [syncState, setSyncState] = useState<SyncState>("idle");
-  const [syncMessage, setSyncMessage] = useState("Sign in to sync rewards.");
+  // A signed-in pilot starts with no status line; "Sign in" read as signed out on lite Sync (lite-button-crawl-1).
+  const [syncMessage, setSyncMessage] = useState(() => (userId ? "" : "Sign in to sync rewards."));
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [cooldownEndsAt, setCooldownEndsAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());

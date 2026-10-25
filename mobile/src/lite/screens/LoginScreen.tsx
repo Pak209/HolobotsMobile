@@ -14,6 +14,7 @@ import {
 
 import { getHolobotImageSource } from "@/config/holobots";
 import { useAuth, type GenesisStarterChoice } from "@/contexts/AuthContext";
+import { loginErrorText } from "@/lite/lib/loginErrors";
 
 const STARTER_CHOICES: Array<{
   description: string;
@@ -107,7 +108,7 @@ export function LoginScreen() {
         rememberMe,
       });
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Unable to continue right now.");
+      setError(loginErrorText(nextError));
     }
   };
 

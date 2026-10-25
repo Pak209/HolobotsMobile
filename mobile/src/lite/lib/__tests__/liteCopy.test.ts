@@ -75,3 +75,13 @@ describe("lite copy rules (DECISIONS #71)", () => {
     expect(button).toContain("if(!hasNativeUnity())return null;");
   });
 });
+
+describe("lite Sync status line (lite-button-crawl-1)", () => {
+  it("a signed-in pilot does not start on 'Sign in to sync rewards.'", () => {
+    const hook = read("../../../hooks/useWorkout.ts");
+    expect(hook).not.toContain('useState("Sign in to sync rewards.")');
+    expect(hook).toContain('useState(() => (userId ? "" : "Sign in to sync rewards."))');
+    // The lite Sync screen hides an empty status line.
+    expect(read("../../screens/FitnessScreen.tsx")).toContain("{workout.syncMessage ? (");
+  });
+});

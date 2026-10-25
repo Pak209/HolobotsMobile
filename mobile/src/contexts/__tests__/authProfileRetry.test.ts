@@ -76,9 +76,15 @@ vi.mock("@/config/firebase", () => ({
   onAuthStateChanged: (_auth: unknown, callback: (user: unknown) => void) => { H.authCallback = callback; return () => { H.authCallback = null; }; },
 }));
 vi.mock("@/config/holobots", () => ({ createGenesisStarterHolobot: vi.fn(), getHolobotRank: vi.fn() }));
-vi.mock("@/lib/async", () => ({ AUTH_TIMEOUT_MS: 1, FIRESTORE_TIMEOUT_MS: 1, withTimeout: (p: unknown) => p }));
+vi.mock("@/lib/async", () => ({ AUTH_TIMEOUT_MS: 1, CALLABLE_TIMEOUT_MS: 1, FIRESTORE_TIMEOUT_MS: 1, withTimeout: (p: unknown) => p }));
 vi.mock("@/lib/battleCards/catalog", () => ({ getGenesisStarterDeckGrants: vi.fn() }));
 vi.mock("@/lib/purchases", () => ({ initPurchases: vi.fn(async () => undefined) }));
+// lite-button-crawl-1: sign-up's createGenesisProfile answer is held by the test.
+const G = vi.hoisted(() => ({ resolve: null as null | (() => void), calls: 0 }));
+vi.mock("@/lib/loadoutClient", () => ({
+  claimStarterDeckAuthoritative: vi.fn(async () => undefined),
+  createGenesisProfileAuthoritative: vi.fn(() => { G.calls++; return new Promise<void>((resolve) => { G.resolve = resolve; }); }),
+}));
 vi.mock("@/lib/syncProgression", () => ({ getSyncRank: vi.fn() }));
 vi.mock("@/lib/profile", () => ({
   computeLeaderboardScore: vi.fn(), updateUserProfile: vi.fn(async () => undefined),
@@ -90,6 +96,8 @@ vi.mock("@/lib/profile", () => ({
 }));
 
 import { AuthProvider } from "../AuthContext";
+import * as firebase from "@/config/firebase";
+import * as catalog from "@/lib/battleCards/catalog";
 
 const state = (user: string | null, profile: string | null, loading: boolean, error: string | null) => JSON.stringify({ user, profile, loading, error });
 const pilot = { uid: "pilot-1" };
@@ -175,5 +183,52 @@ describe("shared AuthContext sign-in order", () => {
     const source = readFileSync(path.resolve(__dirname, "../AuthContext.tsx"), "utf8");
     expect(source).not.toMatch(/setProfileLoading\(true\);\s*setUser\(nextUser\)/);
     expect(source.match(/setUser\(nextUser\)/g)).toHaveLength(2);
+  });
+});
+
+describe("sign-up waits for the City to write the new profile (lite-button-crawl-1)", () => {
+  const flush = async () => { for (let k = 0; k < 5; k++) await new Promise((resolve) => setTimeout(resolve, 0)); if (H.dirty) render(); };
+
+  it("creatingProfile is true while the new pilot is signed in and createGenesisProfile has not answered", async () => {
+    H.sync = true;
+    H.component = AuthProvider as never;
+    render();
+    await flush();
+    vi.mocked(catalog.getGenesisStarterDeckGrants).mockReturnValue({} as never);
+    vi.mocked(firebase.createUserWithEmailAndPassword).mockImplementation(async () => {
+      H.authCallback!({ uid: "new-pilot" }); // the SDK signs the account in before createUser resolves
+      return { user: { uid: "new-pilot" } } as never;
+    });
+    G.calls = 0;
+    expect(H.value!.creatingProfile).toBe(false);
+    const done = H.value!.signup({ email: "a@example.test", password: "x", starterHolobot: "ace", username: "pilot" });
+    await flush();
+    expect(G.calls).toBe(1);
+    expect(H.value!.user?.uid).toBe("new-pilot");
+    // Signed in, profile not written yet: LiteApp must keep Home (and its City reads) unmounted.
+    expect(H.value!.creatingProfile).toBe(true);
+    G.resolve!();
+    await done;
+    await flush();
+    expect(H.value!.creatingProfile).toBe(false);
+  });
+
+  it("a failed sign-up clears creatingProfile", async () => {
+    H.sync = true;
+    H.component = AuthProvider as never;
+    render();
+    await flush();
+    vi.mocked(catalog.getGenesisStarterDeckGrants).mockReturnValue({} as never);
+    vi.mocked(firebase.createUserWithEmailAndPassword).mockRejectedValue(Object.assign(new Error("weak"), { code: "auth/weak-password" }));
+    await expect(H.value!.signup({ email: "a@example.test", password: "x", starterHolobot: "ace", username: "pilot" })).rejects.toThrow("weak");
+    await flush();
+    expect(H.value!.creatingProfile).toBe(false);
+  });
+
+  it("LiteApp holds the loading screen for a signed-in pilot whose profile is still being created", () => {
+    const app = readFileSync(path.resolve(__dirname, "../../../LiteApp.tsx"), "utf8");
+    expect(app).toMatch(/if \(user && creatingProfile\) \{\s*return <AppLoadingScreen \/>;/);
+    // ...before the navigator (and Home) can mount.
+    expect(app.indexOf("if (user && creatingProfile)")).toBeLessThan(app.indexOf("<NavigationContainer"));
   });
 });

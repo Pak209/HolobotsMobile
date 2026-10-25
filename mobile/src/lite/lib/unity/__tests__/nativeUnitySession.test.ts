@@ -4,10 +4,10 @@ const m=vi.hoisted(()=>({
  authListener:undefined as ((u:any)=>void)|undefined, app:undefined as ((v:string)=>void)|undefined,
  squadListener:undefined as ((v:any)=>void)|undefined, port:undefined as any,
  open:vi.fn(),send:vi.fn(),pause:vi.fn(),resume:vi.fn(),close:vi.fn(),call:vi.fn(),refresh:vi.fn(),
- stopAuth:vi.fn(),stopSquad:vi.fn(),disconnect:vi.fn(),remove:vi.fn(),removeApp:vi.fn(),order:[] as string[],nativePresent:true,
+ stopAuth:vi.fn(),stopSquad:vi.fn(),disconnect:vi.fn(),remove:vi.fn(),removeApp:vi.fn(),order:[] as string[],nativePresent:true,unityEmbedded:true as boolean|undefined,
 }));
 vi.mock('react-native',()=>({
- NativeModules:{get HolobotsUnityRuntime(){return m.nativePresent?{open:m.open,send:m.send,pause:m.pause,resume:m.resume,close:m.close}:undefined;}},
+ NativeModules:{get HolobotsUnityRuntime(){return m.nativePresent?{unityEmbedded:m.unityEmbedded,open:m.open,send:m.send,pause:m.pause,resume:m.resume,close:m.close}:undefined;}},
  NativeEventEmitter:class{addListener(_name:string,cb:(v:any)=>void){m.event=cb;return{remove:()=>{m.order.push('remove');m.remove();}};}},
  AppState:{addEventListener(_name:string,cb:(v:string)=>void){m.app=cb;return{remove:m.removeApp};}},
 }));
@@ -27,7 +27,7 @@ const sent=()=>m.send.mock.calls.map(x=>JSON.parse(x[0]));
 const session=()=>sent().filter(x=>x.operation==='begin').at(-1).sessionId;
 async function attach(){const opening=openNativeUnity();await tick();emit({schemaVersion:'runtime-ready-1'});await tick();emit({schemaVersion:'native-session-1',sessionId:session(),operation:'attached'});return await opening;}
 beforeEach(()=>{
- vi.useFakeTimers();vi.clearAllMocks();m.nativePresent=true;m.auth.currentUser={uid:'a'};m.order=[];
+ vi.useFakeTimers();vi.clearAllMocks();m.nativePresent=true;m.unityEmbedded=true;m.auth.currentUser={uid:'a'};m.order=[];
  m.open.mockResolvedValue(true);m.pause.mockResolvedValue(true);m.resume.mockResolvedValue(true);m.close.mockImplementation(async()=>{m.order.push('close');});
  m.refresh.mockResolvedValue({travelSquad:squad});
  m.send.mockImplementation(async(json:string)=>{const x=JSON.parse(json);m.order.push(x.operation??x.schemaVersion);if(x.operation==='end')queueMicrotask(()=>emit({...x,operation:'ended'}));});
@@ -92,8 +92,13 @@ describe('native Unity session',()=>{
 
 describe('3D city entry (L17)',()=>{
  it('is offered only when the build ships the native runtime',()=>{
-  m.nativePresent=true;expect(hasNativeUnity()).toBe(true);
+  m.nativePresent=true;m.unityEmbedded=true;expect(hasNativeUnity()).toBe(true);
   m.nativePresent=false;expect(hasNativeUnity()).toBe(false);
+ });
+ it('is not offered when the module registers without UnityFramework (lite-button-crawl-1)',()=>{
+  m.nativePresent=true;m.unityEmbedded=false;expect(hasNativeUnity()).toBe(false);
+  m.unityEmbedded=undefined;expect(hasNativeUnity()).toBe(false);
+  m.unityEmbedded=true;
  });
  it('shows player copy for a failed launch, never a raw native error',()=>{
   expect(nativeCityErrorText(new Error('HoloCity did not become ready. Try again.'))).toBe('HoloCity did not become ready. Try again.');
