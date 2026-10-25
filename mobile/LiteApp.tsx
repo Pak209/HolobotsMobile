@@ -57,7 +57,7 @@ const navTheme = {
 };
 
 function AuthedApp() {
-  const { bootLoading, profile, profileError, profileLoading, sessionLocked, user } = useAuth();
+  const { bootLoading, creatingProfile, profile, profileError, profileLoading, sessionLocked, user } = useAuth();
   // Lite #142 starts the profile read in the same AuthContext update as the sign-in. Main's shared AuthContext keeps its
   // original order (the original app's first render after sign-in must not change), so it sets the user one render
   // before the read starts. Track which account's read has started, so no render shows Home (or its CAN'T LOAD roster)
@@ -77,6 +77,13 @@ function AuthedApp() {
   }
 
   if (profileReadPending) {
+    return <AppLoadingScreen />;
+  }
+
+  // A new pilot is signed in before createGenesisProfile has written users/{uid}. Home's City reads (account snapshot,
+  // Holos, rival status, travel squad) start on mount, so mounting it now answered "no profile" and left a fresh
+  // account's header and squad UNAVAILABLE (lite-button-crawl-1). Hold the loading screen until the City has answered.
+  if (user && creatingProfile) {
     return <AppLoadingScreen />;
   }
 
