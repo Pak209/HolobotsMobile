@@ -3,6 +3,7 @@ import test from 'node:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { withFlagsAsync } from './lib/flag-env.mjs';
 const require = createRequire(import.meta.url);
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulator required; never run against production');
 process.env.GCLOUD_PROJECT ||= 'demo-holobots-rival-tests';
@@ -231,7 +232,8 @@ test('rival-battle-1 (no schemaVersion, as the shipped Unity build sends): exact
   assert.equal(lv1.status.buddyUnits, 3); assert.deepEqual((await user(legacy)).buddyUnits, light(3));
 });
 
-test('desktop-account-1 (no data, as the shipped Unity build sends): deployed fields plus storyFlags/pilotRank, buddyUnits = total int; desktop-account-2 on request', async () => {
+// Key set pinned with HOLOCITY_READINESS_ACCRUE OFF (no syncReadiness); production runs it ON (#72.86), asserted in the next test.
+test('desktop-account-1 (no data, as the shipped Unity build sends): deployed fields plus storyFlags/pilotRank, buddyUnits = total int; desktop-account-2 on request', () => withFlagsAsync({ HOLOCITY_READINESS_ACCRUE: undefined }, async () => {
   const uid = await setup({ buddyUnits: light(1, 2, 3), holobots: [{ name: 'ACE', level: 3 }] });
   for (const data of [undefined, {}, { schemaVersion: 'desktop-account-1' }]) {
     const v1 = await desktopAccountSnapshot.run({ auth: { uid }, data });
@@ -249,4 +251,11 @@ test('desktop-account-1 (no data, as the shipped Unity build sends): deployed fi
   const fresh = newUid('desk_v1'); await db.doc(`users/${fresh}`).set({ holobots: [] });
   assert.equal((await desktopAccountSnapshot.run({ auth: { uid: fresh } })).buddyUnits, 1); assert.deepEqual((await user(fresh)).buddyUnits, light(1));
   assert.equal((await desktopAccountSnapshot.run({ auth: { uid: fresh } })).buddyUnits, 1);
-});
+}));
+
+test('desktop-account-1 with HOLOCITY_READINESS_ACCRUE on (#72.86): adds exactly one key, syncReadiness; everything else unchanged', () => withFlagsAsync({ HOLOCITY_READINESS_ACCRUE: '1' }, async () => {
+  const uid = await setup({ buddyUnits: light(1, 2, 3), holobots: [{ name: 'ACE', level: 3 }] });
+  const v1 = await desktopAccountSnapshot.run({ auth: { uid }, data: { schemaVersion: 'desktop-account-1' } });
+  assert.equal(v1.schemaVersion, 'desktop-account-1'); assert.equal(v1.buddyUnits, 6);
+  assert.deepEqual(Object.keys(v1).sort(), ['blueprintTiers', 'blueprints', 'buddyUnits', 'dailyMissionLedger', 'holobots', 'onboarding', 'pilotColourwayId', 'pilotPortraitId', 'pilotRank', 'schemaVersion', 'storyFlags', 'syncPoints', 'syncReadiness', 'tournamentUnlocks', 'travelSquad', 'uid', 'username', 'zones']);
+}));
