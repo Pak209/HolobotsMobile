@@ -72,6 +72,8 @@ export { tournamentBracketHost } from "./story/tournamentBracketHost";
 
 // pvp-room-fighters-1: host-minted PvP room fighter snapshots (presentation only).
 export { pvpRoomFighterHost } from "./pvp/pvpRoomFighterHost";
+// pvp-daily-1 (ship-readiness item 7): async PvP, the day's three opponents served as AI rivals (rivalLadder family).
+export { pvpDaily } from "./pvp/pvpDailyHost";
 
 // holobots-write-lockdown-1: the last client profile writes (holobots, equippedParts, starter deck) as callables.
 export { equipSyncAbility } from "./progression/equipSyncAbility";
