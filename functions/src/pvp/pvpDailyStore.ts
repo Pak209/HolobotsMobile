@@ -6,7 +6,7 @@ import {
   buildPvpDaily, candidateFromProfile, PVP_CANDIDATE_QUERY_LIMIT, PVP_DAILY_SCHEMA, PVP_NEAR_TIER_BAND, PVP_WIDE_TIER_BAND,
   PvpCandidate, PvpError, pvpDailyNeedsRefresh, pvpDailyView, pvpIssue, readPvpDaily, validatePvpCommand, winsRangeForBand,
 } from '../lib/pvpDaily';
-import { transactRivalBattle } from '../rival/rivalBattleStore';
+import { pvpReplayMode, PvpReplayMode, transactRivalBattle } from '../rival/rivalBattleStore';
 
 /**
  * pvp-daily-1 host (ship-readiness item 7). pvpDaily/{uid} is the day's list (server-only path). `list` rebuilds it once
@@ -44,7 +44,7 @@ async function readCandidates(db: Firestore, callerTier: number): Promise<PvpCan
   return out;
 }
 
-export async function transactPvpDaily(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now()) {
+export async function transactPvpDaily(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), replay: PvpReplayMode | undefined = pvpReplayMode()) {
   const command = validatePvpCommand(raw);
   const pvpRef = db.doc(`pvpDaily/${uid}`);
   if (command.operation === 'list') {
@@ -77,6 +77,7 @@ export async function transactPvpDaily(db: Firestore, uid: string, raw: unknown,
   let callsign = '';
   const reply = await transactRivalBattle(db, uid, rivalRequest, nowMs, undefined, {
     pvp: {
+      replay,
       bind: async (tx, r: { battle: RivalBattleRecord; reply: IssueReply }) => {
         const ruling = pvpIssue(readPvpDaily((await tx.get(pvpRef)).data()), command.opponentId, r.battle.battleId, nowMs);
         callsign = ruling.opponent.callsign;

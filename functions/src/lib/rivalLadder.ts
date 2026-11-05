@@ -460,6 +460,11 @@ export type RivalBattleRecord = {
   source?: typeof PVP_ASYNC_SOURCE;
   /** pvp-daily-1: which daily opponent this battle spends (pvpDaily/{uid}); presentation and bookkeeping only. */
   pvp?: { opponentId: string; day: string };
+  /** Replay groundwork (item 8): an input-log pvp_async battle issued under HOLOCITY_PVP_REPLAY=dry_run. Its settle replays
+   * the log and only LOGS a non-match (settling from the client's claim within the rival caps); absent = the strict path. */
+  replayGate?: "dry_run";
+  /** The dry run's bounded verdict, written once with the settlement (analysis handle; never read by a rule). */
+  replayDryRun?: { verdict: string; reason: string | null; bytes: number; claimedWin: boolean | null; atMs: number };
 };
 
 /**
