@@ -3,7 +3,7 @@ import {withRankHealingReward} from "../lib/rankHealingReward";
 import { randomUUID } from 'node:crypto';
 import { Firestore, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
-import { HOLOZONE_LAST_SETTLED_FIELD, holoZoneLastSettledAfterSettle, readHoloZoneLastSettled, requireHoloZoneOffCooldown, HoloZoneError, holoZoneStatus, issueHoloZoneRun, readHoloZoneRuns, settleHoloZoneRun, validateHoloZoneCommand } from '../lib/holoZoneRuns';
+import { isCityCourtZone, HOLOZONE_LAST_SETTLED_FIELD, holoZoneLastSettledAfterSettle, readHoloZoneLastSettled, requireHoloZoneOffCooldown, HoloZoneError, holoZoneStatus, issueHoloZoneRun, readHoloZoneRuns, settleHoloZoneRun, validateHoloZoneCommand } from '../lib/holoZoneRuns';
 import { readStoryFlags, StoryError } from '../story/storyFlags';
 import { holoZoneIssueReplyForVersion, holoZoneSettleReplyForVersion, holoZoneStatusReplyForVersion } from '../lib/holoZoneWire';
 
@@ -72,7 +72,8 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
     if (command.operation === 'issue') {
       // The HoloZones portal gate is host-owned: no run is issued (nothing written, no open run closed) until
       // storyFlags.holoZonesArcBuilt. QA accounts get the flag per-uid via scripts/admin/story-flags.mjs.
-      requireHoloZonesArcBuilt(profile);
+      // LITE CITY: the Guild Court is a city court, not a portal zone (lib/holoZoneRuns.ts).
+      if (!isCityCourtZone(command.zoneId)) requireHoloZonesArcBuilt(profile);
       // Arena and every zone issue (including health flag-off clients) share this transaction read.
       await requireLeaseFree(tx, db, uid);
       const lastSettled = readHoloZoneLastSettled(ledger, runs);

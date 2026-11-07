@@ -64,6 +64,19 @@ export const HOLOZONE_ZONE_TIERS: Readonly<Record<string, number>> = Object.free
   // HoloZone after Neon Forest at tier 1. A zone that is not listed cannot be issued (unknown_zone).
 });
 
+/**
+ * LITE CITY (Pak approved, 2026-11-07): the HoloCity Guild Court challenge in the
+ * Lite mobile city settles through this same run contract and battle table as a zone (kind "beast"). It is a city
+ * court, not a HoloZone portal, so it is NOT gated by storyFlags.holoZonesArcBuilt (holoZoneStore) and it has no
+ * population row (a v2 issue reports population null). Same cooldown, TTL, 20 s anti-farm window, Holos and drop rule.
+ */
+export const HOLOCITY_COURT_ZONE_TIERS: Readonly<Record<string, number>> = Object.freeze({
+  guild_court: 0,
+});
+export function isCityCourtZone(zoneId: string): boolean {
+  return Object.prototype.hasOwnProperty.call(HOLOCITY_COURT_ZONE_TIERS, zoneId);
+}
+
 /** An issued run settles only within this window (producer default, = the rival battle TTL). */
 export const HOLOZONE_RUN_TTL_MS = 2 * 60 * 60 * 1000;
 /** A run settled sooner than this after issue settles but earns 0 EXP (the PR #59 rule). */
@@ -220,6 +233,7 @@ export function validateHoloZoneCommand(raw: unknown): HoloZoneCommand {
 
 /** Tier of a zone id, or null when the zone is not in the table. */
 export function holoZoneTier(zoneId: string): number | null {
+  if (isCityCourtZone(zoneId)) return HOLOCITY_COURT_ZONE_TIERS[zoneId];
   return Object.prototype.hasOwnProperty.call(HOLOZONE_ZONE_TIERS, zoneId) ? HOLOZONE_ZONE_TIERS[zoneId] : null;
 }
 

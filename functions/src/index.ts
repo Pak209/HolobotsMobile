@@ -77,3 +77,5 @@ export { pvpRoomFighterHost } from "./pvp/pvpRoomFighterHost";
 export { equipSyncAbility } from "./progression/equipSyncAbility";
 export { equipHolobotPart } from "./progression/equipHolobotPart";
 export { claimStarterDeck } from "./account/claimStarterDeck";
+// LITE CITY (Pak approved, 2026-11-07): provisions the Research Garden KURAI encounter.
+export { cityEncounterHost } from "./city/cityEncounterHost";
