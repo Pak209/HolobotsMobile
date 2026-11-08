@@ -232,7 +232,11 @@ function uniqueEntrant(profile: Data, id: string): Data {
   const level = bot.level ?? 1, exp = bot.experience ?? 0;
   if (!whole(level) || level < 1 || !whole(exp)) return fail('unavailable');
   const threshold = calculateExperience(level + 1);
-  if (!whole(threshold) || exp >= threshold || (bot.nextLevelExp !== undefined && bot.nextLevelExp !== threshold)
+  // nextLevelExp is a derived cache. A value left over from an EARLIER level (the level was raised without it) is stale, not
+  // corrupt: it no longer refuses the entry, and the award and entrant snapshot use the level's real threshold, so it can't
+  // grant a level. Anything else (a threshold no level at or below this one has, a non-number) is still refused.
+  const priorThreshold = (n: unknown) => Array.from({length:level}, (_,i) => calculateExperience(i + 2)).includes(n as number);
+  if (!whole(threshold) || exp >= threshold || (bot.nextLevelExp !== undefined && !priorThreshold(bot.nextLevelExp))
     || (bot.attributePoints !== undefined && !whole(bot.attributePoints))) return fail('unavailable');
   if (bot.boostedAttributes !== undefined && (!object(bot.boostedAttributes) || Object.values(bot.boostedAttributes).some(n => !whole(n)))) return fail('unavailable');
   return bot;
@@ -274,7 +278,7 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
     blueprints,
     holobots: profile.holobots.map((h: Data) => {
       if (!object(h) || typeof h.name !== 'string' || toHolobotKey(h.name) !== m.entrant.holobotId) return h;
-      const after = applyHolobotExperience(h, awardedExp);
+      const after = applyHolobotExperience({ ...h, nextLevelExp: calculateExperience(normalizeUserHolobot(h).level + 1) }, awardedExp);
       progression.push(holobotProgressionRow(m.entrant.holobotId, awardedExp, normalizeUserHolobot(h), after));
       return after;
     }),
@@ -353,7 +357,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const m: Match = {
           schemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,requestId:c.requestId,state:'issued',tierId:tier.id as ArenaTierId,
           issuedAtMs:nowMs,expiresAtMs:nowMs+ARENA_MATCH_TTL_MS,startedAtMs:null,closedAtMs:null,
-          entrant:{...player,name:owned.name,currentHealth:hp},opponent:{...opponentStats,name:c.opponentName},
+          entrant:{...player,name:owned.name,currentHealth:hp,nextLevelExp:calculateExperience(player.level+1)},opponent:{...opponentStats,name:c.opponentName},
           entryReceipt:{matchId:generatedId,method:c.paymentMethod,amount,balanceBefore:before,balanceAfter:before-amount,chargedAtMs:nowMs},
           rules:{version:'arena-economy-legacy-1',entryFeeHolos:tier.entryFeeHolos,...getArenaBaseRewards(tier),blueprints:getArenaBlueprintAmount(tier),comboBonus:BATTLE_COMBO_BONUS,perfectDefenseBonus:BATTLE_PERFECT_DEFENSE_BONUS,lossExpFraction:BATTLE_LOSS_EXP_FRACTION,lossSyncFraction:BATTLE_LOSS_SYNC_FRACTION,maxPerformanceEvents:MAX_PERFORMANCE_EVENTS,expBoosterMultiplier:EXP_BOOSTER_MULTIPLIER},
           settlementReceipt:null,...(tournament ? {tournament} : {}),...(resolverDuel ? {duel:resolverDuel} : {}),
