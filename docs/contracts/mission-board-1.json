@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "mission-board-1",
+  "decision": "Pak rulings 2026-11-07 (Mission Board question cards)",
+  "callable": "missionBoardHost",
+  "contractDoc": "functions/src/missionBoard/README.md",
+  "operations": {
+    "status": { "request": { "operation": "status" } },
+    "claim": { "request": { "operation": "claim", "postingId": "string", "requestId": "[A-Za-z0-9_-]{1,128}", "destinationId": "string (visit postings / intro visit steps)" } }
+  },
+  "slots": 3,
+  "refillCooldownMs": 600000,
+  "postingKinds": ["beast", "rival", "capture", "visit"],
+  "postingStates": ["open", "complete", "claimed"],
+  "hostFlags": ["new_posting", "posting_cleared"],
+  "battlePostingReward": { "holos": 100, "exp": 95, "fragmentOneIn": 3, "fragmentItemId": "blueprint_fragment", "fragmentQuantity": 1 },
+  "visitTargets": {
+    "mission_board": { "holos": 50, "districtId": "harbor" },
+    "marketplace": { "holos": 50, "districtId": "vendor" },
+    "workshop": { "holos": 75, "districtId": "workshop" },
+    "harbor": { "holos": 75, "districtId": "harbor" },
+    "portal_terminal": { "holos": 75, "districtId": "port" }
+  },
+  "beastTargets": { "guild_court": { "districtId": "arena" } },
+  "rivalTargets": { "town_rival": "pilotId rival_tier_<n>", "any": "any settled rival win", "<citizenId>": "an Arena-gathering citizen (after arenaGatheringSeen)" },
+  "captureTargets": { "kurai": { "districtId": "zone", "encounterId": "city_kurai_garden" } },
+  "introFirst": "while introQuests/{uid} is incomplete: status.introPending = true, status.intro = intro-quest-1 status, postings = []; claim{postingId = intro stepId} is forwarded to the intro quest store",
+  "rejectionCodes": ["unauthenticated", "invalid_request", "unknown_posting", "already_claimed", "not_complete", "intro_pending", "out_of_order", "unavailable"],
+  "storage": "missionBoards/{uid} (server-only)"
+}
