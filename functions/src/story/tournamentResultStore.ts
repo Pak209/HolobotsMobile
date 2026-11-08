@@ -2,6 +2,7 @@ import { Firestore } from 'firebase-admin/firestore';
 import { ArenaError, readArenaMatchRecord } from '../arena/arenaMatchStore';
 import { ARENA_TOURNAMENT_SCHEMA, requireNextTournament, tournamentIndex, tournamentLevel } from './arenaTournament';
 import { StoryError } from './storyFlags';
+import { BATTLE_PROGRESSION_SCHEMA } from '../lib/battleProgression';
 import { applyCupPrize, CUP_PRIZE_SCHEMA, CupId, cupPrizeView, readCupPrizeLedger } from '../lib/cupRewards';
 
 /** Consumes only an authenticated account's host-issued, tournament-tagged win.
@@ -18,8 +19,9 @@ export async function transactTournamentResult(db: Firestore, uid: string, raw: 
   const c = raw as Record<string, unknown>;
   if (c.schemaVersion !== ARENA_TOURNAMENT_SCHEMA || typeof c.matchId !== 'string'
     || !/^am_[a-f0-9]{32}$/.test(c.matchId)
-    || Object.keys(c).some(k => !['schemaVersion','tournamentId','matchId','prizeSchema'].includes(k))
-    || (c.prizeSchema !== undefined && c.prizeSchema !== CUP_PRIZE_SCHEMA)) throw new StoryError('invalid_request');
+    || Object.keys(c).some(k => !['schemaVersion','tournamentId','matchId','prizeSchema','progressionSchema'].includes(k))
+    || (c.prizeSchema !== undefined && c.prizeSchema !== CUP_PRIZE_SCHEMA)
+    || (c.progressionSchema !== undefined && c.progressionSchema !== BATTLE_PROGRESSION_SCHEMA)) throw new StoryError('invalid_request');
   tournamentIndex(c.tournamentId);
   const matchId = c.matchId;
   return db.runTransaction(async tx => {
@@ -47,6 +49,7 @@ export async function transactTournamentResult(db: Firestore, uid: string, raw: 
     tx.update(userRef,{storyFlags,...(fresh?.userUpdates ?? {})});
     if (fresh) tx.set(ledgerRef,{schemaVersion:ledger.schemaVersion,prizes:{...ledger.prizes,[cupId]:fresh.receipt}});
     return {schemaVersion:ARENA_TOURNAMENT_SCHEMA,tournamentId:c.tournamentId,matchId,storyFlags,
-      ...(c.prizeSchema === CUP_PRIZE_SCHEMA ? {cupPrize:cupPrizeView(paid ?? fresh!.receipt,!!paid)} : {})};
+      ...(c.prizeSchema === CUP_PRIZE_SCHEMA ? {cupPrize:cupPrizeView(paid ?? fresh!.receipt,!!paid)} : {}),
+      ...(c.progressionSchema === BATTLE_PROGRESSION_SCHEMA ? {progression:m.progression ?? []} : {})};
   });
 }

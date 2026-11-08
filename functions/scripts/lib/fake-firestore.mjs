@@ -8,7 +8,9 @@ export function fakeDb(clock = { now: 0 }) {
     const row = docs.get(path);
     return { id: path.split('/').pop(), exists: !!row, data: () => (row ? structuredClone(row.data) : undefined), createTime: row ? { toMillis: () => row.createdAtMs } : undefined };
   };
-  const docRef = (path) => ({ kind: 'doc', path, collection: (c) => collRef(`${path}/${c}`), get: async () => snap(path) });
+  const docRef = (path) => ({ kind: 'doc', path, collection: (c) => collRef(`${path}/${c}`), get: async () => snap(path),
+    set: async (data) => { docs.set(path, { data: structuredClone(data), createdAtMs: docs.get(path)?.createdAtMs ?? clock.now }); },
+    update: async (data) => { const row = docs.get(path); if (!row) throw new Error('missing'); row.data = { ...row.data, ...structuredClone(data) }; } });
   const collRef = (path, filters = [], order = null, lim = Infinity) => ({
     kind: 'query', path,
     doc: (id) => docRef(`${path}/${id}`),
@@ -31,6 +33,7 @@ export function fakeDb(clock = { now: 0 }) {
     async runTransaction(fn) {
       const writes = [];
       const tx = {
+        async getAll(...refs) { return Promise.all(refs.map(r => this.get(r))); },
         async get(ref) { if (writes.length) throw new Error(`read after write: ${ref.path}`); return ref.kind === 'doc' ? snap(ref.path) : ref.run(); },
         set(ref, data) { writes.push(() => docs.set(ref.path, { data: structuredClone(data), createdAtMs: docs.get(ref.path)?.createdAtMs ?? clock.now })); },
         create(ref, data) { if (docs.has(ref.path)) throw new Error('exists'); writes.push(() => docs.set(ref.path, { data: structuredClone(data), createdAtMs: clock.now })); },

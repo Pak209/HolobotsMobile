@@ -17,8 +17,11 @@ import { BATTLE_COMBO_BONUS, BATTLE_PERFECT_DEFENSE_BONUS, BATTLE_LOSS_EXP_FRACT
 import { buildPlayerCombatants, playerCombatant, readOpenBattles, RivalError } from '../lib/rivalLadder';
 import { readHoloZoneRuns, HoloZoneError } from '../lib/holoZoneRuns';
 import { HealthError, requireLivingVitals, settleVitals, Vitals } from '../lib/rivalHealth';
-import { applyHolobotExperience, calculateExperience, HOLOBOT_BASE_STATS } from '../lib/progression';
+import { applyHolobotExperience, calculateExperience, HOLOBOT_BASE_STATS, normalizeUserHolobot } from '../lib/progression';
+import { holobotProgressionRow } from '../lib/battleProgression';
+import { DUEL_MAX_ROUNDS, DUEL_RECEIPT_SCHEMA, DuelReceipt, duelFighterFromCombatant, resolveDuel, validateDuelIntents } from '../lib/duelResolver';
 import { toHolobotKey } from '../lib/mintingEconomy';
+import type { HolobotProgressionEntry } from '../lib/battleProgression';
 
 export const ARENA_MATCH_SCHEMA = 'arena-match-1';
 export const ARENA_MATCH_TTL_MS = 30 * 60 * 1000;
@@ -75,9 +78,9 @@ const fail = (code: string): never => { throw new ArenaError(code); };
 function command(raw: unknown): Command {
   if (!object(raw) || raw.schemaVersion !== ARENA_MATCH_SCHEMA) return fail('invalid_request');
   const fields: Record<string, string[]> = {
-    issue: ['requestId','tierId','paymentMethod','holobotId','opponentName','tournamentId'],
+    issue: ['requestId','tierId','paymentMethod','holobotId','opponentName','tournamentId','duelSchema'],
     start: ['matchId'], resume: ['matchId'], cancel: ['matchId','playerFinalHealth'],
-    settle: ['matchId','playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses'],
+    settle: ['matchId','playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses','playerIntents'],
   };
   if (typeof raw.operation !== 'string' || !Object.hasOwn(fields, raw.operation) || Object.keys(raw).some(k => !['schemaVersion','operation',...fields[raw.operation]].includes(k))) return fail('invalid_request');
   if (raw.operation === 'issue') {
@@ -88,12 +91,18 @@ function command(raw: unknown): Command {
     if (raw.tournamentId !== undefined) {
       try { tournamentIndex(raw.tournamentId); } catch { return fail('invalid_request'); }
     }
+    // Opt-in: a host-resolved CPU fight (arena plan + send). A cup match always settles through the host bracket.
+    if (raw.duelSchema !== undefined && (raw.duelSchema !== DUEL_RECEIPT_SCHEMA || raw.tournamentId !== undefined)) return fail('invalid_request');
     const tier = getArenaTier(raw.tierId)!;
     const pool = tier.id === 'rookie' ? [...tier.opponentPool,'KUMA','SHADOW'] : [...tier.opponentPool];
     if (!pool.includes(raw.opponentName)) return fail('invalid_request');
   } else {
     if (!(raw.operation === 'resume' && raw.matchId === undefined) && (typeof raw.matchId !== 'string' || !/^am_[a-f0-9]{32}$/.test(raw.matchId))) return fail('invalid_request');
-    if (raw.operation === 'settle') {
+    if (raw.operation === 'settle' && raw.playerIntents !== undefined) {
+      // A resolver settle sends the plan only: no HP, performance or outcome is accepted from the client.
+      if (['playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses'].some(k => raw[k] !== undefined)) return fail('invalid_request');
+      try { validateDuelIntents(raw.playerIntents); } catch { return fail('invalid_request'); }
+    } else if (raw.operation === 'settle') {
       if (!finite(raw.playerFinalHealth) || raw.playerFinalHealth < 0 || !finite(raw.opponentFinalHealth) || raw.opponentFinalHealth < 0
         || !whole(raw.combosCompleted) || raw.combosCompleted > MAX_PERFORMANCE_EVENTS
         || !whole(raw.perfectDefenses) || raw.perfectDefenses > MAX_PERFORMANCE_EVENTS) return fail('invalid_request');
@@ -124,6 +133,10 @@ function match(raw: unknown, id: string): Match {
   if (raw.bracket !== undefined && (!object(raw.bracket) || raw.bracket.schemaVersion !== 'arena-bracket-1'
     || raw.bracket.matchId !== id || !whole(raw.bracket.boundAtMs) || raw.bracket.boundAtMs < raw.issuedAtMs)) return fail('unavailable');
   assertFiniteTree(raw);
+  if (raw.duel !== undefined && (!object(raw.duel) || raw.duel.mode !== 'resolver' || raw.duel.schemaVersion !== DUEL_RECEIPT_SCHEMA || raw.tournament !== undefined || raw.bracket !== undefined
+    || !object(raw.duel.input) || !whole(raw.duel.input.seed) || raw.duel.input.seed > 0xffffffff || !Array.isArray(raw.duel.input.player) || raw.duel.input.player.length !== 1 || !Array.isArray(raw.duel.input.opponent) || raw.duel.input.opponent.length !== 1)) return fail('unavailable');
+  if (raw.duelReceipt !== undefined && (raw.duel === undefined || raw.state !== 'settled' || !object(raw.duelReceipt) || raw.duelReceipt.schemaVersion !== DUEL_RECEIPT_SCHEMA)) return fail('unavailable');
+  if (raw.progression !== undefined && (raw.state !== 'settled' || !Array.isArray(raw.progression))) return fail('unavailable');
   const entrant = raw.entrant, opponent = raw.opponent, entry = raw.entryReceipt, rules = raw.rules;
   const health = (n: unknown, max: number) => finite(n) && n >= 0 && n <= max;
   const boundedQuote = (n: unknown) => whole(n) && n <= 1_000_000;
@@ -179,6 +192,10 @@ function match(raw: unknown, id: string): Match {
     || (raw.bracket ? !['player','opponent'].includes(report.bracketWinner)
       || (receipt.outcome === 'win') !== (report.bracketWinner === 'player')
       || (report.bracketWinner === 'player' ? report.playerFinalHealth <= 0 : report.opponentFinalHealth <= 0)
+      : raw.duel ? !['player','opponent'].includes(report.resolverWinner)
+        || (receipt.outcome === 'win') !== (report.resolverWinner === 'player')
+        || (report.resolverWinner === 'player' ? report.playerFinalHealth <= 0 : report.opponentFinalHealth <= 0)
+        || raw.duelReceipt === undefined
       : (report.playerFinalHealth === 0) === (report.opponentFinalHealth === 0)
         || (receipt.outcome === 'win') !== (report.opponentFinalHealth === 0))
     || !whole(report.combosCompleted) || report.combosCompleted > rules.maxPerformanceEvents
@@ -220,9 +237,12 @@ function uniqueEntrant(profile: Data, id: string): Data {
   if (bot.boostedAttributes !== undefined && (!object(bot.boostedAttributes) || Object.values(bot.boostedAttributes).some(n => !whole(n)))) return fail('unavailable');
   return bot;
 }
-function reply(m: Match, alreadyProcessed = false) {
-  const tier = ARENA_TIERS.findIndex(row => row.id === m.tierId);
-  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, match: {
+function reply(stored: Match, alreadyProcessed = false) {
+  const tier = ARENA_TIERS.findIndex(row => row.id === stored.tierId);
+  // The resolver seed never leaves the host before settle; receipt and progression travel at the top level.
+  const { duel, duelReceipt, progression, ...m } = stored;
+  const resolver = duel ? { duel: { mode: 'resolver', schemaVersion: duel.schemaVersion, maxRounds: DUEL_MAX_ROUNDS, player: duel.input.player, opponent: duel.input.opponent } } : {};
+  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, ...resolver, ...(duelReceipt ? { duelReceipt } : {}), ...(progression ? { progression } : {}), match: {
     ...m, entrant: { ...m.entrant, ...arenaFighterSnapshot({holobotId:m.entrant.holobotId,level:m.entrant.level}, tier) },
     opponent: { ...m.opponent, ...arenaFighterSnapshot({holobotId:m.opponent.holobotId,level:m.opponent.level}, tier) },
   } };
@@ -249,9 +269,15 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
   if (!object(profile.blueprints ?? {} ) || Object.values(blueprints).some(n => !whole(n))) fail('unavailable');
   const blueprint = won && pays ? { holobotKey: m.opponent.name.toLowerCase(), amount: r.blueprints } : null;
   if (blueprint) blueprints[blueprint.holobotKey] = (blueprints[blueprint.holobotKey] ?? 0) + blueprint.amount;
+  const progression: HolobotProgressionEntry[] = [];
   const updates: Data = {
     blueprints,
-    holobots: profile.holobots.map((h: Data) => object(h) && typeof h.name === 'string' && toHolobotKey(h.name) === m.entrant.holobotId ? applyHolobotExperience(h, awardedExp) : h),
+    holobots: profile.holobots.map((h: Data) => {
+      if (!object(h) || typeof h.name !== 'string' || toHolobotKey(h.name) !== m.entrant.holobotId) return h;
+      const after = applyHolobotExperience(h, awardedExp);
+      progression.push(holobotProgressionRow(m.entrant.holobotId, awardedExp, normalizeUserHolobot(h), after));
+      return after;
+    }),
     holosTokens: counter(profile,'holosTokens') + holos,
     wins: counter(profile,'wins') + (won ? 1 : 0), losses: counter(profile,'losses') + (won ? 0 : 1),
     syncPoints: counter(profile,'syncPoints') + syncPoints,
@@ -259,15 +285,16 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
     ...dailyMissionCounterUpdates(profile, 'arenaBattlesToday', new Date(now)),
   };
   assertFiniteTree(updates);
-  return { updates, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}) }, outcome: won ? 'win' : 'loss' };
+  return { updates, progression, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}) }, outcome: won ? 'win' : 'loss' };
 }
 
 export async function transactArenaMatch(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now()) {
   const c = command(raw);
   if (!whole(nowMs)) return fail('invalid_request');
   const generatedId = `am_${randomBytes(16).toString('hex')}`; // Stable across transaction retries.
+  const duelSeed = randomBytes(4).readUInt32LE(0); // Resolver seed: pinned here, never disclosed before settle.
   const parentRef = firestore.doc(`arenaMatches/${uid}`), userRef = firestore.doc(`users/${uid}`);
-  const identity = c.operation === 'issue' ? createHash('sha256').update(JSON.stringify([c.tierId,c.paymentMethod,c.holobotId,c.opponentName,...(c.tournamentId === undefined ? [] : [c.tournamentId])])).digest('hex') : '';
+  const identity = c.operation === 'issue' ? createHash('sha256').update(JSON.stringify([c.tierId,c.paymentMethod,c.holobotId,c.opponentName,...(c.tournamentId === undefined ? [] : [c.tournamentId]),...(c.duelSchema === undefined ? [] : [{duelSchema:c.duelSchema}])])).digest('hex') : '';
   try {
     return await firestore.runTransaction(async tx => {
       const userSnap = await tx.get(userRef);
@@ -314,13 +341,22 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const before = counter(profile,field);
         if (before < amount) return fail('insufficient_funds');
         const capped = await payoutCapped(); // Last read: every write below follows it.
+        // Opt-in resolver fight: both fighters and the seed are pinned at issue (the rivalBattleHost resolver block).
+        let resolverDuel: Data | undefined;
+        if (c.duelSchema === DUEL_RECEIPT_SCHEMA) {
+          if (Math.floor(hp) <= 0) return fail('holobot_ko');
+          const tierIndex = ARENA_TIERS.findIndex(row => row.id === tier.id);
+          const input = {seed:duelSeed,player:[duelFighterFromCombatant({...player,currentHealth:hp,tier:tierIndex})],opponent:[duelFighterFromCombatant({...opponentStats,tier:tierIndex})]};
+          resolveDuel({...input,playerIntents:['defend']}); // Validates the pinned block; RangeError -> unavailable.
+          resolverDuel = {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,input};
+        }
         const m: Match = {
           schemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,requestId:c.requestId,state:'issued',tierId:tier.id as ArenaTierId,
           issuedAtMs:nowMs,expiresAtMs:nowMs+ARENA_MATCH_TTL_MS,startedAtMs:null,closedAtMs:null,
           entrant:{...player,name:owned.name,currentHealth:hp},opponent:{...opponentStats,name:c.opponentName},
           entryReceipt:{matchId:generatedId,method:c.paymentMethod,amount,balanceBefore:before,balanceAfter:before-amount,chargedAtMs:nowMs},
           rules:{version:'arena-economy-legacy-1',entryFeeHolos:tier.entryFeeHolos,...getArenaBaseRewards(tier),blueprints:getArenaBlueprintAmount(tier),comboBonus:BATTLE_COMBO_BONUS,perfectDefenseBonus:BATTLE_PERFECT_DEFENSE_BONUS,lossExpFraction:BATTLE_LOSS_EXP_FRACTION,lossSyncFraction:BATTLE_LOSS_SYNC_FRACTION,maxPerformanceEvents:MAX_PERFORMANCE_EVENTS,expBoosterMultiplier:EXP_BOOSTER_MULTIPLIER},
-          settlementReceipt:null,...(tournament ? {tournament} : {}),
+          settlementReceipt:null,...(tournament ? {tournament} : {}),...(resolverDuel ? {duel:resolverDuel} : {}),
         };
         match(m,generatedId);
         tx.update(userRef,{[field]:before-amount,holobotVitals:vitals,
@@ -360,6 +396,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       }
       let updates: Data = {}, receipt: Data;
       let nextState: Match['state'];
+      let duelOutcome: DuelReceipt | undefined, progression: HolobotProgressionEntry[] | undefined;
       if (c.operation === 'cancel' && m.state === 'issued') {
         if (c.playerFinalHealth !== undefined) return fail('invalid_request');
         const field = m.entryReceipt.method === 'pass' ? 'arenaPassses' : 'holosTokens';
@@ -369,10 +406,34 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         nextState = nowMs > m.expiresAtMs ? 'expired' : 'cancelled';
       } else {
         if (m.state !== 'active') return fail('invalid_state');
-        if (!finite(c.playerFinalHealth) || c.playerFinalHealth < 0 || c.playerFinalHealth > m.entrant.currentHealth) return fail('invalid_request');
+        // A stored mode is never downgraded or upgraded by the request.
+        const resolver = m.duel?.mode === 'resolver';
+        if (resolver ? (c.operation === 'settle' ? c.playerIntents === undefined : c.playerFinalHealth !== undefined) : c.playerIntents !== undefined) return fail('invalid_request');
+        if (resolver && c.operation === 'settle') {
+          if (nowMs > m.expiresAtMs) return fail('match_expired');
+          // Refused BEFORE resolving and for every outcome: an outcome-dependent refusal that writes nothing would let a
+          // client try plans until one wins. The stricter rule replaces the legacy "loss under the floor pays nothing".
+          const sinceStart = nowMs - m.startedAtMs;
+          if (sinceStart < ARENA_MIN_SETTLE_MS_CPU) throw new ArenaError('too_fast', ARENA_MIN_SETTLE_MS_CPU - sinceStart);
+          duelOutcome = resolveDuel({...m.duel.input,playerIntents:c.playerIntents});
+        }
+        const finalHealth = resolver ? (duelOutcome ? duelOutcome.playerFinal[0].currentHealth : m.entrant.currentHealth) : c.playerFinalHealth;
+        if (!finite(finalHealth) || finalHealth < 0 || finalHealth > m.entrant.currentHealth) return fail('invalid_request');
         const issued: Vitals = {[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
-        const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:c.playerFinalHealth}]);
-        if (c.operation === 'settle') {
+        const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:finalHealth}]);
+        if (duelOutcome) {
+          const payoutsRef = parentRef.collection('ledger').doc('cpuPayouts');
+          const paid = paidToday((await tx.get(payoutsRef)).data(), nowMs);
+          const withheld = paid >= ARENA_CPU_DAILY_PAYOUT_CAP ? 'daily_cap' as const : undefined;
+          const won = duelOutcome.winner === 'player', opponentFinalHealth = duelOutcome.opponentFinal[0].currentHealth;
+          // Performance bonuses are client reports on the legacy path; the bracket's rule (0 / 0) applies here.
+          const result = rewards(profile,m,{...c,combosCompleted:0,perfectDefenses:0},nowMs,won,withheld);
+          updates = withRankHealingReward(profile, result.updates);
+          progression = result.progression;
+          receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:finalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,resolverWinner:duelOutcome.winner},closedAtMs:nowMs};
+          if (withheld === undefined) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
+          nextState = 'settled';
+        } else if (c.operation === 'settle') {
           if (nowMs > m.expiresAtMs) return fail('match_expired');
           if (c.combosCompleted > m.rules.maxPerformanceEvents || c.perfectDefenses > m.rules.maxPerformanceEvents || c.opponentFinalHealth > m.opponent.maxHealth || (c.playerFinalHealth === 0) === (c.opponentFinalHealth === 0)) return fail('invalid_request');
           // S1 (bounded): floor, performance clamp and daily payout cap. Every read precedes the writes below.
@@ -386,18 +447,19 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           const withheld = elapsedMs < ARENA_MIN_SETTLE_MS_CPU ? 'under_floor' : paid >= ARENA_CPU_DAILY_PAYOUT_CAP ? 'daily_cap' : undefined;
           const result = rewards(profile,m,reported,nowMs,undefined,withheld);
           updates = withRankHealingReward(profile, result.updates); // #72 rank-tier Kit, moved off the closed legacy settle.
+          progression = result.progression;
           receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:c.playerFinalHealth,opponentFinalHealth:c.opponentFinalHealth,combosCompleted:reported.combosCompleted,perfectDefenses:reported.perfectDefenses},closedAtMs:nowMs};
           if (withheld === undefined) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
           nextState = 'settled';
         } else {
-          receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:c.playerFinalHealth},closedAtMs:nowMs};
+          receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:finalHealth},closedAtMs:nowMs};
           nextState = nowMs > m.expiresAtMs ? 'expired' : 'cancelled';
         }
         updates.holobotVitals = vitals;
         receipt.finalVitals = {[m.entrant.holobotId]:vitals[m.entrant.holobotId]};
       }
       assertFiniteTree(updates);
-      const next: Match = {...m,state:nextState,closedAtMs:nowMs,settlementReceipt:receipt};
+      const next: Match = {...m,state:nextState,closedAtMs:nowMs,settlementReceipt:receipt,...(duelOutcome ? {duelReceipt:duelOutcome} : {}),...(progression ? {progression} : {})};
       match(next,m.matchId);
       tx.update(userRef,updates);
       tx.set(matchRef,next);
@@ -434,7 +496,7 @@ export function settleArenaBracketRecord(profile:Data, raw:unknown, opponent:Dat
   updates.holobotVitals=finalVitals;
   const next:Match={...resolved,state:'settled',closedAtMs:nowMs,settlementReceipt:{matchId:m.matchId,outcome:result.outcome,refunded:false,
     settlement:result.settlement,report:{playerFinalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,bracketWinner:won?'player':'opponent'},closedAtMs:nowMs,
-    finalVitals:{[m.entrant.holobotId]:finalVitals[m.entrant.holobotId]}}};
+    finalVitals:{[m.entrant.holobotId]:finalVitals[m.entrant.holobotId]}},progression:result.progression};
   assertFiniteTree(updates);match(next,m.matchId);
   return {updates,match:next};
 }

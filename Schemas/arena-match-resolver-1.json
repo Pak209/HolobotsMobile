@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arena-match-resolver-1",
+  "title": "Opt-in additions to arena-match-1 (plan + send) and battle-progression-1",
+  "description": "arena-match-1 and arena-bracket-1 are byte-pinned, so the additions are specified here. Contract: functions/docs/arena-plan-send-1.md.",
+  "$defs": {
+    "progressionRow": {
+      "type": "object",
+      "required": ["holobotId", "expGained", "levelBefore", "levelAfter", "attributePoints", "experience", "nextLevelExp", "rank"],
+      "properties": {
+        "holobotId": { "type": "string" },
+        "expGained": { "type": "integer", "minimum": 0 },
+        "levelBefore": { "type": "integer", "minimum": 0 },
+        "levelAfter": { "type": "integer", "minimum": 0 },
+        "attributePoints": { "type": "integer", "minimum": 0 },
+        "experience": { "type": "integer", "minimum": 0 },
+        "nextLevelExp": { "type": "integer", "minimum": 0 },
+        "rank": { "type": "string" }
+      }
+    },
+    "issueRequest": {
+      "description": "Added to an arena-match-1 issue. Refused with tournamentId.",
+      "type": "object", "required": ["duelSchema"], "properties": { "duelSchema": { "const": "duel-receipt-1" } }
+    },
+    "settleRequest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "operation", "matchId", "playerIntents"],
+      "properties": {
+        "schemaVersion": { "const": "arena-match-1" }, "operation": { "const": "settle" },
+        "matchId": { "type": "string", "pattern": "^am_[a-f0-9]{32}$" },
+        "playerIntents": { "type": "array", "minItems": 1, "maxItems": 120, "items": { "enum": ["strike", "heavy", "defend", "finisher"] } }
+      }
+    },
+    "cancelRequest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "operation", "matchId"],
+      "properties": { "schemaVersion": { "const": "arena-match-1" }, "operation": { "const": "cancel" }, "matchId": { "type": "string", "pattern": "^am_[a-f0-9]{32}$" } }
+    },
+    "duelBlock": {
+      "description": "Top-level `duel` on every reply of a resolver match. The seed is withheld.",
+      "type": "object", "required": ["mode", "schemaVersion", "maxRounds", "player", "opponent"],
+      "properties": { "mode": { "const": "resolver" }, "schemaVersion": { "const": "duel-receipt-1" }, "maxRounds": { "const": 120 }, "player": { "type": "array", "minItems": 1, "maxItems": 1 }, "opponent": { "type": "array", "minItems": 1, "maxItems": 1 } },
+      "not": { "anyOf": [{ "required": ["input"] }, { "required": ["seed"] }] }
+    },
+    "bracketOptIn": {
+      "description": "tournamentBracketHost advance / resume and tournamentResultHost.",
+      "type": "object", "properties": { "progressionSchema": { "const": "battle-progression-1" } }
+    }
+  }
+}
