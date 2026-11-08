@@ -17,11 +17,11 @@ export const CUP_IDS: readonly CupId[] = ["starter", "champion", "rare"];
 export const CUP_NAMES: Readonly<Record<CupId, string>> = Object.freeze({ starter: "Starter Cup", champion: "Champion Cup", rare: "Rare Cup" });
 
 export type CupPrize = { holos: number; blueprints: number; heavyBuddyUnits: number };
-/** PROPOSED (Pak can change these). `blueprints` are of the Holobot the pilot won the cup with. */
+/** Pak 2026-11-08: "Bigger prizes", about 1.5x the first proposal. `blueprints` are of the Holobot the pilot won the cup with. */
 export const CUP_PRIZES: Readonly<Record<CupId, CupPrize>> = Object.freeze({
-  starter: { holos: 500, blueprints: 10, heavyBuddyUnits: 0 },
-  champion: { holos: 1000, blueprints: 15, heavyBuddyUnits: 0 },
-  rare: { holos: 2000, blueprints: 20, heavyBuddyUnits: 1 },
+  starter: { holos: 750, blueprints: 15, heavyBuddyUnits: 0 },
+  champion: { holos: 1500, blueprints: 25, heavyBuddyUnits: 0 },
+  rare: { holos: 3000, blueprints: 30, heavyBuddyUnits: 1 },
 });
 
 /** PROPOSED. A part's tier is its price; `cupsWon` = the tournamentsWon a pilot needs to buy that tier. */

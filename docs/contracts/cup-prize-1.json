@@ -3,9 +3,9 @@
   "decision": "Pak 2026-11-08: Prizes + part-tier unlock. All amounts PROPOSED.",
   "contractDoc": "functions/src/story/CUP_PRIZES.md",
   "prizes": {
-    "starter": { "holos": 500, "blueprints": 10, "heavyBuddyUnits": 0 },
-    "champion": { "holos": 1000, "blueprints": 15, "heavyBuddyUnits": 0 },
-    "rare": { "holos": 2000, "blueprints": 20, "heavyBuddyUnits": 1 }
+    "starter": { "holos": 750, "blueprints": 15, "heavyBuddyUnits": 0 },
+    "champion": { "holos": 1500, "blueprints": 25, "heavyBuddyUnits": 0 },
+    "rare": { "holos": 3000, "blueprints": 30, "heavyBuddyUnits": 1 }
   },
   "partTiers": [
     { "price": 300, "cupsWon": 0, "cupId": null },

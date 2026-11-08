@@ -5,13 +5,13 @@ Pak, 2026-11-08: "Prizes + part-tier unlock". Code: `lib/cupRewards.ts` (all con
 `economy/purchaseMarketplacePart.ts` (refusal). Tests: `scripts/test-cup-rewards.mjs`,
 `scripts/test-cup-prizes-emulator.mjs`. Fixture: `docs/contracts/cup-prize-1.json`.
 
-## PROPOSED numbers (Pak can change them; each is one constant in `lib/cupRewards.ts`)
+## Numbers (Pak 2026-11-08: "Bigger prizes"; each can still be tuned, each is one constant in `lib/cupRewards.ts`)
 
 | Cup | Holos | Blueprints (of the bot that won) | Other | Opens Workshop tier |
 |---|---|---|---|---|
-| Starter | 500 | 10 | | 750 |
-| Champion | 1000 | 15 | | 1500 |
-| Rare | 2000 | 20 | 1 Heavy Buddy Unit | none |
+| Starter | 750 | 15 | | 750 |
+| Champion | 1500 | 25 | | 1500 |
+| Rare | 3000 | 30 | 1 Heavy Buddy Unit | none |
 
 Before any cup win the Workshop sells only the 300 tier. A part's tier is its price (`common` 300, `rare` 750, `epic` 1500).
 
@@ -32,7 +32,7 @@ the request asks. Send `prizeSchema:'cup-prize-1'` on `tournamentBracketHost` `a
 
 ```jsonc
 "cupPrize": { "schemaVersion": "cup-prize-1", "cupId": "starter", "matchId": "am_…", "holobotId": "ace",
-  "holos": 500, "blueprints": 10, "heavyBuddyUnits": 0, "unlocksPartPrice": 750, "alreadyPaid": false }
+  "holos": 750, "blueprints": 15, "heavyBuddyUnits": 0, "unlocksPartPrice": 750, "alreadyPaid": false }
 ```
 
 `alreadyPaid` is true on a resume or replay of the win. On a resume of a cup won before prizes existed, `cupPrize` is null.

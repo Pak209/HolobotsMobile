@@ -18,7 +18,7 @@ const prices = (reply) => [...new Set(reply.listings.map(l => l.price))].sort((a
 
 test('prize table (PROPOSED numbers), cup ids match the tournaments, every catalog part has a tier', () => {
   assert.deepEqual(C.CUP_IDS, [...T.TOURNAMENTS]);
-  assert.deepEqual(C.CUP_PRIZES, { starter: { holos: 500, blueprints: 10, heavyBuddyUnits: 0 }, champion: { holos: 1000, blueprints: 15, heavyBuddyUnits: 0 }, rare: { holos: 2000, blueprints: 20, heavyBuddyUnits: 1 } });
+  assert.deepEqual(C.CUP_PRIZES, { starter: { holos: 750, blueprints: 15, heavyBuddyUnits: 0 }, champion: { holos: 1500, blueprints: 25, heavyBuddyUnits: 0 }, rare: { holos: 3000, blueprints: 30, heavyBuddyUnits: 1 } });
   assert.deepEqual(C.PART_TIERS.map(t => [t.price, t.cupsWon, t.cupId]), [[300, 0, null], [750, 1, 'starter'], [1500, 2, 'champion']]);
   for (const o of E.MARKETPLACE_PART_CATALOG) assert.ok(C.PART_TIERS.some(t => t.price === o.price), o.id);
   assert.equal(C.partTierOpen(999, 3), false, 'a price outside the table is not for sale');
@@ -67,13 +67,13 @@ test('purchase gate: a locked tier is part_locked naming the cup, before Holos; 
 test('applyCupPrize: Holos, blueprints of the winning bot, Heavy Unit on Rare; existing grant rules; malformed fails closed', () => {
   const p = profile(0, { blueprints: { ace: 3, kuma: 7 } });
   const s = C.applyCupPrize(p, 'starter', 'ace', 'am_1', NOW);
-  assert.deepEqual(s.userUpdates, { holosTokens: 9500, blueprints: { ace: 13, kuma: 7 } });
-  assert.deepEqual(s.receipt, { cupId: 'starter', matchId: 'am_1', holobotId: 'ace', awardedAtMs: NOW, holos: 500, blueprints: 10, heavyBuddyUnits: 0 });
+  assert.deepEqual(s.userUpdates, { holosTokens: 9750, blueprints: { ace: 18, kuma: 7 } });
+  assert.deepEqual(s.receipt, { cupId: 'starter', matchId: 'am_1', holobotId: 'ace', awardedAtMs: NOW, holos: 750, blueprints: 15, heavyBuddyUnits: 0 });
   assert.deepEqual(p.blueprints, { ace: 3, kuma: 7 }, 'input not mutated');
-  assert.deepEqual(C.applyCupPrize(profile(1), 'champion', 'tsuin', 'am_2', NOW).userUpdates, { holosTokens: 10000, blueprints: { tsuin: 15 } });
+  assert.deepEqual(C.applyCupPrize(profile(1), 'champion', 'tsuin', 'am_2', NOW).userUpdates, { holosTokens: 10500, blueprints: { tsuin: 25 } });
   const r = C.applyCupPrize(profile(2), 'rare', 'ace', 'am_3', NOW);
-  assert.deepEqual(r.userUpdates, { holosTokens: 11000, blueprints: { ace: 20 }, buddyUnits: { light: 1, medium: 0, heavy: 1 } });
-  assert.deepEqual(C.cupPrizeView(s.receipt, false), { schemaVersion: 'cup-prize-1', cupId: 'starter', matchId: 'am_1', holobotId: 'ace', holos: 500, blueprints: 10, heavyBuddyUnits: 0, unlocksPartPrice: 750, alreadyPaid: false });
+  assert.deepEqual(r.userUpdates, { holosTokens: 12000, blueprints: { ace: 30 }, buddyUnits: { light: 1, medium: 0, heavy: 1 } });
+  assert.deepEqual(C.cupPrizeView(s.receipt, false), { schemaVersion: 'cup-prize-1', cupId: 'starter', matchId: 'am_1', holobotId: 'ace', holos: 750, blueprints: 15, heavyBuddyUnits: 0, unlocksPartPrice: 750, alreadyPaid: false });
   assert.equal(C.cupPrizeView(r.receipt, true).unlocksPartPrice, null);
   for (const bad of [{ holosTokens: -1 }, { holosTokens: 'x' }, { blueprints: [] }, { blueprints: { ace: 'x' } }, { blueprints: { ace: 1.5 } }]) assert.equal(C.applyCupPrize(profile(0, bad), 'starter', 'ace', 'am', NOW), null, JSON.stringify(bad));
   assert.equal(C.applyCupPrize(profile(2, { buddyUnits: 'x' }), 'rare', 'ace', 'am', NOW), null);
@@ -81,7 +81,7 @@ test('applyCupPrize: Holos, blueprints of the winning bot, Heavy Unit on Rare; e
 
 test('prize ledger: absent = empty; malformed = null, never treated as empty', () => {
   assert.deepEqual(C.readCupPrizeLedger(undefined), { schemaVersion: 'cup-prize-1', prizes: {} });
-  const good = { schemaVersion: 'cup-prize-1', prizes: { starter: { cupId: 'starter', matchId: 'm', holobotId: 'ace', awardedAtMs: 1, holos: 500, blueprints: 10, heavyBuddyUnits: 0 } } };
+  const good = { schemaVersion: 'cup-prize-1', prizes: { starter: { cupId: 'starter', matchId: 'm', holobotId: 'ace', awardedAtMs: 1, holos: 750, blueprints: 15, heavyBuddyUnits: 0 } } };
   assert.deepEqual(C.readCupPrizeLedger(good), good);
   for (const bad of [null, {}, { schemaVersion: 'x', prizes: {} }, { schemaVersion: 'cup-prize-1' }, { schemaVersion: 'cup-prize-1', prizes: { elite: good.prizes.starter } }, { schemaVersion: 'cup-prize-1', prizes: { starter: { ...good.prizes.starter, holos: -1 } } }]) assert.equal(C.readCupPrizeLedger(bad), null, JSON.stringify(bad));
 });
