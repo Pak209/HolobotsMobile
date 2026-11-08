@@ -86,7 +86,7 @@ test('after the intro chain: the first status issues three postings and persists
   const again = await status(db, T0 + 1000);
   assert.deepEqual(again.postings.map(p => p.postingId), st.postings.map(p => p.postingId));
   assert.equal(again.hostFlags.new_posting, false, 'already seen');
-  assert.deepEqual(st.balances, { holosTokens: 0, blueprintFragments: 0 });
+  assert.deepEqual(st.balances, { holosTokens: 0, blueprintFragments: 0, buddyUnits: { light: 0, medium: 0, heavy: 0 } });
 });
 
 test('candidates: citizens only after the Arena gathering; the 11 spots always; KURAI garden until linked; none for a disabled session', () => {
@@ -174,7 +174,9 @@ test('capture claim reads wildEncounterSessions/{uid}/receipts for the target sp
   db.put(`wildEncounterSessions/${UID}/receipts/new`, receipt('city_spot_hare_harbor_1', true), T0 + 50);
   assert.equal((await status(db, T0 + 95)).postings[0].state, 'complete');
   const r = await call(db, { operation: 'claim', postingId: id, requestId: 'c1' }, T0 + 100);
-  assert.equal(r.kind, 'capture'); assert.equal(r.granted.holos, 100);
+  assert.equal(r.kind, 'capture'); assert.equal(r.granted.holos, 50);
+  assert.deepEqual(db.read(`users/${UID}`).buddyUnits, { light: 1, medium: 0, heavy: 0 }, 'a Light Unit through the Buddy inventory');
+  assert.equal(db.read(`users/${UID}`).holosTokens, 55);
 });
 
 test('EXP at the pilot\'s current rival tier (users.rivalWins): 25 wins = tier 2 = 180 EXP; Holos stay 100', async () => {

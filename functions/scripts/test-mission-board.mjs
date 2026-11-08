@@ -73,15 +73,18 @@ test('generation: the three open slots never share a kind; targets and rewards c
           assert.ok(v); assert.deepEqual(p.reward, { holos: v.holos }); assert.equal(p.districtId, v.districtId);
           continue;
         }
+        if (p.kind === 'capture') {
+          assert.deepEqual(p.reward, { holos: 50, items: [{ itemId: 'buddy_light', quantity: 1 }] }, 'capture: 50 Holos + 1 Light Buddy Unit, no EXP, no fragment');
+          assert.ok(['hare_harbor', 'kurai_garden'].includes(p.target));
+          assert.equal(p.holobotId, p.target === 'hare_harbor' ? 'hare' : 'kurai');
+          assert.equal(p.districtId, p.target === 'hare_harbor' ? 'D02' : 'D06');
+          continue;
+        }
+        assert.equal(p.holobotId, '');
         battles++;
         assert.equal(p.reward.holos, 100); assert.equal(p.reward.exp, undefined, 'EXP is not stored: the view rules it at the current tier');
         if (p.reward.items) { fragments++; assert.deepEqual(p.reward.items, [{ itemId: 'blueprint_fragment', quantity: 1 }]); }
         if (p.kind === 'beast') assert.equal(p.target, 'guild_court');
-        if (p.kind === 'capture') {
-          assert.ok(['hare_harbor', 'kurai_garden'].includes(p.target));
-          assert.equal(p.holobotId, p.target === 'hare_harbor' ? 'hare' : 'kurai');
-          assert.equal(p.districtId, p.target === 'hare_harbor' ? 'D02' : 'D06');
-        } else assert.equal(p.holobotId, '');
         if (p.kind === 'rival') { rivalTargets.add(p.target); assert.ok(['town_rival', 'any', ...c.citizens.map(x => x.citizenId)].includes(p.target)); }
       }
     }
@@ -125,7 +128,7 @@ test('visit: the client-sent destinationId must equal the target (low-stakes tru
   assert.deepEqual(r.userUpdates, { holosTokens: 60 });
   assert.deepEqual(r.reply.granted, { holos: 50, expPerHolobot: 0, expTier: 0, items: [] });
   assert.deepEqual(r.reply.progression, []);
-  assert.deepEqual(r.reply.balances, { holosTokens: 60, blueprintFragments: 2 });
+  assert.deepEqual(r.reply.balances, { holosTokens: 60, blueprintFragments: 2, buddyUnits: { light: 1, medium: 0, heavy: 0 } });
 });
 
 test('beast: only a settled WIN of the target zone after issuedAtMs counts (not before / at issue, not a loss, not a withheld run, not another zone)', () => {
@@ -168,7 +171,26 @@ test('capture: a successful capture at the target spot (any cycle) after issuedA
     assert.throws(() => M.claimPosting(board, profile(), claimCmd(id), facts({ captures: bad }), SQUAD, T0 + 20, 0), /not_complete/, JSON.stringify(bad));
   }
   const r = M.claimPosting(board, profile(), claimCmd(id), facts({ captures: [{ encounterId: 'city_spot_hare_harbor_3', capturedAtMs: T0 + 10 }] }), SQUAD, T0 + 20, 0);
-  assert.equal(r.reply.kind, 'capture'); assert.equal(r.reply.granted.holos, 100);
+  assert.equal(r.reply.kind, 'capture');
+  assert.deepEqual(r.reply.granted, { holos: 50, expPerHolobot: 0, expTier: 0, items: [{ itemId: 'buddy_light', quantity: 1 }] });
+  assert.deepEqual(r.reply.progression, [], 'no EXP on a capture posting');
+  assert.deepEqual(r.userUpdates, { holosTokens: 60, buddyUnits: { light: 2, medium: 0, heavy: 0 } });
+  assert.deepEqual(r.reply.balances.buddyUnits, { light: 2, medium: 0, heavy: 0 });
+  assert.equal(M.boardView(board, facts(), T0, 3).postings[0].reward.exp, undefined, 'status shows no EXP');
+  assert.deepEqual(M.boardView(board, facts(), T0, 3).postings[0].reward, { holos: 50, items: [{ itemId: 'buddy_light', quantity: 1 }] });
+  // A capture posting stored before the ruling (100 Holos) pays and shows the ruling; a replay repeats the stored grant and writes nothing.
+  const old = boardWith('capture', 'hare_harbor', { holobotId: 'hare', issuedAtMs: T0, reward: { holos: 100 } });
+  const oldId = old.slots[0].posting.postingId, f = facts({ captures: [{ encounterId: 'city_spot_hare_harbor_1', capturedAtMs: T0 + 10 }] });
+  assert.equal(M.boardView(old, f, T0, 0).postings[0].reward.holos, 50);
+  const paid = M.claimPosting(old, profile(), claimCmd(oldId, 'old1'), f, [], T0 + 20, 0);
+  assert.equal(paid.reply.granted.holos, 50);
+  const replay = M.claimPosting(paid.board, profile(paid.userUpdates), claimCmd(oldId, 'old1'), f, [], T0 + 21, 0);
+  assert.deepEqual([replay.reply.alreadyProcessed, replay.board, replay.userUpdates], [true, null, {}]);
+  assert.deepEqual(replay.reply.granted, paid.reply.granted);
+  assert.deepEqual(M.boardView(paid.board, f, T0, 4).postings[0].reward, { holos: 50, items: [{ itemId: 'buddy_light', quantity: 1 }] }, 'claimed: what it paid');
+  // Never-seen inventory: the starter Unit is kept (+1); malformed fails closed.
+  assert.deepEqual(M.claimPosting(old, profile({ buddyUnits: undefined }), claimCmd(oldId), f, [], T0 + 20, 0).userUpdates.buddyUnits, { light: 2, medium: 0, heavy: 0 });
+  assert.throws(() => M.claimPosting(old, profile({ buddyUnits: 'x' }), claimCmd(oldId), f, [], T0 + 20, 0), /unavailable/);
   // The once-only Research Garden KURAI keeps its own encounter id.
   const garden = boardWith('capture', 'kurai_garden', { holobotId: 'kurai', issuedAtMs: T0 });
   const gid = garden.slots[0].posting.postingId;
@@ -220,7 +242,7 @@ test('rewards: battle postings pay 100 Holos + table EXP to every travel-squad H
   assert.equal(r.userUpdates.holobots.length, 2);
   assert.deepEqual(r.reply.progression.map(x => [x.holobotId, x.expGained]), [['ace', 95], ['kuma', 95]]);
   assert.deepEqual(r.reply.granted, { holos: 100, expPerHolobot: 95, expTier: 0, items: [{ itemId: 'blueprint_fragment', quantity: 1 }] });
-  assert.deepEqual(r.reply.balances, { holosTokens: 110, blueprintFragments: 3 });
+  assert.deepEqual(r.reply.balances, { holosTokens: 110, blueprintFragments: 3, buddyUnits: { light: 1, medium: 0, heavy: 0 } });
   const boosted = M.claimPosting(withFrag, profile({ expBoosterActiveUntil: T0 + 999_999 }), claimCmd(id), f, ['ace'], T0 + 2, 0);
   assert.equal(boosted.reply.granted.expPerHolobot, 190);
   // No fragment on the posting: itemStocks untouched. Empty squad: Holos only, no holobots write.
@@ -301,6 +323,7 @@ test('docs/contracts/mission-board-1.json matches the host constants', async () 
   assert.equal(c.beastTargets.guild_court.districtId, M.BEAST_TARGETS[0].districtId);
   assert.deepEqual(c.captureSpots, Object.fromEntries(M.CAPTURE_SPOTS.map(s => [s.spotId, { holobotId: s.holobotId, districtId: s.districtId }])));
   assert.equal(c.spotCooldownMs, S.CITY_SPOT_COOLDOWN_MS);
+  assert.deepEqual(c.capturePostingReward, { holos: 50, items: [{ itemId: 'buddy_light', quantity: 1 }] });
   assert.ok(!c.rejectionCodes.includes('intro_pending'));
   assert.deepEqual(c.visitTargets, Object.fromEntries(M.VISIT_TARGETS.map(v => [v.destinationId, { holos: v.holos, districtId: v.districtId }])));
   assert.deepEqual(Object.keys(c.beastTargets), M.BEAST_TARGETS.map(b => b.zoneId));

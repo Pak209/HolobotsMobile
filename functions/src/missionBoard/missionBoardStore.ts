@@ -141,7 +141,7 @@ export async function transactMissionBoard(db: Firestore, uid: string, raw: unkn
       return { schemaVersion: MISSION_BOARD_SCHEMA, introPending, intro: introPending ? introStatus(intro) : null, rivalTier: tier, ...view, balances };
     }
     const target = board.slots.find(s => s.posting.postingId === command.postingId)?.posting;
-    const squadIds = target && !target.claim && target.kind !== 'visit' ? guard(() => readTravelSquad(profile)).holobotIds : [];
+    const squadIds = target && !target.claim && (target.kind === 'beast' || target.kind === 'rival') ? guard(() => readTravelSquad(profile)).holobotIds : [];
     const r = claimPosting(board, profile, command, facts, squadIds, nowMs, tier);
     if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
     if (r.board) tx.set(boardRef, r.board);

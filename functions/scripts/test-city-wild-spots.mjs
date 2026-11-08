@@ -111,6 +111,7 @@ test('a Mission Board capture posting at a spot completes from that spot\'s real
   db.clock.now = T0 + 200;
   assert.equal((await capture(db, 'city_spot_kuma_transit_1', 'kc1')).captureResult.captured, true);
   const r = await MB.transactMissionBoard(db, UID, { operation: 'claim', postingId: p.postingId, requestId: 'mb1' }, T0 + 300, SEED);
-  assert.equal(r.kind, 'capture'); assert.equal(r.granted.holos, 100);
+  assert.equal(r.kind, 'capture'); assert.equal(r.granted.holos, 50);
+  assert.equal(db.read(`users/${UID}`).buddyUnits.light, 1);
   assert.ok(Q.INTRO_QUEST_STEPS.length > 0);
 });

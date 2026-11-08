@@ -1,6 +1,6 @@
 {
   "schemaVersion": "mission-board-1",
-  "decision": "Pak rulings 2026-11-07 (Mission Board question cards + follow-up: intro alongside postings, repeatable wild spots, EXP by rival tier, shared city plan districts)",
+  "decision": "Pak rulings 2026-11-07 (Mission Board question cards + follow-up: intro alongside postings, repeatable wild spots, EXP by rival tier, shared city plan districts; 2026-11-08: capture postings pay 50 Holos + 1 Light Buddy Unit)",
   "callable": "missionBoardHost",
   "contractDoc": "functions/src/missionBoard/README.md",
   "operations": {
@@ -142,5 +142,14 @@
     }
   },
   "spotEncounters": "cityEncounterHost {schemaVersion:'city-encounter-1', operation:'provisionSpot', spotId} \u2192 encounter city_spot_<spotId>_<cycle>; kurai_garden = city_kurai_garden via operation 'provision' (once-only)",
-  "spotCooldownMs": 1800000
+  "spotCooldownMs": 1800000,
+  "capturePostingReward": {
+    "holos": 50,
+    "items": [
+      {
+        "itemId": "buddy_light",
+        "quantity": 1
+      }
+    ]
+  }
 }

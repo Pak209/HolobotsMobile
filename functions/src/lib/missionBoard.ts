@@ -8,10 +8,11 @@
  *   Holobot), visit (go to a district landmark).
  * - Three slots per pilot are always filled. A claimed slot shows its claimed posting until MISSION_BOARD_REFILL_MS
  *   after the claim, then the next status / claim draws a new posting into it.
- * - Rewards reuse the existing payouts: beast / rival / capture pay BATTLE_WIN_HOLOS (100, a Guild Court win) plus the
+ * - Rewards reuse the existing payouts: beast / rival pay BATTLE_WIN_HOLOS (100, a Guild Court win) plus the
  *   one battle table's win EXP at the pilot's CURRENT rival tier (tierForWins(users.rivalWins); no performance bonus;
  *   EXP Booster honoured) to every travel-squad Holobot, and some postings add 1 blueprint_fragment (the zone clear
  *   drop). Visits pay the intro quests' 50 / 75 Holos.
+ * - Capture postings (Pak, 2026-11-08) pay MISSION_BOARD_CAPTURE_REWARD instead: 50 Holos + 1 Light Buddy Unit, no EXP.
  * - Intro quests alongside (Pak, 2026-11-07 follow-up): status shows the intro chain while it is incomplete AND the 3
  *   postings from day one; intro step claims are forwarded to the intro quest store (nothing is duplicated here).
  * - District ids are the shared city plan's (lib/cityDistricts.ts, D01..D10), resolved from plan coordinates.
@@ -25,6 +26,7 @@ import { createHash } from "node:crypto";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { BattleKind, computeBattleSettlement } from "./battleSettlement";
 import { BLUEPRINT_FRAGMENT_STOCK, itemStocksAfterFragmentGrant } from "./holoZoneRuns";
+import { BUDDY_UNITS_FIELD, BuddyInventory, readBuddyInventory, withTierDelta } from "./buddyUnits";
 import { BATTLE_WIN_HOLOS, holosAfterGrant } from "./rivalLadder";
 import { REQUEST_ID } from "./introQuests";
 import { CITY_SITES, cityDistrictAt } from "./cityDistricts";
@@ -42,6 +44,10 @@ export const MISSION_BOARD_BATTLE_HOLOS = BATTLE_WIN_HOLOS;
 export function missionBoardExp(tier: number): number {
   return computeBattleSettlement({ kind: "beast", tier, didWin: true })!.exp;
 }
+/** Item id of a posting's Light Buddy Unit (the buddy tier id; granted through the Buddy Unit inventory, not itemStocks). */
+export const BUDDY_LIGHT_ITEM = "buddy_light";
+/** Capture postings (Pak, 2026-11-08): the attempt costs a Unit, so the posting pays one back. */
+export const MISSION_BOARD_CAPTURE_REWARD: Readonly<PostingReward> = Object.freeze({ holos: 50, items: [{ itemId: BUDDY_LIGHT_ITEM, quantity: 1 }] });
 /** A battle posting carries 1 blueprint_fragment when its hash byte % this === 0 (about one in three). */
 export const MISSION_BOARD_FRAGMENT_ONE_IN = 3;
 export const MISSION_BOARD_FRAGMENTS = 1;
@@ -192,7 +198,7 @@ export function generatePosting(uid: string, seed: string, serial: number, heldK
     const spot = CAPTURE_SPOTS.find((x) => x.spotId === target);
     if (!spot) throw new MissionBoardError("unavailable");
     const bot = titleCase(spot.holobotId);
-    return { ...base, title: `Link ${bot}`, detail: `Link the wild ${bot} at the ${spot.label}.`, target, holobotId: spot.holobotId, districtId: spot.districtId, reward: battleReward() };
+    return { ...base, title: `Link ${bot}`, detail: `Link the wild ${bot} at the ${spot.label}.`, target, holobotId: spot.holobotId, districtId: spot.districtId, reward: captureReward() };
   }
   const v = VISIT_TARGETS[pick % VISIT_TARGETS.length];
   return { ...base, title: `Visit the ${v.label}`, detail: `Check in at the ${v.label}.`, target: v.destinationId, districtId: v.districtId, reward: { holos: v.holos } };
@@ -333,11 +339,16 @@ export type PostingView = {
 export type HostFlags = { new_posting: boolean; posting_cleared: boolean };
 export type BoardView = { postings: PostingView[]; refillAtMs: number | null; hostFlags: HostFlags };
 
-/** The reward as shown: battle postings add `exp` at `tier` (a claimed posting shows what it paid). */
+const captureReward = (): PostingReward => structuredClone(MISSION_BOARD_CAPTURE_REWARD) as PostingReward;
+/** What a posting pays. A capture posting issued before the 2026-11-08 ruling still carries 100 Holos; it pays the ruling. */
+const payableReward = (p: Posting): PostingReward => (p.kind === "capture" ? captureReward() : p.reward);
+
+/** The reward as shown: beast / rival add `exp` at `tier`; a claimed posting shows what it paid. */
 function rewardView(p: Posting, tier: number): PostingReward {
-  const { exp: _stale, ...reward } = structuredClone(p.reward);
-  if (p.kind === "visit") return reward;
-  return { holos: reward.holos, exp: missionBoardExp(p.claim ? p.claim.granted.expTier : tier), ...(reward.items ? { items: reward.items } : {}) };
+  const paid = p.claim?.granted;
+  const { exp: _stale, ...reward } = structuredClone(paid ? { holos: paid.holos, ...(paid.items.length ? { items: paid.items } : {}) } as PostingReward : payableReward(p));
+  if (p.kind === "visit" || p.kind === "capture") return reward;
+  return { holos: reward.holos, exp: missionBoardExp(paid ? paid.expTier : tier), ...(reward.items ? { items: reward.items } : {}) };
 }
 
 export function postingView(slot: BoardSlot, index: number, facts: BoardFacts, tier: number): PostingView {
@@ -363,7 +374,7 @@ export function boardView(board: MissionBoardDoc, facts: BoardFacts, seenThrough
   };
 }
 
-export type BoardBalances = { holosTokens: number; blueprintFragments: number };
+export type BoardBalances = { holosTokens: number; blueprintFragments: number; buddyUnits: BuddyInventory };
 export type ClaimReply = {
   schemaVersion: typeof MISSION_BOARD_SCHEMA; source: "posting"; postingId: string; requestId: string; kind: PostingKind; alreadyProcessed: boolean;
   granted: PostingGrant; progression: HolobotProgressionEntry[]; balances: BoardBalances; board: BoardView;
@@ -374,7 +385,9 @@ function balancesOf(profile: Record<string, unknown>): BoardBalances {
   if (typeof h !== "number" || !Number.isFinite(h) || h < 0) throw new MissionBoardError("unavailable");
   const stocks = itemStocksAfterFragmentGrant(profile, 0);
   if (stocks === null) throw new MissionBoardError("unavailable");
-  return { holosTokens: h, blueprintFragments: stocks[BLUEPRINT_FRAGMENT_STOCK] as number };
+  const inv = readBuddyInventory(profile);
+  if (!inv) throw new MissionBoardError("unavailable");
+  return { holosTokens: h, blueprintFragments: stocks[BLUEPRINT_FRAGMENT_STOCK] as number, buddyUnits: inv.units };
 }
 
 // ---- Claim ----
@@ -420,7 +433,7 @@ export function claimPosting(
   const userUpdates: Record<string, unknown> = {};
   let progression: HolobotProgressionEntry[] = [];
   let expPerHolobot = 0;
-  if (p.kind !== "visit") {
+  if (p.kind === "beast" || p.kind === "rival") {
     const input = { kind: (p.kind === "rival" ? "rival" : "beast") as BattleKind, tier, didWin: true };
     const award = awardBattleExperienceRaw(profile, squadIds, input, nowMs);
     if (!award) throw new MissionBoardError("unavailable");
@@ -428,13 +441,18 @@ export function claimPosting(
     expPerHolobot = squadIds.length ? award.expPerHolobot : 0;
     if (award.expPerHolobot > 0 && award.progression.length) userUpdates.holobots = award.holobots;
   }
-  const holos = p.reward.holos;
+  const reward = payableReward(p);
+  const holos = reward.holos;
   const nextHolos = holosAfterGrant(profile, holos);
   if (nextHolos === null) throw new MissionBoardError("unavailable");
   if (holos > 0) userUpdates.holosTokens = nextHolos;
-  const items = (p.reward.items ?? []).map((x) => ({ ...x }));
+  const items = (reward.items ?? []).map((x) => ({ ...x }));
   const fragments = items.filter((x) => x.itemId === BLUEPRINT_FRAGMENT_STOCK).reduce((n, x) => n + x.quantity, 0);
-  if (items.some((x) => x.itemId !== BLUEPRINT_FRAGMENT_STOCK)) throw new MissionBoardError("unavailable");
+  const lightUnits = items.filter((x) => x.itemId === BUDDY_LIGHT_ITEM).reduce((n, x) => n + x.quantity, 0);
+  if (items.some((x) => x.itemId !== BLUEPRINT_FRAGMENT_STOCK && x.itemId !== BUDDY_LIGHT_ITEM)) throw new MissionBoardError("unavailable");
+  // The existing Buddy Unit inventory rule (a never-seen / legacy inventory is persisted by this same write).
+  const buddyAfter = lightUnits > 0 ? withTierDelta(balances.buddyUnits, "light", lightUnits) : balances.buddyUnits;
+  if (lightUnits > 0) userUpdates[BUDDY_UNITS_FIELD] = { ...buddyAfter };
   if (fragments > 0) {
     const itemStocks = itemStocksAfterFragmentGrant(profile, fragments);
     if (itemStocks === null) throw new MissionBoardError("unavailable");
@@ -444,7 +462,7 @@ export function claimPosting(
   const next: MissionBoardDoc = structuredClone(board);
   next.slots[index] = { posting: { ...p, claim: { requestId: cmd.requestId, claimedAtMs: nowMs, granted, progression } }, refillAtMs: nowMs + MISSION_BOARD_REFILL_MS };
   next.claims = [...next.claims, { requestId: cmd.requestId, postingId: p.postingId, kind: p.kind, claimedAtMs: nowMs, granted, progression }].slice(-MISSION_BOARD_MAX_CLAIMS);
-  const after: BoardBalances = { holosTokens: nextHolos, blueprintFragments: balances.blueprintFragments + fragments };
+  const after: BoardBalances = { holosTokens: nextHolos, blueprintFragments: balances.blueprintFragments + fragments, buddyUnits: buddyAfter };
   return {
     board: next, userUpdates,
     reply: { schemaVersion: MISSION_BOARD_SCHEMA, source: "posting", postingId: p.postingId, requestId: cmd.requestId, kind: p.kind, alreadyProcessed: false,
