@@ -46,7 +46,7 @@ test('first win pays once, in the win transaction; reply opt-in; resume shows th
   assert.equal(after.storyFlags.tournamentsWon, 1);
   const paid = match.settlementReceipt.settlement, arenaAce = paid.blueprints.holobotKey === 'ace' ? paid.blueprints.amount : 0;
   assert.equal(after.holosTokens, 2000 + paid.holos + 750);
-  assert.equal(after.blueprints.ace, 3 + arenaAce + 10);
+  assert.equal(after.blueprints.ace, 3 + arenaAce + 15);
   assert.equal((await db.doc(`cupPrizes/${uid}`).get()).data().prizes.starter.matchId, id);
   const resumed = await call(uid, 'resume', id, { prizeSchema: PRIZE });
   assert.equal(resumed.cupPrize.alreadyPaid, true); assert.equal(resumed.cupPrize.holos, 750);
@@ -67,8 +67,8 @@ test('all three cups in order; Rare adds the Heavy Unit; the ledger stops a seco
   for (const cup of Object.keys(CUPS)) await win(uid, cup, { prizeSchema: PRIZE });
   const after = await user(uid);
   assert.equal(after.storyFlags.tournamentsWon, 3); assert.equal(after.storyFlags.arenaArcBuilt, true);
-  assert.ok(after.blueprints.ace >= 45); assert.equal(after.buddyUnits.heavy, 1);
-  assert.deepEqual(Object.values((await db.doc(`cupPrizes/${uid}`).get()).data().prizes).map(p => p.blueprints).sort((a, b) => a - b), [10, 15, 20]);
+  assert.ok(after.blueprints.ace >= 70); assert.equal(after.buddyUnits.heavy, 1);
+  assert.deepEqual(Object.values((await db.doc(`cupPrizes/${uid}`).get()).data().prizes).map(p => p.blueprints).sort((a, b) => a - b), [15, 25, 30]);
   await db.doc(`users/${uid}`).update({ storyFlags: flags(0) });
   const before = await user(uid);
   const { id, r } = await win(uid, 'starter', { prizeSchema: PRIZE });
