@@ -215,5 +215,14 @@
       },
       "affordable": false
     }
-  ]
+  ],
+  "partTier": {
+    "unlockedMaxPrice": 1500,
+    "unlockedPrices": [
+      300,
+      750,
+      1500
+    ],
+    "next": null
+  }
 }

@@ -31,8 +31,8 @@ test('marketplace catalog: every item, booster and Buddy Unit at the economy / d
   assert.equal(new Set(c.listings.map(l => l.listingId)).size, c.listings.length);
 });
 
-test('workshop catalog: every MARKETPLACE_PART_CATALOG part at its price with owned copies', () => {
-  const c = V.buildCatalog(profile(), 'workshop', NOW);
+test('workshop catalog (every part tier open): every MARKETPLACE_PART_CATALOG part at its price with owned copies', () => {
+  const c = V.buildCatalog(profile({ storyFlags: { arenaGatheringSeen: true, tournamentsWon: 2, arenaArcBuilt: false, holoZonesArcBuilt: false } }), 'workshop', NOW);
   assert.deepEqual(c.listings.map(l => [l.listingId, l.price, l.details.rarity, l.details.slot]), E.MARKETPLACE_PART_CATALOG.map(o => [o.id, o.price, o.rarity, o.slot]));
   for (const l of c.listings) assert.deepEqual(l.purchase, { callable: 'purchaseMarketplacePart', request: { partId: l.listingId } });
   assert.equal(c.listings.find(l => l.listingId === 'part.combatMask').owned, 2);

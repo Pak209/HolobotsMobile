@@ -23,6 +23,9 @@ export type HolobotProgressionEntry = {
   rank: string;
 };
 
+/** Opt-in value of `progressionSchema` where a strict Unity reader rejects unknown keys (tournament bracket / result replies). */
+export const BATTLE_PROGRESSION_SCHEMA = "battle-progression-1";
+
 export type BattleExperienceAward = {
   /** EXP each fielded Holobot received (0 when withheld). */
   expPerHolobot: number;
@@ -32,6 +35,25 @@ export type BattleExperienceAward = {
 };
 
 const whole = (value: unknown) => Math.max(0, Math.floor(Number(value) || 0));
+
+/** The one `progression[]` row shape (rival settle, zone settle, arena settle, tournament results). */
+export function holobotProgressionRow(
+  holobotId: string,
+  expGained: number,
+  before: { level: unknown },
+  after: { level: unknown; attributePoints?: unknown; experience?: unknown; nextLevelExp?: unknown; rank?: unknown },
+): HolobotProgressionEntry {
+  return {
+    holobotId,
+    expGained,
+    levelBefore: whole(before.level),
+    levelAfter: whole(after.level),
+    attributePoints: whole(after.attributePoints),
+    experience: whole(after.experience),
+    nextLevelExp: whole(after.nextLevelExp),
+    rank: typeof after.rank === "string" && after.rank ? after.rank : getHolobotRank(Number(after.level)),
+  };
+}
 
 /**
  * `holobotIds` are lowercase stable ids (travel-squad ids), distinct. Each must
@@ -64,16 +86,7 @@ export function awardBattleExperienceRaw(
     const after = exp > 0 ? applyHolobotExperience(holobots[index], exp) : before;
     if (exp > 0) holobots[index] = after;
 
-    progression.push({
-      holobotId,
-      expGained: exp,
-      levelBefore: whole(before.level),
-      levelAfter: whole(after.level),
-      attributePoints: whole(after.attributePoints),
-      experience: whole(after.experience),
-      nextLevelExp: whole(after.nextLevelExp),
-      rank: typeof after.rank === "string" && after.rank ? after.rank : getHolobotRank(after.level),
-    });
+    progression.push(holobotProgressionRow(holobotId, exp, before, after));
   }
 
   return { expPerHolobot: exp, holobots, progression };

@@ -20,6 +20,8 @@ import { BUDDY_UNIT_PRICES_HOLOS, BUDDY_UNIT_TIERS, BUDDY_UNITS_FIELD, BuddyInve
 import {HEALING_ITEMS,healingStock} from "./repairItems";
 import { WARDROBE_ITEMS } from "./wardrobeCatalog";
 import { WARDROBE_SCHEMA } from "./wardrobe";
+import { partTierOpen, PartTierView, partTierView } from "./cupRewards";
+import { readStoryFlags, StoryError } from "../story/storyFlags";
 
 /** vendor-3 (DECISIONS #48): adds the `boutique` vendor and `clothing` listings (details.hidesSlots is a string[]). */
 export const VENDOR_SCHEMA = "vendor-3";
@@ -58,7 +60,8 @@ export type Inventory = {
   parts: number;
   buddyUnits: BuddyInventory;
 };
-export type CatalogReply = { schemaVersion: string; vendorId: VendorId; holosTokens: number; inventory: Inventory; listings: Listing[] };
+/** `partTier` (cup-prize-1): Workshop replies only. Listings then hold only the parts whose tier is open. */
+export type CatalogReply = { schemaVersion: string; vendorId: VendorId; holosTokens: number; inventory: Inventory; listings: Listing[]; partTier?: PartTierView };
 
 export class VendorError extends Error {
   constructor(public code: "invalid_request" | "unavailable" | "not_enough_holos" | "sequence_conflict") {
@@ -111,6 +114,7 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
     currency: "holos", quantity: 1, available: true, availableAtMs: 0, ...l, affordable: holos >= l.price,
   });
   const listings: Listing[] = [];
+  let partTier: PartTierView | undefined;
   if (vendorId === "marketplace") {
     const expedition=configuredExpedition();
     if(expedition){
@@ -163,7 +167,13 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
       }));
     }
   } else {
+    // cup-prize-1 (Pak, 2026-11-08): only opened tiers are listed; a part already owned stays in the inventory.
+    let cupsWon: number;
+    try { cupsWon = readStoryFlags(profile.storyFlags).tournamentsWon; }
+    catch (error) { if (error instanceof StoryError) throw new VendorError("unavailable"); throw error; }
+    partTier = partTierView(cupsWon);
     for (const offer of MARKETPLACE_PART_CATALOG) {
+      if (!partTierOpen(offer.price, cupsWon)) continue;
       listings.push(listing({
         listingId: offer.id, kind: "part", displayName: offer.name, price: offer.price,
         owned: parts.filter((p) => p && p.name === offer.name).length, details: { rarity: offer.rarity, slot: offer.slot },
@@ -171,7 +181,7 @@ export function buildCatalog(profile: Record<string, unknown>, vendorId: VendorI
       }));
     }
   }
-  return { schemaVersion: VENDOR_SCHEMA, vendorId, holosTokens: holos, inventory, listings };
+  return { schemaVersion: VENDOR_SCHEMA, vendorId, holosTokens: holos, inventory, listings, ...(partTier ? { partTier } : {}) };
 }
 
 // ---- Medium / Heavy Buddy Unit purchase (purchaseBuddyUnit) ----

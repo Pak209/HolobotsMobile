@@ -395,6 +395,11 @@ service cloud.firestore {
     match /introQuests/{uid} {
       allow read, write: if false;
     }
+    // HoloCity Mission Board postings, claims and refill clock: written only by
+    // missionBoardHost (Admin SDK). No client read: `status` returns the board.
+    match /missionBoards/{uid}/{document=**} {
+      allow read, write: if false;
+    }
     // DECISIONS #48 wardrobe (entitlements, saved appearance recipe, receipts):
     // written only by wardrobeHost. No client read either: wardrobeHost
     // `status` returns everything Unity renders, so no stored shape becomes
@@ -416,6 +421,11 @@ service cloud.firestore {
     // doc is client-writable outside protectedFieldsUntouched (a forged run would farm XP). No
     // client read: holoZoneHost `status` returns the open run. Same effect as the default deny.
     match /holoZoneRuns/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
+    // cup-prize-1: one-time cup prize receipts, written only by the tournament result transaction.
+    match /cupPrizes/{uid}/{document=**} {
       allow read, write: if false;
     }
 

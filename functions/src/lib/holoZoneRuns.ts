@@ -88,6 +88,17 @@ export const HOLOZONE_MAX_FIELDED = 3;
 export const HOLOZONE_CLEAR_BLUEPRINT_FRAGMENTS = 1;
 /** users/{uid}.itemStocks key the Workshop crafts from (workshop/workshopCraftHost.ts). */
 export const BLUEPRINT_FRAGMENT_STOCK = "blueprint_fragment";
+/**
+ * users/{uid}.itemStocks after adding `amount` blueprint_fragment (the one grant rule the zone settle and the Mission
+ * Board share). Missing stocks / key = 0; a malformed stored map or count fails closed (null).
+ */
+export function itemStocksAfterFragmentGrant(profile: Record<string, unknown>, amount: number): Record<string, unknown> | null {
+  const stocks = profile.itemStocks;
+  if (stocks !== undefined && (!stocks || typeof stocks !== "object" || Array.isArray(stocks))) return null;
+  const have = (stocks as Record<string, unknown> | undefined)?.[BLUEPRINT_FRAGMENT_STOCK] ?? 0;
+  if (typeof have !== "number" || !Number.isSafeInteger(have) || have < 0 || !Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(have + amount)) return null;
+  return { ...(stocks as Record<string, unknown> | undefined ?? {}), [BLUEPRINT_FRAGMENT_STOCK]: have + amount };
+}
 /** perfectDefenses credited for a defeated boss. */
 export const HOLOZONE_BOSS_PERFECT_DEFENSES = 5;
 
@@ -376,11 +387,9 @@ export function settleHoloZoneRun(
   // the < HOLOZONE_MIN_XP_MS rule pays none; once per run (the stored amount replays).
   const blueprintFragmentsGranted = !command.bossDefeated && command.kills >= 1 && !expWithheld ? HOLOZONE_CLEAR_BLUEPRINT_FRAGMENTS : 0;
   if (blueprintFragmentsGranted > 0) {
-    const stocks = profile.itemStocks;
-    if (stocks !== undefined && (!stocks || typeof stocks !== "object" || Array.isArray(stocks))) throw new HoloZoneError("unavailable");
-    const have = (stocks as Record<string, unknown> | undefined)?.[BLUEPRINT_FRAGMENT_STOCK] ?? 0;
-    if (typeof have !== "number" || !Number.isSafeInteger(have) || have < 0 || !Number.isSafeInteger(have + blueprintFragmentsGranted)) throw new HoloZoneError("unavailable");
-    userUpdates.itemStocks = { ...(stocks as Record<string, unknown> | undefined ?? {}), [BLUEPRINT_FRAGMENT_STOCK]: have + blueprintFragmentsGranted };
+    const itemStocks = itemStocksAfterFragmentGrant(profile, blueprintFragmentsGranted);
+    if (itemStocks === null) throw new HoloZoneError("unavailable");
+    userUpdates.itemStocks = itemStocks;
   }
   const next = runs.map((r, i) => (i === index ? { ...r, settlement, progression: award.progression, holosGranted, blueprintFragmentsGranted } : r));
   if (command.bossDefeated && !expWithheld) Object.assign(userUpdates, healingDelta(profile,"item.repair_kit",1));

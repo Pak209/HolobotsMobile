@@ -12,7 +12,7 @@ import { removePresence } from "../presence/presenceStore";
  * #57 Arena activity lease, durable matches, entry/settlement receipts, and tournament brackets).
  */
 export async function deleteUserData(firestore: Firestore, uid: string): Promise<void> {
-  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`, `arenaMatches/${uid}`, `arenaBrackets/${uid}`, `duelHealingRuns/${uid}`, `workshopHeals/${uid}`, `workshopCrafts/${uid}`]) {
+  for (const path of [`users/${uid}`, `rivalBattles/${uid}`, `wildEncounterSessions/${uid}`, `introQuests/${uid}`, `vendorPurchases/${uid}`, `wardrobes/${uid}`, `holoZoneRuns/${uid}`, `itemInventories/${uid}`, `storyProgress/${uid}`, `arenaMatches/${uid}`, `arenaBrackets/${uid}`, `duelHealingRuns/${uid}`, `workshopHeals/${uid}`, `workshopCrafts/${uid}`, `missionBoards/${uid}`, `cupPrizes/${uid}`]) {
     await firestore.recursiveDelete(firestore.doc(path));
   }
   // Grant verification checks profile existence; deletion fails closed even if cleanup retries.
