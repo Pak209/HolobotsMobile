@@ -5,7 +5,9 @@ import {
   buildPartPurchaseUpdatesRaw,
   getMarketplacePartOffer,
 } from "../lib/economy";
-import { refusalError, REFUSALS } from "../lib/marketplaceRefusals";
+import { CUP_NAMES, partLockedBehind, partTierOpen } from "../lib/cupRewards";
+import { PART_TIER_REFUSALS, refusalError, REFUSALS } from "../lib/marketplaceRefusals";
+import { readStoryFlags, StoryError } from "../story/storyFlags";
 import { onboardingAfterEvent } from "../lib/onboarding";
 
 type PurchasePartResponse = {
@@ -13,6 +15,20 @@ type PurchasePartResponse = {
   part: { name: string; rarity: string; slot: string };
   price: number;
 };
+
+/** cup-prize-1: the part's tier must be open (storyFlags.tournamentsWon); checked first, so a locked part is never charged. */
+export function requirePartTierOpen(profile: Record<string, unknown>, price: number): void {
+  let cupsWon: number;
+  try {
+    cupsWon = readStoryFlags(profile.storyFlags).tournamentsWon;
+  } catch (error) {
+    if (error instanceof StoryError) throw refusalError(PART_TIER_REFUSALS.accountUnavailable);
+    throw error;
+  }
+  if (partTierOpen(price, cupsWon)) return;
+  const cup = partLockedBehind(price, cupsWon);
+  throw refusalError(cup ? PART_TIER_REFUSALS.partLocked(CUP_NAMES[cup]) : PART_TIER_REFUSALS.accountUnavailable);
+}
 
 /** Server-authoritative marketplace part purchase (Holos -> equipment part). */
 export const purchaseMarketplacePart = onCall(async (request): Promise<PurchasePartResponse> => {
@@ -38,6 +54,7 @@ export const purchaseMarketplacePart = onCall(async (request): Promise<PurchaseP
       throw refusalError(REFUSALS.profileMissing);
     }
 
+    requirePartTierOpen(snapshot.data() ?? {}, getMarketplacePartOffer(partId)!.price);
     const result = buildPartPurchaseUpdatesRaw(snapshot.data() ?? {}, partId);
     if (!result) {
       throw refusalError(REFUSALS.notEnoughHolos);

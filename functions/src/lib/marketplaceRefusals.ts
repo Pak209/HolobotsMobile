@@ -12,6 +12,8 @@ export type MarketplaceRejectionCode =
   | "unavailable"
   | "invalid_request"
   // market-quantity-host-1 (marketplace-item-purchase-1): only a purchaseMarketplaceItem request carrying `quantity`.
+  // cup-prize-1: a Workshop part whose tier no cup win has opened yet.
+  | "part_locked"
   | "not_stackable"
   | "over_cap"
   | "sequence_conflict";
@@ -31,6 +33,12 @@ export const REFUSALS = {
   partIdRequired: { rejectionCode: "invalid_request", httpsCode: "invalid-argument", message: "A part id is required." },
   unknownPart: { rejectionCode: "unknown_item", httpsCode: "invalid-argument", message: "Unknown marketplace part." },
 } as const satisfies Record<string, MarketplaceRefusal>;
+
+/** cup-prize-1 (Pak, 2026-11-08). Kept apart so the legacy table above stays as pinned. `requiredCup` names the cup. */
+export const PART_TIER_REFUSALS = {
+  partLocked: (cupName: string): MarketplaceRefusal => ({ rejectionCode: "part_locked", httpsCode: "failed-precondition", message: `Win the ${cupName} to unlock this part.` }),
+  accountUnavailable: { rejectionCode: "unavailable", httpsCode: "failed-precondition", message: "Account data is unavailable." } as MarketplaceRefusal,
+};
 
 /**
  * market-quantity-host-1 (marketplace-item-purchase-1, HolobotsUnity DECISIONS #72.26 P3): refusals only a

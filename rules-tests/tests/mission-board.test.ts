@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { authedDb, initTestEnv } from '../src/helpers';
 
 // mission-board-1: missionBoards/{uid} (postings, claims ledger, refill clock) is written only by missionBoardHost.
-describe('server-only mission board', () => {
+describe('server-only mission board and cup prizes', () => {
   let env: RulesTestEnvironment;
   beforeAll(async () => { env = await initTestEnv(); });
   afterAll(async () => { await env.cleanup(); });
@@ -23,5 +23,13 @@ describe('server-only mission board', () => {
     await assertFails(setDoc(doc(authedDb(env, 'bob'), 'missionBoards/alice'), board));
     await assertFails(setDoc(doc(authedDb(env, 'carol'), 'missionBoards/carol'), board));
     await assertFails(setDoc(doc(alice, 'missionBoards/alice/claims/r1'), { x: 1 }));
+  });
+
+  it('denies every client read and write of cupPrizes/{uid}', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => { await setDoc(doc(ctx.firestore(), 'cupPrizes/alice'), { schemaVersion: 'cup-prize-1', prizes: {} }); });
+    const alice = authedDb(env, 'alice');
+    await assertFails(getDoc(doc(alice, 'cupPrizes/alice')));
+    await assertFails(setDoc(doc(alice, 'cupPrizes/alice'), { schemaVersion: 'cup-prize-1', prizes: {} }));
+    await assertFails(deleteDoc(doc(alice, 'cupPrizes/alice')));
   });
 });

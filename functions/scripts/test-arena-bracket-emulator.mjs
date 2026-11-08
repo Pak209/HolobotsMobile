@@ -127,7 +127,7 @@ test('complete play-in and8-slot run settles once, feeds existing result, and re
  const {uid,id,admission}=await begin(),before=await user(uid);let result;
  for(let round=0;round<4;round++) {result=await call(uid,'advance',id,{expectedRound:round},T0+1000+round);assert.equal(result.bracket.round,round+1);assert.equal(result.bracket.matches.length,[1,5,7,8][round]);}
  assert.equal(result.bracket.playerAlive,true);assert.equal(result.bracket.done,true);assert.deepEqual(result.bracket.remaining,['player']);
- const after=await user(uid);assert.equal(after.storyFlags.tournamentsWon,1);assert.equal(after.storyFlags.holoZonesArcBuilt,false);assert.equal(after.holosTokens-before.holosTokens,admission.match.rules.holos);assert.equal(after.wins-before.wins,1);assert.equal(after.arenaPassses,9);
+ const after=await user(uid);assert.equal(after.storyFlags.tournamentsWon,1);assert.equal(after.storyFlags.holoZonesArcBuilt,false);assert.equal(after.holosTokens-before.holosTokens,admission.match.rules.holos+500,'arena payout + the Starter Cup prize');assert.equal(after.wins-before.wins,1);assert.equal(after.arenaPassses,9);
  const persisted=await state(uid,id);assert.equal(persisted.lease.open,false);assert.equal(persisted.match.settlementReceipt.outcome,'win');
  const last=result.bracket.matches.at(-1),opponentId=last.leftId==='player'?last.rightId:last.leftId;
  assert.equal(persisted.match.opponent.holobotId,result.bracket.entrants.find(e=>e.entrantId===opponentId).holobotId);

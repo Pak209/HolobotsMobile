@@ -2,17 +2,24 @@ import { Firestore } from 'firebase-admin/firestore';
 import { ArenaError, readArenaMatchRecord } from '../arena/arenaMatchStore';
 import { ARENA_TOURNAMENT_SCHEMA, requireNextTournament, tournamentIndex, tournamentLevel } from './arenaTournament';
 import { StoryError } from './storyFlags';
+import { applyCupPrize, CUP_PRIZE_SCHEMA, CupId, cupPrizeView, readCupPrizeLedger } from '../lib/cupRewards';
 
 /** Consumes only an authenticated account's host-issued, tournament-tagged win.
  * No outcome/level/win count is accepted from the request. Existing practice-sim
  * receipts retain their documented client-observed-combat trust boundary.
  */
-export async function transactTournamentResult(db: Firestore, uid: string, raw: unknown) {
+/**
+ * First win of a cup: the one-time prize (lib/cupRewards.ts) is paid in the transaction that advances tournamentsWon, and
+ * the receipt goes to the server-only cupPrizes/{uid}, so it is once per cup even if the flags are ever reset. Replies are
+ * unchanged unless the request carries `prizeSchema` (`cupPrize` is opt-in: Unity's bracket reader rejects unknown keys).
+ */
+export async function transactTournamentResult(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now()) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new StoryError('invalid_request');
   const c = raw as Record<string, unknown>;
   if (c.schemaVersion !== ARENA_TOURNAMENT_SCHEMA || typeof c.matchId !== 'string'
     || !/^am_[a-f0-9]{32}$/.test(c.matchId)
-    || Object.keys(c).some(k => !['schemaVersion','tournamentId','matchId'].includes(k))) throw new StoryError('invalid_request');
+    || Object.keys(c).some(k => !['schemaVersion','tournamentId','matchId','prizeSchema'].includes(k))
+    || (c.prizeSchema !== undefined && c.prizeSchema !== CUP_PRIZE_SCHEMA)) throw new StoryError('invalid_request');
   tournamentIndex(c.tournamentId);
   const matchId = c.matchId;
   return db.runTransaction(async tx => {
@@ -30,7 +37,16 @@ export async function transactTournamentResult(db: Firestore, uid: string, raw: 
     const tournamentsWon = flags.tournamentsWon + 1;
     // TODO: a later HoloZones story lane owns holoZonesArcBuilt. Preserve it here.
     const storyFlags = {...flags,tournamentsWon,arenaArcBuilt:tournamentsWon === 3};
-    tx.update(userRef,{storyFlags});
-    return {schemaVersion:ARENA_TOURNAMENT_SCHEMA,tournamentId:c.tournamentId,matchId,storyFlags};
+    const cupId = c.tournamentId as CupId;
+    const ledgerRef = db.doc(`cupPrizes/${uid}`), ledgerSnap = await tx.get(ledgerRef);
+    const ledger = readCupPrizeLedger(ledgerSnap.exists ? ledgerSnap.data() : undefined);
+    if (!ledger) throw new StoryError('unavailable');
+    const paid = ledger.prizes[cupId];
+    const fresh = paid ? null : applyCupPrize(snap.data()!,cupId,m.entrant.holobotId,matchId,nowMs);
+    if (!paid && !fresh) throw new StoryError('unavailable');
+    tx.update(userRef,{storyFlags,...(fresh?.userUpdates ?? {})});
+    if (fresh) tx.set(ledgerRef,{schemaVersion:ledger.schemaVersion,prizes:{...ledger.prizes,[cupId]:fresh.receipt}});
+    return {schemaVersion:ARENA_TOURNAMENT_SCHEMA,tournamentId:c.tournamentId,matchId,storyFlags,
+      ...(c.prizeSchema === CUP_PRIZE_SCHEMA ? {cupPrize:cupPrizeView(paid ?? fresh!.receipt,!!paid)} : {})};
   });
 }

@@ -12,15 +12,17 @@ import { ARENA_BRACKET_SCHEMA, ArenaBracket, BracketEntrant, createArenaBracket,
 import { gatheringRoster } from './arenaGathering';
 import { readStoryFlags, StoryError } from './storyFlags';
 import { transactTournamentResult } from './tournamentResultStore';
+import { CUP_PRIZE_SCHEMA, CupId, cupPrizeView, readCupPrizeLedger } from '../lib/cupRewards';
 
 type Data=Record<string,any>;
-type Command={schemaVersion:typeof ARENA_BRACKET_SCHEMA;operation:'start'|'advance'|'resume'|'cancel';matchId:string;expectedRound?:number};
+type Command={schemaVersion:typeof ARENA_BRACKET_SCHEMA;operation:'start'|'advance'|'resume'|'cancel';matchId:string;expectedRound?:number;prizeSchema?:typeof CUP_PRIZE_SCHEMA};
 function command(raw:unknown):Command {
   if (!raw || typeof raw!=='object' || Array.isArray(raw)) throw new StoryError('invalid_request');
   const c=raw as Command;
   if (c.schemaVersion!==ARENA_BRACKET_SCHEMA || !['start','advance','resume','cancel'].includes(c.operation)
     || typeof c.matchId!=='string' || !/^am_[a-f0-9]{32}$/.test(c.matchId)
-    || Object.keys(c).some(k=>!['schemaVersion','operation','matchId',...(c.operation==='advance'?['expectedRound']:[])].includes(k))
+    || Object.keys(c).some(k=>!['schemaVersion','operation','matchId',...(c.operation==='advance'?['expectedRound','prizeSchema']:c.operation==='resume'?['prizeSchema']:[])].includes(k))
+    || (c.prizeSchema!==undefined && c.prizeSchema!==CUP_PRIZE_SCHEMA)
     || (c.operation==='advance' && (!Number.isSafeInteger(c.expectedRound) || c.expectedRound!<0 || c.expectedRound!>4))) throw new StoryError('invalid_request');
   return c;
 }
@@ -112,11 +114,19 @@ export async function transactTournamentBracket(db:Firestore,uid:string,raw:unkn
   // replayed advance retries it; a concurrent/previous success is safely already_won.
   if (!reply.cancelled && reply.bracket.done && reply.bracket.playerAlive) {
     try {
-      const progress=await transactTournamentResult(db,uid,{schemaVersion:ARENA_TOURNAMENT_SCHEMA,tournamentId:reply.bracket.tournamentId,matchId:c.matchId});
-      return {...reply,storyFlags:progress.storyFlags};
+      const progress=await transactTournamentResult(db,uid,{schemaVersion:ARENA_TOURNAMENT_SCHEMA,tournamentId:reply.bracket.tournamentId,matchId:c.matchId,
+        ...(c.prizeSchema?{prizeSchema:c.prizeSchema}:{})},nowMs);
+      // cupPrize only for a client that asked (prizeSchema): Unity's bracket reply reader rejects unknown root keys.
+      return {...reply,storyFlags:progress.storyFlags,...('cupPrize' in progress?{cupPrize:progress.cupPrize}:{})};
     } catch(e) {
       if (!(e instanceof StoryError) || e.code!=='already_won') throw e;
-      return {...reply,storyFlags:readStoryFlags((await db.doc(`users/${uid}`).get()).data()?.storyFlags)};
+      const storyFlags=readStoryFlags((await db.doc(`users/${uid}`).get()).data()?.storyFlags);
+      if (!c.prizeSchema) return {...reply,storyFlags};
+      // A resume / replay after the win shows the receipt; a cup won before prizes existed has none (null).
+      const ledger=readCupPrizeLedger((await db.doc(`cupPrizes/${uid}`).get()).data());
+      if (!ledger) throw new StoryError('unavailable');
+      const paid=ledger.prizes[reply.bracket.tournamentId as CupId];
+      return {...reply,storyFlags,cupPrize:paid && paid.matchId===c.matchId?cupPrizeView(paid,true):null};
     }
   }
   return reply;

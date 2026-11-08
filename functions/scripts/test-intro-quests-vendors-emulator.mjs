@@ -135,7 +135,7 @@ test('no starter farm: a malformed quest doc fails closed (never reset, never re
 
 // ---- Vendors ----
 test('vendorCatalogHost: catalog prices match the economy module; Holos and inventory reported; never writes', async () => {
-  const uid = await setup({ holosTokens: 420, buddyUnits: 2, arenaPassses: 3, parts: [{ name: 'Void Mask', slot: 'head' }] });
+  const uid = await setup({ holosTokens: 420, buddyUnits: 2, arenaPassses: 3, parts: [{ name: 'Void Mask', slot: 'head' }], storyFlags: { arenaGatheringSeen: true, tournamentsWon: 2, arenaArcBuilt: false, holoZonesArcBuilt: false } });
   const before = await user(uid);
   const m = await vendorCatalogHost.run({ auth: { uid }, data: { operation: 'catalog', vendorId: 'marketplace' } });
   assert.equal(m.schemaVersion, 'vendor-3'); assert.equal(m.holosTokens, 420);
@@ -212,7 +212,7 @@ test('legacy purchase callables: every refusal carries details.rejectionCode; HT
   await refused(call(purchaseMarketplaceBooster, rich, { packId: 'legendary' }), 'unknown_item', 'invalid-argument', 'Unknown booster pack.');
   await refused(call(purchaseMarketplaceBooster, ghost, { packId: 'common' }), 'unavailable', 'not-found', 'User profile not found.');
   // purchaseMarketplacePart
-  await refused(call(purchaseMarketplacePart, poor, { partId: 'part.voidMask' }), 'not_enough_holos', 'failed-precondition', 'Not enough Holos.');
+  await refused(call(purchaseMarketplacePart, poor, { partId: 'part.combatMask' }), 'not_enough_holos', 'failed-precondition', 'Not enough Holos.');
   await refused(call(purchaseMarketplacePart, rich, { partId: 'part.nope' }), 'unknown_item', 'invalid-argument', 'Unknown marketplace part.');
   await refused(call(purchaseMarketplacePart, rich, {}), 'invalid_request', 'invalid-argument', 'A part id is required.');
   await refused(call(purchaseMarketplacePart, ghost, { partId: 'part.combatMask' }), 'unavailable', 'not-found', 'User profile not found.');

@@ -160,7 +160,9 @@ test('three historical tagged terminal wins at exact boundaries flip only Arena;
   assert.equal(calls.find(r=>r.status==='rejected').reason.code,'already_won');
   const reply=calls.find(r=>r.status==='fulfilled').value;
   assert.deepEqual(reply,{schemaVersion:T,tournamentId:id,matchId:receipt.matchId,storyFlags:{...defaults,arenaGatheringSeen:true,tournamentsWon:index+1,arenaArcBuilt:index===2}});
-  assert.deepEqual(await profile(uid),{...before,storyFlags:reply.storyFlags},'result adds no economy grants');
+  // cup-prize-1: the first win pays the cup's prize and nothing else; the reply stays byte-identical without prizeSchema.
+  const prize=require('../lib/lib/cupRewards.js').CUP_PRIZES[id],bp=before.blueprints??{},entrantId=(await db.doc(`arenaMatches/${uid}/matches/${receipt.matchId}`).get()).data().entrant.holobotId;
+  assert.deepEqual(await profile(uid),{...before,storyFlags:reply.storyFlags,holosTokens:before.holosTokens+prize.holos,blueprints:{...bp,[entrantId]:(bp[entrantId]??0)+prize.blueprints},...(prize.heavyBuddyUnits?{buddyUnits:{...before.buddyUnits,heavy:before.buddyUnits.heavy+prize.heavyBuddyUnits}}:{})},'the result adds only the cup prize');
   await refused(uid,()=>result(uid,id,receipt.matchId),'already_won');
   await refused(uid,()=>issue(uid,id,T0+index*10000+3000),'already_won');
   assert.equal((await gather(uid)).storyFlags.holoZonesArcBuilt,false);

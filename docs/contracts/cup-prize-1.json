@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "cup-prize-1",
+  "decision": "Pak 2026-11-08: Prizes + part-tier unlock. All amounts PROPOSED.",
+  "contractDoc": "functions/src/story/CUP_PRIZES.md",
+  "prizes": {
+    "starter": { "holos": 500, "blueprints": 10, "heavyBuddyUnits": 0 },
+    "champion": { "holos": 1000, "blueprints": 15, "heavyBuddyUnits": 0 },
+    "rare": { "holos": 2000, "blueprints": 20, "heavyBuddyUnits": 1 }
+  },
+  "partTiers": [
+    { "price": 300, "cupsWon": 0, "cupId": null },
+    { "price": 750, "cupsWon": 1, "cupId": "starter" },
+    { "price": 1500, "cupsWon": 2, "cupId": "champion" }
+  ],
+  "optInRequestField": { "prizeSchema": "cup-prize-1" },
+  "lockedPartRejectionCode": "part_locked",
+  "storage": "cupPrizes/{uid} (server-only)"
+}

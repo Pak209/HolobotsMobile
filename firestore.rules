@@ -424,6 +424,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // cup-prize-1: one-time cup prize receipts, written only by the tournament result transaction.
+    match /cupPrizes/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
     // Durable Arena admission, lease and receipts: callable-only at every depth.
     match /arenaMatches/{uid}/{document=**} {
       allow read, write: if false;
