@@ -1,29 +1,146 @@
 {
   "schemaVersion": "mission-board-1",
-  "decision": "Pak rulings 2026-11-07 (Mission Board question cards)",
+  "decision": "Pak rulings 2026-11-07 (Mission Board question cards + follow-up: intro alongside postings, repeatable wild spots, EXP by rival tier, shared city plan districts)",
   "callable": "missionBoardHost",
   "contractDoc": "functions/src/missionBoard/README.md",
   "operations": {
-    "status": { "request": { "operation": "status" } },
-    "claim": { "request": { "operation": "claim", "postingId": "string", "requestId": "[A-Za-z0-9_-]{1,128}", "destinationId": "string (visit postings / intro visit steps)" } }
+    "status": {
+      "request": {
+        "operation": "status"
+      }
+    },
+    "claim": {
+      "request": {
+        "operation": "claim",
+        "postingId": "string",
+        "requestId": "[A-Za-z0-9_-]{1,128}",
+        "destinationId": "string (visit postings / intro visit steps)"
+      }
+    }
   },
   "slots": 3,
   "refillCooldownMs": 600000,
-  "postingKinds": ["beast", "rival", "capture", "visit"],
-  "postingStates": ["open", "complete", "claimed"],
-  "hostFlags": ["new_posting", "posting_cleared"],
-  "battlePostingReward": { "holos": 100, "exp": 95, "fragmentOneIn": 3, "fragmentItemId": "blueprint_fragment", "fragmentQuantity": 1 },
-  "visitTargets": {
-    "mission_board": { "holos": 50, "districtId": "harbor" },
-    "marketplace": { "holos": 50, "districtId": "vendor" },
-    "workshop": { "holos": 75, "districtId": "workshop" },
-    "harbor": { "holos": 75, "districtId": "harbor" },
-    "portal_terminal": { "holos": 75, "districtId": "port" }
+  "postingKinds": [
+    "beast",
+    "rival",
+    "capture",
+    "visit"
+  ],
+  "postingStates": [
+    "open",
+    "complete",
+    "claimed"
+  ],
+  "hostFlags": [
+    "new_posting",
+    "posting_cleared"
+  ],
+  "battlePostingReward": {
+    "holos": 100,
+    "expTier0": 95,
+    "expTier": "tierForWins(users.rivalWins) at claim",
+    "fragmentOneIn": 3,
+    "fragmentItemId": "blueprint_fragment",
+    "fragmentQuantity": 1
   },
-  "beastTargets": { "guild_court": { "districtId": "arena" } },
-  "rivalTargets": { "town_rival": "pilotId rival_tier_<n>", "any": "any settled rival win", "<citizenId>": "an Arena-gathering citizen (after arenaGatheringSeen)" },
-  "captureTargets": { "kurai": { "districtId": "zone", "encounterId": "city_kurai_garden" } },
-  "introFirst": "while introQuests/{uid} is incomplete: status.introPending = true, status.intro = intro-quest-1 status, postings = []; claim{postingId = intro stepId} is forwarded to the intro quest store",
-  "rejectionCodes": ["unauthenticated", "invalid_request", "unknown_posting", "already_claimed", "not_complete", "intro_pending", "out_of_order", "unavailable"],
-  "storage": "missionBoards/{uid} (server-only)"
+  "visitTargets": {
+    "mission_board": {
+      "holos": 50,
+      "districtId": "D04"
+    },
+    "marketplace": {
+      "holos": 50,
+      "districtId": "D05"
+    },
+    "workshop": {
+      "holos": 75,
+      "districtId": "D08"
+    },
+    "harbor": {
+      "holos": 75,
+      "districtId": "D02"
+    },
+    "portal_terminal": {
+      "holos": 75,
+      "districtId": "D07"
+    }
+  },
+  "beastTargets": {
+    "guild_court": {
+      "districtId": "D04",
+      "site": {
+        "x": 22.5,
+        "z": -58.5
+      }
+    }
+  },
+  "rivalTargets": {
+    "town_rival": "pilotId rival_tier_<n> (district D04)",
+    "any": "any settled rival win (district D09)",
+    "<citizenId>": "an Arena-gathering citizen after arenaGatheringSeen (district D09)"
+  },
+  "introFirst": "status.intro = intro-quest-1 status while introQuests/{uid} is incomplete (else null) and status.postings = the 3 postings from day one; claim{postingId = intro stepId} is forwarded to the intro quest store",
+  "rejectionCodes": [
+    "unauthenticated",
+    "invalid_request",
+    "unknown_posting",
+    "already_claimed",
+    "not_complete",
+    "out_of_order",
+    "unavailable"
+  ],
+  "storage": "missionBoards/{uid} (server-only)",
+  "districtIds": "shared city plan D01..D10 (functions/src/lib/cityDistricts.ts)",
+  "captureSpots": {
+    "hare_harbor": {
+      "holobotId": "hare",
+      "districtId": "D02"
+    },
+    "tora_plaza": {
+      "holobotId": "tora",
+      "districtId": "D01"
+    },
+    "era_market": {
+      "holobotId": "era",
+      "districtId": "D05"
+    },
+    "ken_gardens": {
+      "holobotId": "ken",
+      "districtId": "D06"
+    },
+    "kuma_transit": {
+      "holobotId": "kuma",
+      "districtId": "D07"
+    },
+    "kurai_missionboard": {
+      "holobotId": "kurai",
+      "districtId": "D04"
+    },
+    "shadow_plazaedge": {
+      "holobotId": "shadow",
+      "districtId": "D08"
+    },
+    "tsuin_arenagate": {
+      "holobotId": "tsuin",
+      "districtId": "D09"
+    },
+    "wolf_workshop": {
+      "holobotId": "wolf",
+      "districtId": "D08"
+    },
+    "wake_quay": {
+      "holobotId": "wake",
+      "districtId": "D02"
+    },
+    "gama_courtside": {
+      "holobotId": "gama",
+      "districtId": "D03"
+    },
+    "kurai_garden": {
+      "holobotId": "kurai",
+      "districtId": "D06"
+    }
+  },
+  "spotEncounters": "cityEncounterHost {schemaVersion:'city-encounter-1', operation:'provisionSpot', spotId} \u2192 encounter city_spot_<spotId>_<cycle>; kurai_garden = city_kurai_garden via operation 'provision' (once-only)",
+  "spotCooldownMs": 1800000
 }

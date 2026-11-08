@@ -2,11 +2,13 @@ import { randomBytes } from 'node:crypto';
 import { Firestore, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { HostError } from '../acquisition/wildEncounterDomain';
-import { CITY_KURAI_ENCOUNTER_ID } from '../city/cityEncounterHost';
+import { CITY_KURAI_ENCOUNTER_ID, lastCaptureAtMs } from '../city/cityEncounterHost';
+import { CITY_WILD_SPOTS, currentSpotEncounter, spotEncounterId } from '../city/cityWildSpots';
+import { tierForWins } from '../lib/rivalLadder';
 import { HoloZoneError, readHoloZoneRuns } from '../lib/holoZoneRuns';
 import { INTRO_QUEST_STEPS, IntroQuestError, introStatus, readIntroQuestState, readRivalWinsForQuest } from '../lib/introQuests';
 import {
-  BoardCandidates, BoardFacts, boardView, claimPosting, CITY_KURAI_HOLOBOT, factsNeeded, freshBoard, MISSION_BOARD_SCHEMA,
+  BoardCandidates, BoardFacts, boardView, claimPosting, factsNeeded, KURAI_GARDEN_ENCOUNTER, KURAI_GARDEN_SPOT, freshBoard, MISSION_BOARD_SCHEMA,
   MissionBoardDoc, MissionBoardError, missionBoardBalances, readBoard, refillBoard, validateMissionBoardCommand,
 } from '../lib/missionBoard';
 import { transactIntroQuest } from '../quests/introQuestStore';
@@ -19,7 +21,8 @@ import { readStoryFlags, StoryError } from '../story/storyFlags';
  * client-writable users/{uid}:
  *   beast   → holoZoneRuns/{uid}.runs[].settlement (zoneId, didWin, expWithheld, settledAtMs)
  *   rival   → rivalBattles/{uid}/battles/* (settlement.didWin, settlement.settledAtMs, lineup.opponentPilot.pilotId)
- *   capture → wildEncounterSessions/{uid}/receipts/* (reply.captureResult.captured / holobotId; the receipt's createTime)
+ *   capture → wildEncounterSessions/{uid}/receipts/* for the target spot's encounters (reply.captureResult.encounterId /
+ *             captured; the receipt's createTime)
  * The intro quest chain is read from (and intro step claims forwarded to) the intro quest store; nothing is copied.
  */
 
@@ -36,27 +39,39 @@ function guard<T>(f: () => T): T {
   }
 }
 
-const HOLOBOT_ID = /^[a-z][a-z0-9_]{0,63}$/;
 type SessionLike = { enabled?: unknown; encounters?: unknown } | undefined;
+type EncounterLike = { encounterId?: unknown; ended?: unknown };
+const encountersOf = (session: SessionLike): EncounterLike[] => Array.isArray(session?.encounters) ? (session!.encounters as EncounterLike[]).filter(e => !!e && typeof e === 'object') : [];
 
-/** What the generator may draw: citizens once the Arena gathering was seen; open wild encounters + KURAI until linked. */
+/**
+ * What the generator may draw: citizens once the Arena gathering was seen; capture spots = Unity's 11 repeatable wild
+ * spots plus the Research Garden KURAI until it is linked. A disabled session offers no capture spot.
+ */
 export function boardCandidates(uid: string, profile: Record<string, unknown>, session: SessionLike, sessionExists: boolean): BoardCandidates {
   const citizens = guard(() => readStoryFlags(profile.storyFlags)).arenaGatheringSeen
     ? gatheringRoster(uid).map(c => ({ citizenId: c.citizenId, pilotName: c.pilotName })) : [];
   const captureTargets: string[] = [];
   if (!sessionExists || session?.enabled === true) {
-    const encounters = sessionExists && Array.isArray(session?.encounters) ? session!.encounters as Record<string, unknown>[] : [];
-    for (const e of encounters) {
-      if (!e || typeof e.holobotId !== 'string' || !HOLOBOT_ID.test(e.holobotId) || e.ended === true || e.captureOpen !== true) continue;
-      if (!captureTargets.includes(e.holobotId)) captureTargets.push(e.holobotId);
-    }
-    // The Research Garden KURAI: offered until its city encounter exists (cityEncounterHost provisions it on arrival).
-    if (!encounters.some(e => e && e.encounterId === CITY_KURAI_ENCOUNTER_ID) && !captureTargets.includes(CITY_KURAI_HOLOBOT)) captureTargets.push(CITY_KURAI_HOLOBOT);
+    captureTargets.push(...CITY_WILD_SPOTS.map(s => s.spotId));
+    const kurai = encountersOf(session).find(e => e.encounterId === CITY_KURAI_ENCOUNTER_ID);
+    if (!kurai || kurai.ended !== true) captureTargets.push(KURAI_GARDEN_SPOT);
   }
   return { citizens, captureTargets };
 }
 
-async function gatherFacts(db: Firestore, tx: Transaction, uid: string, board: MissionBoardDoc, sessionExists: boolean): Promise<BoardFacts> {
+/** Spot cycles checked for a capture since a posting went up: the current one and the two before it. */
+export const MISSION_BOARD_SPOT_CYCLES = 3;
+/** The encounter ids whose capture receipts can complete a capture posting at `spotId`. */
+export function captureEncounterIds(session: SessionLike, spotId: string): string[] {
+  if (spotId === KURAI_GARDEN_SPOT) return [KURAI_GARDEN_ENCOUNTER];
+  const current = currentSpotEncounter({ encounters: encountersOf(session) as never }, spotId);
+  if (!current) return [];
+  const ids: string[] = [];
+  for (let c = current.cycle; c >= 1 && ids.length < MISSION_BOARD_SPOT_CYCLES; c--) ids.push(spotEncounterId(spotId, c));
+  return ids;
+}
+
+async function gatherFacts(db: Firestore, tx: Transaction, uid: string, board: MissionBoardDoc, session: SessionLike, sessionExists: boolean): Promise<BoardFacts> {
   const need = factsNeeded(board.slots.map(s => s.posting));
   const facts: { zoneSettles: BoardFacts['zoneSettles'][number][]; rivalSettles: BoardFacts['rivalSettles'][number][]; captures: BoardFacts['captures'][number][] } = { zoneSettles: [], rivalSettles: [], captures: [] };
   if (need.zone) {
@@ -75,10 +90,10 @@ async function gatherFacts(db: Firestore, tx: Transaction, uid: string, board: M
     }
   }
   if (need.capture && sessionExists) {
-    const q = db.collection(`wildEncounterSessions/${uid}/receipts`).where('reply.captureResult.captured', '==', true).limit(MISSION_BOARD_FACT_LIMIT);
-    for (const d of (await tx.get(q)).docs) {
-      const holobotId = (d.data() as { reply?: { captureResult?: { holobotId?: unknown } } }).reply?.captureResult?.holobotId;
-      if (typeof holobotId === 'string' && d.createTime) facts.captures.push({ holobotId, capturedAtMs: d.createTime.toMillis() });
+    const spots = [...new Set(board.slots.filter(s => !s.posting.claim && s.posting.kind === 'capture').map(s => s.posting.target))];
+    for (const encounterId of spots.flatMap(spot => captureEncounterIds(session, spot))) {
+      const at = await lastCaptureAtMs(db, tx, uid, encounterId);
+      if (at !== null) facts.captures.push({ encounterId, capturedAtMs: at });
     }
   }
   return facts;
@@ -110,25 +125,24 @@ export async function transactMissionBoard(db: Firestore, uid: string, raw: unkn
     const introDoc = await tx.get(introRef);
     const { state: intro } = guard(() => readIntroQuestState(introDoc.exists ? introDoc.data() : undefined, nowMs, readRivalWinsForQuest(profile)));
     const balances = missionBoardBalances(profile);
-    if (intro.currentIndex < INTRO_QUEST_STEPS.length) {
-      if (command.operation === 'claim') throw new MissionBoardError('intro_pending');
-      return { schemaVersion: MISSION_BOARD_SCHEMA, introPending: true, intro: introStatus(intro), postings: [], refillAtMs: null, hostFlags: { new_posting: false, posting_cleared: false }, balances };
-    }
+    // Intro steps show alongside the postings while the chain is incomplete (they are claimed through the intro store).
+    const introPending = intro.currentIndex < INTRO_QUEST_STEPS.length;
+    const tier = tierForWins(guard(() => readRivalWinsForQuest(profile)));
     const boardSnap = await tx.get(boardRef);
     const session = await tx.get(sessionRef);
     const candidates = boardCandidates(uid, profile, session.data() as SessionLike, session.exists);
     const stored = readBoard(boardSnap.exists ? boardSnap.data() : undefined);
     let board = stored ? refillBoard(stored, uid, candidates, nowMs).board : freshBoard(uid, seed, candidates, nowMs);
-    const facts = await gatherFacts(db, tx, uid, board, session.exists);
+    const facts = await gatherFacts(db, tx, uid, board, session.data() as SessionLike, session.exists);
     if (command.operation === 'status') {
-      const view = boardView(board, facts, board.seenThroughMs);
+      const view = boardView(board, facts, board.seenThroughMs, tier);
       board = { ...board, seenThroughMs: Math.max(board.seenThroughMs, nowMs) };
       tx.set(boardRef, board);
-      return { schemaVersion: MISSION_BOARD_SCHEMA, introPending: false, intro: null, ...view, balances };
+      return { schemaVersion: MISSION_BOARD_SCHEMA, introPending, intro: introPending ? introStatus(intro) : null, rivalTier: tier, ...view, balances };
     }
     const target = board.slots.find(s => s.posting.postingId === command.postingId)?.posting;
     const squadIds = target && !target.claim && target.kind !== 'visit' ? guard(() => readTravelSquad(profile)).holobotIds : [];
-    const r = claimPosting(board, profile, command, facts, squadIds, nowMs);
+    const r = claimPosting(board, profile, command, facts, squadIds, nowMs, tier);
     if (Object.keys(r.userUpdates).length) tx.update(userRef, r.userUpdates);
     if (r.board) tx.set(boardRef, r.board);
     else if (board !== stored) tx.set(boardRef, board);

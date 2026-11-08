@@ -9,10 +9,12 @@
  * - Three slots per pilot are always filled. A claimed slot shows its claimed posting until MISSION_BOARD_REFILL_MS
  *   after the claim, then the next status / claim draws a new posting into it.
  * - Rewards reuse the existing payouts: beast / rival / capture pay BATTLE_WIN_HOLOS (100, a Guild Court win) plus the
- *   one battle table's win EXP (tier 0, no performance bonus = 95; EXP Booster honoured) to every travel-squad Holobot,
- *   and some postings add 1 blueprint_fragment (the zone clear drop). Visits pay the intro quests' 50 / 75 Holos.
- * - Intro quests first: while introQuests/{uid} is incomplete the board issues no postings (the store returns the intro
- *   chain instead and forwards intro step claims to the intro quest store; nothing is duplicated here).
+ *   one battle table's win EXP at the pilot's CURRENT rival tier (tierForWins(users.rivalWins); no performance bonus;
+ *   EXP Booster honoured) to every travel-squad Holobot, and some postings add 1 blueprint_fragment (the zone clear
+ *   drop). Visits pay the intro quests' 50 / 75 Holos.
+ * - Intro quests alongside (Pak, 2026-11-07 follow-up): status shows the intro chain while it is incomplete AND the 3
+ *   postings from day one; intro step claims are forwarded to the intro quest store (nothing is duplicated here).
+ * - District ids are the shared city plan's (lib/cityDistricts.ts, D01..D10), resolved from plan coordinates.
  *
  * Generation is deterministic: a posting is a pure function of (uid, the board's stored seed, the posting serial, the
  * kinds held by the other open slots, the target candidates). No Math.random; a retried transaction rules identically.
@@ -25,6 +27,8 @@ import { BattleKind, computeBattleSettlement } from "./battleSettlement";
 import { BLUEPRINT_FRAGMENT_STOCK, itemStocksAfterFragmentGrant } from "./holoZoneRuns";
 import { BATTLE_WIN_HOLOS, holosAfterGrant } from "./rivalLadder";
 import { REQUEST_ID } from "./introQuests";
+import { CITY_SITES, cityDistrictAt } from "./cityDistricts";
+import { CITY_WILD_SPOTS, spotCycleOf } from "../city/cityWildSpots";
 
 export const MISSION_BOARD_SCHEMA = "mission-board-1";
 export const MISSION_BOARD_SLOTS = 3;
@@ -34,8 +38,10 @@ export const MISSION_BOARD_REFILL_MS = 10 * 60 * 1000;
 export const MISSION_BOARD_MAX_CLAIMS = 30;
 /** Battle postings: the Guild Court run's win payout. */
 export const MISSION_BOARD_BATTLE_HOLOS = BATTLE_WIN_HOLOS;
-/** Battle-table tier every posting's EXP is ruled at (Guild Court is tier 0). */
-export const MISSION_BOARD_EXP_TIER = 0;
+/** A battle posting's EXP per Holobot at rival tier `tier` (the one battle table, a win, no performance bonus). */
+export function missionBoardExp(tier: number): number {
+  return computeBattleSettlement({ kind: "beast", tier, didWin: true })!.exp;
+}
 /** A battle posting carries 1 blueprint_fragment when its hash byte % this === 0 (about one in three). */
 export const MISSION_BOARD_FRAGMENT_ONE_IN = 3;
 export const MISSION_BOARD_FRAGMENTS = 1;
@@ -50,39 +56,51 @@ export type PostingState = "open" | "complete" | "claimed";
 
 /** Beast postings: city court zones (holoZoneRuns kind "beast"). Guild Court only for now. */
 export const BEAST_TARGETS: readonly { zoneId: string; districtId: string; title: string; detail: string }[] = [
-  { zoneId: "guild_court", districtId: "arena", title: "Guild Court sweep", detail: "Defeat an Error Beast at the Guild Court." },
+  { zoneId: "guild_court", districtId: cityDistrictAt(CITY_SITES.guildCourt.x, CITY_SITES.guildCourt.z), title: "Guild Court sweep", detail: "Defeat an Error Beast at the Guild Court." },
 ];
 /** Rival target matching any settled rival win. */
 export const RIVAL_ANY = "any";
 /** Rival target matching the town rival ladder (rivalLadder.ts pilotId rival_tier_{tier}; Kaz's row). */
 export const RIVAL_TOWN = "town_rival";
 export const TOWN_RIVAL_PILOT = /^rival_tier_\d+$/;
-export const RIVAL_DISTRICT = "port";
-export const TOWN_RIVAL_DISTRICT = "arena";
-/** Capture postings: the wild rows the server knows. KURAI = cityEncounterHost's city_kurai_garden. */
+/** Citizens (and "any rival") duel at the Arena Gate; the town rival at the Arena dome. */
+export const RIVAL_DISTRICT = cityDistrictAt(CITY_SITES.arenaGate.x, CITY_SITES.arenaGate.z);
+export const TOWN_RIVAL_DISTRICT = cityDistrictAt(CITY_SITES.arenaDome.x, CITY_SITES.arenaDome.z);
+/** Capture postings target a wild SPOT: Unity's 11 repeatable spots (city/cityWildSpots.ts) or the once-only KURAI garden. */
 export const CITY_KURAI_HOLOBOT = "kurai";
-export const CAPTURE_DISTRICTS: Readonly<Record<string, string>> = Object.freeze({ kurai: "zone", hare: "harbor" });
-export const CAPTURE_DEFAULT_DISTRICT = "zone";
-/** Visit postings: intro quest destination ids (+ harbor); Holos as the intro visits pay. */
+export const KURAI_GARDEN_SPOT = "kurai_garden";
+export const KURAI_GARDEN_ENCOUNTER = "city_kurai_garden";
+export type CaptureSpot = { spotId: string; holobotId: string; districtId: string; label: string };
+export const CAPTURE_SPOTS: readonly CaptureSpot[] = [
+  ...CITY_WILD_SPOTS.map((s) => ({ spotId: s.spotId, holobotId: s.holobotId, districtId: s.districtId, label: s.unityDistrict })),
+  { spotId: KURAI_GARDEN_SPOT, holobotId: CITY_KURAI_HOLOBOT, districtId: cityDistrictAt(CITY_SITES.kuraiGarden.x, CITY_SITES.kuraiGarden.z), label: "Research Garden" },
+];
+/** Whether a capture receipt's encounter belongs to capture spot `spotId`. */
+export function captureSpotMatches(spotId: string, encounterId: string): boolean {
+  if (spotId === KURAI_GARDEN_SPOT) return encounterId === KURAI_GARDEN_ENCOUNTER;
+  return spotCycleOf(spotId, encounterId) !== null;
+}
+/** Visit postings: intro quest destination ids (+ harbor); Holos as the intro visits pay; district from the landmark. */
+const site = (p: { x: number; z: number }) => cityDistrictAt(p.x, p.z);
 export const VISIT_TARGETS: readonly { destinationId: string; districtId: string; holos: number; label: string }[] = [
-  { destinationId: "mission_board", districtId: "harbor", holos: 50, label: "Mission Board" },
-  { destinationId: "marketplace", districtId: "vendor", holos: 50, label: "Marketplace" },
-  { destinationId: "workshop", districtId: "workshop", holos: 75, label: "Workshop" },
-  { destinationId: "harbor", districtId: "harbor", holos: 75, label: "Harbor" },
-  { destinationId: "portal_terminal", districtId: "port", holos: 75, label: "Portal Terminal" },
+  { destinationId: "mission_board", districtId: site(CITY_SITES.missionBoard), holos: 50, label: "Mission Board" },
+  { destinationId: "marketplace", districtId: site(CITY_SITES.marketRow), holos: 50, label: "Marketplace" },
+  { destinationId: "workshop", districtId: site(CITY_SITES.workshopHall), holos: 75, label: "Workshop" },
+  { destinationId: "harbor", districtId: site(CITY_SITES.ferryTerminal), holos: 75, label: "Harbor" },
+  { destinationId: "portal_terminal", districtId: site(CITY_SITES.portalTerminal), holos: 75, label: "Portal Terminal" },
 ];
 
 /** What the generator may draw from, gathered by the store. */
 export type BoardCandidates = {
   /** Arena-gathering citizens (story/arenaGathering.ts gatheringRoster), only once the gathering was seen; else []. */
   citizens: readonly { citizenId: string; pilotName: string }[];
-  /** Holobot ids a capture posting may name (open wild encounters + KURAI while not yet linked). */
+  /** Capture spot ids a posting may name (CAPTURE_SPOTS ids: the 11 repeatable spots + kurai_garden until linked). */
   captureTargets: readonly string[];
 };
 
 // ---- Errors ----
 
-export type MissionBoardErrorCode = "invalid_request" | "unknown_posting" | "not_complete" | "already_claimed" | "refill_pending" | "intro_pending" | "out_of_order" | "unavailable";
+export type MissionBoardErrorCode = "invalid_request" | "unknown_posting" | "not_complete" | "already_claimed" | "refill_pending" | "out_of_order" | "unavailable";
 export class MissionBoardError extends Error {
   constructor(public code: MissionBoardErrorCode, public detail?: Record<string, unknown>) {
     super(code);
@@ -91,7 +109,8 @@ export class MissionBoardError extends Error {
 
 // ---- Stored state: missionBoards/{uid} (server-only; rules deny every client read/write) ----
 
-export type PostingGrant = { holos: number; expPerHolobot: number; items: PostingItem[] };
+/** expTier: the rival tier the EXP was ruled at (battle postings; visits record the tier too, with 0 EXP). */
+export type PostingGrant = { holos: number; expPerHolobot: number; expTier: number; items: PostingItem[] };
 export type PostingClaim = { requestId: string; claimedAtMs: number; granted: PostingGrant; progression: HolobotProgressionEntry[] };
 export type Posting = {
   postingId: string;
@@ -100,7 +119,10 @@ export type Posting = {
   title: string;
   detail: string;
   target: string;
+  /** capture: the spot's Holobot; "" for other kinds. */
+  holobotId: string;
   districtId: string;
+  /** Stored without `exp`: the view adds it at the pilot's current tier. */
   reward: PostingReward;
   issuedAtMs: number;
   claim: PostingClaim | null;
@@ -147,15 +169,14 @@ export function generatePosting(uid: string, seed: string, serial: number, heldK
   const pick = h.readUInt32BE(4);
   const fragment = h[8] % MISSION_BOARD_FRAGMENT_ONE_IN === 0;
   const postingId = `mbp_${serial}_${h.toString("hex").slice(0, 12)}`;
-  const battleReward = (expKind: BattleKind): PostingReward => ({
+  const battleReward = (): PostingReward => ({
     holos: MISSION_BOARD_BATTLE_HOLOS,
-    exp: computeBattleSettlement({ kind: expKind, tier: MISSION_BOARD_EXP_TIER, didWin: true })!.exp,
     ...(fragment ? { items: [{ itemId: BLUEPRINT_FRAGMENT_STOCK, quantity: MISSION_BOARD_FRAGMENTS }] } : {}),
   });
-  const base = { postingId, serial, kind, issuedAtMs: nowMs, claim: null };
+  const base = { postingId, serial, kind, holobotId: "", issuedAtMs: nowMs, claim: null };
   if (kind === "beast") {
     const t = BEAST_TARGETS[pick % BEAST_TARGETS.length];
-    return { ...base, title: t.title, detail: t.detail, target: t.zoneId, districtId: t.districtId, reward: battleReward("beast") };
+    return { ...base, title: t.title, detail: t.detail, target: t.zoneId, districtId: t.districtId, reward: battleReward() };
   }
   if (kind === "rival") {
     const targets = [RIVAL_TOWN, RIVAL_ANY, ...c.citizens.map((x) => x.citizenId)];
@@ -164,12 +185,14 @@ export function generatePosting(uid: string, seed: string, serial: number, heldK
     const text = target === RIVAL_TOWN ? { title: "Beat the town rival", detail: "Win a rival battle against the town rival.", districtId: TOWN_RIVAL_DISTRICT }
       : target === RIVAL_ANY ? { title: "Beat a rival pilot", detail: "Win a rival battle against any pilot.", districtId: RIVAL_DISTRICT }
       : { title: `Beat ${citizen!.pilotName}`, detail: `Win a duel against citizen pilot ${citizen!.pilotName}.`, districtId: RIVAL_DISTRICT };
-    return { ...base, ...text, target, reward: battleReward("rival") };
+    return { ...base, ...text, target, reward: battleReward() };
   }
   if (kind === "capture") {
     const target = c.captureTargets[pick % c.captureTargets.length];
-    const where = target === CITY_KURAI_HOLOBOT ? " in the Research Garden" : "";
-    return { ...base, title: `Link ${titleCase(target)}`, detail: `Link the wild ${titleCase(target)}${where}.`, target, districtId: CAPTURE_DISTRICTS[target] ?? CAPTURE_DEFAULT_DISTRICT, reward: battleReward("beast") };
+    const spot = CAPTURE_SPOTS.find((x) => x.spotId === target);
+    if (!spot) throw new MissionBoardError("unavailable");
+    const bot = titleCase(spot.holobotId);
+    return { ...base, title: `Link ${bot}`, detail: `Link the wild ${bot} at the ${spot.label}.`, target, holobotId: spot.holobotId, districtId: spot.districtId, reward: battleReward() };
   }
   const v = VISIT_TARGETS[pick % VISIT_TARGETS.length];
   return { ...base, title: `Visit the ${v.label}`, detail: `Check in at the ${v.label}.`, target: v.destinationId, districtId: v.districtId, reward: { holos: v.holos } };
@@ -207,12 +230,12 @@ function validReward(r: unknown): boolean {
   return true;
 }
 function validGrant(g: unknown): boolean {
-  return isObj(g) && nonNegInt(g.holos) && nonNegInt(g.expPerHolobot) && Array.isArray(g.items) && g.items.every((x) => isObj(x) && typeof x.itemId === "string" && nonNegInt(x.quantity));
+  return isObj(g) && nonNegInt(g.holos) && nonNegInt(g.expPerHolobot) && nonNegInt(g.expTier) && Array.isArray(g.items) && g.items.every((x) => isObj(x) && typeof x.itemId === "string" && nonNegInt(x.quantity));
 }
 function validPosting(p: unknown): boolean {
   if (!isObj(p)) return false;
   if (typeof p.postingId !== "string" || !POSTING_ID.test(p.postingId) || !nonNegInt(p.serial) || !POSTING_KINDS.includes(p.kind as PostingKind)) return false;
-  if (typeof p.title !== "string" || typeof p.detail !== "string" || typeof p.target !== "string" || typeof p.districtId !== "string" || !nonNegInt(p.issuedAtMs) || !validReward(p.reward)) return false;
+  if (typeof p.title !== "string" || typeof p.detail !== "string" || typeof p.target !== "string" || typeof p.holobotId !== "string" || typeof p.districtId !== "string" || !nonNegInt(p.issuedAtMs) || !validReward(p.reward)) return false;
   if (p.claim !== null) {
     const c = p.claim;
     if (!isObj(c) || typeof c.requestId !== "string" || !REQUEST_ID.test(c.requestId) || !nonNegInt(c.claimedAtMs) || !validGrant(c.granted) || !Array.isArray(c.progression)) return false;
@@ -267,8 +290,8 @@ export type BoardFacts = {
   zoneSettles: readonly { zoneId: string; didWin: boolean; expWithheld: boolean; settledAtMs: number }[];
   /** rivalBattles/{uid}/battles settled after the oldest open battle-posting's issuedAtMs. */
   rivalSettles: readonly { pilotId: string; didWin: boolean; settledAtMs: number }[];
-  /** wildEncounterSessions/{uid}/receipts with a successful capture; capturedAtMs = the receipt's create time. */
-  captures: readonly { holobotId: string; capturedAtMs: number }[];
+  /** wildEncounterSessions/{uid}/receipts with a successful capture of a capture-posting spot's encounters; capturedAtMs = the receipt's create time. */
+  captures: readonly { encounterId: string; capturedAtMs: number }[];
 };
 export const NO_FACTS: BoardFacts = { zoneSettles: [], rivalSettles: [], captures: [] };
 
@@ -288,20 +311,20 @@ export function rivalTargetMatches(target: string, pilotId: string): boolean {
 /**
  * Server-verified completion; only records written strictly after the posting's issuedAtMs count.
  * beast: a settled WIN of that zone (not a < 20 s withheld run). rival: a settled WIN against the target.
- * capture: a successful capture of the target Holobot. visit: the client's destinationId equals the target.
+ * capture: a successful capture at the target spot (any of its encounter cycles). visit: the client's destinationId equals the target.
  */
 export function postingComplete(p: Posting, facts: BoardFacts, destinationId = ""): boolean {
   const after = (ms: number) => ms > p.issuedAtMs;
   if (p.kind === "beast") return facts.zoneSettles.some((s) => s.zoneId === p.target && s.didWin && !s.expWithheld && after(s.settledAtMs));
   if (p.kind === "rival") return facts.rivalSettles.some((s) => s.didWin && after(s.settledAtMs) && rivalTargetMatches(p.target, s.pilotId));
-  if (p.kind === "capture") return facts.captures.some((s) => s.holobotId === p.target && after(s.capturedAtMs));
+  if (p.kind === "capture") return facts.captures.some((s) => captureSpotMatches(p.target, s.encounterId) && after(s.capturedAtMs));
   return destinationId !== "" && destinationId === p.target;
 }
 
 // ---- Replies ----
 
 export type PostingView = {
-  postingId: string; slot: number; kind: PostingKind; title: string; detail: string; target: string; districtId: string;
+  postingId: string; slot: number; kind: PostingKind; title: string; detail: string; target: string; holobotId: string; districtId: string;
   reward: PostingReward; issuedAtMs: number; state: PostingState;
   /** Claimed slots only: when the new posting goes up. null while the posting is open / complete. */
   refillAtMs: number | null;
@@ -310,18 +333,25 @@ export type PostingView = {
 export type HostFlags = { new_posting: boolean; posting_cleared: boolean };
 export type BoardView = { postings: PostingView[]; refillAtMs: number | null; hostFlags: HostFlags };
 
-export function postingView(slot: BoardSlot, index: number, facts: BoardFacts): PostingView {
+/** The reward as shown: battle postings add `exp` at `tier` (a claimed posting shows what it paid). */
+function rewardView(p: Posting, tier: number): PostingReward {
+  const { exp: _stale, ...reward } = structuredClone(p.reward);
+  if (p.kind === "visit") return reward;
+  return { holos: reward.holos, exp: missionBoardExp(p.claim ? p.claim.granted.expTier : tier), ...(reward.items ? { items: reward.items } : {}) };
+}
+
+export function postingView(slot: BoardSlot, index: number, facts: BoardFacts, tier: number): PostingView {
   const p = slot.posting;
   const state: PostingState = p.claim ? "claimed" : postingComplete(p, facts) ? "complete" : "open";
   return {
-    postingId: p.postingId, slot: index, kind: p.kind, title: p.title, detail: p.detail, target: p.target, districtId: p.districtId,
-    reward: structuredClone(p.reward), issuedAtMs: p.issuedAtMs, state, refillAtMs: p.claim ? slot.refillAtMs : null, claimedAtMs: p.claim?.claimedAtMs ?? null,
+    postingId: p.postingId, slot: index, kind: p.kind, title: p.title, detail: p.detail, target: p.target, holobotId: p.holobotId, districtId: p.districtId,
+    reward: rewardView(p, tier), issuedAtMs: p.issuedAtMs, state, refillAtMs: p.claim ? slot.refillAtMs : null, claimedAtMs: p.claim?.claimedAtMs ?? null,
   };
 }
 
 /** `seenThroughMs`: postings issued after it raise new_posting; a verified-but-unclaimed posting raises posting_cleared. */
-export function boardView(board: MissionBoardDoc, facts: BoardFacts, seenThroughMs: number): BoardView {
-  const postings = board.slots.map((s, i) => postingView(s, i, facts));
+export function boardView(board: MissionBoardDoc, facts: BoardFacts, seenThroughMs: number, tier: number): BoardView {
+  const postings = board.slots.map((s, i) => postingView(s, i, facts, tier));
   const pending = board.slots.map((s) => s.refillAtMs).filter((x): x is number => x !== null);
   return {
     postings,
@@ -354,7 +384,8 @@ function balancesOf(profile: Record<string, unknown>): BoardBalances {
  * posting is invalid_request; an unknown postingId is unknown_posting (a ledger posting already refilled away is
  * already_claimed); a claimed posting is already_claimed (detail.refillAtMs); an unverified posting is not_complete.
  * A grant pays the posting's server-owned reward once, stamps the claim and schedules the slot's refill.
- * `squadIds`: the travel squad at claim time (EXP rows); [] pays Holos / items only.
+ * `squadIds`: the travel squad at claim time (EXP rows); [] pays Holos / items only. `tier`: the pilot's current rival
+ * tier (tierForWins(users.rivalWins)); battle postings' EXP is the battle table's win at that tier.
  */
 export function claimPosting(
   board: MissionBoardDoc,
@@ -363,7 +394,9 @@ export function claimPosting(
   facts: BoardFacts,
   squadIds: readonly string[],
   nowMs: number,
+  tier: number,
 ): { board: MissionBoardDoc | null; userUpdates: Record<string, unknown>; reply: ClaimReply } {
+  if (!nonNegInt(tier)) throw new MissionBoardError("unavailable");
   const balances = balancesOf(profile);
   const replay = board.claims.find((c) => c.requestId === cmd.requestId);
   if (replay) {
@@ -371,7 +404,7 @@ export function claimPosting(
     return {
       board: null, userUpdates: {},
       reply: { schemaVersion: MISSION_BOARD_SCHEMA, source: "posting", postingId: replay.postingId, requestId: replay.requestId, kind: replay.kind, alreadyProcessed: true,
-        granted: structuredClone(replay.granted), progression: structuredClone(replay.progression), balances, board: boardView(board, facts, board.seenThroughMs) },
+        granted: structuredClone(replay.granted), progression: structuredClone(replay.progression), balances, board: boardView(board, facts, board.seenThroughMs, tier) },
     };
   }
   const index = board.slots.findIndex((s) => s.posting.postingId === cmd.postingId);
@@ -388,7 +421,7 @@ export function claimPosting(
   let progression: HolobotProgressionEntry[] = [];
   let expPerHolobot = 0;
   if (p.kind !== "visit") {
-    const input = { kind: (p.kind === "rival" ? "rival" : "beast") as BattleKind, tier: MISSION_BOARD_EXP_TIER, didWin: true };
+    const input = { kind: (p.kind === "rival" ? "rival" : "beast") as BattleKind, tier, didWin: true };
     const award = awardBattleExperienceRaw(profile, squadIds, input, nowMs);
     if (!award) throw new MissionBoardError("unavailable");
     progression = award.progression;
@@ -407,7 +440,7 @@ export function claimPosting(
     if (itemStocks === null) throw new MissionBoardError("unavailable");
     userUpdates.itemStocks = itemStocks;
   }
-  const granted: PostingGrant = { holos, expPerHolobot, items };
+  const granted: PostingGrant = { holos, expPerHolobot, expTier: tier, items };
   const next: MissionBoardDoc = structuredClone(board);
   next.slots[index] = { posting: { ...p, claim: { requestId: cmd.requestId, claimedAtMs: nowMs, granted, progression } }, refillAtMs: nowMs + MISSION_BOARD_REFILL_MS };
   next.claims = [...next.claims, { requestId: cmd.requestId, postingId: p.postingId, kind: p.kind, claimedAtMs: nowMs, granted, progression }].slice(-MISSION_BOARD_MAX_CLAIMS);
@@ -415,7 +448,7 @@ export function claimPosting(
   return {
     board: next, userUpdates,
     reply: { schemaVersion: MISSION_BOARD_SCHEMA, source: "posting", postingId: p.postingId, requestId: cmd.requestId, kind: p.kind, alreadyProcessed: false,
-      granted: structuredClone(granted), progression: structuredClone(progression), balances: after, board: boardView(next, facts, next.seenThroughMs) },
+      granted: structuredClone(granted), progression: structuredClone(progression), balances: after, board: boardView(next, facts, next.seenThroughMs, tier) },
   };
 }
 
