@@ -9,6 +9,7 @@
  *
  * Pure module: no firebase imports, safe to import from tests.
  */
+import type { CupId } from "./cupRewards";
 import { cupsWonForParts, partOpenAtCups, partRequiredCup } from "./partStats";
 import { GENESIS_STARTER_DECK_IDS } from "./genesisSignup";
 import { MAX_HOLOBOT_NAME_LENGTH, getUnlockedSyncAbilityIds, normalizeSyncStats } from "./progressionEconomy";
@@ -89,7 +90,7 @@ export type EquipPartRequest = { holobotName: string; slot: PartSlot; partId: st
 export type EquipPartRefusal = "not_owned" | "part_not_found" | "slot_mismatch";
 export type EquippedPartRecord = { id: string; name: string; rarity: string; slot: PartSlot };
 export type EquipPartOutcome =
-  | { locked: "starter" | "champion" | "legends" }
+  | { locked: CupId }
   | EquipPartRefusal
   | { updates: Record<string, unknown> | null; reply: { equipped: true; changed: boolean; part: EquippedPartRecord } };
 

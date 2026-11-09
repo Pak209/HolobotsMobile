@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const P = require('../lib/lib/partStats.js');
 const H = require('../lib/lib/holobotLoadout.js');
 const Z = require('../lib/lib/holoZoneRuns.js');
+const Sf = require('../lib/story/storyFlags.js');
 const flags = won => ({ arenaGatheringSeen: true, tournamentsWon: won, arenaArcBuilt: false, holoZonesArcBuilt: false });
 const part = (rarity, name = 'Test Part') => ({ id: `p_${rarity}`, name, rarity, slot: 'arms' });
 const noSpecial = ({ special: _s, ...b }) => b;
@@ -36,7 +37,10 @@ test('the cup gate at each cup count: a part above the pilot\'s cups counts as u
   assert.deepEqual([0, 1, 2, 3].map(w => attack('Common', w)), [2, 2, 2, 2]);
   assert.deepEqual([0, 1, 2, 3].map(w => attack('Rare', w)), [0, 6, 6, 6]);
   assert.deepEqual([0, 1, 2, 3].map(w => attack('Epic', w)), [0, 0, 8, 8]);
-  assert.deepEqual([0, 1, 2, 3, 4].map(w => attack('Legendary', w)), [0, 0, 0, 0, 10], 'legendary needs the Legends Cup (4 cups)');
+  assert.deepEqual([0, 1, 2, 3].map(w => attack('Legendary', w)), [0, 0, 0, 10], 'dormant: legendary needs the Elite Cup (3 cups)');
+  Sf.STORY_CUPS.legendsLive = true;
+  try { assert.deepEqual([0, 1, 2, 3, 4].map(w => attack('Legendary', w)), [0, 0, 0, 0, 10], 'live: legendary needs the Legends Cup (4 cups)'); }
+  finally { Sf.STORY_CUPS.legendsLive = false; }
   assert.equal(P.equippedPartBoosts({ ...equip('Epic') }, 'ace').attack, 0, 'no flags');
   assert.equal(P.equippedPartBoosts({ ...equip('Epic'), storyFlags: { tournamentsWon: 'x' } }, 'ace').attack, 0, 'malformed flags switch gear off');
 });
@@ -76,6 +80,13 @@ test('buildEquipPart: rare and epic need their cup; common and no-rarity parts d
   assert.deepEqual(H.buildEquipPart(account('Epic', 1), req), { locked: 'champion' });
   assert.equal(H.buildEquipPart(account('Epic', 2), req).reply.changed, true);
   for (const rarity of ['Common', '']) assert.equal(H.buildEquipPart(account(rarity, 0), req).reply.changed, true, rarity);
+  assert.deepEqual(H.buildEquipPart(account('Legendary', 2), req), { locked: 'rare' }, 'dormant: the Elite Cup (stored id rare)');
+  assert.equal(H.buildEquipPart(account('Legendary', 3), req).reply.changed, true);
+  Sf.STORY_CUPS.legendsLive = true;
+  try {
+    assert.deepEqual(H.buildEquipPart(account('Legendary', 3), req), { locked: 'legends' }, 'live: the Legends Cup');
+    assert.equal(H.buildEquipPart(account('Legendary', 4), req).reply.changed, true);
+  } finally { Sf.STORY_CUPS.legendsLive = false; }
   const saved = { equippedParts: { ACE: { arms: { id: 'p1', name: 'Boxer Arm', rarity: 'Epic', slot: 'arms' } } } };
   const again = H.buildEquipPart(account('Epic', 0, saved), req);
   assert.equal(again.updates, null); assert.equal(again.reply.changed, false);

@@ -12,7 +12,7 @@ Pak, 2026-11-08: "Prizes + part-tier unlock". Code: `lib/cupRewards.ts` (all con
 | Starter | 750 | 15 | | 750 |
 | Champion | 1500 | 25 | | 1500 |
 | Elite (stored id `rare`) | 3000 | 30 | 1 Heavy Buddy Unit | none |
-| Legends (**PROPOSED**, dormant) | 6000 | 40 | 2 Heavy Buddy Units | none |
+| Legends (dormant) | 6000 | 40 | 2 Heavy Buddy Units | none |
 
 Before any cup win the Workshop sells only the 300 tier. A part's tier is its price (`common` 300, `rare` 750, `epic` 1500).
 
@@ -21,8 +21,9 @@ Before any cup win the Workshop sells only the 300 tier. A part's tier is its pr
 The Rare Cup is now the **Elite Cup**. Only names and copy changed: the stored id stays `rare`, because match records, prize
 receipts, `tournamentUnlockAcknowledged` and shipped clients all carry it.
 
-**Legends Cup** is the fourth cup. **PROPOSED:** level gate 31 (the start of the next Holobot rank after the Elite Cup's 21) and
-the prize row above. Legendary parts need it (4 cups won), so while it is dormant no legendary part counts or can be equipped.
+**Legends Cup** is the fourth cup: level gate 31 (the start of the next Holobot rank after the Elite Cup's 21) and the prize row
+above, both confirmed by Pak on 2026-11-09. Legendary parts need the Elite Cup (3 cups) while Legends is dormant and the Legends
+Cup (4 cups) once it is live, both derived from `STORY_CUPS.legendsLive`.
 
 It is **dormant** behind `STORY_CUPS.legendsLive` (`story/storyFlags.ts`, a code constant): the id is refused and
 `tournamentsWon` stays capped at 3. A value of 4 would break shipped clients, so these must ship first:

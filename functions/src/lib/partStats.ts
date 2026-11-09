@@ -13,6 +13,7 @@
  */
 import { CupId } from "./cupRewards";
 import { toHolobotKey } from "./mintingEconomy";
+import { STORY_CUPS } from "../story/storyFlags";
 
 export type PartBoosts = { attack: number; defense: number; speed: number; special: number; hp: number };
 export const EMPTY_PART_BOOSTS: Readonly<PartBoosts> = Object.freeze({ attack: 0, defense: 0, speed: 0, special: 0, hp: 0 });
@@ -49,12 +50,13 @@ export function partStars(part: PartRecord | null | undefined): number {
   return 1;
 }
 
-/** The cup a part needs: Starter for rare, Champion for epic, Legends for legendary; null for none. */
-export function partRequiredCup(part: PartRecord | null | undefined): Extract<CupId, "starter" | "champion" | "legends"> | null {
+/** The cup a part needs: Starter for rare, Champion for epic; legendary needs the last live cup (Elite, or Legends once it is on). */
+export function partRequiredCup(part: PartRecord | null | undefined): CupId | null {
   const stars = partStars(part);
-  return stars >= 5 ? "legends" : stars === 4 ? "champion" : stars === 3 ? "starter" : null;
+  if (stars >= 5) return STORY_CUPS.legendsLive ? "legends" : "rare";
+  return stars === 4 ? "champion" : stars === 3 ? "starter" : null;
 }
-const CUPS_WON_FOR: Record<"starter" | "champion" | "legends", number> = { starter: 1, champion: 2, legends: 4 };
+const CUPS_WON_FOR: Record<CupId, number> = { starter: 1, champion: 2, rare: 3, legends: 4 };
 export function partOpenAtCups(part: PartRecord | null | undefined, cupsWon: number): boolean {
   const cup = partRequiredCup(part);
   return cup === null || cupsWon >= CUPS_WON_FOR[cup];

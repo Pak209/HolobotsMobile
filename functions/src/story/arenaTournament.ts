@@ -9,7 +9,7 @@ const ALL_TOURNAMENTS = [...SHIPPED_TOURNAMENTS,'legends'] as const;
 export type TournamentId = typeof ALL_TOURNAMENTS[number];
 /** The cups that can be entered, in order. Legends joins when STORY_CUPS.legendsLive is on. */
 export const liveTournaments = (): readonly TournamentId[] => STORY_CUPS.legendsLive ? ALL_TOURNAMENTS : SHIPPED_TOURNAMENTS;
-/** The Holobot rank whose start level gates each cup. Legends (PROPOSED) is the next rank up from the Elite Cup's. */
+/** The Holobot rank whose start level gates each cup. Legends (level 31, Pak 2026-11-09) is the next rank up from the Elite Cup's. */
 const CUP_RANK: Record<TournamentId,string> = {starter:'Starter',champion:'Champion',rare:'Rare',legends:'Elite'};
 export type TournamentAdmission = {schemaVersion:typeof ARENA_TOURNAMENT_SCHEMA;tournamentId:TournamentId;requiredLevel:number;pilotRankAtAdmission:number};
 export function tournamentIndex(id: unknown): number {

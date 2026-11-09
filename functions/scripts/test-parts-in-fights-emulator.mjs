@@ -135,6 +135,17 @@ test('the Legends Cup is dormant: refused and tournamentsWon capped; once live, 
   } finally { STORY_CUPS.legendsLive = false; }
 });
 
+test('equipHolobotPart: a legendary part\'s refusal names the Elite Cup while Legends is dormant and the Legends Cup once it is live', async () => {
+  const uid = await setup({ storyFlags: flags(2), equippedParts: {}, parts: [armsPart('Legendary')] });
+  const equip = () => equipHolobotPart.run({ auth: { uid }, data: { holobotName: 'ACE', slot: 'arms', partId: 'p1' } });
+  await assert.rejects(equip, e => e.details.rejectionCode === 'part_locked' && e.message === 'Win the Elite Cup to equip this part.');
+  STORY_CUPS.legendsLive = true;
+  try { await assert.rejects(equip, e => e.details.rejectionCode === 'part_locked' && e.message === 'Win the Legends Cup to equip this part.'); }
+  finally { STORY_CUPS.legendsLive = false; }
+  await db.doc(`users/${uid}`).update({ storyFlags: flags(3) });
+  assert.equal((await equip()).changed, true);
+});
+
 test('equipHolobotPart: a part above the pilot\'s cups is refused with part_locked and nothing written', async () => {
   const uid = await setup({ storyFlags: flags(0), equippedParts: {}, parts: [armsPart('Rare')] });
   await assert.rejects(() => equipHolobotPart.run({ auth: { uid }, data: { holobotName: 'ACE', slot: 'arms', partId: 'p1' } }),

@@ -23,7 +23,7 @@ export const CUP_PRIZES: Readonly<Record<CupId, CupPrize>> = Object.freeze({
   starter: { holos: 750, blueprints: 15, heavyBuddyUnits: 0 },
   champion: { holos: 1500, blueprints: 25, heavyBuddyUnits: 0 },
   rare: { holos: 3000, blueprints: 30, heavyBuddyUnits: 1 },
-  legends: { holos: 6000, blueprints: 40, heavyBuddyUnits: 2 }, // PROPOSED (2026-11-09), dormant until the Legends Cup goes live.
+  legends: { holos: 6000, blueprints: 40, heavyBuddyUnits: 2 }, // Pak, 2026-11-09. Dormant until the Legends Cup goes live.
 });
 
 /** PROPOSED. A part's tier is its price; `cupsWon` = the tournamentsWon a pilot needs to buy that tier. */
