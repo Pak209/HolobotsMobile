@@ -32,8 +32,12 @@ the request asks. Send `prizeSchema:'cup-prize-1'` on `tournamentBracketHost` `a
 
 ```jsonc
 "cupPrize": { "schemaVersion": "cup-prize-1", "cupId": "starter", "matchId": "am_…", "holobotId": "ace",
-  "holos": 750, "blueprints": 15, "heavyBuddyUnits": 0, "unlocksPartPrice": 750, "alreadyPaid": false }
+  "holos": 750, "blueprints": 15, "heavyBuddyUnits": 0, "unlocksPartPrice": 750, "ride": "skates", "alreadyPaid": false }
 ```
+
+`ride` is the ride this cup awards: `skates` (Starter), `hoverboard` (Champion), null (Rare). It comes from `CUP_RIDES`, not from
+the receipt, so every account gets it, including wins from before rides existed; `ridesUnlocked(tournamentsWon)` gives the full set.
+Unity never sees the field: its client sends no `prizeSchema`, so the reply stays byte-identical for it.
 
 `alreadyPaid` is true on a resume or replay of the win. On a resume of a cup won before prizes existed, `cupPrize` is null.
 

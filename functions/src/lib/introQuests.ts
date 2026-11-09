@@ -10,7 +10,7 @@ import { BUDDY_UNITS_FIELD, BuddyInventory, readBuddyInventory, withTierDelta } 
 
 export const INTRO_QUEST_SCHEMA = "intro-quest-1";
 
-export type IntroStepKind = "visit" | "capture" | "rival" | "bonus";
+export type IntroStepKind = "visit" | "capture" | "rival" | "arena" | "bonus";
 export type IntroReward = { holos: number; gachaTickets: number; buddyUnitsLight: number };
 export type IntroStep = {
   stepId: string;
@@ -24,12 +24,17 @@ export type IntroStep = {
 
 const r = (holos: number, gachaTickets = 0, buddyUnitsLight = 0): IntroReward => ({ holos, gachaTickets, buddyUnitsLight });
 
+const ARENA_STEP_ID = "win_arena_battle";
+
 /**
- * The chain, in order. Total: 600 Holos, 3 Gacha Tickets, 1 Light Buddy Unit.
+ * The chain, in order. Total: 750 Holos, 3 Gacha Tickets, 1 Light Buddy Unit.
  * - capture_buddy: the harbor HARE. Verified from the server-only wild roster /
  *   capture receipts, never from the client-writable `holobots` array.
  * - win_rival_battle: verified by users/{uid}.rivalWins (server-only since #43)
  *   having increased since the step became current.
+ * - win_arena_battle (Pak's build 43 ruling, 2026-11-08): verified from the server-only
+ *   arenaMatches/{uid}/matches records, by a `win` closed after the step became current.
+ *   150 Holos and no tickets (Pak, 2026-11-08).
  */
 export const INTRO_QUEST_STEPS: readonly IntroStep[] = [
   { stepId: "visit_mission_board", kind: "visit", destinationId: "mission_board", holobotId: "", reward: r(50) },
@@ -37,6 +42,7 @@ export const INTRO_QUEST_STEPS: readonly IntroStep[] = [
   { stepId: "visit_workshop", kind: "visit", destinationId: "workshop", holobotId: "", reward: r(75) },
   { stepId: "capture_buddy", kind: "capture", destinationId: "", holobotId: "hare", reward: r(100, 0, 1) },
   { stepId: "win_rival_battle", kind: "rival", destinationId: "", holobotId: "", reward: r(100, 1) },
+  { stepId: ARENA_STEP_ID, kind: "arena", destinationId: "", holobotId: "", reward: r(150) },
   { stepId: "visit_portal", kind: "visit", destinationId: "portal_terminal", holobotId: "", reward: r(75) },
   { stepId: "chain_complete", kind: "bonus", destinationId: "", holobotId: "", reward: r(150, 1) },
 ];
@@ -74,6 +80,31 @@ export function freshIntroQuestState(nowMs: number, rivalWins: number): IntroQue
   return { schemaVersion: INTRO_QUEST_SCHEMA, currentIndex: 0, claims: {}, stepStartedAtMs: nowMs, rivalWinsAtStepStart: rivalWins };
 }
 
+/** Stored on the zero-reward claim that closes win_arena_battle for a pilot who finished past it before it existed. */
+export const ARENA_STEP_WAIVED_REQUEST_ID = "waived_win_arena_battle";
+/** The chain as it was before win_arena_battle was inserted; stored docs from then use these positions. */
+const PRE_ARENA_STEP_IDS = INTRO_QUEST_STEPS.filter((s) => s.stepId !== ARENA_STEP_ID).map((s) => s.stepId);
+const ARENA_STEP_INDEX = INTRO_QUEST_STEPS.findIndex((s) => s.stepId === ARENA_STEP_ID);
+
+/**
+ * Docs written before win_arena_battle existed, whose positions the insertion shifted.
+ * - currentIndex <= 5: nothing shifted (the claims are the same prefix of both chains). A pilot sitting at
+ *   old index 5 (visit_portal next) now has win_arena_battle next, ahead of the Portal.
+ * - currentIndex 6 or 7: the pilot claimed visit_portal, past the insertion point. Recognised by holding
+ *   exactly the old prefix, which no doc of the new chain can (it would hold win_arena_battle before
+ *   visit_portal). The Arena step is closed for them with a zero-reward claim and the index moves up one, so
+ *   the chain stays "claims = exactly the steps before currentIndex". Nothing is paid and no step reopens.
+ * Pure and repeatable: status needs no write, and the next claim persists the upgraded shape.
+ */
+function upgradePreArenaDoc(s: Record<string, unknown>): Record<string, unknown> {
+  const index = s.currentIndex, claims = s.claims;
+  if (!nonNegInt(index) || index <= ARENA_STEP_INDEX || index > PRE_ARENA_STEP_IDS.length) return s;
+  if (!claims || typeof claims !== "object" || Array.isArray(claims)) return s;
+  const keys = Object.keys(claims).sort(), expected = PRE_ARENA_STEP_IDS.slice(0, index).sort();
+  if (keys.length !== expected.length || keys.some((k, i) => k !== expected[i])) return s;
+  return { ...s, currentIndex: index + 1, claims: { ...claims, [ARENA_STEP_ID]: { requestId: ARENA_STEP_WAIVED_REQUEST_ID, claimedAtMs: 0, reward: r(0) } } };
+}
+
 /**
  * undefined (no doc) → a fresh chain. Anything present must be a fully consistent state, or this
  * throws `unavailable`: a malformed doc is never reset to fresh, so no step can be re-claimed and
@@ -84,7 +115,7 @@ export function readIntroQuestState(raw: unknown, nowMs: number, rivalWins: numb
   if (raw === undefined) return { state: freshIntroQuestState(nowMs, rivalWins), fresh: true };
   const fail = () => { throw new IntroQuestError("unavailable"); };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail();
-  const s = raw as Record<string, unknown>;
+  const s = upgradePreArenaDoc(raw as Record<string, unknown>);
   if (s.schemaVersion !== INTRO_QUEST_SCHEMA || !nonNegInt(s.currentIndex) || s.currentIndex > INTRO_QUEST_STEPS.length) fail();
   if (!nonNegInt(s.stepStartedAtMs) || !nonNegInt(s.rivalWinsAtStepStart)) fail();
   const claims = s.claims;
@@ -125,21 +156,40 @@ export type IntroStatus = { currentStepId: string; complete: boolean; steps: Int
 
 export function introStatus(state: IntroQuestState): IntroStatus {
   const done = state.currentIndex >= INTRO_QUEST_STEPS.length;
+  // A claimed step shows what it paid, so a waived Arena step reads 0 and the total matches this pilot's chain.
+  const steps = INTRO_QUEST_STEPS.map((s, index) => ({
+    stepId: s.stepId,
+    index,
+    kind: s.kind,
+    destinationId: s.destinationId,
+    claimed: !!state.claims[s.stepId],
+    claimedAtMs: state.claims[s.stepId]?.claimedAtMs ?? 0,
+    current: index === state.currentIndex,
+    reward: { ...(state.claims[s.stepId]?.reward ?? s.reward) },
+  }));
   return {
     currentStepId: done ? "" : INTRO_QUEST_STEPS[state.currentIndex].stepId,
     complete: done,
-    steps: INTRO_QUEST_STEPS.map((s, index) => ({
-      stepId: s.stepId,
-      index,
-      kind: s.kind,
-      destinationId: s.destinationId,
-      claimed: !!state.claims[s.stepId],
-      claimedAtMs: state.claims[s.stepId]?.claimedAtMs ?? 0,
-      current: index === state.currentIndex,
-      reward: { ...s.reward },
-    })),
-    totalReward: introQuestTotals(),
+    steps,
+    totalReward: steps.reduce((t, s) => r(t.holos + s.reward.holos, t.gachaTickets + s.reward.gachaTickets, t.buddyUnitsLight + s.reward.buddyUnitsLight), r(0)),
   };
+}
+
+/**
+ * The Holobot whose capture cannot fail right now: capture_buddy's while that step is the pilot's current step (Pak,
+ * 2026-11-08, so the tutorial can't stall on a bad roll). Absent, past, or malformed intro state guarantees nothing, and a
+ * malformed doc never blocks a capture.
+ */
+export function guaranteedCaptureHolobot(raw: unknown): string | null {
+  if (raw === undefined) return null;
+  try {
+    const { state } = readIntroQuestState(raw, 0, 0);
+    const step = INTRO_QUEST_STEPS[state.currentIndex];
+    return step?.kind === "capture" ? step.holobotId : null;
+  } catch (e) {
+    if (e instanceof IntroQuestError) return null;
+    throw e;
+  }
 }
 
 export type IntroBalances = { holosTokens: number; gachaTickets: number; buddyUnits: BuddyInventory };
@@ -169,7 +219,7 @@ function balancesOf(profile: Record<string, unknown>): { balances: IntroBalances
 }
 
 /** Verification facts the store gathers inside the transaction (server-only sources). */
-export type IntroVerification = { captured: (holobotId: string) => boolean };
+export type IntroVerification = { captured: (holobotId: string) => boolean; arenaWonSinceStepStart: boolean };
 
 /**
  * Rules, in order: a replayed requestId returns its original ruling (writes nothing); a requestId
@@ -200,6 +250,7 @@ export function claimIntroStep(
   const step = INTRO_QUEST_STEPS[index];
   if (step.kind === "visit" && cmd.destinationId !== step.destinationId) throw new IntroQuestError("invalid_request");
   if (step.kind === "capture" && !verify.captured(step.holobotId)) throw new IntroQuestError("not_met");
+  if (step.kind === "arena" && !verify.arenaWonSinceStepStart) throw new IntroQuestError("not_met");
   const rivalWins = readRivalWinsForQuest(profile);
   if (step.kind === "rival" && !(rivalWins > state.rivalWinsAtStepStart)) throw new IntroQuestError("not_met");
 

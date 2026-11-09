@@ -9,7 +9,7 @@
     "buddyUnitsLight": 0
   },
   "balances": {
-    "holosTokens": 725,
+    "holosTokens": 975,
     "gachaTickets": 4,
     "buddyUnits": {
       "light": 2,
@@ -92,8 +92,22 @@
         }
       },
       {
-        "stepId": "visit_portal",
+        "stepId": "win_arena_battle",
         "index": 5,
+        "kind": "arena",
+        "destinationId": "",
+        "claimed": true,
+        "claimedAtMs": 1791028800000,
+        "current": false,
+        "reward": {
+          "holos": 150,
+          "gachaTickets": 0,
+          "buddyUnitsLight": 0
+        }
+      },
+      {
+        "stepId": "visit_portal",
+        "index": 6,
         "kind": "visit",
         "destinationId": "portal_terminal",
         "claimed": true,
@@ -107,7 +121,7 @@
       },
       {
         "stepId": "chain_complete",
-        "index": 6,
+        "index": 7,
         "kind": "bonus",
         "destinationId": "",
         "claimed": true,
@@ -121,7 +135,7 @@
       }
     ],
     "totalReward": {
-      "holos": 600,
+      "holos": 750,
       "gachaTickets": 3,
       "buddyUnitsLight": 1
     }

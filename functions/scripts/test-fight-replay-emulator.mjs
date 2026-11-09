@@ -32,11 +32,11 @@ const clientLog = (duel, profile = 'ace', rank = 'Legendary') => recordFightLog(
 
 test('flag off, or no capability, or an older wire version: the existing modes are issued unchanged', async () => {
   const a = await setup();
-  assert.equal((await issueInputLog(a, {}, { ...ON, fightReplay: false })).duel.mode, 'resolver');
+  assert.equal((await issueInputLog(a, { duelSchema: 'duel-receipt-1' }, { ...ON, fightReplay: false })).duel.mode, 'resolver');
   const b = await setup();
-  assert.equal((await call(b, { operation: 'issue' })).duel.mode, 'resolver', 'no duelInputs capability');
+  assert.equal((await call(b, { operation: 'issue', duelSchema: 'duel-receipt-1' })).duel.mode, 'resolver', 'no duelInputs capability');
   const c = await setup();
-  assert.equal((await call(c, { operation: 'issue', duelInputs: 'duel-inputs-2', schemaVersion: 'rival-battle-2' })).duel.mode, 'resolver');
+  assert.equal((await call(c, { operation: 'issue', duelInputs: 'duel-inputs-2', duelSchema: 'duel-receipt-1', schemaVersion: 'rival-battle-2' })).duel.mode, 'resolver');
   const d = await setup();
   assert.equal((await issueInputLog(d, {}, { fightReplay: false, issueLegacy: true })).duel.mode, 'legacy');
   const e = await setup();
@@ -160,7 +160,7 @@ test('economy parity: an input-log win and a resolver win pay through the same l
   const log = clientLog(ia.duel);
   const verdict = verifyFightReplay(ia.duel, log, { battleId: ia.battleId }).receipt;
   assert.equal(verdict.winner, 'player', 'a level-99 Legendary-driven ACE beats the tier-0 rival');
-  const ib = await call(b, { operation: 'issue' });
+  const ib = await call(b, { operation: 'issue', duelSchema: 'duel-receipt-1' });
   const rb = await record(b, ib.battleId);
   assert.equal(D.resolveDuel({ ...rb.duel.input, playerIntents: ['strike'] }).winner, 'player');
   const ra = await call(a, { operation: 'settle', battleId: ia.battleId, inputLog: log, didWin: false }, later);

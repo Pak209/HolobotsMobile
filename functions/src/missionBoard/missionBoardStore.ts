@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Firestore, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { HostError } from '../acquisition/wildEncounterDomain';
-import { CITY_KURAI_ENCOUNTER_ID, lastCaptureAtMs } from '../city/cityEncounterHost';
+import { lastCaptureAtMs } from '../city/cityEncounterHost';
 import { CITY_WILD_SPOTS, currentSpotEncounter, spotEncounterId } from '../city/cityWildSpots';
 import { tierForWins } from '../lib/rivalLadder';
 import { HoloZoneError, readHoloZoneRuns } from '../lib/holoZoneRuns';
@@ -45,17 +45,14 @@ const encountersOf = (session: SessionLike): EncounterLike[] => Array.isArray(se
 
 /**
  * What the generator may draw: citizens once the Arena gathering was seen; capture spots = Unity's 11 repeatable wild
- * spots plus the Research Garden KURAI until it is linked. A disabled session offers no capture spot.
+ * spots. A disabled session offers no capture spot. The Research Garden KURAI (kurai_garden) is no longer issued (Pak,
+ * 2026-11-08); a kurai_garden posting already on a board still reads and completes (CAPTURE_SPOTS keeps it).
  */
 export function boardCandidates(uid: string, profile: Record<string, unknown>, session: SessionLike, sessionExists: boolean): BoardCandidates {
   const citizens = guard(() => readStoryFlags(profile.storyFlags)).arenaGatheringSeen
     ? gatheringRoster(uid).map(c => ({ citizenId: c.citizenId, pilotName: c.pilotName })) : [];
   const captureTargets: string[] = [];
-  if (!sessionExists || session?.enabled === true) {
-    captureTargets.push(...CITY_WILD_SPOTS.map(s => s.spotId));
-    const kurai = encountersOf(session).find(e => e.encounterId === CITY_KURAI_ENCOUNTER_ID);
-    if (!kurai || kurai.ended !== true) captureTargets.push(KURAI_GARDEN_SPOT);
-  }
+  if (!sessionExists || session?.enabled === true) captureTargets.push(...CITY_WILD_SPOTS.map(s => s.spotId));
   return { citizens, captureTargets };
 }
 

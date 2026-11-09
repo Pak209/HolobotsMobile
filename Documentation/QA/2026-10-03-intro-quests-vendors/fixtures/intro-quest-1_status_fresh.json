@@ -75,8 +75,22 @@
         }
       },
       {
-        "stepId": "visit_portal",
+        "stepId": "win_arena_battle",
         "index": 5,
+        "kind": "arena",
+        "destinationId": "",
+        "claimed": false,
+        "claimedAtMs": 0,
+        "current": false,
+        "reward": {
+          "holos": 150,
+          "gachaTickets": 0,
+          "buddyUnitsLight": 0
+        }
+      },
+      {
+        "stepId": "visit_portal",
+        "index": 6,
         "kind": "visit",
         "destinationId": "portal_terminal",
         "claimed": false,
@@ -90,7 +104,7 @@
       },
       {
         "stepId": "chain_complete",
-        "index": 6,
+        "index": 7,
         "kind": "bonus",
         "destinationId": "",
         "claimed": false,
@@ -104,7 +118,7 @@
       }
     ],
     "totalReward": {
-      "holos": 600,
+      "holos": 750,
       "gachaTickets": 3,
       "buddyUnitsLight": 1
     }

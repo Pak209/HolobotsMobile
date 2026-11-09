@@ -100,7 +100,7 @@ export const VISIT_TARGETS: readonly { destinationId: string; districtId: string
 export type BoardCandidates = {
   /** Arena-gathering citizens (story/arenaGathering.ts gatheringRoster), only once the gathering was seen; else []. */
   citizens: readonly { citizenId: string; pilotName: string }[];
-  /** Capture spot ids a posting may name (CAPTURE_SPOTS ids: the 11 repeatable spots + kurai_garden until linked). */
+  /** Capture spot ids a posting may name (the 11 repeatable spots; kurai_garden is no longer issued but stays a valid stored target). */
   captureTargets: readonly string[];
 };
 

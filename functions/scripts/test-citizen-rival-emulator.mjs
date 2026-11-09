@@ -18,7 +18,7 @@ async function setup(){
 }
 const call=(uid,data)=>rivalBattleHost.run({auth:{uid},data:{schemaVersion:V,...data}});
 const gather=uid=>arenaGatheringHost.run({auth:{uid},data:{schemaVersion:G}});
-const issue=(uid,row)=>call(uid,{operation:'issue',healthSchema:'rival-health-1',storySchema:G,rivalId:row.citizenId});
+const issue=(uid,row,extra={})=>call(uid,{operation:'issue',healthSchema:'rival-health-1',storySchema:G,rivalId:row.citizenId,...extra});
 const record=(uid,id)=>db.doc(`rivalBattles/${uid}/battles/${id}`);
 async function age(uid,id){await record(uid,id).update({issuedAtMs:Date.now()-21000});}
 const profile=async uid=>(await db.doc(`users/${uid}`).get()).data();
@@ -82,7 +82,7 @@ test('callable refuses missing gathering, outside roster, wrong story schema and
 test('explicit resolver flip preserves internal fighters and host receipt despite citizen projection omission',async()=>{
  process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER='1';
  try {
-  const uid=await setup(),{roster}=await gather(uid),r=await issue(uid,roster[0]);
+  const uid=await setup(),{roster}=await gather(uid),r=await issue(uid,roster[0],{duelSchema:'duel-receipt-1'});
   assert.equal(Object.hasOwn(r,'playerCombatants'),false);assert.equal(r.duel.mode,'resolver');
   assert.equal(r.duel.player[0].holobotId,'ace');assert.equal(r.duel.opponent[0].holobotId,roster[0].holobotId);
   await age(uid,r.battleId);

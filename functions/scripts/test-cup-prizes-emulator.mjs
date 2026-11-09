@@ -41,7 +41,7 @@ const buy = (uid, partId) => purchaseMarketplacePart.run({ auth: { uid }, data: 
 test('first win pays once, in the win transaction; reply opt-in; resume shows the receipt without paying again', async () => {
   const uid = await setup({ blueprints: { ace: 3 } });
   const { id, r } = await win(uid, 'starter', { prizeSchema: PRIZE });
-  assert.deepEqual(r.cupPrize, { schemaVersion: PRIZE, cupId: 'starter', matchId: id, holobotId: 'ace', holos: 750, blueprints: 15, heavyBuddyUnits: 0, unlocksPartPrice: 750, alreadyPaid: false });
+  assert.deepEqual(r.cupPrize, { schemaVersion: PRIZE, cupId: 'starter', matchId: id, holobotId: 'ace', holos: 750, blueprints: 15, heavyBuddyUnits: 0, unlocksPartPrice: 750, ride: 'skates', alreadyPaid: false });
   const after = await user(uid), match = (await db.doc(`arenaMatches/${uid}/matches/${id}`).get()).data();
   assert.equal(after.storyFlags.tournamentsWon, 1);
   const paid = match.settlementReceipt.settlement, arenaAce = paid.blueprints.holobotKey === 'ace' ? paid.blueprints.amount : 0;

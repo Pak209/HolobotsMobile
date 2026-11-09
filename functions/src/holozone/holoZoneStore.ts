@@ -1,9 +1,9 @@
 import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { Firestore, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
-import { isCityCourtZone, HOLOZONE_LAST_SETTLED_FIELD, holoZoneLastSettledAfterSettle, readHoloZoneLastSettled, requireHoloZoneOffCooldown, HoloZoneError, holoZoneStatus, issueHoloZoneRun, readHoloZoneRuns, settleHoloZoneRun, validateHoloZoneCommand } from '../lib/holoZoneRuns';
+import { courtSettleCommand, isCityCourtZone, HOLOZONE_LAST_SETTLED_FIELD, holoZoneLastSettledAfterSettle, readHoloZoneLastSettled, requireHoloZoneOffCooldown, HoloZoneError, holoZoneStatus, issueHoloZoneRun, readHoloZoneRuns, settleHoloZoneRun, validateHoloZoneCommand } from '../lib/holoZoneRuns';
 import { readStoryFlags, StoryError } from '../story/storyFlags';
 import { holoZoneIssueReplyForVersion, holoZoneSettleReplyForVersion, holoZoneStatusReplyForVersion } from '../lib/holoZoneWire';
 
@@ -55,10 +55,13 @@ export function requireHoloZonesArcBuilt(profile: Record<string, unknown>): void
   }
   if (!built) throw new HoloZoneError('zone_locked');
 }
+/** Guild Court plan-and-send receipts: holoZoneRuns/{uid}/receipts/{runId}, one per run still in the bounded history. */
+export const COURT_RECEIPT_SCHEMA = 'holozone-court-receipt-1';
 export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), newRunId: () => string = randomUUID) {
   const command = validateHoloZoneCommand(raw);
   // Pin the run id outside the transaction so retries rule identically.
   const runId = command.operation === 'issue' ? newRunId() : '';
+  const courtSeed = randomBytes(4).readUInt32LE(0); // Plan-and-send seed: pinned here, never disclosed before settle.
   const userRef = db.doc(`users/${uid}`);
   const runsRef = db.doc(`holoZoneRuns/${uid}`);
   return db.runTransaction(async tx => {
@@ -84,17 +87,28 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
       } catch {
         throw new HoloZoneError('unavailable');
       }
-      const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, { profile, includeHealth: command.healthSchema !== undefined });
+      const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, { profile, includeHealth: command.healthSchema !== undefined || command.duelSchema !== undefined,
+        ...(command.duelSchema !== undefined ? { courtDuel: { holobotId: command.holobotId!, seed: courtSeed } } : {}) });
       if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
       tx.set(runsRef, { ...r.doc, [HOLOZONE_LAST_SETTLED_FIELD]: lastSettled });
+      // A receipt lives as long as its run stays in the bounded history.
+      const kept = new Set(r.doc.runs.map(x => x.runId));
+      for (const old of runs) if (old.duel && !kept.has(old.runId)) tx.delete(db.doc(`holoZoneRuns/${uid}/receipts/${old.runId}`));
       return holoZoneIssueReplyForVersion(r.reply, command.schemaVersion);
     }
-    const r = settleHoloZoneRun(profile, runs, command, nowMs);
-    if (r.reply.alreadyProcessed) return holoZoneSettleReplyForVersion(r.reply, command.schemaVersion);
+    // Plan-and-send: the resolver's receipt becomes the report; settleHoloZoneRun stays the only payer.
+    const resolved = courtSettleCommand(runs, command, nowMs);
+    const r = settleHoloZoneRun(profile, runs, resolved.command, nowMs);
+    const receiptRef = db.doc(`holoZoneRuns/${uid}/receipts/${command.runId}`);
+    if (r.reply.alreadyProcessed) {
+      const stored = runs.find(x => x.runId === command.runId)?.duel ? (await tx.get(receiptRef)).data()?.duelReceipt : undefined;
+      return holoZoneSettleReplyForVersion(stored ? { ...r.reply, duelReceipt: stored } : r.reply, command.schemaVersion);
+    }
     // Preserve receipt replay, but refuse all first-time reward/HP writes during an Arena match.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
     if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile, r.userUpdates));
     if (r.doc) tx.set(runsRef, { ...r.doc, [HOLOZONE_LAST_SETTLED_FIELD]: holoZoneLastSettledAfterSettle(readHoloZoneLastSettled(ledger, runs), r.reply.settlement.zoneId, nowMs) });
-    return holoZoneSettleReplyForVersion(r.reply, command.schemaVersion);
+    if (resolved.receipt) tx.set(receiptRef, { schemaVersion: COURT_RECEIPT_SCHEMA, runId: command.runId, duelReceipt: resolved.receipt });
+    return holoZoneSettleReplyForVersion(resolved.receipt ? { ...r.reply, duelReceipt: resolved.receipt } : r.reply, command.schemaVersion);
   });
 }

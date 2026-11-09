@@ -16,6 +16,9 @@ const { deleteUserData } = require('../lib/account/deleteUserAccount.js');
 const Q = require('../lib/lib/introQuests.js');
 const E = require('../lib/lib/economy.js');
 const L = require('../lib/lib/rivalLadder.js');
+const { transactArenaMatch, ARENA_MATCH_SCHEMA, ARENA_MIN_SETTLE_MS_CPU } = require('../lib/arena/arenaMatchStore.js');
+const { transactMissionBoard } = require('../lib/missionBoard/missionBoardStore.js');
+const A = require('../lib/lib/arenaEconomy.js');
 
 const fixtureDir = new URL('../../Documentation/QA/2026-10-03-intro-quests-vendors/fixtures/', import.meta.url);
 async function exportFixture(name, reply) {
@@ -38,8 +41,32 @@ const hareSession = (entries = []) => ({ enabled: true, rollSeed: SEED, revision
 const captureHare = uid => transactWildEncounter(db, uid, { operation: 'capture', intent: { schemaVersion: 'acquisition-2', requestId: 'cap_hare', encounterId: 'harbor_hare_001', toyId: 'buddy_heavy', observedHealth01: 0 } });
 const winRival = async (uid, now) => { const i = await transactRivalBattle(db, uid, { operation: 'issue' }, now); return transactRivalBattle(db, uid, { operation: 'settle', battleId: i.battleId, didWin: true }, now + L.RIVAL_MIN_WIN_MS); };
 
+/** A rookie Arena fight through the real host, paid with a pass. The fighter and pass are seeded just before it. */
+let arenaSerial = 0;
+const fightArena = async (uid, now, won = true) => {
+  await db.doc(`users/${uid}`).set({ holobots: [{ name: 'ACE', level: 1, experience: 0 }], arenaPassses: 1, blueprints: {}, wins: 0, losses: 0, syncPoints: 0 }, { merge: true });
+  await db.doc(`users/${uid}`).update({ holobotVitals: {} }); // A prior loss in the same test leaves ACE knocked out.
+  const base = { schemaVersion: ARENA_MATCH_SCHEMA };
+  const issued = await transactArenaMatch(db, uid, { ...base, operation: 'issue', requestId: `arena_req_${arenaSerial++}`, tierId: 'rookie', paymentMethod: 'pass', holobotId: 'ace', opponentName: 'KUMA' }, now);
+  const matchId = issued.matchId;
+  await transactArenaMatch(db, uid, { ...base, operation: 'start', matchId }, now + 1);
+  return transactArenaMatch(db, uid, { ...base, operation: 'settle', matchId, playerFinalHealth: won ? 10 : 0, opponentFinalHealth: won ? 0 : 10, combosCompleted: 0, perfectDefenses: 0 }, now + 1 + ARENA_MIN_SETTLE_MS_CPU);
+};
+const ROOKIE_WIN_HOLOS = A.getArenaBaseRewards(A.getArenaTier('rookie')).holos;
+/** Reach win_arena_battle through the real capture and rival flows. */
+const toArenaStep = async uid => {
+  await db.doc(`wildEncounterSessions/${uid}`).set(hareSession());
+  await visits(uid, ['visit_mission_board', 'visit_marketplace', 'visit_workshop']);
+  await captureHare(uid); await claim(uid, 'capture_buddy');
+  await winRival(uid, T0 + 1000); await claim(uid, 'win_rival_battle');
+};
+/** A stored doc from the 7-step chain at old index n (positions as written before win_arena_battle). */
+const OLD_IDS = [['visit_mission_board', 50], ['visit_marketplace', 50], ['visit_workshop', 75], ['capture_buddy', 100], ['win_rival_battle', 100], ['visit_portal', 75], ['chain_complete', 150]];
+const oldDoc = n => ({ schemaVersion: 'intro-quest-1', currentIndex: n, stepStartedAtMs: T0, rivalWinsAtStepStart: 0,
+  claims: Object.fromEntries(OLD_IDS.slice(0, n).map(([id, holos], i) => [id, { requestId: `old_${i}`, claimedAtMs: T0 - 1000 + i, reward: { holos, gachaTickets: 0, buddyUnitsLight: 0 } }])) });
+
 // ---- Intro quests ----
-test('full chain through the real capture and rival flows pays exactly 600 Holos, 3 Gacha Tickets, 1 Light Unit', async () => {
+test('full chain through the real capture, rival and Arena flows pays exactly 750 Holos, 3 Gacha Tickets, 1 Light Unit', async () => {
   const uid = await setup({ holosTokens: 25, gachaTickets: 1, buddyUnits: inv(0, 0, 1) });
   await db.doc(`wildEncounterSessions/${uid}`).set(hareSession());
   const st0 = await introQuestHost.run({ auth: { uid }, data: { operation: 'status' } });
@@ -53,14 +80,19 @@ test('full chain through the real capture and rival flows pays exactly 600 Holos
   await exportFixture('intro-quest-1_claim_capture_buddy', cap);
   await assert.rejects(() => claim(uid, 'win_rival_battle'), /not_met/);
   await winRival(uid, T0 + 1000);
-  await claim(uid, 'win_rival_battle'); await claim(uid, 'visit_portal');
+  await claim(uid, 'win_rival_battle');
+  await assert.rejects(() => claim(uid, 'win_arena_battle'), /not_met/);
+  await fightArena(uid, T0 + 2000);
+  assert.equal((await claim(uid, 'win_arena_battle')).reward.holos, 150);
+  await claim(uid, 'visit_portal');
   const done = await claim(uid, 'chain_complete');
   assert.equal(done.status.complete, true); assert.equal(done.status.currentStepId, '');
   const p = await user(uid);
   // The rival win also paid the #43 daily Light Unit; the Heavy capture spent the Heavy.
-  // DECISIONS #58: the chain's rival win also pays the repeat-battle 100 Holos (main: 625 = 25 + 600).
-  assert.equal(p.holosTokens, 725); assert.equal(p.gachaTickets, 4); assert.deepEqual(p.buddyUnits, inv(2, 0, 0));
-  assert.deepEqual(done.balances, { holosTokens: 725, gachaTickets: 4, buddyUnits: inv(2, 0, 0) });
+  // DECISIONS #58: the chain's rival win also pays the repeat-battle 100 Holos; the Arena win pays its own tier reward (entry paid with a pass).
+  const holos = 25 + 750 + 100 + ROOKIE_WIN_HOLOS;
+  assert.equal(p.holosTokens, holos); assert.equal(p.gachaTickets, 4); assert.deepEqual(p.buddyUnits, inv(2, 0, 0));
+  assert.deepEqual(done.balances, { holosTokens: holos, gachaTickets: 4, buddyUnits: inv(2, 0, 0) });
   await exportFixture('intro-quest-1_claim_chain_complete', done);
 });
 
@@ -119,6 +151,47 @@ test('rival verification uses a baseline: wins from before the step became curre
   await assert.rejects(() => claim(uid, 'win_rival_battle'), /not_met/);
   await winRival(uid, T0 + 6 * 60000); // past the 5-min rival cooldown (DECISIONS #58 am. 1)
   assert.equal((await claim(uid, 'win_rival_battle')).reward.holos, 100);
+});
+
+test('Arena verification reads the server record: only a win closed after the step became current counts', async () => {
+  // Client-writable profile counters and earlier wins prove nothing.
+  const uid = await setup({ buddyUnits: inv(0, 0, 1), wins: 40 });
+  await fightArena(uid, T0 - 60000);
+  await toArenaStep(uid);
+  await assert.rejects(() => claim(uid, 'win_arena_battle'), /not_met/, 'a win before the step became current');
+  await fightArena(uid, T0 + 2000, false);
+  await assert.rejects(() => claim(uid, 'win_arena_battle'), /not_met/, 'a loss');
+  const holosBefore = (await user(uid)).holosTokens;
+  await fightArena(uid, T0 + 10000);
+  const arenaPaid = (await user(uid)).holosTokens - holosBefore;
+  assert.equal(arenaPaid, ROOKIE_WIN_HOLOS);
+  assert.equal((await claim(uid, 'win_arena_battle')).reward.holos, 150);
+  await assert.rejects(() => claim(uid, 'win_arena_battle', 'another_req'), /already_claimed/);
+  assert.equal((await user(uid)).holosTokens, holosBefore + arenaPaid + 150, 'the step pays once, on top of the Arena win reward');
+});
+
+test('old docs from the 7-step chain work through the callable and the Mission Board, and status never rewrites them', async () => {
+  for (let n = 0; n <= 7; n++) {
+    const uid = await setup();
+    await db.doc(`introQuests/${uid}`).set(oldDoc(n));
+    const st = await introQuestHost.run({ auth: { uid }, data: { operation: 'status' } });
+    assert.equal(st.status.complete, n === 7, `index ${n}`);
+    assert.equal(st.status.currentStepId, ['visit_mission_board', 'visit_marketplace', 'visit_workshop', 'capture_buddy', 'win_rival_battle', 'win_arena_battle', 'chain_complete', ''][n], `index ${n}`);
+    assert.deepEqual(await questDoc(uid), oldDoc(n), 'status writes nothing');
+    const board = await transactMissionBoard(db, uid, { operation: 'status' }, T0 + 5, 'cd'.repeat(16));
+    assert.equal(board.introPending, n < 7, `board at index ${n}`);
+    assert.deepEqual(await questDoc(uid), oldDoc(n), 'the board never writes intro state');
+  }
+  // Old index 6: the bonus pays once and the doc is stored in the new shape.
+  const uid = await setup();
+  await db.doc(`introQuests/${uid}`).set(oldDoc(6));
+  const done = await claim(uid, 'chain_complete');
+  assert.equal(done.status.complete, true); assert.equal(done.reward.holos, 150); assert.equal(done.status.totalReward.holos, 600);
+  const stored = await questDoc(uid);
+  assert.equal(stored.currentIndex, 8); assert.equal(stored.claims.win_arena_battle.reward.holos, 0);
+  assert.equal((await user(uid)).holosTokens, 150);
+  await assert.rejects(() => claim(uid, 'win_arena_battle', 'late_try'), /already_claimed/);
+  assert.equal((await user(uid)).holosTokens, 150);
 });
 
 test('no starter farm: a malformed quest doc fails closed (never reset, never re-paid); the doc survives every client path', async () => {

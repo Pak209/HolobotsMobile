@@ -10,7 +10,7 @@ const {rivalBattleHost}=require('../lib/rival/rivalBattleHost.js');
 const D=require('../lib/lib/duelResolver.js');
 const L=require('../lib/lib/rivalLadder.js');
 const now=Date.UTC(2026,9,14), seed=()=>0.4;
-const base={schemaVersion:'rival-battle-3'};
+const base={schemaVersion:'rival-battle-3',duelSchema:'duel-receipt-1'};
 let serial=0;
 const call=(uid,c,time=now,options={issueLegacy:false,allowLegacySettlement:false})=>host(db,uid,{...base,...c},time,seed,options);
 const user=async uid=>(await db.doc(`users/${uid}`).get()).data();
@@ -86,9 +86,43 @@ test('foreign/unknown/expired/too-fast requests cannot award from a deterministi
  const settle={operation:'settle',battleId:i.battleId,playerIntents:['strike']};
  await assert.rejects(()=>call(bob,settle,now+20000),/unknown_battle/);
  await assert.rejects(()=>call(alice,{...settle,battleId:'rb_missing'},now+20000),/unknown_battle/);
- await assert.rejects(()=>call(alice,settle,now+1),/too_fast/);
+ await assert.rejects(()=>call(alice,settle,now+1),e=>e.code==='too_fast'&&e.retryAfterMs===L.RIVAL_MIN_WIN_MS-1);
  await assert.rejects(()=>call(alice,settle,now+L.RIVAL_BATTLE_TTL_MS+1),/battle_expired/);
  assert.equal((await record(alice,i.battleId)).settlement,null);
+});
+test('capability opt-in: without duelSchema the env flag issues legacy; a bad value is refused; opt-in without the flag stays legacy',async()=>{
+ const plain={schemaVersion:'rival-battle-3'},on={issueLegacy:false,allowLegacySettlement:true};
+ const old=await setup();const issued=await host(db,old,{...plain,operation:'issue'},now,seed,on);
+ assert.equal(issued.duel.mode,'legacy','an older build keeps the legacy path regardless of env');
+ const settled=await host(db,old,{...plain,operation:'settle',battleId:issued.battleId,didWin:true},now+20000,seed,on);
+ assert.equal(settled.holosGranted,100);assert.equal(settled.duelReceipt,undefined);
+ for(const duelSchema of ['duel-receipt-0',1,null]){const uid=await setup();await assert.rejects(()=>host(db,uid,{...plain,operation:'issue',duelSchema},now,seed,on),/invalid_request/);assert.equal((await db.doc(`rivalBattles/${uid}`).get()).exists,false);}
+ const off=await setup();assert.equal((await host(db,off,{...base,operation:'issue'},now,seed,{issueLegacy:true,allowLegacySettlement:true})).duel.mode,'legacy');
+});
+test('a fast SEND is refused before resolving for winning and losing plans alike: retryAfterMs, nothing written, resend settles',async()=>{
+ const strong=await setup({level:99}),weak=await setup({rivalWins:90});
+ for(const [uid,intents,winner,holos] of [[strong,['strike'],'player',100],[weak,['defend'],'opponent',25]]){
+  const i=await call(uid,{operation:'issue'}),b=await record(uid,i.battleId),before=await user(uid);
+  assert.equal(D.resolveDuel({...b.duel.input,playerIntents:intents}).winner,winner);
+  await assert.rejects(()=>call(uid,{operation:'settle',battleId:i.battleId,playerIntents:intents},now+5000),e=>e.code==='too_fast'&&e.retryAfterMs===L.RIVAL_MIN_WIN_MS-5000);
+  assert.equal((await record(uid,i.battleId)).settlement,null);assert.deepEqual(await user(uid),before);
+  const late=await call(uid,{operation:'settle',battleId:i.battleId,playerIntents:intents},now+L.RIVAL_MIN_WIN_MS);
+  assert.equal(late.holosGranted,holos);
+ }
+ const c=await setup({level:99});const i=await call(c,{operation:'issue'},Date.now()); // The callable uses the wall clock.
+ await assert.rejects(()=>rivalBattleHost.run({auth:{uid:c},data:{...base,operation:'settle',battleId:i.battleId,playerIntents:['strike']}}),e=>e.code==='failed-precondition'&&e.details.rejectionCode==='too_fast'&&e.details.retryAfterMs>0);
+});
+test('a duel-healing run bound to the resolver battle owns the HP; another run or none lets the receipt write it',async()=>{
+ const healed=await setup({level:99,holobotVitals:{ace:{currentHealth:100,maxHealth:9999}}});
+ const i=await call(healed,{operation:'issue'}),hp=(await user(healed)).holobotVitals;
+ await db.doc(`duelHealingRuns/${healed}`).set({rivalBattleId:i.battleId,open:true});
+ const r=await call(healed,{operation:'settle',battleId:i.battleId,playerIntents:['strike']},now+20000);
+ assert.deepEqual((await user(healed)).holobotVitals,hp,'the bound run keeps the ledger');assert.ok(r.duelReceipt);
+ const other=await setup({level:99,holobotVitals:{ace:{currentHealth:100,maxHealth:9999}}});
+ const j=await call(other,{operation:'issue'});
+ await db.doc(`duelHealingRuns/${other}`).set({rivalBattleId:'rb_another',open:false});
+ const s=await call(other,{operation:'settle',battleId:j.battleId,playerIntents:['strike']},now+20000);
+ assert.equal((await user(other)).holobotVitals.ace.currentHealth,s.duelReceipt.playerFinal[0].currentHealth);
 });
 test('missing owned squad refuses resolver admission and callable exposes typed auth/refusal codes',async()=>{
  const uid=await setup({holobots:[],travelSquad:{schemaVersion:'travel-squad-1',revision:1,holobotIds:[]}});
