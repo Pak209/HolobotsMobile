@@ -1,6 +1,6 @@
 /**
  * Cup prizes and the Workshop's part tiers (Pak, 2026-11-08: "Prizes + part-tier unlock"). ONE data module: each cup
- * (starter, champion, rare) pays a one-time prize on its first win, and storyFlags.tournamentsWon opens the next tier
+ * (starter, champion, rare = the Elite Cup, and the dormant legends) pays a one-time prize on its first win, and storyFlags.tournamentsWon opens the next tier
  * of Workshop parts. No new story flag: Unity's TournamentBracketReplies rejects unknown storyFlags keys, and
  * tournamentsWon already says exactly which cups are won (they are won in order).
  * Every amount here is PROPOSED (functions/src/story/CUP_PRIZES.md); Pak tunes the constants.
@@ -12,9 +12,10 @@ import { MARKETPLACE_PART_PRICES } from "./economy";
 import { holosAfterGrant } from "./rivalLadder";
 
 export const CUP_PRIZE_SCHEMA = "cup-prize-1";
-export type CupId = "starter" | "champion" | "rare";
-export const CUP_IDS: readonly CupId[] = ["starter", "champion", "rare"];
-export const CUP_NAMES: Readonly<Record<CupId, string>> = Object.freeze({ starter: "Starter Cup", champion: "Champion Cup", rare: "Rare Cup" });
+/** `rare` is the stored id of the Elite Cup (renamed 2026-11-09; the id stays so stored data and shipped clients keep working). */
+export type CupId = "starter" | "champion" | "rare" | "legends";
+export const CUP_IDS: readonly CupId[] = ["starter", "champion", "rare", "legends"];
+export const CUP_NAMES: Readonly<Record<CupId, string>> = Object.freeze({ starter: "Starter Cup", champion: "Champion Cup", rare: "Elite Cup", legends: "Legends Cup" });
 
 export type CupPrize = { holos: number; blueprints: number; heavyBuddyUnits: number };
 /** Pak 2026-11-08: "Bigger prizes", about 1.5x the first proposal. `blueprints` are of the Holobot the pilot won the cup with. */
@@ -22,6 +23,7 @@ export const CUP_PRIZES: Readonly<Record<CupId, CupPrize>> = Object.freeze({
   starter: { holos: 750, blueprints: 15, heavyBuddyUnits: 0 },
   champion: { holos: 1500, blueprints: 25, heavyBuddyUnits: 0 },
   rare: { holos: 3000, blueprints: 30, heavyBuddyUnits: 1 },
+  legends: { holos: 6000, blueprints: 40, heavyBuddyUnits: 2 }, // PROPOSED (2026-11-09), dormant until the Legends Cup goes live.
 });
 
 /** PROPOSED. A part's tier is its price; `cupsWon` = the tournamentsWon a pilot needs to buy that tier. */

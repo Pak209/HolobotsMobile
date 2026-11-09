@@ -5,7 +5,8 @@
   "prizes": {
     "starter": { "holos": 750, "blueprints": 15, "heavyBuddyUnits": 0 },
     "champion": { "holos": 1500, "blueprints": 25, "heavyBuddyUnits": 0 },
-    "rare": { "holos": 3000, "blueprints": 30, "heavyBuddyUnits": 1 }
+    "rare": { "holos": 3000, "blueprints": 30, "heavyBuddyUnits": 1 },
+    "legends": { "holos": 6000, "blueprints": 40, "heavyBuddyUnits": 2 }
   },
   "partTiers": [
     { "price": 300, "cupsWon": 0, "cupId": null },

@@ -70,14 +70,14 @@ test('equipHolobotPart request validation', () => {
 });
 
 test('equipHolobotPart copies the OWNED part record (never request data) into one slot', () => {
-  const data = { holobots: [{ name: 'ACE' }], parts, equippedParts: { ACE: { core: { id: 'p3', name: 'Pulse Core', rarity: 'Legendary', slot: 'core' } } } };
+  const data = { holobots: [{ name: 'ACE' }], parts, storyFlags: { tournamentsWon: 2 }, equippedParts: { ACE: { core: { id: 'p3', name: 'Pulse Core', rarity: 'Legendary', slot: 'core' } } } };
   const out = L.buildEquipPart(data, { holobotName: 'ACE', slot: 'head', partId: 'p1', rarity: 'Mythic' });
   assert.deepEqual(out.updates, { equippedParts: { ACE: { head: { id: 'p1', name: 'Neon Visor', rarity: 'Epic', slot: 'head' } } } });
   assert.equal(out.reply.changed, true);
 });
 
 test('equipHolobotPart: synthesized ids match the HomeScreen fallback `${name}-${index}`', () => {
-  const out = L.buildEquipPart({ holobots: [{ name: 'ACE' }], parts }, { holobotName: 'ACE', slot: 'torso', partId: 'Titan Chassis-1' });
+  const out = L.buildEquipPart({ holobots: [{ name: 'ACE' }], parts, storyFlags: { tournamentsWon: 2 } }, { holobotName: 'ACE', slot: 'torso', partId: 'Titan Chassis-1' });
   assert.equal(out.reply.part.name, 'Titan Chassis');
 });
 

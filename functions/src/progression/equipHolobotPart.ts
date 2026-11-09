@@ -1,6 +1,7 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
 import { db } from "../admin";
+import { CUP_NAMES } from "../lib/cupRewards";
 import { buildEquipPart, validateEquipPartRequest } from "../lib/holobotLoadout";
 
 /**
@@ -38,6 +39,9 @@ export const equipHolobotPart = onCall(async (request) => {
     }
     if (outcome === "slot_mismatch") {
       throw new HttpsError("failed-precondition", "That part does not fit this slot.", { rejectionCode: "slot_mismatch" });
+    }
+    if ("locked" in outcome) {
+      throw new HttpsError("failed-precondition", `Win the ${CUP_NAMES[outcome.locked]} to equip this part.`, { rejectionCode: "part_locked" });
     }
     if (outcome.updates) {
       transaction.set(userRef, outcome.updates, { merge: true });

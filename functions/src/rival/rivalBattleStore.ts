@@ -18,6 +18,7 @@ import { FightReplayError, FightReplayVerdict, verifyFightReplay } from '../sim/
 import { buildFightReplayIssue } from './fightReplayIssue';
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
+import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight } from '../lib/partStats';
 import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
@@ -176,7 +177,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (fightIssue) r.battle.duel = fightIssue;
       else if (legacyMode) r.battle.duel = {mode:'legacy'};
       else {
-        const input = {seed:resolverSeed,player:r.reply.playerCombatants.map(c=>duelFighterFromCombatant({...c,tier:r.battle.tier})),
+        const input = {seed:resolverSeed,player:r.reply.playerCombatants.map(c=>duelFighterFromCombatant({...applyPartBoosts(c,equippedPartBoosts(profile,c.holobotId)),tier:r.battle.tier})),
           opponent:r.reply.encounter.opponentSquad.map(c=>duelFighterFromCombatant({...c,tier:mentor ? 0 : r.battle.tier}))};
         try { resolveDuel({...input,playerIntents:['defend']}); } catch { throw new RivalError('unavailable'); }
         r.battle.duel = {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,input};
@@ -272,8 +273,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const bound=(await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
       if(bound?.rivalBattleId!==command.battleId){
         const b = battle.data()!;
+        // Part HP is a fight-time layer: the receipt's HP goes back to the ledger's scale.
         try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
-          receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:f.currentHealth}))); }
+          receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])}))); }
         catch { throw new RivalError('unavailable'); }
       }
     } else if(r.battleUpdates&&settleCommand.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");

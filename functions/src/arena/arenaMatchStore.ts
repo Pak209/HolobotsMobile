@@ -11,6 +11,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Firestore } from 'firebase-admin/firestore';
 import { ActivityError, arenaOpen, duelOpen } from '../lib/arenaActivity';
 import { withRankHealingReward } from '../lib/rankHealingReward';
+import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight, partBoostsChangeFight } from '../lib/partStats';
 import { ARENA_TIERS, getArenaTier, getArenaBaseRewards, getArenaBlueprintAmount, ArenaTierId } from '../lib/arenaEconomy';
 import { dailyMissionCounterUpdates } from '../lib/economy';
 import { BATTLE_COMBO_BONUS, BATTLE_PERFECT_DEFENSE_BONUS, BATTLE_LOSS_EXP_FRACTION, BATTLE_LOSS_SYNC_FRACTION, MAX_PERFORMANCE_EVENTS, EXP_BOOSTER_MULTIPLIER } from '../lib/battleSettlement';
@@ -130,6 +131,7 @@ function match(raw: unknown, id: string): Match {
     try { if (t.requiredLevel !== tournamentLevel(t.tournamentId)) return fail('unavailable'); }
     catch { return fail('unavailable'); }
   }
+  if (raw.partBoosts !== undefined && (raw.tournament === undefined || !object(raw.partBoosts) || ['attack','defense','speed','special','hp'].some(k => !whole((raw.partBoosts as Data)[k])))) return fail('unavailable');
   if (raw.bracket !== undefined && (!object(raw.bracket) || raw.bracket.schemaVersion !== 'arena-bracket-1'
     || raw.bracket.matchId !== id || !whole(raw.bracket.boundAtMs) || raw.bracket.boundAtMs < raw.issuedAtMs)) return fail('unavailable');
   assertFiniteTree(raw);
@@ -244,7 +246,7 @@ function uniqueEntrant(profile: Data, id: string): Data {
 function reply(stored: Match, alreadyProcessed = false) {
   const tier = ARENA_TIERS.findIndex(row => row.id === stored.tierId);
   // The resolver seed never leaves the host before settle; receipt and progression travel at the top level.
-  const { duel, duelReceipt, progression, ...m } = stored;
+  const { duel, duelReceipt, progression, partBoosts: _partBoosts, ...m } = stored; // Part boosts are host-only: they reach clients as the bracket's fighter.
   const resolver = duel ? { duel: { mode: 'resolver', schemaVersion: duel.schemaVersion, maxRounds: DUEL_MAX_ROUNDS, player: duel.input.player, opponent: duel.input.opponent } } : {};
   return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, ...resolver, ...(duelReceipt ? { duelReceipt } : {}), ...(progression ? { progression } : {}), match: {
     ...m, entrant: { ...m.entrant, ...arenaFighterSnapshot({holobotId:m.entrant.holobotId,level:m.entrant.level}, tier) },
@@ -350,17 +352,19 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         if (c.duelSchema === DUEL_RECEIPT_SCHEMA) {
           if (Math.floor(hp) <= 0) return fail('holobot_ko');
           const tierIndex = ARENA_TIERS.findIndex(row => row.id === tier.id);
-          const input = {seed:duelSeed,player:[duelFighterFromCombatant({...player,currentHealth:hp,tier:tierIndex})],opponent:[duelFighterFromCombatant({...opponentStats,tier:tierIndex})]};
+          const input = {seed:duelSeed,player:[duelFighterFromCombatant({...applyPartBoosts({...player,currentHealth:hp},equippedPartBoosts(profile,c.holobotId)),tier:tierIndex})],opponent:[duelFighterFromCombatant({...opponentStats,tier:tierIndex})]};
           resolveDuel({...input,playerIntents:['defend']}); // Validates the pinned block; RangeError -> unavailable.
           resolverDuel = {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,input};
         }
+        // A cup has no opt-in (the host always plays its bracket), so its parts are pinned here for the bracket to use at start.
+        const cupParts = tournament ? equippedPartBoosts(profile,c.holobotId) : undefined;
         const m: Match = {
           schemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,requestId:c.requestId,state:'issued',tierId:tier.id as ArenaTierId,
           issuedAtMs:nowMs,expiresAtMs:nowMs+ARENA_MATCH_TTL_MS,startedAtMs:null,closedAtMs:null,
           entrant:{...player,name:owned.name,currentHealth:hp,nextLevelExp:calculateExperience(player.level+1)},opponent:{...opponentStats,name:c.opponentName},
           entryReceipt:{matchId:generatedId,method:c.paymentMethod,amount,balanceBefore:before,balanceAfter:before-amount,chargedAtMs:nowMs},
           rules:{version:'arena-economy-legacy-1',entryFeeHolos:tier.entryFeeHolos,...getArenaBaseRewards(tier),blueprints:getArenaBlueprintAmount(tier),comboBonus:BATTLE_COMBO_BONUS,perfectDefenseBonus:BATTLE_PERFECT_DEFENSE_BONUS,lossExpFraction:BATTLE_LOSS_EXP_FRACTION,lossSyncFraction:BATTLE_LOSS_SYNC_FRACTION,maxPerformanceEvents:MAX_PERFORMANCE_EVENTS,expBoosterMultiplier:EXP_BOOSTER_MULTIPLIER},
-          settlementReceipt:null,...(tournament ? {tournament} : {}),...(resolverDuel ? {duel:resolverDuel} : {}),
+          settlementReceipt:null,...(tournament ? {tournament} : {}),...(cupParts && partBoostsChangeFight(cupParts) ? {partBoosts:cupParts} : {}),...(resolverDuel ? {duel:resolverDuel} : {}),
         };
         match(m,generatedId);
         tx.update(userRef,{[field]:before-amount,holobotVitals:vitals,
@@ -421,7 +425,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           if (sinceStart < ARENA_MIN_SETTLE_MS_CPU) throw new ArenaError('too_fast', ARENA_MIN_SETTLE_MS_CPU - sinceStart);
           duelOutcome = resolveDuel({...m.duel.input,playerIntents:c.playerIntents});
         }
-        const finalHealth = resolver ? (duelOutcome ? duelOutcome.playerFinal[0].currentHealth : m.entrant.currentHealth) : c.playerFinalHealth;
+        const finalHealth = resolver ? (duelOutcome ? ledgerHealthAfterFight(duelOutcome.playerFinal[0].currentHealth,duelOutcome.playerFinal[0].maxHealth,m.entrant as {currentHealth:number;maxHealth:number}) : m.entrant.currentHealth) : c.playerFinalHealth;
         if (!finite(finalHealth) || finalHealth < 0 || finalHealth > m.entrant.currentHealth) return fail('invalid_request');
         const issued: Vitals = {[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
         const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:finalHealth}]);

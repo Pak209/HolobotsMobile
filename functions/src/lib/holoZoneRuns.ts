@@ -41,6 +41,7 @@ import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgr
 import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, requireLivingVitals, settleVitals, Vitals } from "./rivalHealth";
 import { BATTLE_LOSS_HOLOS, BATTLE_WIN_HOLOS, buildPlayerCombatants, holosAfterGrant, PlayerCombatantSnapshot } from "./rivalLadder";
 import { DUEL_RECEIPT_SCHEMA, DuelIntent, DuelReceipt, resolveDuel, validateDuelIntents } from "./duelResolver";
+import { applyPartBoosts, equippedPartBoosts } from "./partStats";
 import { CourtDuelBlock, CourtDuelWire, courtDuelBlock, courtDuelWire, courtReportFromReceipt } from "./holoZoneCourtDuel";
 
 /** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
@@ -363,7 +364,8 @@ export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: str
       if (!fighter) throw new HoloZoneError("invalid_request");
       if (Math.floor(fighter.currentHealth) <= 0) throw new HoloZoneError("holobot_ko");
       try {
-        run.duel = courtDuelBlock(fighter, zoneId, tier, health.courtDuel.seed);
+        const gear = equippedPartBoosts(health.profile, fighter.holobotId);
+        run.duel = courtDuelBlock(applyPartBoosts(fighter, gear), zoneId, tier, health.courtDuel.seed, gear);
       } catch (e) {
         if (e instanceof RangeError) throw new HoloZoneError("unavailable");
         throw e;
@@ -400,7 +402,7 @@ export function courtSettleCommand<C extends Extract<HoloZoneCommand, { operatio
   } catch {
     throw new HoloZoneError("unavailable");
   }
-  return { command: { ...command, ...courtReportFromReceipt(run.duel, receipt) }, receipt };
+  return { command: { ...command, ...courtReportFromReceipt(run.duel, receipt, run.issuedVitals ?? {}) }, receipt };
 }
 
 /**

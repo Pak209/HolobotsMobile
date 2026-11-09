@@ -130,9 +130,13 @@ claimed `visit_portal` before this shipped sees the step `claimed: true` with a 
 
 **Mission Board.** New capture postings never name `kurai_garden`. A posting already on a board still reads and completes.
 
+**Equipped parts (branch `feat/parts-in-fights`).** `duel.player` and the receipt now include equipped parts on resolver fights, pinned at issue, so show the numbers in the block. The Guild Court Cacheback also gains the fighter's gear (ATK, DEF and HP 1:1), so read its numbers from `duel.opponent`. A part above the pilot's cups counts as unequipped; legendary parts need the Legends Cup. Part HP exists only in the fight: `duel.player[].maxHealth` can be higher than the Holobot's own max, and the receipt uses that scale, while the health ledger keeps the Holobot's own max and the same fraction of health. No wire keys change. `equipHolobotPart` refuses a rare part without the Starter Cup and an epic or legendary part without the Champion Cup: `failed-precondition`, `details.rejectionCode: "part_locked"`, message "Win the Starter Cup to equip this part." Re-saving a part already equipped stays a no-op.
+
+**Cup names.** The Rare Cup is now the Elite Cup: copy only, its `tournamentId` stays `"rare"`. A fourth cup, Legends, exists on the server but is dormant, so `tournamentsWon` stays 0..3 until clients ship readers for it (`story/CUP_PRIZES.md`).
+
 **Cup entry before the gathering.** `arenaMatchHost` `issue` with a `tournamentId` now refuses a pilot whose `storyFlags.arenaGatheringSeen` is false, with `details.rejectionCode: "not_admitted"` (`failed-precondition`), before anything is charged. A client should send the pilot to the Arena forecourt rather than offer a retry. A cup entry that was already charged can be undone with `arenaMatchHost` `cancel{matchId}`, which refunds the fee or pass and frees the lease.
 
 **Cup rides.** `cupPrize` (opt-in with `prizeSchema: "cup-prize-1"`) gains `ride`: `"skates"` for the Starter Cup,
-`"hoverboard"` for the Champion Cup, `null` for the Rare Cup. It is also present when `alreadyPaid` is true. To know what a pilot
+`"hoverboard"` for the Champion Cup, `null` for the Elite Cup. It is also present when `alreadyPaid` is true. To know what a pilot
 owns at any time, read `storyFlags.tournamentsWon`: 1 or more has skates, 2 or more has the hoverboard. There is no separate
 store or story flag. Lite's ride mode `board` is the hoverboard.

@@ -17,8 +17,8 @@ const ids = (reply) => reply.listings.map(l => l.listingId).sort();
 const prices = (reply) => [...new Set(reply.listings.map(l => l.price))].sort((a, b) => a - b);
 
 test('prize table (PROPOSED numbers), cup ids match the tournaments, every catalog part has a tier', () => {
-  assert.deepEqual(C.CUP_IDS, [...T.TOURNAMENTS]);
-  assert.deepEqual(C.CUP_PRIZES, { starter: { holos: 750, blueprints: 15, heavyBuddyUnits: 0 }, champion: { holos: 1500, blueprints: 25, heavyBuddyUnits: 0 }, rare: { holos: 3000, blueprints: 30, heavyBuddyUnits: 1 } });
+  assert.deepEqual(C.CUP_IDS, [...T.liveTournaments(), 'legends']);
+  assert.deepEqual(C.CUP_PRIZES, { starter: { holos: 750, blueprints: 15, heavyBuddyUnits: 0 }, champion: { holos: 1500, blueprints: 25, heavyBuddyUnits: 0 }, rare: { holos: 3000, blueprints: 30, heavyBuddyUnits: 1 }, legends: { holos: 6000, blueprints: 40, heavyBuddyUnits: 2 } });
   assert.deepEqual(C.PART_TIERS.map(t => [t.price, t.cupsWon, t.cupId]), [[300, 0, null], [750, 1, 'starter'], [1500, 2, 'champion']]);
   for (const o of E.MARKETPLACE_PART_CATALOG) assert.ok(C.PART_TIERS.some(t => t.price === o.price), o.id);
   assert.equal(C.partTierOpen(999, 3), false, 'a price outside the table is not for sale');
@@ -75,18 +75,39 @@ test('applyCupPrize: Holos, blueprints of the winning bot, Heavy Unit on Rare; e
   assert.deepEqual(r.userUpdates, { holosTokens: 12000, blueprints: { ace: 30 }, buddyUnits: { light: 1, medium: 0, heavy: 1 } });
   assert.deepEqual(C.cupPrizeView(s.receipt, false), { schemaVersion: 'cup-prize-1', cupId: 'starter', matchId: 'am_1', holobotId: 'ace', holos: 750, blueprints: 15, heavyBuddyUnits: 0, unlocksPartPrice: 750, ride: 'skates', alreadyPaid: false });
   assert.equal(C.cupPrizeView(r.receipt, true).unlocksPartPrice, null);
-  assert.equal(C.cupPrizeView(r.receipt, true).ride, null, 'the Rare Cup awards no ride');
+  assert.equal(C.cupPrizeView(r.receipt, true).ride, null, 'the Elite Cup awards no ride');
   for (const bad of [{ holosTokens: -1 }, { holosTokens: 'x' }, { blueprints: [] }, { blueprints: { ace: 'x' } }, { blueprints: { ace: 1.5 } }]) assert.equal(C.applyCupPrize(profile(0, bad), 'starter', 'ace', 'am', NOW), null, JSON.stringify(bad));
   assert.equal(C.applyCupPrize(profile(2, { buddyUnits: 'x' }), 'rare', 'ace', 'am', NOW), null);
 });
 
 test('rides: skates for the Starter Cup, the hoverboard for the Champion Cup, derived from tournamentsWon alone', () => {
   assert.deepEqual([0, 1, 2, 3].map(C.ridesUnlocked), [[], ['skates'], ['skates', 'hoverboard'], ['skates', 'hoverboard']]);
-  assert.deepEqual(C.CUP_IDS.map(C.rideForCup), ['skates', 'hoverboard', null]);
+  assert.deepEqual(C.CUP_IDS.map(C.rideForCup), ['skates', 'hoverboard', null, null]);
   // The reply says the ride on a replay too, and a receipt from before rides existed still shows it (no stored field).
   const receipt = { cupId: 'champion', matchId: 'am_2', holobotId: 'ace', awardedAtMs: 1, holos: 1500, blueprints: 25, heavyBuddyUnits: 0 };
   assert.equal(C.cupPrizeView(receipt, true).ride, 'hoverboard');
   assert.equal(C.readCupPrizeLedger({ schemaVersion: 'cup-prize-1', prizes: { champion: receipt } }).prizes.champion.ride, undefined, 'nothing about a ride is stored');
+});
+
+test('Elite Cup and the dormant Legends Cup: names only for rare; while dormant, legends and a fourth win are refused exactly as before', () => {
+  assert.equal(C.CUP_NAMES.rare, 'Elite Cup'); assert.equal(C.CUP_NAMES.legends, 'Legends Cup');
+  assert.deepEqual(C.CUP_PRIZES.legends, { holos: 6000, blueprints: 40, heavyBuddyUnits: 2 });
+  assert.equal(C.rideForCup('legends'), null);
+  const Sf = require('../lib/story/storyFlags.js');
+  const four = { arenaGatheringSeen: true, tournamentsWon: 4, arenaArcBuilt: true, holoZonesArcBuilt: false };
+  assert.deepEqual(T.liveTournaments(), ['starter', 'champion', 'rare']);
+  assert.throws(() => T.tournamentIndex('legends'), /invalid_request/);
+  assert.throws(() => Sf.readStoryFlags(four), /unavailable/);
+  assert.equal(Sf.readStoryFlags({ tournamentsWon: 3, arenaArcBuilt: true }).tournamentsWon, 3);
+  assert.throws(() => Sf.readStoryFlags({ tournamentsWon: 3, arenaArcBuilt: false }), /unavailable/);
+  Sf.STORY_CUPS.legendsLive = true;
+  try {
+    assert.deepEqual(T.liveTournaments(), ['starter', 'champion', 'rare', 'legends']);
+    assert.equal(T.tournamentLevel('legends'), 31); assert.equal(T.tournamentLevel('rare'), 21);
+    assert.equal(Sf.readStoryFlags(four).arenaArcBuilt, true);
+    assert.throws(() => Sf.readStoryFlags({ ...four, arenaArcBuilt: false }), /unavailable/);
+    assert.throws(() => Sf.readStoryFlags({ ...four, tournamentsWon: 5 }), /unavailable/);
+  } finally { Sf.STORY_CUPS.legendsLive = false; }
 });
 
 test('prize ledger: absent = empty; malformed = null, never treated as empty', () => {
