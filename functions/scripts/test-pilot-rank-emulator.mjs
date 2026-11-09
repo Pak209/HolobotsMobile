@@ -123,7 +123,7 @@ test('malformed rank and overflow refuse atomically instead of coercing or reset
 
 test('Holobot level thresholds stay 2/11/21 even with high pilotRank; zero pilotRank admits at each exact threshold',async()=>{
   for(const [id,level,count] of [['starter',2,0],['champion',11,1],['rare',21,2]]) {
-    const flags={...defaults,tournamentsWon:count};
+    const flags={...defaults,arenaGatheringSeen:true,tournamentsWon:count};
     const low=await setup({pilotRank:999,storyFlags:flags},level-1);
     await refused(low,()=>arena(low,'issue',admission(id)),'rank_too_low');
     assert.equal((await db.doc(`arenaMatches/${low}`).get()).exists,false);
@@ -135,7 +135,7 @@ test('Holobot level thresholds stay 2/11/21 even with high pilotRank; zero pilot
 });
 
 test('admission snapshots rank once, replay and terminal result keep it after account rank changes',async()=>{
-  const uid=await setup({pilotRank:7},2), fields=admission();
+  const uid=await setup({pilotRank:7,...{storyFlags:{...defaults,arenaGatheringSeen:true}}},2), fields=admission();
   await refused(uid,()=>arena(uid,'issue',{...fields,pilotRankAtAdmission:999}),'invalid_request');
   const issued=await arena(uid,'issue',fields), ref=db.doc(`arenaMatches/${uid}/matches/${issued.matchId}`);
   assert.equal(issued.match.tournament.pilotRankAtAdmission,7);
@@ -162,7 +162,7 @@ test('admission snapshots rank once, replay and terminal result keep it after ac
 });
 
 test('missing rank defaults at admission; pre-pilot-rank #80 tags remain replayable',async()=>{
-  const uid=await setup({},2), fields=admission(), issued=await arena(uid,'issue',fields);
+  const uid=await setup({storyFlags:{...defaults,arenaGatheringSeen:true}},2), fields=admission(), issued=await arena(uid,'issue',fields);
   assert.equal(issued.match.tournament.pilotRankAtAdmission,0);assert.equal((await profile(uid)).pilotRank,0);
   const {FieldValue}=require('firebase-admin/firestore');
   await db.doc(`arenaMatches/${uid}/matches/${issued.matchId}`).update({'tournament.pilotRankAtAdmission':FieldValue.delete()});
@@ -173,11 +173,11 @@ test('missing rank defaults at admission; pre-pilot-rank #80 tags remain replaya
 
 test('malformed account rank at admission and malformed persisted snapshot fail closed',async()=>{
   for(const pilotRank of [null,'5',-1,0.5]) {
-    const uid=await setup({pilotRank});
+    const uid=await setup({pilotRank,...{storyFlags:{...defaults,arenaGatheringSeen:true}}});
     await refused(uid,()=>arena(uid,'issue',admission()),'unavailable');
     assert.equal((await db.doc(`arenaMatches/${uid}`).get()).exists,false);
   }
-  const uid=await setup({pilotRank:4}), fields=admission(), issued=await arena(uid,'issue',fields);
+  const uid=await setup({pilotRank:4,...{storyFlags:{...defaults,arenaGatheringSeen:true}}}), fields=admission(), issued=await arena(uid,'issue',fields);
   const ref=db.doc(`arenaMatches/${uid}/matches/${issued.matchId}`);
   for(const value of [null,'4',-1,0.5]) {
     await ref.update({'tournament.pilotRankAtAdmission':value});

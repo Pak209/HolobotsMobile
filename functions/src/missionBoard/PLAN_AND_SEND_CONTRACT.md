@@ -130,6 +130,8 @@ claimed `visit_portal` before this shipped sees the step `claimed: true` with a 
 
 **Mission Board.** New capture postings never name `kurai_garden`. A posting already on a board still reads and completes.
 
+**Cup entry before the gathering.** `arenaMatchHost` `issue` with a `tournamentId` now refuses a pilot whose `storyFlags.arenaGatheringSeen` is false, with `details.rejectionCode: "not_admitted"` (`failed-precondition`), before anything is charged. A client should send the pilot to the Arena forecourt rather than offer a retry. A cup entry that was already charged can be undone with `arenaMatchHost` `cancel{matchId}`, which refunds the fee or pass and frees the lease.
+
 **Cup rides.** `cupPrize` (opt-in with `prizeSchema: "cup-prize-1"`) gains `ride`: `"skates"` for the Starter Cup,
 `"hoverboard"` for the Champion Cup, `null` for the Rare Cup. It is also present when `alreadyPaid` is true. To know what a pilot
 owns at any time, read `storyFlags.tournamentsWon`: 1 or more has skates, 2 or more has the hoverboard. There is no separate

@@ -21,6 +21,15 @@ export function requireNextTournament(rawFlags: unknown, id: unknown) {
   if (index > flags.tournamentsWon) throw new StoryError('tournament_locked');
   return flags;
 }
+/**
+ * A cup entry at arenaMatchHost issue: the bracket fields the 8 gathering citizens, so tournamentBracketHost start refuses a
+ * pilot who hasn't attended the gathering. Refusing here, with start's own code, happens before anything is charged.
+ * tournamentAdmission itself stays the eligibility rule the unlock notification reads.
+ */
+export function cupEntryAdmission(rawFlags: unknown, id: unknown, level: unknown, rawPilotRank?: unknown): TournamentAdmission {
+  if (!readStoryFlags(rawFlags).arenaGatheringSeen) throw new StoryError('not_admitted');
+  return tournamentAdmission(rawFlags, id, level, rawPilotRank);
+}
 export function tournamentAdmission(rawFlags: unknown, id: unknown, level: unknown, rawPilotRank?: unknown): TournamentAdmission {
   requireNextTournament(rawFlags,id);
   const requiredLevel = tournamentLevel(id);
