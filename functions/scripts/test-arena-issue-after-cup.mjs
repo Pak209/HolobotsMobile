@@ -33,6 +33,16 @@ const user = async (uid) => (await db.doc(`users/${uid}`).get()).data();
 const code = (c) => (e) => e.code === c;
 const RESOLVER = { duelSchema: 'duel-receipt-1' };
 
+test('a cup entry before the gathering is refused at issue before any charge; practice still issues', async () => {
+  const uid = await setup([strongAce()]);
+  const flags = (await user(uid)).storyFlags;
+  await db.doc(`users/${uid}`).update({ storyFlags: { ...flags, arenaGatheringSeen: false } });
+  const before = await user(uid);
+  await assert.rejects(() => issue(uid, { tournamentId: 'starter' }), code('not_admitted'));
+  assert.deepEqual(await user(uid), before);
+  assert.equal((await issue(uid)).match.tournament, undefined);
+});
+
 async function playCup(holobots, fields) {
   const uid = await setup(holobots);
   await G.transactArenaGathering(db, uid, { schemaVersion: 'arena-gathering-1' });

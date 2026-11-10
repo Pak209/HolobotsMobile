@@ -27,9 +27,10 @@ No existing request or reply shape changes. Every refusal from these callables c
 | 2 | `visit_workshop` | visit | `workshop` | client reports arrival | 75 | 0 | 0 |
 | 3 | `capture_buddy` | capture | — | **server-verified**: HARE captured | 100 | 0 | 1 |
 | 4 | `win_rival_battle` | rival | — | **server-verified**: `rivalWins` rose since the step became current | 100 | 1 | 0 |
-| 5 | `visit_portal` | visit | `portal_terminal` | client reports arrival | 75 | 0 | 0 |
-| 6 | `chain_complete` | bonus | — | all previous steps claimed | 150 | 1 | 0 |
-| | **Total** | | | | **600** | **3** | **1** |
+| 5 | `win_arena_battle` | arena | — | **server-verified**: an Arena `win` in the server-only `arenaMatches/{uid}/matches` closed after the step became current | 150 | 0 | 0 |
+| 6 | `visit_portal` | visit | `portal_terminal` | client reports arrival | 75 | 0 | 0 |
+| 7 | `chain_complete` | bonus | — | all previous steps claimed | 150 | 1 | 0 |
+| | **Total** | | | | **750** | **3** | **1** |
 
 **Visit steps: what "arrival" means.** The producer decision covers all four visit steps (`mission_board`, `marketplace`, `workshop`, `portal_terminal`).
 - **What counts:** the pilot came within the **HoloCity-side landmark's arrival radius**, 6 m. This is the minimap's existing `ArriveRadius`.
@@ -46,6 +47,8 @@ No existing request or reply shape changes. Every refusal from these callables c
 
   The client-writable `users/{uid}.holobots` array is **never** trusted. The sessions carry no location field, so "harbor" is presentation only and any captured HARE counts, including one captured before the quest reached this step.
 - **win_rival_battle:** when this step becomes current, which is the moment `capture_buddy` is claimed, the server records `rivalWins` as a baseline. The claim passes only once `users/{uid}.rivalWins` (server-only since #43) is above that baseline. Wins from before the step don't count.
+- **win_arena_battle (added 2026-11-08; 150 Holos, Pak's ruling):** the step's start time (`stepStartedAtMs`, set when `win_rival_battle` is claimed) is the baseline. The claim passes only once a match record with `state: settled`, `settlementReceipt.outcome: win` and `closedAtMs` after that time exists. Any Arena win through `arenaMatchHost` or the cup bracket counts, including one whose payout hit the daily cap. Note that a legacy (non-resolver) CPU match's outcome is the client's report, as a legacy rival settle's is. Pak's ruling: any Arena win counts for now; this tightens to server-resolved wins once plan-and-send is live.
+- **Docs from the 7-step chain:** a pilot at old index 0–5 keeps the same claims and has `win_arena_battle` ahead of them (old index 5 lands on it, before the Portal). A pilot who already claimed `visit_portal` (old index 6 or 7) has the step closed with a zero-reward claim (`requestId: waived_win_arena_battle`, `claimedAtMs: 0`): it shows `claimed: true` with a zero reward, cannot be claimed, and their `totalReward` is 600. Applied on read; persisted by their next claim.
 
 ### Requests
 
@@ -76,9 +79,9 @@ No existing request or reply shape changes. Every refusal from these callables c
       { "stepId": "visit_mission_board", "index": 0, "kind": "visit", "destinationId": "mission_board",
         "claimed": true, "claimedAtMs": 1790000000000, "current": false,
         "reward": { "holos": 50, "gachaTickets": 0, "buddyUnitsLight": 0 } }
-      // … one entry per step, in order; kind ∈ visit | capture | rival | bonus; destinationId "" for non-visit steps
+      // … one entry per step, in order; kind ∈ visit | capture | rival | arena | bonus (a client must accept unknown kinds or be updated before this ships); destinationId "" for non-visit steps
     ],
-    "totalReward": { "holos": 600, "gachaTickets": 3, "buddyUnitsLight": 1 }
+    "totalReward": { "holos": 750, "gachaTickets": 3, "buddyUnitsLight": 1 }
   },
   "balances": { "holosTokens": 50, "gachaTickets": 0, "buddyUnits": { "light": 1, "medium": 0, "heavy": 0 } }
 }
@@ -107,7 +110,7 @@ No existing request or reply shape changes. Every refusal from these callables c
 | `invalid_request` | `invalid-argument` | malformed body; unknown `stepId`; bad `requestId`; wrong or missing `destinationId` on a visit step; a `requestId` already used for a different step |
 | `out_of_order` | `failed-precondition` | the step is not the current step (anything ahead of it, including `chain_complete` early) |
 | `already_claimed` | `already-exists` | the step was already claimed with a different `requestId` |
-| `not_met` | `failed-precondition` | a verified step (`capture_buddy`, `win_rival_battle`) whose condition isn't met yet; retry once it is |
+| `not_met` | `failed-precondition` | a verified step (`capture_buddy`, `win_rival_battle`, `win_arena_battle`) whose condition isn't met yet; retry once it is |
 | `unavailable` | `unavailable` | missing profile; malformed quest state or balances (fails closed) |
 | — | `unauthenticated` | not signed in |
 
@@ -230,7 +233,7 @@ These three callables are still **not idempotent**: a retried request can buy tw
 1. **Intro quests:** call `introQuestHost`.
    - Render the quest log from `status.steps` (`claimed`, `current`, `reward`) and the HUD from `balances`.
    - When the player reaches a visit step's destination, send `claim {stepId, requestId, destinationId}` using that step's `destinationId` from `status`.
-   - For `capture_buddy` and `win_rival_battle`, send `claim` after the capture or win reply arrives. Treat `not_met` as "not yet".
+   - For `capture_buddy`, `win_rival_battle` and `win_arena_battle`, send `claim` after the capture or win reply arrives. Treat `not_met` as "not yet".
    - Claim `chain_complete` when it becomes current.
    - Keep one `requestId` per claim attempt and resend it on network retry.
    - Show `reward` from the reply. Never compute amounts or order locally.
@@ -251,6 +254,7 @@ These three callables are still **not idempotent**: a retried request can buy tw
    | `purchaseMarketplacePart` | equipment parts (**add to allowlist**) |
    | `wildEncounterHost` | the HARE capture for `capture_buddy`, and throwing bought Units |
    | `rivalBattleHost` | the win for `win_rival_battle` |
+| `arenaMatchHost` / `tournamentBracketHost` | the win for `win_arena_battle` |
 6. Unity holds no prices, rewards, order or verification logic. It renders replies only.
 
 Fixtures (generated by `functions/scripts/test-intro-quests-vendors-emulator.mjs` after its assertions pass): `fixtures/`.

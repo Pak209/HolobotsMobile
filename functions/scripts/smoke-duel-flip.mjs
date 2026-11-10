@@ -28,7 +28,7 @@ const { resolveDuel } = require(resolve(root, 'lib/lib/duelResolver.js'));
 const { RIVAL_MIN_WIN_MS } = require(resolve(root, 'lib/lib/rivalLadder.js'));
 const original = Object.fromEntries(['HOLOCITY_RIVAL_ISSUE_RESOLVER', 'HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN'].map(k => [k, process.env[k]]));
 const pilots = [];
-const call = (uid, data) => rivalBattleHost.run({ auth: { uid }, data: { schemaVersion: 'rival-battle-3', ...data } });
+const call = (uid, data) => rivalBattleHost.run({ auth: { uid }, data: { schemaVersion: 'rival-battle-3', duelSchema: 'duel-receipt-1', ...data } });
 const battle = (uid, id) => db.doc(`rivalBattles/${uid}/battles/${id}`);
 async function pilot() {
   const uid = `flip_smoke_${randomUUID()}`;
@@ -38,8 +38,8 @@ async function pilot() {
     travelSquad: { schemaVersion: 'travel-squad-1', revision: 1, holobotIds: ['ace'] } });
   return uid;
 }
-async function agedIssue(uid) {
-  const issued = await call(uid, { operation: 'issue' });
+async function agedIssue(uid, extra = {}) {
+  const issued = await call(uid, { operation: 'issue', ...extra });
   // Emulator fixture only: exercise the real callable without a 20-second wait.
   await battle(uid, issued.battleId).update({ issuedAtMs: Date.now() - RIVAL_MIN_WIN_MS - 1000 });
   return issued;
@@ -70,6 +70,14 @@ test('unset, 0 and true issue legacy; legacy remains settleable after flip', asy
     assert.equal(settled.duelReceipt, undefined);
     assert.equal(settled.holosGranted, 100);
   }
+});
+test('flag 1 without the client opt-in still issues legacy (older builds)', async () => {
+  process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER = '1';
+  const uid = await pilot(), issued = await agedIssue(uid, { duelSchema: undefined });
+  assert.equal(issued.duel.mode, 'legacy');
+  const settled = await call(uid, { operation: 'settle', battleId: issued.battleId, didWin: true });
+  assert.equal(settled.duelReceipt, undefined);
+  assert.equal(settled.holosGranted, 100);
 });
 test('explicit 1 settles from receipt; forged damage/didWin ignored; replay pays once', async () => {
   process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER = '1';

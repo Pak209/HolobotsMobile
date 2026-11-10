@@ -38,6 +38,14 @@ export const HOLOZONE_BEAST_STATS_TABLE: Readonly<Record<string, Readonly<Record
       root_nexus: { level: 12, maxHealth: 900, attack: 44, defense: 30, speed: 8, maxStamina: 120, staminaRegen: 12 },
     }),
   }),
+  // Guild Court plan-and-send (Pak, 2026-11-08). Holobot-scale numbers for a level 1 pilot, picked by resolver simulation
+  // (producer default, Pak tunes); HOLOZONE_BEAST_LEVEL_GROWTH scales them. Stamina is the duel resolver's host profile, so
+  // the row states it as 7 / 0.5. Not gated by the flag above.
+  guild_court: Object.freeze({
+    0: Object.freeze({
+      cacheback: { level: 1, maxHealth: 285, attack: 40, defense: 8, speed: 60, maxStamina: 7, staminaRegen: 0.5 },
+    }),
+  }),
 });
 
 export function holoZoneBeastStats(zoneId: string, tier: number, beastId: string): HoloZoneBeastStats | null {
@@ -48,6 +56,24 @@ export function holoZoneBeastStats(zoneId: string, tier: number, beastId: string
   if (!Object.prototype.hasOwnProperty.call(rows, beastId)) return null;
   const r = rows[beastId];
   return { level: r.level, maxHealth: r.maxHealth, attack: r.attack, defense: r.defense, speed: r.speed, maxStamina: r.maxStamina, staminaRegen: r.staminaRegen, rank: getHolobotRank(r.level) };
+}
+
+/**
+ * Zone → stat growth per pilot level above 1. 0.05 is the Holobots' own growth (+5% of level 1 per level), so the fight
+ * stays the same fight as the pilot levels. A zone not listed does not scale.
+ */
+export const HOLOZONE_BEAST_LEVEL_GROWTH: Readonly<Record<string, number>> = Object.freeze({ guild_court: 0.05 });
+const BEAST_MAX_LEVEL = 99;
+
+/** The row's stats for a fight against a pilot at `pilotLevel`: stat x (1 + growth x (level - 1)), rounded. Stamina never scales. */
+export function scaledBeastStats(zoneId: string, tier: number, beastId: string, pilotLevel: number): HoloZoneBeastStats | null {
+  const base = holoZoneBeastStats(zoneId, tier, beastId);
+  if (!base) return null;
+  const growth = Object.prototype.hasOwnProperty.call(HOLOZONE_BEAST_LEVEL_GROWTH, zoneId) ? HOLOZONE_BEAST_LEVEL_GROWTH[zoneId] : 0;
+  if (growth === 0) return base;
+  const level = Math.min(BEAST_MAX_LEVEL, Math.max(1, Math.floor(pilotLevel)));
+  const factor = 1 + growth * (level - 1);
+  return { ...base, level, maxHealth: Math.round(base.maxHealth * factor), attack: Math.round(base.attack * factor), defense: Math.round(base.defense * factor), speed: Math.round(base.speed * factor), rank: getHolobotRank(level) };
 }
 
 export function validBeastStats(s: HoloZoneBeastStats): boolean {

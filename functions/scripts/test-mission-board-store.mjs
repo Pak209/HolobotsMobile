@@ -68,6 +68,25 @@ test('intro step claims are forwarded to the ONE intro quest store (its rules, r
   await rejects(call(db, { operation: 'claim', postingId: 'capture_buddy', requestId: 'i5' }), 'not_complete');
 });
 
+test('Arena intro step through the board: forwarded, unmet maps to not_complete; a pre-Arena doc at old index 5 lands on it; a finished 7-step doc is complete', async () => {
+  const oldDoc = n => ({ schemaVersion: Q.INTRO_QUEST_SCHEMA, currentIndex: n, stepStartedAtMs: T0, rivalWinsAtStepStart: 0,
+    claims: Object.fromEntries(Q.INTRO_QUEST_STEPS.filter(s => s.stepId !== 'win_arena_battle').slice(0, n).map((s, i) => [s.stepId, { requestId: `intro_${i}`, claimedAtMs: T0 - 100, reward: { ...s.reward } }])) });
+  const db = fakeDb();
+  db.put(`users/${UID}`, baseUser());
+  db.put(`introQuests/${UID}`, oldDoc(5));
+  const st = await status(db);
+  assert.equal(st.introPending, true); assert.equal(st.intro.currentStepId, 'win_arena_battle');
+  assert.equal(st.intro.steps.find(s => s.stepId === 'win_arena_battle').kind, 'arena');
+  await rejects(call(db, { operation: 'claim', postingId: 'win_arena_battle', requestId: 'ia1' }), 'not_complete');
+  await rejects(call(db, { operation: 'claim', postingId: 'visit_portal', requestId: 'ia2', destinationId: 'portal_terminal' }), 'out_of_order');
+  const done = fakeDb();
+  done.put(`users/${UID}`, baseUser());
+  done.put(`introQuests/${UID}`, oldDoc(7));
+  const finished = await status(done);
+  assert.equal(finished.introPending, false); assert.equal(finished.intro, null);
+  assert.deepEqual(done.read(`introQuests/${UID}`), oldDoc(7), 'status leaves the old doc as stored');
+});
+
 test('after the intro chain: the first status issues three postings and persists them; later statuses keep them', async () => {
   const db = fakeDb();
   db.put(`users/${UID}`, baseUser());
@@ -81,7 +100,7 @@ test('after the intro chain: the first status issues three postings and persists
   assert.deepEqual(stored.slots.map(s => s.posting.postingId), st.postings.map(p => p.postingId));
   assert.equal(stored.seed, SEED); assert.equal(stored.seenThroughMs, T0);
   // Without a session: the 11 repeatable spots plus the Research Garden KURAI.
-  const expected = M.freshBoard(UID, SEED, { citizens: [], captureTargets: [...ALL_SPOTS, 'kurai_garden'] }, T0);
+  const expected = M.freshBoard(UID, SEED, { citizens: [], captureTargets: ALL_SPOTS }, T0);
   assert.deepEqual(st.postings.map(p => p.postingId), expected.slots.map(s => s.posting.postingId));
   const again = await status(db, T0 + 1000);
   assert.deepEqual(again.postings.map(p => p.postingId), st.postings.map(p => p.postingId));
@@ -89,13 +108,14 @@ test('after the intro chain: the first status issues three postings and persists
   assert.deepEqual(st.balances, { holosTokens: 0, blueprintFragments: 0, buddyUnits: { light: 0, medium: 0, heavy: 0 } });
 });
 
-test('candidates: citizens only after the Arena gathering; the 11 spots always; KURAI garden until linked; none for a disabled session', () => {
+test('candidates: citizens only after the Arena gathering; the 11 spots always; the garden KURAI never issued; none for a disabled session', () => {
   const p0 = baseUser();
-  assert.deepEqual(S.boardCandidates(UID, p0, undefined, false), { citizens: [], captureTargets: [...ALL_SPOTS, 'kurai_garden'] });
+  assert.deepEqual(S.boardCandidates(UID, p0, undefined, false), { citizens: [], captureTargets: ALL_SPOTS });
   assert.equal(S.boardCandidates(UID, baseUser({ storyFlags: { arenaGatheringSeen: true } }), undefined, false).citizens.length, 8);
   const session = (ended) => ({ enabled: true, encounters: [{ encounterId: 'city_kurai_garden', holobotId: 'kurai', ended, captureOpen: true }] });
-  assert.deepEqual(S.boardCandidates(UID, p0, session(false), true).captureTargets, [...ALL_SPOTS, 'kurai_garden']);
-  assert.deepEqual(S.boardCandidates(UID, p0, session(true), true).captureTargets, ALL_SPOTS, 'a linked garden KURAI is once-only');
+  assert.deepEqual(S.boardCandidates(UID, p0, session(false), true).captureTargets, ALL_SPOTS, 'the Research Garden KURAI is no longer issued');
+  assert.deepEqual(S.boardCandidates(UID, p0, session(true), true).captureTargets, ALL_SPOTS);
+  assert.ok(ALL_SPOTS.includes('kurai_missionboard'), 'KURAI stays a repeatable wild spot');
   assert.deepEqual(S.boardCandidates(UID, p0, { ...session(false), enabled: false }, true).captureTargets, []);
   assert.throws(() => S.boardCandidates(UID, baseUser({ storyFlags: 'bad' }), undefined, false), /unavailable/);
   // Capture receipts are read for the spot's current cycle and the two before it.
@@ -157,6 +177,17 @@ test('rival claim reads rivalBattles/{uid}/battles: the target pilot\'s settled 
   db.put(`rivalBattles/${UID}/battles/e`, battle(citizen, true, T0 + 30));
   const r = await call(db, { operation: 'claim', postingId: id, requestId: 'r1' }, T0 + 100);
   assert.equal(r.kind, 'rival'); assert.equal(db.read(`users/${UID}`).holosTokens, 105);
+});
+
+test('a kurai_garden posting already on a board still reads and completes, though no new one is issued', async () => {
+  const db = fakeDb();
+  const id = await boardWithPosting(db, 'capture', 'kurai_garden', { holobotId: 'kurai' });
+  db.put(`wildEncounterSessions/${UID}`, { enabled: true, revision: 3, rosterRevision: 1, encounters: [{ encounterId: 'city_kurai_garden', holobotId: 'kurai', ended: true, captureOpen: false }], entries: [] });
+  assert.equal((await status(db, T0 + 20)).postings[0].target, 'kurai_garden');
+  await rejects(call(db, { operation: 'claim', postingId: id, requestId: 'k0' }, T0 + 100), 'not_complete');
+  db.put(`wildEncounterSessions/${UID}/receipts/garden`, { digest: 'd', reply: { captureResult: { encounterId: 'city_kurai_garden', holobotId: 'kurai', captured: true } } }, T0 + 50);
+  assert.equal((await status(db, T0 + 95)).postings[0].state, 'complete');
+  assert.equal((await call(db, { operation: 'claim', postingId: id, requestId: 'k1' }, T0 + 100)).kind, 'capture');
 });
 
 test('capture claim reads wildEncounterSessions/{uid}/receipts for the target spot\'s cycles: a captured receipt created after issue', async () => {

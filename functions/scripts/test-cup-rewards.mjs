@@ -73,10 +73,20 @@ test('applyCupPrize: Holos, blueprints of the winning bot, Heavy Unit on Rare; e
   assert.deepEqual(C.applyCupPrize(profile(1), 'champion', 'tsuin', 'am_2', NOW).userUpdates, { holosTokens: 10500, blueprints: { tsuin: 25 } });
   const r = C.applyCupPrize(profile(2), 'rare', 'ace', 'am_3', NOW);
   assert.deepEqual(r.userUpdates, { holosTokens: 12000, blueprints: { ace: 30 }, buddyUnits: { light: 1, medium: 0, heavy: 1 } });
-  assert.deepEqual(C.cupPrizeView(s.receipt, false), { schemaVersion: 'cup-prize-1', cupId: 'starter', matchId: 'am_1', holobotId: 'ace', holos: 750, blueprints: 15, heavyBuddyUnits: 0, unlocksPartPrice: 750, alreadyPaid: false });
+  assert.deepEqual(C.cupPrizeView(s.receipt, false), { schemaVersion: 'cup-prize-1', cupId: 'starter', matchId: 'am_1', holobotId: 'ace', holos: 750, blueprints: 15, heavyBuddyUnits: 0, unlocksPartPrice: 750, ride: 'skates', alreadyPaid: false });
   assert.equal(C.cupPrizeView(r.receipt, true).unlocksPartPrice, null);
+  assert.equal(C.cupPrizeView(r.receipt, true).ride, null, 'the Rare Cup awards no ride');
   for (const bad of [{ holosTokens: -1 }, { holosTokens: 'x' }, { blueprints: [] }, { blueprints: { ace: 'x' } }, { blueprints: { ace: 1.5 } }]) assert.equal(C.applyCupPrize(profile(0, bad), 'starter', 'ace', 'am', NOW), null, JSON.stringify(bad));
   assert.equal(C.applyCupPrize(profile(2, { buddyUnits: 'x' }), 'rare', 'ace', 'am', NOW), null);
+});
+
+test('rides: skates for the Starter Cup, the hoverboard for the Champion Cup, derived from tournamentsWon alone', () => {
+  assert.deepEqual([0, 1, 2, 3].map(C.ridesUnlocked), [[], ['skates'], ['skates', 'hoverboard'], ['skates', 'hoverboard']]);
+  assert.deepEqual(C.CUP_IDS.map(C.rideForCup), ['skates', 'hoverboard', null]);
+  // The reply says the ride on a replay too, and a receipt from before rides existed still shows it (no stored field).
+  const receipt = { cupId: 'champion', matchId: 'am_2', holobotId: 'ace', awardedAtMs: 1, holos: 1500, blueprints: 25, heavyBuddyUnits: 0 };
+  assert.equal(C.cupPrizeView(receipt, true).ride, 'hoverboard');
+  assert.equal(C.readCupPrizeLedger({ schemaVersion: 'cup-prize-1', prizes: { champion: receipt } }).prizes.champion.ride, undefined, 'nothing about a ride is stored');
 });
 
 test('prize ledger: absent = empty; malformed = null, never treated as empty', () => {

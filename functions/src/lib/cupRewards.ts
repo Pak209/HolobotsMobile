@@ -31,6 +31,24 @@ export const PART_TIERS: readonly { price: number; cupsWon: number; cupId: CupId
   { price: MARKETPLACE_PART_PRICES.epic, cupsWon: 2, cupId: "champion" },
 ]);
 
+/**
+ * Rides are cup prizes (Pak, 2026-11-08): skates for the Starter Cup, the hoverboard for the Champion Cup. For every account,
+ * derived from storyFlags.tournamentsWon: no grandfathering, no new store, no new story flag.
+ */
+export type RideId = "skates" | "hoverboard";
+export const CUP_RIDES: readonly { cupId: CupId; rideId: RideId; cupsWon: number }[] = Object.freeze([
+  { cupId: "starter", rideId: "skates", cupsWon: 1 },
+  { cupId: "champion", rideId: "hoverboard", cupsWon: 2 },
+]);
+/** The rides a pilot has, from storyFlags.tournamentsWon. */
+export function ridesUnlocked(tournamentsWon: number): RideId[] {
+  return CUP_RIDES.filter((r) => tournamentsWon >= r.cupsWon).map((r) => r.rideId);
+}
+/** The ride `cupId` awards, or null. */
+export function rideForCup(cupId: CupId): RideId | null {
+  return CUP_RIDES.find((r) => r.cupId === cupId)?.rideId ?? null;
+}
+
 /** Fail closed: a price outside the tier table is not for sale until it is added here (a test pins the catalog). */
 export function partTierOpen(price: number, cupsWon: number): boolean {
   const tier = PART_TIERS.find((t) => t.price === price);
@@ -59,12 +77,12 @@ export function partTierView(cupsWon: number): PartTierView {
 export type CupPrizeReceipt = { cupId: CupId; matchId: string; holobotId: string; awardedAtMs: number; holos: number; blueprints: number; heavyBuddyUnits: number };
 /** Stored at cupPrizes/{uid} (server-only): one receipt per cup, so a story-flag reset can never pay a cup twice. */
 export type CupPrizeLedger = { schemaVersion: typeof CUP_PRIZE_SCHEMA; prizes: Partial<Record<CupId, CupPrizeReceipt>> };
-/** The wire block a request carrying `prizeSchema` gets. `unlocksPartPrice`: the part tier this cup opened (null: none). */
-export type CupPrizeView = Omit<CupPrizeReceipt, "awardedAtMs"> & { schemaVersion: typeof CUP_PRIZE_SCHEMA; unlocksPartPrice: number | null; alreadyPaid: boolean };
+/** The wire block a request carrying `prizeSchema` gets. `unlocksPartPrice`: the part tier this cup opened (null: none). `ride`: the ride this cup awards (null: none). */
+export type CupPrizeView = Omit<CupPrizeReceipt, "awardedAtMs"> & { schemaVersion: typeof CUP_PRIZE_SCHEMA; unlocksPartPrice: number | null; ride: RideId | null; alreadyPaid: boolean };
 
 export function cupPrizeView(r: CupPrizeReceipt, alreadyPaid: boolean): CupPrizeView {
   const { awardedAtMs: _at, ...rest } = r;
-  return { schemaVersion: CUP_PRIZE_SCHEMA, ...rest, unlocksPartPrice: PART_TIERS.find((t) => t.cupId === r.cupId)?.price ?? null, alreadyPaid };
+  return { schemaVersion: CUP_PRIZE_SCHEMA, ...rest, unlocksPartPrice: PART_TIERS.find((t) => t.cupId === r.cupId)?.price ?? null, ride: rideForCup(r.cupId), alreadyPaid };
 }
 
 const whole = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0;

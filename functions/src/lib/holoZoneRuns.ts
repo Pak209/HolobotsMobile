@@ -40,6 +40,8 @@ import { MAX_PERFORMANCE_EVENTS, computeBattleSettlement } from "./battleSettlem
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, requireLivingVitals, settleVitals, Vitals } from "./rivalHealth";
 import { BATTLE_LOSS_HOLOS, BATTLE_WIN_HOLOS, buildPlayerCombatants, holosAfterGrant, PlayerCombatantSnapshot } from "./rivalLadder";
+import { DUEL_RECEIPT_SCHEMA, DuelIntent, DuelReceipt, resolveDuel, validateDuelIntents } from "./duelResolver";
+import { CourtDuelBlock, CourtDuelWire, courtDuelBlock, courtDuelWire, courtReportFromReceipt } from "./holoZoneCourtDuel";
 
 /** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
 export const HOLOZONE_SCHEMA = "holozone-run-1";
@@ -109,7 +111,7 @@ export const HOLOZONE_RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9
 export const HOLOZONE_FIELDED_ID = /^[a-z][a-z0-9_]{0,127}$/;
 
 /** zone_locked: issue refused while storyFlags.holoZonesArcBuilt is false (holoZoneStore; critic review 2026-10-17 #1). */
-export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "holobot_ko" | "activity_conflict" | "zone_cooldown" | "zone_locked" | "unavailable";
+export type HoloZoneErrorCode = "invalid_request" | "unknown_zone" | "unknown_run" | "run_expired" | "run_closed" | "holobot_ko" | "activity_conflict" | "zone_cooldown" | "zone_locked" | "too_fast" | "unavailable";
 export class HoloZoneError extends Error {
   constructor(public code: HoloZoneErrorCode, public retryAfterMs?: number) {
     super(code);
@@ -192,6 +194,8 @@ export type HoloZoneRunRecord = HoloZoneRunView & {
   healthSchema?: typeof RIVAL_HEALTH_SCHEMA;
   /** rival-health-1: the {currentHealth, maxHealth} each player combatant was issued with — the settle's bound. */
   issuedVitals?: Vitals;
+  /** Guild Court plan-and-send: the pinned fight (lib/holoZoneCourtDuel.ts); absent = a client-reported run. */
+  duel?: CourtDuelBlock;
 };
 
 export type HoloZoneRunsDoc = { schemaVersion: typeof HOLOZONE_RECORD_SCHEMA; runs: HoloZoneRunRecord[] };
@@ -204,8 +208,8 @@ export type HoloZoneRunsDoc = { schemaVersion: typeof HOLOZONE_RECORD_SCHEMA; ru
  */
 export type HoloZoneCommand = (
   | { operation: "status" }
-  | { operation: "issue"; zoneId: string }
-  | { operation: "settle"; runId: string; kills: number; bossDefeated: boolean; fielded: string[]; health?: HealthRow[] }
+  | { operation: "issue"; zoneId: string; duelSchema?: typeof DUEL_RECEIPT_SCHEMA; holobotId?: string }
+  | { operation: "settle"; runId: string; kills: number; bossDefeated: boolean; fielded: string[]; health?: HealthRow[]; playerIntents?: DuelIntent[] }
 ) & { schemaVersion: HoloZoneWireVersion; healthSchema?: typeof RIVAL_HEALTH_SCHEMA };
 
 /** lib/rivalHealth.ts throws its own error type (its message is the code); the zone host maps it onto the zone codes. */
@@ -228,10 +232,26 @@ export function validateHoloZoneCommand(raw: unknown): HoloZoneCommand {
   if (c.operation === "status") return { operation: "status", schemaVersion, ...flag };
   if (c.operation === "issue") {
     if (typeof c.zoneId !== "string" || !HOLOZONE_ZONE_ID.test(c.zoneId)) throw new HoloZoneError("invalid_request");
+    // Plan-and-send opt-in: Guild Court only, naming the one Holobot that fights. A request cannot pick anything else.
+    if (c.duelSchema !== undefined) {
+      if (c.duelSchema !== DUEL_RECEIPT_SCHEMA || !isCityCourtZone(c.zoneId) || typeof c.holobotId !== "string" || !HOLOZONE_FIELDED_ID.test(c.holobotId)) throw new HoloZoneError("invalid_request");
+      return { operation: "issue", zoneId: c.zoneId, duelSchema: DUEL_RECEIPT_SCHEMA, holobotId: c.holobotId, schemaVersion, ...flag };
+    }
     return { operation: "issue", zoneId: c.zoneId, schemaVersion, ...flag };
   }
   if (c.operation !== "settle") throw new HoloZoneError("invalid_request");
   if (typeof c.runId !== "string" || !HOLOZONE_RUN_ID.test(c.runId)) throw new HoloZoneError("invalid_request");
+  if (c.playerIntents !== undefined) {
+    // A resolver settle sends the plan only: no outcome, HP or fielded list is accepted from the client.
+    if (["kills", "bossDefeated", "fielded", "health", "healthSchema"].some((k) => c[k] !== undefined)) throw new HoloZoneError("invalid_request");
+    let playerIntents: DuelIntent[];
+    try {
+      playerIntents = validateDuelIntents(c.playerIntents);
+    } catch {
+      throw new HoloZoneError("invalid_request");
+    }
+    return { operation: "settle", runId: c.runId, kills: 0, bossDefeated: false, fielded: [], playerIntents, schemaVersion };
+  }
   if (typeof c.kills !== "number" || !Number.isSafeInteger(c.kills) || c.kills < 0) throw new HoloZoneError("invalid_request");
   if (typeof c.bossDefeated !== "boolean") throw new HoloZoneError("invalid_request");
   const f = c.fielded;
@@ -286,9 +306,9 @@ export function viewOf(r: HoloZoneRunRecord): HoloZoneRunView {
   return { runId: r.runId, zoneId: r.zoneId, tier: r.tier, squad: [...r.squad], issuedAtMs: r.issuedAtMs, expiresAtMs: r.expiresAtMs };
 }
 
-export type HoloZoneStatusReply = { schemaVersion: typeof HOLOZONE_SCHEMA; run: HoloZoneRunView | null };
+export type HoloZoneStatusReply = { schemaVersion: typeof HOLOZONE_SCHEMA; run: HoloZoneRunView | null; duel?: CourtDuelWire };
 /** rival-health-1: `playerCombatants` only on an issue that carried `healthSchema` (the rival-battle-3 player shape + currentHealth). */
-export type HoloZoneIssueReply = { schemaVersion: typeof HOLOZONE_SCHEMA } & HoloZoneRunView & { playerCombatants?: (PlayerCombatantSnapshot & { currentHealth: number })[] };
+export type HoloZoneIssueReply = { schemaVersion: typeof HOLOZONE_SCHEMA } & HoloZoneRunView & { playerCombatants?: (PlayerCombatantSnapshot & { currentHealth: number })[]; duel?: CourtDuelWire };
 export type HoloZoneSettleReply = {
   schemaVersion: typeof HOLOZONE_SCHEMA;
   runId: string;
@@ -300,12 +320,14 @@ export type HoloZoneSettleReply = {
   holosGranted: number;
   /** DECISIONS #58: blueprint_fragment paid (1 for a non-boss clear with >= 1 kill, else 0). holozone-run-2 only. */
   blueprintFragmentsGranted: number;
+  /** Guild Court plan-and-send: the host's receipt (stored at holoZoneRuns/{uid}/receipts/{runId}). */
+  duelReceipt?: DuelReceipt;
 };
 
 /** status → the open run (issued, unsettled, not superseded, not past expiresAtMs) or null. */
 export function holoZoneStatus(runs: readonly HoloZoneRunRecord[], nowMs: number): HoloZoneStatusReply {
   const open = [...runs].reverse().find((r) => isOpen(r, nowMs));
-  return { schemaVersion: HOLOZONE_SCHEMA, run: open ? viewOf(open) : null };
+  return { schemaVersion: HOLOZONE_SCHEMA, run: open ? viewOf(open) : null, ...(open?.duel ? { duel: courtDuelWire(open.duel) } : {}) };
 }
 
 /**
@@ -319,13 +341,13 @@ export function holoZoneStatus(runs: readonly HoloZoneRunRecord[], nowMs: number
  * the ledger to write (`holobotVitals`, lib/rivalHealth.ts issueVitals: exactly what the rival issue writes) and the
  * record keeps the issued values. Absent: the reply and the record are exactly as before and `userUpdates` is empty.
  */
-export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: string, squadIds: readonly string[], runId: string, nowMs: number, health?: { profile: Record<string, unknown>; includeHealth?: boolean }): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply; userUpdates: Record<string, unknown> } {
+export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: string, squadIds: readonly string[], runId: string, nowMs: number, health?: { profile: Record<string, unknown>; includeHealth?: boolean; courtDuel?: { holobotId: string; seed: number } }): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply; userUpdates: Record<string, unknown> } {
   if (!HOLOZONE_RUN_ID.test(runId)) throw new HoloZoneError("unavailable");
   const tier = holoZoneTier(zoneId);
   if (tier === null) throw new HoloZoneError("unknown_zone");
   if (runs.some((r) => r.runId === runId)) throw new HoloZoneError("unavailable");
   const run: HoloZoneRunRecord = { runId, zoneId, tier, squad: [...squadIds], issuedAtMs: nowMs, expiresAtMs: nowMs + HOLOZONE_RUN_TTL_MS, closedAtMs: null, settlement: null, progression: null };
-  let players: { playerCombatants: (PlayerCombatantSnapshot & { currentHealth: number })[] } | Record<string, never> = {};
+  let players: { playerCombatants: (PlayerCombatantSnapshot & { currentHealth: number })[]; duel?: CourtDuelWire } | Record<string, never> = {};
   const userUpdates: Record<string, unknown> = {};
   // Store always supplies the profile for admission, even when legacy clients omit healthSchema.
   if (health) asZone(() => requireLivingVitals(health.profile, squadIds));
@@ -336,10 +358,49 @@ export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: str
     run.healthSchema = RIVAL_HEALTH_SCHEMA;
     run.issuedVitals = Object.fromEntries(combatants.map((p) => [p.holobotId, { ...vitals[p.holobotId] }]));
     players = { playerCombatants: combatants.map((p) => ({ ...p, currentHealth: vitals[p.holobotId].currentHealth })) };
+    if (health.courtDuel) {
+      const fighter = players.playerCombatants.find((p) => p.holobotId === health.courtDuel!.holobotId);
+      if (!fighter) throw new HoloZoneError("invalid_request");
+      if (Math.floor(fighter.currentHealth) <= 0) throw new HoloZoneError("holobot_ko");
+      try {
+        run.duel = courtDuelBlock(fighter, zoneId, tier, health.courtDuel.seed);
+      } catch (e) {
+        if (e instanceof RangeError) throw new HoloZoneError("unavailable");
+        throw e;
+      }
+      players = { ...players, duel: courtDuelWire(run.duel) };
+    }
   }
   const next = runs.map((r) => (isOpen(r, nowMs) ? { ...r, closedAtMs: nowMs } : r));
   next.push(run);
   return { doc: { schemaVersion: HOLOZONE_RECORD_SCHEMA, runs: next.slice(-HOLOZONE_MAX_STORED_RUNS) }, reply: { schemaVersion: HOLOZONE_SCHEMA, ...viewOf(run), ...players }, userUpdates };
+}
+
+/**
+ * Turns a plan-and-send settle into the run report settleHoloZoneRun pays from. The stored mode decides: a pinned run needs
+ * a plan, an unpinned run refuses one. A run already settled passes through to its replay. A SEND inside HOLOZONE_MIN_XP_MS
+ * is refused here for every outcome, before resolving, so it is never a withheld run and never reveals how the plan goes.
+ */
+export function courtSettleCommand<C extends Extract<HoloZoneCommand, { operation: "settle" }>>(runs: readonly HoloZoneRunRecord[], command: C, nowMs: number): { command: C; receipt?: DuelReceipt } {
+  const run = runs.find((r) => r.runId === command.runId);
+  if (!run || run.settlement) return { command };
+  if (!run.duel) {
+    if (command.playerIntents !== undefined) throw new HoloZoneError("invalid_request");
+    return { command };
+  }
+  if (run.closedAtMs !== null) throw new HoloZoneError("run_closed");
+  if (nowMs > run.expiresAtMs) throw new HoloZoneError("run_expired");
+  if (command.playerIntents === undefined) throw new HoloZoneError("invalid_request");
+  if (run.duel.schemaVersion !== DUEL_RECEIPT_SCHEMA) throw new HoloZoneError("unavailable");
+  const sinceIssue = nowMs - run.issuedAtMs;
+  if (sinceIssue < HOLOZONE_MIN_XP_MS) throw new HoloZoneError("too_fast", HOLOZONE_MIN_XP_MS - sinceIssue);
+  let receipt: DuelReceipt;
+  try {
+    receipt = resolveDuel({ ...run.duel.input, playerIntents: command.playerIntents });
+  } catch {
+    throw new HoloZoneError("unavailable");
+  }
+  return { command: { ...command, ...courtReportFromReceipt(run.duel, receipt) }, receipt };
 }
 
 /**

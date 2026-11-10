@@ -18,7 +18,7 @@ import { FightReplayError, FightReplayVerdict, verifyFightReplay } from '../sim/
 import { buildFightReplayIssue } from './fightReplayIssue';
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
-import { issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
+import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
@@ -93,8 +93,11 @@ async function preVerifyFightReplay(db: Firestore, uid: string, request: Record<
 }
 
 export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean; fightChase?: boolean; fightAttrs?: boolean; readinessStart?: boolean; battleIq?: boolean } = {}) {
-  // One-release server flag. Requests cannot select or downgrade a stored mode.
-  const legacyMode = options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER !== '1';
+  // One-release server flag. Requests cannot select or downgrade a stored mode. A resolver battle also needs the client's
+  // per-request opt-in (`duelSchema`, as on arenaMatchHost): a build that doesn't ask keeps the legacy path whatever the env says.
+  const resolverAsked = (raw as Record<string, unknown> | null)?.duelSchema;
+  if ((raw as Record<string, unknown> | null)?.operation === 'issue' && resolverAsked !== undefined && resolverAsked !== DUEL_RECEIPT_SCHEMA) throw new RivalError('invalid_request');
+  const legacyMode = (options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER !== '1') || resolverAsked !== DUEL_RECEIPT_SCHEMA;
   // fight-host-1: "replay verification ON" (HOLOCITY_FIGHT_REPLAY=1, default off) issues input-log to clients that declare
   // duel-inputs-2 on a rival-battle-3 issue. The capability only opts INTO the verified mode; it cannot pick legacy/resolver.
   const fightReplay = options.fightReplay ?? process.env[FIGHT_REPLAY_FLAG] === '1';
@@ -222,6 +225,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       let intents;
       try { intents = validateDuelIntents(request.playerIntents); } catch { throw new RivalError('invalid_request'); }
       if (record.duel.schemaVersion !== DUEL_RECEIPT_SCHEMA) throw new RivalError('unavailable');
+      // Refused BEFORE resolving and for every outcome (arenaMatchStore's rule): a fast SEND changes nothing and can be resent
+      // once after retryAfterMs, so it is never a 0-pay loss and never tells the client how the plan would have gone.
+      const sinceIssue = nowMs - record.issuedAtMs;
+      if (Number.isFinite(record.expiresAtMs) && nowMs <= record.expiresAtMs && !(sinceIssue >= RIVAL_MIN_WIN_MS)) throw new RivalError('too_fast', Number.isFinite(sinceIssue) ? RIVAL_MIN_WIN_MS - sinceIssue : RIVAL_MIN_WIN_MS);
       try { receipt = resolveDuel({...record.duel.input,playerIntents:intents}); } catch { throw new RivalError('unavailable'); }
       settleCommand = {...command,didWin:receipt.winner === 'player',
         fielded:[...new Set(receipt.rounds.filter(round=>round.side==='player').map(round => round.attacker))]};
@@ -261,10 +268,14 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       }
     } else if (r.battleUpdates && receipt) {
       r.battleUpdates.duelReceipt = receipt;
-      const b = battle.data()!;
-      try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
-        receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:f.currentHealth}))); }
-      catch { throw new RivalError('unavailable'); }
+      // A duel-healing run bound to THIS battle owns the duel's HP (#57), as in the two other settle branches.
+      const bound=(await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
+      if(bound?.rivalBattleId!==command.battleId){
+        const b = battle.data()!;
+        try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
+          receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:f.currentHealth}))); }
+        catch { throw new RivalError('unavailable'); }
+      }
     } else if(r.battleUpdates&&settleCommand.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");
       // duel-healing-host-fix-1 (DECISIONS #57): a duel-healing run bound to THIS battle owns the duel's HP (bench heals settle
       // with the duel; its settle writes the ledger). The client rows are not applied here, so a healed bench bot presented

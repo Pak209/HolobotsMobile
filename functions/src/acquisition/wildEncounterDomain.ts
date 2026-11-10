@@ -76,9 +76,10 @@ export function emptySnapshot(units: BuddyInventory): Reply {
  * Caller supplies an authoritative provisioned session and the player's per-tier Buddy Units.
  * A capture needs session.rollSeed (the store adds one when missing; it is persisted with the
  * session write). Never trusts observed health. Returns `unitsAfter`; the caller persists it
- * only when it differs.
+ * only when it differs. `guaranteedHolobotId` (from the server-only intro state, never the request) makes a throw at that
+ * Holobot always land; the Unit is spent as usual and every other capture rolls normally.
  */
-export function execute(session: Session | undefined, raw: unknown, units: BuddyInventory): { session: Session; reply: Reply; unitsAfter: BuddyInventory } {
+export function execute(session: Session | undefined, raw: unknown, units: BuddyInventory, guaranteedHolobotId: string | null = null): { session: Session; reply: Reply; unitsAfter: BuddyInventory } {
   const c = validateCommand(raw);
   if (!session?.enabled) throw new HostError('unavailable');
   if (!isValidInventory(units)) throw new HostError('unavailable');
@@ -105,7 +106,8 @@ export function execute(session: Session | undefined, raw: unknown, units: Buddy
   const gate = e.items.find(x => x.kind === 'buddy_unit');
   if (!gate?.useAllowed) throw new HostError('not_allowed');
   const tier = tierById(i.toyId)!;
-  const chance = captureChance01(tier, e.chanceByAffinity, e.affinityTier);
+  const guaranteed = guaranteedHolobotId !== null && e.holobotId === guaranteedHolobotId;
+  const chance = guaranteed ? 1 : captureChance01(tier, e.chanceByAffinity, e.affinityTier);
   const base = { schemaVersion: ACQUISITION_SCHEMA as typeof ACQUISITION_SCHEMA, requestId: i.requestId, encounterId: e.encounterId, holobotId: e.holobotId, retryGuaranteed: false as const, ownershipOutcome: '' as const, blueprintDelta: 0, buddyUnitTier: tier.id, captureChance01: chance };
   if (units[tier.key] < BUDDY_UNITS_PER_CAPTURE) {
     // The player can meet a wild Holobot without that tier but cannot throw it. Typed outcome naming the tier;

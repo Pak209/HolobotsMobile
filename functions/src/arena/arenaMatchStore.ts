@@ -1,6 +1,6 @@
 import { arenaFighterSnapshot } from '../lib/arenaFighterSnapshot';
 import { expeditionOpen } from '../lib/arenaActivity';
-import { tournamentAdmission, tournamentIndex, tournamentLevel, ARENA_TOURNAMENT_SCHEMA } from '../story/arenaTournament';
+import { cupEntryAdmission, tournamentIndex, tournamentLevel, ARENA_TOURNAMENT_SCHEMA } from '../story/arenaTournament';
 import { StoryError } from '../story/storyFlags';
 import { PilotRankError } from '../account/pilotRank';
 /** Durable economy/HP receipts for the client-observed CPU practice sim (#56/#58).
@@ -332,7 +332,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const owned = uniqueEntrant(profile,c.holobotId);
         requireLivingVitals(profile,[c.holobotId]); // Validates the whole ledger; NEVER invoke city 40% revival.
         const player = buildPlayerCombatants(profile,[c.holobotId])[0];
-        const tournament = c.tournamentId === undefined ? undefined : tournamentAdmission(profile.storyFlags,c.tournamentId,player?.level,profile.pilotRank);
+        const tournament = c.tournamentId === undefined ? undefined : cupEntryAdmission(profile.storyFlags,c.tournamentId,player?.level,profile.pilotRank);
         if (!player || !finite(player.maxHealth) || player.maxHealth <= 0) return fail('unavailable');
         const current = profile.holobotVitals?.[c.holobotId];
         const hp = current ? Math.min(current.currentHealth,player.maxHealth) : player.maxHealth;

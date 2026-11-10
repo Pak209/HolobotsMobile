@@ -18,7 +18,7 @@ Fixture: `docs/contracts/mission-board-1.json`.
 | Refill on clear | 3 slots per pilot, always filled. A claimed slot keeps its posting (`state:'claimed'`, `refillAtMs`) until `MISSION_BOARD_REFILL_MS` = 10 min after the claim. The next `status` / `claim` after that time puts up a new posting. |
 | Capture postings (2026-11-08) | **50 Holos + 1 Light Buddy Unit** (`MISSION_BOARD_CAPTURE_REWARD`, `reward.items: [{itemId:'buddy_light', quantity:1}]`), no EXP and no fragment. Granted through the Buddy Unit inventory (`withTierDelta`). A capture posting issued before this ruling also pays this. |
 | Rewards match existing payouts | beast / rival: `BATTLE_WIN_HOLOS` = **100 Holos** plus the battle table's win EXP at the pilot's **current rival tier** (`tierForWins(users/{uid}.rivalWins)`, the rival ladder's tier; no performance bonus: tier 0 = 95, 1 = 137, 2 = 180, …; EXP Booster doubles it) for **every travel-squad Holobot**. The tier is read at claim time; status shows `reward.exp` at the current tier (`rivalTier` on the reply), and a claimed posting shows what it paid (`granted.expTier`). About 1 in 3 also pays **1 `blueprint_fragment`** (shown in `reward.items` before the claim). Visits pay the intro visit amounts, **50 / 75 Holos**, with no EXP. Grants reuse `holosAfterGrant`, `awardBattleExperienceRaw` and `itemStocksAfterFragmentGrant` (the zone clear grant). |
-| Intro quests alongside | While `introQuests/{uid}` is incomplete, `status` returns the intro chain first (`intro`, the `introQuestHost` status shape) **and** the 3 postings from day one. Postings are claimable during the intro. A `claim` whose `postingId` is an intro `stepId` is passed to the intro quest store unchanged, so its order, verification and rewards still apply. The board never copies intro state. |
+| Intro quests alongside | While `introQuests/{uid}` is incomplete, `status` returns the intro chain first (`intro`, the `introQuestHost` status shape) **and** the 3 postings from day one. Postings are claimable during the intro. A `claim` whose `postingId` is an intro `stepId` is passed to the intro quest store unchanged, so its order, verification and rewards still apply (including `win_arena_battle`, verified from `arenaMatches/{uid}/matches`). A doc from the 7-step chain reads through the intro module's upgrade, so a finished chain stays finished. The board never copies intro state. |
 | Repeatable wild spots | Capture postings target one of Unity's 11 wild spots (`WildHolobotTable_HoloCity.asset`), served by `cityEncounterHost` `provisionSpot` (below), or the once-only Research Garden KURAI. |
 | District ids | The shared city plan's `D01`…`D10` (`lib/cityDistricts.ts`, the Lite field's `cityPlan.generated.json` and its `cityDistrictAt` rule), resolved from plan coordinates. |
 
@@ -112,9 +112,9 @@ the transaction, so retries draw the same postings. `serial` counts up for each 
 - **rival:** `town_rival` (district D04, the Arena dome at (-22, -52.8)), `any` and the pilot's 8 Arena-gathering
   citizens from `gatheringRoster(uid)` (district D09, the Arena Gate kiosk at (-120, 70)); citizens only once
   `storyFlags.arenaGatheringSeen` is set.
-- **capture:** the 11 repeatable spots, always (each spot is provisioned on demand, see below), plus `kurai_garden`
-  (D06) until the Research Garden KURAI is linked (its `city_kurai_garden` encounter ended). A disabled session offers
-  none.
+- **capture:** the 11 repeatable spots, always (each spot is provisioned on demand, see below; `kurai_missionboard`
+  keeps KURAI as a repeatable wild spot). A disabled session offers none. `kurai_garden` (D06) is no longer issued
+  (Pak, 2026-11-08); a posting already on a board still reads and completes.
 - **visit:** the 5 landmarks above. `mission_board`, `marketplace`, `workshop` and `portal_terminal` use the intro
   quest ids. Holos: 50, 50, 75, 75 (harbor), 75. Districts, from the landmark building's position: Mission Board
   (-72, -88) D04, Market Row (112, -53) D05, Workshop Hall (-132, -1) D08, Ferry terminal (2, -153) D02, Portal

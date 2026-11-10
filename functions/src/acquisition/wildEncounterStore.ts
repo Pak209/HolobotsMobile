@@ -3,6 +3,7 @@ import { Firestore } from 'firebase-admin/firestore';
 import { emptySnapshot, execute, HostError, newRollSeed, Reply, Session, validateCommand, replayReceipt, currentReceiptReply } from './wildEncounterDomain';
 import { projectCapture, readTravelSquad } from './captureOwnership';
 import { BUDDY_UNITS_FIELD, BuddyInventory, readBuddyInventory } from '../lib/buddyUnits';
+import { guaranteedCaptureHolobot } from '../lib/introQuests';
 
 /**
  * DECISIONS #43/#44: the player's per-tier Buddy Units. A never-seen pilot gets the starter
@@ -56,7 +57,9 @@ export async function transactWildEncounter(db: Firestore, uid: string, raw: unk
         }
       }
       const session = snapshot.data() as Session;
-      const result = execute(session.rollSeed === undefined ? { ...session, rollSeed: seedIfMissing } : session, command, units);
+      // Read in this transaction, so a capture racing the intro claim rules on one state.
+      const guaranteed = command.operation === 'capture' ? guaranteedCaptureHolobot((await tx.get(db.doc(`introQuests/${uid}`))).data()) : null;
+      const result = execute(session.rollSeed === undefined ? { ...session, rollSeed: seedIfMissing } : session, command, units, guaranteed);
       result.reply.travelSquad = travelSquad;
       const userUpdates: Record<string, unknown> = { ...inventoryUpdates };
       if (result.reply.captureResult?.captured) {

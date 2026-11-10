@@ -126,7 +126,7 @@ test('mentor issue (D1): one WOLF on tier-0 stats for the ordinary (Kaz) issue a
   assert.deepEqual(i1.encounter.opponentSquad[0], L.rivalCombatant('wolf', L.getRivalTierRow(0)));
   // Resolver mode: the pinned opponent fighter is the tier-0 WOLF.
   const res = await setup({ ...atStep(2), rivalWins: 40 });
-  const ri = await rival(res, { operation: 'issue' }, T0, { issueLegacy: false, allowLegacySettlement: false });
+  const ri = await rival(res, { operation: 'issue', duelSchema: 'duel-receipt-1' }, T0, { issueLegacy: false, allowLegacySettlement: false });
   assert.equal(ri.duel.mode, 'resolver'); assert.equal(ri.duel.opponent.length, 1);
   assert.equal(ri.duel.opponent[0].holobotId, 'wolf'); assert.equal(ri.duel.opponent[0].tier, 0); assert.equal(ri.duel.opponent[0].level, 1);
   // Not the gathering citizens or Zell: only the ordinary issue is the mentor (gathering issue is refused before arenaGatheringSeen anyway).
@@ -191,7 +191,7 @@ test('mentor WIN pays and records normally: HP written, cooldown started, win Ho
 test('mentor in resolver mode: the host receipt decides; a loss keeps HP, a win writes the receipt HP', async () => {
   const uid = await setup({ ...atStep(3), holobotVitals: { ace: { currentHealth: 160, maxHealth: 160 } } });
   const opts = { issueLegacy: false, allowLegacySettlement: false };
-  const issue = await rival(uid, { operation: 'issue' }, T0, opts);
+  const issue = await rival(uid, { operation: 'issue', duelSchema: 'duel-receipt-1' }, T0, opts);
   const b = await record(uid, issue.battleId);
   let intents = null, winner = null;
   for (const candidate of [['defend'], ['defend', 'defend'], ['strike'], ['strike', 'strike', 'strike']]) {

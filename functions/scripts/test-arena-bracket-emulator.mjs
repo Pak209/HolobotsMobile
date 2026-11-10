@@ -75,11 +75,27 @@ test('missing, foreign, untagged, ungathered and already-started practice admiss
  await refused(uid,id,()=>call(uid,'start',id),'not_admitted');
  const ordinary=await issue(uid,null);await refused(uid,ordinary.matchId,()=>call(uid,'start',ordinary.matchId),'not_admitted');
  const tagged=await issue(foreign);await refused(uid,tagged.matchId,()=>call(uid,'start',tagged.matchId),'not_admitted');
- const ungathered=await setup(99,{storyFlags:{...flags,arenaGatheringSeen:false}}),a=await issue(ungathered);
+ // An admission charged before issue refused this (the flag cleared here to model it): start refuses, and cancel refunds and frees the lease.
+ const ungathered=await setup(99),a=await issue(ungathered),charged=await user(ungathered);
+ await db.doc(`users/${ungathered}`).update({storyFlags:{...flags,arenaGatheringSeen:false}});
  await refused(ungathered,a.matchId,()=>call(ungathered,'start',a.matchId),'not_admitted');
+ const undone=await transactArenaMatch(db,ungathered,{schemaVersion:'arena-match-1',operation:'cancel',matchId:a.matchId},T0+1);
+ assert.equal(undone.match.state,'cancelled');assert.equal(undone.match.settlementReceipt.refunded,true);
+ assert.equal((await user(ungathered)).arenaPassses,charged.arenaPassses+1);
+ assert.equal((await db.doc(`arenaMatches/${ungathered}`).get()).data().open,false);
  // Privileged fixture models an active match issued before bracket enforcement.
  await db.doc(`arenaMatches/${foreign}/matches/${tagged.matchId}`).update({state:'active',startedAtMs:T0});
  await refused(foreign,tagged.matchId,()=>call(foreign,'start',tagged.matchId),'not_admitted');
+});
+test('a cup entry before the gathering is refused at issue with start\'s code: nothing charged, no match, no lease; practice is unaffected',async()=>{
+ const uid=await setup(99,{storyFlags:{...flags,arenaGatheringSeen:false}}),before=await user(uid);
+ await assert.rejects(()=>issue(uid),code('not_admitted'));
+ assert.deepEqual(await user(uid),before);assert.equal((await db.doc(`arenaMatches/${uid}`).get()).exists,false);
+ assert.equal((await db.collection(`arenaMatches/${uid}/matches`).get()).size,0);
+ const practice=await issue(uid,null);assert.equal(practice.match.tournament,undefined);
+ await transactArenaGathering(db,uid,{schemaVersion:'arena-gathering-1'});
+ await transactArenaMatch(db,uid,{schemaVersion:'arena-match-1',operation:'cancel',matchId:practice.matchId},T0+1);
+ assert.equal((await issue(uid)).match.tournament.tournamentId,'starter','the same pilot enters after the gathering');
 });
 test('Holobot level gates remain exactly2/11/21, unrelated pilotRank does not replace them',async()=>{
  for(const [t,level,count]of[['starter',2,0],['champion',11,1],['rare',21,2]]){

@@ -143,7 +143,7 @@ test('rank thresholds 2/11/21 are enforced at admission without spending an entr
   await refused(uid,()=>issue(uid,id),'rank_too_low');
   assert.equal((await db.doc(`arenaMatches/${uid}`).get()).exists,false);
  }
- const uid=await setup();
+ const uid=await setup(21,{storyFlags:{...defaults,arenaGatheringSeen:true}});
  await refused(uid,()=>issue(uid,'champion'),'tournament_locked');
  await refused(uid,()=>result(uid,'rare','am_'+'a'.repeat(32)),'tournament_locked');
  await refused(uid,()=>issue(uid,'legend'),'invalid_request');
@@ -172,7 +172,7 @@ test('three historical tagged terminal wins at exact boundaries flip only Arena;
 });
 
 test('foreign, ordinary practice, wrong tournament and unfinished receipts cannot qualify',async()=>{
- const uid=await setup(), other=await setup();
+ const uid=await setup(21,{storyFlags:{...defaults,arenaGatheringSeen:true}}), other=await setup();
  const normal=await win(uid,undefined);
  await refused(uid,()=>result(uid,'starter',normal.matchId),'invalid_match');
  const tagged=await issue(uid,'starter',T0+3000);
@@ -200,7 +200,7 @@ test('loss and malformed host receipts fail closed; low admission level and corr
 });
 
 test('admission request replay preserves its tag and rejects changing a practice request into a tournament',async()=>{
- const uid=await setup(), fields={requestId:'stable_request',tierId:'rookie',paymentMethod:'pass',holobotId:'ace',opponentName:'HARE',tournamentId:'starter'};
+ const uid=await setup(21,{storyFlags:{...defaults,arenaGatheringSeen:true}}), fields={requestId:'stable_request',tierId:'rookie',paymentMethod:'pass',holobotId:'ace',opponentName:'HARE',tournamentId:'starter'};
  const a=await call(uid,'issue',fields), b=await call(uid,'issue',fields);
  assert.equal(b.alreadyProcessed,true);assert.equal(a.matchId,b.matchId);assert.equal(b.match.tournament.tournamentId,'starter');
  await refused(uid,()=>call(uid,'issue',{...fields,tournamentId:'champion'}),'request_conflict');
