@@ -9,3 +9,4 @@ export * from './brain';
 export * from './runner';
 export * from './inputLog';
 export * from './diff';
+export * from './plausibility';

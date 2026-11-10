@@ -516,6 +516,9 @@ export class FightCoreBrain implements FightBrainDriver {
       escapeCost: R.costEscapePm * 100, chargeCost: (R.costLightPm + R.costChargeDashPm) * 100, chargeMaxStartMm: R.minGapMm + R.chargeDashMm,
       shoveOnHeavyInClose: R.shoveOnHeavyInClose !== 0, specialHalfSync: R.specialHalfSync, specialFullSync: R.specialFullSync,
     };
+    // duel-rules-6: the brain's "can I beat it" estimate uses the LIGHT wind-up it would actually press (no extra draws)
+    const T = v.core.tempo;
+    if (T) { this.aiRules.openerTelegraphTicks = T.lightTelegraphTicks; this.aiRules.chainTelegraphTicks = Math.min(R.chainTelegraphTicks, T.lightTelegraphTicks); }
     if (!this.issuedProfile || !this.issuedSkill) throw new RangeError('brain_unissued');
     this.inner = new FightBrain(brainFromIssued(this.issuedProfile), skillFromIssued(this.issuedSkill), this.aiRules);
   }

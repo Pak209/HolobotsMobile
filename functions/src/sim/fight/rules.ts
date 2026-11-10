@@ -13,6 +13,11 @@ export const RULES_SCHEMA_4 = 'duel-rules-4';
  * `attrs` block + per-fighter `speed` / `special`; simVersion duel-sim-4 (the state hash prefix). */
 export const RULES_SCHEMA_5 = 'duel-rules-5';
 export const SIM_VERSION_4 = 'duel-sim-4';
+/** duel-rules-6 (server-rulings-1, Pak 2026-11-09 ruling 2 "length and snap"): duel-rules-5 + the `tempo` block (a separate light
+ * wind-up, chained lights capped at it, Guard / Step cancel a non-punishable recovery); simVersion duel-sim-5 (the state hash
+ * prefix). Issued ONLY to a client that asks for it at issue (`fightRules: 'duel-rules-6'`); tempo null = duel-rules-3/-4/-5 exactly. */
+export const RULES_SCHEMA_6 = 'duel-rules-6';
+export const SIM_VERSION_5 = 'duel-sim-5';
 export const TICK_HZ = 30;
 export const MAX_ROSTER_PER_SIDE = 3;
 
@@ -79,6 +84,17 @@ export const ATTR_KEYS = Object.keys(ATTR_DEFAULTS) as AttrKey[];
 export type FightAttrRules = { [K in AttrKey]: number };
 export function defaultAttrRules(): FightAttrRules { return { ...ATTR_DEFAULTS }; }
 
+/** FightTempoRules field initialisers (duel-rules-6 `tempo`), in FightTempoRules.Keys (= hash) order.
+ * lightTelegraphTicks: the opener light's wind-up (duel-rules-5 lights use telegraphTicks, shared with heavy / special); a chained
+ * light's wind-up is min(the chain formula, lightTelegraphTicks). cancelGuard / cancelStep (0/1): a held guard / a Step press
+ * ends the fighter's own Recovery. cancelPunishable (0/1): 0 = only a recovery that is NOT punishable (after a hit / guard break)
+ * can be cancelled, so a whiffed or blocked strike stays committed and punishable (the counter game). */
+export const TEMPO_DEFAULTS = { lightTelegraphTicks: 6, cancelGuard: 1, cancelStep: 1, cancelPunishable: 0 };
+export type TempoKey = keyof typeof TEMPO_DEFAULTS;
+export const TEMPO_KEYS = Object.keys(TEMPO_DEFAULTS) as TempoKey[];
+export type FightTempoRules = { [K in TempoKey]: number };
+export function defaultTempoRules(): FightTempoRules { return { ...TEMPO_DEFAULTS }; }
+
 /** duel-rules-5 only: the issued battle SPEED / SPECIAL (progression speed / intelligence). Serialized and hashed only in a
  * duel-rules-5 snapshot; duel-rules-3/-4 neither read nor write them (absent = 0 there, as C#'s default). */
 export type FightFighterDef = { id: string } & { [K in FighterKey]: number } & { speed?: number; special?: number };
@@ -96,6 +112,9 @@ export type DuelRules4Doc = Omit<DuelRules3Doc, 'schemaVersion'> & { schemaVersi
 export type DuelRules5Doc = Omit<DuelRules4Doc, 'schemaVersion' | 'simVersion' | 'fighters'> & {
   schemaVersion: typeof RULES_SCHEMA_5; simVersion: typeof SIM_VERSION_4; fighters: (FightFighterDef & { speed: number; special: number })[]; attrs: FightAttrRules;
 };
+
+/** The duel-rules-6 JSON document: duel-rules-5 with simVersion duel-sim-5 + `tempo` after `attrs`. */
+export type DuelRules6Doc = Omit<DuelRules5Doc, 'schemaVersion' | 'simVersion'> & { schemaVersion: typeof RULES_SCHEMA_6; simVersion: typeof SIM_VERSION_5; tempo: FightTempoRules };
 
 export class FightRulesError extends RangeError {}
 const fail = (code: string): never => { throw new FightRulesError(code); };
@@ -255,7 +274,36 @@ function rulesDoc34FromJson(o: unknown): { rules: FightRules; chase: FightChaseR
 
 /** FightRules.FromJsonAny(o, out chase, out attrs): duel-rules-3 (chase + attrs null), duel-rules-4 (attrs null) or duel-rules-5
  * (duel-rules-4 with simVersion duel-sim-4 + a strict attrs block + per-fighter speed / special). Same checks, order and codes as C#. */
-export function rulesDocFromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null } {
+export function rulesDocFromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null; tempo: FightTempoRules | null } {
+  // duel-rules-6: the duel-rules-5 document (simVersion duel-sim-5) + a strict tempo block
+  if (isObj(o) && o.schemaVersion === RULES_SCHEMA_6) {
+    exact(o, ['schemaVersion', 'simVersion', 'tickHz', 'rules', 'fighters', 'chase', 'attrs', 'tempo']);
+    if (o.simVersion !== SIM_VERSION_5) fail('invalid_version');
+    const { tempo, ...rest } = o;
+    const five = rulesDoc5FromJson({ ...rest, schemaVersion: RULES_SCHEMA_5, simVersion: SIM_VERSION_4 });
+    if (!five.attrs) fail('invalid_attrs');
+    return { ...five, tempo: tempoFromJson(tempo) };
+  }
+  return { ...rulesDoc5FromJson(o), tempo: null };
+}
+
+/** FightTempoRules.Validate (same checks, same order, same codes). */
+export function validateTempoRules(t: FightTempoRules): void {
+  for (const k of TEMPO_KEYS) if (!Number.isSafeInteger(t[k]) || t[k] < 0) fail('invalid_tempo_' + k);
+  if (t.lightTelegraphTicks < 1 || t.lightTelegraphTicks > 60 || t.cancelGuard > 1 || t.cancelStep > 1 || t.cancelPunishable > 1) fail('invalid_tempo_rules');
+}
+
+/** FightTempoRules.FromJson: strict (every key, integers only, nothing extra), then validateTempoRules. */
+export function tempoFromJson(o: unknown): FightTempoRules {
+  if (!isObj(o)) return fail('invalid_tempo');
+  exact(o, TEMPO_KEYS);
+  const t = {} as FightTempoRules;
+  for (const k of TEMPO_KEYS) t[k] = int32(o[k], k);
+  validateTempoRules(t);
+  return t;
+}
+
+function rulesDoc5FromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null } {
   if (isObj(o) && o.schemaVersion === RULES_SCHEMA_5) {
     exact(o, ['schemaVersion', 'simVersion', 'tickHz', 'rules', 'fighters', 'chase', 'attrs']);
     if (o.simVersion !== SIM_VERSION_4) fail('invalid_version');
@@ -401,9 +449,40 @@ export function rulesCanonicalBytes5(r: FightRules, chase: FightChaseRules | nul
   }
   return w.done();
 }
+/** duel-rules-6 (tempo set; needs chase + attrs): "duel-rules-6" ASCII, every global int32 LE, every CHASE_KEYS, ATTR_KEYS and
+ * TEMPO_KEYS, the fighter count, then per fighter exactly as duel-rules-5. Tempo null = rulesCanonicalBytes5. */
+export function rulesCanonicalBytes6(r: FightRules, chase: FightChaseRules | null, attrs: FightAttrRules | null, tempo: FightTempoRules | null): Buffer {
+  if (!tempo) return rulesCanonicalBytes5(r, chase, attrs);
+  if (!chase || !attrs) return fail('invalid_tempo_without_attrs');
+  const w = new Int32Writer(704).ascii(RULES_SCHEMA_6);
+  for (const k of GLOBAL_KEYS) w.int(r[k]);
+  for (const k of CHASE_KEYS) w.int(chase[k]);
+  for (const k of ATTR_KEYS) w.int(attrs[k]);
+  for (const k of TEMPO_KEYS) w.int(tempo[k]);
+  w.int(r.fighters.length);
+  for (const f of r.fighters) {
+    const id = Buffer.from(f.id, 'ascii');
+    w.int(id.length).bytes(id);
+    for (const k of FIGHTER_KEYS) w.int(f[k]);
+    w.int(f.speed ?? 0).int(f.special ?? 0);
+  }
+  return w.done();
+}
+
+/** FightRules.ToJson(chase, attrs, tempo): duel-rules-6 when tempo is set (needs chase + attrs): the duel-rules-5 document with
+ * simVersion duel-sim-5 and `tempo` after `attrs`; tempo null = rulesDocToJson5. */
+export function rulesDocToJson6(r: FightRules, chase: FightChaseRules | null, attrs: FightAttrRules | null, tempo: FightTempoRules | null): DuelRules3Doc | DuelRules4Doc | DuelRules5Doc | DuelRules6Doc {
+  if (!tempo) return rulesDocToJson5(r, chase, attrs);
+  if (!chase || !attrs) return fail('invalid_tempo_without_attrs');
+  const five = rulesDocToJson5(r, chase, attrs) as DuelRules5Doc;
+  const t = {} as FightTempoRules;
+  for (const k of TEMPO_KEYS) t[k] = tempo[k];
+  return { ...five, schemaVersion: RULES_SCHEMA_6, simVersion: SIM_VERSION_5, tempo: t };
+}
+
 export function rulesHashBytes(r: FightRules): Buffer { return sha256(rulesCanonicalBytes(r)); }
-/** The issued snapshot's hash: duel-rules-5's when `attrs` is set (needs chase), duel-rules-4's when only `chase` is set, else
- * duel-rules-3's (the one-argument form). */
-export function rulesHash(r: FightRules, chase: FightChaseRules | null = null, attrs: FightAttrRules | null = null): string {
-  return hex(sha256(rulesCanonicalBytes5(r, chase, attrs)));
+/** The issued snapshot's hash: duel-rules-6's when `tempo` is set (needs chase + attrs), duel-rules-5's when `attrs` is set (needs
+ * chase), duel-rules-4's when only `chase` is set, else duel-rules-3's (the one-argument form). */
+export function rulesHash(r: FightRules, chase: FightChaseRules | null = null, attrs: FightAttrRules | null = null, tempo: FightTempoRules | null = null): string {
+  return hex(sha256(rulesCanonicalBytes6(r, chase, attrs, tempo)));
 }

@@ -3,9 +3,10 @@ import {
 } from '../shared/fightReplayContract';
 import { duelFighterFromCombatant } from '../lib/duelResolver';
 import { getHolobotFightStatDelta } from '../lib/fightBalance';
+import { applyPartBoosts, PartBoosts } from '../lib/partStats';
 import {
-  defaultAttrRules, defaultChaseRules, defaultRulesValues, FightFighterDef, FightRules, KIT_IDS, kitFighter, RULES_SCHEMA, RULES_SCHEMA_4, RULES_SCHEMA_5, rulesDocToJson5,
-  rulesHash, validateRules,
+  defaultAttrRules, defaultChaseRules, defaultRulesValues, defaultTempoRules, FightFighterDef, FightRules, FightRulesValues, KIT_IDS, kitFighter, RULES_SCHEMA, RULES_SCHEMA_4,
+  RULES_SCHEMA_5, RULES_SCHEMA_6, rulesDocToJson6, rulesHash, validateRules,
 } from '../sim/fight/rules';
 import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_VERSION, RANKS } from '../sim/fight/profiles';
 
@@ -24,6 +25,25 @@ import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_
 export const FIGHT_START_GAP_MM = 7000;
 export const FIGHT_HASH_EVERY = 30;
 
+/**
+ * duel-rules-6 global numbers (server-rulings-1 ruling 2; data in the issued snapshot, so every client reads them from `rules`):
+ * the values that differ from RULE_DEFAULTS on a duel-rules-6 issue; every other number stays the duel-rules-5 default.
+ * hpScaleLights 19 -> 17 with the tempo block: CPU-vs-CPU 1v1 median 49 s -> 36 s, 3v3 timeouts 34 % -> ~1 %
+ * (scripts/bench-fight-length.mjs; the table is in the server-rulings-1 README).
+ */
+export const TEMPO_RULE_OVERRIDES: Readonly<Partial<FightRulesValues>> = Object.freeze({ hpScaleLights: 17 });
+
+/**
+ * server-rulings-1 ruling 1 (+ Pak 2026-11-10 on SPECIAL): a player combatant with its equipped parts, for an input-log issue.
+ * The four fight stats go through applyPartBoosts exactly as in the resolver. On a duel-rules-6 issue only (`tempo`), the parts'
+ * SPECIAL is added to the combatant's intelligence, which the issue pins as the fighter's `special` (SYNC gain, special damage);
+ * every other rules version leaves intelligence untouched, so its bytes are unchanged.
+ */
+export function inputLogCombatant<T extends Combatant>(c: T, b: PartBoosts, tempo: boolean): T {
+  const out = applyPartBoosts(c, b);
+  return tempo && b.special > 0 ? { ...out, intelligence: (c.intelligence ?? 0) + b.special } : out;
+}
+
 /** Rival tier -> CPU rank skill row (producer pick: tiers 0-1 rookie ... 9+ legendary; Pak tunes). */
 export function fightRankForTier(tier: number): string {
   const t = Number.isSafeInteger(tier) && tier > 0 ? tier : 0;
@@ -37,7 +57,7 @@ type Combatant = Parameters<typeof duelFighterFromCombatant>[0] & { intelligence
 
 export function buildFightReplayIssue(input: {
   battleId: string; seed: string; tier: number; mentor: boolean;
-  player: readonly Combatant[]; opponent: readonly Combatant[]; chase?: boolean; attrs?: boolean;
+  player: readonly Combatant[]; opponent: readonly Combatant[]; chase?: boolean; attrs?: boolean; tempo?: boolean;
   playerStartSync?: Readonly<Record<string, number>>; cpuStartSync?: number;
   /** Expedition carry and sizing. Omitted for rival/Arena, retaining their issued bytes. */
   playerStartStaminaPm?: Readonly<Record<string, number>>; hpScaleLights?: number;
@@ -76,8 +96,9 @@ export function buildFightReplayIssue(input: {
     if (issueAttrs) { f.speed = s.speed; f.special = Math.round(c.intelligence ?? 0); }
     return f;
   };
+  const issueTempo = issueAttrs && input.tempo === true;
   const rules: FightRules = {
-    ...defaultRulesValues(),
+    ...defaultRulesValues(), ...(issueTempo ? TEMPO_RULE_OVERRIDES : {}),
     fighters: [...player.map(c => fighter(c, 0, c.holobotId)), ...opponent.map(c => fighter(c, 1, 'cpu-' + c.holobotId))],
   };
   if (input.hpScaleLights !== undefined) rules.hpScaleLights = input.hpScaleLights;
@@ -85,12 +106,13 @@ export function buildFightReplayIssue(input: {
   if (!rules.fighters.some(f => f.side === 0 && f.hp > 0)) return null;
   const chase = input.chase ? defaultChaseRules() : null;
   const attrs = issueAttrs ? defaultAttrRules() : null;
-  const hash = rulesHash(rules, chase, attrs);
+  const tempo = issueTempo ? defaultTempoRules() : null;
+  const hash = rulesHash(rules, chase, attrs, tempo);
   const lead = opponent[0].holobotId;
   return {
     mode: FIGHT_REPLAY_MODE, schemaVersion: FIGHT_RECEIPT_SCHEMA, inputsSchema: FIGHT_INPUTS_SCHEMA, simVersion: FIGHT_SIM_VERSION,
-    rulesId: `${attrs ? RULES_SCHEMA_5 : chase ? RULES_SCHEMA_4 : RULES_SCHEMA}:${input.battleId}`, rulesHash: hash,
-    rules: rulesDocToJson5(rules, chase, attrs) as unknown as FightReplayIssueWire['rules'],
+    rulesId: `${tempo ? RULES_SCHEMA_6 : attrs ? RULES_SCHEMA_5 : chase ? RULES_SCHEMA_4 : RULES_SCHEMA}:${input.battleId}`, rulesHash: hash,
+    rules: rulesDocToJson6(rules, chase, attrs, tempo) as unknown as FightReplayIssueWire['rules'],
     seed: input.seed, playerSide: 0,
     player: { roster: player.map(c => ({ fighterId: c.holobotId, holobotId: c.holobotId })) },
     cpu: {
