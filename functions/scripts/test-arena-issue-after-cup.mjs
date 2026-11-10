@@ -111,20 +111,36 @@ test('settling repairs the stale threshold and grants no free level (it would ot
   assert.deepEqual([(await user(uid)).holobots[0].level, (await user(uid)).holobots[0].nextLevelExp], [12, next(12)]);
 });
 
-test('real corruption is still refused with unavailable', async () => {
-  for (const [label, extra] of [
-    ['EXP past the level', { experience: next(12) }],
-    ['fractional EXP', { experience: 1.5 }],
-    ['non-numeric nextLevelExp', { nextLevelExp: 'x' }],
-    ['fractional nextLevelExp', { nextLevelExp: 400.5 }],
-    ['negative nextLevelExp', { nextLevelExp: -1 }],
-    ['a threshold no level has', { nextLevelExp: 1 }],
-    ['a threshold above the level', { nextLevelExp: next(20) }],
-    ['fractional attribute points', { attributePoints: 1.5 }],
-    ['malformed boosts', { boostedAttributes: { attack: 'x' } }],
-    ['fractional level', { level: 12.5 }],
+// host-crawl-fixes-1 (Pak: repair, not refuse): a derived field the host can recompute from level is healed at issue
+// (persisted, audited in accountRepairs) and the entry goes ahead; level and EXP are never changed. Real corruption of
+// the stored facts is still refused, now as the non-transient holobot_record_invalid + reason (was 'unavailable').
+const repairEntries = async (uid) => { const q = db.collection(`accountRepairs/${uid}/entries`); return (q.get ? await q.get() : q.run()).size; };
+test('a derived field from no level is healed at issue; real corruption is still refused, as holobot_record_invalid', async () => {
+  for (const [label, extra, healed] of [
+    ['non-numeric nextLevelExp', { nextLevelExp: 'x' }, { nextLevelExp: next(12) }],
+    ['fractional nextLevelExp', { nextLevelExp: 400.5 }, { nextLevelExp: next(12) }],
+    ['negative nextLevelExp', { nextLevelExp: -1 }, { nextLevelExp: next(12) }],
+    ['a threshold no level has', { nextLevelExp: 1 }, { nextLevelExp: next(12) }],
+    ['a threshold above the level', { nextLevelExp: next(20) }, { nextLevelExp: next(12) }],
+    ['fractional attribute points', { attributePoints: 1.5 }, { attributePoints: 1 }],
   ]) {
     const uid = await setup([bot('KURAI', 12, extra)]);
-    await assert.rejects(issue(uid, { holobotId: 'kurai' }), code('unavailable'), label);
+    const i = await issue(uid, { holobotId: 'kurai' });
+    assert.equal(i.match.state, 'issued', label);
+    assert.deepEqual([i.match.entrant.level, i.match.entrant.nextLevelExp], [12, next(12)], label);
+    assert.deepEqual((await user(uid)).holobots[0], bot('KURAI', 12, healed), label);
+    assert.equal(await repairEntries(uid), 1, label);
+  }
+  for (const [label, extra, reason] of [
+    ['EXP past the level', { experience: next(12) }, 'experience_over_level'],
+    ['fractional EXP', { experience: 1.5 }, 'experience_malformed'],
+    ['malformed boosts', { boostedAttributes: { attack: 'x' } }, 'boosted_attributes_malformed'],
+    ['fractional level', { level: 12.5 }, 'level_malformed'],
+  ]) {
+    const uid = await setup([bot('KURAI', 12, extra)]);
+    const before = await user(uid);
+    await assert.rejects(issue(uid, { holobotId: 'kurai' }), (e) => e.code === A.ARENA_HOLOBOT_RECORD_INVALID && e.reason === reason, label);
+    assert.deepEqual(await user(uid), before, label);
+    assert.equal(await repairEntries(uid), 0, label);
   }
 });
