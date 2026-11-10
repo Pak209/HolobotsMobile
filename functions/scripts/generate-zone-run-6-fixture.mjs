@@ -1,0 +1,25 @@
+import {writeFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {recordFightLog,smartPlayer} from './lib/fight-replay-helpers.mjs';
+import {T,CONFIG,profile} from './zone-expedition-fixtures.mjs';
+const require=createRequire(import.meta.url),Z=require('../lib/holozone/expedition.js');
+const {verifyFightReplay}=require('../lib/sim/fight/replay.js');
+const p=profile({holobots:['ACE','KUMA','SHADOW'].map(name=>({name,level:10}))});
+const issueRequest={schemaVersion:'zone-run-6',operation:'issue',requestId:'s1_issue',repairKits:1,carryExtractionCharge:false,duelInputs:'duel-inputs-2'};
+const initial=Z.issueExpedition(p,issueRequest,'fixture_run',17,T,CONFIG);let run=initial.run;
+const rows=[{request:issueRequest,reply:{schemaVersion:'zone-run-6',operation:'issue',run:Z.runView(run,'zone-run-6'),serverNowMs:T,alreadyProcessed:false}}];
+const advance=(operation,extra,now,receipt)=>{
+ const request={schemaVersion:'zone-run-6',operation,requestId:`s1_${rows.length}`,runId:run.runId,...extra};
+ const result=Z.advanceRealtimeExpedition(p,run,request,now,receipt);run=result.run;
+ rows.push({request,reply:Z.advanceReply('zone-run-6',operation,run,result,now)});return result;
+};
+advance('move',{sectorId:'gate1'},T+1000);
+const sector=run.layout.sectors.find(s=>s.band===1&&!s.safe&&s.cache);
+advance('move',{sectorId:sector.id},T+2000);
+const engage=advance('engage',{duelInputs:'duel-inputs-2'},T+3000);
+const client=recordFightLog(engage.fightIssue,smartPlayer(engage.fightIssue));
+const receipt=verifyFightReplay(engage.fightIssue,client.wire,{battleId:run.pendingFight.fightId}).receipt;
+advance('fight_settle',{fightId:receipt.battleId,inputLog:client.wire},T+120000,receipt);
+const out=new URL('./fixtures/zone-run-6/realtime.json',import.meta.url);
+writeFileSync(out,JSON.stringify({schemaVersion:'zone-run-6',generatedFrom:'functions/src/holozone/expedition.ts',rows},null,2)+'\n');
+console.log(out.pathname,rows.length);
