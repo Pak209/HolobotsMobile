@@ -14,10 +14,10 @@ async function start(seed=1){const who=uid();await db.doc(`users/${who}`).set(pr
  const issue=await call(who,c('issue',null,{repairKits:1,carryExtractionCharge:false,duelInputs:'duel-inputs-2'}),T,seed);const runId=issue.run.runId;
  await call(who,c('move',runId,{sectorId:'gate1'}));const at=issue.run.layout.sectors.find(x=>x.band===1&&!x.safe&&x.cache);
  await call(who,c('move',runId,{sectorId:at.id}));return {who,runId,at};}
-test('flag off refuses v6 issue; flag on requires capable client',async()=>{
+test('flag off refuses v6 issue as an unknown version; flag on requires capable client',async()=>{
  const who=uid();await db.doc(`users/${who}`).set(profile());
  process.env.HOLOZONE_EXPEDITION_REALTIME='0';
- await assert.rejects(()=>call(who,c('issue',null,{repairKits:0,carryExtractionCharge:false,duelInputs:'duel-inputs-2'})),/expedition_unavailable/);
+ await assert.rejects(()=>call(who,c('issue',null,{repairKits:0,carryExtractionCharge:false,duelInputs:'duel-inputs-2'})),/invalid_request/);
  process.env.HOLOZONE_EXPEDITION_REALTIME='1';
  await assert.rejects(()=>call(who,{schemaVersion:'zone-run-3',operation:'issue',requestId:req(),repairKits:0,carryExtractionCharge:false}),/client_update_required/);
 });

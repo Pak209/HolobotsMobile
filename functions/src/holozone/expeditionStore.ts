@@ -17,7 +17,8 @@ export async function transactExpedition(db:Firestore,uid:string,raw:unknown,now
   const c=validateExpeditionCommand(raw,{signatures}),id=c.operation==='issue'?(options.newId??randomUUID)():c.runId;
   const realtimeEnabled=process.env[ZONE_REALTIME_FLAG]==='1'&&process.env[FIGHT_REPLAY_FLAG]==='1';
   if(c.operation==='issue'&&realtimeEnabled&&c.schemaVersion!==ZONE_RUN_SCHEMA_V6)throw new ExpeditionError('client_update_required');
-  if(c.schemaVersion===ZONE_RUN_SCHEMA_V6&&!realtimeEnabled&&c.operation==='issue')throw new ExpeditionError('expedition_unavailable');
+  // Real-time off: zone-run-6 is an unknown version for every operation (invalid_request), exactly as before #215.
+  if(c.schemaVersion===ZONE_RUN_SCHEMA_V6&&!realtimeEnabled)throw new ExpeditionError('invalid_request');
   // Private entropy is pinned outside retries, separate from the public daily layout seed.
   const seed=c.operation==='issue'?(options.seed??(()=>randomBytes(4).readUInt32LE(0)))():0;
   const configured=options.config===undefined?configuredExpedition():options.config;
@@ -41,7 +42,6 @@ export async function transactExpedition(db:Firestore,uid:string,raw:unknown,now
     if(saved?.exists){if(saved.data()!.identity!==identity)throw new ExpeditionError('request_conflict');return {...saved.data()!.reply,alreadyProcessed:true};}
     const profile=user.data()!,parentData=lease.data(),open=expeditionOpen(parentData);
     if(c.operation==='layout'){
-      if(wire===ZONE_RUN_SCHEMA_V6&&!realtimeEnabled)throw new ExpeditionError('expedition_unavailable');
       if(!configured)throw new ExpeditionError('expedition_unavailable');
       return {schemaVersion:wire,layout:layoutView(dailyLayout(now),wire),config:expeditionConfig(configured),...(wire===ZONE_RUN_SCHEMA_V6?{serverNowMs:now}:{})};
     }
