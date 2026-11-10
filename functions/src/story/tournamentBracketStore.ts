@@ -8,6 +8,7 @@ import { duelFighterFromCombatant } from '../lib/duelResolver';
 import { HealthError } from '../lib/rivalHealth';
 import { playerCombatant, RivalError } from '../lib/rivalLadder';
 import { ARENA_TOURNAMENT_SCHEMA, tournamentAdmission } from './arenaTournament';
+import { applyPartBoosts, EMPTY_PART_BOOSTS, ledgerHealthAfterFight } from '../lib/partStats';
 import { ARENA_BRACKET_SCHEMA, ArenaBracket, BracketEntrant, createArenaBracket, advanceArenaBracket, readArenaBracket } from './arenaBracket';
 import { gatheringRoster } from './arenaGathering';
 import { readStoryFlags, StoryError } from './storyFlags';
@@ -31,7 +32,7 @@ function command(raw:unknown):Command {
 function entrants(uid:string,m:Data,seed:number):BracketEntrant[] {
   const tier=ARENA_TIERS.findIndex(t=>t.id===m.tierId);
   const player:BracketEntrant={entrantId:'player',pilotName:'You',holobotId:m.entrant.holobotId,isPlayer:true,
-    fighter:duelFighterFromCombatant({...m.entrant,tier} as Parameters<typeof duelFighterFromCombatant>[0])};
+    fighter:duelFighterFromCombatant({...applyPartBoosts(m.entrant as {maxHealth:number;attack:number;defense:number},m.partBoosts ?? EMPTY_PART_BOOSTS),tier} as Parameters<typeof duelFighterFromCombatant>[0])};
   const citizens=gatheringRoster(uid).map(row=>({entrantId:row.citizenId,pilotName:row.pilotName,holobotId:row.holobotId,isPlayer:false,
     fighter:duelFighterFromCombatant({...playerCombatant(row.holobotId,{name:row.holobotId.toUpperCase(),level:m.opponent.level}),tier})}));
   // All eight gathering citizens plus the player enter. Bottom seeds play in; top seven get byes.
@@ -89,7 +90,7 @@ export async function transactTournamentBracket(db:Firestore,uid:string,raw:unkn
       if (m.state!=='active' || !arenaOpen(lease) || lease?.matchId!==m.matchId) throw new StoryError('not_admitted');
       const player=b.entrants.find(e=>e.isPlayer)!;
       if (c.operation==='cancel') {
-        const closed=cancelArenaBracketRecord(profile,m,b.health[player.entrantId],nowMs);
+        const closed=cancelArenaBracketRecord(profile,m,ledgerHealthAfterFight(b.health[player.entrantId],player.fighter.maxHealth,m.entrant),nowMs);
         tx.update(userRef,closed.updates);tx.set(matchRef,closed.match);tx.set(leaseRef,{...lease,open:false,closedAtMs:nowMs});
         tx.set(bracketRef,{schemaVersion:ARENA_BRACKET_SCHEMA,bracket:b,cancelled:true});
         return arenaBracketReply(b,true);
@@ -101,7 +102,7 @@ export async function transactTournamentBracket(db:Firestore,uid:string,raw:unkn
         const opponentId=last.leftId===player.entrantId?last.rightId:last.leftId;
         const opponent=next.entrants.find(e=>e.entrantId===opponentId)!;
         const opponentStats={...opponent.fighter,level:m.opponent.level,name:opponent.holobotId.toUpperCase()};
-        const closed=settleArenaBracketRecord(profile,m,opponentStats,next.health[player.entrantId],next.health[opponentId],next.playerAlive,nowMs);
+        const closed=settleArenaBracketRecord(profile,m,opponentStats,ledgerHealthAfterFight(next.health[player.entrantId],player.fighter.maxHealth,m.entrant),next.health[opponentId],next.playerAlive,nowMs);
         tx.update(userRef,closed.updates);tx.set(matchRef,closed.match);tx.set(leaseRef,{...lease,open:false,closedAtMs:nowMs});
       }
       tx.set(bracketRef,{schemaVersion:ARENA_BRACKET_SCHEMA,bracket:next,cancelled:false});

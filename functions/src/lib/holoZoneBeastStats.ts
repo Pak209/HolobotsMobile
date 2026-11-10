@@ -11,6 +11,7 @@
  * Pure module: no firebase imports, safe to import from tests (functions/scripts/test-holozone-beast-stats.mjs).
  */
 import { getHolobotRank } from "./progression";
+import type { PartBoosts } from "./partStats";
 
 /** Flip to serve the stats (Pak's approval + deploy). Off = byte-identical holozone-run-2 replies. */
 export const HOLOZONE_BEAST_STATS_ENABLED = false;
@@ -64,16 +65,24 @@ export function holoZoneBeastStats(zoneId: string, tier: number, beastId: string
  */
 export const HOLOZONE_BEAST_LEVEL_GROWTH: Readonly<Record<string, number>> = Object.freeze({ guild_court: 0.05 });
 const BEAST_MAX_LEVEL = 99;
+/**
+ * Zone → the share of the fighter's gear the beast also gains (Pak, 2026-11-09), so the fight stays real while parts still
+ * help. Tuned by simulation: 1:1 on ATK, DEF and HP, none on SPD. The result is pinned on the run at issue.
+ */
+export const HOLOZONE_BEAST_GEAR_SHARE: Readonly<Record<string, { attack: number; defense: number; hp: number; speed: number }>> = Object.freeze({ guild_court: { attack: 1, defense: 1, hp: 1, speed: 0 } });
+const NO_GEAR_SHARE = { attack: 0, defense: 0, hp: 0, speed: 0 };
 
-/** The row's stats for a fight against a pilot at `pilotLevel`: stat x (1 + growth x (level - 1)), rounded. Stamina never scales. */
-export function scaledBeastStats(zoneId: string, tier: number, beastId: string, pilotLevel: number): HoloZoneBeastStats | null {
+/** The row's stats for a fight against a pilot at `pilotLevel`: stat x (1 + growth x (level - 1)), rounded, plus the zone's share of the fighter's `gear`. Stamina never scales. */
+export function scaledBeastStats(zoneId: string, tier: number, beastId: string, pilotLevel: number, gear?: PartBoosts): HoloZoneBeastStats | null {
   const base = holoZoneBeastStats(zoneId, tier, beastId);
   if (!base) return null;
   const growth = Object.prototype.hasOwnProperty.call(HOLOZONE_BEAST_LEVEL_GROWTH, zoneId) ? HOLOZONE_BEAST_LEVEL_GROWTH[zoneId] : 0;
   if (growth === 0) return base;
   const level = Math.min(BEAST_MAX_LEVEL, Math.max(1, Math.floor(pilotLevel)));
   const factor = 1 + growth * (level - 1);
-  return { ...base, level, maxHealth: Math.round(base.maxHealth * factor), attack: Math.round(base.attack * factor), defense: Math.round(base.defense * factor), speed: Math.round(base.speed * factor), rank: getHolobotRank(level) };
+  const share = Object.prototype.hasOwnProperty.call(HOLOZONE_BEAST_GEAR_SHARE, zoneId) && gear ? HOLOZONE_BEAST_GEAR_SHARE[zoneId] : NO_GEAR_SHARE;
+  const added = (stat: number, part: number, part_share: number) => Math.round(stat * factor) + Math.round(part * part_share);
+  return { ...base, level, maxHealth: added(base.maxHealth, gear?.hp ?? 0, share.hp), attack: added(base.attack, gear?.attack ?? 0, share.attack), defense: added(base.defense, gear?.defense ?? 0, share.defense), speed: added(base.speed, gear?.speed ?? 0, share.speed), rank: getHolobotRank(level) };
 }
 
 export function validBeastStats(s: HoloZoneBeastStats): boolean {

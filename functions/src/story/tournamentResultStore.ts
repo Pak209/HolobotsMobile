@@ -38,7 +38,7 @@ export async function transactTournamentResult(db: Firestore, uid: string, raw: 
     if (m.state !== 'settled' || m.settlementReceipt?.outcome !== 'win') throw new StoryError('win_required');
     const tournamentsWon = flags.tournamentsWon + 1;
     // TODO: a later HoloZones story lane owns holoZonesArcBuilt. Preserve it here.
-    const storyFlags = {...flags,tournamentsWon,arenaArcBuilt:tournamentsWon === 3};
+    const storyFlags = {...flags,tournamentsWon,arenaArcBuilt:tournamentsWon >= 3};
     const cupId = c.tournamentId as CupId;
     const ledgerRef = db.doc(`cupPrizes/${uid}`), ledgerSnap = await tx.get(ledgerRef);
     const ledger = readCupPrizeLedger(ledgerSnap.exists ? ledgerSnap.data() : undefined);

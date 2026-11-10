@@ -8,6 +8,7 @@
  */
 import { DUEL_MAX_ROUNDS, DUEL_RECEIPT_SCHEMA, DuelFighterStats, DuelReceipt, duelFighterFromCombatant, resolveDuel } from "./duelResolver";
 import { scaledBeastStats } from "./holoZoneBeastStats";
+import { ledgerHealthAfterFight, PartBoosts } from "./partStats";
 import type { PlayerCombatantSnapshot } from "./rivalLadder";
 
 export const COURT_BEAST_ID = "cacheback";
@@ -24,8 +25,8 @@ export type CourtDuelBlock = {
 export type CourtDuelWire = { mode: "resolver"; schemaVersion: typeof DUEL_RECEIPT_SCHEMA; maxRounds: number; beastId: string; player: DuelFighterStats[]; opponent: DuelFighterStats[] };
 
 /** Pins both fighters and the seed at issue, the beast scaled to the fighter's level then. Throws RangeError when the zone has no row or the block is unusable. */
-export function courtDuelBlock(player: PlayerCombatantSnapshot & { currentHealth: number }, zoneId: string, tier: number, seed: number): CourtDuelBlock {
-  const beast = scaledBeastStats(zoneId, tier, COURT_BEAST_ID, player.level);
+export function courtDuelBlock(player: PlayerCombatantSnapshot & { currentHealth: number }, zoneId: string, tier: number, seed: number, gear?: PartBoosts): CourtDuelBlock {
+  const beast = scaledBeastStats(zoneId, tier, COURT_BEAST_ID, player.level, gear);
   if (!beast) throw new RangeError("no_court_beast");
   const input = {
     seed,
@@ -45,11 +46,12 @@ export function courtDuelWire(block: CourtDuelBlock): CourtDuelWire {
  * The run report a receipt stands for, matching what Lite's Guild Court sends today (lib/citySaves.ts courtReport):
  * kills 1 for a cleared court and 0 otherwise, never a boss, and the one fielded companion.
  */
-export function courtReportFromReceipt(block: CourtDuelBlock, receipt: DuelReceipt) {
+export function courtReportFromReceipt(block: CourtDuelBlock, receipt: DuelReceipt, issued: Record<string, { currentHealth: number; maxHealth: number }>) {
   return {
     kills: receipt.winner === "player" ? 1 : 0,
     bossDefeated: false,
     fielded: [block.fielderId],
-    health: receipt.playerFinal.map((f) => ({ holobotId: f.holobotId, currentHealth: f.currentHealth })),
+    // Part HP is a fight-time layer: the ledger keeps the Holobot's own scale.
+    health: receipt.playerFinal.map((f) => ({ holobotId: f.holobotId, currentHealth: issued[f.holobotId] ? ledgerHealthAfterFight(f.currentHealth, f.maxHealth, issued[f.holobotId]) : f.currentHealth })),
   };
 }
