@@ -456,7 +456,18 @@ export type RivalBattleRecord = {
   duelReceipt?: DuelReceipt;
   /** fight-host-1 (input-log mode): the duel-receipt-2 the host computed by replay, persisted once with the settlement. */
   fightReceipt?: FightReceiptWire;
+  /** pvp-daily-1 (ship-readiness item 7): set only on an async PvP issue; settle then pays Holos only (PVP_ASYNC_SOURCE). */
+  source?: typeof PVP_ASYNC_SOURCE;
+  /** pvp-daily-1: which daily opponent this battle spends (pvpDaily/{uid}); presentation and bookkeeping only. */
+  pvp?: { opponentId: string; day: string };
 };
+
+/**
+ * pvp-daily-1 (Pak 2026-11-04): another player's saved squad served as an AI rival. A battle with this source settles
+ * through the ordinary rival settle but pays Holos only (BATTLE_WIN_HOLOS / BATTLE_LOSS_HOLOS, same anti-farm window):
+ * no rivalWins / tier, no daily Buddy Unit, no repair kit, no Holobot XP, and (rivalBattleStore) no pilotRank.
+ */
+export const PVP_ASYNC_SOURCE = "pvp_async" as const;
 
 /** When the TTL policy may delete an issued battle (epoch ms). */
 export function rivalBattleCleanupAtMs(battle: Pick<RivalBattleRecord, "expiresAtMs">): number {
@@ -641,7 +652,8 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
   const tierBefore = tierForWins(l.wins);
   const userUpdates: Profile = starterUpdates(l);
   let granted = 0;
-  if (didWin) {
+  const holosOnly = battle.source === PVP_ASYNC_SOURCE;
+  if (didWin && !holosOnly) {
     Object.assign(userUpdates, repairGrant(profile));
     if (l.wins >= Number.MAX_SAFE_INTEGER) throw new RivalError("unavailable");
     l.wins += 1;
@@ -665,7 +677,7 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
   }
   const tierGranted: BuddyTierId | "" = granted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : "";
   let progression: HolobotProgressionEntry[] = [];
-  if (fielded && fielded.length) {
+  if (fielded && fielded.length && !holosOnly) {
     const allowed = new Set([...(Array.isArray(battle.playerSquadIds) ? battle.playerSquadIds : []), ...currentSquadIds]);
     if (fielded.some((id) => !allowed.has(id))) throw new RivalError("invalid_request");
     const withheld = !didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_XP_MS);
@@ -674,7 +686,7 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     progression = award.progression;
     if (award.expPerHolobot > 0) userUpdates.holobots = award.holobots;
   }
-  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: [...(fielded ?? [])], progression, holosGranted };
+  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: holosOnly ? [] : [...(fielded ?? [])], progression, holosGranted };
   return {
     userUpdates,
     battleUpdates: { settlement },

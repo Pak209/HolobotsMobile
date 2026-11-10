@@ -19,7 +19,10 @@ import { buildFightReplayIssue } from './fightReplayIssue';
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight } from '../lib/partStats';
-import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand } from '../lib/rivalLadder';
+import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand, PVP_ASYNC_SOURCE, IssueReply } from '../lib/rivalLadder';
+
+/** pvp-daily-1: binds an issue to another player's frozen squad inside the issue transaction (reads first, then writes). */
+export type RivalIssueBinding = { bind: (tx: Transaction, r: { battle: RivalBattleRecord; reply: IssueReply; userUpdates: Record<string, unknown> }) => Promise<void> };
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
@@ -93,7 +96,7 @@ async function preVerifyFightReplay(db: Firestore, uid: string, request: Record<
   }
 }
 
-export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean; fightChase?: boolean; fightAttrs?: boolean; readinessStart?: boolean; battleIq?: boolean } = {}) {
+export async function transactRivalBattle(db: Firestore, uid: string, raw: unknown, nowMs: number = Date.now(), random: () => number = () => randomInt(0, 0x100000000) / 0x100000000, options: { zellEnabled?: boolean; allowLegacySettlement?: boolean; issueLegacy?: boolean; fightReplay?: boolean; fightChase?: boolean; fightAttrs?: boolean; readinessStart?: boolean; battleIq?: boolean; pvp?: RivalIssueBinding } = {}) {
   // One-release server flag. Requests cannot select or downgrade a stored mode. A resolver battle also needs the client's
   // per-request opt-in (`duelSchema`, as on arenaMatchHost): a build that doesn't ask keeps the legacy path whatever the env says.
   const resolverAsked = (raw as Record<string, unknown> | null)?.duelSchema;
@@ -157,7 +160,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
       const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion));
       // DECISIONS #72.3 (onboarding D1): Kaz's ordinary issue at host onboarding step <= 3 fields one tier-0 WOLF.
-      const mentor = citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);
+      // pvp-daily-1: an async PvP issue binds the frozen opponent squad (and spends the day's attempt) in THIS transaction.
+      const mentor = !options.pvp && citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);
+      if (options.pvp) await options.pvp.bind(tx, r);
       if (mentor) applyOnboardingMentor(r, rivalLineupScaleFor(command.schemaVersion));
       if ((!legacyMode || inputLogIssue) && r.reply.playerCombatants.length === 0) throw new RivalError('squad_required');
       if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{const vitals=issueVitals(profile,r.reply.playerCombatants);r.userUpdates.holobotVitals=vitals;(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
@@ -244,11 +249,13 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       receipt || fightReceipt ? [] : squadIdsOf(profile));
     // Apply to the authoritative ruling, once in the same transaction as its receipt.
     // All rival versions (including gathering/Zell) count; losses and replays never do.
-    if (r.battleUpdates?.settlement?.didWin) {
+    // pvp-daily-1: an async PvP settle pays Holos only (rivalLadder.PVP_ASYNC_SOURCE): no pilotRank, no fight learning.
+    const holosOnly = record.source === PVP_ASYNC_SOURCE;
+    if (r.battleUpdates?.settlement?.didWin && !holosOnly) {
       try { r.userUpdates.pilotRank = pilotRankAfterWin(profile.pilotRank); }
       catch (e) { if (e instanceof PilotRankError) throw new RivalError('unavailable'); throw e; }
     }
-    if (applyBattleIq && r.battleUpdates) {
+    if (applyBattleIq && r.battleUpdates && !holosOnly) {
       const fielded = settleCommand.fielded ?? [];
       const opponentLevel = Math.max(1, ...record.lineup.opponentSquad.map(bot => bot.level));
       Object.assign(r.userUpdates, fightLearningAfterSettle(profile, fielded, !!r.battleUpdates.settlement?.didWin, opponentLevel));
