@@ -4,19 +4,22 @@ import { arenaOpen, duelOpen, expeditionOpen } from '../lib/arenaActivity';
 import { readHoloZoneRuns, HOLOZONE_RECORD_SCHEMA } from '../lib/holoZoneRuns';
 import { readOpenBattles } from '../lib/rivalLadder';
 import { healingStock } from '../lib/repairItems';
-import { ExpeditionConfig, ExpeditionError, ZONE_EXTRACT_SCHEMA, ZONE_RUN_SCHEMA, ZONE_RUN_SCHEMA_V4, ZoneRunWire, advanceExpedition, advanceReply, buyExpedition,
+import { zoneSignaturesEnabled } from '../config/zoneExpedition';
+import { ExpeditionConfig, ExpeditionError, ZONE_EXTRACT_SCHEMA, ZONE_RUN_SCHEMA, ZONE_RUN_SCHEMA_V4, ZONE_RUN_SCHEMA_V5, ZoneRunWire, advanceExpedition, advanceReply, buyExpedition,
   configuredExpedition, dailyLayout, expeditionConfig, expeditionSupplies, issueExpedition, layoutView, readExpedition, runView, validateExpeditionCommand } from './expedition';
 
 /** Exact-account server-only parent is also the activity lease observed by legacy hosts. */
-export async function transactExpedition(db:Firestore,uid:string,raw:unknown,now=Date.now(),options:{config?:ExpeditionConfig|null;newId?:()=>string;seed?:()=>number}={}){
-  const c=validateExpeditionCommand(raw),id=c.operation==='issue'?(options.newId??randomUUID)():c.runId;
+export async function transactExpedition(db:Firestore,uid:string,raw:unknown,now=Date.now(),options:{config?:ExpeditionConfig|null;newId?:()=>string;seed?:()=>number;signatures?:boolean}={}){
+  // zone-run-5 signature pilot: HOLOCITY_ZONE_SIGNATURES flag, default off (tests may pin it).
+  const signatures=options.signatures??zoneSignaturesEnabled();
+  const c=validateExpeditionCommand(raw,{signatures}),id=c.operation==='issue'?(options.newId??randomUUID)():c.runId;
   // Private entropy is pinned outside retries, separate from the public daily layout seed.
   const seed=c.operation==='issue'?(options.seed??(()=>randomBytes(4).readUInt32LE(0)))():0;
   const configured=options.config===undefined?configuredExpedition():options.config;
   const parent=db.doc(`holoZoneRuns/${uid}`),userRef=db.doc(`users/${uid}`),requestRef=c.requestId?parent.collection('expeditionRequests').doc(c.requestId):null;
   const identity=JSON.stringify(Object.fromEntries(Object.entries(c).sort(([a],[b])=>a.localeCompare(b))));
   // zone-extract-1 requests keep the zone-run-3 view (that schema references zone-run-3's run).
-  const wire:ZoneRunWire=c.schemaVersion===ZONE_RUN_SCHEMA_V4?ZONE_RUN_SCHEMA_V4:ZONE_RUN_SCHEMA;
+  const wire:ZoneRunWire=c.schemaVersion===ZONE_RUN_SCHEMA_V5?ZONE_RUN_SCHEMA_V5:c.schemaVersion===ZONE_RUN_SCHEMA_V4?ZONE_RUN_SCHEMA_V4:ZONE_RUN_SCHEMA;
   return db.runTransaction(async tx=>{
     const user=await tx.get(userRef),lease=await tx.get(parent),saved=requestRef?await tx.get(requestRef):null;
     if(!user.exists)throw new ExpeditionError('unavailable');
@@ -41,7 +44,7 @@ export async function transactExpedition(db:Firestore,uid:string,raw:unknown,now
         updates=buyExpedition(profile,c.itemId!,config);
         reply={schemaVersion:wire,operation:'buy',itemId:c.itemId,holosTokens:updates.holosTokens,supplies:updates.expeditionSupplies,repairKits:healingStock({...profile,...updates},'item.repair_kit'),alreadyProcessed:false};
       }else{
-        const result=issueExpedition(profile,c,id!,seed,now,config);updates=result.updates;
+        const result=issueExpedition(profile,c,id!,seed,now,config,{signatures});updates=result.updates;
         tx.create(parent.collection('expeditions').doc(id!),result.run);
         tx.set(parent,{...(parentData??{schemaVersion:HOLOZONE_RECORD_SCHEMA,runs:[]}),expedition:{runId:id!,open:true}});
         reply={schemaVersion:wire,operation:'issue',run:runView(result.run,wire),alreadyProcessed:false};

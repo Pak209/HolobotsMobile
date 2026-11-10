@@ -1,6 +1,6 @@
 import { ZoneExpeditionTuning, ZONE_EXPEDITION_DEFAULT_SELECTOR, ZONE_EXPEDITION_RULES, loadZoneExpeditionDefaults } from '../config/zoneExpedition';
 import { createHash } from 'node:crypto';
-import { DuelFighterStats, DuelReceipt, duelFighterFromCombatant, resolveDuel, validateDuelIntents } from '../lib/duelResolver';
+import { DuelFighterStats, DuelIntent, DuelReceipt, duelFighterFromCombatant, resolveDuel, validateDuelIntents } from '../lib/duelResolver';
 import { buildPlayerCombatants, playerCombatant } from '../lib/rivalLadder';
 import { requireLivingVitals, issueVitals, Vitals } from '../lib/rivalHealth';
 import { healingDelta, healingStock, healingItem } from '../lib/repairItems';
@@ -12,11 +12,19 @@ export const ZONE_RUN_SCHEMA = 'zone-run-3';
 /** zone-run-4 (additive over zone-run-3): run.utilityUsed + utility reply utilityResult. A zone-run-3 request still gets
  * exactly the zone-run-3 shapes (no utilityUsed / utilityResult, same key order); rulings are identical in both. */
 export const ZONE_RUN_SCHEMA_V4 = 'zone-run-4';
-export type ZoneRunWire = typeof ZONE_RUN_SCHEMA | typeof ZONE_RUN_SCHEMA_V4;
+/** zone-run-5 (additive over zone-run-4): the signature pilot (FORECAST + SLIPSTREAM). Accepted only while the
+ * HOLOCITY_ZONE_SIGNATURES flag is on; zone-run-3/4 shapes and rulings are unchanged for runs that never signature. */
+export const ZONE_RUN_SCHEMA_V5 = 'zone-run-5';
+export type ZoneRunWire = typeof ZONE_RUN_SCHEMA | typeof ZONE_RUN_SCHEMA_V4 | typeof ZONE_RUN_SCHEMA_V5;
 export const ZONE_RUN_WIRES:readonly string[] = [ZONE_RUN_SCHEMA, ZONE_RUN_SCHEMA_V4];
+/** v4-or-later views (utilityUsed, glimpse/dangerLabel, utilityResult). */
+const atLeastV4=(wire:ZoneRunWire)=>wire===ZONE_RUN_SCHEMA_V4||wire===ZONE_RUN_SCHEMA_V5;
 export const ZONE_EXTRACT_SCHEMA = 'zone-extract-1';
 export const EXTRACTION_CHANNEL_MS = ZONE_EXPEDITION_RULES.extraction.channelMs;
 export const UTILITY_COOLDOWN_MS = ZONE_EXPEDITION_RULES.utility.cooldownMs;
+export const SIGNATURE_COOLDOWN_MS = ZONE_EXPEDITION_RULES.signatures.cooldownMs;
+export const SIGNATURE_KINDS = ['forecast','slipstream','snare','aegis','lockbox'] as const;
+export type SignatureKind = typeof SIGNATURE_KINDS[number];
 const MAX_HAUL = 9;
 export class ExpeditionError extends Error { constructor(public code:string, public details:Record<string,unknown>={}) { super(code); } }
 const fail=(code:string):never=>{throw new ExpeditionError(code);};
@@ -73,17 +81,33 @@ export type ExpeditionRun={schemaVersion:typeof ZONE_RUN_SCHEMA;runId:string;sta
   /** Sector ids whose utility has been spent this run (one-shot). Absent on documents issued before zone-run-4 = []. */
   utilityUsed:string[];
   /** Host clock of the last spent utility (cooldown anchor). Internal: never in a run view. */
-  utilityAtMs:number|null};
+  utilityAtMs:number|null;
+  /** zone-run-5 signature state. Absent on runs issued with the signature flag off (read as "no signatures"); never
+   * defaulted into storage, so flag-off documents keep their exact shape. */
+  signaturePool?:SignaturePool;signatureArmed?:{kind:'snare'|'aegis';holobotId:string}|null;forecasts?:Forecast[];slipOpened?:string[];protectedSlots?:number;
+  /** Host clock of the last spent signature (cooldown anchor). Internal: never in a run view. */
+  signatureAtMs?:number|null};
+export type SignaturePool=Partial<Record<SignatureKind,{charges:number;max:number;holders:string[]}>>;
+export type ForecastProjection='clean'|'bruised'|'heavy'|'wipe_risk';
+export type Forecast={sectorId:string;openingIntents:DuelIntent[];projection:ForecastProjection};
+export type SignatureEffect='forecast'|'armed'|'route'|'protect'|'none';
+/** zone-run-5 signature reply field. sectorId = the sector the effect is about (forecast: the target; slipstream: here). */
+export type SignatureResult={signature:SignatureKind;holobotId:string;sectorId:string;effect:SignatureEffect;spent:boolean;chargesLeft:number;
+  cooldownMs:number|null;opensSectorId:string|null;forecast:Forecast|null;protectedSlots:number|null};
 export type UtilityEffect='route'|'cache'|'clear'|'none';
 /** zone-run-4 utility reply field. haul = rows this use added (also present in run.haul, unbanked until extraction). */
 export type UtilityResult={sectorId:string;utility:'ace'|'shadow'|'kuma';effect:UtilityEffect;opensSectorId:string|null;haul:Haul[];spent:boolean;cooldownMs:number|null};
 export type ExpeditionCommand={schemaVersion:string;operation:string;requestId?:string;runId?:string;itemId?:string;repairKits?:number;carryExtractionCharge?:boolean;
-  sectorId?:string;holobotId?:string;order?:string[];haulId?:string;utility?:string;playerIntents?:unknown};
-const fields:Record<string,string[]>={status:[],layout:[],buy:['itemId'],issue:['repairKits','carryExtractionCharge'],move:['sectorId'],fight:['playerIntents'],cache:[],protect:['haulId'],heal:['holobotId'],reorder:['order'],utility:['utility'],extract:['mode'],emergency_start:[],emergency_finish:[],wipe:[]};
-export function validateExpeditionCommand(raw:unknown):ExpeditionCommand {
+  sectorId?:string;holobotId?:string;order?:string[];haulId?:string;utility?:string;playerIntents?:unknown;signature?:string;targetSectorId?:string};
+const fields:Record<string,string[]>={status:[],layout:[],buy:['itemId'],issue:['repairKits','carryExtractionCharge'],move:['sectorId'],fight:['playerIntents'],cache:[],protect:['haulId'],heal:['holobotId'],reorder:['order'],utility:['utility'],signature:['signature','holobotId','targetSectorId'],extract:['mode'],emergency_start:[],emergency_finish:[],wipe:[]};
+/** signatures = the HOLOCITY_ZONE_SIGNATURES flag (store passes it). Off: zone-run-5 is an unknown version (invalid_request). */
+export function validateExpeditionCommand(raw:unknown,options:{signatures?:boolean}={}):ExpeditionCommand {
   if(!object(raw)||typeof raw.operation!=='string'||!Object.hasOwn(fields,raw.operation))return fail('invalid_request');
   const op=raw.operation,read=op==='status'||op==='layout',town=op==='issue'||op==='buy',extract=op==='extract'||op.startsWith('emergency_')||op==='wipe';
-  if(!(extract?raw.schemaVersion===ZONE_EXTRACT_SCHEMA:ZONE_RUN_WIRES.includes(String(raw.schemaVersion)))||Object.keys(raw).some(k=>!['schemaVersion','operation',...(!read?['requestId']:[]),...(!read&&!town?['runId']:[]),...fields[op]].includes(k)))return fail('invalid_request');
+  const v5=options.signatures===true&&raw.schemaVersion===ZONE_RUN_SCHEMA_V5;
+  // The signature operation exists only on zone-run-5.
+  if(op==='signature'&&!v5)return fail('invalid_request');
+  if(!(extract?raw.schemaVersion===ZONE_EXTRACT_SCHEMA:ZONE_RUN_WIRES.includes(String(raw.schemaVersion))||v5)||Object.keys(raw).some(k=>!['schemaVersion','operation',...(!read?['requestId']:[]),...(!read&&!town?['runId']:[]),...fields[op]].includes(k)))return fail('invalid_request');
   const id=(v:unknown)=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(v);
   if(!read&&!id(raw.requestId)||!read&&!town&&!id(raw.runId))return fail('invalid_request');
   if(op==='issue'&&(!whole(raw.repairKits,99)||typeof raw.carryExtractionCharge!=='boolean'))return fail('invalid_request');
@@ -92,6 +116,11 @@ export function validateExpeditionCommand(raw:unknown):ExpeditionCommand {
   if(op==='reorder'&&(!Array.isArray(raw.order)||raw.order.length<1||raw.order.length>3||!raw.order.every(id)||new Set(raw.order).size!==raw.order.length))return fail('invalid_request');
   if(op==='fight'){try{validateDuelIntents(raw.playerIntents);}catch{return fail('invalid_intents');}}
   if(op==='extract'&&raw.mode!=='normal')return fail('invalid_request');
+  if(op==='signature'){
+    // Shape only: kind / holder / target rulings are host refusals (signature_unknown, ...), not schema errors.
+    if(!id(raw.signature)||!id(raw.holobotId))return fail('invalid_request');
+    if(raw.signature==='forecast'?!id(raw.targetSectorId):raw.targetSectorId!==undefined)return fail('invalid_request');
+  }
   return structuredClone(raw) as ExpeditionCommand;
 }
 export function buyExpedition(profile:Record<string,unknown>,item:string,config:ExpeditionConfig):Record<string,unknown>{
@@ -106,7 +135,17 @@ export function buyExpedition(profile:Record<string,unknown>,item:string,config:
   if(holos<price)return fail('not_enough_holos');
   return {...updates,holosTokens:holos-price,expeditionSupplies:supplies};
 }
-export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionCommand,id:string,seed:number,now:number,config:ExpeditionConfig):{run:ExpeditionRun;updates:Record<string,unknown>}{
+/** One entry per enabled KIND present in the pinned squad (catalog bot -> kind). Duplicate holders never add charges. */
+export function signaturePool(squad:readonly {holobotId:string}[]):SignaturePool{
+  const rules=ZONE_EXPEDITION_RULES.signatures,catalog=rules.catalog as Readonly<Record<string,SignatureKind>>,pool:SignaturePool={};
+  for(const kind of SIGNATURE_KINDS){
+    if(!(rules.enabled as readonly string[]).includes(kind))continue;
+    const holders=squad.map(b=>b.holobotId).filter(id=>Object.hasOwn(catalog,id)&&catalog[id]===kind);
+    if(holders.length)pool[kind]={charges:rules.charges[kind],max:rules.charges[kind],holders};
+  }
+  return pool;
+}
+export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionCommand,id:string,seed:number,now:number,config:ExpeditionConfig,options:{signatures?:boolean}={}):{run:ExpeditionRun;updates:Record<string,unknown>}{
   const flags=readStoryFlags(profile.storyFlags);
   if(!flags.arenaArcBuilt)return fail('arena_arc_required');
   // The HoloZones portal gate (critic review 2026-10-17 #1): no expedition until the host flips holoZonesArcBuilt.
@@ -123,14 +162,18 @@ export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionComma
   const layout=dailyLayout(now),opponents=Object.fromEntries(layout.sectors.filter(s=>!s.safe).map(at=>[at.id,buildThreat(config,at)]));
   const run:ExpeditionRun={schemaVersion:ZONE_RUN_SCHEMA,runId:id,state:'open',issuedAtMs:now,config:structuredClone(config),layout,privateSeed:seed,opponents,
     sectorId:'entry',visited:['entry'],cleared:[],looted:[],squad,energy:supplies.energy,kits,charge,haul:[],guardianDefeated:false,extraction:null,receipt:null,revision:0,
-    utilityUsed:[],utilityAtMs:null};
+    utilityUsed:[],utilityAtMs:null,
+    ...(options.signatures===true?{signaturePool:signaturePool(squad),signatureArmed:null,forecasts:[],slipOpened:[],protectedSlots:ZONE_EXPEDITION_RULES.protectedSlot.count,signatureAtMs:null}:{})};
   return {run,updates:{...healingDelta(profile,'item.repair_kit',-kits),holobotVitals:vitals,expeditionSupplies:{...supplies,extractionCharges:supplies.extractionCharges-charge}}};
 }
 /** zone-run-3 view: the deployed shape, byte for byte (utility bookkeeping stripped). zone-run-4 view: schemaVersion
  * "zone-run-4" plus utilityUsed. The cooldown anchor and private seed never leave the host. */
 export function runView(run:ExpeditionRun,wire:ZoneRunWire=ZONE_RUN_SCHEMA){
-  const {privateSeed:_seed,utilityUsed,utilityAtMs:_cooldown,...view}=run;
-  const shaped=wire===ZONE_RUN_SCHEMA_V4?{...view,schemaVersion:ZONE_RUN_SCHEMA_V4,layout:layoutView(run.layout,wire),utilityUsed}:view;
+  const {privateSeed:_seed,utilityUsed,utilityAtMs:_cooldown,signaturePool:pool,signatureArmed:armed,forecasts,slipOpened,protectedSlots,signatureAtMs:_sig,...view}=run;
+  // zone-run-5 = the zone-run-4 view plus the five signature fields (a run issued without signatures shows an empty pool).
+  const signatures=wire===ZONE_RUN_SCHEMA_V5?{signaturePool:pool??{},signatureArmed:armed??null,forecasts:forecasts??[],slipOpened:slipOpened??[],
+    protectedSlots:protectedSlots??ZONE_EXPEDITION_RULES.protectedSlot.count}:{};
+  const shaped=atLeastV4(wire)?{...view,schemaVersion:wire,layout:layoutView(run.layout,wire),utilityUsed,...signatures}:view;
   return structuredClone({...shaped,seed:run.layout.seed,band:sector(run).band,sector:run.sectorId,protectedSlot:run.haul.find(h=>h.protected)??null});
 }
 /** The host-authored preview line for a sector, from its role in the daily layout table. */
@@ -140,17 +183,25 @@ export function sectorGlimpse(at:Sector):string{
 }
 /** zone-run-3 layout: unchanged. zone-run-4 layout: every sector adds glimpse; band 1-3 sectors add their band's dangerLabel. */
 export function layoutView(layout:Layout,wire:ZoneRunWire=ZONE_RUN_SCHEMA):Layout{
-  if(wire!==ZONE_RUN_SCHEMA_V4)return structuredClone(layout);
+  if(!atLeastV4(wire))return structuredClone(layout);
   return {...structuredClone(layout),sectors:layout.sectors.map(s=>({...structuredClone(s),glimpse:sectorGlimpse(s),
-    ...(s.band>0?{dangerLabel:ZONE_EXPEDITION_RULES.layoutCopy.dangerLabels[s.band-1]}:{})}))};
+    ...(s.band>0?{dangerLabel:ZONE_EXPEDITION_RULES.layoutCopy.dangerLabels[s.band-1]}:{}),
+    ...(wire===ZONE_RUN_SCHEMA_V5?{signatureBlocked:signatureBlocked(s)}:{})}))};
+}
+/** zone-run-5 layout: the ENABLED kinds the host always refuses for this sector (slipstream acting here; forecast
+ * targeting here), so the prompt can be honest without Unity inferring rules. Static per layout. */
+export function signatureBlocked(at:Sector):SignatureKind[]{
+  const enabled=ZONE_EXPEDITION_RULES.signatures.enabled as readonly string[];
+  return SIGNATURE_KINDS.filter(k=>enabled.includes(k)&&(k==='forecast'?at.safe:k==='slipstream'?at.safe||at.band>=3||at.guardian:false));
 }
 /** Reply to a run-advancing operation. A closing reply stays zone-extract-1 with the zone-run-3 run view (that schema
  * references zone-run-3's run); only an open zone-run-4 reply carries utilityResult. */
-export function advanceReply(wire:ZoneRunWire,operation:string,run:ExpeditionRun,result:{duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult}){
-  const closed=run.receipt!==null,v4=wire===ZONE_RUN_SCHEMA_V4&&!closed;
+export function advanceReply(wire:ZoneRunWire,operation:string,run:ExpeditionRun,result:{duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult;signatureResult?:SignatureResult}){
+  const closed=run.receipt!==null,v4=atLeastV4(wire)&&!closed;
   return {schemaVersion:closed?ZONE_EXTRACT_SCHEMA:wire,operation,run:runView(run,closed?ZONE_RUN_SCHEMA:wire),receipt:run.receipt,
     ...(result.duelReceipt?{duelReceipt:result.duelReceipt}:{}),...(result.interrupted?{interrupted:true}:{}),
-    ...(v4&&result.utilityResult?{utilityResult:structuredClone(result.utilityResult)}:{}),alreadyProcessed:false};
+    ...(v4&&result.utilityResult?{utilityResult:structuredClone(result.utilityResult)}:{}),
+    ...(wire===ZONE_RUN_SCHEMA_V5&&!closed&&result.signatureResult?{signatureResult:structuredClone(result.signatureResult)}:{}),alreadyProcessed:false};
 }
 export function readExpedition(raw:unknown):ExpeditionRun{
   if(!object(raw)||raw.schemaVersion!==ZONE_RUN_SCHEMA||typeof raw.runId!=='string'||!['open','closed'].includes(String(raw.state))
@@ -171,22 +222,46 @@ export function readExpedition(raw:unknown):ExpeditionRun{
   const used=r.utilityUsed??[],at=r.utilityAtMs??null;
   if(!Array.isArray(used)||used.length>10||new Set(used).size!==used.length||used.some(id=>typeof id!=='string'||!r.layout.sectors.some(s=>s.id===id&&s.utility!==null))
     ||(at!==null&&!whole(at,8_640_000_000_000_000))||(used.length>0)!==(at!==null))return fail('unavailable');
+  readSignatures(r);
   return structuredClone({...r,utilityUsed:used,utilityAtMs:at});
+}
+/** zone-run-5 bookkeeping: all six fields together or none (a flag-off run). Malformed = fail closed. */
+function readSignatures(r:ExpeditionRun):void{
+  const keys=['signaturePool','signatureArmed','forecasts','slipOpened','protectedSlots','signatureAtMs'] as const;
+  const present=keys.filter(k=>Object.hasOwn(r,k));
+  if(!present.length)return;
+  if(present.length!==keys.length)return fail('unavailable');
+  const pool=r.signaturePool!,ids=r.squad.map(b=>b.holobotId),sector=(id:unknown)=>typeof id==='string'&&r.layout.sectors.some(s=>s.id===id);
+  if(!object(pool)||Object.entries(pool).some(([k,e])=>!(SIGNATURE_KINDS as readonly string[]).includes(k)||!object(e)||!whole(e.max,99)||!whole(e.charges,e.max as number)
+    ||!Array.isArray(e.holders)||e.holders.length<1||new Set(e.holders).size!==e.holders.length||e.holders.some(h=>!ids.includes(h))))return fail('unavailable');
+  const armed=r.signatureArmed;
+  if(armed!==null&&(!object(armed)||!['snare','aegis'].includes(String(armed.kind))||!ids.includes(String(armed.holobotId))))return fail('unavailable');
+  if(!Array.isArray(r.forecasts)||r.forecasts.length>10||new Set(r.forecasts.map(f=>f?.sectorId)).size!==r.forecasts.length
+    ||r.forecasts.some(f=>!object(f)||!sector(f.sectorId)||!Array.isArray(f.openingIntents)||f.openingIntents.length<1||f.openingIntents.length>ZONE_EXPEDITION_RULES.signatures.forecast.openingIntents
+      ||f.openingIntents.some(i=>!['strike','heavy','defend','finisher'].includes(i))||!['clean','bruised','heavy','wipe_risk'].includes(f.projection)))return fail('unavailable');
+  if(!Array.isArray(r.slipOpened)||r.slipOpened.length>10||new Set(r.slipOpened).size!==r.slipOpened.length||!r.slipOpened.every(sector))return fail('unavailable');
+  if(!whole(r.protectedSlots,2)||r.protectedSlots<1)return fail('unavailable');
+  const spentAny=Object.values(pool).some(e=>e!.charges<e!.max);
+  if(r.signatureAtMs!==null&&!whole(r.signatureAtMs,8_640_000_000_000_000)||spentAny!==(r.signatureAtMs!==null))return fail('unavailable');
 }
 function sector(run:ExpeditionRun):Sector {return run.layout.sectors.find(s=>s.id===run.sectorId)??fail('unavailable');}
 /** ACE route target, read from the pinned layout: the utility sector's safe neighbor one band deeper (gate{n+1}). */
 export function utilityRoute(layout:Layout,at:Sector):string|null{
   return at.neighbors.map(id=>layout.sectors.find(s=>s.id===id)).find(s=>!!s&&s.safe&&s.band===at.band+1)?.id??null;
 }
+/** The deeper crossing is open without a clear: the ACE route point was spent here, or (zone-run-5) Slipstream was. */
 function routeOpened(run:ExpeditionRun,at:Sector,next:Sector):boolean{
-  return !!at.utility&&ZONE_EXPEDITION_RULES.utility.effects[at.utility]==='route'&&run.utilityUsed.includes(at.id)&&utilityRoute(run.layout,at)===next.id;
+  const viaPoint=!!at.utility&&ZONE_EXPEDITION_RULES.utility.effects[at.utility]==='route'&&run.utilityUsed.includes(at.id);
+  return (viaPoint||(run.slipOpened??[]).includes(at.id))&&utilityRoute(run.layout,at)===next.id;
 }
 /** Host-only resolution. Effect comes from the rules table for the layout's utility; loot from the run's private seed.
  * Nothing to do (route already open, barrier already down, haul full) = effect "none": not spent, no cooldown. */
 function resolveUtility(run:ExpeditionRun,at:Sector,now:number):UtilityResult{
   const utility=at.utility!,effect=ZONE_EXPEDITION_RULES.utility.effects[utility];
   let opensSectorId:string|null=null,haul:Haul[]=[],applied=false;
-  if(effect==='route'){opensSectorId=utilityRoute(run.layout,at);applied=opensSectorId!==null&&!run.cleared.includes(at.id);if(!applied)opensSectorId=null;}
+  // Starter per-point choice (DECISIONS #72.75 (2)): Slipstream already taken here = this point has nothing to do.
+  if((run.slipOpened??[]).includes(at.id)){}
+  else if(effect==='route'){opensSectorId=utilityRoute(run.layout,at);applied=opensSectorId!==null&&!run.cleared.includes(at.id);if(!applied)opensSectorId=null;}
   else if(effect==='cache'){
     if(run.haul.length<MAX_HAUL){
       const rare=seed32(`${run.privateSeed}:utility:${at.id}`)%10000<run.config.rareBlueprintChanceBasisPoints;
@@ -197,6 +272,61 @@ function resolveUtility(run:ExpeditionRun,at:Sector,now:number):UtilityResult{
   if(!applied)return {sectorId:at.id,utility,effect:'none',opensSectorId:null,haul:[],spent:false,cooldownMs:null};
   run.utilityUsed.push(at.id);run.utilityAtMs=now;
   return {sectorId:at.id,utility,effect,opensSectorId,haul,spent:true,cooldownMs:UTILITY_COOLDOWN_MS>0?UTILITY_COOLDOWN_MS:null};
+}
+/** The fight's seed and inputs exactly as `case 'fight'` builds them: the forecast replays THE fight, not a lookalike. */
+function fightSeed(run:ExpeditionRun,at:Sector):number{return seed32(`${run.privateSeed}:fight:${at.id}`);}
+function fightSquad(run:ExpeditionRun):DuelFighterStats[]{return run.squad.map(b=>({...b,currentHealth:Math.floor(b.currentHealth??b.maxHealth)}));}
+/** FORECAST read (host only). The host resolves the target's fight against the squad's CURRENT HP with the fixed
+ * reference plan (explicit intents), then reports the threat's opening actions and a bucket. With explicit player
+ * intents the threat's intents depend only on its own stamina/sync and the seeded stream, never on the player's
+ * choices, so openingIntents are exact for the real fight for every round that fight reaches. A projection that ends
+ * sooner than 3 rounds shows fewer. Resolver-fight form: when expedition fights move to the input-log core (DECISIONS
+ * #72.75 (4)) this helper swaps to the CPU-vs-CPU replay with the same wire fields. */
+export function forecastSector(run:ExpeditionRun,target:Sector):Forecast{
+  const rules=ZONE_EXPEDITION_RULES.signatures.forecast,squad=fightSquad(run);
+  const receipt=resolveDuel({seed:fightSeed(run,target),player:squad,opponent:[threat(run,target)],playerIntents:[...rules.referencePlan]});
+  const openingIntents=receipt.rounds.filter(r=>r.side==='opponent').slice(0,rules.openingIntents).map(r=>r.requested);
+  const now=squad.reduce((n,b)=>n+(b.currentHealth??b.maxHealth),0),after=receipt.playerFinal.reduce((n,b)=>n+b.currentHealth,0);
+  const left=now>0?after/now:0;
+  const projection:ForecastProjection=receipt.winner!=='player'?'wipe_risk':left>=rules.bands.clean?'clean':left>=rules.bands.bruised?'bruised':'heavy';
+  return {sectorId:target.id,openingIntents,projection};
+}
+/** zone-run-5 signature use. Refusal order: signature_unknown, signature_not_in_squad, signature_not_here /
+ * forecast_not_ahead, signature_no_charge, signature_cooling. Then nothing-to-do = effect "none": not spent, no cooldown. */
+function resolveSignature(run:ExpeditionRun,at:Sector,c:ExpeditionCommand,now:number):SignatureResult{
+  const rules=ZONE_EXPEDITION_RULES.signatures;
+  if(!(rules.enabled as readonly string[]).includes(String(c.signature)))return fail('signature_unknown');
+  const kind=c.signature as SignatureKind,entry=run.signaturePool?.[kind],bot=run.squad.find(b=>b.holobotId===c.holobotId);
+  // Living holder of that kind, pinned at issue. A KO'd holder cannot act; the charges wait for a living one.
+  if(!entry||!bot||!entry.holders.includes(bot.holobotId)||(bot.currentHealth??bot.maxHealth)<=0)return fail('signature_not_in_squad');
+  let target:Sector=at;
+  if(kind==='slipstream'){
+    // Uncleared ordinary band-1/2 encounter only: never a safe room, band 3 (no deeper gate) or the guardian.
+    if(at.safe||at.band<1||at.band>=3||at.guardian||run.cleared.includes(at.id)||utilityRoute(run.layout,at)===null)return fail('signature_not_here');
+  }else{
+    const next=run.layout.sectors.find(s=>s.id===c.targetSectorId);
+    // ZoneLayout.Ahead semantics: a neighbour that is deeper, or the unsafe side of the current safe room's band.
+    if(!next||next.safe||!at.neighbors.includes(next.id)||!(next.band>at.band||next.band===at.band&&at.safe))return fail('forecast_not_ahead');
+    target=next;
+  }
+  if(entry.charges<1)return fail('signature_no_charge');
+  if(run.signatureAtMs!==null&&run.signatureAtMs!==undefined){const retryAfterMs=run.signatureAtMs+SIGNATURE_COOLDOWN_MS-now;if(retryAfterMs>0)throw new ExpeditionError('signature_cooling',{retryAfterMs});}
+  const none=(forecast:Forecast|null=null):SignatureResult=>({signature:kind,holobotId:bot.holobotId,sectorId:target.id,effect:'none',spent:false,chargesLeft:entry.charges,
+    cooldownMs:null,opensSectorId:null,forecast:forecast?structuredClone(forecast):null,protectedSlots:null});
+  let result:SignatureResult;
+  if(kind==='slipstream'){
+    // Per-point starter choice: this sector's utility point was taken (or it was already slipped) = nothing to do.
+    if(run.slipOpened!.includes(at.id)||!!at.utility&&run.utilityUsed.includes(at.id))return none();
+    run.slipOpened!.push(at.id);
+    result={...none(),effect:'route',opensSectorId:utilityRoute(run.layout,at)};
+  }else{
+    const known=run.forecasts!.find(f=>f.sectorId===target.id);
+    if(known||run.cleared.includes(target.id))return none(known??null);
+    const forecast=forecastSector(run,target);run.forecasts!.push(forecast);
+    result={...none(),effect:'forecast',forecast:structuredClone(forecast)};
+  }
+  entry.charges--;run.signatureAtMs=now;
+  return {...result,spent:true,chargesLeft:entry.charges,cooldownMs:SIGNATURE_COOLDOWN_MS>0?SIGNATURE_COOLDOWN_MS:null};
 }
 function buildThreat(config:ExpeditionConfig,at:Sector):DuelFighterStats{
   const level=config.bandLevels[Math.max(0,at.band-1)];
@@ -219,10 +349,10 @@ function terminal(profile:Record<string,unknown>,run:ExpeditionRun,outcome:Extra
     expeditionBank:{...bank,rareBlueprints:count(bank.rareBlueprints)+banked.filter(h=>h.kind==='rare_blueprint_fragment').reduce((n,h)=>n+h.amount,0),
       bulkySalvage:count(bank.bulkySalvage)+banked.filter(h=>h.kind==='bulky_salvage').reduce((n,h)=>n+h.amount,0),guardianDefeated:bank.guardianDefeated===true||run.guardianDefeated}};
 }
-export function advanceExpedition(profile:Record<string,unknown>,original:ExpeditionRun,c:ExpeditionCommand,now:number):{run:ExpeditionRun;updates:Record<string,unknown>;duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult}{
+export function advanceExpedition(profile:Record<string,unknown>,original:ExpeditionRun,c:ExpeditionCommand,now:number):{run:ExpeditionRun;updates:Record<string,unknown>;duelReceipt?:DuelReceipt;interrupted?:boolean;utilityResult?:UtilityResult;signatureResult?:SignatureResult}{
   const run=structuredClone(original);if(run.state!=='open')return fail('run_closed');
   if(now<run.issuedAtMs)return fail('invalid_request');
-  const at=sector(run);let duelReceipt:DuelReceipt|undefined,interrupted=false,updates:Record<string,unknown>={},utilityResult:UtilityResult|undefined;
+  const at=sector(run);let duelReceipt:DuelReceipt|undefined,interrupted=false,updates:Record<string,unknown>={},utilityResult:UtilityResult|undefined,signatureResult:SignatureResult|undefined;
   const terminalOp=(outcome:ExtractionReceipt['outcome'])=>{updates=terminal(profile,run,outcome,now);};
   if(run.extraction&&!['fight','emergency_finish','wipe'].includes(c.operation))return fail('extraction_in_progress');
   switch(c.operation){
@@ -236,9 +366,11 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
     }
     case 'fight': {
       if(at.safe)return fail('safe_room');if(run.cleared.includes(at.id))return fail('already_cleared');
+      // Slipstream forfeits the encounter AND its cache: the slipped sector never fights (so it can never be looted).
+      if((run.slipOpened??[]).includes(at.id))return fail('sector_slipped');
       const intents=validateDuelIntents(c.playerIntents);
       run.energy=Math.max(0,run.energy-run.config.fightEnergyCost); // Zero never disables an already-entered fight.
-      duelReceipt=resolveDuel({seed:seed32(`${run.privateSeed}:fight:${at.id}`),player:run.squad.map(b=>({...b,currentHealth:Math.floor(b.currentHealth??b.maxHealth)})),opponent:[threat(run,at)],playerIntents:intents});
+      duelReceipt=resolveDuel({seed:fightSeed(run,at),player:fightSquad(run),opponent:[threat(run,at)],playerIntents:intents});
       run.squad=run.squad.map(b=>({...b,currentHealth:duelReceipt!.playerFinal.find(f=>f.holobotId===b.holobotId)!.currentHealth}));
       if(run.extraction&&duelReceipt.rounds.some(r=>r.side==='opponent'&&r.hit&&r.damage>0)){run.extraction=null;interrupted=true;}
       if(duelReceipt.winner==='opponent')terminalOp('wipe');else {run.cleared.push(at.id);if(at.guardian)run.guardianDefeated=true;}break;
@@ -262,6 +394,7 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
       if(run.utilityAtMs!==null){const retryAfterMs=run.utilityAtMs+UTILITY_COOLDOWN_MS-now;if(retryAfterMs>0)throw new ExpeditionError('utility_cooling',{retryAfterMs});}
       utilityResult=resolveUtility(run,at,now);break;
     }
+    case 'signature': signatureResult=resolveSignature(run,at,c,now);break;
     case 'extract': if(!at.beacon)return fail('beacon_required');terminalOp('normal');break;
     // Resolver fights settle atomically: uncleared host encounter is the conservative open-fight gate.
     // Refuse before spending a charge; no live mid-fight escape lifecycle is introduced.
@@ -275,5 +408,5 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
   }
   run.revision++;
   if(run.state==='open')updates={expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy},holobotVitals:{...(profile.holobotVitals as Vitals??{}),...vitalsOf(run)}};
-  return {run,updates,...(duelReceipt?{duelReceipt}:{}),...(interrupted?{interrupted:true}:{}),...(utilityResult?{utilityResult}:{})};
+  return {run,updates,...(duelReceipt?{duelReceipt}:{}),...(interrupted?{interrupted:true}:{}),...(utilityResult?{utilityResult}:{}),...(signatureResult?{signatureResult}:{})};
 }

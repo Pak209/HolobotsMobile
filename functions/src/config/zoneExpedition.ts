@@ -53,6 +53,36 @@ export const ZONE_EXPEDITION_RULES = Object.freeze({
     clear: 'sector-encounter-cleared-no-loot',
     noEffect: 'not-spent-no-cooldown',
   }),
+  /** zone-run-5 signatures (Holocity HANDOFFS/2026-10-23-holozones-signatures.md; DECISIONS #72.75). Host-only rule keys:
+   * none of this table is on the wire. One pool per KIND built at issue from the pinned squad (duplicate holders add
+   * insurance, never charges). Pilot = forecast + slipstream; the other catalog kinds are designed but not built
+   * (`enabled`), so a request for them is refused signature_unknown. Behind the HOLOCITY_ZONE_SIGNATURES flag (default
+   * off): with it off nothing below is read and zone-run-5 requests are refused invalid_request. Values PROPOSED. */
+  signatures: Object.freeze({
+    catalog: Object.freeze({ wolf: 'forecast', era: 'forecast', tsuin: 'forecast', ace: 'slipstream', hare: 'slipstream', shadow: 'slipstream',
+      kurai: 'snare', wake: 'snare', tora: 'snare', ken: 'aegis', kuma: 'aegis', gama: 'lockbox' } as const),
+    enabled: Object.freeze(['forecast', 'slipstream'] as const),
+    charges: Object.freeze({ forecast: 2, slipstream: 1, snare: 2, aegis: 2, lockbox: 1 }),
+    /** Same 30 s anti-spam window as utility (PROPOSED); its own anchor so a utility use never blocks a signature. */
+    cooldownMs: 30000,
+    forecast: Object.freeze({
+      openingIntents: 3,
+      /** Fixed explicit plan the projection replays (never the player's plan; no per-intent queries). */
+      referencePlan: Object.freeze(['strike', 'strike', 'defend'] as const),
+      /** Remaining squad HP / squad HP now, reference plan won: >= clean = clean, >= bruised = bruised, else heavy. Lost = wipe_risk. */
+      bands: Object.freeze({ clean: 0.85, bruised: 0.6 }),
+    }),
+    snare: Object.freeze({ holdActions: 1 }),
+    aegis: Object.freeze({ absorbHits: 1 }),
+    lockbox: Object.freeze({ extraSlots: 1 }),
+    /** Where each kind can never act. slipstream: safe rooms, band 3 (no deeper gate), the guardian. snare: the guardian.
+     * forecast: a safe sector is never a target. */
+    blockedAt: Object.freeze({ slipstream: 'safe|band3|guardian', snare: 'guardian', forecast: 'safe-target' }),
+    /** DECISIONS #72.75 (2): ACE / SHADOW / KUMA keep their utility point AND get their signature. Per-point choice: at a
+     * sector that carries a utility point, the point and Slipstream are alternatives; the first one the host accepts
+     * there is the choice and the other answers effect "none" there (not spent, no cooldown). */
+    starterChoice: 'per-point-first-accepted',
+  }),
   /** zone-run-4 layout preview copy (Holocity #53); presentation text only, never a ruling. dangerLabels[i] names
    * band i+1 (the band whose WOLF level is bandLevels[i]): PLACE names per Pak DECISIONS #71.3 (2026-10-17), sent
    * verbatim (Unity shows them as-is with the level range beside them). glimpse lines are City-authored (DECISIONS
@@ -74,6 +104,11 @@ export const ZONE_EXPEDITION_RULES = Object.freeze({
     }),
   }),
 });
+
+/** HOLOCITY_ZONE_SIGNATURES=pilot-1 turns the zone-run-5 signature pilot on. Anything else (including unset) = off. */
+export const ZONE_SIGNATURES_FLAG = 'HOLOCITY_ZONE_SIGNATURES';
+export const ZONE_SIGNATURES_ON = 'pilot-1';
+export function zoneSignaturesEnabled(): boolean { return process.env[ZONE_SIGNATURES_FLAG] === ZONE_SIGNATURES_ON; }
 
 /** Reuse the existing catalog amounts; this table cannot silently reprice healing. */
 export const ZONE_EXPEDITION_HEALING_ITEMS = Object.freeze(HEALING_ITEMS.map(item => Object.freeze({
