@@ -23,12 +23,12 @@ export function scriptedPlayer(keys) { return F.FightScript.fromJson(keys.map(k 
 
 /** Run 1: brain(profileId, rank) vs the issued CPU; its side-0 decisions become a plain per-tick input list. */
 export function smartPlayer(issue, profileId = 'ace', rank = 'Legendary') {
-  const { rules, chase, attrs } = F.rulesDocFromJson(issue.rules);
+  const { rules, chase, attrs, tempo } = F.rulesDocFromJson(issue.rules);
   const rec = [];
   F.runFight(rules, issue.seed,
     { brain: new F.FightCoreBrain(), profile: F.issuedProfile(F.brainProfile(profileId)), skill: F.issuedSkill(rank) },
     { brain: new F.FightCoreBrain(), profile: issue.cpu.profile, skill: issue.cpu.rank },
-    { recordEvents: false, chase, attrs, onTick: (_t, inputs) => rec.push(F.toRecord(inputs[0])) });
+    { recordEvents: false, chase, attrs, tempo, onTick: (_t, inputs) => rec.push(F.toRecord(inputs[0])) });
   return { read: t => (t < rec.length ? F.toInput(rec[t]) : F.toInput(F.idleRecord())) };
 }
 

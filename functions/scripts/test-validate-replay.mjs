@@ -184,8 +184,14 @@ test('pvp gate: the same tampered log is refused (replay_mismatch); unset mode k
   const i = await transactPvpDaily(db, 'me', { operation: 'issue', opponentId: list.opponents[0].opponentId, duelInputs: 'duel-inputs-2' }, T0, 'gate');
   assert.equal(i.duel.mode, 'input-log'); assert.equal(db.rows.get(`rivalBattles/me/battles/${i.battleId}`).replayGate, undefined);
   const forged = clone(recordFightLog(i.duel, smartPlayer(i.duel)).wire); forged.hashes = 'f'.repeat(16) + forged.hashes.slice(16);
-  await capture(() => assert.rejects(settle(db, { battleId: i.battleId, inputLog: forged, didWin: true }, T0 + 30000), /replay_mismatch/));
+  // gate mode has no dry-run fallback: an omitted log on the open battle is refused (checked first: server-rulings-1 ruling 3
+  // closes the battle on the replay_mismatch below, after which a settle replays the stored no-pay ruling)
   await capture(() => assert.rejects(settle(db, { battleId: i.battleId, inputLogOmitted: 'too_large', didWin: true }, T0 + 30000), /invalid_request/));
+  await capture(() => assert.rejects(settle(db, { battleId: i.battleId, inputLog: forged, didWin: true }, T0 + 30000), /replay_mismatch/));
+  const closed = db.rows.get(`rivalBattles/me/battles/${i.battleId}`).settlement;
+  assert.equal(closed.closedBy, 'replay_mismatch'); assert.equal(closed.didWin, false); assert.equal(closed.holosGranted, 0);
+  const again = await capture(() => settle(db, { battleId: i.battleId, inputLogOmitted: 'too_large', didWin: true }, T0 + 30000));
+  assert.equal(again.result.alreadyProcessed, true); assert.equal(again.result.didWin, false); assert.equal(again.result.closedBy, 'replay_mismatch');
   const fresh = world(); const offList = await transactPvpDaily(fresh, 'me', { operation: 'list' }, T0, undefined);
   const off = await transactPvpDaily(fresh, 'me', { operation: 'issue', opponentId: offList.opponents[1].opponentId, duelInputs: 'duel-inputs-2' }, T0 + 40000, undefined);
   assert.equal(off.duel.mode, 'legacy', 'mode unset: pvp follows the global flags (off in alpha)');

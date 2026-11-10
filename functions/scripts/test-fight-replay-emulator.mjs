@@ -124,7 +124,7 @@ test('settle twice / five concurrent settles: one ruling, the stored receipt is 
   assert.deepEqual(await user(uid), before); assert.deepEqual(await record(uid, issue.battleId), stored);
 });
 
-test('mismatch: a tampered log is rejected at its first divergent window via the callable; nothing settles', async () => {
+test('mismatch: a tampered log is rejected at its first divergent window via the callable; the battle closes as a no-pay loss (server-rulings-1)', async () => {
   const uid = await setup();
   const prior = process.env.HOLOCITY_FIGHT_REPLAY, priorResolver = process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER;
   process.env.HOLOCITY_FIGHT_REPLAY = '1'; process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER = '1';
@@ -138,33 +138,36 @@ test('mismatch: a tampered log is rejected at its first divergent window via the
     await assert.rejects(() => call(uid, { operation: 'settle', battleId: issue.battleId, inputLog: F.inputLogToWire(log), didWin: true }, later),
       e => e.code === 'replay_mismatch' && e.detail.reason === 'hash' && e.detail.window === 0 && e.detail.fromTick === 0 && e.detail.toTick === 29);
     // the deployed wrapper: failed-precondition + the window in details (Unity reads details.rejectionCode)
-    await assert.rejects(() => rivalBattleHost.run({ auth: { uid }, data: { ...base, operation: 'settle', battleId: issue.battleId, inputLog: F.inputLogToWire(log), didWin: true } }),
-      e => e.code === 'failed-precondition' && e.details.rejectionCode === 'replay_mismatch' && e.details.reason === 'hash' && e.details.toTick === e.details.window * 30 + 29);
+    const again = await rivalBattleHost.run({ auth: { uid }, data: { ...base, operation: 'settle', battleId: issue.battleId, inputLog: F.inputLogToWire(log), didWin: true } });
+    assert.equal(again.alreadyProcessed, true); assert.equal(again.closedBy, 'replay_mismatch');
+    // server-rulings-1 ruling 3: the first mismatch closed the battle (no-pay loss); the second settle replays that ruling
     const b = await record(uid, issue.battleId);
-    assert.equal(b.settlement, null); assert.equal(b.fightReceipt, undefined); assert.deepEqual(await user(uid), before);
-    assert.equal(b.fightReplayRejections, 2); assert.equal(b.lastFightReplayRejection.reason, 'hash');
+    assert.equal(b.settlement.closedBy, 'replay_mismatch'); assert.equal(b.settlement.holosGranted, 0); assert.equal(b.fightReceipt, undefined);
+    for (const k of ['holosTokens', 'holobots', 'holobotVitals', 'rivalWins']) assert.deepEqual((await user(uid))[k], before[k], k);
+    assert.equal(b.fightReplayRejections, 1); assert.equal(b.lastFightReplayRejection.reason, 'hash');
   } finally {
     if (prior === undefined) delete process.env.HOLOCITY_FIGHT_REPLAY; else process.env.HOLOCITY_FIGHT_REPLAY = prior;
     if (priorResolver === undefined) delete process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER; else process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER = priorResolver;
   }
 });
 
-test('tampered seed / rules hash / CPU rank / undecodable log / missing log: refused, no writes', async () => {
+test('tampered seed / rules hash / CPU rank: refused by field and (server-rulings-1) each closes its battle; undecodable / missing log: refused, no writes', async () => {
+  for (const [field, f] of [['seed', l => { l.seed = '0'.repeat(64); }], ['rulesHash', l => { l.rulesHash = 'f'.repeat(64); }], ['sides[1].rank', l => { l.sides[1].rank = l.sides[1].rank === 'rookie' ? 'legendary' : 'rookie'; }]]) {
+    const u = await setup({ level: 99 }), i = await issueInputLog(u), w = clone(clientLog(i.duel)); f(w);
+    await assert.rejects(() => call(u, { operation: 'settle', battleId: i.battleId, inputLog: w, didWin: true }, later), e => e.code === 'replay_mismatch' && e.detail.reason === 'identity' && e.detail.field === field);
+    assert.equal((await record(u, i.battleId)).settlement.closedBy, 'replay_mismatch');
+  }
   const uid = await setup({ level: 99 });
   const issue = await issueInputLog(uid);
   const log = clientLog(issue.duel);
   const before = await user(uid);
   const settle = inputLog => call(uid, { operation: 'settle', battleId: issue.battleId, inputLog, didWin: true }, later);
-  for (const [field, f] of [['seed', l => { l.seed = '0'.repeat(64); }], ['rulesHash', l => { l.rulesHash = 'f'.repeat(64); }], ['sides[1].rank', l => { l.sides[1].rank = l.sides[1].rank === 'rookie' ? 'legendary' : 'rookie'; }]]) {
-    const w = clone(log); f(w);
-    await assert.rejects(() => settle(w), e => e.code === 'replay_mismatch' && e.detail.reason === 'identity' && e.detail.field === field);
-  }
   const bad = clone(log); bad.sides[0].stream = '!!!!';
   await assert.rejects(() => settle(bad), e => e.code === 'invalid_request' && e.detail.reason === 'invalid_log' && e.detail.decoderCode === 'invalid_stream');
   await assert.rejects(() => call(uid, { operation: 'settle', battleId: issue.battleId, didWin: true, legacyDidWin: true, playerIntents: ['strike'] }, later),
     e => e.code === 'invalid_request' && e.detail.reason === 'input_log_required');
   assert.deepEqual(await user(uid), before); assert.equal((await record(uid, issue.battleId)).settlement, null);
-  // the same log is accepted afterwards (a rejection never burns the battle)
+  // the same log is accepted afterwards (an undecodable / missing log never burns the battle)
   const ok = await settle(log); assert.equal(ok.fightReceipt.verified, true);
 });
 

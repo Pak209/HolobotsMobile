@@ -5,7 +5,8 @@ import {
 import { clamp, dist, div, hex, Int32Writer, mulDiv, rngSeedWord, seedBytes, sha256 } from './math';
 import {
   ATTR_KEYS, attrEdge, CHASE_KEYS, cloneRules, evadeChance, evadeWord, FightAttrRules, FightChaseRules, FightFighterDef, FightRules, moveMul, rollPm, rosterOf,
-  rulesCanonicalBytes5, rulesHashBytes, SIM_VERSION_4, specialDmgMul, syncMul, tempoTicks, validateAttrRules, validateChaseRules, validateRules,
+  rulesCanonicalBytes5, rulesCanonicalBytes6, rulesHashBytes, SIM_VERSION_4, SIM_VERSION_5, specialDmgMul, syncMul, tempoTicks, validateAttrRules, validateChaseRules, validateRules,
+  FightTempoRules, TEMPO_KEYS, validateTempoRules,
 } from './rules';
 import { FightWitness } from './witness';
 
@@ -90,6 +91,8 @@ export class FightCore {
   /** duel-rules-5 (#72.77/#72.78): the SPEED / SPECIAL rules, or null = the duel-rules-3/-4 core exactly (events, state hash). */
   readonly attrs: FightAttrRules | null;
   private readonly evadeWordV: number = 0;
+  /** duel-rules-6 (server-rulings-1): the light wind-up / recovery-cancel rules, or null = the duel-rules-3/-4/-5 core exactly. */
+  readonly tempo: FightTempoRules | null;
   /** duel-rules-5 witness counters (not hashed; pure functions of the hashed stream): per side. */
   readonly speedEvades = [0, 0]; readonly stuffed = [0, 0]; readonly tempoTicksSaved = [0, 0]; readonly syncMilliGained = [0, 0];
   tick = -1;
@@ -114,15 +117,18 @@ export class FightCore {
   /** Emit events? (the witness and hashes do not depend on it; replay skips the strings for speed only when asked). */
   recordEvents = true;
 
-  constructor(rules: FightRules, seedHex: string, chase: FightChaseRules | null = null, attrs: FightAttrRules | null = null) {
+  constructor(rules: FightRules, seedHex: string, chase: FightChaseRules | null = null, attrs: FightAttrRules | null = null, tempo: FightTempoRules | null = null) {
     if (attrs && !chase) throw new RangeError('invalid_attrs_without_chase');
+    if (tempo && !attrs) throw new RangeError('invalid_tempo_without_attrs');
+    if (tempo) { validateTempoRules(tempo); this.tempo = { ...tempo }; } else this.tempo = null;
     if (attrs) { validateAttrRules(attrs); this.attrs = { ...attrs }; } else this.attrs = null;
     validateRules(rules);
     if (chase) { validateChaseRules(chase); this.chase = { ...chase }; this.chaseState = [new FightChaseSide(), new FightChaseSide()]; }
     else { this.chase = null; this.chaseState = null; }
     this.rules = cloneRules(rules);
     // duel-rules-5: the state carries the issued rules-5 hash (fighters' speed / special + chase + attrs); else today's bytes
-    this.rulesHashB = this.attrs ? sha256(rulesCanonicalBytes5(this.rules, this.chase, this.attrs)) : rulesHashBytes(this.rules);
+    this.rulesHashB = this.tempo ? sha256(rulesCanonicalBytes6(this.rules, this.chase, this.attrs, this.tempo))
+      : this.attrs ? sha256(rulesCanonicalBytes5(this.rules, this.chase, this.attrs)) : rulesHashBytes(this.rules);
     this.seed = seedBytes(seedHex);
     if (this.attrs) this.evadeWordV = evadeWord(this.seed);
     const meanLightsMilli = this.rules.hpScaleLights > 0 ? meanLightsToKoMilli(this.rules) : 0;
@@ -356,7 +362,10 @@ export class FightCore {
       executed = this.startStrike(s, Move.Charge, 0, rail);
     } else if (press === Press.Light || press === Press.Heavy || press === Press.Special || press === Press.Step || press === Press.DoubleTap) {
       if (inp.guard && press !== Press.DoubleTap) this.deny(s, Deny.Guarding);
-      else if (this.free(f)) executed = this.execute(s, press, inp.stepX, inp.stepZ, inp.specialTier, rail);
+      else if (press === Press.Step && this.tempo && this.tempo.cancelStep !== 0 && f.guard === Guard.Down && this.cancellable(f, t)) {
+        // duel-rules-6: a Step press ends the fighter's own cancellable recovery and steps at once
+        this.cancelRecovery(f, t); executed = this.execute(s, press, inp.stepX, inp.stepZ, inp.specialTier, rail);
+      } else if (this.free(f)) executed = this.execute(s, press, inp.stepX, inp.stepZ, inp.specialTier, rail);
       else if ((press === Press.Step || press === Press.DoubleTap) && f.action === Action.Step && f.stepForced) { executed = this.execute(s, press, inp.stepX, inp.stepZ, 0, rail); }
       else if (f.action === Action.Telegraph || f.action === Action.Recovery || f.action === Action.Step || f.action === Action.Stun
         || f.action === Action.Shove || f.action === Action.FeintRecovery || f.action === Action.Escape || f.guard === Guard.Lowering) {
@@ -377,10 +386,20 @@ export class FightCore {
   private raiseGuardIfHeld(f: FightFighter, t: number): void {
     if (!f.guardInput) return;
     if (f.action === Action.Step && f.stepForced) { f.action = Action.Idle; f.stepKind = Loco.Still; f.stepForced = false; }
+    // duel-rules-6: a held guard ends the fighter's own cancellable recovery
+    if (this.tempo && this.tempo.cancelGuard !== 0 && this.cancellable(f, t)) this.cancelRecovery(f, t);
     if ((f.guard === Guard.Down || f.guard === Guard.Lowering) && (f.action === Action.Idle || f.action === Action.FeintRecovery)) {
       f.guard = Guard.Raising; f.guardRaiseStart = t; clearBuffer(f);
       this.emit(this.F.indexOf(f), EventKind.GuardRaise, Move.None, 0);
     }
+  }
+
+  /** duel-rules-6: the fighter is in its own Recovery and (cancelPunishable 0) that recovery is not punishable. */
+  private cancellable(f: FightFighter, t: number): boolean {
+    return f.action === Action.Recovery && !f.ko && (this.tempo!.cancelPunishable !== 0 || t >= f.punishableUntil);
+  }
+  private cancelRecovery(f: FightFighter, t: number): void {
+    f.action = Action.Idle; f.actionUntil = t; f.atkMove = Move.None; f.lastReadyTick = t; clearBuffer(f);
   }
 
   private execute(s: number, p: FightPress, sx: number, sz: number, tier: number, rail: boolean): boolean {
@@ -415,6 +434,8 @@ export class FightCore {
     const shortTel = move === Move.Light && inChain;
     f.chainCount = inChain ? f.chainCount + 1 : 1;
     let tel = move === Move.Charge ? R.chargeTelegraphTicks : shortTel ? R.chainTelegraphTicks + R.chainDecayTicks * (f.chainCount - 2) : R.telegraphTicks;
+    // duel-rules-6: the light has its own wind-up and a chained light is never slower than it
+    if (this.tempo && move === Move.Light) tel = shortTel ? Math.min(tel, this.tempo.lightTelegraphTicks) : this.tempo.lightTelegraphTicks;
     if (this.attrs && move !== Move.Charge && !shortTel) { const cut = Math.min(tel - 1, tempoTicks(this.attrs, this.speedEdge(s))); tel -= cut; this.tempoTicksSaved[s] += cut; }
     if (this.attrs && move === Move.Special && tier === 2) tel = Math.max(1, tel - this.attrs.finisherTempoCutTicks);
     tel += f.sta === 0 ? R.emptyTelegraphTicks : f.sta < R.breakLinePm ? R.gassedTelegraphTicks : 0;
@@ -915,7 +936,7 @@ export class FightCore {
    * roster member in rules array order (STATE_FIGHTER_FIELDS).
    */
   stateBytes(): Buffer {
-    const w = new Int32Writer(1024).ascii(this.attrs ? SIM_VERSION_4 : 'duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
+    const w = new Int32Writer(1024).ascii(this.tempo ? SIM_VERSION_5 : this.attrs ? SIM_VERSION_4 : 'duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
     w.int(this.tick).int(B(this.exchangeActive)).int(this.exchangeStartTick).int(this.lastTelegraphTick).int(this.lastContactTick)
       .int(this.exchangePresses).int(B(this.railFired)).int(this.pairState).int(this.distanceMm).int(this.rangeRMm).int(this.winner).int(B(this.ended));
     for (let s = 0; s < 2; s++) {
@@ -935,6 +956,8 @@ export class FightCore {
     }
     // duel-rules-5: 'fight-attrs-1' + the attrs block after the chase tail (off = the duel-rules-3/-4 bytes exactly)
     if (this.attrs) { w.ascii('fight-attrs-1'); for (const k of ATTR_KEYS) w.int(this.attrs[k]); }
+    // duel-rules-6: 'fight-tempo-1' + the tempo block after the attrs tail (off = the duel-rules-3/-4/-5 bytes exactly)
+    if (this.tempo) { w.ascii('fight-tempo-1'); for (const k of TEMPO_KEYS) w.int(this.tempo[k]); }
     return w.done();
   }
   stateHash(): string { return hex(sha256(this.stateBytes())); }

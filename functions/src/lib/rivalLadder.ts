@@ -434,7 +434,11 @@ export type RivalSettlement = {
   progression?: HolobotProgressionEntry[];
   /** DECISIONS #58 (records settled from economy-host-1): Holos paid by this settle; absent on older records = 0. */
   holosGranted?: number;
+  /** server-rulings-1 (Pak 2026-11-09, ruling 3): an input-log battle closed WITHOUT a verified result: the player's explicit
+   * `forfeit`, or a settle whose log failed replay (`replay_mismatch`). Always a no-pay loss; absent = an ordinary settle. */
+  closedBy?: RivalClosedBy;
 };
+export type RivalClosedBy = "forfeit" | "replay_mismatch";
 
 /** Stored at rivalBattles/{uid}/battles/{battleId}; server-only path. */
 export type RivalBattleRecord = {
@@ -624,7 +628,28 @@ export type SettleReply = {
   progression: HolobotProgressionEntry[];
   /** DECISIONS #58: Holos this battle paid (win 100 / loss 25 / 0 inside the anti-farm window); duplicates replay it. v3 only. */
   holosGranted: number;
+  /** server-rulings-1: present only when the battle was closed by a forfeit / a replay_mismatch (RivalSettlement.closedBy). */
+  closedBy?: RivalClosedBy;
 };
+
+/**
+ * server-rulings-1 (Pak 2026-11-09, ruling 3): close an open battle as a NO-PAY loss without a verified result: no Holos, no
+ * Buddy Units, no XP, no rivalWins change, no pilot rank. `closedBy` names why (the explicit forfeit, or a replay_mismatch settle).
+ * The caller frees the open-battle slot and does NOT start the per-rival cooldown, so a new issue works at once.
+ */
+export function closeRivalBattleNoPay(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, nowMs: number, closedBy: RivalClosedBy): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord>; reply: SettleReply } {
+  const l = readLedger(profile);
+  if (!battle || battle.battleId !== battleId || battle.schemaVersion !== RIVAL_RECORD_SCHEMA) throw new RivalError("unknown_battle");
+  if (battle.settlement) throw new RivalError("unavailable");
+  if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
+  const tier = tierForWins(l.wins);
+  const settlement: RivalSettlement = { didWin: false, buddyUnitsGranted: 0, buddyUnitTierGranted: "", tierBefore: tier, tierAfter: tier, settledAtMs: nowMs, fielded: [], progression: [], holosGranted: 0, closedBy };
+  return {
+    userUpdates: starterUpdates(l),
+    battleUpdates: { settlement },
+    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin: false, buddyUnitsGranted: 0, buddyUnitTierGranted: "", tierBefore: tier, tierAfter: tier, status: statusOf(l, nowMs), progression: [], holosGranted: 0, closedBy },
+  };
+}
 
 /**
  * Client claims the outcome; the server owns the amounts (settleArenaBattle
@@ -648,7 +673,7 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     return {
       userUpdates: starterUpdates(l),
       battleUpdates: null,
-      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })), holosGranted: s.holosGranted ?? 0 },
+      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })), holosGranted: s.holosGranted ?? 0, ...(s.closedBy ? { closedBy: s.closedBy } : {}) },
     };
   }
   if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
@@ -705,12 +730,12 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
 export type RivalStatusV1 = Omit<RivalStatus, "buddyUnits"> & { buddyUnits: number };
 
 /** The fields rival-battle-3 adds; a v2 projection removes exactly these (and nothing else). */
-export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression", "holosGranted"] as const;
+export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression", "holosGranted", "closedBy"] as const;
 export const RIVAL_V3_COMBATANT_FIELDS = ["speed", "intelligence", "commandRules"] as const;
 
 /** The rival-battle-2 shape of a v3 reply: identical to the 2026-10-01 deployment (#44). */
 function toV2(reply: { schemaVersion: string; status: RivalStatus }): Record<string, unknown> & { status: RivalStatus } {
-  const { playerCombatants: _p, progression: _g, holosGranted: _h, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown; holosGranted?: unknown };
+  const { playerCombatants: _p, progression: _g, holosGranted: _h, closedBy: _c, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown; holosGranted?: unknown; closedBy?: unknown };
   const out: Record<string, unknown> & { status: RivalStatus } = { ...rest, schemaVersion: RIVAL_SCHEMA_V2 };
   const encounter = (reply as { encounter?: { opponentSquad?: CombatantSnapshot[] } }).encounter;
   if (encounter && Array.isArray(encounter.opponentSquad)) {

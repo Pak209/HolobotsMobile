@@ -7,8 +7,9 @@ import { EventKind, FIGHT_PROFILE_KEYS, FIGHT_SKILL_KEYS, FightInput, FightProfi
 import { FightCore, townHp } from './core';
 import { FightInputLog, FightInputLogError, firstDivergentSample, inputLogToWire, logInputs, parseInputLog, recordEquals, sampleTick, toRecord } from './inputLog';
 import { hex, sha256 } from './math';
-import { FightAttrRules, FightChaseRules, FightRules, rulesDocFromJson, rulesHash } from './rules';
+import { FightAttrRules, FightChaseRules, FightRules, FightTempoRules, rulesDocFromJson, rulesHash } from './rules';
 import { runFight } from './runner';
+import { FightPlausibility, judgePlausibility } from './plausibility';
 
 /**
  * fight-host-1 replay verification (fight-flow brief C0): re-run the duel-sim-3 twin on the ISSUED rules + seed + CPU
@@ -34,24 +35,26 @@ export type FightReplayVerdict = {
   /** Replay CPU time (ms, wall clock of this process; measurement only, never in the receipt). */
   replayMs: number;
   ticks: number;
+  /** server-rulings-1 ruling 4: the plausibility read of this fight (host-side only; never in the receipt). */
+  plausibility: FightPlausibility;
 };
 
 /** Bounded structural validation of a stored issue block (the record is server-written; this fails closed if corrupted). */
-export function readIssue(issue: unknown): { issue: FightReplayIssueWire; rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null } {
+export function readIssue(issue: unknown): { issue: FightReplayIssueWire; rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null; tempo: FightTempoRules | null } {
   const i = issue as FightReplayIssueWire;
   try {
     if (!i || i.mode !== 'input-log' || i.schemaVersion !== FIGHT_RECEIPT_SCHEMA || i.simVersion !== FIGHT_SIM_VERSION || i.playerSide !== 0) throw 0;
     // duel-rules-3 (chase null, today's core), duel-rules-4 (the issued chase block) or duel-rules-5 (+ the issued attrs block);
     // the hash is that document's
-    const { rules, chase, attrs } = rulesDocFromJson(i.rules);
-    if (rulesHash(rules, chase, attrs) !== i.rulesHash) throw 0;
+    const { rules, chase, attrs, tempo } = rulesDocFromJson(i.rules);   // + duel-rules-6 (the issued tempo block)
+    if (rulesHash(rules, chase, attrs, tempo) !== i.rulesHash) throw 0;
     if (!/^[0-9a-f]{64}$/.test(i.seed) || !i.cpu || i.cpu.side !== 1) throw 0;
     for (const k of FIGHT_PROFILE_KEYS) if (!(k in i.cpu.profile)) throw 0;
     for (const k of FIGHT_SKILL_KEYS) if (!(k in i.cpu.rank)) throw 0;
     const side = (s: number) => rules.fighters.filter(f => f.side === s).map(f => f.id);
     if (JSON.stringify(i.player.roster.map(r => r.fighterId)) !== JSON.stringify(side(0))) throw 0;
     if (JSON.stringify(i.cpu.roster.map(r => r.fighterId)) !== JSON.stringify(side(1))) throw 0;
-    return { issue: i, rules, chase, attrs };
+    return { issue: i, rules, chase, attrs, tempo };
   } catch {
     throw new FightReplayError('invalid_issue');
   }
@@ -92,7 +95,7 @@ function checkIdentity(issue: FightReplayIssueWire, log: FightInputLog): void {
 export type VerifyOptions = { battleId: string; now?: () => number };
 
 export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: VerifyOptions): FightReplayVerdict {
-  const { issue, rules, chase, attrs } = readIssue(storedIssue);
+  const { issue, rules, chase, attrs, tempo } = readIssue(storedIssue);
   const { log, canonical } = decodeLog(rawLog);
   checkIdentity(issue, log);
   const now = opts.now ?? (() => performance.now());
@@ -106,7 +109,7 @@ export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: V
   let result: ReturnType<typeof runFight>;
   try {
     result = runFight(rules, issue.seed, { inputs: logInputs(log, 0) }, { brain: new FightCoreBrain(), profile, skill }, {
-      hashAt: t => samples.has(t) || t === last, maxTicks: log.tickCount, recordEvents: true, chase, attrs,
+      hashAt: t => samples.has(t) || t === last, maxTicks: log.tickCount, recordEvents: true, chase, attrs, tempo,
       onTick: (t: number, inputs: [FightInput, FightInput]) => {
         if (cpuDivergence < 0 && (t >= cpuTicks.length || !recordEquals(cpuTicks[t], toRecord(inputs[1])))) cpuDivergence = t;
       },
@@ -145,7 +148,7 @@ export function verifyFightReplay(storedIssue: unknown, rawLog: unknown, opts: V
     witness: result.witness,
   };
   return {
-    receipt, winner: result.winner, replayMs, ticks: ticksRun,
+    receipt, winner: result.winner, replayMs, ticks: ticksRun, plausibility: judgePlausibility(result.events, result.witness, log.sides[0].ticks),
     fieldedHolobotIds: receipt.playerFinal.filter(f => f.fielded).map(f => f.holobotId),
   };
 }
