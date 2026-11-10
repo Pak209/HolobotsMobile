@@ -43,9 +43,12 @@ test('flag off, or no capability, or an older wire version: the existing modes a
   await assert.rejects(() => call(e, { operation: 'issue', duelInputs: 'duel-inputs-1' }), /invalid_request/);
 });
 
+// duel-rules-3 is the chase/attrs-OFF issue; production runs HOLOCITY_FIGHT_CHASE/ATTRS=1 (#72.86), so the rules family is pinned
+// explicitly through the host options (they take precedence over the env), and the ON families are asserted in the next test.
+const RULES3 = { ...ON, fightChase: false, fightAttrs: false };
 test('input-log issue pins duel-rules-3 + seed + CPU profile/rank on the record and serves the same block', async () => {
   const uid = await setup();
-  const issue = await issueInputLog(uid, { duel: { mode: 'legacy' }, seed: 1, rules: { counterPm: 9999 } });
+  const issue = await issueInputLog(uid, { duel: { mode: 'legacy' }, seed: 1, rules: { counterPm: 9999 } }, RULES3);
   const b = await record(uid, issue.battleId);
   assert.equal(issue.duel.mode, 'input-log'); assert.deepEqual(issue.duel, b.duel);
   assert.equal(b.duel.rulesId, 'duel-rules-3:' + issue.battleId);
@@ -57,6 +60,17 @@ test('input-log issue pins duel-rules-3 + seed + CPU profile/rank on the record 
   assert.equal(b.duel.rules.fighters[0].hp, Math.floor(b.issuedVitals.ace.currentHealth));
   assert.equal(b.healthSchema, 'rival-health-1');
   await assert.rejects(() => issueInputLog(uid), /too_many_open/);
+});
+
+test('input-log issue with the production switches (#72.86): chase -> duel-rules-4, chase + attrs -> duel-rules-5, same seed and roster', async () => {
+  for (const [options, family] of [[{ ...ON, fightChase: true, fightAttrs: false }, 'duel-rules-4'], [{ ...ON, fightChase: true, fightAttrs: true }, 'duel-rules-5'], [{ ...ON, fightChase: false, fightAttrs: true }, 'duel-rules-3']]) {
+    const uid = await setup();
+    const issue = await issueInputLog(uid, {}, options);
+    const b = await record(uid, issue.battleId);
+    assert.equal(b.duel.rulesId, family + ':' + issue.battleId, JSON.stringify(options));
+    assert.deepEqual(issue.duel, b.duel); assert.match(b.duel.seed, /^[0-9a-f]{64}$/);
+    assert.deepEqual(b.duel.player.roster.map(r => r.holobotId), ['ace']);
+  }
 });
 
 test('R2 issue uses host readiness/streak and CPU tier SYNC; first verified settle trains once', async () => {

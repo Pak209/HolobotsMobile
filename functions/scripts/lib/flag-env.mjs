@@ -11,6 +11,12 @@ export function withFlags(flags, fn) {
   pinFlags(flags);
   try { return fn(); } finally { pinFlags(prev); }
 }
+/** Async variant: the pins stay in force until the awaited fn settles (withFlags would restore them before an async body runs). */
+export async function withFlagsAsync(flags, fn) {
+  const prev = Object.fromEntries(Object.keys(flags).map(n => [n, process.env[n]]));
+  pinFlags(flags);
+  try { return await fn(); } finally { pinFlags(prev); }
+}
 /** Environment for a child process with the named switches pinned (undefined = removed). */
 export function childEnv(flags) {
   const env = { ...process.env };

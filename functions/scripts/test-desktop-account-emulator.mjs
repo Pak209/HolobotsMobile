@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { withFlagsAsync } from './lib/flag-env.mjs';
 const require = createRequire(import.meta.url);
 const Ajv = createRequire(new URL('../../rules-tests/package.json', import.meta.url))('ajv');
 const validateDashboard = new Ajv().compile(require('../../Schemas/desktop-account-dashboard-fields.json'));
@@ -19,7 +20,8 @@ let serial = 0;
 const ace = () => ({ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 2500, rank: 'Starter', attributePoints: 1, boostedAttributes: { attack: 3, health: 20 }, syncStats: { power: 10, guard: 20, tempo: 5, focus: 30, bond: 0 } });
 const setup = async (fields = {}) => { const uid = `desk_${Date.now()}_${serial++}`; await db.doc(`users/${uid}`).set({ holobots: [ace(), { name: 'KUMA', level: 1 }], ...fields }); return uid; };
 
-test('v3: normalised holobots + battleStats / displayStats; the starter Buddy Unit is granted once; the stored records are not rewritten', async () => {
+// Pre-#72.78 SPEED column pinned OFF here (production runs HOLOCITY_FIGHT_ATTRS=1, #72.86); the rules-5 test below pins ON.
+test('v3: normalised holobots + battleStats / displayStats; the starter Buddy Unit is granted once; the stored records are not rewritten', () => withFlagsAsync({ HOLOCITY_FIGHT_ATTRS: undefined }, async () => {
   const uid = await setup();
   const r = await desktopAccountSnapshot.run({ auth: { uid }, data: { schemaVersion: 'desktop-account-3' } });
   assert.equal(r.schemaVersion, 'desktop-account-3'); assert.deepEqual(r.buddyUnits, { light: 1, medium: 0, heavy: 0 });
@@ -33,7 +35,7 @@ test('v3: normalised holobots + battleStats / displayStats; the starter Buddy Un
   assert.deepEqual(stored.buddyUnits, { light: 1, medium: 0, heavy: 0 });
   const again = await desktopAccountSnapshot.run({ auth: { uid }, data: { schemaVersion: 'desktop-account-3' } });
   assert.deepEqual(again.buddyUnits, { light: 1, medium: 0, heavy: 0 }, 'granted once');
-});
+}));
 
 test('v1 / v2 keep the stored records verbatim; an unknown version is invalid-argument', async () => {
   const uid = await setup({ buddyUnits: { light: 2, medium: 1, heavy: 0 } });
@@ -77,7 +79,7 @@ test('HoloZones arc gate through the real callable: closed until storyFlags.holo
 });
 
 // rules5-progression-gate-1: the #72.78 progression changes are live only with the duel-rules-5 host flag (read at call time).
-const withRules5 = async fn => { const had = Object.hasOwn(process.env, 'HOLOCITY_FIGHT_ATTRS'), prev = process.env.HOLOCITY_FIGHT_ATTRS; process.env.HOLOCITY_FIGHT_ATTRS = '1'; try { return await fn(); } finally { if (had) process.env.HOLOCITY_FIGHT_ATTRS = prev; else delete process.env.HOLOCITY_FIGHT_ATTRS; } };
+const withRules5 = fn => withFlagsAsync({ HOLOCITY_FIGHT_ATTRS: '1' }, fn);
 
 test('rules-5 flag on (#72.78): v3 battleStats / displayStats read the SPEED 4-6 column (ACE LV4 speed 69, KUMA LV1 40)', () => withRules5(async () => {
   const uid = await setup();
