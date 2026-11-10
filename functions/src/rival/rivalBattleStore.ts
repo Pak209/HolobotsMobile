@@ -16,13 +16,24 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { FIGHT_ATTRS_FLAG, FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_REPLAY_FLAG, FightReceiptWire, FightReplayIssueWire } from '../shared/fightReplayContract';
 import { FightReplayError, FightReplayVerdict, verifyFightReplay } from '../sim/fight/replay';
 import { buildFightReplayIssue } from './fightReplayIssue';
+import { FIGHT_LOG_OMITTED_FIELD, ReplayValidation, replayDryRunLine, validateReplay } from '../sim/fight/validateReplay';
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight } from '../lib/partStats';
 import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand, PVP_ASYNC_SOURCE, IssueReply } from '../lib/rivalLadder';
 
 /** pvp-daily-1: binds an issue to another player's frozen squad inside the issue transaction (reads first, then writes). */
-export type RivalIssueBinding = { bind: (tx: Transaction, r: { battle: RivalBattleRecord; reply: IssueReply; userUpdates: Record<string, unknown> }) => Promise<void> };
+export type RivalIssueBinding = {
+  bind: (tx: Transaction, r: { battle: RivalBattleRecord; reply: IssueReply; userUpdates: Record<string, unknown> }) => Promise<void>;
+  /** Replay groundwork (item 8, HOLOCITY_PVP_REPLAY): 'dry_run' or 'gate' issues input-log to a duelInputs-capable client even
+   * with the global replay flag off; only 'dry_run' marks the battle so its settle logs instead of refusing. */
+  replay?: PvpReplayMode;
+};
+export type PvpReplayMode = 'dry_run' | 'gate';
+/** HOLOCITY_PVP_REPLAY: unset = pvp follows the rival flags exactly; 'dry_run' / 'gate' as above. */
+export function pvpReplayMode(raw: string | undefined = process.env.HOLOCITY_PVP_REPLAY): PvpReplayMode | undefined {
+  return raw === 'dry_run' || raw === 'gate' ? raw : undefined;
+}
 
 /**
  * DECISIONS #43 rival host. users/{uid} holds buddyUnits / rivalWins / rivalRewardDay
@@ -73,13 +84,24 @@ async function requireLeaseFree(tx: Transaction, db: Firestore, uid: string): Pr
   if (holder === 'duel') throw new RivalError('too_many_open');
 }
 /** fight-host-1: the settle-time replay, run OUTSIDE the transaction (CPU work never repeats on a transaction retry). */
-async function preVerifyFightReplay(db: Firestore, uid: string, request: Record<string, unknown>): Promise<{ verdict: FightReplayVerdict; issue: FightReplayIssueWire } | undefined> {
+async function preVerifyFightReplay(db: Firestore, uid: string, request: Record<string, unknown>): Promise<{ verdict?: FightReplayVerdict; issue: FightReplayIssueWire; dryRun?: ReplayValidation } | undefined> {
   // Only a settle that carries a log pays the extra read; an input-log battle settled without one refuses in the transaction.
-  if (request?.operation !== 'settle' || request[FIGHT_LOG_FIELD] === undefined || typeof request.battleId !== 'string' || !RIVAL_BATTLE_ID.test(request.battleId)) return undefined;
+  // Replay groundwork: a pvp dry-run settle (input-log record marked replayGate dry_run) may carry no log (over the client cap).
+  const dryRunHint = request?.operation === 'settle' && request[FIGHT_LOG_OMITTED_FIELD] === 'too_large';
+  if (request?.operation !== 'settle' || (request[FIGHT_LOG_FIELD] === undefined && !dryRunHint) || typeof request.battleId !== 'string' || !RIVAL_BATTLE_ID.test(request.battleId)) return undefined;
   const ref = db.doc(`rivalBattles/${uid}/battles/${request.battleId}`);
   const pre = (await ref.get()).data() as RivalBattleRecord | undefined;
   if (!pre || pre.settlement || pre.duel?.mode !== 'input-log') return undefined;
   const issue = pre.duel as FightReplayIssueWire;
+  if (pre.replayGate === 'dry_run' && pre.source === PVP_ASYNC_SOURCE) {
+    // DRY RUN (item 8): the same replay, classified and LOGGED; a non-match never refuses (the settle trusts the claim, capped).
+    const dryRun = validateReplay(issue, request[FIGHT_LOG_FIELD], { battleId: request.battleId });
+    const claimed = typeof request.didWin === 'boolean' ? request.didWin : null;
+    const line = JSON.stringify(replayDryRunLine(request.battleId, dryRun, claimed));
+    if (dryRun.verdict === 'match') console.info(line); else console.warn(line);
+    return { issue, dryRun, ...(dryRun.verdict === 'match' ? { verdict: dryRun.replay } : {}) };
+  }
+  if (request[FIGHT_LOG_FIELD] === undefined) return undefined;
   try {
     const verdict = verifyFightReplay(issue, request[FIGHT_LOG_FIELD], { battleId: request.battleId });
     console.info(JSON.stringify({ event: 'fight_replay_verified', battleId: request.battleId, ticks: verdict.ticks, replayMs: Math.round(verdict.replayMs * 10) / 10, winner: verdict.receipt.winner }));
@@ -123,7 +145,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   const story = citizenId === undefined ? storyRequest(raw) : {requested:false,issueZell:false};
   const zellEnabled = options.zellEnabled === true;
   if (story.issueZell && !zellEnabled) throw new RivalError('unavailable');
-  const inputLogIssue = fightReplay && capability === FIGHT_INPUTS_SCHEMA && command.operation === 'issue' && command.schemaVersion === 'rival-battle-3';
+  const pvpReplay = options.pvp?.replay;
+  const inputLogIssue = (fightReplay || pvpReplay !== undefined) && capability === FIGHT_INPUTS_SCHEMA && command.operation === 'issue' && command.schemaVersion === 'rival-battle-3';
   const healthEnabled=!legacyMode || inputLogIssue || (raw as {healthSchema?:unknown})?.healthSchema===RIVAL_HEALTH_SCHEMA;
   const userRef = db.doc(`users/${uid}`);
   // Pin the battle id and draws outside the transaction so retries rule identically.
@@ -179,7 +202,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         player:r.reply.playerCombatants, opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs,
         ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
           cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
-      if (fightIssue) r.battle.duel = fightIssue;
+      if (fightIssue) { r.battle.duel = fightIssue; if (pvpReplay === 'dry_run' && r.battle.source === PVP_ASYNC_SOURCE) r.battle.replayGate = 'dry_run'; }
       else if (legacyMode) r.battle.duel = {mode:'legacy'};
       else {
         const input = {seed:resolverSeed,player:r.reply.playerCombatants.map(c=>duelFighterFromCombatant({...applyPartBoosts(c,equippedPartBoosts(profile,c.holobotId)),tier:r.battle.tier})),
@@ -220,10 +243,16 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     let receipt: DuelReceipt | undefined;
     let fightReceipt: FightReceiptWire | undefined;
     let settleCommand = command;
-    if (record.duel?.mode === 'input-log') {
+    // Replay groundwork (item 8): a pvp dry-run battle whose replay did not match settles from the client's claimed outcome
+    // (closed alpha trusts the client within the rival caps: too_fast, anti-farm, Holos only); the verdict was logged above.
+    const dryRunMiss = record?.duel?.mode === 'input-log' && record.replayGate === 'dry_run' && record.source === PVP_ASYNC_SOURCE
+      && fightPre?.dryRun !== undefined && fightPre.dryRun.verdict !== 'match' ? fightPre.dryRun : undefined;
+    if (dryRunMiss) {
+      settleCommand = { ...command, didWin: request.didWin === true, fielded: [] };
+    } else if (record.duel?.mode === 'input-log') {
       // The replay ran before the transaction against this same immutable issue block; a concurrent first settle, or a
       // record that changed in between, is never settled from a stale verdict.
-      if (!fightPre) throw new RivalError('invalid_request', undefined, { reason: 'input_log_required' });
+      if (!fightPre || !fightPre.verdict) throw new RivalError('invalid_request', undefined, { reason: 'input_log_required' });
       if (fightPre.issue.rulesHash !== record.duel.rulesHash || fightPre.issue.seed !== record.duel.seed) throw new RivalError('unavailable');
       fightReceipt = fightPre.verdict.receipt;
       settleCommand = {...command,didWin:fightReceipt.winner === 'player',fielded:fightPre.verdict.fieldedHolobotIds};
@@ -263,6 +292,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     // A delayed pre-Arena battle must not settle rewards/HP into the current Arena activity.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
     if(expeditionOpen((await tx.get(db.doc(`holoZoneRuns/${uid}`))).data()))throw new RivalError('activity_conflict');
+    if (r.battleUpdates && fightPre?.dryRun && record.replayGate === 'dry_run') {
+      const d = fightPre.dryRun;
+      r.battleUpdates.replayDryRun = { verdict: d.verdict, reason: d.reason ?? null, bytes: d.bytes, claimedWin: typeof request.didWin === 'boolean' ? request.didWin : null, atMs: nowMs };
+    }
     if (r.battleUpdates && fightReceipt) {
       r.battleUpdates.fightReceipt = fightReceipt;
       // HP is the replay's, never the client's. A duel-healing run bound to THIS battle owns the duel's HP (#57: bench heals
