@@ -32,15 +32,23 @@ describe('desktop account host storyFlags contract available to mobile', () => {
     expect(storyFlags).toEqual({ arenaGatheringSeen: true });
   });
 
-  it.each([
-    null, [], 'flags',
-    { tournamentsWon: -1 }, { tournamentsWon: 4 }, { tournamentsWon: 1.5 },
-    { tournamentsWon: '2' }, { tournamentsWon: true }, { tournamentsWon: null },
-    { arenaGatheringSeen: 1 }, { arenaArcBuilt: true }, { tournamentsWon: 3, arenaArcBuilt: false },
-    { holoZonesArcBuilt: 'false' },
-  ])('refuses malformed host state rather than coercing it into mobile defaults: %j', storyFlags => {
+  // host-crawl-fixes-1 (Pak: repair, not refuse): malformed or inconsistent stored flags no longer refuse the reply.
+  // The host answers with the locked-side display read (functions/src/story/storyFlags.ts readStoryFlagsTolerant):
+  // a non-boolean flag reads false, a tournamentsWon outside the integers 0..3 reads 0, arenaArcBuilt reads true only
+  // when it is stored true AND tournamentsWon is 3, and no tournament unlock is announced from a non-exact read.
+  it.each<[unknown, Partial<typeof defaults>]>([
+    [null, {}], [[], {}], ['flags', {}],
+    [{ tournamentsWon: -1 }, {}], [{ tournamentsWon: 4 }, {}], [{ tournamentsWon: 1.5 }, {}],
+    [{ tournamentsWon: '2' }, {}], [{ tournamentsWon: true }, {}], [{ tournamentsWon: null }, {}],
+    [{ arenaGatheringSeen: 1 }, {}], [{ arenaArcBuilt: true }, {}], [{ tournamentsWon: 3, arenaArcBuilt: false }, { tournamentsWon: 3 }],
+    [{ holoZonesArcBuilt: 'false' }, {}],
+  ])('repairs malformed host state to the locked-side display read: %j', (storyFlags, unlocked) => {
+    const source = structuredClone(storyFlags);
     for (const version of versions) {
-      expect(() => buildDesktopAccountReply({ storyFlags }, 'throwaway-desktop', version, units)).toThrow('unavailable');
+      const reply = buildDesktopAccountReply({ storyFlags }, 'throwaway-desktop', version, units);
+      expect(reply.storyFlags).toEqual({ ...defaults, ...unlocked });
+      expect(reply.tournamentUnlocks).toEqual([]);
     }
+    expect(storyFlags).toEqual(source);
   });
 });
