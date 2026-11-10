@@ -3,6 +3,7 @@
 /** Minimal Firestore double: docs by path, direct-child collection queries (==, >, orderBy, limit), buffered transactions. */
 export function fakeDb(clock = { now: 0 }) {
   const docs = new Map();
+  let autoIds = 0;
   const get = (obj, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
   const snap = (path) => {
     const row = docs.get(path);
@@ -13,7 +14,7 @@ export function fakeDb(clock = { now: 0 }) {
     update: async (data) => { const row = docs.get(path); if (!row) throw new Error('missing'); row.data = { ...row.data, ...structuredClone(data) }; } });
   const collRef = (path, filters = [], order = null, lim = Infinity) => ({
     kind: 'query', path,
-    doc: (id) => docRef(`${path}/${id}`),
+    doc: (id) => docRef(`${path}/${id ?? `auto${String(++autoIds).padStart(16, '0')}`}`), // doc() with no id: a fresh auto-id, as Firestore does.
     where: (f, op, v) => collRef(path, [...filters, [f, op, v]], order, lim),
     orderBy: (f) => collRef(path, filters, f, lim),
     limit: (n) => collRef(path, filters, order, n),
