@@ -11,6 +11,7 @@ import { FightReplayError, verifyFightReplay } from '../sim/fight/replay';
 import { courtFightReplayEnabled } from '../lib/holoZoneCourtLive';
 import { LEFT_BEFORE_FIGHT_CLOSED_BY, leftBeforeFightInWindow } from '../lib/leftBeforeFight';
 import { FIGHT_PLAUSIBILITY_COLLECTION } from '../rival/rivalBattleStore';
+import { FIRST_WIN_COLLECTION, firstWinAvailable, firstWinRecord, livePerformanceFromReceipt } from '../lib/liveWinRewards';
 
 /**
  * DECISIONS #53 amendment 1 HoloZone run host (lib/holoZoneRuns.ts has the rules). Runs live at
@@ -215,11 +216,16 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
       tx.set(runsRef, { ...closed, [HOLOZONE_LAST_SETTLED_FIELD]: holoZoneLastSettledAfterSettle(readHoloZoneLastSettled(ledger, runs), zoneId, nowMs) });
       return { [THROW_AFTER_COMMIT]: new HoloZoneError('replay_mismatch', undefined, resolved.mismatch) };
     }
-    const r = settleHoloZoneRun(profile, runs, resolved.command, nowMs);
+    // early-progression-1: a verified live court fight settles with its receipt's win counts; a win reads today's first-live-win ledger.
+    const firstWinRef = db.doc(`${FIRST_WIN_COLLECTION}/${uid}`);
+    const liveWin = resolved.verdict ? { performance: livePerformanceFromReceipt(resolved.verdict.receipt),
+      firstWin: resolved.verdict.receipt.winner === 'player' && firstWinAvailable((await tx.get(firstWinRef)).data(), nowMs) } : undefined;
+    const r = settleHoloZoneRun(profile, runs, resolved.command, nowMs, liveWin);
     if (r.reply.alreadyProcessed) return holoZoneSettleReplyForVersion(await withStoredReceipt(r.reply), command.schemaVersion);
     // Preserve receipt replay, but refuse all first-time reward/HP writes during an Arena match.
     requireArenaClosed((await tx.get(db.doc(`arenaMatches/${uid}`))).data());
     if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile, r.userUpdates));
+    if (r.reply.firstWinOfDay) tx.set(firstWinRef, firstWinRecord('court', command.runId, nowMs));
     if (r.doc) tx.set(runsRef, { ...r.doc, [HOLOZONE_LAST_SETTLED_FIELD]: holoZoneLastSettledAfterSettle(readHoloZoneLastSettled(ledger, runs), r.reply.settlement.zoneId, nowMs) });
     if (resolved.receipt) tx.set(receiptRef, { schemaVersion: COURT_RECEIPT_SCHEMA, runId: command.runId, duelReceipt: resolved.receipt });
     if (resolved.verdict) {

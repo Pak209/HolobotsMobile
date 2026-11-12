@@ -1,6 +1,7 @@
 import { buildCatalog, ITEM_INVENTORY_FIELD, buildBuddyUnitPurchase, validateBuddyPurchase } from "./vendors";
 import { buildItemPurchaseUpdatesRaw, buildPackGrantUpdatesRaw, buildPackRewards, GACHA_PACKS, dailyMissionCounterUpdates } from "./economy";
 import { buildEnergyRefillUpdates, buildExpBoosterActivationRaw } from "./mintingEconomy";
+import {autoHealStatus,VitalsRow} from "./autoHeal";
 import {repairStock,repairGrant,repairUse,RepairError,REPAIR_ITEM,healingItem,healingPurchase,healingQuantityPurchase,HEALING_QUANTITY_MIN,HEALING_QUANTITY_MAX} from "./repairItems";
 export const ITEMS_SCHEMA = "desktop-items-2";
 /** `extra` (desktop-items-quantity-1, quantity buy only) adds host numbers to the callable error's details next to rejectionCode:
@@ -43,8 +44,21 @@ export function itemSnapshot(profile:Record<string,unknown>,favoriteId:string|nu
  const stocks=profile.itemStocks as Record<string,unknown>|undefined;
  for(const [key,name,description] of concepts){const count=stocks?.[key]??0;if(typeof count!=="number"||!Number.isSafeInteger(count)||count<0)throw new ItemError("unavailable");items.push({listingId:"item."+key,kind:"item",displayName:name,price:0,currency:"holos",quantity:1,owned:count,affordable:false,available:false,availableAtMs:0,details:{},purchase:{callable:"",request:{}},useMode:"context",canUse:false,description:description+" Effect and reward source not connected yet."});}
 
- const vitals=profile.holobotVitals as Record<string,{currentHealth:number;maxHealth:number}>|undefined;const repairTargets=Object.entries(vitals??{}).filter(([,v])=>v&&Number.isFinite(v.currentHealth)&&Number.isFinite(v.maxHealth)&&v.currentHealth>=0&&v.currentHealth<v.maxHealth).map(([id])=>id);
- return {schemaVersion:ITEMS_SCHEMA,repairTargets,vitals:vitals??{},favoriteId:items.some(i=>i.listingId===favoriteId)?favoriteId:null,holosTokens:catalog.holosTokens,items,cachePacks:GACHA_PACKS.map(p=>({id:p.id,name:p.id,price:p.price})),result:null as unknown};
+ // auto-heal-1: every row is the bot's regenerated HP at the server's `now`, plus fullAtMs (server ms when regen alone reaches
+ // max; null when full) and fullInMs (the same as a duration from this reply, so a client clock that disagrees with the
+ // server's still counts down right). No other reply field changes: a profile with no ledger answers byte for byte as before.
+ const vitals=readVitalsView(profile.holobotVitals,now);const repairTargets=Object.entries(vitals).filter(([,v])=>v&&Number.isFinite(v.currentHealth)&&Number.isFinite(v.maxHealth)&&v.currentHealth>=0&&v.currentHealth<v.maxHealth).map(([id])=>id);
+ return {schemaVersion:ITEMS_SCHEMA,repairTargets,vitals,favoriteId:items.some(i=>i.listingId===favoriteId)?favoriteId:null,holosTokens:catalog.holosTokens,items,cachePacks:GACHA_PACKS.map(p=>({id:p.id,name:p.id,price:p.price})),result:null as unknown};
+}
+type VitalsView={currentHealth:number;maxHealth:number;fullAtMs?:number|null;fullInMs?:number|null};
+function readVitalsView(raw:unknown,now:number):Record<string,VitalsView>{
+ if(!raw||typeof raw!=="object"||Array.isArray(raw))return {};
+ const out:Record<string,VitalsView>={};
+ for(const [id,v] of Object.entries(raw as Record<string,VitalsRow>)){
+  if(!(v&&typeof v==="object"&&Number.isFinite(v.currentHealth)&&Number.isFinite(v.maxHealth)&&v.maxHealth>0&&v.currentHealth>=0&&v.currentHealth<=v.maxHealth)){out[id]=v;continue;}
+  const s=autoHealStatus(v,now);out[id]={...s,fullInMs:s.fullAtMs===null?null:Math.max(0,s.fullAtMs-now)};
+ }
+ return out;
 }
 export function applyItemCommand(profile:Record<string,unknown>,favoriteId:string|null,c:ItemCommand,now:number,random:()=>number=Math.random){
  const snapshot=itemSnapshot(profile,favoriteId,now);const item=snapshot.items.find(i=>i.listingId===c.itemId);if(!item)throw new ItemError("unknown_item");
@@ -63,7 +77,7 @@ export function applyItemCommand(profile:Record<string,unknown>,favoriteId:strin
   else {const purchase=buildItemPurchaseUpdatesRaw(profile,item.displayName,new Date(now));if(!purchase)throw new ItemError("unavailable");updates=purchase.updates;}
  } else if(c.operation==="use"){
   if(!item.canUse)throw new ItemError(item.owned<=0?"no_item":"unavailable");
-  if(item.useMode==="repair"){try{const r=repairUse(profile,c.holobotId,c.itemId);updates=r.updates;result=r.result;}catch(e){if(e instanceof RepairError)throw new ItemError(e.code);throw e;}}
+  if(item.useMode==="repair"){try{const r=repairUse(profile,c.holobotId,c.itemId!,now);updates=r.updates;result=r.result;}catch(e){if(e instanceof RepairError)throw new ItemError(e.code);throw e;}}
   else if(item.useMode==="energy")updates=buildEnergyRefillUpdates(profile)!;
   else if(item.useMode==="boost"){const boost=buildExpBoosterActivationRaw(profile,now);if(boost.refusal!==null)throw new ItemError(boost.refusal);updates=boost.updates;}
   else if(item.useMode==="cache"){

@@ -18,6 +18,7 @@ import { BATTLE_COMBO_BONUS, BATTLE_PERFECT_DEFENSE_BONUS, BATTLE_LOSS_EXP_FRACT
 import { buildPlayerCombatants, playerCombatant, readOpenBattles, RivalError } from '../lib/rivalLadder';
 import { readHoloZoneRuns, HoloZoneError } from '../lib/holoZoneRuns';
 import { HealthError, requireLivingVitals, settleVitals, Vitals } from '../lib/rivalHealth';
+import { commitVitals, effectiveVitals } from '../lib/autoHeal';
 import { applyHolobotExperience, calculateExperience, HOLOBOT_BASE_STATS, normalizeUserHolobot } from '../lib/progression';
 import { holobotProgressionRow } from '../lib/battleProgression';
 import { DUEL_MAX_ROUNDS, DUEL_RECEIPT_SCHEMA, DuelReceipt, duelFighterFromCombatant, resolveDuel, validateDuelIntents } from '../lib/duelResolver';
@@ -33,6 +34,23 @@ import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { FIGHT_PLAUSIBILITY_COLLECTION, FIGHT_RULES_CAPABILITY_FIELD } from '../rival/rivalBattleStore';
 import { RIVAL_MIN_WIN_MS } from '../lib/rivalLadder';
 import { LEFT_BEFORE_FIGHT_FIELD, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
+import { FIRST_WIN_COLLECTION, FIRST_WIN_OF_DAY_MULTIPLIER, LIVE_WIN_BONUS_CAP, firstWinAvailable, firstWinRecord, firstWinWire, livePerformanceFromReceipt, utcDayOf } from '../lib/liveWinRewards';
+
+/**
+ * early-progression-1 (Pak 2026-11-12): a NEW account's first Arena entry is free. createGenesisProfile writes the server-only
+ * arenaMatches/{uid}/ledger/starterEntry {state 'available'}; the first non-cup issue that finds it 'available' charges nothing
+ * (entryReceipt.amount 0, starterFree true; method stays the requested one, so a shipped phone's receipt check still passes) and
+ * marks it 'used' with the match id. A cancel before start (or a left-before-fight refund) of that match puts it back to
+ * 'available'. Rewards are the tier's as normal. Accounts without the doc (every account created before this) never get it.
+ */
+export const ARENA_STARTER_ENTRY_SCHEMA = 'arena-starter-entry-1';
+export const ARENA_STARTER_ENTRY_DOC = 'starterEntry';
+export function arenaStarterEntryAvailable(raw: unknown): boolean {
+  return !!raw && typeof raw === 'object' && (raw as Data).schemaVersion === ARENA_STARTER_ENTRY_SCHEMA && (raw as Data).state === 'available';
+}
+export function arenaStarterEntryGrant(nowMs: number) {
+  return { schemaVersion: ARENA_STARTER_ENTRY_SCHEMA, state: 'available', grantedAtMs: nowMs };
+}
 
 export const ARENA_MATCH_SCHEMA = 'arena-match-1';
 /**
@@ -218,8 +236,11 @@ function match(raw: unknown, id: string): Match {
     || !fraction(rules.comboBonus) || !fraction(rules.perfectDefenseBonus) || !fraction(rules.lossExpFraction) || !fraction(rules.lossSyncFraction)
     || !whole(rules.maxPerformanceEvents) || rules.maxPerformanceEvents > 25
     || !whole(rules.expBoosterMultiplier) || rules.expBoosterMultiplier < 1 || rules.expBoosterMultiplier > 10
-    || entry.matchId !== id || !['tokens','pass'].includes(entry.method) || !whole(entry.amount) || entry.amount === 0
-    || entry.amount !== (entry.method === 'pass' ? 1 : rules.entryFeeHolos)
+    || entry.matchId !== id || !['tokens','pass'].includes(entry.method) || !whole(entry.amount)
+    // early-progression-1: the account's one starter entry is charged nothing (amount 0, starterFree true, never a cup).
+    || (entry.starterFree !== undefined && (entry.starterFree !== true || raw.tournament !== undefined))
+    || (entry.starterFree === true ? entry.amount !== 0 : entry.amount === 0 || entry.amount !== (entry.method === 'pass' ? 1 : rules.entryFeeHolos))
+    || (rules.winBonusCap !== undefined && (!finite(rules.winBonusCap) || rules.winBonusCap < 1 || rules.winBonusCap > 10 || !live))
     || !whole(entry.balanceBefore) || !whole(entry.balanceAfter) || entry.balanceBefore - entry.balanceAfter !== entry.amount
     || entry.chargedAtMs !== raw.issuedAtMs) return fail('unavailable');
   const started = whole(raw.startedAtMs) && raw.startedAtMs >= raw.issuedAtMs && raw.startedAtMs <= raw.expiresAtMs;
@@ -281,14 +302,18 @@ function match(raw: unknown, id: string): Match {
       || settlement.exp !== 0 || settlement.awardedExp !== 0 || settlement.syncPoints !== 0 || settlement.holos !== 0 || settlement.blueprints !== null) return fail('unavailable');
     return raw as Match;
   }
-  const bonus = 1 + rules.comboBonus * report.combosCompleted + rules.perfectDefenseBonus * report.perfectDefenses;
-  const exp = Math.floor(rules.exp * (won ? bonus : rules.lossExpFraction));
+  // early-progression-1: a live match issued with rules.winBonusCap caps the win multiplier; firstWinOfDay (live wins only)
+  // doubles EXP and Holos after the cap. Records without either field are checked exactly as before.
+  if (settlement.firstWinOfDay !== undefined && (settlement.firstWinOfDay !== true || !won || !live)) return fail('unavailable');
+  const firstWin = settlement.firstWinOfDay === true ? FIRST_WIN_OF_DAY_MULTIPLIER : 1;
+  const bonus = Math.min(1 + rules.comboBonus * report.combosCompleted + rules.perfectDefenseBonus * report.perfectDefenses, rules.winBonusCap ?? Infinity);
+  const exp = Math.floor(rules.exp * (won ? bonus : rules.lossExpFraction)) * firstWin;
   const sync = Math.floor(rules.syncPoints * (won ? bonus : rules.lossSyncFraction));
   const blueprint = settlement.blueprints;
   if (!whole(settlement.exp) || settlement.exp !== exp || !whole(settlement.awardedExp)
     || ![exp,exp * rules.expBoosterMultiplier].includes(settlement.awardedExp)
     || !whole(settlement.syncPoints) || settlement.syncPoints !== sync
-    || !whole(settlement.holos) || settlement.holos !== (won ? rules.holos : 0)
+    || !whole(settlement.holos) || settlement.holos !== (won ? rules.holos * firstWin : 0)
     || (won ? !object(blueprint) || blueprint.holobotKey !== toHolobotKey(opponent.name) || blueprint.amount !== rules.blueprints : blueprint !== null)) return fail('unavailable');
   return raw as Match;
 }
@@ -320,7 +345,9 @@ function reply(stored: Match, alreadyProcessed = false) {
   const { duel, duelReceipt, fightReceipt, fightPlausibility: _plausibility, progression, partBoosts: _partBoosts, ...m } = stored; // Part boosts are host-only: they reach clients as the bracket's fighter.
   const resolver = !duel ? {} : duel.mode === FIGHT_REPLAY_MODE ? { duel: { ...duel } }
     : { duel: { mode: 'resolver', schemaVersion: duel.schemaVersion, maxRounds: DUEL_MAX_ROUNDS, player: duel.input.player, opponent: duel.input.opponent } };
-  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, ...resolver, ...(duelReceipt ? { duelReceipt } : {}), ...(fightReceipt ? { [FIGHT_RECEIPT_FIELD]: fightReceipt } : {}), ...(progression ? { progression } : {}), match: {
+  // early-progression-1: the settle that spent the day's first live win (and its replays) says so at the top level.
+  const firstWin = m.settlementReceipt?.settlement?.firstWinOfDay === true && whole(m.closedAtMs) ? { firstWinOfDay: firstWinWire(utcDayOf(m.closedAtMs)) } : {};
+  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, ...resolver, ...(duelReceipt ? { duelReceipt } : {}), ...(fightReceipt ? { [FIGHT_RECEIPT_FIELD]: fightReceipt } : {}), ...(progression ? { progression } : {}), ...firstWin, match: {
     ...m, entrant: { ...m.entrant, ...arenaFighterSnapshot({holobotId:m.entrant.holobotId,level:m.entrant.level}, tier) },
     opponent: { ...m.opponent, ...arenaFighterSnapshot({holobotId:m.opponent.holobotId,level:m.opponent.level}, tier) },
   } };
@@ -335,12 +362,14 @@ function assertFiniteTree(value: unknown): void {
   else if (object(value)) Object.values(value).forEach(assertFiniteTree);
 }
 /** Use the admission's numeric quote, so a later price/table release cannot change an outstanding match. */
-function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:boolean, withheld?: 'daily_cap'|'under_floor') {
+function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:boolean, withheld?: 'daily_cap'|'under_floor', firstWinOfDay = false) {
   const r = m.rules, won = bracketWon ?? c.opponentFinalHealth === 0, pays = withheld === undefined;
-  const bonus = 1 + r.comboBonus * c.combosCompleted + r.perfectDefenseBonus * c.perfectDefenses;
-  const exp = pays ? Math.floor(r.exp * (won ? bonus : r.lossExpFraction)) : 0;
+  // early-progression-1: rules.winBonusCap (live matches) caps the multiplier; the day's first live win doubles EXP + Holos after it.
+  const firstWin = firstWinOfDay && won && pays;
+  const bonus = Math.min(1 + r.comboBonus * c.combosCompleted + r.perfectDefenseBonus * c.perfectDefenses, r.winBonusCap ?? Infinity);
+  const exp = pays ? Math.floor(r.exp * (won ? bonus : r.lossExpFraction)) * (firstWin ? FIRST_WIN_OF_DAY_MULTIPLIER : 1) : 0;
   const syncPoints = pays ? Math.floor(r.syncPoints * (won ? bonus : r.lossSyncFraction)) : 0;
-  const holos = won && pays ? r.holos : 0;
+  const holos = won && pays ? r.holos * (firstWin ? FIRST_WIN_OF_DAY_MULTIPLIER : 1) : 0;
   const awardedExp = exp * (finite(profile.expBoosterActiveUntil) && profile.expBoosterActiveUntil > now ? r.expBoosterMultiplier : 1);
   const entrant = uniqueEntrant(profile, m.entrant.holobotId);
   const blueprints = { ...(profile.blueprints ?? {}) };
@@ -364,7 +393,7 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
     ...dailyMissionCounterUpdates(profile, 'arenaBattlesToday', new Date(now)),
   };
   assertFiniteTree(updates);
-  return { updates, progression, repairs: entrant.changes, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}) }, outcome: won ? 'win' : 'loss' };
+  return { updates, progression, repairs: entrant.changes, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}), ...(firstWin ? { firstWinOfDay: true } : {}) }, outcome: won ? 'win' : 'loss' };
 }
 
 /** arena-live-1: the settle-time replay, run OUTSIDE the transaction (rivalBattleStore.preVerifyFightReplay's rule: the CPU work
@@ -406,8 +435,8 @@ async function liveForfeitLoss(tx: Transaction, parentRef: DocumentReference, pr
 /** The after-start forfeit receipt of a live match closed without a result, at its issue-time HP (the vitals ledger row as issued). */
 function liveForfeitClose(profile: Data, m: Match, nowMs: number, extra: Data = {}): { receipt: Data; vitals: Vitals } {
   const issued: Vitals = {[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
-  const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:m.entrant.currentHealth}]);
-  return { vitals, receipt: {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:m.entrant.currentHealth},closedAtMs:nowMs,...extra,countedAsLoss:true,
+  const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:m.entrant.currentHealth}],nowMs);
+  return { vitals: commitVitals(profile.holobotVitals,vitals,nowMs), receipt: {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:m.entrant.currentHealth},closedAtMs:nowMs,...extra,countedAsLoss:true,
     finalVitals:{[m.entrant.holobotId]:vitals[m.entrant.holobotId]}} };
 }
 /**
@@ -490,18 +519,21 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         if(expeditionOpen(zone.data()))return fail('activity_conflict');
         guardOtherActivities(rival.data(),zone.data(),duel.data(),nowMs);
         const entrant = uniqueEntrant(profile,c.holobotId), owned = entrant.bot;
-        requireLivingVitals(profile,[c.holobotId]); // Validates the whole ledger; NEVER invoke city 40% revival.
+        requireLivingVitals(profile,[c.holobotId],nowMs); // Validates the whole ledger; NEVER invoke city 40% revival.
         const player = buildPlayerCombatants({...profile,holobots:entrant.holobots},[c.holobotId])[0];
         const tournament = c.tournamentId === undefined ? undefined : cupEntryAdmission(profile.storyFlags,c.tournamentId,player?.level,profile.pilotRank);
         if (!player || !finite(player.maxHealth) || player.maxHealth <= 0) return fail('unavailable');
-        const current = profile.holobotVitals?.[c.holobotId];
+        const current = effectiveVitals(profile.holobotVitals,nowMs)[c.holobotId]; // auto-heal-1: the regenerated HP
         const hp = current ? Math.min(current.currentHealth,player.maxHealth) : player.maxHealth;
         if (hp <= 0) return fail('holobot_ko');
-        const vitals = { ...(profile.holobotVitals ?? {}), [c.holobotId]: {currentHealth:hp,maxHealth:player.maxHealth} };
+        const vitals = commitVitals(profile.holobotVitals,{ ...(profile.holobotVitals ?? {}), [c.holobotId]: {currentHealth:hp,maxHealth:player.maxHealth} },nowMs);
         const tier = getArenaTier(c.tierId)!;
         const opponentStats = playerCombatant(c.opponentName.toLowerCase(), {name:c.opponentName,level:tier.opponentLevel});
         const field = c.paymentMethod === 'pass' ? 'arenaPassses' : 'holosTokens';
-        const amount = c.paymentMethod === 'pass' ? 1 : tier.entryFeeHolos;
+        // early-progression-1: the account's one starter entry (never a cup) charges nothing.
+        const starterRef = parentRef.collection('ledger').doc(ARENA_STARTER_ENTRY_DOC);
+        const starterFree = c.tournamentId === undefined && arenaStarterEntryAvailable((await tx.get(starterRef)).data());
+        const amount = starterFree ? 0 : c.paymentMethod === 'pass' ? 1 : tier.entryFeeHolos;
         const before = counter(profile,field);
         if (before < amount) return fail('insufficient_funds');
         const capped = await payoutCapped(); // Last read: every write below follows it.
@@ -542,8 +574,10 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           schemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,requestId:c.requestId,state:'issued',tierId:tier.id as ArenaTierId,
           issuedAtMs:nowMs,expiresAtMs:nowMs+ARENA_MATCH_TTL_MS,startedAtMs:null,closedAtMs:null,
           entrant:{...player,name:owned.name,currentHealth:entrantHp,nextLevelExp:calculateExperience(player.level+1)},opponent:{...matchOpponent,name:c.opponentName},
-          entryReceipt:{matchId:generatedId,method:c.paymentMethod,amount,balanceBefore:before,balanceAfter:before-amount,chargedAtMs:nowMs},
-          rules:{version:'arena-economy-legacy-1',entryFeeHolos:tier.entryFeeHolos,...getArenaBaseRewards(tier),blueprints:getArenaBlueprintAmount(tier),comboBonus:BATTLE_COMBO_BONUS,perfectDefenseBonus:BATTLE_PERFECT_DEFENSE_BONUS,lossExpFraction:BATTLE_LOSS_EXP_FRACTION,lossSyncFraction:BATTLE_LOSS_SYNC_FRACTION,maxPerformanceEvents:MAX_PERFORMANCE_EVENTS,expBoosterMultiplier:EXP_BOOSTER_MULTIPLIER},
+          entryReceipt:{matchId:generatedId,method:c.paymentMethod,amount,balanceBefore:before,balanceAfter:before-amount,chargedAtMs:nowMs,...(starterFree ? {starterFree:true} : {})},
+          // early-progression-1: a live match quotes the win-bonus cap (its win multiplier comes from the verified receipt).
+          rules:{version:'arena-economy-legacy-1',entryFeeHolos:tier.entryFeeHolos,...getArenaBaseRewards(tier),blueprints:getArenaBlueprintAmount(tier),comboBonus:BATTLE_COMBO_BONUS,perfectDefenseBonus:BATTLE_PERFECT_DEFENSE_BONUS,lossExpFraction:BATTLE_LOSS_EXP_FRACTION,lossSyncFraction:BATTLE_LOSS_SYNC_FRACTION,maxPerformanceEvents:MAX_PERFORMANCE_EVENTS,expBoosterMultiplier:EXP_BOOSTER_MULTIPLIER,
+            ...(resolverDuel?.mode === FIGHT_REPLAY_MODE ? {winBonusCap:LIVE_WIN_BONUS_CAP} : {})},
           settlementReceipt:null,...(tournament ? {tournament} : {}),...(cupParts && partBoostsChangeFight(cupParts) ? {partBoosts:cupParts} : {}),...(resolverDuel ? {duel:resolverDuel} : {}),
         };
         match(m,generatedId);
@@ -551,6 +585,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           ...(entrant.changes.length ? {holobots:entrant.holobots} : {}),
           ...(tournament && profile.pilotRank === undefined ? {pilotRank:tournament.pilotRankAtAdmission} : {})});
         recordAccountRepair(firestore,tx,uid,'arenaMatchHost.issue',entrant.changes,nowMs);
+        if (starterFree) tx.set(starterRef,{schemaVersion:ARENA_STARTER_ENTRY_SCHEMA,state:'used',matchId:generatedId,usedAtMs:nowMs});
         tx.create(parentRef.collection('matches').doc(generatedId),m);
         tx.create(requestRef,{schemaVersion:ARENA_MATCH_SCHEMA,identity,matchId:generatedId,createdAtMs:nowMs});
         tx.set(parentRef,{schemaVersion:'arena-healing-1',recordSchemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,open:true,issuedAtMs:nowMs,expiresAtMs:m.expiresAtMs});
@@ -646,7 +681,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           : c.playerFinalHealth;
         if (!finite(finalHealth) || finalHealth < 0 || finalHealth > m.entrant.currentHealth) return fail('invalid_request');
         const issued: Vitals = {[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
-        const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:finalHealth}]);
+        const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:finalHealth}],nowMs);
         if (duelOutcome || fightVerdict) {
           const payoutsRef = parentRef.collection('ledger').doc('cpuPayouts');
           const paid = paidToday((await tx.get(payoutsRef)).data(), nowMs);
@@ -656,13 +691,19 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           // Live: the opponent's HP on the stored opponent's scale (a duel-rules-5 fight max carries the #72.80 row delta).
           const opponentFinalHealth = duelOutcome ? duelOutcome.opponentFinal[0].currentHealth
             : ledgerHealthAfterFight(fightOpponent!.currentHealth,fightOpponent!.maxHealth,{currentHealth:m.opponent.maxHealth,maxHealth:m.opponent.maxHealth});
-          // Performance bonuses are client reports on the legacy path; the bracket's rule (0 / 0) applies here and on a live fight.
-          const result = rewards(profile,m,{...c,combosCompleted:0,perfectDefenses:0},nowMs,won,withheld);
+          // Performance bonuses are client reports on the legacy path; the bracket's rule (0 / 0) applies on the resolver fight.
+          // early-progression-1: a live WIN on a match issued with rules.winBonusCap takes its counts from the verified receipt
+          // (lib/liveWinRewards.livePerformanceFromReceipt), capped by that quote; the day's first live win doubles EXP + Holos.
+          const perf = fightVerdict && won && m.rules.winBonusCap !== undefined ? livePerformanceFromReceipt(fightVerdict.receipt) : {perfectDefenses:0,combosCompleted:0};
+          const firstWinRef = firestore.doc(`${FIRST_WIN_COLLECTION}/${uid}`);
+          const firstWin = !!fightVerdict && won && withheld === undefined && firstWinAvailable((await tx.get(firstWinRef)).data(), nowMs);
+          const result = rewards(profile,m,{...c,combosCompleted:perf.combosCompleted,perfectDefenses:perf.perfectDefenses},nowMs,won,withheld,firstWin);
           updates = withRankHealingReward(profile, result.updates);
           progression = result.progression;
-          receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:finalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,
+          receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:finalHealth,opponentFinalHealth,combosCompleted:perf.combosCompleted,perfectDefenses:perf.perfectDefenses,
             ...(duelOutcome ? {resolverWinner:duelOutcome.winner} : {fightWinner:fightVerdict!.receipt.winner})},closedAtMs:nowMs};
           if (withheld === undefined) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
+          if (firstWin) tx.set(firstWinRef, firstWinRecord('arena', m.matchId, nowMs));
           // server-rulings-1 ruling 4, as on the rival host: a verified WIN carries its plausibility read; a flagged one is also listed
           // for admins. Never refuses, never withholds.
           if (fightVerdict && won) {
@@ -704,7 +745,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           if (countedAsLoss) Object.assign(updates, await liveForfeitLoss(tx, parentRef, profile, nowMs));
           nextState = nowMs > m.expiresAtMs ? 'expired' : 'cancelled';
         }
-        updates.holobotVitals = vitals;
+        updates.holobotVitals = commitVitals(profile.holobotVitals,vitals,nowMs);
         receipt.finalVitals = {[m.entrant.holobotId]:vitals[m.entrant.holobotId]};
       }
       assertFiniteTree(updates);
@@ -714,6 +755,9 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       tx.update(userRef,updates);
       tx.set(matchRef,next);
       tx.set(parentRef,{...parent,open:false,closedAtMs:nowMs});
+      // early-progression-1: refunding the free starter entry gives the account its free entry back.
+      if (receipt.outcome === 'cancelled_before_start' && m.entryReceipt.starterFree === true)
+        tx.set(parentRef.collection('ledger').doc(ARENA_STARTER_ENTRY_DOC),{schemaVersion:ARENA_STARTER_ENTRY_SCHEMA,state:'available',restoredFromMatchId:m.matchId,restoredAtMs:nowMs});
       if (mismatch) return {[THROW_AFTER_COMMIT]: new ArenaError('replay_mismatch', undefined, undefined, mismatch)};
       return reply(next);
     });
@@ -722,7 +766,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
     return out;
   } catch (e) {
     if (e instanceof StoryError) throw new ArenaError(e.code);
-    if (e instanceof HealthError) throw new ArenaError(e.message === 'holobot_ko' ? 'holobot_ko' : e.message === 'invalid_request' ? 'invalid_request' : 'unavailable');
+    if (e instanceof HealthError) throw new ArenaError(e.message === 'holobot_ko' ? 'holobot_ko' : e.message === 'invalid_request' ? 'invalid_request' : 'unavailable', undefined, undefined, e.message === 'holobot_ko' ? e.detail : undefined);
     if (e instanceof ActivityError || e instanceof RivalError || e instanceof HoloZoneError || e instanceof PilotRankError || e instanceof RangeError) throw new ArenaError('unavailable');
     throw e;
   }
@@ -746,8 +790,8 @@ export function settleArenaBracketRecord(profile:Data, raw:unknown, opponent:Dat
   const result=rewards(profile,resolved,c,nowMs,won);
   const updates=withRankHealingReward(profile,result.updates);
   const issued:Vitals={[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
-  const finalVitals=settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:playerFinalHealth}]);
-  updates.holobotVitals=finalVitals;
+  const finalVitals=settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:playerFinalHealth}],nowMs);
+  updates.holobotVitals=commitVitals(profile.holobotVitals,finalVitals,nowMs);
   const next:Match={...resolved,state:'settled',closedAtMs:nowMs,settlementReceipt:{matchId:m.matchId,outcome:result.outcome,refunded:false,
     settlement:result.settlement,report:{playerFinalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,bracketWinner:won?'player':'opponent'},closedAtMs:nowMs,
     finalVitals:{[m.entrant.holobotId]:finalVitals[m.entrant.holobotId]}},progression:result.progression};
@@ -760,8 +804,8 @@ export function cancelArenaBracketRecord(profile:Data,raw:unknown,playerFinalHea
   const m=match(raw,(raw as Match).matchId);
   if (!m.bracket || m.state!=='active') return fail('not_admitted');
   const issued:Vitals={[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
-  const holobotVitals=settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:playerFinalHealth}]);
+  const holobotVitals=settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:playerFinalHealth}],nowMs);
   const next:Match={...m,state:nowMs>m.expiresAtMs?'expired':'cancelled',closedAtMs:nowMs,settlementReceipt:{matchId:m.matchId,outcome:'forfeit',refunded:false,
     settlement:null,report:{playerFinalHealth},closedAtMs:nowMs,finalVitals:{[m.entrant.holobotId]:holobotVitals[m.entrant.holobotId]}}};
-  match(next,m.matchId);return {updates:{holobotVitals},match:next};
+  match(next,m.matchId);return {updates:{holobotVitals:commitVitals(profile.holobotVitals,holobotVitals,nowMs)},match:next};
 }

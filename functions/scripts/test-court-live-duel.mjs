@@ -92,10 +92,12 @@ test('live settle (win): outcome, HP and pay come from the verified replay; figh
   assert.equal(s.alreadyProcessed, false);
   assert.deepEqual([s.settlement.didWin, s.settlement.kills, s.settlement.bossDefeated, s.settlement.expWithheld], [true, 1, false, false]);
   assert.deepEqual(s.settlement.fielded, ['ace']);
-  assert.equal(s.holosGranted, 100); assert.equal(s.blueprintFragmentsGranted, 1);
+  // early-progression-1: the account's first live win of the UTC day pays x2 Holos (and x2 EXP after the capped receipt bonus).
+  assert.equal(s.holosGranted, 200); assert.equal(s.blueprintFragmentsGranted, 1);
+  assert.equal(s.firstWinOfDay.day, new Date(LATER).toISOString().slice(0, 10));
   assert.equal(s.progression.length, 1); assert.equal(s.progression[0].holobotId, 'ace');
   const u = w.user(), pf = expected.receipt.playerFinal[0];
-  assert.equal(u.holosTokens, 100); assert.equal(u.itemStocks.blueprint_fragment, 1);
+  assert.equal(u.holosTokens, 200); assert.equal(u.itemStocks.blueprint_fragment, 1);
   assert.equal(u.holobotVitals.ace.currentHealth, ledgerHealthAfterFight(pf.currentHealth, pf.maxHealth, issuedVitals.ace), 'HP is the replay\'s, on the ledger scale');
   const rec = w.receipt(i.runId);
   assert.deepEqual(rec.fightReceipt, expected.receipt); assert.deepEqual(rec.fightPlausibility, expected.plausibility);
@@ -103,7 +105,8 @@ test('live settle (win): outcome, HP and pay come from the verified replay; figh
   assert.equal(w.db.read(`holoZoneRuns/${w.uid}`).zoneLastSettledAtMs.guild_court, LATER, 'the court cooldown starts as for any court settle');
   const before = dump(w.db);
   const again = await w.settle(i.runId, log, LATER + 1);
-  assert.equal(again.alreadyProcessed, true); assert.deepEqual(again.fightReceipt, expected.receipt); assert.equal(again.holosGranted, 100);
+  assert.equal(again.alreadyProcessed, true); assert.deepEqual(again.fightReceipt, expected.receipt); assert.equal(again.holosGranted, 200);
+  assert.deepEqual(again.firstWinOfDay, s.firstWinOfDay, 'the replay says the first win was spent here');
   assert.equal(dump(w.db), before, 'a resend writes nothing');
   await assert.rejects(w.issue(), isCode('zone_cooldown'));
 });
@@ -133,10 +136,10 @@ test('too_fast: a verified win sooner than 20 s after issue writes nothing and c
 // court-full-hp (Pak 2026-11-11): a live court fight starts at FULL HP like the live Arena (live-tuning-1 item 4); the ledger after
 // it is min(ledger before, fight end mapped from a full start); a forfeit leaves it.
 const aceMaxHp = w => buildPlayerCombatants(w.user(), ['ace'])[0].maxHealth;
-const carry = (w, hp) => { const max = aceMaxHp(w); w.db.put(`users/${w.uid}`, { ...w.user(), holobotVitals: { ace: { currentHealth: hp, maxHealth: max } } }); return max; };
+const carry = (w, hp) => { const max = aceMaxHp(w); w.db.put(`users/${w.uid}`, { ...w.user(), holobotVitals: { ace: { currentHealth: hp, maxHealth: max, hpUpdatedAt: T0 } } }); return max; };
 test('full HP: a live court fight starts at full HP whatever the ledger carries; settle writes min(ledger before, fight end); forfeit leaves it', async () => {
   // win
-  const w = world(), max = aceMaxHp(w), low = Math.floor(max / 4);
+  const w = world(), max = aceMaxHp(w), low = Math.ceil(max * 0.3); // ko-return-25: a carried HP the gate admits
   carry(w, low);
   const i = await w.issue(), p = i.duel.rules.fighters.find(f => f.side === 0);
   assert.equal(p.hp, p.maxHp, 'fight HP is full');
@@ -157,11 +160,11 @@ test('full HP: a live court fight starts at full HP whatever the ledger carries;
   await w2.settle(i2.runId, log2);
   assert.equal(w2.user().holobotVitals.ace.currentHealth, Math.min(low2, ledgerHealthAfterFight(pf2.currentHealth, pf2.maxHealth, { currentHealth: max2, maxHealth: max2 })));
   // forfeit after the issue: the ledger keeps the carried HP
-  const w3 = world(), max3 = carry(w3, 7);
+  const w3 = world(), carried = Math.ceil(aceMaxHp(w3) * 0.3), max3 = carry(w3, carried);
   const i3 = await w3.issue(), p3 = i3.duel.rules.fighters.find(f => f.side === 0);
   assert.equal(p3.hp, p3.maxHp);
   await w3.call({ operation: 'forfeit', runId: i3.runId }, T0 + 3_000);
-  assert.deepEqual(w3.user().holobotVitals.ace, { currentHealth: 7, maxHealth: max3 }, 'forfeit keeps the ledger as it was');
+  assert.deepEqual(w3.user().holobotVitals.ace, { currentHealth: carried, maxHealth: max3, hpUpdatedAt: T0 }, 'forfeit keeps the ledger as it was');
 });
 
 test('full HP: courtReportFromFightReceipt maps the fight end from a full start, capped at the issue-time ledger row', () => {

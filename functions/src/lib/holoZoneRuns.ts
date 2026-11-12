@@ -39,6 +39,7 @@ import {healingDelta} from "./repairItems";
 import { MAX_PERFORMANCE_EVENTS, computeBattleSettlement } from "./battleSettlement";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
 import { HealthError, HealthRow, healthRows, issueVitals, RIVAL_HEALTH_SCHEMA, requireLivingVitals, settleVitals, Vitals } from "./rivalHealth";
+import { commitVitals } from "./autoHeal";
 import { BATTLE_LOSS_HOLOS, BATTLE_WIN_HOLOS, buildPlayerCombatants, holosAfterGrant, PlayerCombatantSnapshot } from "./rivalLadder";
 import { DUEL_RECEIPT_SCHEMA, DuelIntent, DuelReceipt, resolveDuel, validateDuelIntents } from "./duelResolver";
 import { applyPartBoosts, equippedPartBoosts } from "./partStats";
@@ -49,6 +50,7 @@ import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from "../sim/fight/rul
 import type { FightReplayVerdict } from "../sim/fight/replay";
 import { readLeftBeforeFight } from "./leftBeforeFight";
 import { liveMoveRanksFor } from "./liveMoveRanks";
+import { FIRST_WIN_OF_DAY_MULTIPLIER, FirstWinOfDayWire, LIVE_WIN_BONUS_CAP, LivePerformance, LiveWinBonusWire, firstWinWire, liveWinBonusWire, utcDayOf } from "./liveWinRewards";
 
 /** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
 export const HOLOZONE_SCHEMA = "holozone-run-1";
@@ -217,6 +219,10 @@ export type HoloZoneRunRecord = HoloZoneRunView & {
   closedBy?: CourtClosedBy;
   /** court-live-1: the verifier's detail when closedBy is replay_mismatch (host-only). */
   replayRejection?: Record<string, unknown>;
+  /** early-progression-1: a verified live win's receipt-derived counts and capped multiplier (lib/liveWinRewards.ts). */
+  winBonus?: LiveWinBonusWire;
+  /** early-progression-1: the UTC day whose first live win this settle spent (x2 EXP and Holos). */
+  firstWinOfDay?: string;
 };
 
 export type HoloZoneRunsDoc = { schemaVersion: typeof HOLOZONE_RECORD_SCHEMA; runs: HoloZoneRunRecord[] };
@@ -245,7 +251,7 @@ function asZone<T>(f: () => T): T {
   try {
     return f();
   } catch (e) {
-    if (e instanceof HealthError) throw new HoloZoneError(e.message === "invalid_request" ? "invalid_request" : e.message === "holobot_ko" ? "holobot_ko" : "unavailable");
+    if (e instanceof HealthError) throw e.message === "holobot_ko" ? new HoloZoneError("holobot_ko", undefined, e.detail) : new HoloZoneError(e.message === "invalid_request" ? "invalid_request" : "unavailable"); // ko-return-25: the readiness detail rides along
     throw e;
   }
 }
@@ -373,6 +379,10 @@ export type HoloZoneSettleReply = {
   duelReceipt?: DuelReceipt;
   /** court-live-1: the verified duel-receipt-2 of a live court fight (stored in the same receipts doc). */
   fightReceipt?: FightReceiptWire;
+  /** early-progression-1: a verified live court win's counts + capped multiplier. holozone-run-2 only. */
+  winBonus?: LiveWinBonusWire;
+  /** early-progression-1: present on the settle that spent the day's first live win, and on its replays. holozone-run-2 only. */
+  firstWinOfDay?: FirstWinOfDayWire;
 };
 
 /** The client view of a stored court fight. court-live-1: an input-log run serves its whole pinned issue (seed included, by design:
@@ -413,11 +423,11 @@ export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: str
   let players: { playerCombatants: (PlayerCombatantSnapshot & { currentHealth: number })[]; duel?: CourtDuelWire | FightReplayIssueWire } | Record<string, never> = {};
   const userUpdates: Record<string, unknown> = {};
   // Store always supplies the profile for admission, even when legacy clients omit healthSchema.
-  if (health) asZone(() => requireLivingVitals(health.profile, squadIds));
+  if (health) asZone(() => requireLivingVitals(health.profile, squadIds, nowMs));
   if (health && health.includeHealth !== false) {
     const combatants = buildPlayerCombatants(health.profile, squadIds);
-    const vitals = asZone(() => issueVitals(health.profile, combatants));
-    userUpdates.holobotVitals = vitals;
+    const vitals = asZone(() => issueVitals(health.profile, combatants, nowMs));
+    userUpdates.holobotVitals = commitVitals(health.profile.holobotVitals, vitals, nowMs);
     run.healthSchema = RIVAL_HEALTH_SCHEMA;
     run.issuedVitals = Object.fromEntries(combatants.map((p) => [p.holobotId, { ...vitals[p.holobotId] }]));
     players = { playerCombatants: combatants.map((p) => ({ ...p, currentHealth: vitals[p.holobotId].currentHealth })) };
@@ -530,31 +540,41 @@ export function settleHoloZoneRun(
   runs: readonly HoloZoneRunRecord[],
   command: { runId: string; kills: number; bossDefeated: boolean; fielded: readonly string[]; health?: readonly HealthRow[] },
   nowMs: number,
+  live?: { performance: LivePerformance; firstWin: boolean },
 ): { userUpdates: Record<string, unknown>; doc: HoloZoneRunsDoc | null; reply: HoloZoneSettleReply } {
   const index = runs.findIndex((r) => r.runId === command.runId);
   if (index < 0) throw new HoloZoneError("unknown_run");
   const run = runs[index];
   if (run.settlement) {
-    return { userUpdates: {}, doc: null, reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: true, settlement: structuredClone(run.settlement), progression: (run.progression ?? []).map((row) => ({ ...row })), holosGranted: run.holosGranted ?? 0, blueprintFragmentsGranted: run.blueprintFragmentsGranted ?? 0 } };
+    return { userUpdates: {}, doc: null, reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: true, settlement: structuredClone(run.settlement), progression: (run.progression ?? []).map((row) => ({ ...row })), holosGranted: run.holosGranted ?? 0, blueprintFragmentsGranted: run.blueprintFragmentsGranted ?? 0,
+      ...(run.winBonus ? { winBonus: { ...run.winBonus } } : {}), ...(run.firstWinOfDay ? { firstWinOfDay: firstWinWire(run.firstWinOfDay) } : {}) } };
   }
   if (run.closedAtMs !== null) throw new HoloZoneError("run_closed");
   if (nowMs > run.expiresAtMs) throw new HoloZoneError("run_expired");
   const squad = new Set(run.squad);
   if (command.fielded.some((id) => !squad.has(id))) throw new HoloZoneError("invalid_request");
-  const input = beastSettlementInput(run.tier, command.kills, command.bossDefeated);
+  const beastInput = beastSettlementInput(run.tier, command.kills, command.bossDefeated);
+  // early-progression-1: a VERIFIED live court win takes its counts from the replay receipt (not the kills mapping), its multiplier
+  // capped at LIVE_WIN_BONUS_CAP; the day's first live win (live.firstWin) doubles EXP and the win Holos.
+  const liveWin = live && beastInput.didWin ? live : undefined;
+  const input = liveWin ? { ...beastInput, combosCompleted: liveWin.performance.combosCompleted, perfectDefenses: liveWin.performance.perfectDefenses } : beastInput;
   const table = computeBattleSettlement(input);
   if (!table) throw new HoloZoneError("unavailable");
   const expWithheld = nowMs - run.issuedAtMs < HOLOZONE_MIN_XP_MS;
-  const award = awardBattleExperienceRaw(profile, command.fielded, input, nowMs, { withheld: expWithheld });
+  const firstWin = !!liveWin?.firstWin && !expWithheld;
+  const firstWinMultiplier = firstWin ? FIRST_WIN_OF_DAY_MULTIPLIER : 1;
+  const award = awardBattleExperienceRaw(profile, command.fielded, input, nowMs, { withheld: expWithheld, ...(liveWin ? { bonusCap: LIVE_WIN_BONUS_CAP } : {}), expMultiplier: firstWinMultiplier });
   if (!award) throw new HoloZoneError("unavailable");
+  const winBonus = liveWin ? liveWinBonusWire(liveWin.performance) : undefined;
+  const day = firstWin ? utcDayOf(nowMs) : undefined;
   const settlement: HoloZoneSettlement = {
     kind: "beast", zoneId: run.zoneId, tier: run.tier, kills: command.kills, bossDefeated: command.bossDefeated, fielded: [...command.fielded],
     didWin: input.didWin, combosCompleted: input.combosCompleted, perfectDefenses: input.perfectDefenses,
-    tableExp: table.exp, expPerHolobot: command.fielded.length ? award.expPerHolobot : 0, expWithheld, settledAtMs: nowMs,
+    tableExp: award.tableExp, expPerHolobot: command.fielded.length ? award.expPerHolobot : 0, expWithheld, settledAtMs: nowMs,
   };
   const userUpdates: Record<string, unknown> = award.expPerHolobot > 0 && award.progression.length ? { holobots: award.holobots } : {};
   // DECISIONS #58: every settled run pays Holos (win = kills >= 1 || boss); the < HOLOZONE_MIN_XP_MS rule pays 0.
-  const holosGranted = expWithheld ? 0 : input.didWin ? BATTLE_WIN_HOLOS : BATTLE_LOSS_HOLOS;
+  const holosGranted = expWithheld ? 0 : input.didWin ? BATTLE_WIN_HOLOS * firstWinMultiplier : BATTLE_LOSS_HOLOS;
   if (holosGranted > 0) {
     const nextHolos = holosAfterGrant(profile, holosGranted);
     if (nextHolos === null) throw new HoloZoneError("unavailable");
@@ -568,18 +588,19 @@ export function settleHoloZoneRun(
     if (itemStocks === null) throw new HoloZoneError("unavailable");
     userUpdates.itemStocks = itemStocks;
   }
-  const next = runs.map((r, i) => (i === index ? { ...r, settlement, progression: award.progression, holosGranted, blueprintFragmentsGranted } : r));
+  const next = runs.map((r, i) => (i === index ? { ...r, settlement, progression: award.progression, holosGranted, blueprintFragmentsGranted, ...(winBonus ? { winBonus } : {}), ...(day ? { firstWinOfDay: day } : {}) } : r));
   if (command.bossDefeated && !expWithheld) Object.assign(userUpdates, healingDelta(profile,"item.repair_kit",1));
   // rival-health-1: `health[]` reports settle the ledger with the ruling — only on a run issued with the flag, each
   // report at or below what that run issued (lib/rivalHealth.ts settleVitals; a violation refuses the whole settle).
   if (command.health !== undefined) {
     if (run.healthSchema !== RIVAL_HEALTH_SCHEMA || !run.issuedVitals) throw new HoloZoneError("invalid_request");
     const issued = run.issuedVitals;
-    userUpdates.holobotVitals = asZone(() => settleVitals(profile, issued, [...command.health!]));
+    userUpdates.holobotVitals = commitVitals(profile.holobotVitals, asZone(() => settleVitals(profile, issued, [...command.health!], nowMs)), nowMs);
   }
   return {
     userUpdates,
     doc: { schemaVersion: HOLOZONE_RECORD_SCHEMA, runs: next },
-    reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: false, settlement: structuredClone(settlement), progression: award.progression.map((row) => ({ ...row })), holosGranted, blueprintFragmentsGranted },
+    reply: { schemaVersion: HOLOZONE_SCHEMA, runId: run.runId, alreadyProcessed: false, settlement: structuredClone(settlement), progression: award.progression.map((row) => ({ ...row })), holosGranted, blueprintFragmentsGranted,
+      ...(winBonus ? { winBonus: { ...winBonus } } : {}), ...(day ? { firstWinOfDay: firstWinWire(day) } : {}) },
   };
 }

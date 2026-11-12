@@ -117,8 +117,8 @@ test('3: a live issue verifies end to end (a brain-played log replays with the i
 test('4: a live Arena fight starts at full HP; the ledger after a settle is min(ledger before, fight end); a forfeit leaves it', async () => {
   const uid = await setup(bot('ACE', 21, { attack: 2000, defense: 2000, health: 2000, speed: 2000 }));
   const maxHp = buildPlayerCombatants({ holobots: [bot('ACE', 21, { attack: 2000, defense: 2000, health: 2000, speed: 2000 })] }, ['ace'])[0].maxHealth;
-  const low = Math.floor(maxHp / 4);
-  await db.doc(`users/${uid}`).update({ holobotVitals: { ace: { currentHealth: low, maxHealth: maxHp } } });
+  const low = Math.ceil(maxHp * 0.3); // ko-return-25: a ledger HP the gate admits
+  await db.doc(`users/${uid}`).update({ holobotVitals: { ace: { currentHealth: low, maxHealth: maxHp, hpUpdatedAt: T0 } } });
   const i = await issue(uid), m = await record(uid, i.matchId);
   const p = fighters(i.duel)[0];
   assert.equal(p.hp, p.maxHp, 'fight HP is full');
@@ -131,13 +131,13 @@ test('4: a live Arena fight starts at full HP; the ledger after a settle is min(
   assert.equal((await user(uid)).holobotVitals.ace.currentHealth, Math.min(low, end));
   assert.equal(A.readArenaMatchRecord(await record(uid, i.matchId), i.matchId).state, 'settled', 'the record validator accepts it');
   // forfeit after start
-  const u2 = await setup(); await db.doc(`users/${u2}`).update({ holobotVitals: { ace: { currentHealth: 7, maxHealth: buildPlayerCombatants({ holobots: [bot('ACE', 4)] }, ['ace'])[0].maxHealth } } });
+  const u2 = await setup(), max2 = buildPlayerCombatants({ holobots: [bot('ACE', 4)] }, ['ace'])[0].maxHealth, carried = Math.ceil(max2 * 0.3); await db.doc(`users/${u2}`).update({ holobotVitals: { ace: { currentHealth: carried, maxHealth: max2, hpUpdatedAt: T0 } } });
   const j = await issue(u2); await call(u2, { operation: 'start', matchId: j.matchId }, START);
   const f = await call(u2, { operation: 'cancel', matchId: j.matchId }, START + 1000);
   assert.deepEqual([f.match.settlementReceipt.outcome, f.match.settlementReceipt.countedAsLoss], ['forfeit', true]);
-  assert.equal((await user(u2)).holobotVitals.ace.currentHealth, 7, 'forfeit (a loss) keeps the ledger as it was');
+  assert.equal((await user(u2)).holobotVitals.ace.currentHealth, carried, 'forfeit (a loss) keeps the ledger as it was');
   assert.equal(A.readArenaMatchRecord(await record(u2, j.matchId), j.matchId).state, 'cancelled', 'the record validator accepts it');
   // a KO'd ledger still cannot enter
-  const u3 = await setup(); await db.doc(`users/${u3}`).update({ holobotVitals: { ace: { currentHealth: 0, maxHealth: 100 } } });
+  const u3 = await setup(); await db.doc(`users/${u3}`).update({ holobotVitals: { ace: { currentHealth: 0, maxHealth: 100, hpUpdatedAt: T0 } } });
   await assert.rejects(issue(u3));
 });

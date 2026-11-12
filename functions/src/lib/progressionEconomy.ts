@@ -32,6 +32,7 @@ import {
   type AttributeBoostRefusal,
   type ServerHolobot,
 } from "./progression";
+import { MARKETPLACE_PART_CATALOG, type MarketplacePartRarity } from "./economy";
 
 // ---------------------------------------------------------------------------
 // Tables (mirrors of QUEST_DEFINITIONS / TRAINING_COURSES economy fields)
@@ -136,7 +137,36 @@ export type QuestClaimResult = {
   rewards: QuestEconomy["rewards"];
   succeeded: boolean;
   updates: Record<string, unknown>;
+  /** early-progression-1: the Parts this claim granted (empty on a failed run or a quest without an item reward). */
+  partsGranted: QuestRewardPart[];
 };
+
+/**
+ * early-progression-1: the Part rarity a quest's advertised item key pays. There are no "legendary" Parts in the catalog; a
+ * legendary quest reward pays the top tier the catalog has (epic). The phone's quest card shows the same mapping.
+ */
+export const QUEST_REWARD_PART_RARITY: Readonly<Record<QuestRewardItemKey, MarketplacePartRarity>> = { common: "common", rare: "rare", legendary: "epic" };
+export type QuestRewardPart = { name: string; rarity: MarketplacePartRarity; slot: string };
+
+/** 32-bit FNV-1a: a deterministic pick, so a run's Parts are a function of its server run id (replays and tests agree). */
+function fnv1a(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h >>> 0;
+}
+
+/** `amount` Parts of the key's rarity from the Marketplace part catalog, picked by the run id. */
+export function questRewardParts(itemKey: QuestRewardItemKey, amount: number, runId: string): QuestRewardPart[] {
+  const rarity = QUEST_REWARD_PART_RARITY[itemKey];
+  const pool = MARKETPLACE_PART_CATALOG.filter((offer) => offer.rarity === rarity);
+  if (!pool.length) return [];
+  const out: QuestRewardPart[] = [];
+  for (let i = 0; i < Math.max(0, Math.floor(amount)); i++) {
+    const offer = pool[fnv1a(`${runId}:${i}`) % pool.length];
+    out.push({ name: offer.name, rarity: offer.rarity, slot: offer.slot });
+  }
+  return out;
+}
 
 function upperName(value: unknown): string {
   return typeof value === "string" ? value.toUpperCase() : "";
@@ -168,11 +198,17 @@ export function applyQuestClaim(
     return applyHolobotExperience(normalizeUserHolobot(rawHolobot), quest.rewards.exp);
   });
 
+  // early-progression-1 (Pak 2026-11-12 playtest: the Cave quest said "COMMON x1" and no part arrived). The item reward used to
+  // add to inventory[itemKey], a counter nothing shows or spends. It now grants real Parts into users/{uid}.parts, the same
+  // {name, rarity, slot} rows a Marketplace purchase writes (lib/economy.ts buildPartPurchaseUpdatesRaw), so they appear in the
+  // Parts tab and can be equipped. The legacy counter is left as it is (never incremented again).
   const nextInventory = { ...((userData.inventory as Record<string, number>) || {}) };
-  if (succeeded && quest.rewards.itemKey && quest.rewards.itemAmount) {
-    nextInventory[quest.rewards.itemKey] =
-      (nextInventory[quest.rewards.itemKey] || 0) + quest.rewards.itemAmount;
-  }
+  const partsGranted = succeeded && quest.rewards.itemKey && quest.rewards.itemAmount
+    ? questRewardParts(quest.rewards.itemKey, quest.rewards.itemAmount, typeof record.id === "string" ? record.id : String(record.questId))
+    : [];
+  const nextParts = partsGranted.length
+    ? [...(Array.isArray(userData.parts) ? (userData.parts as unknown[]) : []), ...partsGranted.map((part) => ({ ...part }))]
+    : undefined;
 
   const earnedSyncPoints = succeeded ? quest.rewards.syncPoints : 0;
   const nextSyncPoints = Number(userData.syncPoints || 0) + earnedSyncPoints;
@@ -188,9 +224,11 @@ export function applyQuestClaim(
   return {
     rewards: quest.rewards,
     succeeded,
+    partsGranted,
     updates: {
       holobots: nextHolobots,
       inventory: nextInventory,
+      ...(nextParts ? { parts: nextParts } : {}),
       leaderboardScore: computeLeaderboardScore({
         holobots: nextHolobots,
         prestigeCount: Number(userData.prestigeCount || 0),

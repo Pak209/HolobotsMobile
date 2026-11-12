@@ -17,6 +17,7 @@ import { HOLOBOT_NAMES } from "./economy";
 import { toHolobotKey } from "./mintingEconomy";
 import { BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, BuddyTierKey, readBuddyInventory, tierByKey, totalBuddyUnits, withTierDelta } from "./buddyUnits";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
+import { FIRST_WIN_OF_DAY_MULTIPLIER, FirstWinOfDayWire, LIVE_WIN_BONUS_CAP, LivePerformance, LiveWinBonusWire, firstWinWire, liveWinBonusWire, utcDayOf } from "./liveWinRewards";
 import { getHolobotRank, normalizeUserHolobot } from "./progression";
 import { getPlayerBattleStats } from "./progressionEconomy";
 import { RIVAL_NAMED_PROFILES, RIVAL_LINEUP_SCALE_WOLF, rivalTierBattleStats, rivalTierDamageScale } from "./rivalTierStats";
@@ -379,7 +380,7 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable" | "replay_mismatch" | "live_unavailable";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable" | "replay_mismatch" | "live_unavailable" | "holobot_ko";
 export class RivalError extends Error {
   /** rival_cooldown only: ms until the same rival can be issued again. */
   public retryAfterMs?: number;
@@ -447,6 +448,10 @@ export type RivalSettlement = {
   /** server-rulings-1 (Pak 2026-11-09, ruling 3): an input-log battle closed WITHOUT a verified result: the player's explicit
    * `forfeit`, or a settle whose log failed replay (`replay_mismatch`). Always a no-pay loss; absent = an ordinary settle. */
   closedBy?: RivalClosedBy;
+  /** early-progression-1: a verified live win's receipt-derived counts and capped multiplier (lib/liveWinRewards.ts). */
+  winBonus?: LiveWinBonusWire;
+  /** early-progression-1: the UTC day whose first live win this settle spent (x2 EXP and Holos); absent = not spent here. */
+  firstWinOfDay?: string;
 };
 /** forfeit-is-loss (Pak 2026-11-11): "expired" = a live battle left unplayed past its TTL, recorded as a loss on the next rival touch.
  * no-loss-before-fight (Pak 2026-11-11): "left_before_fight" = the player left during the countdown (lib/leftBeforeFight.ts). Stored
@@ -643,6 +648,10 @@ export type SettleReply = {
   holosGranted: number;
   /** server-rulings-1: present only when the battle was closed by a forfeit / a replay_mismatch (RivalSettlement.closedBy). */
   closedBy?: RivalClosedBy;
+  /** early-progression-1: present on a verified live win (v3 only). */
+  winBonus?: LiveWinBonusWire;
+  /** early-progression-1: present on the settle that spent the day's first live win, and on its replays (v3 only). */
+  firstWinOfDay?: FirstWinOfDayWire;
 };
 
 /**
@@ -679,7 +688,13 @@ export function closeRivalBattleNoPay(profile: Profile, battle: RivalBattleRecor
  * at issue or the current one (`currentSquadIds`), else invalid_request. rivalWins / Buddy Units are
  * ruled exactly as before; `fielded` never changes them.
  */
-export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, didWin: boolean, nowMs: number, fielded?: readonly string[], currentSquadIds: readonly string[] = []): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord> | null; reply: SettleReply } {
+/**
+ * early-progression-1 (`live`, lib/liveWinRewards.ts): a VERIFIED input-log settle passes its receipt-derived win counts; a win
+ * then pays the table EXP with that multiplier capped at LIVE_WIN_BONUS_CAP. `live.firstWin` (the store read firstWinOfDay/{uid}
+ * and found today's unspent) doubles that EXP and the win Holos; the settlement records the day so the store writes the ledger.
+ */
+export type RivalLiveSettle = { performance: LivePerformance; firstWin: boolean };
+export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, didWin: boolean, nowMs: number, fielded?: readonly string[], currentSquadIds: readonly string[] = [], live?: RivalLiveSettle): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord> | null; reply: SettleReply } {
   const l = readLedger(profile);
   if (!battle || battle.battleId !== battleId || battle.schemaVersion !== RIVAL_RECORD_SCHEMA) throw new RivalError("unknown_battle");
   if (battle.settlement) {
@@ -687,7 +702,8 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     return {
       userUpdates: starterUpdates(l),
       battleUpdates: null,
-      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })), holosGranted: s.holosGranted ?? 0, ...(s.closedBy ? { closedBy: s.closedBy } : {}) },
+      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })), holosGranted: s.holosGranted ?? 0, ...(s.closedBy ? { closedBy: s.closedBy } : {}),
+        ...(s.winBonus ? { winBonus: { ...s.winBonus } } : {}), ...(s.firstWinOfDay ? { firstWinOfDay: firstWinWire(s.firstWinOfDay) } : {}) },
     };
   }
   if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
@@ -713,7 +729,10 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
   }
   // DECISIONS #58: every settled battle pays Holos; a loss inside the anti-farm window pays 0 (wins there are too_fast).
   const farmWindow = !didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_XP_MS);
-  const holosGranted = farmWindow ? 0 : didWin ? BATTLE_WIN_HOLOS : BATTLE_LOSS_HOLOS;
+  // early-progression-1: the day's first live win (never a Holos-only async PvP settle) doubles the win Holos and EXP.
+  const firstWin = !!live?.firstWin && didWin && !holosOnly;
+  const firstWinMultiplier = firstWin ? FIRST_WIN_OF_DAY_MULTIPLIER : 1;
+  const holosGranted = farmWindow ? 0 : didWin ? BATTLE_WIN_HOLOS * firstWinMultiplier : BATTLE_LOSS_HOLOS;
   if (holosGranted > 0) {
     const next = holosAfterGrant(profile, holosGranted);
     if (next === null) throw new RivalError("unavailable");
@@ -725,16 +744,22 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     const allowed = new Set([...(Array.isArray(battle.playerSquadIds) ? battle.playerSquadIds : []), ...currentSquadIds]);
     if (fielded.some((id) => !allowed.has(id))) throw new RivalError("invalid_request");
     const withheld = !didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_XP_MS);
-    const award = awardBattleExperienceRaw(profile, fielded, { kind: "rival", tier: battle.tier, didWin }, nowMs, { withheld });
+    const perf = live && didWin ? live.performance : undefined;
+    const award = awardBattleExperienceRaw(profile, fielded, { kind: "rival", tier: battle.tier, didWin, ...(perf ?? {}) }, nowMs,
+      { withheld, ...(perf ? { bonusCap: LIVE_WIN_BONUS_CAP } : {}), expMultiplier: firstWinMultiplier });
     if (!award) throw new RivalError("unavailable");
     progression = award.progression;
     if (award.expPerHolobot > 0) userUpdates.holobots = award.holobots;
   }
-  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: holosOnly ? [] : [...(fielded ?? [])], progression, holosGranted };
+  const winBonus = live && didWin && !holosOnly ? liveWinBonusWire(live.performance) : undefined;
+  const day = firstWin ? utcDayOf(nowMs) : undefined;
+  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: holosOnly ? [] : [...(fielded ?? [])], progression, holosGranted,
+    ...(winBonus ? { winBonus } : {}), ...(day ? { firstWinOfDay: day } : {}) };
   return {
     userUpdates,
     battleUpdates: { settlement },
-    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs), progression: progression.map((row) => ({ ...row })), holosGranted },
+    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs), progression: progression.map((row) => ({ ...row })), holosGranted,
+      ...(winBonus ? { winBonus: { ...winBonus } } : {}), ...(day ? { firstWinOfDay: firstWinWire(day) } : {}) },
   };
 }
 
@@ -744,12 +769,12 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
 export type RivalStatusV1 = Omit<RivalStatus, "buddyUnits"> & { buddyUnits: number };
 
 /** The fields rival-battle-3 adds; a v2 projection removes exactly these (and nothing else). */
-export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression", "holosGranted", "closedBy"] as const;
+export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression", "holosGranted", "closedBy", "winBonus", "firstWinOfDay"] as const;
 export const RIVAL_V3_COMBATANT_FIELDS = ["speed", "intelligence", "commandRules"] as const;
 
 /** The rival-battle-2 shape of a v3 reply: identical to the 2026-10-01 deployment (#44). */
 function toV2(reply: { schemaVersion: string; status: RivalStatus }): Record<string, unknown> & { status: RivalStatus } {
-  const { playerCombatants: _p, progression: _g, holosGranted: _h, closedBy: _c, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown; holosGranted?: unknown; closedBy?: unknown };
+  const { playerCombatants: _p, progression: _g, holosGranted: _h, closedBy: _c, winBonus: _w, firstWinOfDay: _f, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown; holosGranted?: unknown; closedBy?: unknown; winBonus?: unknown; firstWinOfDay?: unknown };
   const out: Record<string, unknown> & { status: RivalStatus } = { ...rest, schemaVersion: RIVAL_SCHEMA_V2 };
   const encounter = (reply as { encounter?: { opponentSquad?: CombatantSnapshot[] } }).encounter;
   if (encounter && Array.isArray(encounter.opponentSquad)) {

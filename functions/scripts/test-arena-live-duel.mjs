@@ -12,6 +12,7 @@ const R = require('../lib/lib/duelResolver.js');
 const P = require('../lib/lib/progression.js');
 const { ledgerHealthAfterFight } = require('../lib/lib/partStats.js');
 const { FIGHT_PLAUSIBILITY_COLLECTION } = require('../lib/rival/rivalBattleStore.js');
+const W = require('../lib/lib/liveWinRewards.js');
 
 const T0 = Date.UTC(2026, 10, 11, 9), S = 'arena-match-1', START = T0 + 1, LATER = START + A.ARENA_MIN_WIN_MS_LIVE + 5_000;
 const SEED = process.env.ARENA_LIVE_SEED || '3e'.repeat(32);
@@ -92,16 +93,22 @@ test('valid win: outcome, HP and rewards come from the verified replay; fightRec
   assert.deepEqual(s.fightReceipt, expected.receipt);
   assert.equal(s.match.state, 'settled'); assert.equal(s.match.settlementReceipt.outcome, 'win');
   assert.equal(s.match.settlementReceipt.report.fightWinner, 'player');
-  assert.deepEqual([s.match.settlementReceipt.report.combosCompleted, s.match.settlementReceipt.report.perfectDefenses], [0, 0]);
+  // early-progression-1: the win counts come from the verified receipt (witness perfect guards / counter hits), capped at x2.
+  const perf = W.livePerformanceFromReceipt(expected.receipt);
+  assert.equal(m.rules.winBonusCap, W.LIVE_WIN_BONUS_CAP);
+  assert.deepEqual([s.match.settlementReceipt.report.combosCompleted, s.match.settlementReceipt.report.perfectDefenses], [perf.combosCompleted, perf.perfectDefenses]);
   for (const k of ['fightReceipt', 'fightPlausibility', 'duel']) assert.equal(k in s.match, false, k);
   assert.equal(s.duel.mode, 'input-log');
   const after = await user(uid), pf = expected.receipt.playerFinal[0];
   assert.equal(after.holobotVitals.ace.currentHealth, ledgerHealthAfterFight(pf.currentHealth, pf.maxHealth, m.entrant), 'HP is the replay\'s, on the ledger scale');
-  assert.equal(after.holosTokens, before.holosTokens + m.rules.holos);
+  // early-progression-1: a fresh account's first live win of the UTC day pays x2 EXP and x2 Holos.
+  assert.equal(after.holosTokens, before.holosTokens + 2 * m.rules.holos);
   assert.equal(after.blueprints.hare, m.rules.blueprints);
   assert.equal(after.wins, 1); assert.equal(after.losses, 0);
-  assert.equal(s.match.settlementReceipt.settlement.exp, m.rules.exp, 'no performance bonus');
-  assert.equal(s.progression[0].expGained, m.rules.exp);
+  assert.equal(s.match.settlementReceipt.settlement.exp, Math.floor(m.rules.exp * W.liveWinMultiplier(perf)) * 2, 'capped receipt bonus, then first win x2');
+  assert.equal(s.match.settlementReceipt.settlement.firstWinOfDay, true);
+  assert.deepEqual(s.firstWinOfDay, W.firstWinWire(W.utcDayOf(LATER)));
+  assert.equal(s.progression[0].expGained, s.match.settlementReceipt.settlement.exp);
   assert.equal((await payouts(uid)).paidSettles, 1);
   const rec = await record(uid, i.matchId);
   assert.deepEqual(rec.fightPlausibility, expected.plausibility);

@@ -42,7 +42,7 @@ test('issue pins a single Cacheback and the named Holobot; the wire block never 
   assert.equal(JSON.stringify(r.reply.duel).includes('"seed"'), false); assert.equal(r.reply.duel.maxRounds, 120);
   assert.deepEqual(Z.holoZoneStatus(r.doc.runs, T0 + 1).duel, r.reply.duel, 'status re-serves the open fight');
   code(() => issue(1, 'wolf'), 'invalid_request');
-  code(() => issue(1, 'ace', { ...profile(), holobotVitals: { ace: { currentHealth: 0, maxHealth: 150 } } }), 'holobot_ko');
+  code(() => issue(1, 'ace', { ...profile(), holobotVitals: { ace: { currentHealth: 0, maxHealth: 150, hpUpdatedAt: T0 } } }), 'holobot_ko');
 });
 
 test('a fast SEND is refused before resolving, win or lose: retryAfterMs, then it settles at the floor', () => {

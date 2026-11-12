@@ -118,7 +118,7 @@ test('reported bug (ATTRS on): a bench bot with a positive fight-HP bonus that n
   // the pre-fix write: the raw receipt HP (fight units) is above the issued ledger HP and settleVitals refuses it
   assert.throws(() => settleVitals(w.user(), rec.issuedVitals, expected.playerFinal.map(f => ({ holobotId: f.holobotId, currentHealth: f.currentHealth }))), /invalid_request/);
   const r = await w.call({ operation: 'settle', battleId: issue.battleId, inputLog: log }, later, ATTRS);
-  assert.equal(r.didWin, true); assert.equal(r.holosGranted, 100);
+  assert.equal(r.didWin, true); assert.equal(r.holosGranted, 200, 'early-progression-1: the first live win of the day pays x2 Holos');
   assert.ok(w.record(issue.battleId).settlement, 'settled'); assert.deepEqual(w.ledger().openBattles, {});
   const v = w.user().holobotVitals;
   assert.deepEqual(v.kurai, rec.issuedVitals.kurai, 'the bench bot\'s ledger row is untouched');
@@ -374,7 +374,7 @@ test('ruling 4: a flagged WIN is recorded for admins and still pays in full; an 
   assert.equal(v.receipt.winner, 'player', 'the reacting machine wins');
   assert.equal(v.plausibility.flagged, true);
   const r = await w.call({ operation: 'settle', battleId: issue.battleId, inputLog: log }, later);
-  assert.deepEqual([r.didWin, r.holosGranted], [true, 100], 'rewards are not withheld');
+  assert.deepEqual([r.didWin, r.holosGranted], [true, 200], 'rewards are not withheld (early-progression-1: first live win of the day x2)');
   assert.deepEqual(w.record(issue.battleId).fightPlausibility, v.plausibility);
   const flag = w.db.read(`${FIGHT_PLAUSIBILITY_COLLECTION}/${w.uid}_${issue.battleId}`);
   assert.deepEqual([flag.uid, flag.battleId, flag.flagged, flag.reviewed, flag.inputsHash], [w.uid, issue.battleId, true, false, v.receipt.inputsHash]);

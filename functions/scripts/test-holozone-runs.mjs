@@ -66,8 +66,9 @@ test('issue → settle → replay: every fielded bot gets the table EXP once; th
   assert.deepEqual(Object.keys(s.reply.settlement).sort(), SETTLEMENT_KEYS);
   assert.deepEqual(s.reply.settlement, { kind: 'beast', zoneId: 'neonforest', tier: 0, kills: 3, bossDefeated: false, fielded: ['ace', 'kuma'], didWin: true, combosCompleted: 3, perfectDefenses: 0, tableExp: 123, expPerHolobot: 123, expWithheld: false, settledAtMs: T0 });
   assert.deepEqual(s.reply.progression, [
-    { holobotId: 'ace', expGained: 123, levelBefore: 4, levelAfter: 4, attributePoints: 1, experience: 1823, nextLevelExp: 2500, rank: 'Starter' },
-    { holobotId: 'kuma', expGained: 123, levelBefore: 1, levelAfter: 2, attributePoints: 1, experience: 473, nextLevelExp: 900, rank: 'Starter' },
+    // early-progression-1: LV5 is 1,800 now, so 1,700 + 123 levels ACE up (+1 point); KUMA's next threshold is LV3's 500.
+    { holobotId: 'ace', expGained: 123, levelBefore: 4, levelAfter: 5, attributePoints: 2, experience: 1823, nextLevelExp: 3600, rank: 'Starter' },
+    { holobotId: 'kuma', expGained: 123, levelBefore: 1, levelAfter: 2, attributePoints: 1, experience: 473, nextLevelExp: 500, rank: 'Starter' },
   ]);
   assert.deepEqual(p.holobots[0], P.applyHolobotExperience(bots()[0], 123)); assert.deepEqual(p.holobots[0].career, { workouts: 2 }); assert.deepEqual(p.holobots[2], bots()[2]);
   assert.equal(Z.holoZoneStatus(s.doc.runs, T0).run, null, 'a settled run is not open');
@@ -94,7 +95,7 @@ test('anti-farm: a run settled < 20 s after issue settles but earns 0; EXP Boost
   const i = issue([], ['ace'], T0 - Z.HOLOZONE_MIN_XP_MS + 1);
   const s = settle(p, i.doc.runs, i.reply.runId, 25, true, ['ace']);
   assert.equal(s.reply.alreadyProcessed, false); assert.equal(s.reply.settlement.expWithheld, true); assert.equal(s.reply.settlement.expPerHolobot, 0); assert.equal(s.reply.settlement.tableExp, 356);
-  assert.deepEqual(s.reply.progression, [{ holobotId: 'ace', expGained: 0, levelBefore: 4, levelAfter: 4, attributePoints: 1, experience: 1700, nextLevelExp: 2500, rank: 'Starter' }]);
+  assert.deepEqual(s.reply.progression, [{ holobotId: 'ace', expGained: 0, levelBefore: 4, levelAfter: 4, attributePoints: 1, experience: 1700, nextLevelExp: 1800, rank: 'Starter' }]);
   assert.deepEqual(s.userUpdates, {}); assert.deepEqual(p.holobots, bots());
   assert.equal(Z.holoZoneStatus(s.doc.runs, T0).run, null, 'the withheld run is settled (no second try)');
   const q = profile({ expBoosterActiveUntil: T0 + 1 });

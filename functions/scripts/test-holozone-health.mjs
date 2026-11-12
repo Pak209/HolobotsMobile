@@ -9,6 +9,7 @@ const require = createRequire(import.meta.url);
 const Z = require('../lib/lib/holoZoneRuns.js');
 const W = require('../lib/lib/holoZoneWire.js');
 const H = require('../lib/lib/rivalHealth.js');
+const AH = require('../lib/lib/autoHeal.js');
 const L = require('../lib/lib/rivalLadder.js');
 
 const T0 = Date.UTC(2026, 9, 6, 18, 0, 0);
@@ -52,19 +53,20 @@ test('issue with the flag: playerCombatants carry currentHealth, the ledger writ
   assert.deepEqual(Object.keys(i.reply), [...V1_ISSUE_KEYS, 'playerCombatants']);
   assert.deepEqual(i.reply.playerCombatants.map(c => [c.holobotId, c.maxHealth, c.currentHealth]), [['ace', ACE_MAX, ACE_MAX], ['kuma', KUMA_MAX, KUMA_MAX]], 'a bot never seen is at full health');
   assert.deepEqual(Object.keys(i.reply.playerCombatants[0]).sort(), ['attack', 'attributePoints', 'boostedAttributes', 'commandRules', 'currentHealth', 'defense', 'deployment', 'experience', 'holobotId', 'intelligence', 'level', 'maxHealth', 'maxStamina', 'moves', 'nextLevelExp', 'rank', 'speed', 'staminaRegen'], 'the rival-battle-3 player shape + currentHealth');
-  const expectedVitals = H.issueVitals(profile(), L.buildPlayerCombatants(profile(), ['ace', 'kuma']));
+  const expectedVitals = H.issueVitals(profile(), L.buildPlayerCombatants(profile(), ['ace', 'kuma']), T0 - Z.HOLOZONE_MIN_XP_MS);
   assert.deepEqual(i.userUpdates, { holobotVitals: expectedVitals }, 'the ledger write = the rival issue\'s');
   assert.deepEqual(p.holobotVitals, { ace: { currentHealth: ACE_MAX, maxHealth: ACE_MAX }, kuma: { currentHealth: KUMA_MAX, maxHealth: KUMA_MAX } });
   const rec = i.doc.runs[i.doc.runs.length - 1];
   assert.equal(rec.healthSchema, FLAG); assert.deepEqual(rec.issuedVitals, p.holobotVitals);
   assert.deepEqual(Z.readHoloZoneRuns(i.doc)[i.doc.runs.length - 1].issuedVitals, rec.issuedVitals, 'stored records with the new fields still read');
   // Zones carry positive HP and clamp to the current max; zero is refused before the city recovery helper runs.
-  const q = profile({ holobotVitals: { ace: { currentHealth: 30, maxHealth: 100 }, kuma: { currentHealth: 1, maxHealth: 300 } } });
-  assert.deepEqual(issue(q, true).reply.playerCombatants.map(c => c.currentHealth), [30, 1]);
-  const ko = profile({ holobotVitals: { kuma: { currentHealth: 0, maxHealth: 300 } } });
+  const q = profile({ holobotVitals: { ace: { currentHealth: 30, maxHealth: 100, hpUpdatedAt: T0 }, kuma: { currentHealth: 90, maxHealth: 300, hpUpdatedAt: T0 } } });
+  assert.deepEqual(issue(q, true).reply.playerCombatants.map(c => c.currentHealth), [30, 90]);
+  const ko = profile({ holobotVitals: { kuma: { currentHealth: 0, maxHealth: 300, hpUpdatedAt: T0 } } });
   assert.throws(() => issue(ko, true), /holobot_ko/);
   assert.throws(() => Z.issueHoloZoneRun([], 'neonforest', ['kuma'], uuid(), T0, {profile:ko,includeHealth:false}), /holobot_ko/);
-  assert.equal(H.issueVitals(ko, [{holobotId:'kuma',maxHealth:KUMA_MAX}]).kuma.currentHealth, KUMA_MAX*.4, 'city recovery unchanged');
+  assert.throws(() => H.requireLivingVitals(ko, ['kuma'], T0), e => e.message === 'holobot_ko' && e.detail.readyInMs === 1.5 * 3_600_000, 'ko-return-25: KO is refused until 25 % (no 40 % floor at issue)');
+  assert.throws(() => issue(profile({ holobotVitals: { kuma: { currentHealth: 74, maxHealth: 300, hpUpdatedAt: T0 } } }), true), /holobot_ko/, 'below 25 % is refused');
   const t = profile({ holobotVitals: { ace: { currentHealth: 9999, maxHealth: 192 } } });
   assert.throws(() => issue(t, true), /unavailable/);
   // The v2 projection carries the combatants through and adds population; a v1 projection is the identity.
@@ -81,20 +83,20 @@ test('settle with reports: kept at or below the issued value with the ruling; in
     assert.throws(() => settle(p, i.doc.runs, runId, 3, false, ['ace', 'kuma'], health), /invalid_request/, JSON.stringify(health));
   }
   assert.deepEqual(p, before, 'a refused settle writes nothing (XP included)');
-  const s = settle(p, i.doc.runs, runId, 3, false, ['ace', 'kuma'], [{ holobotId: 'ace', currentHealth: 12 }, { holobotId: 'kuma', currentHealth: 160 }]);
-  assert.deepEqual(s.userUpdates.holobotVitals, { ace: { currentHealth: 12, maxHealth: ACE_MAX }, kuma: { currentHealth: 160, maxHealth: KUMA_MAX } });
+  const s = settle(p, i.doc.runs, runId, 3, false, ['ace', 'kuma'], [{ holobotId: 'ace', currentHealth: 60 }, { holobotId: 'kuma', currentHealth: 160 }]);
+  assert.deepEqual(s.userUpdates.holobotVitals, { ace: { currentHealth: 60, maxHealth: ACE_MAX, hpUpdatedAt: T0 }, kuma: { currentHealth: 160, maxHealth: KUMA_MAX, hpUpdatedAt: T0 } }, 'auto-heal-1: damaged rows are stamped at the settle');
   assert.equal(s.userUpdates.holobots.length, 2, 'XP and health land in the same update');
   assert.equal(s.reply.settlement.expPerHolobot, 123, 'the ruling is unchanged');
   assert.deepEqual(Object.keys(s.reply).sort(), ['alreadyProcessed', 'blueprintFragmentsGranted', 'holosGranted', 'progression', 'runId', 'schemaVersion', 'settlement'], 'nothing health-related on the reply (the rival host\'s rule)');
   assert.equal(JSON.stringify(s.doc.runs[0].settlement).includes('health'), false, 'nothing health-related on the settlement');
   // A replay (any body, with or without reports) writes nothing.
   const d = settle(p, s.doc.runs, runId, 0, false, [], [{ holobotId: 'ace', currentHealth: 0 }], T0 + 1);
-  assert.equal(d.reply.alreadyProcessed, true); assert.deepEqual(d.userUpdates, {}); assert.equal(p.holobotVitals.ace.currentHealth, 12);
+  assert.equal(d.reply.alreadyProcessed, true); assert.deepEqual(d.userUpdates, {}); assert.equal(p.holobotVitals.ace.currentHealth, 60);
   // Reports only ever lower the ledger: a second settle of a NEW run at a higher value than the ledger is still bounded by the ledger (min).
   const i2 = issue(p, true, s.doc.runs, ['ace']);
-  assert.equal(i2.reply.playerCombatants[0].currentHealth, 12);
-  const s2 = settle(p, i2.doc.runs, i2.reply.runId, 1, false, ['ace'], [{ holobotId: 'ace', currentHealth: 12 }]);
-  assert.equal(s2.userUpdates.holobotVitals.ace.currentHealth, 12);
+  assert.equal(i2.reply.playerCombatants[0].currentHealth, 60);
+  const s2 = settle(p, i2.doc.runs, i2.reply.runId, 1, false, ['ace'], [{ holobotId: 'ace', currentHealth: 60 }]);
+  assert.equal(s2.userUpdates.holobotVitals.ace.currentHealth, 60);
   // Reports on a run issued WITHOUT the flag: invalid_request, nothing written.
   const i3 = issue(p, false, s2.doc.runs, ['ace']);
   const before3 = structuredClone(p);
@@ -107,19 +109,19 @@ test('settle with reports: kept at or below the issued value with the ruling; in
 
 test('carry across hosts through the one ledger: the rival host\'s settle is what the zone issue serves, and the zone settle is what the rival issue serves', () => {
   const p = profile();
-  // Town: the deployed rival host issues (issueVitals) and settles (settleVitals) ace at 30.
+  // Town: the deployed rival host issues (issueVitals) and settles (settleVitals) ace at 70.
   const rivalPlayers = L.buildPlayerCombatants(p, ['ace', 'kuma']);
-  p.holobotVitals = H.issueVitals(p, rivalPlayers);
+  p.holobotVitals = H.issueVitals(p, rivalPlayers, T0);
   const issuedByRival = Object.fromEntries(rivalPlayers.map(c => [c.holobotId, p.holobotVitals[c.holobotId]]));
-  p.holobotVitals = H.settleVitals(p, issuedByRival, [{ holobotId: 'ace', currentHealth: 30 }]);
-  // The zone issue serves 30, the zone settle takes ace to 12.
+  p.holobotVitals = AH.commitVitals(p.holobotVitals, H.settleVitals(p, issuedByRival, [{ holobotId: 'ace', currentHealth: 70 }], T0), T0);
+  // The zone issue serves 70, the zone settle takes ace to 60.
   const i = issue(p, true);
-  assert.deepEqual(i.reply.playerCombatants.map(c => c.currentHealth), [30, KUMA_MAX]);
-  settle(p, i.doc.runs, i.reply.runId, 2, true, ['ace', 'kuma'], [{ holobotId: 'ace', currentHealth: 12 }]);
-  // Back in town: the rival issue (the deployed function) serves 12; a report above 12 is refused by the rival host's own rule.
-  const back = H.issueVitals(p, L.buildPlayerCombatants(p, ['ace']));
-  assert.equal(back.ace.currentHealth, 12);
-  assert.throws(() => H.settleVitals({ ...p, holobotVitals: back }, { ace: back.ace }, [{ holobotId: 'ace', currentHealth: 13 }]), /invalid_request/);
+  assert.deepEqual(i.reply.playerCombatants.map(c => c.currentHealth), [70, KUMA_MAX]);
+  settle(p, i.doc.runs, i.reply.runId, 2, true, ['ace', 'kuma'], [{ holobotId: 'ace', currentHealth: 60 }]);
+  // Back in town: the rival issue (the deployed function) serves 60; a report above 60 is refused by the rival host's own rule.
+  const back = H.issueVitals(p, L.buildPlayerCombatants(p, ['ace']), T0);
+  assert.equal(back.ace.currentHealth, 60);
+  assert.throws(() => H.settleVitals({ ...p, holobotVitals: back }, { ace: back.ace }, [{ holobotId: 'ace', currentHealth: 61 }], T0), /invalid_request/);
 });
 
 test('without the flag, every zone reply is byte-identical to the deployed holozone-run-1 shape (pinned strings), and nothing health-related is stored', () => {
@@ -129,7 +131,7 @@ test('without the flag, every zone reply is byte-identical to the deployed holoz
   assert.equal(JSON.stringify(i.reply), '{"schemaVersion":"holozone-run-1","runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","zoneId":"neonforest","tier":0,"squad":["ace","kuma"],"issuedAtMs":1791309580000,"expiresAtMs":1791316780000}');
   assert.equal(JSON.stringify(Z.holoZoneStatus(i.doc.runs, T0)), '{"schemaVersion":"holozone-run-1","run":{"runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","zoneId":"neonforest","tier":0,"squad":["ace","kuma"],"issuedAtMs":1791309580000,"expiresAtMs":1791316780000}}');
   const s = Z.settleHoloZoneRun(p, i.doc.runs, { runId: i.reply.runId, kills: 3, bossDefeated: false, fielded: ['ace', 'kuma'] }, T0);
-  assert.equal(JSON.stringify(W.holoZoneSettleReplyForVersion(s.reply, 'holozone-run-1')), '{"schemaVersion":"holozone-run-1","runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","alreadyProcessed":false,"settlement":{"kind":"beast","zoneId":"neonforest","tier":0,"kills":3,"bossDefeated":false,"fielded":["ace","kuma"],"didWin":true,"combosCompleted":3,"perfectDefenses":0,"tableExp":123,"expPerHolobot":123,"expWithheld":false,"settledAtMs":1791309600000},"progression":[{"holobotId":"ace","expGained":123,"levelBefore":4,"levelAfter":4,"attributePoints":1,"experience":1823,"nextLevelExp":2500,"rank":"Starter"},{"holobotId":"kuma","expGained":123,"levelBefore":1,"levelAfter":2,"attributePoints":1,"experience":473,"nextLevelExp":900,"rank":"Starter"}]}');
+  assert.equal(JSON.stringify(W.holoZoneSettleReplyForVersion(s.reply, 'holozone-run-1')), '{"schemaVersion":"holozone-run-1","runId":"0b9f3c1e-1d2a-4c3b-9a8f-000000000001","alreadyProcessed":false,"settlement":{"kind":"beast","zoneId":"neonforest","tier":0,"kills":3,"bossDefeated":false,"fielded":["ace","kuma"],"didWin":true,"combosCompleted":3,"perfectDefenses":0,"tableExp":123,"expPerHolobot":123,"expWithheld":false,"settledAtMs":1791309600000},"progression":[{"holobotId":"ace","expGained":123,"levelBefore":4,"levelAfter":5,"attributePoints":2,"experience":1823,"nextLevelExp":3600,"rank":"Starter"},{"holobotId":"kuma","expGained":123,"levelBefore":1,"levelAfter":2,"attributePoints":1,"experience":473,"nextLevelExp":500,"rank":"Starter"}]}');
   assert.deepEqual(Object.keys(s.userUpdates), ['holobots', 'holosTokens', 'itemStocks']); // DECISIONS #58: a 3-kill non-boss win pays 100 Holos + 1 fragment
   assert.equal(JSON.stringify(s.doc).toLowerCase().includes('health'), false); assert.equal(JSON.stringify(s.doc).includes('Vitals'), false);
   // Known-bad: a key-order-only change trips the pin.

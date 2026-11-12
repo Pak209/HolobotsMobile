@@ -9,7 +9,8 @@ import { pilotRankAfterWin, PilotRankError } from '../account/pilotRank';
 import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
-import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
+import {issueVitals,requireLivingVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
+import {commitVitals} from "../lib/autoHeal";
 import { onboardingAfterEvent, onboardingMentorActive } from '../lib/onboarding';
 import { applyOnboardingMentor, isOnboardingMentorBattle } from './onboardingMentor';
 import { randomBytes, randomInt } from 'node:crypto';
@@ -21,7 +22,8 @@ import { FIGHT_LOG_OMITTED_FIELD, ReplayValidation, replayDryRunLine, validateRe
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight } from '../lib/partStats';
-import { closeRivalBattleNoPay, RIVAL_SCHEMA_V3 } from '../lib/rivalLadder';
+import { closeRivalBattleNoPay, RIVAL_SCHEMA_V3, RivalLiveSettle } from '../lib/rivalLadder';
+import { FIRST_WIN_COLLECTION, firstWinAvailable, firstWinRecord, livePerformanceFromReceipt } from '../lib/liveWinRewards';
 import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
 import { LEFT_BEFORE_FIGHT_CLOSED_BY, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
 import { FightPlausibility } from '../sim/fight/plausibility';
@@ -217,7 +219,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (options.pvp) await options.pvp.bind(tx, r);
       if (mentor) applyOnboardingMentor(r, rivalLineupScaleFor(command.schemaVersion));
       if ((!legacyMode || inputLogIssue) && r.reply.playerCombatants.length === 0) throw new RivalError('squad_required');
-      if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{const vitals=issueVitals(profile,r.reply.playerCombatants);r.userUpdates.holobotVitals=vitals;(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
+      if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{requireLivingVitals(profile,r.reply.playerCombatants.map(p=>p.holobotId),nowMs);const vitals=issueVitals(profile,r.reply.playerCombatants,nowMs);r.userUpdates.holobotVitals=commitVitals(profile.holobotVitals,vitals,nowMs);(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw e.message==='holobot_ko'?new RivalError('holobot_ko',undefined,e.detail):new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
       if (story.issueZell) {
         bindZellLineup(r);
         const nextStory = meetZell(storyState!, nowMs);
@@ -283,6 +285,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     let receipt: DuelReceipt | undefined;
     let fightReceipt: FightReceiptWire | undefined;
     let settleCommand = command;
+    let liveSettle: RivalLiveSettle | undefined;
     // Replay groundwork (item 8): a pvp dry-run battle whose replay did not match settles from the client's claimed outcome
     // (closed alpha trusts the client within the rival caps: too_fast, anti-farm, Holos only); the verdict was logged above.
     const dryRunMiss = record?.duel?.mode === 'input-log' && record.replayGate === 'dry_run' && record.source === PVP_ASYNC_SOURCE
@@ -316,6 +319,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (fightReceipt.winner === 'player' && Number.isFinite(record.expiresAtMs) && nowMs <= record.expiresAtMs && !(sinceIssue >= RIVAL_MIN_WIN_MS))
         throw new RivalError('too_fast', Number.isFinite(sinceIssue) ? RIVAL_MIN_WIN_MS - sinceIssue : RIVAL_MIN_WIN_MS);
       settleCommand = {...command,didWin:fightReceipt.winner === 'player',fielded:fightPre.verdict.fieldedHolobotIds};
+      // early-progression-1: the verified receipt's win counts (capped multiplier) and, for a win, today's first-live-win ledger.
+      const firstWin = fightReceipt.winner === 'player' && record.source !== PVP_ASYNC_SOURCE
+        && firstWinAvailable((await tx.get(db.doc(`${FIRST_WIN_COLLECTION}/${uid}`))).data(), nowMs);
+      liveSettle = { performance: livePerformanceFromReceipt(fightReceipt), firstWin };
     } else if (record.duel?.mode === 'resolver') {
       let intents;
       try { intents = validateDuelIntents(request.playerIntents); } catch { throw new RivalError('invalid_request'); }
@@ -335,7 +342,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       settleCommand = legacy;
     }
     const r = settleRivalBattle(profile,record,command.battleId,settleCommand.didWin,nowMs,settleCommand.fielded,
-      receipt || fightReceipt ? [] : squadIdsOf(profile));
+      receipt || fightReceipt ? [] : squadIdsOf(profile), liveSettle);
     // Apply to the authoritative ruling, once in the same transaction as its receipt.
     // All rival versions (including gathering/Zell) count; losses and replays never do.
     // pvp-daily-1: an async PvP settle pays Holos only (rivalLadder.PVP_ASYNC_SOURCE): no pilotRank, no fight learning.
@@ -366,8 +373,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         // server-rulings-1 ruling 1: the fight's HP goes back as the same FRACTION of max on the ledger's own scale (the cups' rule,
         // ledgerHealthAfterFight): the fight max may carry part HP and, on duel-rules-5, the #72.80 fight-row HP delta, so the raw
         // fight number is not ledger HP. A bot that never fought is not written (its ledger row stays as issued).
-        try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
-          fightReceipt.playerFinal.filter(f => f.fielded).map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])}))); }
+        try { r.userUpdates.holobotVitals = commitVitals(profile.holobotVitals,settleVitals(profile,b.issuedVitals,
+          fightReceipt.playerFinal.filter(f => f.fielded).map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])})),nowMs),nowMs); }
         catch { throw new RivalError('unavailable'); }
       }
       // server-rulings-1 ruling 4: a verified WIN carries its plausibility read; a flagged one is also listed for admins. Never
@@ -385,8 +392,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if(bound?.rivalBattleId!==command.battleId){
         const b = battle.data()!;
         // Part HP is a fight-time layer: the receipt's HP goes back to the ledger's scale.
-        try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
-          receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])}))); }
+        try { r.userUpdates.holobotVitals = commitVitals(profile.holobotVitals,settleVitals(profile,b.issuedVitals,
+          receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])})),nowMs),nowMs); }
         catch { throw new RivalError('unavailable'); }
       }
     } else if(r.battleUpdates&&settleCommand.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");
@@ -394,7 +401,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // with the duel; its settle writes the ledger). The client rows are not applied here, so a healed bench bot presented
       // above its rival issue neither refuses the settle (invalid_request) nor undoes the heal.
       const bound=(await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
-      if(bound?.rivalBattleId!==command.battleId){try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,settleCommand.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}}
+      if(bound?.rivalBattleId!==command.battleId){try{r.userUpdates.holobotVitals=commitVitals(profile.holobotVitals,settleVitals(profile,b.issuedVitals,settleCommand.health,nowMs),nowMs);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}}
     // DECISIONS #72.3 (onboarding D1): a LOSS in a mentor-issued battle costs no HP. The squad's ledger rows go back to
     // their issue-time values (undoing a duel-healing run that settled first); the per-rival cooldown is not started below.
     const mentorLoss = !!r.battleUpdates && !r.battleUpdates.settlement?.didWin && isOnboardingMentorBattle(issued);
@@ -402,7 +409,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const issuedVitals = (battle.data() as {issuedVitals?: Vitals}).issuedVitals;
       if (issuedVitals && Object.keys(issuedVitals).length) {
         const ledgerNow = (profile.holobotVitals ?? {}) as Vitals;
-        r.userUpdates.holobotVitals = {...ledgerNow, ...Object.fromEntries(Object.entries(issuedVitals).map(([id,v]) => [id,{...v}]))};
+        r.userUpdates.holobotVitals = commitVitals(ledgerNow,{...ledgerNow, ...Object.fromEntries(Object.entries(issuedVitals).map(([id,v]) => [id,{...v}]))},nowMs);
       } else delete r.userUpdates.holobotVitals;
     }
     // Brief C2 beat 3: the first rival settle (any outcome) completes the mentor-duel beat.
@@ -415,6 +422,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
     if (r.battleUpdates) {
       tx.update(battleRef, r.battleUpdates);
+      // early-progression-1: this settle spent today's first live win.
+      if (r.battleUpdates.settlement?.firstWinOfDay) tx.set(db.doc(`${FIRST_WIN_COLLECTION}/${uid}`), firstWinRecord('rival', command.battleId, nowMs));
       // The cooldown clock starts at the first-time settle; a replay (returned above) never moves it.
       const pilotId = (battle.data() as RivalBattleRecord).lineup.opponentPilot.pilotId;
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId), [RIVAL_LAST_SETTLED_FIELD]: mentorLoss ? readRivalLastSettled(ledger.data()) : rivalLastSettledAfterSettle(readRivalLastSettled(ledger.data()), pilotId, nowMs) });

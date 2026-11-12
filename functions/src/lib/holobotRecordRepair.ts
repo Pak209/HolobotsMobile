@@ -1,4 +1,4 @@
-import { calculateExperience } from "./progression";
+import { calculateExperience, getHolobotRank, legacyCalculateExperience } from "./progression";
 import type { RepairChange } from "./accountRepairAudit";
 
 /**
@@ -13,10 +13,13 @@ import type { RepairChange } from "./accountRepairAudit";
  *  - attributePoints: null -> 0; a whole-number string -> that number; a finite non-negative fraction -> floor.
  *  - boostedAttributes: null -> {}; a null/undefined entry -> dropped (it already reads as 0); a whole-number string
  *                     entry -> that number.
- * None of these can raise a level, XP, a point or a boost above what the record already holds.
+ * None of these can raise a level, XP, a point or a boost above what the record already holds, with ONE exception:
+ *  - early-progression-1 catch-up: `experience` is kept, but a record that was canonical under the old floor(100 x L^2)
+ *    curve and is at or past the new (cheaper, levels 2-5) threshold is raised to its new-curve level, with +1 attribute
+ *    point per level gained, nextLevelExp and rank to match (at most one level for any old-canonical record).
  *
- * Refused (never guessed): malformed level / experience, experience already at or past the next level's threshold
- * (healing that would be a level-up grant, clamping it would destroy XP), negative or non-finite points / boosts,
+ * Refused (never guessed): malformed level / experience, experience at or past the next level's threshold under the OLD
+ * curve too (healing that would be a level-up grant, clamping it would destroy XP), negative or non-finite points / boosts,
  * a non-object boostedAttributes. The caller reports these as a non-transient `holobot_record_invalid` + reason.
  */
 type Data = Record<string, unknown>;
@@ -38,9 +41,17 @@ const wholeString = (x: unknown): number | undefined => {
 };
 
 export function repairHolobotProgression(bot: Data, pathPrefix = "holobot"): HolobotRepair {
-  const level = bot.level ?? 1, exp = bot.experience ?? 0;
-  if (!whole(level) || level < 1) return { ok: false, reason: "level_malformed" };
+  const storedLevel = bot.level ?? 1, exp = bot.experience ?? 0;
+  if (!whole(storedLevel) || storedLevel < 1) return { ok: false, reason: "level_malformed" };
   if (!whole(exp)) return { ok: false, reason: "experience_malformed" };
+  // early-progression-1 (Pak 2026-11-12): the curve's levels 2-5 got cheaper. A record that was canonical under the OLD curve
+  // (exp below floor(100 x (level+1)^2)) but is at or past the NEW threshold is the curve change, not a forgery: it catches up
+  // to its new-curve level here (+1 attribute point per level gained, the ordinary level-up rule). Past the old threshold it is
+  // still refused, exactly as before.
+  let level = storedLevel;
+  if (exp >= calculateExperience(level + 1) && exp < legacyCalculateExperience(level + 1)) {
+    while (exp >= calculateExperience(level + 1)) level += 1;
+  }
   const threshold = calculateExperience(level + 1);
   if (!whole(threshold) || exp >= threshold) return { ok: false, reason: "experience_over_level" };
 
@@ -48,15 +59,24 @@ export function repairHolobotProgression(bot: Data, pathPrefix = "holobot"): Hol
   const changes: RepairChange[] = [];
   const set = (field: string, after: unknown) => { changes.push({ path: `${pathPrefix}.${field}`, before: bot[field], after }); out[field] = after; };
 
-  if (bot.nextLevelExp !== undefined && bot.nextLevelExp !== threshold) set("nextLevelExp", threshold);
+  if (level !== storedLevel) {
+    set("level", level);
+    if (bot.rank !== undefined) set("rank", getHolobotRank(level));
+  }
+  if ((bot.nextLevelExp !== undefined || level !== storedLevel) && bot.nextLevelExp !== threshold) set("nextLevelExp", threshold);
 
   const points = bot.attributePoints;
+  // Levels gained by the early-progression-1 catch-up each grant +1 point. An absent attributePoints already reads as `level`
+  // (normalizeUserHolobot), so it is left absent and follows the new level by itself.
+  const gained = level - storedLevel;
   if (points !== undefined && !whole(points)) {
-    if (points === null) set("attributePoints", 0);
-    else if (wholeString(points) !== undefined) set("attributePoints", wholeString(points));
-    else if (typeof points === "number" && Number.isFinite(points) && points >= 0 && Number.isSafeInteger(Math.floor(points))) set("attributePoints", Math.floor(points));
+    let coerced: number;
+    if (points === null) coerced = 0;
+    else if (wholeString(points) !== undefined) coerced = wholeString(points)!;
+    else if (typeof points === "number" && Number.isFinite(points) && points >= 0 && Number.isSafeInteger(Math.floor(points))) coerced = Math.floor(points);
     else return { ok: false, reason: "attribute_points_malformed" };
-  }
+    set("attributePoints", coerced + gained);
+  } else if (points !== undefined && gained > 0) set("attributePoints", (points as number) + gained);
 
   const boosts = bot.boostedAttributes;
   if (boosts === null) set("boostedAttributes", {});
