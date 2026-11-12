@@ -25,8 +25,33 @@ import { toHolobotKey } from '../lib/mintingEconomy';
 import type { HolobotProgressionEntry } from '../lib/battleProgression';
 import { repairHolobotProgression } from '../lib/holobotRecordRepair';
 import { recordAccountRepair, RepairChange } from '../lib/accountRepairAudit';
+import { FIGHT_ATTRS_FLAG, FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_RECEIPT_SCHEMA, FIGHT_REPLAY_FLAG, FIGHT_REPLAY_MODE, FightReplayIssueWire } from '../shared/fightReplayContract';
+import { FightReplayError, FightReplayVerdict, readIssue, verifyFightReplay } from '../sim/fight/replay';
+import { RULES_SCHEMA_6 } from '../sim/fight/rules';
+import { buildFightReplayIssue, inputLogCombatant } from '../rival/fightReplayIssue';
+import { FIGHT_PLAUSIBILITY_COLLECTION, FIGHT_RULES_CAPABILITY_FIELD } from '../rival/rivalBattleStore';
+import { RIVAL_MIN_WIN_MS } from '../lib/rivalLadder';
 
 export const ARENA_MATCH_SCHEMA = 'arena-match-1';
+/**
+ * arena-live-1 (Pak 2026-11-11: live duel is the battle system for every battle): the Arena CPU match as an input-log fight,
+ * issued and replay-checked exactly like the rival live duel (rival/fightReplayIssue.buildFightReplayIssue at issue,
+ * sim/fight/replay.verifyFightReplay at settle). Host env flag, default off, ON only for exactly "1", and only together with
+ * HOLOCITY_FIGHT_REPLAY=1 (the expedition realtime precedent). Off: a request carrying `duelInputs` is answered exactly as
+ * before this lane would have answered it without the field (resolver when `duelSchema` is sent, else today's legacy match).
+ * The rules version follows the shared HOLOCITY_FIGHT_CHASE / HOLOCITY_FIGHT_ATTRS flags and the `fightRules` ask, as on the rival host.
+ */
+export const ARENA_FIGHT_REPLAY_FLAG = 'HOLOCITY_ARENA_FIGHT_REPLAY';
+/** A verified WIN settled sooner than this after `start` is too_fast (nothing written, retryAfterMs); a loss never is.
+ * The rival input-log rule (RIVAL_MIN_WIN_MS, 20 s): a live fight lasts real time, unlike the 3 s CPU-practice floor. */
+export const ARENA_MIN_WIN_MS_LIVE = RIVAL_MIN_WIN_MS;
+/** Arena tier index (rookie, challenger, elite, legend) -> the rival tier fed to buildFightReplayIssue, which only picks the CPU
+ * rank from it (fightRankForTier: Starter, Champion, Rare, Elite). Producer pick, opponent levels 12 / 24 / 36 / 45; Pak tunes. */
+export const ARENA_FIGHT_RANK_TIER: readonly number[] = [2, 4, 6, 8];
+export type ArenaMatchOptions = { arenaFightReplay?: boolean; fightChase?: boolean; fightAttrs?: boolean; fightSeed?: () => string };
+export function arenaFightReplayEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env[ARENA_FIGHT_REPLAY_FLAG] === '1' && env[FIGHT_REPLAY_FLAG] === '1';
+}
 export const ARENA_MATCH_TTL_MS = 30 * 60 * 1000;
 /**
  * Critic review 2026-10-17 S1 — BOUNDED mitigation for the client-reported CPU practice outcome (host re-simulation
@@ -69,7 +94,7 @@ function paidToday(raw: unknown, nowMs: number): number {
   if (!object(raw) || raw.schemaVersion !== ARENA_CPU_PAYOUTS_SCHEMA || typeof raw.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.day) || !whole(raw.paidSettles)) return fail('unavailable');
   return raw.day === utcDay(nowMs) ? raw.paidSettles : 0;
 }
-export class ArenaError extends Error { constructor(public code: string, public retryAfterMs?: number, public reason?: string) { super(code); } }
+export class ArenaError extends Error { constructor(public code: string, public retryAfterMs?: number, public reason?: string, public detail?: Record<string, unknown>) { super(code); } }
 /** host-crawl-fixes-1 (RC7): a stored holobot record the host cannot normalize. NON-transient (never 'unavailable'):
  * retrying cannot help; details.reason is a lib/holobotRecordRepair HolobotRepairRefusal. */
 export const ARENA_HOLOBOT_RECORD_INVALID = 'holobot_record_invalid';
@@ -84,9 +109,9 @@ const fail = (code: string): never => { throw new ArenaError(code); };
 function command(raw: unknown): Command {
   if (!object(raw) || raw.schemaVersion !== ARENA_MATCH_SCHEMA) return fail('invalid_request');
   const fields: Record<string, string[]> = {
-    issue: ['requestId','tierId','paymentMethod','holobotId','opponentName','tournamentId','duelSchema'],
+    issue: ['requestId','tierId','paymentMethod','holobotId','opponentName','tournamentId','duelSchema',FIGHT_INPUTS_CAPABILITY_FIELD,FIGHT_RULES_CAPABILITY_FIELD],
     start: ['matchId'], resume: ['matchId'], cancel: ['matchId','playerFinalHealth'],
-    settle: ['matchId','playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses','playerIntents'],
+    settle: ['matchId','playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses','playerIntents',FIGHT_LOG_FIELD],
   };
   if (typeof raw.operation !== 'string' || !Object.hasOwn(fields, raw.operation) || Object.keys(raw).some(k => !['schemaVersion','operation',...fields[raw.operation]].includes(k))) return fail('invalid_request');
   if (raw.operation === 'issue') {
@@ -99,12 +124,19 @@ function command(raw: unknown): Command {
     }
     // Opt-in: a host-resolved CPU fight (arena plan + send). A cup match always settles through the host bracket.
     if (raw.duelSchema !== undefined && (raw.duelSchema !== DUEL_RECEIPT_SCHEMA || raw.tournamentId !== undefined)) return fail('invalid_request');
+    // arena-live-1: the live-duel capability (the rival host's `duelInputs`) and the duel-rules-6 ask; never on a cup issue.
+    if (raw[FIGHT_INPUTS_CAPABILITY_FIELD] !== undefined && (raw[FIGHT_INPUTS_CAPABILITY_FIELD] !== FIGHT_INPUTS_SCHEMA || raw.tournamentId !== undefined)) return fail('invalid_request');
+    if (raw[FIGHT_RULES_CAPABILITY_FIELD] !== undefined && (raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_6 || raw.tournamentId !== undefined)) return fail('invalid_request');
     const tier = getArenaTier(raw.tierId)!;
     const pool = tier.id === 'rookie' ? [...tier.opponentPool,'KUMA','SHADOW'] : [...tier.opponentPool];
     if (!pool.includes(raw.opponentName)) return fail('invalid_request');
   } else {
     if (!(raw.operation === 'resume' && raw.matchId === undefined) && (typeof raw.matchId !== 'string' || !/^am_[a-f0-9]{32}$/.test(raw.matchId))) return fail('invalid_request');
-    if (raw.operation === 'settle' && raw.playerIntents !== undefined) {
+    if (raw.operation === 'settle' && raw[FIGHT_LOG_FIELD] !== undefined) {
+      // A live settle sends the recorded log only: outcome, HP and performance come from the host's replay of it.
+      if (['playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses','playerIntents'].some(k => raw[k] !== undefined)) return fail('invalid_request');
+      if (typeof raw[FIGHT_LOG_FIELD] !== 'string' && !object(raw[FIGHT_LOG_FIELD])) return fail('invalid_request');
+    } else if (raw.operation === 'settle' && raw.playerIntents !== undefined) {
       // A resolver settle sends the plan only: no HP, performance or outcome is accepted from the client.
       if (['playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses'].some(k => raw[k] !== undefined)) return fail('invalid_request');
       try { validateDuelIntents(raw.playerIntents); } catch { return fail('invalid_request'); }
@@ -140,9 +172,20 @@ function match(raw: unknown, id: string): Match {
   if (raw.bracket !== undefined && (!object(raw.bracket) || raw.bracket.schemaVersion !== 'arena-bracket-1'
     || raw.bracket.matchId !== id || !whole(raw.bracket.boundAtMs) || raw.bracket.boundAtMs < raw.issuedAtMs)) return fail('unavailable');
   assertFiniteTree(raw);
-  if (raw.duel !== undefined && (!object(raw.duel) || raw.duel.mode !== 'resolver' || raw.duel.schemaVersion !== DUEL_RECEIPT_SCHEMA || raw.tournament !== undefined || raw.bracket !== undefined
+  const live = object(raw.duel) && raw.duel.mode === FIGHT_REPLAY_MODE;
+  if (raw.duel !== undefined && !live && (!object(raw.duel) || raw.duel.mode !== 'resolver' || raw.duel.schemaVersion !== DUEL_RECEIPT_SCHEMA || raw.tournament !== undefined || raw.bracket !== undefined
     || !object(raw.duel.input) || !whole(raw.duel.input.seed) || raw.duel.input.seed > 0xffffffff || !Array.isArray(raw.duel.input.player) || raw.duel.input.player.length !== 1 || !Array.isArray(raw.duel.input.opponent) || raw.duel.input.opponent.length !== 1)) return fail('unavailable');
-  if (raw.duelReceipt !== undefined && (raw.duel === undefined || raw.state !== 'settled' || !object(raw.duelReceipt) || raw.duelReceipt.schemaVersion !== DUEL_RECEIPT_SCHEMA)) return fail('unavailable');
+  if (live) {
+    // arena-live-1: the pinned input-log issue (structure + rules hash via the verifier's own reader), 1v1, bound to this match.
+    if (raw.tournament !== undefined || raw.bracket !== undefined || typeof raw.duel.rulesId !== 'string' || !raw.duel.rulesId.endsWith(`:${id}`)) return fail('unavailable');
+    let issue: FightReplayIssueWire;
+    try { issue = readIssue(raw.duel).issue; } catch { return fail('unavailable'); }
+    if (issue.player.roster.length !== 1 || issue.cpu.roster.length !== 1 || !object(raw.entrant) || !object(raw.opponent)
+      || issue.player.roster[0].holobotId !== raw.entrant.holobotId || issue.cpu.roster[0].holobotId !== raw.opponent.holobotId) return fail('unavailable');
+  }
+  if (raw.duelReceipt !== undefined && (!object(raw.duel) || raw.duel.mode !== 'resolver' || raw.state !== 'settled' || !object(raw.duelReceipt) || raw.duelReceipt.schemaVersion !== DUEL_RECEIPT_SCHEMA)) return fail('unavailable');
+  if (raw.fightReceipt !== undefined && (!live || raw.state !== 'settled' || !object(raw.fightReceipt) || raw.fightReceipt.schemaVersion !== FIGHT_RECEIPT_SCHEMA
+    || raw.fightReceipt.battleId !== id || raw.fightReceipt.verified !== true)) return fail('unavailable');
   if (raw.progression !== undefined && (raw.state !== 'settled' || !Array.isArray(raw.progression))) return fail('unavailable');
   const entrant = raw.entrant, opponent = raw.opponent, entry = raw.entryReceipt, rules = raw.rules;
   const health = (n: unknown, max: number) => finite(n) && n >= 0 && n <= max;
@@ -191,6 +234,8 @@ function match(raw: unknown, id: string): Match {
     || final.currentHealth > report.playerFinalHealth) return fail('unavailable');
   if (receipt.outcome === 'forfeit') {
     if (raw.state === 'settled' || receipt.settlement !== null) return fail('unavailable');
+    // arena-live-1: a log that failed replay closes the match as this forfeit (closedBy 'replay_mismatch'), never anything else.
+    if (receipt.closedBy !== undefined && (receipt.closedBy !== 'replay_mismatch' || !live || report.playerFinalHealth !== entrant.currentHealth)) return fail('unavailable');
     return raw as Match;
   }
   const settlement = receipt.settlement;
@@ -199,6 +244,9 @@ function match(raw: unknown, id: string): Match {
     || (raw.bracket ? !['player','opponent'].includes(report.bracketWinner)
       || (receipt.outcome === 'win') !== (report.bracketWinner === 'player')
       || (report.bracketWinner === 'player' ? report.playerFinalHealth <= 0 : report.opponentFinalHealth <= 0)
+      : live ? !['player','opponent','draw'].includes(report.fightWinner)
+        || (receipt.outcome === 'win') !== (report.fightWinner === 'player')
+        || raw.fightReceipt === undefined || raw.fightReceipt.winner !== report.fightWinner
       : raw.duel ? !['player','opponent'].includes(report.resolverWinner)
         || (receipt.outcome === 'win') !== (report.resolverWinner === 'player')
         || (report.resolverWinner === 'player' ? report.playerFinalHealth <= 0 : report.opponentFinalHealth <= 0)
@@ -247,9 +295,13 @@ function uniqueEntrant(profile: Data, id: string): { bot: Data; holobots: Data[]
 function reply(stored: Match, alreadyProcessed = false) {
   const tier = ARENA_TIERS.findIndex(row => row.id === stored.tierId);
   // The resolver seed never leaves the host before settle; receipt and progression travel at the top level.
-  const { duel, duelReceipt, progression, partBoosts: _partBoosts, ...m } = stored; // Part boosts are host-only: they reach clients as the bracket's fighter.
-  const resolver = duel ? { duel: { mode: 'resolver', schemaVersion: duel.schemaVersion, maxRounds: DUEL_MAX_ROUNDS, player: duel.input.player, opponent: duel.input.opponent } } : {};
-  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, ...resolver, ...(duelReceipt ? { duelReceipt } : {}), ...(progression ? { progression } : {}), match: {
+  // arena-live-1: an input-log match serves its whole pinned issue block (seed included, by design: the phone predicts the CPU
+  // locally), exactly the rival-battle-3 `duel` block; the settle's duel-receipt-2 travels at the top level as `fightReceipt`.
+  // The plausibility read is host-only (as on the rival host).
+  const { duel, duelReceipt, fightReceipt, fightPlausibility: _plausibility, progression, partBoosts: _partBoosts, ...m } = stored; // Part boosts are host-only: they reach clients as the bracket's fighter.
+  const resolver = !duel ? {} : duel.mode === FIGHT_REPLAY_MODE ? { duel: { ...duel } }
+    : { duel: { mode: 'resolver', schemaVersion: duel.schemaVersion, maxRounds: DUEL_MAX_ROUNDS, player: duel.input.player, opponent: duel.input.opponent } };
+  return { schemaVersion: ARENA_MATCH_SCHEMA, matchId: m.matchId, alreadyProcessed, ...resolver, ...(duelReceipt ? { duelReceipt } : {}), ...(fightReceipt ? { [FIGHT_RECEIPT_FIELD]: fightReceipt } : {}), ...(progression ? { progression } : {}), match: {
     ...m, entrant: { ...m.entrant, ...arenaFighterSnapshot({holobotId:m.entrant.holobotId,level:m.entrant.level}, tier) },
     opponent: { ...m.opponent, ...arenaFighterSnapshot({holobotId:m.opponent.holobotId,level:m.opponent.level}, tier) },
   } };
@@ -296,15 +348,48 @@ function rewards(profile: Data, m: Match, c: Command, now: number, bracketWon?:b
   return { updates, progression, repairs: entrant.changes, settlement: { exp, awardedExp, holos, syncPoints, blueprints: blueprint, ...(withheld ? { payoutWithheld: withheld } : {}) }, outcome: won ? 'win' : 'loss' };
 }
 
-export async function transactArenaMatch(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now()) {
+/** arena-live-1: the settle-time replay, run OUTSIDE the transaction (rivalBattleStore.preVerifyFightReplay's rule: the CPU work
+ * never repeats on a transaction retry). `mismatch` = the replay did not reproduce the log (the transaction closes the match). */
+type ArenaFightPre = { issue: FightReplayIssueWire; verdict?: FightReplayVerdict; mismatch?: Record<string, unknown> };
+async function preVerifyArenaFight(firestore: Firestore, uid: string, c: Command): Promise<ArenaFightPre | undefined> {
+  if (c.operation !== 'settle' || c[FIGHT_LOG_FIELD] === undefined) return undefined;
+  const pre = (await firestore.doc(`arenaMatches/${uid}/matches/${c.matchId}`).get()).data();
+  // Anything but an open input-log match is ruled inside the transaction (replay of a settled match, unknown_match, invalid_state...).
+  if (!object(pre) || pre.state !== 'active' || !object(pre.duel) || pre.duel.mode !== FIGHT_REPLAY_MODE) return undefined;
+  const issue = pre.duel as FightReplayIssueWire;
+  try {
+    const verdict = verifyFightReplay(issue, c[FIGHT_LOG_FIELD], { battleId: c.matchId });
+    console.info(JSON.stringify({ event: 'arena_fight_replay_verified', matchId: c.matchId, ticks: verdict.ticks, replayMs: Math.round(verdict.replayMs * 10) / 10, winner: verdict.receipt.winner }));
+    return { issue, verdict };
+  } catch (e) {
+    if (!(e instanceof FightReplayError)) throw e;
+    if (e.code === 'invalid_issue') throw new ArenaError('unavailable');
+    console.warn(JSON.stringify({ event: 'arena_fight_replay_rejected', matchId: c.matchId, code: e.code, ...e.detail }));
+    // An undecodable log is not a mismatch: nothing is written and the match stays open (the rival host's rule).
+    if (e.code === 'invalid_log') throw new ArenaError('invalid_request', undefined, 'invalid_log', e.detail);
+    return { issue, mismatch: e.detail };
+  }
+}
+/** Marks a transaction result whose error is thrown only after the transaction committed its writes. */
+const THROW_AFTER_COMMIT = '__throwAfterCommit';
+
+export async function transactArenaMatch(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now(), options: ArenaMatchOptions = {}) {
   const c = command(raw);
   if (!whole(nowMs)) return fail('invalid_request');
   const generatedId = `am_${randomBytes(16).toString('hex')}`; // Stable across transaction retries.
   const duelSeed = randomBytes(4).readUInt32LE(0); // Resolver seed: pinned here, never disclosed before settle.
+  // arena-live-1: the input-log seed, pinned outside retries (disclosed at issue). Tests may pin it; the callable never does.
+  const fightSeed = options.fightSeed ? options.fightSeed() : randomBytes(32).toString('hex');
+  const arenaFightReplay = options.arenaFightReplay ?? arenaFightReplayEnabled();
+  const fightChase = options.fightChase ?? process.env[FIGHT_CHASE_FLAG] === '1';
+  const fightAttrs = options.fightAttrs ?? process.env[FIGHT_ATTRS_FLAG] === '1';
   const parentRef = firestore.doc(`arenaMatches/${uid}`), userRef = firestore.doc(`users/${uid}`);
-  const identity = c.operation === 'issue' ? createHash('sha256').update(JSON.stringify([c.tierId,c.paymentMethod,c.holobotId,c.opponentName,...(c.tournamentId === undefined ? [] : [c.tournamentId]),...(c.duelSchema === undefined ? [] : [{duelSchema:c.duelSchema}])])).digest('hex') : '';
+  // The live fields join the identity only when sent, so an old client's requestId hashes exactly as before.
+  const identity = c.operation === 'issue' ? createHash('sha256').update(JSON.stringify([c.tierId,c.paymentMethod,c.holobotId,c.opponentName,...(c.tournamentId === undefined ? [] : [c.tournamentId]),...(c.duelSchema === undefined ? [] : [{duelSchema:c.duelSchema}]),
+    ...(c[FIGHT_INPUTS_CAPABILITY_FIELD] === undefined ? [] : [{duelInputs:c[FIGHT_INPUTS_CAPABILITY_FIELD]}]),...(c[FIGHT_RULES_CAPABILITY_FIELD] === undefined ? [] : [{fightRules:c[FIGHT_RULES_CAPABILITY_FIELD]}])])).digest('hex') : '';
+  const fightPre = await preVerifyArenaFight(firestore, uid, c);
   try {
-    return await firestore.runTransaction(async tx => {
+    const out = await firestore.runTransaction(async tx => {
       const userSnap = await tx.get(userRef);
       if (!userSnap.exists) return fail('unavailable');
       const profile = userSnap.data()!;
@@ -351,9 +436,23 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const capped = await payoutCapped(); // Last read: every write below follows it.
         // Opt-in resolver fight: both fighters and the seed are pinned at issue (the rivalBattleHost resolver block).
         let resolverDuel: Data | undefined;
-        if (c.duelSchema === DUEL_RECEIPT_SCHEMA) {
+        const tierIndex = ARENA_TIERS.findIndex(row => row.id === tier.id);
+        // arena-live-1: a live duel when the flag is on and the client declares duel-inputs-2 (the rival rule: the capability only opts
+        // INTO the verified mode). A lineup the fight core cannot express (no kit / profile row) keeps the next mode down.
+        if (arenaFightReplay && c[FIGHT_INPUTS_CAPABILITY_FIELD] === FIGHT_INPUTS_SCHEMA) {
           if (Math.floor(hp) <= 0) return fail('holobot_ko');
-          const tierIndex = ARENA_TIERS.findIndex(row => row.id === tier.id);
+          const tempo = c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_6 && fightChase && fightAttrs;
+          const live = buildFightReplayIssue({battleId:generatedId,seed:fightSeed,tier:ARENA_FIGHT_RANK_TIER[tierIndex] ?? 0,mentor:false,
+            player:[inputLogCombatant({...player,currentHealth:hp},equippedPartBoosts(profile,c.holobotId),tempo)],
+            opponent:[{...opponentStats,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo});
+          if (live) resolverDuel = live as unknown as Data;
+        }
+        // rival-live-only (Pak 2026-11-11), the rival host's rule: a live-only client (duel-inputs-2 + the duel-rules-6 ask, no
+        // duelSchema) that cannot get an input-log match is refused here, before the fee, the match, the request row or the lease.
+        if (!resolverDuel && c[FIGHT_INPUTS_CAPABILITY_FIELD] === FIGHT_INPUTS_SCHEMA && c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_6 && c.duelSchema === undefined)
+          throw new ArenaError('live_unavailable', undefined, arenaFightReplay ? 'lineup_unsupported' : 'replay_off');
+        if (!resolverDuel && c.duelSchema === DUEL_RECEIPT_SCHEMA) {
+          if (Math.floor(hp) <= 0) return fail('holobot_ko');
           const input = {seed:duelSeed,player:[duelFighterFromCombatant({...applyPartBoosts({...player,currentHealth:hp},equippedPartBoosts(profile,c.holobotId)),tier:tierIndex})],opponent:[duelFighterFromCombatant({...opponentStats,tier:tierIndex})]};
           resolveDuel({...input,playerIntents:['defend']}); // Validates the pinned block; RangeError -> unavailable.
           resolverDuel = {mode:'resolver',schemaVersion:DUEL_RECEIPT_SCHEMA,input};
@@ -409,6 +508,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       let updates: Data = {}, receipt: Data;
       let nextState: Match['state'];
       let duelOutcome: DuelReceipt | undefined, progression: HolobotProgressionEntry[] | undefined;
+      let fightVerdict: FightReplayVerdict | undefined, mismatch: Record<string, unknown> | undefined;
       if (c.operation === 'cancel' && m.state === 'issued') {
         if (c.playerFinalHealth !== undefined) return fail('invalid_request');
         const field = m.entryReceipt.method === 'pass' ? 'arenaPassses' : 'holosTokens';
@@ -419,8 +519,26 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       } else {
         if (m.state !== 'active') return fail('invalid_state');
         // A stored mode is never downgraded or upgraded by the request.
-        const resolver = m.duel?.mode === 'resolver';
-        if (resolver ? (c.operation === 'settle' ? c.playerIntents === undefined : c.playerFinalHealth !== undefined) : c.playerIntents !== undefined) return fail('invalid_request');
+        const resolver = m.duel?.mode === 'resolver', live = m.duel?.mode === FIGHT_REPLAY_MODE;
+        // arena-live-1: a live match settles from its log only (no intents, no HP); every other mode refuses a log.
+        if (live && c.operation === 'settle' && c[FIGHT_LOG_FIELD] === undefined) throw new ArenaError('invalid_request', undefined, 'input_log_required');
+        if (resolver ? (c.operation === 'settle' ? c.playerIntents === undefined : c.playerFinalHealth !== undefined)
+          : live ? c.playerIntents !== undefined || (c.operation === 'cancel' && c.playerFinalHealth !== undefined)
+          : c.playerIntents !== undefined || c[FIGHT_LOG_FIELD] !== undefined) return fail('invalid_request');
+        if (live && c.operation === 'settle') {
+          if (nowMs > m.expiresAtMs) return fail('match_expired');
+          // The replay ran before the transaction against this same immutable issue; a record that changed in between (or a
+          // start that raced the pre-read) is never settled from a stale verdict: retryable, the same log is resent.
+          if (!fightPre || fightPre.issue.rulesHash !== m.duel.rulesHash || fightPre.issue.seed !== m.duel.seed) return fail('unavailable');
+          if (fightPre.mismatch) mismatch = fightPre.mismatch;
+          else {
+            fightVerdict = fightPre.verdict!;
+            // The rival input-log rule: a verified WIN sooner than ARENA_MIN_WIN_MS_LIVE after start changes nothing and may be
+            // resent after retryAfterMs; a loss is never too fast.
+            const sinceStart = nowMs - m.startedAtMs;
+            if (fightVerdict.receipt.winner === 'player' && sinceStart < ARENA_MIN_WIN_MS_LIVE) throw new ArenaError('too_fast', ARENA_MIN_WIN_MS_LIVE - sinceStart);
+          }
+        }
         if (resolver && c.operation === 'settle') {
           if (nowMs > m.expiresAtMs) return fail('match_expired');
           // Refused BEFORE resolving and for every outcome: an outcome-dependent refusal that writes nothing would let a
@@ -429,22 +547,44 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           if (sinceStart < ARENA_MIN_SETTLE_MS_CPU) throw new ArenaError('too_fast', ARENA_MIN_SETTLE_MS_CPU - sinceStart);
           duelOutcome = resolveDuel({...m.duel.input,playerIntents:c.playerIntents});
         }
-        const finalHealth = resolver ? (duelOutcome ? ledgerHealthAfterFight(duelOutcome.playerFinal[0].currentHealth,duelOutcome.playerFinal[0].maxHealth,m.entrant as {currentHealth:number;maxHealth:number}) : m.entrant.currentHealth) : c.playerFinalHealth;
+        const entrantVitals = m.entrant as {currentHealth:number;maxHealth:number};
+        const finalHealth = resolver ? (duelOutcome ? ledgerHealthAfterFight(duelOutcome.playerFinal[0].currentHealth,duelOutcome.playerFinal[0].maxHealth,entrantVitals) : m.entrant.currentHealth)
+          // Live: the replay's HP, as the same fraction of max on the ledger's scale (the rival settle's rule); a forfeit or a
+          // mismatch closure keeps the issue-time HP.
+          : live ? (fightVerdict ? ledgerHealthAfterFight(fightVerdict.receipt.playerFinal[0].currentHealth,fightVerdict.receipt.playerFinal[0].maxHealth,entrantVitals) : m.entrant.currentHealth)
+          : c.playerFinalHealth;
         if (!finite(finalHealth) || finalHealth < 0 || finalHealth > m.entrant.currentHealth) return fail('invalid_request');
         const issued: Vitals = {[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
         const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:finalHealth}]);
-        if (duelOutcome) {
+        if (duelOutcome || fightVerdict) {
           const payoutsRef = parentRef.collection('ledger').doc('cpuPayouts');
           const paid = paidToday((await tx.get(payoutsRef)).data(), nowMs);
           const withheld = paid >= ARENA_CPU_DAILY_PAYOUT_CAP ? 'daily_cap' as const : undefined;
-          const won = duelOutcome.winner === 'player', opponentFinalHealth = duelOutcome.opponentFinal[0].currentHealth;
-          // Performance bonuses are client reports on the legacy path; the bracket's rule (0 / 0) applies here.
+          const fightOpponent = fightVerdict?.receipt.opponentFinal[0];
+          const won = duelOutcome ? duelOutcome.winner === 'player' : fightVerdict!.receipt.winner === 'player';
+          // Live: the opponent's HP on the stored opponent's scale (a duel-rules-5 fight max carries the #72.80 row delta).
+          const opponentFinalHealth = duelOutcome ? duelOutcome.opponentFinal[0].currentHealth
+            : ledgerHealthAfterFight(fightOpponent!.currentHealth,fightOpponent!.maxHealth,{currentHealth:m.opponent.maxHealth,maxHealth:m.opponent.maxHealth});
+          // Performance bonuses are client reports on the legacy path; the bracket's rule (0 / 0) applies here and on a live fight.
           const result = rewards(profile,m,{...c,combosCompleted:0,perfectDefenses:0},nowMs,won,withheld);
           updates = withRankHealingReward(profile, result.updates);
           progression = result.progression;
-          receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:finalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,resolverWinner:duelOutcome.winner},closedAtMs:nowMs};
+          receipt = {matchId:m.matchId,outcome:result.outcome,refunded:false,settlement:result.settlement,report:{playerFinalHealth:finalHealth,opponentFinalHealth,combosCompleted:0,perfectDefenses:0,
+            ...(duelOutcome ? {resolverWinner:duelOutcome.winner} : {fightWinner:fightVerdict!.receipt.winner})},closedAtMs:nowMs};
           if (withheld === undefined) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
+          // server-rulings-1 ruling 4, as on the rival host: a verified WIN carries its plausibility read; a flagged one is also listed
+          // for admins. Never refuses, never withholds.
+          if (fightVerdict && won) {
+            const p = fightVerdict.plausibility;
+            if (p.flagged) tx.set(firestore.doc(`${FIGHT_PLAUSIBILITY_COLLECTION}/${uid}_${m.matchId}`), { uid, matchId: m.matchId, source: 'arena', flaggedAtMs: nowMs,
+              ...p, inputsHash: fightVerdict.receipt.inputsHash, rulesId: fightVerdict.receipt.rulesId, endTick: fightVerdict.receipt.endTick, reviewed: false });
+          }
           nextState = 'settled';
+        } else if (c.operation === 'settle' && mismatch) {
+          // arena-live-1: a log that failed replay pays nothing and closes the match as the after-start forfeit (fee kept, HP as
+          // issued, no loss counted, lease freed: the rival no-pay closure); replay_mismatch is reported after the commit.
+          receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:finalHealth},closedAtMs:nowMs,closedBy:'replay_mismatch',replayRejection:mismatch};
+          nextState = 'cancelled';
         } else if (c.operation === 'settle') {
           if (nowMs > m.expiresAtMs) return fail('match_expired');
           if (c.combosCompleted > m.rules.maxPerformanceEvents || c.perfectDefenses > m.rules.maxPerformanceEvents || c.opponentFinalHealth > m.opponent.maxHealth || (c.playerFinalHealth === 0) === (c.opponentFinalHealth === 0)) return fail('invalid_request');
@@ -472,13 +612,18 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         receipt.finalVitals = {[m.entrant.holobotId]:vitals[m.entrant.holobotId]};
       }
       assertFiniteTree(updates);
-      const next: Match = {...m,state:nextState,closedAtMs:nowMs,settlementReceipt:receipt,...(duelOutcome ? {duelReceipt:duelOutcome} : {}),...(progression ? {progression} : {})};
+      const next: Match = {...m,state:nextState,closedAtMs:nowMs,settlementReceipt:receipt,...(duelOutcome ? {duelReceipt:duelOutcome} : {}),...(progression ? {progression} : {}),
+        ...(fightVerdict ? {fightReceipt:fightVerdict.receipt,...(fightVerdict.receipt.winner === 'player' ? {fightPlausibility:fightVerdict.plausibility} : {})} : {})};
       match(next,m.matchId);
       tx.update(userRef,updates);
       tx.set(matchRef,next);
       tx.set(parentRef,{...parent,open:false,closedAtMs:nowMs});
+      if (mismatch) return {[THROW_AFTER_COMMIT]: new ArenaError('replay_mismatch', undefined, undefined, mismatch)};
       return reply(next);
     });
+    const deferred = (out as Record<string, unknown>)[THROW_AFTER_COMMIT];
+    if (deferred instanceof ArenaError) throw deferred;
+    return out;
   } catch (e) {
     if (e instanceof StoryError) throw new ArenaError(e.code);
     if (e instanceof HealthError) throw new ArenaError(e.message === 'holobot_ko' ? 'holobot_ko' : e.message === 'invalid_request' ? 'invalid_request' : 'unavailable');

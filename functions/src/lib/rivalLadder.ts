@@ -369,7 +369,7 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable" | "replay_mismatch";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable" | "replay_mismatch" | "live_unavailable";
 export class RivalError extends Error {
   /** rival_cooldown only: ms until the same rival can be issued again. */
   public retryAfterMs?: number;

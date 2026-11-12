@@ -5,7 +5,8 @@ export const arenaMatchHost = onCall(async request => {
   if (!request.auth) throw new HttpsError('unauthenticated','Sign in to use the Arena.');
   try { return await transactArenaMatch(db,request.auth.uid,request.data); }
   catch (e) {
-    if (e instanceof ArenaError) throw new HttpsError(e.code === 'invalid_request' ? 'invalid-argument' : e.code === 'unknown_match' ? 'not-found' : e.code === 'unavailable' ? 'unavailable' : 'failed-precondition',e.code,{rejectionCode:e.code,...(e.retryAfterMs !== undefined ? {retryAfterMs:e.retryAfterMs} : {}),...(e.reason !== undefined ? {reason:e.reason} : {})});
+    if (e instanceof ArenaError) throw new HttpsError(e.code === 'invalid_request' ? 'invalid-argument' : e.code === 'unknown_match' ? 'not-found' : e.code === 'unavailable' || e.code === 'live_unavailable' ? 'unavailable' : 'failed-precondition',e.code,{...(e.detail ?? {}),rejectionCode:e.code,...(e.retryAfterMs !== undefined ? {retryAfterMs:e.retryAfterMs} : {}),...(e.reason !== undefined ? {reason:e.reason} : {})});
+    // arena-live-1: replay_mismatch / invalid_log carry the verifier's detail (first divergent window / field, decoderCode).
     throw e;
   }
 });
