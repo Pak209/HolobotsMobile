@@ -159,6 +159,12 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   if (story.issueZell && !zellEnabled) throw new RivalError('unavailable');
   const pvpReplay = options.pvp?.replay;
   const inputLogIssue = (fightReplay || pvpReplay !== undefined) && capability === FIGHT_INPUTS_SCHEMA && command.operation === 'issue' && command.schemaVersion === 'rival-battle-3';
+  // rival-live-only (Pak 2026-11-11): a live-only client (duel-inputs-2 AND the duel-rules-6 ask, with NO duelSchema fallback opt-in)
+  // treats any non-live reply as a failure, so an issue this host cannot make input-log is refused before anything is written: no
+  // battle, no open-ledger slot, no vitals snapshot (otherwise the orphan blocks the retry with too_many_open for up to the 2 h TTL).
+  // Requests that send duelSchema, or duelInputs alone (Unity's FightFlow, the pvp-daily request), keep today's fallback unchanged.
+  const liveOnly = command.operation === 'issue' && capability === FIGHT_INPUTS_SCHEMA && rulesAsked === RULES_SCHEMA_6 && resolverAsked === undefined;
+  if (liveOnly && !inputLogIssue) throw new RivalError('live_unavailable', undefined, { reason: 'replay_off' });
   const healthEnabled=!legacyMode || inputLogIssue || (raw as {healthSchema?:unknown})?.healthSchema===RIVAL_HEALTH_SCHEMA;
   const userRef = db.doc(`users/${uid}`);
   // Pin the battle id and draws outside the transaction so retries rule identically.
@@ -220,6 +226,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo,
         ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
           cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
+      // rival-live-only: a lineup the fight core cannot express would drop to resolver/legacy; a live-only client gets the refusal
+      // instead (thrown inside the transaction, so every buffered write above is discarded).
+      if (liveOnly && !fightIssue) throw new RivalError('live_unavailable', undefined, { reason: 'lineup_unsupported' });
       if (fightIssue) { r.battle.duel = fightIssue; if (pvpReplay === 'dry_run' && r.battle.source === PVP_ASYNC_SOURCE) r.battle.replayGate = 'dry_run'; }
       else if (legacyMode) r.battle.duel = {mode:'legacy'};
       else {
