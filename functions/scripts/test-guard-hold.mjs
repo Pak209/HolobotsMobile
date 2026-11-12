@@ -12,6 +12,7 @@ const P = require('../lib/lib/progression.js');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
 const { courtLiveIssue } = require('../lib/lib/holoZoneCourtLive.js');
 const { buildPlayerCombatants } = require('../lib/lib/rivalLadder.js');
+const FI = require('../lib/rival/fightReplayIssue.js');
 
 const SEED = '3e'.repeat(32), T0 = Date.UTC(2026, 10, 11, 9);
 const tempoG = () => ({ ...F.defaultTempoRules(), guard: F.defaultGuardRules() });
@@ -105,13 +106,40 @@ const issueArgs = extra => ({ battleId: 'rb_g', seed: SEED, tier: 4, mentor: fal
 
 test('issue: the guard block only on live + tempo + the rules-7 ask; otherwise the issue it would have made, byte for byte', () => {
   const g = buildFightReplayIssue(issueArgs({ live: true, guardHold: true }));
-  assert.match(g.rulesId, /^duel-rules-7:/); assert.deepEqual(g.rules.guard, F.GUARD_DEFAULTS); assert.equal(g.rules.simVersion, 'duel-sim-6');
+  assert.match(g.rulesId, /^duel-rules-7:/); assert.deepEqual(g.rules.guard, { holdDrainPm: 4, reraiseMinPm: 200 }, 'guard-drain-half-1: the live drain is 4'); assert.equal(g.rules.simVersion, 'duel-sim-6');
+  assert.deepEqual(g.rules.guard, FI.liveGuardRules()); assert.equal(FI.LIVE_GUARD_HOLD_DRAIN_PM, 4);
   const six = buildFightReplayIssue(issueArgs({ live: true }));
   assert.deepEqual(buildFightReplayIssue(issueArgs({ live: true, guardHold: false })), six);
   assert.deepEqual(buildFightReplayIssue(issueArgs({ guardHold: true })), buildFightReplayIssue(issueArgs({})), 'not live: ignored');
   assert.deepEqual(buildFightReplayIssue(issueArgs({ live: true, guardHold: true, tempo: false })), buildFightReplayIssue(issueArgs({ live: true, tempo: false })), 'no tempo: ignored');
   const v = verifyFightReplay(g, recordFightLog(g, smartPlayer(g, 'ace', 'Champion')).wire, { battleId: 'rb_g' });
   assert.equal(v.receipt.verified, true, 'a rules-7 fight replays and verifies');
+});
+
+// guard-drain-half-1 (owner 2026-11-12: "Half as fast (~8 s)"): measured on the issued live documents. Side 0 holds Guard from full
+// stamina up close (1.2 m apart, CloseRange the whole time), side 1 stands still; the guard drops on the tick stamina reaches 0.
+function emptyAfter(issue) {
+  const d = F.rulesDocFromJson(JSON.parse(JSON.stringify(issue.rules)));
+  d.rules.fighters[0].startXMm = -600; d.rules.fighters[1].startXMm = 600;
+  let drop = -1, start = -1, notClose = 0;
+  F.runFight(d.rules, issue.seed, { inputs: { read: () => ({ ...F.idleInput(), guard: true }) } }, { inputs: { read: () => F.idleInput() } },
+    { maxTicks: 400, chase: d.chase, attrs: d.attrs, tempo: d.tempo, recordEvents: false, onTick: (t, _i, core) => {
+      if (start < 0) start = core.F[0].sta + d.tempo.guard.holdDrainPm;
+      if (drop < 0 && core.F[0].state !== F.State.CloseRange) notClose++;
+      if (drop < 0 && core.F[0].sta === 0) drop = t;
+    } });
+  return { ticks: drop + 1, seconds: (drop + 1) / 30, start, notClose };
+}
+test('measure: holding Guard from full stamina up close empties it in 250 ticks = 8.33 s on the live rules-7 and rules-8 issues (was 125 = 4.17 s)', () => {
+  const seven = buildFightReplayIssue(issueArgs({ live: true, guardHold: true }));
+  const eight = buildFightReplayIssue(issueArgs({ live: true, guardHold: true, staminaWind: true }));
+  assert.match(seven.rulesId, /^duel-rules-7:/); assert.match(eight.rulesId, /^duel-rules-8:/);
+  const m7 = emptyAfter(seven), m8 = emptyAfter(eight);
+  console.log(`# guard hold to empty, close range, from full: rules-7 ${m7.ticks} ticks = ${m7.seconds.toFixed(2)} s | rules-8 ${m8.ticks} ticks = ${m8.seconds.toFixed(2)} s`);
+  for (const m of [m7, m8]) { assert.equal(m.start, 1000); assert.equal(m.notClose, 0, 'CloseRange throughout'); assert.equal(m.ticks, 250); }
+  // the same scenario on an older stored rules-7 document (guard block 8): unchanged, 125 ticks
+  const old = structuredClone(seven); old.rules.guard = { ...F.GUARD_DEFAULTS };
+  assert.equal(emptyAfter(old).ticks, 125);
 });
 
 const bot = (name, level) => ({ name, level, experience: 0, nextLevelExp: P.calculateExperience(level + 1), attributePoints: 0, boostedAttributes: {} });
@@ -137,6 +165,7 @@ test('hosts: rival, Arena and Guild Court issue duel-rules-7 on the ask; the due
   const ace = buildPlayerCombatants({ holobots: [bot('ACE', 21)] }, ['ace'])[0];
   const court = g => courtLiveIssue({ fighter: { ...ace, currentHealth: ace.maxHealth }, gear: { attack: 0, defense: 0, health: 0, speed: 0, special: 0 }, zoneId: 'guild_court', tier: 0, runId: 'run1', seed: SEED, chase: true, attrs: true, tempo: true, ...(g ? { guardHold: true } : {}) });
   assert.match(court(true).rulesId, /^duel-rules-7:/); assert.match(court(false).rulesId, /^duel-rules-6:/);
+  assert.deepEqual(court(true).rules.guard, { holdDrainPm: 4, reraiseMinPm: 200 }, 'Guild Court: the live guard block');
 });
 
 // ------------------------------------------------------------------ CPU

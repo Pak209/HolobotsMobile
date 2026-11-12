@@ -8,7 +8,7 @@ import { boostStat, isIdentityModifiers, LiveMoveMinGain, liveMoveMinGain, LiveM
 import {
   beastArchetype, defaultAttrRules, defaultChaseRules, defaultRulesValues, defaultTempoRules, FIGHT_KIT_IDS, FightFighterDef, FightRules, FightRulesValues, isBeastId, KIT_IDS,
   kitFighter, RULES_SCHEMA, RULES_SCHEMA_4,
-  RULES_SCHEMA_5, RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8, defaultGuardRules, defaultStaminaRules, rulesDocToJson6, rulesHash, validateRules,
+  RULES_SCHEMA_5, RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8, defaultGuardRules, defaultStaminaRules, FightGuardRules, rulesDocToJson6, rulesHash, validateRules,
 } from '../sim/fight/rules';
 import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_VERSION, RANKS } from '../sim/fight/profiles';
 import type { FightProfile } from '../sim/fight/contracts';
@@ -83,6 +83,13 @@ export function withLiveMoveRanks<T extends object>(c: T, moves?: LiveMoveRanks)
  *   issued; ATTR_DEFAULTS stays the Unity-parity value).
  */
 export const LIVE_SPECIAL_OPEN_PM = 2000;
+/** guard-drain-half-1 (owner 2026-11-12: "Half as fast (~8 s)"): every issue that carries the guard block (the rules-7 / rules-8 asks,
+ * always live: Arena, rival, Guild Court, expedition) drains a held guard 4 per tick, a full bar in 250 ticks (8.33 s) instead of
+ * GUARD_DEFAULTS' 8 (4.17 s). reraiseMinPm stays 200. GUARD_DEFAULTS stays 8: the sim cross-check vectors pin it, and a stored or
+ * replayed older fight carries its own guard block (8), so it replays byte for byte. The phone mirrors this in liveGuard.ts. */
+export const LIVE_GUARD_HOLD_DRAIN_PM = 4;
+/** The guard block a live issue carries. Returns a new object. */
+export function liveGuardRules(): FightGuardRules { return { ...defaultGuardRules(), holdDrainPm: LIVE_GUARD_HOLD_DRAIN_PM }; }
 /** Start SYNC is NOT live-tuned (Pak 2026-11-11: "Special should be built up from battle for both users and enemy"): every live
  * fighter starts at its kit 0, or at the readiness / CPU start SYNC exactly as before live-tuning-1. */
 
@@ -177,7 +184,7 @@ export function buildFightReplayIssue(input: {
   const attrs = issueAttrs ? { ...defaultAttrRules(), ...(input.live === true ? { specialOpenPm: LIVE_SPECIAL_OPEN_PM } : {}) } : null;
   const issueGuard = issueTempo && input.live === true && input.guardHold === true;
   const issueStamina = issueGuard && input.staminaWind === true;
-  const tempo = issueTempo ? { ...defaultTempoRules(), ...(issueGuard ? { guard: defaultGuardRules() } : {}), ...(issueStamina ? { stamina: defaultStaminaRules() } : {}) } : null;
+  const tempo = issueTempo ? { ...defaultTempoRules(), ...(issueGuard ? { guard: liveGuardRules() } : {}), ...(issueStamina ? { stamina: defaultStaminaRules() } : {}) } : null;
   const hash = rulesHash(rules, chase, attrs, tempo);
   const lead = opponent[0].holobotId;
   return {

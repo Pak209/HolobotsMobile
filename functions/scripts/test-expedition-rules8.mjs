@@ -77,7 +77,7 @@ test('each ask (with the rules-5 flags) issues that rules version: rules id, tem
     assert.equal(rid(issue), ask); assert.equal(issue.rules.schemaVersion, ask);
     assert.deepEqual(issue.rules.tempo, F.defaultTempoRules(), ask);
     assert.equal('guard' in issue.rules, guard, ask); assert.equal('stamina' in issue.rules, stamina, ask);
-    if (guard) assert.deepEqual(issue.rules.guard, F.defaultGuardRules());
+    if (guard) assert.deepEqual(issue.rules.guard, { holdDrainPm: 4, reraiseMinPm: 200 }, 'guard-drain-half-1: the live guard block (half the sim default drain)');
     if (stamina) assert.deepEqual(issue.rules.stamina, F.STAMINA_DEFAULTS);
     assert.equal(issue.rules.attrs.specialOpenPm, 2000, 'live: the unguarded Special multiplier the live hosts issue');
     assert.equal(issue.rules.rules.hpScaleLights, 17, 'duel-rules-6 TEMPO_RULE_OVERRIDES');

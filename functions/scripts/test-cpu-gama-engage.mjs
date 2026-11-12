@@ -56,6 +56,10 @@ test('issue: a GAMA lead on a duel-rules-8 ask carries 450 / 250; without the as
 // on turtle) is not reached on turtle: the turtle's light (from ~2.6 m, lunge included) lands before a Starter (reactionTicks 13)
 // can see it, so GAMA is hit every 3 s, and its answer often meets the turtle's next guard window (Blocked). By rank on turtle:
 // Rookie 3/10, Champion 5/10, Legendary 6/10. The edge miss is the opening (387 ticks of stalking at full stamina).
+// guard-drain-half-1 (owner 2026-11-12: "Half as fast (~8 s)", live holdDrainPm 4): a held guard costs half as much, so both guard
+// players turtle longer and GAMA lands less often. Re-measured on the live issue (rules-8 / rules-7, same seeds):
+//   walk-in 10/10 mean 136 | 0/10 mean 3343;  edge 6/10 mean 247 | 5/10 mean 288;  turtle 2/10 mean 331 | 2/10 mean 497
+// The floors below follow the measurement (edge 9 -> 6, turtle 4 -> 2); rules-8 still never does worse than rules-7.
 let CORE = null;
 const toward = () => { const a = CORE.F[0], b = CORE.F[1], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1; return [Math.trunc(dx * 127 / l), Math.trunc(dz * 127 / l), l]; };
 const PLAYERS = {
@@ -78,7 +82,7 @@ function gaps(iss, player) {
   };
 }
 const pass = a => a.filter(g => g <= 240).length, mean = a => a.reduce((x, y) => x + y, 0) / a.length;
-const EXPECT = { walkIn: { minPass: 10 }, edge: { minPass: 9 }, turtle: { minPass: 4 } };
+const EXPECT = { walkIn: { minPass: 10 }, edge: { minPass: 6 }, turtle: { minPass: 2 } };
 for (const [name, player] of Object.entries(PLAYERS)) {
   test(`10 seeds, ${name}: on duel-rules-8 GAMA passes at least ${EXPECT[name].minPass}/10 (a hit every 240 ticks; target 8/10) and beats rules-7`, () => {
     const now = [], seven = [];

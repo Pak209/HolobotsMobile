@@ -152,7 +152,7 @@ const issueArgs = extra => ({ battleId: 'rb_w', seed: SEED, tier: 4, mentor: fal
 
 test('issue: the stamina block only on live + tempo + guard + the rules-8 ask; otherwise the issue it would have made, byte for byte', () => {
   const g = buildFightReplayIssue(issueArgs({ live: true, guardHold: true, staminaWind: true }));
-  assert.match(g.rulesId, /^duel-rules-8:/); assert.deepEqual(g.rules.stamina, F.STAMINA_DEFAULTS); assert.deepEqual(g.rules.guard, F.GUARD_DEFAULTS);
+  assert.match(g.rulesId, /^duel-rules-8:/); assert.deepEqual(g.rules.stamina, F.STAMINA_DEFAULTS); assert.deepEqual(g.rules.guard, { holdDrainPm: 4, reraiseMinPm: 200 }, 'guard-drain-half-1');
   assert.equal(g.rules.simVersion, 'duel-sim-7');
   const seven = buildFightReplayIssue(issueArgs({ live: true, guardHold: true }));
   assert.match(seven.rulesId, /^duel-rules-7:/);
@@ -176,11 +176,14 @@ test('hosts: rival, Arena and Guild Court issue duel-rules-8 on the ask; the due
     const r = await transactRivalBattle(rdb, uid, { schemaVersion: 'rival-battle-3', operation: 'issue', duelInputs: 'duel-inputs-2', fightRules: ask }, T0, () => 0.4,
       { fightReplay: true, issueLegacy: false, allowLegacySettlement: false, fightChase: true, fightAttrs: true, fightSeed: () => SEED });
     assert.match(r.duel.rulesId, want, 'rival ' + ask);
+    const liveGuard = ask === 'duel-rules-6' ? undefined : { holdDrainPm: 4, reraiseMinPm: 200 };
+    assert.deepEqual(r.duel.rules.guard, liveGuard, 'rival guard block ' + ask);
     const adb = fakeDb({ now: T0 }), au = 'w_arena';
     await adb.doc(`users/${au}`).set({ holobots: [bot('ACE', 4)], arenaPassses: 5, holosTokens: 1000, syncPoints: 0, wins: 0, losses: 0, buddyUnits: { light: 0, medium: 0, heavy: 0 }, storyFlags: { arenaGatheringSeen: true, tournamentsWon: 0, arenaArcBuilt: false, holoZonesArcBuilt: false } });
     const a = await A.transactArenaMatch(adb, au, { schemaVersion: 'arena-match-1', operation: 'issue', requestId: 'req_w_' + ask, tierId: 'rookie', paymentMethod: 'tokens', holobotId: 'ace', opponentName: 'HARE', duelInputs: 'duel-inputs-2', fightRules: ask }, T0,
       { arenaFightReplay: true, fightChase: true, fightAttrs: true, fightSeed: () => SEED });
     assert.match(a.duel.rulesId, want, 'arena ' + ask);
+    assert.deepEqual(a.duel.rules.guard, liveGuard, 'arena guard block ' + ask);
   }
   // rules-8 ask with the attrs flag off: the duel-rules-4 issue it gets today (no tempo, no guard, no stamina)
   const rdb = fakeDb({ now: T0 });
@@ -244,9 +247,13 @@ const WIND_VECTOR = {
 };
 
 // ------------------------------------------------------------------ the phone's golden log (a GAMA-led rules-8 issue: the tuned CPU row)
+// guard-drain-half-1 (2026-11-12): re-pinned for the live guard drain 4 (was holdDrainPm 8, sha256 5fb598b8...). The seed moved from
+// 5d*32 to 5f*32 because on the new drain the 5d fight no longer winds anyone (the test requires that winded happens); 5f is the first
+// seed after it that does. The drain-8 fixture is kept verbatim as stamina-wind-golden-rules8-drain8.json: a stored older fight.
 const GOLDEN = new URL('./fixtures/stamina-wind-golden-rules8.json', import.meta.url);
+const GOLDEN_DRAIN8 = new URL('./fixtures/stamina-wind-golden-rules8-drain8.json', import.meta.url);
 function goldenCase() {
-  const input = { battleId: 'rb_stamina_wind_golden', seed: '5d'.repeat(32), tier: 4, mentor: false, chase: true, attrs: true, tempo: true, live: true, guardHold: true, staminaWind: true,
+  const input = { battleId: 'rb_stamina_wind_golden', seed: '5f'.repeat(32), tier: 4, mentor: false, chase: true, attrs: true, tempo: true, live: true, guardHold: true, staminaWind: true,
     player: [combatant('ace', 480, 90, 45)], opponent: [combatant('gama', 450, 85, 40)] };
   const issue = buildFightReplayIssue(input);
   const log = recordFightLog(issue, smartPlayer(issue, 'ace', 'Champion')).wire;
@@ -271,6 +278,14 @@ test('golden log: a GAMA-led duel-rules-8 fight; winded happens; the fixture the
   assert.equal(JSON.stringify(pinned.issue), JSON.stringify(c.issue));
   assert.equal(JSON.stringify(pinned.log), JSON.stringify(c.log));
   assert.equal(JSON.stringify(pinned.receipt), JSON.stringify(c.receipt));
+  assert.deepEqual(pinned.issue.rules.guard, { holdDrainPm: 4, reraiseMinPm: 200 });
+});
+test('golden log (stored, drain 8): the pre-guard-drain-half-1 rules-8 fight carries its own guard block and still verifies as recorded', () => {
+  const old = JSON.parse(readFileSync(GOLDEN_DRAIN8, 'utf8'));
+  assert.deepEqual(old.issue.rules.guard, { holdDrainPm: 8, reraiseMinPm: 200 });
+  const v = verifyFightReplay(old.issue, old.log, { battleId: old.input.battleId });
+  assert.equal(JSON.stringify(v.receipt), JSON.stringify(old.receipt), 'the receipt byte for byte');
+  assert.equal(v.receipt.verified, true);
 });
 
 // ------------------------------------------------------------------ Guild Court through the holoZoneHost store (issue + settle)
@@ -290,6 +305,7 @@ test('Guild Court live: the holoZoneHost store issues duel-rules-8 on the ask, t
     const w = world();
     const r = await w.call({ operation: 'issue', zoneId: 'guild_court', holobotId: 'ace', duelInputs: 'duel-inputs-2', fightRules: ask });
     assert.match(r.duel.rulesId, want, 'court ' + ask);
+    assert.deepEqual(r.duel.rules.guard, ask === 'duel-rules-6' ? undefined : { holdDrainPm: 4, reraiseMinPm: 200 }, 'court store guard block ' + ask);
     if (ask !== 'duel-rules-8') continue;
     assert.deepEqual(r.duel.rules.stamina, F.STAMINA_DEFAULTS); assert.equal(r.duel.rules.simVersion, 'duel-sim-7');
     const log = recordFightLog(r.duel, smartPlayer(r.duel, 'ace', 'Legendary')).wire;
