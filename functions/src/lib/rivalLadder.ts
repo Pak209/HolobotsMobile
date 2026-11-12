@@ -326,18 +326,28 @@ export function buildPlayerCombatants(profile: Record<string, unknown>, squadIds
   return out;
 }
 
+/** kaz-wolf-lead-1 (owner 2026-11-12: "WOLF leads, random bench"): Kaz's WOLF is always the lead. A drawn WOLF moves to the
+ * front (the rest keep their draw order); an undrawn WOLF replaces the last pick and leads. Same length, same draws. */
+export const KAZ_LEAD_HOLOBOT = "wolf";
+export function kazLeadPicks(picked: readonly string[]): string[] {
+  if (picked.length === 0) return [];
+  const rest = picked.includes(KAZ_LEAD_HOLOBOT) ? picked.filter((id) => id !== KAZ_LEAD_HOLOBOT) : picked.slice(0, -1);
+  return [KAZ_LEAD_HOLOBOT, ...rest];
+}
+
 /**
  * `random` returns [0,1). Rivals are distinct roster ids. The ids, pilot and draw count are the same
  * for both scales (only the stat numbers differ), so a battle's seed never depends on the version.
  */
-export function buildRivalLineup(tier: number, random: () => number, scale: RivalLineupScale = RIVAL_LINEUP_SCALE_BASELINE): RivalLineup {
+export function buildRivalLineup(tier: number, random: () => number, scale: RivalLineupScale = RIVAL_LINEUP_SCALE_BASELINE, opts: { kazLead?: boolean } = {}): RivalLineup {
   const row = getRivalTierRow(tier);
   const pool = [...RIVAL_ROSTER_IDS];
-  const picked: string[] = [];
+  let picked: string[] = [];
   for (let i = 0; i < row.rivals; i++) {
     const j = Math.min(pool.length - 1, Math.floor(random() * pool.length));
     picked.push(pool.splice(j, 1)[0]);
   }
+  if (opts.kazLead) picked = kazLeadPicks(picked);
   return {
     opponentPilot: { pilotId: `rival_tier_${tier}`, displayName: "Rival", tier: row.label },
     opponentSquad: picked.map((id) => (scale === RIVAL_LINEUP_SCALE_WOLF ? rivalScaledCombatant(id, tier) : rivalCombatant(id, row))),
@@ -597,11 +607,11 @@ export type IssueReply = {
  * either way (projected by rivalReplyForVersion); with the baseline scale its opponents carry no
  * speed / intelligence (the v1 / v2 projection has none).
  */
-export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number, playerSquadIds: readonly string[] = [], scale: RivalLineupScale = RIVAL_LINEUP_SCALE_WOLF): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
+export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number, playerSquadIds: readonly string[] = [], scale: RivalLineupScale = RIVAL_LINEUP_SCALE_WOLF, opts: { kazLead?: boolean } = {}): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
   if (!RIVAL_BATTLE_ID.test(battleId)) throw new RivalError("unavailable");
   const l = readLedger(profile);
   const status = statusOf(l, nowMs);
-  const lineup = buildRivalLineup(status.tier, random, scale);
+  const lineup = buildRivalLineup(status.tier, random, scale, opts);
   const seed = Math.floor(random() * 0x7fffffff);
   const battle: RivalBattleRecord = { schemaVersion: RIVAL_RECORD_SCHEMA, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null, playerSquadIds: [...playerSquadIds], lineupScale: scale };
   const extra = scale === RIVAL_LINEUP_SCALE_WOLF ? rivalScaledCombatantStats(status.tier) : null;

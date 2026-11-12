@@ -897,6 +897,14 @@
             },
             "duelInputs": {
               "const": "duel-inputs-2"
+            },
+            "fightRules": {
+              "description": "Optional live-duel rules ask (expedition-rules-8). Absent = the issue as before (Unity, older phones). The host issues the newest version its flags allow; read fightIssue.rulesId.",
+              "enum": [
+                "duel-rules-6",
+                "duel-rules-7",
+                "duel-rules-8"
+              ]
             }
           },
           "required": [

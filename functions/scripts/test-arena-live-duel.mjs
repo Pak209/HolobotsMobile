@@ -256,7 +256,7 @@ test('mode lock: a live match refuses intents, HP reports and a missing log; the
   assert.equal((await record(uid, i.matchId)).state, 'active');
   const v = await setup();
   await assert.rejects(issue(v, { duelInputs: 'duel-inputs-1' }), code('invalid_request'));
-  await assert.rejects(issue(v, { fightRules: 'duel-rules-8', duelInputs: 'duel-inputs-2' }), code('invalid_request'));
+  await assert.rejects(issue(v, { fightRules: 'duel-rules-9', duelInputs: 'duel-inputs-2' }), code('invalid_request'));
   await assert.rejects(issue(v, { duelInputs: 'duel-inputs-2', tournamentId: 'starter' }), code('invalid_request'));
   const body = { requestId: 'req_live_identity', tierId: 'rookie', paymentMethod: 'tokens', holobotId: 'ace', opponentName: 'HARE' };
   await call(v, { operation: 'issue', ...body, duelSchema: 'duel-receipt-1' });

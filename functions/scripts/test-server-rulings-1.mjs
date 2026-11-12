@@ -221,7 +221,7 @@ test('ruling 2: duel-rules-6 is issued only on the client\'s ask and only on top
   const log = winLog(six.duel);
   const r = await w6.call({ operation: 'settle', battleId: six.battleId, inputLog: log }, later, ATTRS);
   assert.equal(r.fightReceipt.rulesId, six.duel.rulesId);
-  await assert.rejects(() => issueLog(world(), ATTRS, { fightRules: 'duel-rules-8' }), /invalid_request/);
+  await assert.rejects(() => issueLog(world(), ATTRS, { fightRules: 'duel-rules-9' }), /invalid_request/);
   const noAttrs = await issueLog(world(), { ...ON, fightChase: true }, { fightRules: 'duel-rules-6' });
   assert.match(noAttrs.duel.rulesId, /^duel-rules-4:/, 'without the attrs flag the ask changes nothing');
 });

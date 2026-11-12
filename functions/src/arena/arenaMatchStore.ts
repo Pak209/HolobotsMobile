@@ -27,7 +27,7 @@ import { repairHolobotProgression } from '../lib/holobotRecordRepair';
 import { recordAccountRepair, RepairChange } from '../lib/accountRepairAudit';
 import { FIGHT_ATTRS_FLAG, FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_RECEIPT_SCHEMA, FIGHT_REPLAY_FLAG, FIGHT_REPLAY_MODE, FightReplayIssueWire } from '../shared/fightReplayContract';
 import { FightReplayError, FightReplayVerdict, readIssue, verifyFightReplay } from '../sim/fight/replay';
-import { RULES_SCHEMA_6, RULES_SCHEMA_7 } from '../sim/fight/rules';
+import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
 import { buildFightReplayIssue, inputLogCombatant } from '../rival/fightReplayIssue';
 import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { FIGHT_PLAUSIBILITY_COLLECTION, FIGHT_RULES_CAPABILITY_FIELD } from '../rival/rivalBattleStore';
@@ -137,7 +137,7 @@ function command(raw: unknown): Command {
     if (raw.duelSchema !== undefined && (raw.duelSchema !== DUEL_RECEIPT_SCHEMA || raw.tournamentId !== undefined)) return fail('invalid_request');
     // arena-live-1: the live-duel capability (the rival host's `duelInputs`) and the duel-rules-6 ask; never on a cup issue.
     if (raw[FIGHT_INPUTS_CAPABILITY_FIELD] !== undefined && (raw[FIGHT_INPUTS_CAPABILITY_FIELD] !== FIGHT_INPUTS_SCHEMA || raw.tournamentId !== undefined)) return fail('invalid_request');
-    if (raw[FIGHT_RULES_CAPABILITY_FIELD] !== undefined && ((raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_6 && raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_7) || raw.tournamentId !== undefined)) return fail('invalid_request');
+    if (raw[FIGHT_RULES_CAPABILITY_FIELD] !== undefined && ((raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_6 && raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_7 && raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_8) || raw.tournamentId !== undefined)) return fail('invalid_request');
     const tier = getArenaTier(raw.tierId)!;
     const pool = tier.id === 'rookie' ? [...tier.opponentPool,'KUMA','SHADOW'] : [...tier.opponentPool];
     if (!pool.includes(raw.opponentName)) return fail('invalid_request');
@@ -508,8 +508,9 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         // Opt-in resolver fight: both fighters and the seed are pinned at issue (the rivalBattleHost resolver block).
         let resolverDuel: Data | undefined;
         const tierIndex = ARENA_TIERS.findIndex(row => row.id === tier.id);
-        // guard-hold-1: a duel-rules-7 ask is the duel-rules-6 ask + the guard block
-        const rules6Asked = c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_6 || c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_7;
+        // guard-hold-1: a duel-rules-7 ask is the duel-rules-6 ask + the guard block; stamina-wind-1: duel-rules-8 = rules-7 + stamina
+        const rules8Asked = c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_8, rules7Asked = rules8Asked || c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_7;
+        const rules6Asked = rules7Asked || c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_6;
         // live-tuning-1: a live match pins its own opponent (rookie at the entrant's level) and fights at FULL HP; the match stores
         // both (entrant currentHealth = max), so the settle maps the fight's end HP onto the ledger as min(ledger now, fight end)
         // (settleVitals never raises the ledger) and a forfeit leaves the ledger as it was. The ledger still needs HP > 0 to enter.
@@ -522,7 +523,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           const liveOpponent = playerCombatant(c.opponentName.toLowerCase(), {name:c.opponentName,level:arenaLiveOpponentLevel(tier.id,tier.opponentLevel,player.level)});
           const live = buildFightReplayIssue({battleId:generatedId,seed:fightSeed,tier:ARENA_FIGHT_RANK_TIER[tierIndex] ?? 0,mentor:false,
             player:[inputLogCombatant({...player,currentHealth:player.maxHealth},equippedPartBoosts(profile,c.holobotId),tempo,liveMoveRanksFor(profile,c.holobotId))],
-            opponent:[{...liveOpponent,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo,live:true,guardHold:c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_7});
+            opponent:[{...liveOpponent,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo,live:true,guardHold:rules7Asked,staminaWind:rules8Asked});
           if (live) { resolverDuel = live as unknown as Data; matchOpponent = liveOpponent; entrantHp = player.maxHealth; }
         }
         // rival-live-only (Pak 2026-11-11), the rival host's rule: a live-only client (duel-inputs-2 + the duel-rules-6 ask, no

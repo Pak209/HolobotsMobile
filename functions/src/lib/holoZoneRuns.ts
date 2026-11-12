@@ -45,7 +45,7 @@ import { applyPartBoosts, equippedPartBoosts } from "./partStats";
 import { CourtDuelBlock, CourtDuelWire, courtDuelBlock, courtDuelWire, courtReportFromReceipt } from "./holoZoneCourtDuel";
 import { CourtClosedBy, courtLiveIssue, courtReportFromFightReceipt } from "./holoZoneCourtLive";
 import { FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_REPLAY_MODE, FightReceiptWire, FightReplayIssueWire } from "../shared/fightReplayContract";
-import { RULES_SCHEMA_6, RULES_SCHEMA_7 } from "../sim/fight/rules";
+import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from "../sim/fight/rules";
 import type { FightReplayVerdict } from "../sim/fight/replay";
 import { readLeftBeforeFight } from "./leftBeforeFight";
 import { liveMoveRanksFor } from "./liveMoveRanks";
@@ -235,7 +235,7 @@ export type HoloZoneRunsDoc = { schemaVersion: typeof HOLOZONE_RECORD_SCHEMA; ru
  */
 export type HoloZoneCommand = (
   | { operation: "status" }
-  | { operation: "issue"; zoneId: string; duelSchema?: typeof DUEL_RECEIPT_SCHEMA; holobotId?: string; live?: { rules6: boolean; liveOnly: boolean; rules7?: boolean } }
+  | { operation: "issue"; zoneId: string; duelSchema?: typeof DUEL_RECEIPT_SCHEMA; holobotId?: string; live?: { rules6: boolean; liveOnly: boolean; rules7?: boolean; rules8?: boolean } }
   | { operation: "settle"; runId: string; kills: number; bossDefeated: boolean; fielded: string[]; health?: HealthRow[]; playerIntents?: DuelIntent[]; inputLog?: unknown }
   | { operation: "forfeit"; runId: string; leftBeforeFight?: true }
 ) & { schemaVersion: HoloZoneWireVersion; healthSchema?: typeof RIVAL_HEALTH_SCHEMA };
@@ -262,11 +262,11 @@ export function validateHoloZoneCommand(raw: unknown): HoloZoneCommand {
     if (typeof c.zoneId !== "string" || !HOLOZONE_ZONE_ID.test(c.zoneId)) throw new HoloZoneError("invalid_request");
     // court-live-1: the live capability (exactly the rival host's `duelInputs` value; any other value is ignored, as every unknown
     // field is today) only opts INTO a live court fight. A live-only request that does not name a court fighter is malformed.
-    const declared = c[FIGHT_INPUTS_CAPABILITY_FIELD] === FIGHT_INPUTS_SCHEMA, rules7 = c.fightRules === RULES_SCHEMA_7, rules6 = c.fightRules === RULES_SCHEMA_6 || rules7;   // guard-hold-1: rules-7 = rules-6 + guard
+    const declared = c[FIGHT_INPUTS_CAPABILITY_FIELD] === FIGHT_INPUTS_SCHEMA, rules8 = c.fightRules === RULES_SCHEMA_8, rules7 = rules8 || c.fightRules === RULES_SCHEMA_7, rules6 = c.fightRules === RULES_SCHEMA_6 || rules7;   // guard-hold-1: rules-7 = rules-6 + guard; stamina-wind-1: rules-8 = rules-7 + stamina
     const courtFighter = isCityCourtZone(c.zoneId) && typeof c.holobotId === "string" && HOLOZONE_FIELDED_ID.test(c.holobotId);
     const liveOnly = declared && rules6 && c.duelSchema === undefined;
     if (liveOnly && !courtFighter) throw new HoloZoneError("invalid_request");
-    const live: { live?: { rules6: boolean; liveOnly: boolean; rules7?: boolean } } = declared && courtFighter ? { live: { rules6, liveOnly, ...(rules7 ? { rules7 } : {}) } } : {};
+    const live: { live?: { rules6: boolean; liveOnly: boolean; rules7?: boolean; rules8?: boolean } } = declared && courtFighter ? { live: { rules6, liveOnly, ...(rules7 ? { rules7 } : {}), ...(rules8 ? { rules8 } : {}) } } : {};
     // Plan-and-send opt-in: Guild Court only, naming the one Holobot that fights. A request cannot pick anything else.
     if (c.duelSchema !== undefined) {
       if (c.duelSchema !== DUEL_RECEIPT_SCHEMA || !isCityCourtZone(c.zoneId) || typeof c.holobotId !== "string" || !HOLOZONE_FIELDED_ID.test(c.holobotId)) throw new HoloZoneError("invalid_request");
@@ -404,7 +404,7 @@ export function holoZoneStatus(runs: readonly HoloZoneRunRecord[], nowMs: number
  * thrown before the store writes anything) and otherwise keeps the next mode down (`courtDuel` resolver, else a plain run).
  */
 export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: string, squadIds: readonly string[], runId: string, nowMs: number, health?: { profile: Record<string, unknown>; includeHealth?: boolean; courtDuel?: { holobotId: string; seed: number };
-  courtLive?: { holobotId: string; seed: string; chase: boolean; attrs: boolean; tempo: boolean; liveOnly: boolean; guardHold?: boolean } }): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply; userUpdates: Record<string, unknown> } {
+  courtLive?: { holobotId: string; seed: string; chase: boolean; attrs: boolean; tempo: boolean; liveOnly: boolean; guardHold?: boolean; staminaWind?: boolean } }): { doc: HoloZoneRunsDoc; reply: HoloZoneIssueReply; userUpdates: Record<string, unknown> } {
   if (!HOLOZONE_RUN_ID.test(runId)) throw new HoloZoneError("unavailable");
   const tier = holoZoneTier(zoneId);
   if (tier === null) throw new HoloZoneError("unknown_zone");
@@ -430,7 +430,7 @@ export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: str
       // ledger carries. The ledger (and run.issuedVitals, its issue-time row) is unchanged; the settle maps the fight's end HP onto
       // the ledger from a full-HP start and writes min(ledger now, that) (courtReportFromFightReceipt + settleVitals), so the
       // ledger never rises. The ledger still needs HP > 0 to enter (the check above).
-      const issue = courtLiveIssue({ fighter: { ...fighter, currentHealth: fighter.maxHealth }, gear: equippedPartBoosts(health.profile, fighter.holobotId), moves: liveMoveRanksFor(health.profile, fighter.holobotId), zoneId, tier, runId, seed: live.seed, chase: live.chase, attrs: live.attrs, tempo: live.tempo, guardHold: live.guardHold === true });
+      const issue = courtLiveIssue({ fighter: { ...fighter, currentHealth: fighter.maxHealth }, gear: equippedPartBoosts(health.profile, fighter.holobotId), moves: liveMoveRanksFor(health.profile, fighter.holobotId), zoneId, tier, runId, seed: live.seed, chase: live.chase, attrs: live.attrs, tempo: live.tempo, guardHold: live.guardHold === true, staminaWind: live.staminaWind === true });
       if (issue) {
         run.duel = issue;
         players = { ...players, duel: structuredClone(issue) };

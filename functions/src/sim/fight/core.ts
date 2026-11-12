@@ -5,7 +5,7 @@ import {
 import { clamp, dist, div, hex, Int32Writer, mulDiv, rngSeedWord, seedBytes, sha256 } from './math';
 import {
   ATTR_KEYS, attrEdge, CHASE_KEYS, cloneRules, evadeChance, evadeWord, FightAttrRules, FightChaseRules, FightFighterDef, FightRules, moveMul, rollPm, rosterOf,
-  rulesCanonicalBytes5, rulesCanonicalBytes6, rulesHashBytes, SIM_VERSION_4, SIM_VERSION_5, SIM_VERSION_6, GUARD_KEYS, validateGuardRules, specialDmgMul, syncMul, tempoTicks, validateAttrRules, validateChaseRules, validateRules,
+  rulesCanonicalBytes5, rulesCanonicalBytes6, rulesHashBytes, SIM_VERSION_4, SIM_VERSION_5, SIM_VERSION_6, SIM_VERSION_7, GUARD_KEYS, STAMINA_KEYS, validateGuardRules, validateStaminaRules, specialDmgMul, syncMul, tempoTicks, validateAttrRules, validateChaseRules, validateRules,
   FightTempoRules, TEMPO_KEYS, validateTempoRules,
 } from './rules';
 import { FightWitness } from './witness';
@@ -51,6 +51,8 @@ export class FightFighter {
   syncAcc = 0; evadeRolls = 0; retreatChain = 0;
   /** duel-rules-7 (guard-hold-1; hashed only then): the guard dropped from exhaustion and cannot rise until stamina >= reraiseMinPm. */
   guardLocked = false;
+  /** duel-rules-8 (stamina-wind-1; hashed only then): stamina hit 0; regen is at least windRegenPmPerSec until stamina >= windExitPm. */
+  winded = false;
   /** r3: the FIGHT max HP (issued maxHp x the pair HP scale; = def.maxHp when hpScaleLights is 0). Not hashed (a function of the rules). */
   maxHp: number;
   // identity (not hashed)
@@ -124,7 +126,8 @@ export class FightCore {
     if (tempo && !attrs) throw new RangeError('invalid_tempo_without_attrs');
     if (tempo) {
       validateTempoRules(tempo); if (tempo.guard) validateGuardRules(tempo.guard);
-      this.tempo = { ...tempo, ...(tempo.guard ? { guard: { ...tempo.guard } } : {}) };
+      if (tempo.stamina) { if (!tempo.guard) throw new RangeError('invalid_stamina_without_guard'); validateStaminaRules(tempo.stamina); }
+      this.tempo = { ...tempo, ...(tempo.guard ? { guard: { ...tempo.guard } } : {}), ...(tempo.stamina ? { stamina: { ...tempo.stamina } } : {}) };
     } else this.tempo = null;
     if (attrs) { validateAttrRules(attrs); this.attrs = { ...attrs }; } else this.attrs = null;
     validateRules(rules);
@@ -244,6 +247,8 @@ export class FightCore {
     if (this.tempo?.guard && this.tempo.guard.holdDrainPm > 0) for (let s = 0; s < 2; s++) this.guardDrain(s, t, this.tempo.guard.holdDrainPm);
     // 6. regen
     for (let s = 0; s < 2; s++) this.regen(s, t);
+    // 6b. duel-rules-8: winded ends once stamina is back to windExitPm
+    if (this.tempo?.stamina) for (let s = 0; s < 2; s++) { const f = this.F[s]; if (f.winded && f.sta >= this.tempo.stamina.windExitPm) f.winded = false; }
     // 7. forced breaks
     for (let s = 0; s < 2; s++) {
       const f = this.F[s]; if (f.ko) continue;
@@ -423,6 +428,7 @@ export class FightCore {
   private spend(f: FightFighter, amount: number): void {
     if (amount <= 0) return;
     f.sta = Math.max(0, f.sta - amount); f.regenBlockedUntil = this.tick + this.rules.regenDelayTicks; f.regenAcc = 0;
+    if (f.sta === 0 && this.tempo?.stamina) f.winded = true;   // duel-rules-8: any spend (strike, step, block drain, chase drain) to 0
   }
 
   private startStrike(s: number, move: FightMove, tier: number, rail: boolean): boolean {
@@ -823,10 +829,13 @@ export class FightCore {
     const f = this.F[s];
     if (f.ko || !(f.guard === Guard.Raising || f.guard === Guard.Up)) return;
     f.sta = Math.max(0, f.sta - drain); f.regenBlockedUntil = t + this.rules.regenDelayTicks; f.regenAcc = 0;
+    if (f.sta === 0 && this.tempo?.stamina) f.winded = true;   // duel-rules-8
     if (f.sta === 0) { f.guard = Guard.Down; f.guardLocked = true; this.emit(s, EventKind.GuardLower, Move.None, 1); }
   }
   /** duel-rules-7: side s's active fighter's guard is locked down by exhaustion (always false without the guard block). */
   guardLocked(s: number): boolean { return this.F[s].guardLocked; }
+  /** duel-rules-8: side s's active fighter is winded (always false without the stamina block). */
+  winded(s: number): boolean { return this.F[s].winded; }
 
   // ================================================================ 6. regen
 
@@ -843,6 +852,8 @@ export class FightCore {
       case State.CloseRange: rate = R.regenClosePmPerSec; break;
       default: rate = R.regenBreakPmPerSec; break;
     }
+    // duel-rules-8: a winded fighter regenerates at least windRegenPmPerSec (the regen delay and the chased rule above still apply)
+    if (f.winded && this.tempo?.stamina) rate = Math.max(rate, this.tempo.stamina.windRegenPmPerSec);
     if (rate === 0) return;
     const mult = f.guard === Guard.Raising || f.guard === Guard.Up ? R.guardRegenPm : 1000;
     const acc = f.regenAcc + rate * mult;
@@ -957,7 +968,7 @@ export class FightCore {
    * roster member in rules array order (STATE_FIGHTER_FIELDS).
    */
   stateBytes(): Buffer {
-    const w = new Int32Writer(1024).ascii(this.tempo?.guard ? SIM_VERSION_6 : this.tempo ? SIM_VERSION_5 : this.attrs ? SIM_VERSION_4 : 'duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
+    const w = new Int32Writer(1024).ascii(this.tempo?.stamina ? SIM_VERSION_7 : this.tempo?.guard ? SIM_VERSION_6 : this.tempo ? SIM_VERSION_5 : this.attrs ? SIM_VERSION_4 : 'duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
     w.int(this.tick).int(B(this.exchangeActive)).int(this.exchangeStartTick).int(this.lastTelegraphTick).int(this.lastContactTick)
       .int(this.exchangePresses).int(B(this.railFired)).int(this.pairState).int(this.distanceMm).int(this.rangeRMm).int(this.winner).int(B(this.ended));
     for (let s = 0; s < 2; s++) {
@@ -984,6 +995,12 @@ export class FightCore {
       w.ascii('fight-guard-1'); for (const k of GUARD_KEYS) w.int(this.tempo.guard[k]);
       const cur = [0, 0];
       for (const d of this.rules.fighters) w.int(B(this.roster[d.side][cur[d.side]++].guardLocked));
+    }
+    // duel-rules-8: 'fight-stamina-1' + the stamina block + every roster member's winded in rules array order (off = rules-7 bytes)
+    if (this.tempo?.stamina) {
+      w.ascii('fight-stamina-1'); for (const k of STAMINA_KEYS) w.int(this.tempo.stamina[k]);
+      const cur = [0, 0];
+      for (const d of this.rules.fighters) w.int(B(this.roster[d.side][cur[d.side]++].winded));
     }
     return w.done();
   }

@@ -8,9 +8,10 @@ import { boostStat, isIdentityModifiers, LiveMoveMinGain, liveMoveMinGain, LiveM
 import {
   beastArchetype, defaultAttrRules, defaultChaseRules, defaultRulesValues, defaultTempoRules, FIGHT_KIT_IDS, FightFighterDef, FightRules, FightRulesValues, isBeastId, KIT_IDS,
   kitFighter, RULES_SCHEMA, RULES_SCHEMA_4,
-  RULES_SCHEMA_5, RULES_SCHEMA_6, RULES_SCHEMA_7, defaultGuardRules, rulesDocToJson6, rulesHash, validateRules,
+  RULES_SCHEMA_5, RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8, defaultGuardRules, defaultStaminaRules, rulesDocToJson6, rulesHash, validateRules,
 } from '../sim/fight/rules';
 import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_VERSION, RANKS } from '../sim/fight/profiles';
+import type { FightProfile } from '../sim/fight/contracts';
 
 /**
  * fight-host-1 issue side of rival-battle mode `input-log` (fight-flow brief C0, lane H1): turn the battle the ladder just
@@ -25,6 +26,20 @@ import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_
  * (as `special`) from the issued combatant (getHolobotBattleStats numbers); `attrs` without `chase` changes nothing.
  */
 export const FIGHT_START_GAP_MM = 7000;
+
+/**
+ * cpu-gama-engage-1 (2026-11-12): GAMA's table row backs off until its stamina is back to 650 and breaks off at 350, so in a live
+ * duel it stands around. The ISSUED profile carries lower numbers (the table row, its C# parity and every other bot stay as they
+ * are). breakAtStaminaPm 250 is below the brain's old profileIsValid floor (30000 bps), which phone builds before duel-rules-8
+ * enforce, so the tuning is issued only to a client that asked duel-rules-8 (and so has the widened floor).
+ */
+export const CPU_ISSUE_PROFILE_TUNING: Readonly<Record<string, Partial<FightProfile>>> = Object.freeze({
+  gama: Object.freeze({ engageMinStaminaPm: 450, breakAtStaminaPm: 250 }),
+});
+/** The issued CPU profile for a profile id: the table row, with CPU_ISSUE_PROFILE_TUNING applied. */
+export function cpuIssueProfile(profileId: string): FightProfile {
+  return { ...issuedProfile(brainProfile(profileId)), ...(CPU_ISSUE_PROFILE_TUNING[profileId] ?? {}) };
+}
 export const FIGHT_HASH_EVERY = 30;
 
 /**
@@ -97,6 +112,10 @@ export function buildFightReplayIssue(input: {
   /** guard-hold-1: the client asked duel-rules-7 (`fightRules: 'duel-rules-7'`): a duel-rules-6 issue that is also `live` adds
    * the guard block (GUARD_HOLD_DRAIN_SPEC.md); anything else ignores it (the issue it would have made, byte for byte). */
   guardHold?: boolean;
+  /** stamina-wind-1: the client asked duel-rules-8 (`fightRules: 'duel-rules-8'`; the host also passes guardHold): an issue that
+   * carries the guard block adds the stamina block (STAMINA_DEFAULTS); anything else ignores it, byte for byte. The ask also opts
+   * into the CPU issue tuning (cpuIssueProfile: GAMA engages sooner), which only a rules-8 phone's brain accepts. */
+  staminaWind?: boolean;
   encounter?: {kind:'expedition';runId:string;sectorId:string;ambush:'none'};
   readinessStart?: readonly {holobotId: string; readiness: number; cap: number; startSync: number}[];
 }): FightReplayIssueWire | null {
@@ -157,17 +176,18 @@ export function buildFightReplayIssue(input: {
   const chase = input.chase ? defaultChaseRules() : null;
   const attrs = issueAttrs ? { ...defaultAttrRules(), ...(input.live === true ? { specialOpenPm: LIVE_SPECIAL_OPEN_PM } : {}) } : null;
   const issueGuard = issueTempo && input.live === true && input.guardHold === true;
-  const tempo = issueTempo ? { ...defaultTempoRules(), ...(issueGuard ? { guard: defaultGuardRules() } : {}) } : null;
+  const issueStamina = issueGuard && input.staminaWind === true;
+  const tempo = issueTempo ? { ...defaultTempoRules(), ...(issueGuard ? { guard: defaultGuardRules() } : {}), ...(issueStamina ? { stamina: defaultStaminaRules() } : {}) } : null;
   const hash = rulesHash(rules, chase, attrs, tempo);
   const lead = opponent[0].holobotId;
   return {
     mode: FIGHT_REPLAY_MODE, schemaVersion: FIGHT_RECEIPT_SCHEMA, inputsSchema: FIGHT_INPUTS_SCHEMA, simVersion: FIGHT_SIM_VERSION,
-    rulesId: `${tempo?.guard ? RULES_SCHEMA_7 : tempo ? RULES_SCHEMA_6 : attrs ? RULES_SCHEMA_5 : chase ? RULES_SCHEMA_4 : RULES_SCHEMA}:${input.battleId}`, rulesHash: hash,
+    rulesId: `${tempo?.stamina ? RULES_SCHEMA_8 : tempo?.guard ? RULES_SCHEMA_7 : tempo ? RULES_SCHEMA_6 : attrs ? RULES_SCHEMA_5 : chase ? RULES_SCHEMA_4 : RULES_SCHEMA}:${input.battleId}`, rulesHash: hash,
     rules: rulesDocToJson6(rules, chase, attrs, tempo) as unknown as FightReplayIssueWire['rules'],
     seed: input.seed, playerSide: 0,
     player: { roster: player.map(c => ({ fighterId: c.holobotId, holobotId: c.holobotId })) },
     cpu: {
-      side: 1, rank: issuedSkill(input.mentor ? 'Rookie' : fightRankForTier(input.tier)), profile: issuedProfile(brainProfile(profileOf(lead))),
+      side: 1, rank: issuedSkill(input.mentor ? 'Rookie' : fightRankForTier(input.tier)), profile: input.staminaWind === true ? cpuIssueProfile(profileOf(lead)) : issuedProfile(brainProfile(profileOf(lead))),
       roster: opponent.map(c => ({ fighterId: 'cpu-' + c.holobotId, holobotId: c.holobotId, profile: profileOf(c.holobotId) })),
     },
     profilesVersion: PROFILES_VERSION,

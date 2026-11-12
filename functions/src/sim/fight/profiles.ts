@@ -73,7 +73,8 @@ export function profileIsValid(p: BrainProfile): string | null {
   if (!p.id || p.id !== p.id.toLowerCase()) return 'id';
   if (![p.aggressionBps, p.heavyRatioBps, p.feintRateBps, p.guardRateBps, p.counterRateBps, p.beatShareBps, p.circleBiasBps, p.shoveRateBps, p.burstInBps,
     p.escapeBps, p.chargeShareBps].every(bps)) return 'bps';
-  if (p.breakAtStamina < 30000 || p.breakAtStamina > 90000) return 'breakAt';
+  // cpu-gama-engage-1: floor 25000 (was 30000) so the issued GAMA tuning (breakAtStaminaPm 250) is a legal row; every table row is >= 30000
+  if (p.breakAtStamina < 25000 || p.breakAtStamina > 90000) return 'breakAt';
   if (p.engageMinStamina < 30000 || p.engageMinStamina > 100000) return 'engageMin';
   if (p.chainMeanX10 < 10 || p.chainMeanX10 > 60) return 'chain';
   if (p.lowHpRiskBps < 2000 || p.lowHpRiskBps > 20000) return 'lowHp';

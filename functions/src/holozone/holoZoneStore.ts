@@ -166,7 +166,7 @@ export async function transactHoloZoneRun(db: Firestore, uid: string, raw: unkno
       }
       const r = issueHoloZoneRun(runs, command.zoneId, squadIds, runId, nowMs, { profile, includeHealth: command.healthSchema !== undefined || command.duelSchema !== undefined || live !== undefined,
         ...(command.duelSchema !== undefined ? { courtDuel: { holobotId: command.holobotId!, seed: courtSeed } } : {}),
-        ...(live ? { courtLive: { holobotId: command.holobotId!, seed: fightSeed, chase: fightChase, attrs: fightAttrs, tempo: live.rules6 && fightChase && fightAttrs, liveOnly: live.liveOnly, ...(live.rules7 ? { guardHold: true } : {}) } } : {}) });
+        ...(live ? { courtLive: { holobotId: command.holobotId!, seed: fightSeed, chase: fightChase, attrs: fightAttrs, tempo: live.rules6 && fightChase && fightAttrs, liveOnly: live.liveOnly, ...(live.rules7 ? { guardHold: true } : {}), ...(live.rules8 ? { staminaWind: true } : {}) } } : {}) });
       if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
       tx.set(runsRef, { ...r.doc, [HOLOZONE_LAST_SETTLED_FIELD]: lastSettled });
       // A receipt lives as long as its run stays in the bounded history.

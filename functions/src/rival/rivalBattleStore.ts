@@ -22,7 +22,7 @@ import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/fi
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight } from '../lib/partStats';
 import { closeRivalBattleNoPay, RIVAL_SCHEMA_V3 } from '../lib/rivalLadder';
-import { RULES_SCHEMA_6, RULES_SCHEMA_7 } from '../sim/fight/rules';
+import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
 import { LEFT_BEFORE_FIGHT_CLOSED_BY, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
 import { FightPlausibility } from '../sim/fight/plausibility';
 import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand, PVP_ASYNC_SOURCE, IssueReply } from '../lib/rivalLadder';
@@ -149,8 +149,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   // input-log issue is exactly today's (duel-rules-3/-4/-5 by the flags). It only opts INTO duel-rules-6, and only on top of -5.
   const rulesAsked = (raw as Record<string, unknown> | null)?.[FIGHT_RULES_CAPABILITY_FIELD];
   // guard-hold-1: 'duel-rules-7' = the duel-rules-6 ask + the guard block (a rules-7 client runs the rules-6 core too)
-  if (rulesAsked !== undefined && rulesAsked !== RULES_SCHEMA_6 && rulesAsked !== RULES_SCHEMA_7) throw new RivalError('invalid_request');
-  const rules6Asked = rulesAsked === RULES_SCHEMA_6 || rulesAsked === RULES_SCHEMA_7;
+  // stamina-wind-1: 'duel-rules-8' = the duel-rules-7 ask + the stamina block
+  if (rulesAsked !== undefined && rulesAsked !== RULES_SCHEMA_6 && rulesAsked !== RULES_SCHEMA_7 && rulesAsked !== RULES_SCHEMA_8) throw new RivalError('invalid_request');
+  const rules8Asked = rulesAsked === RULES_SCHEMA_8, rules7Asked = rules8Asked || rulesAsked === RULES_SCHEMA_7;
+  const rules6Asked = rules7Asked || rulesAsked === RULES_SCHEMA_6;
   const allowLegacySettlement = options.allowLegacySettlement ?? process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN !== '0';
   const request = raw as Record<string, unknown>;
   // Read the routing envelope before loading the pinned mode. Resolver mode ignores
@@ -206,7 +208,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const lastSettled = readRivalLastSettled(ledgerData);
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
-      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion));
+      // kaz-wolf-lead-1: Kaz's ordinary ladder issue (not pvp, not a gathering citizen, not Zell) leads with WOLF; same draws, same seed
+      const kazLead = !options.pvp && citizenId === undefined && !story.issueZell;
+      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion), { kazLead });
       // DECISIONS #72.3 (onboarding D1): Kaz's ordinary issue at host onboarding step <= 3 fields one tier-0 WOLF.
       // pvp-daily-1: an async PvP issue binds the frozen opponent squad (and spends the day's attempt) in THIS transaction.
       const mentor = !options.pvp && citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);
@@ -229,7 +233,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const issueTempo = rules6Asked && fightChase && fightAttrs;
       const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
         player:r.reply.playerCombatants.map(c => inputLogCombatant(c, equippedPartBoosts(profile, c.holobotId), issueTempo, liveMoveRanksFor(profile, c.holobotId))),
-        opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo, live:true, guardHold:rulesAsked === RULES_SCHEMA_7,
+        opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo, live:true, guardHold:rules7Asked, staminaWind:rules8Asked,
         ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
           cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
       // rival-live-only: a lineup the fight core cannot express would drop to resolver/legacy; a live-only client gets the refusal
