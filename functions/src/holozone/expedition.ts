@@ -7,7 +7,8 @@ import { healingDelta, healingStock, healingItem } from '../lib/repairItems';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { readStoryFlags } from '../story/storyFlags';
 import { FightReceiptWire, FightReplayIssueWire, FIGHT_INPUTS_SCHEMA } from '../shared/fightReplayContract';
-import { buildFightReplayIssue } from '../rival/fightReplayIssue';
+import { buildFightReplayIssue, withLiveMoveRanks } from '../rival/fightReplayIssue';
+import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { manualReadinessStart, cpuStartSync } from '../lib/readinessFight';
 import { fightLearningAfterSettle } from '../lib/readinessFight';
 
@@ -405,9 +406,12 @@ export function advanceRealtimeExpedition(profile:Record<string,unknown>,origina
     // beast-fighter-1 (BEAST_FIGHTER_SPEC.md 5.4): expedition beasts keep the WOLF body; only the live Guild Court issues an Error
     // Beast fighter (rules.BEAST_ARCHETYPES) until an expedition client is verified with it (Pak's call). Not a live-tuning-1 path.
     const beast=threat(run,at),cpu=playerCombatant('wolf',{name:'WOLF',level:beast.level});
+    // live-move-ranks-1 (Pak 2026-11-11 "add to expeditions too"): each squad bot's STORED Move Lab ranks, read from the profile at
+    // engage and pinned in this issue (attack, defense, step distances; special only when chase+attrs issue the field). No
+    // liveMoves key = rank 0 = the issue exactly as before. The WOLF side never gets ranks. The legacy resolver 'fight' is unchanged.
     const starts=process.env.HOLOCITY_READINESS_START==='1'?run.squad.map(b=>manualReadinessStart(profile,b.holobotId,now)):undefined;
     const issue=buildFightReplayIssue({battleId:fightId,seed:createHash('sha256').update(`${run.privateSeed}:realtime:${at.id}`).digest('hex'),
-      tier:Math.max(0,at.band-1),mentor:false,player:run.squad.map(b=>({...b,currentHealth:Math.floor(b.currentHealth??b.maxHealth)})),
+      tier:Math.max(0,at.band-1),mentor:false,player:run.squad.map(b=>withLiveMoveRanks({...b,currentHealth:Math.floor(b.currentHealth??b.maxHealth)},liveMoveRanksFor(profile,b.holobotId))),
       opponent:[{...cpu,currentHealth:beast.currentHealth??beast.maxHealth}],
       chase:process.env.HOLOCITY_FIGHT_CHASE==='1',attrs:process.env.HOLOCITY_FIGHT_ATTRS==='1',
       playerStartStaminaPm:Object.fromEntries(run.squad.map(b=>[b.holobotId,b.staminaPm??1000])),hpScaleLights:19,

@@ -29,6 +29,7 @@ import { FIGHT_ATTRS_FLAG, FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGH
 import { FightReplayError, FightReplayVerdict, readIssue, verifyFightReplay } from '../sim/fight/replay';
 import { RULES_SCHEMA_6, RULES_SCHEMA_7 } from '../sim/fight/rules';
 import { buildFightReplayIssue, inputLogCombatant } from '../rival/fightReplayIssue';
+import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { FIGHT_PLAUSIBILITY_COLLECTION, FIGHT_RULES_CAPABILITY_FIELD } from '../rival/rivalBattleStore';
 import { RIVAL_MIN_WIN_MS } from '../lib/rivalLadder';
 import { LEFT_BEFORE_FIGHT_FIELD, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
@@ -520,7 +521,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           const tempo = rules6Asked && fightChase && fightAttrs;
           const liveOpponent = playerCombatant(c.opponentName.toLowerCase(), {name:c.opponentName,level:arenaLiveOpponentLevel(tier.id,tier.opponentLevel,player.level)});
           const live = buildFightReplayIssue({battleId:generatedId,seed:fightSeed,tier:ARENA_FIGHT_RANK_TIER[tierIndex] ?? 0,mentor:false,
-            player:[inputLogCombatant({...player,currentHealth:player.maxHealth},equippedPartBoosts(profile,c.holobotId),tempo)],
+            player:[inputLogCombatant({...player,currentHealth:player.maxHealth},equippedPartBoosts(profile,c.holobotId),tempo,liveMoveRanksFor(profile,c.holobotId))],
             opponent:[{...liveOpponent,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo,live:true,guardHold:c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_7});
           if (live) { resolverDuel = live as unknown as Data; matchOpponent = liveOpponent; entrantHp = player.maxHealth; }
         }

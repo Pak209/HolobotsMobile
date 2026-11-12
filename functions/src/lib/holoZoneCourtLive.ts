@@ -25,6 +25,7 @@ import { buildFightReplayIssue, inputLogCombatant } from "../rival/fightReplayIs
 import { scaledBeastStats } from "./holoZoneBeastStats";
 import { COURT_BEAST_ID } from "./holoZoneCourtDuel";
 import { ledgerHealthAfterFight, PartBoosts } from "./partStats";
+import type { LiveMoveRanks } from "./liveMoveRanks";
 import type { PlayerCombatantSnapshot } from "./rivalLadder";
 
 export const COURT_FIGHT_REPLAY_FLAG = "HOLOCITY_COURT_FIGHT_REPLAY";
@@ -47,12 +48,14 @@ export type CourtClosedBy = "forfeit" | "replay_mismatch" | "superseded" | "expi
 export function courtLiveIssue(input: {
   fighter: PlayerCombatantSnapshot & { currentHealth: number }; gear: PartBoosts; zoneId: string; tier: number; runId: string; seed: string;
   chase: boolean; attrs: boolean; tempo: boolean; guardHold?: boolean;
+  /** live-move-ranks-1: the fielded Holobot's live-move ranks from the stored profile (lib/liveMoveRanks.liveMoveRanksFor). */
+  moves?: LiveMoveRanks;
 }): FightReplayIssueWire | null {
   const beast = scaledBeastStats(input.zoneId, input.tier, COURT_BEAST_ID, input.fighter.level, input.gear);
   if (!beast) return null;
   return buildFightReplayIssue({
     battleId: input.runId, seed: input.seed, tier: input.tier, mentor: false,
-    player: [inputLogCombatant(input.fighter, input.gear, input.tempo)],
+    player: [inputLogCombatant(input.fighter, input.gear, input.tempo, input.moves)],
     // Tier-curve numbers (no statSource 'progression'): the #72.80 fight-row delta is not applied to the beast.
     opponent: [{ holobotId: COURT_BEAST_ID, level: beast.level, maxHealth: beast.maxHealth, currentHealth: beast.maxHealth, attack: beast.attack, defense: beast.defense, speed: beast.speed }],
     chase: input.chase, attrs: input.attrs, tempo: input.tempo, live: true, guardHold: input.guardHold === true,

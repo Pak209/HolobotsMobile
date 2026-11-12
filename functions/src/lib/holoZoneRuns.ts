@@ -48,6 +48,7 @@ import { FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FI
 import { RULES_SCHEMA_6, RULES_SCHEMA_7 } from "../sim/fight/rules";
 import type { FightReplayVerdict } from "../sim/fight/replay";
 import { readLeftBeforeFight } from "./leftBeforeFight";
+import { liveMoveRanksFor } from "./liveMoveRanks";
 
 /** Wire v1 (deployed 2026-10-06): the version on every holoZoneHost request / reply unless the request asks for v2. */
 export const HOLOZONE_SCHEMA = "holozone-run-1";
@@ -429,7 +430,7 @@ export function issueHoloZoneRun(runs: readonly HoloZoneRunRecord[], zoneId: str
       // ledger carries. The ledger (and run.issuedVitals, its issue-time row) is unchanged; the settle maps the fight's end HP onto
       // the ledger from a full-HP start and writes min(ledger now, that) (courtReportFromFightReceipt + settleVitals), so the
       // ledger never rises. The ledger still needs HP > 0 to enter (the check above).
-      const issue = courtLiveIssue({ fighter: { ...fighter, currentHealth: fighter.maxHealth }, gear: equippedPartBoosts(health.profile, fighter.holobotId), zoneId, tier, runId, seed: live.seed, chase: live.chase, attrs: live.attrs, tempo: live.tempo, guardHold: live.guardHold === true });
+      const issue = courtLiveIssue({ fighter: { ...fighter, currentHealth: fighter.maxHealth }, gear: equippedPartBoosts(health.profile, fighter.holobotId), moves: liveMoveRanksFor(health.profile, fighter.holobotId), zoneId, tier, runId, seed: live.seed, chase: live.chase, attrs: live.attrs, tempo: live.tempo, guardHold: live.guardHold === true });
       if (issue) {
         run.duel = issue;
         players = { ...players, duel: structuredClone(issue) };

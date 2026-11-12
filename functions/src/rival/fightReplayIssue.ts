@@ -4,6 +4,7 @@ import {
 import { duelFighterFromCombatant } from '../lib/duelResolver';
 import { getHolobotFightStatDelta } from '../lib/fightBalance';
 import { applyPartBoosts, PartBoosts } from '../lib/partStats';
+import { boostStat, isIdentityModifiers, LiveMoveMinGain, liveMoveMinGain, LiveMoveModifiers, LiveMoveRanks, liveMoveModifiers } from '../lib/liveMoveRanks';
 import {
   beastArchetype, defaultAttrRules, defaultChaseRules, defaultRulesValues, defaultTempoRules, FIGHT_KIT_IDS, FightFighterDef, FightRules, FightRulesValues, isBeastId, KIT_IDS,
   kitFighter, RULES_SCHEMA, RULES_SCHEMA_4,
@@ -40,9 +41,22 @@ export const TEMPO_RULE_OVERRIDES: Readonly<Partial<FightRulesValues>> = Object.
  * SPECIAL is added to the combatant's intelligence, which the issue pins as the fighter's `special` (SYNC gain, special damage);
  * every other rules version leaves intelligence untouched, so its bytes are unchanged.
  */
-export function inputLogCombatant<T extends Combatant>(c: T, b: PartBoosts, tempo: boolean): T {
+export function inputLogCombatant<T extends Combatant>(c: T, b: PartBoosts, tempo: boolean, moves?: LiveMoveRanks): T {
   const out = applyPartBoosts(c, b);
-  return tempo && b.special > 0 ? { ...out, intelligence: (c.intelligence ?? 0) + b.special } : out;
+  const withParts = tempo && b.special > 0 ? { ...out, intelligence: (c.intelligence ?? 0) + b.special } : out;
+  // live-move-ranks-1: the Holobot's Move Lab live-move ranks (lib/liveMoveRanks), capped there; rank 0 everywhere attaches nothing,
+  // so the issue is byte-identical. buildFightReplayIssue applies them to the PLAYER fighter's final pinned numbers.
+  return withLiveMoveRanks(withParts, moves);
+}
+
+/**
+ * live-move-ranks-1: attach a player combatant's live-move ranks (capped modifiers + the per-slot minimum gain) for
+ * buildFightReplayIssue, which applies them to side 0 only. No ranks / all rank 0 returns the combatant unchanged (same issue bytes).
+ * Used by inputLogCombatant (rival, Arena, Guild Court) and by the realtime HoloZone expedition engage.
+ */
+export function withLiveMoveRanks<T extends object>(c: T, moves?: LiveMoveRanks): T {
+  const m = moves ? liveMoveModifiers(moves) : null;
+  return m && !isIdentityModifiers(m) ? { ...c, liveMoveMods: m, liveMoveMinGain: liveMoveMinGain(moves) } : c;
 }
 
 /**
@@ -66,7 +80,11 @@ export function fightRankForTier(tier: number): string {
 
 /** statSource 'progression' = stats from getHolobotBattleStats rows (player bots, arena / PvP entrants): a duel-rules-5 issue
  * applies the #72.80 fight-row delta (lib/fightBalance). Rival tier-curve combatants (WOLF-shaped, rivalTierStats) carry none. */
-type Combatant = Parameters<typeof duelFighterFromCombatant>[0] & { intelligence?: number; statSource?: 'progression' | 'tier' };
+type Combatant = Parameters<typeof duelFighterFromCombatant>[0] & { intelligence?: number; statSource?: 'progression' | 'tier';
+  /** live-move-ranks-1: set only by inputLogCombatant (non-zero ranks); read only for side 0 (the player). */
+  liveMoveMods?: LiveMoveModifiers;
+  /** live-move-ranks-1: each field's minimum gain (+1 per slot with any rank feeding it), set with liveMoveMods. */
+  liveMoveMinGain?: LiveMoveMinGain };
 
 export function buildFightReplayIssue(input: {
   battleId: string; seed: string; tier: number; mentor: boolean;
@@ -114,6 +132,18 @@ export function buildFightReplayIssue(input: {
     if (side === 1 && input.cpuStartSync !== undefined) f.startSync = input.cpuStartSync;
     // duel-rules-5: SPEED = the battle speed (duelFighterFromCombatant rounds it), SPECIAL = the battle intelligence, rounded
     if (issueAttrs) { f.speed = s.speed; f.special = Math.round(c.intelligence ?? 0); }
+    // live-move-ranks-1: the player's live-move ranks, on the final pinned numbers (after parts and the #72.80 delta), floored,
+    // but never less than +1 per ranked slot feeding the field (lib/liveMoveRanks.boostStat: no dead slot at low stats).
+    // Existing per-fighter fields only: the rules schema, hash layout and every global number are unchanged. The CPU side never
+    // carries them in this slice.
+    const m = side === 0 ? raw.liveMoveMods : undefined;
+    if (m) {
+      const g = raw.liveMoveMinGain ?? { attack: 0, defense: 0, special: 0, step: 0 };
+      f.attack = boostStat(f.attack, m.attackPm, g.attack); f.defense = boostStat(f.defense, m.defensePm, g.defense);
+      f.backstepMm = boostStat(f.backstepMm, m.stepPm, g.step); f.sidestepMm = boostStat(f.sidestepMm, m.stepPm, g.step);
+      f.forwardJumpMm = boostStat(f.forwardJumpMm, m.stepPm, g.step);
+      if (issueAttrs) f.special = boostStat(f.special ?? 0, m.specialPm, g.special);
+    }
     return f;
   };
   const issueTempo = issueAttrs && input.tempo === true;

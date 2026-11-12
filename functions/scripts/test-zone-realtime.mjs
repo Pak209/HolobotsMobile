@@ -103,3 +103,48 @@ test('zone-run-6 schema validates issue, engage, settle and carries the same JSO
  for(const [i,row] of fixture.rows.entries())for(const side of ['request','reply'])
   assert.equal(schema(row[side]),true,`fixture ${i} ${side}: ${JSON.stringify(schema.errors)}`);
 });
+// live-move-ranks-1 (Pak 2026-11-11 "add to expeditions too"): the realtime engage issues each squad bot with its STORED Move Lab ranks.
+const L=require('../lib/lib/liveMoveRanks.js');
+const LMR_FULL={jab:3,heavy:3,guard:3,dash:3,special:3},LMR_ZERO={jab:0,heavy:0,guard:0,dash:0,special:0};
+const liveMoves=ranks=>({schemaVersion:'live-moves-1',ranks,carryOver:{spentSp:0,carriedSp:0,refundSp:0}});
+function engageWith(extraFor,env={}){
+ const saved=Object.fromEntries(Object.keys(env).map(k=>[k,process.env[k]]));Object.assign(process.env,env);
+ try{
+  const p=profile({holobots:['ACE','KUMA','SHADOW'].map(name=>({name,level:10,...extraFor(name)}))});
+  const i=Z.issueExpedition(p,{schemaVersion:'zone-run-6',repairKits:2,carryExtractionCharge:true},'test_run',1,T,CONFIG);
+  const s={p:{...p,...i.updates},r:i.run};enter(s);return step(s,'engage',{duelInputs:'duel-inputs-2'}).fightIssue;
+ }finally{for(const [k,v] of Object.entries(saved)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
+}
+const STAT=['attack','defense','special','backstepMm','sidestepMm','forwardJumpMm'];
+test('live-move ranks: no ranks or all rank 0 = the expedition issue byte for byte as before; old card ranks carry over (Pak 2026-11-11)',()=>{
+ const before=engageWith(()=>({}));
+ assert.notDeepEqual(engageWith(()=>({moveProgress:{'strike.quickJab':{rank:3},'defense.guardUp':{rank:3}}})),before,'legacy moveProgress carries over in expeditions, as in Arena, rival and Court');
+ assert.deepEqual(engageWith(()=>({liveMoves:liveMoves(LMR_ZERO)})),before,'rank 0 everywhere');
+ assert.equal(L.isIdentityModifiers(L.liveMoveModifiers(L.storedLiveMoveRanksFor({holobots:[{name:'ACE',moveProgress:{'strike.quickJab':{rank:3}}}]},'ace'))),true);
+});
+test('live-move ranks: stored ranks boost only the ranked player fighters; the WOLF and every rule stay as before',()=>{
+ const before=engageWith(()=>({}));
+ const ranked=engageWith(name=>name==='KUMA'?{}:{liveMoves:liveMoves(name==='ACE'?LMR_FULL:{...LMR_ZERO,guard:1})});
+ const fid=(issue,id)=>issue.rules.fighters.find(f=>f.id===id);
+ const b=fid(before,'ace'),r=fid(ranked,'ace');
+ assert.equal(r.attack,Math.max(Math.floor(b.attack*1042/1000),b.attack+2));
+ assert.equal(r.defense,Math.max(Math.floor(b.defense*1021/1000),b.defense+1));
+ for(const k of ['backstepMm','sidestepMm','forwardJumpMm'])assert.equal(r[k],Math.floor(b[k]*1150/1000),k);
+ assert.ok(r.attack>b.attack&&r.defense>b.defense);
+ const sb=fid(before,'shadow'),sr=fid(ranked,'shadow');
+ assert.equal(sr.defense,Math.max(Math.floor(sb.defense*1007/1000),sb.defense+1));
+ assert.deepEqual(STAT.filter(k=>k!=='defense').map(k=>sr[k]),STAT.filter(k=>k!=='defense').map(k=>sb[k]),'Guard rank touches defense only');
+ assert.deepEqual(fid(ranked,'kuma'),fid(before,'kuma'),'unranked squad bot unchanged');
+ for(const f of before.rules.fighters.filter(f=>f.side===1))assert.deepEqual(ranked.rules.fighters.find(x=>x.id===f.id),f,'CPU side never ranked');
+ const strip=d=>{const {fighters,...rest}=d.rules;return rest;};
+ assert.deepEqual(strip(ranked),strip(before));assert.notEqual(ranked.rulesHash,before.rulesHash);
+ assert.equal('special' in r,false,'no attrs issued: no special field to boost');
+});
+test('live-move ranks: with chase + attrs issued the Special slot also boosts the pinned special',()=>{
+ const env={HOLOCITY_FIGHT_CHASE:'1',HOLOCITY_FIGHT_ATTRS:'1'};
+ const before=engageWith(()=>({}),env),ranked=engageWith(()=>({liveMoves:liveMoves({...LMR_ZERO,special:2})}),env);
+ const b=before.rules.fighters[0],r=ranked.rules.fighters[0];
+ assert.equal(typeof b.special,'number');
+ assert.equal(r.special,Math.max(Math.floor(b.special*1016/1000),b.special+1));
+ assert.equal(r.attack,b.attack);assert.equal(r.defense,b.defense);
+});

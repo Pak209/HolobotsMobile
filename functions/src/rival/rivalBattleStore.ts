@@ -16,6 +16,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { FIGHT_ATTRS_FLAG, FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_REPLAY_FLAG, FightReceiptWire, FightReplayIssueWire } from '../shared/fightReplayContract';
 import { FightReplayError, FightReplayVerdict, verifyFightReplay } from '../sim/fight/replay';
 import { buildFightReplayIssue, inputLogCombatant } from './fightReplayIssue';
+import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { FIGHT_LOG_OMITTED_FIELD, ReplayValidation, replayDryRunLine, validateReplay } from '../sim/fight/validateReplay';
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
@@ -227,7 +228,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // a duel-rules-6 issue happens only on the ask AND with both rules-5 flags (buildFightReplayIssue's own rule)
       const issueTempo = rules6Asked && fightChase && fightAttrs;
       const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
-        player:r.reply.playerCombatants.map(c => inputLogCombatant(c, equippedPartBoosts(profile, c.holobotId), issueTempo)),
+        player:r.reply.playerCombatants.map(c => inputLogCombatant(c, equippedPartBoosts(profile, c.holobotId), issueTempo, liveMoveRanksFor(profile, c.holobotId))),
         opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo, live:true, guardHold:rulesAsked === RULES_SCHEMA_7,
         ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
           cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
