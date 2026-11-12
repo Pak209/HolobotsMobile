@@ -438,7 +438,10 @@ export type RivalSettlement = {
    * `forfeit`, or a settle whose log failed replay (`replay_mismatch`). Always a no-pay loss; absent = an ordinary settle. */
   closedBy?: RivalClosedBy;
 };
-export type RivalClosedBy = "forfeit" | "replay_mismatch";
+/** forfeit-is-loss (Pak 2026-11-11): "expired" = a live battle left unplayed past its TTL, recorded as a loss on the next rival touch.
+ * no-loss-before-fight (Pak 2026-11-11): "left_before_fight" = the player left during the countdown (lib/leftBeforeFight.ts). Stored
+ * with didWin false and nothing paid, but it is NOT a loss: no cooldown, no streak reset, and pvp-daily lists no result for it. */
+export type RivalClosedBy = "forfeit" | "replay_mismatch" | "expired" | "left_before_fight";
 
 /** Stored at rivalBattles/{uid}/battles/{battleId}; server-only path. */
 export type RivalBattleRecord = {
@@ -635,7 +638,8 @@ export type SettleReply = {
 /**
  * server-rulings-1 (Pak 2026-11-09, ruling 3): close an open battle as a NO-PAY loss without a verified result: no Holos, no
  * Buddy Units, no XP, no rivalWins change, no pilot rank. `closedBy` names why (the explicit forfeit, or a replay_mismatch settle).
- * The caller frees the open-battle slot and does NOT start the per-rival cooldown, so a new issue works at once.
+ * The caller frees the open-battle slot. forfeit-is-loss (Pak 2026-11-11): the caller also starts the per-rival cooldown and breaks
+ * the win streak, as for a lost settle (rivalBattleStore.forfeitLossWrites); nothing here pays.
  */
 export function closeRivalBattleNoPay(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, nowMs: number, closedBy: RivalClosedBy): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord>; reply: SettleReply } {
   const l = readLedger(profile);

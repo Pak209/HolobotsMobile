@@ -8,7 +8,7 @@ import { PilotRankError } from '../account/pilotRank';
  * The account parent is a transactionally shared lease; child receipts never use TTL cleanup.
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { Firestore } from 'firebase-admin/firestore';
+import { DocumentReference, Firestore, Transaction } from 'firebase-admin/firestore';
 import { ActivityError, arenaOpen, duelOpen } from '../lib/arenaActivity';
 import { withRankHealingReward } from '../lib/rankHealingReward';
 import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight, partBoostsChangeFight } from '../lib/partStats';
@@ -27,10 +27,11 @@ import { repairHolobotProgression } from '../lib/holobotRecordRepair';
 import { recordAccountRepair, RepairChange } from '../lib/accountRepairAudit';
 import { FIGHT_ATTRS_FLAG, FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_RECEIPT_SCHEMA, FIGHT_REPLAY_FLAG, FIGHT_REPLAY_MODE, FightReplayIssueWire } from '../shared/fightReplayContract';
 import { FightReplayError, FightReplayVerdict, readIssue, verifyFightReplay } from '../sim/fight/replay';
-import { RULES_SCHEMA_6 } from '../sim/fight/rules';
+import { RULES_SCHEMA_6, RULES_SCHEMA_7 } from '../sim/fight/rules';
 import { buildFightReplayIssue, inputLogCombatant } from '../rival/fightReplayIssue';
 import { FIGHT_PLAUSIBILITY_COLLECTION, FIGHT_RULES_CAPABILITY_FIELD } from '../rival/rivalBattleStore';
 import { RIVAL_MIN_WIN_MS } from '../lib/rivalLadder';
+import { LEFT_BEFORE_FIGHT_FIELD, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
 
 export const ARENA_MATCH_SCHEMA = 'arena-match-1';
 /**
@@ -48,6 +49,15 @@ export const ARENA_MIN_WIN_MS_LIVE = RIVAL_MIN_WIN_MS;
 /** Arena tier index (rookie, challenger, elite, legend) -> the rival tier fed to buildFightReplayIssue, which only picks the CPU
  * rank from it (fightRankForTier: Starter, Champion, Rare, Elite). Producer pick, opponent levels 12 / 24 / 36 / 45; Pak tunes. */
 export const ARENA_FIGHT_RANK_TIER: readonly number[] = [2, 4, 6, 8];
+/** live-tuning-1 (Pak 2026-11-11, after a level-4 ACE was one-shot by the level-12 rookie HARE): a LIVE Arena match's CPU level.
+ * Rookie = the entrant Holobot's own level, clamped to 1..12 (the old fixed rookie level is the cap); every other tier keeps its
+ * fixed ARENA_TIERS opponentLevel (24 / 36 / 45). The resolver / legacy match keeps the fixed level. */
+export const ARENA_ROOKIE_LIVE_MAX_LEVEL = 12;
+export function arenaLiveOpponentLevel(tierId: string, fixedLevel: number, entrantLevel: number): number {
+  if (tierId !== 'rookie') return fixedLevel;
+  const lv = Number.isSafeInteger(entrantLevel) ? entrantLevel : 1;
+  return Math.max(1, Math.min(ARENA_ROOKIE_LIVE_MAX_LEVEL, lv));
+}
 export type ArenaMatchOptions = { arenaFightReplay?: boolean; fightChase?: boolean; fightAttrs?: boolean; fightSeed?: () => string };
 export function arenaFightReplayEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return env[ARENA_FIGHT_REPLAY_FLAG] === '1' && env[FIGHT_REPLAY_FLAG] === '1';
@@ -110,7 +120,7 @@ function command(raw: unknown): Command {
   if (!object(raw) || raw.schemaVersion !== ARENA_MATCH_SCHEMA) return fail('invalid_request');
   const fields: Record<string, string[]> = {
     issue: ['requestId','tierId','paymentMethod','holobotId','opponentName','tournamentId','duelSchema',FIGHT_INPUTS_CAPABILITY_FIELD,FIGHT_RULES_CAPABILITY_FIELD],
-    start: ['matchId'], resume: ['matchId'], cancel: ['matchId','playerFinalHealth'],
+    start: ['matchId'], resume: ['matchId'], cancel: ['matchId','playerFinalHealth',LEFT_BEFORE_FIGHT_FIELD],
     settle: ['matchId','playerFinalHealth','opponentFinalHealth','combosCompleted','perfectDefenses','playerIntents',FIGHT_LOG_FIELD],
   };
   if (typeof raw.operation !== 'string' || !Object.hasOwn(fields, raw.operation) || Object.keys(raw).some(k => !['schemaVersion','operation',...fields[raw.operation]].includes(k))) return fail('invalid_request');
@@ -126,7 +136,7 @@ function command(raw: unknown): Command {
     if (raw.duelSchema !== undefined && (raw.duelSchema !== DUEL_RECEIPT_SCHEMA || raw.tournamentId !== undefined)) return fail('invalid_request');
     // arena-live-1: the live-duel capability (the rival host's `duelInputs`) and the duel-rules-6 ask; never on a cup issue.
     if (raw[FIGHT_INPUTS_CAPABILITY_FIELD] !== undefined && (raw[FIGHT_INPUTS_CAPABILITY_FIELD] !== FIGHT_INPUTS_SCHEMA || raw.tournamentId !== undefined)) return fail('invalid_request');
-    if (raw[FIGHT_RULES_CAPABILITY_FIELD] !== undefined && (raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_6 || raw.tournamentId !== undefined)) return fail('invalid_request');
+    if (raw[FIGHT_RULES_CAPABILITY_FIELD] !== undefined && ((raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_6 && raw[FIGHT_RULES_CAPABILITY_FIELD] !== RULES_SCHEMA_7) || raw.tournamentId !== undefined)) return fail('invalid_request');
     const tier = getArenaTier(raw.tierId)!;
     const pool = tier.id === 'rookie' ? [...tier.opponentPool,'KUMA','SHADOW'] : [...tier.opponentPool];
     if (!pool.includes(raw.opponentName)) return fail('invalid_request');
@@ -146,6 +156,8 @@ function command(raw: unknown): Command {
         || !whole(raw.perfectDefenses) || raw.perfectDefenses > MAX_PERFORMANCE_EVENTS) return fail('invalid_request');
     }
     if (raw.operation === 'cancel' && raw.playerFinalHealth !== undefined && (!finite(raw.playerFinalHealth) || raw.playerFinalHealth < 0)) return fail('invalid_request');
+    // no-loss-before-fight (Pak 2026-11-11): only the literal true, and never with an HP report (a live cancel carries none).
+    if (raw.operation === 'cancel' && (readLeftBeforeFight(raw) === null || (raw[LEFT_BEFORE_FIGHT_FIELD] !== undefined && raw.playerFinalHealth !== undefined))) return fail('invalid_request');
   }
   return raw as Command;
 }
@@ -219,9 +231,12 @@ function match(raw: unknown, id: string): Match {
   if (!object(receipt) || receipt.matchId !== id || !whole(raw.closedAtMs) || raw.closedAtMs < raw.issuedAtMs
     || receipt.closedAtMs !== raw.closedAtMs || (started && raw.closedAtMs < raw.startedAtMs)
     || (raw.state === 'expired' ? raw.closedAtMs <= raw.expiresAtMs : raw.closedAtMs > raw.expiresAtMs)) return fail('unavailable');
+  // no-loss-before-fight (Pak 2026-11-11): the refund receipt of a live match left during its countdown carries leftBeforeFight: true;
+  // it is the only refund of a started match (cancelled inside the window, so never expired), and the marker appears nowhere else.
+  if (receipt.leftBeforeFight !== undefined && (receipt.leftBeforeFight !== true || receipt.outcome !== 'cancelled_before_start' || !live || !started || raw.state !== 'cancelled')) return fail('unavailable');
   if (receipt.outcome === 'cancelled_before_start') {
     const refund = receipt.refund;
-    if (raw.state === 'settled' || raw.startedAtMs !== null || receipt.refunded !== true || receipt.settlement !== null
+    if (raw.state === 'settled' || (receipt.leftBeforeFight === true ? false : raw.startedAtMs !== null) || receipt.refunded !== true || receipt.settlement !== null
       || !object(refund) || refund.method !== entry.method || refund.amount !== entry.amount
       || !whole(refund.balanceBefore) || !whole(refund.balanceAfter) || refund.balanceAfter - refund.balanceBefore !== refund.amount) return fail('unavailable');
     return raw as Match;
@@ -236,6 +251,9 @@ function match(raw: unknown, id: string): Match {
     if (raw.state === 'settled' || receipt.settlement !== null) return fail('unavailable');
     // arena-live-1: a log that failed replay closes the match as this forfeit (closedBy 'replay_mismatch'), never anything else.
     if (receipt.closedBy !== undefined && (receipt.closedBy !== 'replay_mismatch' || !live || report.playerFinalHealth !== entrant.currentHealth)) return fail('unavailable');
+    // forfeit-is-loss: only a live match closed after start without a result (cancelled, a mismatch closure, or expired unplayed:
+    // Pak 2026-11-11, timing out is a loss) at its issue-time HP is counted as a loss.
+    if (receipt.countedAsLoss !== undefined && (receipt.countedAsLoss !== true || !live || report.playerFinalHealth !== entrant.currentHealth)) return fail('unavailable');
     return raw as Match;
   }
   const settlement = receipt.settlement;
@@ -373,6 +391,57 @@ async function preVerifyArenaFight(firestore: Firestore, uid: string, c: Command
 /** Marks a transaction result whose error is thrown only after the transaction committed its writes. */
 const THROW_AFTER_COMMIT = '__throwAfterCommit';
 
+/** forfeit-is-loss (Pak 2026-11-11): a live match closed after start without a verified result (cancel, a log that failed replay,
+ * or its expiry unplayed) is recorded as a loss: `losses` + 1 (wins unchanged) and one settle counted toward the daily CPU cap
+ * (cpuPayouts, as a lost settle under the cap counts). Never paid: no EXP, Sync, Holos, blueprints, daily-mission count or rank kit;
+ * the fee stays kept and the HP ledger keeps the issue-time value. Its only read precedes every write the caller makes. */
+async function liveForfeitLoss(tx: Transaction, parentRef: DocumentReference, profile: Data, nowMs: number): Promise<Data> {
+  const payoutsRef = parentRef.collection('ledger').doc('cpuPayouts');
+  const paid = paidToday((await tx.get(payoutsRef)).data(), nowMs);
+  const losses = counter(profile,'losses') + 1;
+  if (paid < ARENA_CPU_DAILY_PAYOUT_CAP) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
+  return { losses };
+}
+/** The after-start forfeit receipt of a live match closed without a result, at its issue-time HP (the vitals ledger row as issued). */
+function liveForfeitClose(profile: Data, m: Match, nowMs: number, extra: Data = {}): { receipt: Data; vitals: Vitals } {
+  const issued: Vitals = {[m.entrant.holobotId]:{currentHealth:m.entrant.currentHealth,maxHealth:m.entrant.maxHealth}};
+  const vitals = settleVitals(profile,issued,[{holobotId:m.entrant.holobotId,currentHealth:m.entrant.currentHealth}]);
+  return { vitals, receipt: {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:m.entrant.currentHealth},closedAtMs:nowMs,...extra,countedAsLoss:true,
+    finalVitals:{[m.entrant.holobotId]:vitals[m.entrant.holobotId]}} };
+}
+/**
+ * forfeit-is-loss (Pak 2026-11-11: timing out is a loss). Before an issue, resume or settle, the account's open Arena match, when it
+ * is a STARTED live (input-log) match already past its 30 min TTL, is closed in its own transaction as the after-start forfeit's
+ * loss: state 'expired', outcome 'forfeit', countedAsLoss, losses + 1, one CPU-cap count, fee kept, HP as issued, lease freed.
+ * Counted once (the match becomes terminal). A match never started is left alone (its cancel still refunds); resolver, legacy
+ * and cup matches are never touched. A cancel needs no sweep: its own transaction records the same loss.
+ */
+async function sweepExpiredLiveMatch(firestore: Firestore, uid: string, nowMs: number): Promise<void> {
+  const parentRef = firestore.doc(`arenaMatches/${uid}`), userRef = firestore.doc(`users/${uid}`);
+  const stale = (parent: Data | undefined, m: Data | undefined) => object(parent) && parent.open === true && object(m) && m.state === 'active'
+    && object(m.duel) && m.duel.mode === FIGHT_REPLAY_MODE && whole(m.expiresAtMs) && nowMs > m.expiresAtMs && m.tournament === undefined && m.bracket === undefined;
+  const pre = (await parentRef.get()).data();
+  if (!object(pre) || pre.open !== true || typeof pre.matchId !== 'string' || !/^am_[a-f0-9]{32}$/.test(pre.matchId)) return;
+  const matchRef = parentRef.collection('matches').doc(pre.matchId);
+  if (!stale(pre, (await matchRef.get()).data())) return;
+  await firestore.runTransaction(async tx => {
+    const parent = (await tx.get(parentRef)).data(), raw = (await tx.get(matchRef)).data();
+    if (!stale(parent, raw) || parent!.matchId !== pre.matchId || !arenaOpen(parent)) return;
+    const m = match(raw, pre.matchId);
+    const user = await tx.get(userRef);
+    if (!user.exists) return;
+    const profile = user.data()!;
+    const closed = liveForfeitClose(profile, m, nowMs);
+    const updates: Data = { ...(await liveForfeitLoss(tx, parentRef, profile, nowMs)), holobotVitals: closed.vitals };
+    assertFiniteTree(updates);
+    const next: Match = {...m,state:'expired',closedAtMs:nowMs,settlementReceipt:closed.receipt};
+    match(next,m.matchId);
+    tx.update(userRef,updates);
+    tx.set(matchRef,next);
+    tx.set(parentRef,{...parent,open:false,closedAtMs:nowMs});
+  });
+}
+
 export async function transactArenaMatch(firestore: Firestore, uid: string, raw: unknown, nowMs = Date.now(), options: ArenaMatchOptions = {}) {
   const c = command(raw);
   if (!whole(nowMs)) return fail('invalid_request');
@@ -387,8 +456,9 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
   // The live fields join the identity only when sent, so an old client's requestId hashes exactly as before.
   const identity = c.operation === 'issue' ? createHash('sha256').update(JSON.stringify([c.tierId,c.paymentMethod,c.holobotId,c.opponentName,...(c.tournamentId === undefined ? [] : [c.tournamentId]),...(c.duelSchema === undefined ? [] : [{duelSchema:c.duelSchema}]),
     ...(c[FIGHT_INPUTS_CAPABILITY_FIELD] === undefined ? [] : [{duelInputs:c[FIGHT_INPUTS_CAPABILITY_FIELD]}]),...(c[FIGHT_RULES_CAPABILITY_FIELD] === undefined ? [] : [{fightRules:c[FIGHT_RULES_CAPABILITY_FIELD]}])])).digest('hex') : '';
-  const fightPre = await preVerifyArenaFight(firestore, uid, c);
   try {
+    if (c.operation === 'issue' || c.operation === 'resume' || c.operation === 'settle') await sweepExpiredLiveMatch(firestore, uid, nowMs);
+    const fightPre = await preVerifyArenaFight(firestore, uid, c);
     const out = await firestore.runTransaction(async tx => {
       const userSnap = await tx.get(userRef);
       if (!userSnap.exists) return fail('unavailable');
@@ -437,19 +507,26 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         // Opt-in resolver fight: both fighters and the seed are pinned at issue (the rivalBattleHost resolver block).
         let resolverDuel: Data | undefined;
         const tierIndex = ARENA_TIERS.findIndex(row => row.id === tier.id);
+        // guard-hold-1: a duel-rules-7 ask is the duel-rules-6 ask + the guard block
+        const rules6Asked = c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_6 || c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_7;
+        // live-tuning-1: a live match pins its own opponent (rookie at the entrant's level) and fights at FULL HP; the match stores
+        // both (entrant currentHealth = max), so the settle maps the fight's end HP onto the ledger as min(ledger now, fight end)
+        // (settleVitals never raises the ledger) and a forfeit leaves the ledger as it was. The ledger still needs HP > 0 to enter.
+        let matchOpponent = opponentStats, entrantHp = hp;
         // arena-live-1: a live duel when the flag is on and the client declares duel-inputs-2 (the rival rule: the capability only opts
         // INTO the verified mode). A lineup the fight core cannot express (no kit / profile row) keeps the next mode down.
         if (arenaFightReplay && c[FIGHT_INPUTS_CAPABILITY_FIELD] === FIGHT_INPUTS_SCHEMA) {
           if (Math.floor(hp) <= 0) return fail('holobot_ko');
-          const tempo = c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_6 && fightChase && fightAttrs;
+          const tempo = rules6Asked && fightChase && fightAttrs;
+          const liveOpponent = playerCombatant(c.opponentName.toLowerCase(), {name:c.opponentName,level:arenaLiveOpponentLevel(tier.id,tier.opponentLevel,player.level)});
           const live = buildFightReplayIssue({battleId:generatedId,seed:fightSeed,tier:ARENA_FIGHT_RANK_TIER[tierIndex] ?? 0,mentor:false,
-            player:[inputLogCombatant({...player,currentHealth:hp},equippedPartBoosts(profile,c.holobotId),tempo)],
-            opponent:[{...opponentStats,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo});
-          if (live) resolverDuel = live as unknown as Data;
+            player:[inputLogCombatant({...player,currentHealth:player.maxHealth},equippedPartBoosts(profile,c.holobotId),tempo)],
+            opponent:[{...liveOpponent,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo,live:true,guardHold:c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_7});
+          if (live) { resolverDuel = live as unknown as Data; matchOpponent = liveOpponent; entrantHp = player.maxHealth; }
         }
         // rival-live-only (Pak 2026-11-11), the rival host's rule: a live-only client (duel-inputs-2 + the duel-rules-6 ask, no
         // duelSchema) that cannot get an input-log match is refused here, before the fee, the match, the request row or the lease.
-        if (!resolverDuel && c[FIGHT_INPUTS_CAPABILITY_FIELD] === FIGHT_INPUTS_SCHEMA && c[FIGHT_RULES_CAPABILITY_FIELD] === RULES_SCHEMA_6 && c.duelSchema === undefined)
+        if (!resolverDuel && c[FIGHT_INPUTS_CAPABILITY_FIELD] === FIGHT_INPUTS_SCHEMA && rules6Asked && c.duelSchema === undefined)
           throw new ArenaError('live_unavailable', undefined, arenaFightReplay ? 'lineup_unsupported' : 'replay_off');
         if (!resolverDuel && c.duelSchema === DUEL_RECEIPT_SCHEMA) {
           if (Math.floor(hp) <= 0) return fail('holobot_ko');
@@ -462,7 +539,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         const m: Match = {
           schemaVersion:ARENA_MATCH_SCHEMA,matchId:generatedId,requestId:c.requestId,state:'issued',tierId:tier.id as ArenaTierId,
           issuedAtMs:nowMs,expiresAtMs:nowMs+ARENA_MATCH_TTL_MS,startedAtMs:null,closedAtMs:null,
-          entrant:{...player,name:owned.name,currentHealth:hp,nextLevelExp:calculateExperience(player.level+1)},opponent:{...opponentStats,name:c.opponentName},
+          entrant:{...player,name:owned.name,currentHealth:entrantHp,nextLevelExp:calculateExperience(player.level+1)},opponent:{...matchOpponent,name:c.opponentName},
           entryReceipt:{matchId:generatedId,method:c.paymentMethod,amount,balanceBefore:before,balanceAfter:before-amount,chargedAtMs:nowMs},
           rules:{version:'arena-economy-legacy-1',entryFeeHolos:tier.entryFeeHolos,...getArenaBaseRewards(tier),blueprints:getArenaBlueprintAmount(tier),comboBonus:BATTLE_COMBO_BONUS,perfectDefenseBonus:BATTLE_PERFECT_DEFENSE_BONUS,lossExpFraction:BATTLE_LOSS_EXP_FRACTION,lossSyncFraction:BATTLE_LOSS_SYNC_FRACTION,maxPerformanceEvents:MAX_PERFORMANCE_EVENTS,expBoosterMultiplier:EXP_BOOSTER_MULTIPLIER},
           settlementReceipt:null,...(tournament ? {tournament} : {}),...(cupParts && partBoostsChangeFight(cupParts) ? {partBoosts:cupParts} : {}),...(resolverDuel ? {duel:resolverDuel} : {}),
@@ -492,6 +569,8 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
       const m = match(snap.data(),requestedId);
       if (discoveredOpen !== undefined && discoveredOpen === terminal(m)) return fail('unavailable');
       if (c.operation === 'resume') return reply(m,true);
+      // forfeit-is-loss: a live match closed by its expiry answers a late settle exactly as before (match_expired); the loss is recorded.
+      if (c.operation === 'settle' && m.state === 'expired' && m.duel?.mode === FIGHT_REPLAY_MODE && m.settlementReceipt?.countedAsLoss === true) return fail('match_expired');
       if (terminal(m)) return reply(m,true); // Durable replay does not inspect/release a newer match's lease.
       if (m.bracket && ['start','settle','cancel'].includes(c.operation)) return fail('bracket_bound');
       // Every new tournament outcome must use the host bracket, including old active admissions.
@@ -516,6 +595,16 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
         updates[field] = before + m.entryReceipt.amount;
         receipt = {matchId:m.matchId,outcome:'cancelled_before_start',refunded:true,refund:{method:m.entryReceipt.method,amount:m.entryReceipt.amount,balanceBefore:before,balanceAfter:updates[field]},settlement:null,closedAtMs:nowMs};
         nextState = nowMs > m.expiresAtMs ? 'expired' : 'cancelled';
+      } else if (c.operation === 'cancel' && m.state === 'active' && m.duel?.mode === FIGHT_REPLAY_MODE && c[LEFT_BEFORE_FIGHT_FIELD] === true
+        && nowMs <= m.expiresAtMs && leftBeforeFightInWindow(m.startedAtMs, nowMs)) {
+        // no-loss-before-fight (Pak 2026-11-11): a LIVE match left during its countdown, claimed within the window of its start (when
+        // the fight is handed to the stage): cancelled with NO loss and the entry refunded in full, as a cancel before start. No
+        // losses, no cap count, no daily-mission count, HP ledger untouched. Later than the window: the after-start forfeit loss below.
+        const field = m.entryReceipt.method === 'pass' ? 'arenaPassses' : 'holosTokens';
+        const before = counter(profile,field);
+        updates[field] = before + m.entryReceipt.amount;
+        receipt = {matchId:m.matchId,outcome:'cancelled_before_start',refunded:true,refund:{method:m.entryReceipt.method,amount:m.entryReceipt.amount,balanceBefore:before,balanceAfter:updates[field]},settlement:null,closedAtMs:nowMs,leftBeforeFight:true};
+        nextState = 'cancelled';
       } else {
         if (m.state !== 'active') return fail('invalid_state');
         // A stored mode is never downgraded or upgraded by the request.
@@ -582,8 +671,9 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           nextState = 'settled';
         } else if (c.operation === 'settle' && mismatch) {
           // arena-live-1: a log that failed replay pays nothing and closes the match as the after-start forfeit (fee kept, HP as
-          // issued, no loss counted, lease freed: the rival no-pay closure); replay_mismatch is reported after the commit.
-          receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:finalHealth},closedAtMs:nowMs,closedBy:'replay_mismatch',replayRejection:mismatch};
+          // issued, lease freed); replay_mismatch is reported after the commit. forfeit-is-loss: counted as that forfeit's loss.
+          receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:finalHealth},closedAtMs:nowMs,closedBy:'replay_mismatch',replayRejection:mismatch,countedAsLoss:true};
+          Object.assign(updates, await liveForfeitLoss(tx, parentRef, profile, nowMs));
           nextState = 'cancelled';
         } else if (c.operation === 'settle') {
           if (nowMs > m.expiresAtMs) return fail('match_expired');
@@ -605,7 +695,11 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           if (withheld === undefined) tx.set(payoutsRef,{schemaVersion:ARENA_CPU_PAYOUTS_SCHEMA,day:utcDay(nowMs),paidSettles:paid+1});
           nextState = 'settled';
         } else {
-          receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:finalHealth},closedAtMs:nowMs};
+          // forfeit-is-loss (Pak 2026-11-11): cancelling a LIVE match after start is a loss (countedAsLoss), inside its TTL and past it
+          // (timing out is a loss: the wait-then-cancel case). A resolver or legacy cancel closes exactly as before.
+          const countedAsLoss = live;
+          receipt = {matchId:m.matchId,outcome:'forfeit',refunded:false,settlement:null,report:{playerFinalHealth:finalHealth},closedAtMs:nowMs,...(countedAsLoss ? {countedAsLoss:true} : {})};
+          if (countedAsLoss) Object.assign(updates, await liveForfeitLoss(tx, parentRef, profile, nowMs));
           nextState = nowMs > m.expiresAtMs ? 'expired' : 'cancelled';
         }
         updates.holobotVitals = vitals;

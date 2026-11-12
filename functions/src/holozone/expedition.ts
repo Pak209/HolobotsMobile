@@ -402,6 +402,8 @@ export function advanceRealtimeExpedition(profile:Record<string,unknown>,origina
     if(at.safe)return fail('safe_room');if(run.cleared.includes(at.id))return fail('already_cleared');
     if(!run.squad.some(b=>(b.currentHealth??b.maxHealth)>0))return fail('holobot_ko');
     const fightId=`ef_${run.runId}_${at.id}`;
+    // beast-fighter-1 (BEAST_FIGHTER_SPEC.md 5.4): expedition beasts keep the WOLF body; only the live Guild Court issues an Error
+    // Beast fighter (rules.BEAST_ARCHETYPES) until an expedition client is verified with it (Pak's call). Not a live-tuning-1 path.
     const beast=threat(run,at),cpu=playerCombatant('wolf',{name:'WOLF',level:beast.level});
     const starts=process.env.HOLOCITY_READINESS_START==='1'?run.squad.map(b=>manualReadinessStart(profile,b.holobotId,now)):undefined;
     const issue=buildFightReplayIssue({battleId:fightId,seed:createHash('sha256').update(`${run.privateSeed}:realtime:${at.id}`).digest('hex'),

@@ -5,7 +5,7 @@ import {
 import { clamp, dist, div, hex, Int32Writer, mulDiv, rngSeedWord, seedBytes, sha256 } from './math';
 import {
   ATTR_KEYS, attrEdge, CHASE_KEYS, cloneRules, evadeChance, evadeWord, FightAttrRules, FightChaseRules, FightFighterDef, FightRules, moveMul, rollPm, rosterOf,
-  rulesCanonicalBytes5, rulesCanonicalBytes6, rulesHashBytes, SIM_VERSION_4, SIM_VERSION_5, specialDmgMul, syncMul, tempoTicks, validateAttrRules, validateChaseRules, validateRules,
+  rulesCanonicalBytes5, rulesCanonicalBytes6, rulesHashBytes, SIM_VERSION_4, SIM_VERSION_5, SIM_VERSION_6, GUARD_KEYS, validateGuardRules, specialDmgMul, syncMul, tempoTicks, validateAttrRules, validateChaseRules, validateRules,
   FightTempoRules, TEMPO_KEYS, validateTempoRules,
 } from './rules';
 import { FightWitness } from './witness';
@@ -49,6 +49,8 @@ export class FightFighter {
   escStart = -1;
   /** duel-sim-4 (rules-5 only, hashed then): milli-SYNC carry; evade-roll index (as attacker); retreats since its last strike. */
   syncAcc = 0; evadeRolls = 0; retreatChain = 0;
+  /** duel-rules-7 (guard-hold-1; hashed only then): the guard dropped from exhaustion and cannot rise until stamina >= reraiseMinPm. */
+  guardLocked = false;
   /** r3: the FIGHT max HP (issued maxHp x the pair HP scale; = def.maxHp when hpScaleLights is 0). Not hashed (a function of the rules). */
   maxHp: number;
   // identity (not hashed)
@@ -120,7 +122,10 @@ export class FightCore {
   constructor(rules: FightRules, seedHex: string, chase: FightChaseRules | null = null, attrs: FightAttrRules | null = null, tempo: FightTempoRules | null = null) {
     if (attrs && !chase) throw new RangeError('invalid_attrs_without_chase');
     if (tempo && !attrs) throw new RangeError('invalid_tempo_without_attrs');
-    if (tempo) { validateTempoRules(tempo); this.tempo = { ...tempo }; } else this.tempo = null;
+    if (tempo) {
+      validateTempoRules(tempo); if (tempo.guard) validateGuardRules(tempo.guard);
+      this.tempo = { ...tempo, ...(tempo.guard ? { guard: { ...tempo.guard } } : {}) };
+    } else this.tempo = null;
     if (attrs) { validateAttrRules(attrs); this.attrs = { ...attrs }; } else this.attrs = null;
     validateRules(rules);
     if (chase) { validateChaseRules(chase); this.chase = { ...chase }; this.chaseState = [new FightChaseSide(), new FightChaseSide()]; }
@@ -213,6 +218,8 @@ export class FightCore {
         f.backstepPending = false;
         if (f.guard === Guard.Down && !f.guardInput) this.startStep(s, 0, 0, true, railAtStart);
       }
+      // duel-rules-7: an exhausted guard unlocks once stamina is back to reraiseMinPm
+      if (f.guardLocked && this.tempo?.guard && f.sta >= this.tempo.guard.reraiseMinPm) f.guardLocked = false;
     }
 
     // 1. inputs
@@ -233,6 +240,8 @@ export class FightCore {
     this.move(t);
     // 4 + 5. contacts
     this.contacts(t);
+    // 6a. duel-rules-7: a raised guard drains stamina (no regen while it is up); at 0 it drops and locks
+    if (this.tempo?.guard && this.tempo.guard.holdDrainPm > 0) for (let s = 0; s < 2; s++) this.guardDrain(s, t, this.tempo.guard.holdDrainPm);
     // 6. regen
     for (let s = 0; s < 2; s++) this.regen(s, t);
     // 7. forced breaks
@@ -385,6 +394,7 @@ export class FightCore {
 
   private raiseGuardIfHeld(f: FightFighter, t: number): void {
     if (!f.guardInput) return;
+    if (f.guardLocked) return;   // duel-rules-7: an exhausted guard stays down (no raise, no recovery cancel) until it unlocks
     if (f.action === Action.Step && f.stepForced) { f.action = Action.Idle; f.stepKind = Loco.Still; f.stepForced = false; }
     // duel-rules-6: a held guard ends the fighter's own cancellable recovery
     if (this.tempo && this.tempo.cancelGuard !== 0 && this.cancellable(f, t)) this.cancelRecovery(f, t);
@@ -807,6 +817,17 @@ export class FightCore {
     return dmg;
   }
 
+  // ================================================================ 6a. guard drain (duel-rules-7)
+
+  private guardDrain(s: number, t: number, drain: number): void {
+    const f = this.F[s];
+    if (f.ko || !(f.guard === Guard.Raising || f.guard === Guard.Up)) return;
+    f.sta = Math.max(0, f.sta - drain); f.regenBlockedUntil = t + this.rules.regenDelayTicks; f.regenAcc = 0;
+    if (f.sta === 0) { f.guard = Guard.Down; f.guardLocked = true; this.emit(s, EventKind.GuardLower, Move.None, 1); }
+  }
+  /** duel-rules-7: side s's active fighter's guard is locked down by exhaustion (always false without the guard block). */
+  guardLocked(s: number): boolean { return this.F[s].guardLocked; }
+
   // ================================================================ 6. regen
 
   private regen(s: number, t: number): void {
@@ -936,7 +957,7 @@ export class FightCore {
    * roster member in rules array order (STATE_FIGHTER_FIELDS).
    */
   stateBytes(): Buffer {
-    const w = new Int32Writer(1024).ascii(this.tempo ? SIM_VERSION_5 : this.attrs ? SIM_VERSION_4 : 'duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
+    const w = new Int32Writer(1024).ascii(this.tempo?.guard ? SIM_VERSION_6 : this.tempo ? SIM_VERSION_5 : this.attrs ? SIM_VERSION_4 : 'duel-sim-3').bytes(this.rulesHashB).bytes(this.seed);
     w.int(this.tick).int(B(this.exchangeActive)).int(this.exchangeStartTick).int(this.lastTelegraphTick).int(this.lastContactTick)
       .int(this.exchangePresses).int(B(this.railFired)).int(this.pairState).int(this.distanceMm).int(this.rangeRMm).int(this.winner).int(B(this.ended));
     for (let s = 0; s < 2; s++) {
@@ -958,6 +979,12 @@ export class FightCore {
     if (this.attrs) { w.ascii('fight-attrs-1'); for (const k of ATTR_KEYS) w.int(this.attrs[k]); }
     // duel-rules-6: 'fight-tempo-1' + the tempo block after the attrs tail (off = the duel-rules-3/-4/-5 bytes exactly)
     if (this.tempo) { w.ascii('fight-tempo-1'); for (const k of TEMPO_KEYS) w.int(this.tempo[k]); }
+    // duel-rules-7: 'fight-guard-1' + the guard block + every roster member's guardLocked in rules array order (off = rules-6 bytes)
+    if (this.tempo?.guard) {
+      w.ascii('fight-guard-1'); for (const k of GUARD_KEYS) w.int(this.tempo.guard[k]);
+      const cur = [0, 0];
+      for (const d of this.rules.fighters) w.int(B(this.roster[d.side][cur[d.side]++].guardLocked));
+    }
     return w.done();
   }
   stateHash(): string { return hex(sha256(this.stateBytes())); }

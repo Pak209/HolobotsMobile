@@ -127,19 +127,21 @@ test('valid loss: fee kept, no Holos or blueprints, loss counted, HP from the re
   assert.equal((await record(uid, i.matchId)).fightPlausibility, undefined, 'a loss is not judged');
 });
 
-test('tampered log: replay_mismatch closes the match as a no-pay forfeit (fee kept, HP as issued), then reports; a resend replays', async () => {
+test('tampered log: replay_mismatch closes the match as a no-pay forfeit counted as a loss (fee kept, HP as issued), then reports; a resend replays', async () => {
   const uid = await setup(), i = await started(uid), before = await user(uid);
   const log = F.parseInputLog(winLog(i.duel));
   for (let t = 0; t < log.tickCount; t++) log.sides[0].ticks[t] = { ...log.sides[0].ticks[t], moveX: -127, moveZ: 0 };
   await assert.rejects(settle(uid, i.matchId, F.inputLogToWire(log)), e => e.code === 'replay_mismatch' && ['hash', 'final_hash'].includes(e.detail.reason) && e.detail.fromTick === 0);
   const rec = await record(uid, i.matchId);
   assert.equal(rec.state, 'cancelled');
-  assert.deepEqual([rec.settlementReceipt.outcome, rec.settlementReceipt.settlement, rec.settlementReceipt.closedBy, rec.settlementReceipt.refunded], ['forfeit', null, 'replay_mismatch', false]);
+  assert.deepEqual([rec.settlementReceipt.outcome, rec.settlementReceipt.settlement, rec.settlementReceipt.closedBy, rec.settlementReceipt.refunded, rec.settlementReceipt.countedAsLoss], ['forfeit', null, 'replay_mismatch', false, true]);
   assert.equal(rec.fightReceipt, undefined);
   const after = await user(uid);
-  for (const k of ['holosTokens', 'holobots', 'wins', 'losses', 'syncPoints', 'blueprints']) assert.deepEqual(after[k], before[k], k);
+  for (const k of ['holosTokens', 'holobots', 'wins', 'syncPoints', 'blueprints', 'rewardSystem', 'dailyMissionLedger']) assert.deepEqual(after[k], before[k], k);
+  assert.equal(after.losses, before.losses + 1, 'forfeit-is-loss: the loss is recorded');
   assert.equal(after.holobotVitals.ace.currentHealth, before.holobotVitals.ace.currentHealth, 'HP as issued');
-  assert.equal(await payouts(uid), undefined, 'never counts toward the cap');
+  assert.equal((await payouts(uid)).paidSettles, 1, 'forfeit-is-loss: counts toward the daily cap like a lost settle');
+  assert.equal(A.readArenaMatchRecord(rec, i.matchId).state, 'cancelled', 'the record validator accepts it');
   // a resend (even of an honest log) replays the closure, never pays
   const again = await settle(uid, i.matchId, winLog(i.duel), LATER + 1);
   assert.deepEqual([again.alreadyProcessed, again.match.state, again.match.settlementReceipt.closedBy], [true, 'cancelled', 'replay_mismatch']);
@@ -180,17 +182,25 @@ test('too_fast: a verified win sooner than 20 s after start writes nothing and c
   assert.equal((await settle(uid, i.matchId, log, START + A.ARENA_MIN_WIN_MS_LIVE)).match.state, 'settled');
 });
 
-test('forfeit: cancel after start = no-pay forfeit with HP as issued (no client HP); cancel before start refunds the fee', async () => {
+test('forfeit: cancel after start = no-pay forfeit counted as a loss, HP as issued (no client HP); cancel before start refunds the fee', async () => {
   const a = await setup(), i = await issue(a);
   const r = await call(a, { operation: 'cancel', matchId: i.matchId }, T0 + 1);
   assert.equal(r.match.settlementReceipt.outcome, 'cancelled_before_start');
-  assert.equal((await user(a)).holosTokens, 1000, 'refunded');
+  assert.equal('countedAsLoss' in r.match.settlementReceipt, false, 'cancel before start is not a loss');
+  const ua = await user(a);
+  assert.deepEqual([ua.holosTokens, ua.losses, await payouts(a)], [1000, 0, undefined], 'refunded, no loss, no cap count');
   const b = await setup(), j = await started(b), hp = j.match.entrant.currentHealth;
   await assert.rejects(call(b, { operation: 'cancel', matchId: j.matchId, playerFinalHealth: 1 }, START + 10), code('invalid_request'));
   const f = await call(b, { operation: 'cancel', matchId: j.matchId }, START + 10);
-  assert.deepEqual([f.match.state, f.match.settlementReceipt.outcome, f.match.settlementReceipt.settlement], ['cancelled', 'forfeit', null]);
+  assert.deepEqual([f.match.state, f.match.settlementReceipt.outcome, f.match.settlementReceipt.settlement, f.match.settlementReceipt.countedAsLoss], ['cancelled', 'forfeit', null, true]);
   const u = await user(b);
-  assert.deepEqual([u.holobotVitals.ace.currentHealth, u.holosTokens, u.losses], [hp, 950, 0]);
+  assert.deepEqual([u.holobotVitals.ace.currentHealth, u.holosTokens, u.losses, u.wins, u.syncPoints], [hp, 950, 1, 0, 0], 'HP as issued, fee kept, loss recorded, nothing paid');
+  assert.equal(u.holobots[0].experience, 0, 'no loss EXP');
+  assert.equal((await payouts(b)).paidSettles, 1, 'one settle counted toward the daily cap');
+  // idempotent: a repeated cancel replays the closure and records no second loss
+  const again = await call(b, { operation: 'cancel', matchId: j.matchId }, START + 20);
+  assert.deepEqual([again.alreadyProcessed, again.match.settlementReceipt.countedAsLoss], [true, true]);
+  assert.deepEqual(await user(b), u); assert.equal((await payouts(b)).paidSettles, 1);
   const late = await settle(b, j.matchId, winLog(j.duel));
   assert.deepEqual([late.alreadyProcessed, late.match.settlementReceipt.outcome], [true, 'forfeit'], 'a later winning log cannot reopen it');
 });
@@ -208,10 +218,15 @@ test('daily cap reached: a verified win closes and writes HP but pays nothing (p
   assert.equal((await payouts(uid)).paidSettles, A.ARENA_CPU_DAILY_PAYOUT_CAP, 'unchanged');
 });
 
-test('expiry: a live settle past the TTL is match_expired and writes nothing', async () => {
-  const uid = await setup(), i = await started(uid), before = await user(uid);
-  await assert.rejects(settle(uid, i.matchId, winLog(i.duel), T0 + A.ARENA_MATCH_TTL_MS + 1), code('match_expired'));
-  assert.deepEqual(await user(uid), before); assert.equal((await record(uid, i.matchId)).state, 'active');
+test('expiry: a live settle past the TTL is still match_expired, and (forfeit-is-loss: timing out is a loss) the match closes as a loss, once', async () => {
+  const uid = await setup(), i = await started(uid), before = await user(uid), t = T0 + A.ARENA_MATCH_TTL_MS + 1;
+  await assert.rejects(settle(uid, i.matchId, winLog(i.duel), t), code('match_expired'));
+  const after = await user(uid), rec = await record(uid, i.matchId);
+  assert.deepEqual([rec.state, rec.settlementReceipt.outcome, rec.settlementReceipt.countedAsLoss], ['expired', 'forfeit', true]);
+  assert.deepEqual([after.losses, after.wins, after.holosTokens, after.holobotVitals], [before.losses + 1, before.wins, before.holosTokens, before.holobotVitals]);
+  const snap = JSON.stringify([await user(uid), await record(uid, i.matchId), await payouts(uid)]);
+  await assert.rejects(settle(uid, i.matchId, winLog(i.duel), t + 5), code('match_expired'));
+  assert.equal(JSON.stringify([await user(uid), await record(uid, i.matchId), await payouts(uid)]), snap, 'counted once');
 });
 
 test('old clients: resolver (duelSchema only) and legacy (no opt-in) are unchanged with the flag ON', async () => {
@@ -241,7 +256,7 @@ test('mode lock: a live match refuses intents, HP reports and a missing log; the
   assert.equal((await record(uid, i.matchId)).state, 'active');
   const v = await setup();
   await assert.rejects(issue(v, { duelInputs: 'duel-inputs-1' }), code('invalid_request'));
-  await assert.rejects(issue(v, { fightRules: 'duel-rules-7', duelInputs: 'duel-inputs-2' }), code('invalid_request'));
+  await assert.rejects(issue(v, { fightRules: 'duel-rules-8', duelInputs: 'duel-inputs-2' }), code('invalid_request'));
   await assert.rejects(issue(v, { duelInputs: 'duel-inputs-2', tournamentId: 'starter' }), code('invalid_request'));
   const body = { requestId: 'req_live_identity', tierId: 'rookie', paymentMethod: 'tokens', holobotId: 'ace', opponentName: 'HARE' };
   await call(v, { operation: 'issue', ...body, duelSchema: 'duel-receipt-1' });

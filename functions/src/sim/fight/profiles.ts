@@ -48,8 +48,22 @@ export function allBrainProfiles(): BrainProfile[] {
   ];
 }
 
+/**
+ * beast-fighter-1 (BEAST_FIGHTER_SPEC.md): the Error Beast archetype personalities, in BEAST_PROFILE_IDS order. Kept OUT of
+ * allBrainProfiles / PROFILE_ROSTER_IDS (the 13-row table stays parity-pinned and practice never offers a beast). The issued
+ * profile id of a beast fight is its archetype id (rules.beastArchetype). Placeholders; Pak tunes.
+ */
+export const BEAST_PROFILE_IDS = ['beast_bruiser'] as const;
+export function allBeastProfiles(): BrainProfile[] {
+  return [
+    //  id               style                 aggr  engMin band close chain heavy feint guard ctr  beat  break  circle shove burst lowHp special            escape charge
+    P('beast_bruiser', 'error beast bruiser', 5000, 60000, 0, true, 20, 5500, 300, 3000, 2000, 1000, 35000, 1500, 3000, 4000, 13000, S.FullSyncOnBreak, 0, 5000),
+  ];
+}
+
+/** A Holobot profile, else a beast archetype profile (by archetype id, never by beast id). Unknown id throws. */
 export function brainProfile(id: string): BrainProfile {
-  const p = allBrainProfiles().find(x => x.id === id);
+  const p = allBrainProfiles().find(x => x.id === id) ?? allBeastProfiles().find(x => x.id === id);
   if (!p) throw new RangeError('unknown_profile:' + id);
   return p;
 }

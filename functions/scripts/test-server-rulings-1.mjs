@@ -41,8 +41,9 @@ const epic = slot => ({ id: 'p_' + slot, name: 'Test ' + slot, rarity: 'Epic', s
 
 test('ruling 1: equipped parts reach the input-log fighter exactly as the resolver applies them; the ledger stays on the bot\'s scale', async () => {
   const flags = { arenaGatheringSeen: true, tournamentsWon: 2, arenaArcBuilt: false, holoZonesArcBuilt: false };
-  const bare = world({ storyFlags: flags }), geared = world({ storyFlags: flags, equippedParts: { ACE: { arms: epic('arms'), core: epic('core'), legs: epic('legs') } } });
   for (const options of [ON, ATTRS]) {
+    // fresh worlds per rules version (forfeit-is-loss: a forfeit now starts the per-rival cooldown, so a world cannot reissue at once)
+    const bare = world({ storyFlags: flags }), geared = world({ storyFlags: flags, equippedParts: { ACE: { arms: epic('arms'), core: epic('core'), legs: epic('legs') } } });
     const a = await issueLog(bare, options), b = await issueLog(geared, options);
     const fa = a.duel.rules.fighters[0], fb = b.duel.rules.fighters[0];
     assert.equal(fb.attack, fa.attack + 8 + 2, 'arms +8 ATK, legs +2 ATK');
@@ -51,8 +52,6 @@ test('ruling 1: equipped parts reach the input-log fighter exactly as the resolv
     if (options === ATTRS) assert.equal(fb.speed, fa.speed + 2 + 1, 'arms +2 SPD, legs +1 SPD on duel-rules-5');
     assert.deepEqual(geared.record(b.battleId).issuedVitals, bare.record(a.battleId).issuedVitals, 'issued on the Holobot\'s own max');
     assert.deepEqual(b.playerCombatants, a.playerCombatants, 'the presentation squad is untouched (as the resolver)');
-    // close them so the next loop can issue
-    await bare.call({ operation: 'forfeit', battleId: a.battleId }); await geared.call({ operation: 'forfeit', battleId: b.battleId });
   }
 });
 
@@ -65,8 +64,9 @@ test('Pak 2026-11-10: parts\' SPECIAL feeds the fighter\'s special on a duel-rul
   assert.match(b6.duel.rulesId, /^duel-rules-6:/);
   const f6a = a6.duel.rules.fighters[0], f6b = b6.duel.rules.fighters[0];
   assert.equal(f6b.special, f6a.special + 8, 'rules-6: SPECIAL +8'); assert.equal(f6b.defense, f6a.defense + 2);
-  await bare.call({ operation: 'forfeit', battleId: a6.battleId }); await geared.call({ operation: 'forfeit', battleId: b6.battleId });
-  const a5 = await issueLog(bare, ATTRS), b5 = await issueLog(geared, ATTRS);
+  // fresh worlds (forfeit-is-loss: a forfeit starts the per-rival cooldown, so the same world cannot reissue at once)
+  const bare5 = world({ storyFlags: flags }), geared5 = world({ storyFlags: flags, equippedParts: headOnly });
+  const a5 = await issueLog(bare5, ATTRS), b5 = await issueLog(geared5, ATTRS);
   assert.match(b5.duel.rulesId, /^duel-rules-5:/);
   const f5a = a5.duel.rules.fighters[0], f5b = b5.duel.rules.fighters[0];
   assert.equal(f5b.special, f5a.special, 'rules-5: SPECIAL untouched');
@@ -131,22 +131,26 @@ test('reported bug (ATTRS on): a bench bot with a positive fight-HP bonus that n
 
 // ---------------------------------------------------------------- ruling 3
 
-test('ruling 3: forfeit = an immediate no-pay loss that closes the battle; a new issue works at once (no cooldown)', async () => {
+test('ruling 3 + forfeit-is-loss: forfeit = an immediate no-pay loss that closes the battle and starts the per-rival cooldown', async () => {
   const w = world();
   const issue = await issueLog(w);
+  const pilotId = w.record(issue.battleId).lineup.opponentPilot.pilotId;
   const before = w.user();
   const r = await w.call({ operation: 'forfeit', battleId: issue.battleId }, now + 1000);
   assert.deepEqual([r.didWin, r.holosGranted, r.buddyUnitsGranted, r.alreadyProcessed, r.closedBy, r.progression.length], [false, 0, 0, false, 'forfeit', 0]);
   const after = w.user();
   for (const k of ['holosTokens', 'holobots', 'holobotVitals', 'rivalWins', 'pilotRank', 'buddyUnits']) assert.deepEqual(after[k], before[k], k);
   assert.equal(w.record(issue.battleId).settlement.closedBy, 'forfeit');
-  assert.deepEqual(w.ledger().openBattles, {}); assert.deepEqual(w.ledger().rivalLastSettledAtMs, {}, 'the per-rival cooldown is not started');
+  assert.deepEqual(w.ledger().openBattles, {}); assert.deepEqual(w.ledger().rivalLastSettledAtMs, { [pilotId]: now + 1000 }, 'the per-rival cooldown starts, as for a lost settle');
+  const closed = JSON.stringify([w.user(), w.ledger(), w.record(issue.battleId)]);
   const again = await w.call({ operation: 'forfeit', battleId: issue.battleId }, now + 2000);
   assert.deepEqual([again.alreadyProcessed, again.closedBy, again.holosGranted], [true, 'forfeit', 0]);
   const late = await w.call({ operation: 'settle', battleId: issue.battleId, inputLog: winLog(issue.duel) }, later);
   assert.deepEqual([late.alreadyProcessed, late.didWin], [true, false], 'a later winning log cannot reopen it');
-  const next = await issueLog(w, ON);
-  assert.equal(next.duel.mode, 'input-log', 'same rival pilot (fixed draws), issued at once');
+  assert.equal(JSON.stringify([w.user(), w.ledger(), w.record(issue.battleId)]), closed, 'repeats write nothing: no second loss, the cooldown does not move');
+  await assert.rejects(() => w.call({ operation: 'issue', duelInputs: 'duel-inputs-2' }, now + 2000), e => e.code === 'rival_cooldown' && e.retryAfterMs === 5 * 60_000 - 1000);
+  const next = await w.call({ operation: 'issue', duelInputs: 'duel-inputs-2' }, now + 1000 + 5 * 60_000);
+  assert.equal(next.duel.mode, 'input-log', 'same rival pilot (fixed draws), issued once the cooldown is over');
 });
 
 test('ruling 3: forfeit shape and scope: rival-battle-3 + battleId; only an input-log battle; unknown / expired refused', async () => {
@@ -174,9 +178,13 @@ test('ruling 3: a replay_mismatch settle closes the battle as a no-pay loss, the
   assert.equal(b.fightReceipt, undefined);
   assert.deepEqual(w.ledger().openBattles, {});
   for (const k of ['holosTokens', 'holobots', 'holobotVitals', 'rivalWins']) assert.deepEqual(w.user()[k], before[k], k);
+  const pilotId = b.lineup.opponentPilot.pilotId;
+  assert.deepEqual(w.ledger().rivalLastSettledAtMs, { [pilotId]: later }, 'forfeit-is-loss: the per-rival cooldown starts');
   const ok = await w.call({ operation: 'settle', battleId: issue.battleId, inputLog: winLog(issue.duel) }, later + 1);
   assert.deepEqual([ok.alreadyProcessed, ok.didWin, ok.closedBy], [true, false, 'replay_mismatch']);
-  assert.equal((await issueLog(w)).duel.mode, 'input-log', 'a new issue works at once');
+  assert.deepEqual(w.ledger().rivalLastSettledAtMs, { [pilotId]: later }, 'a resend does not move it');
+  await assert.rejects(() => w.call({ operation: 'issue', duelInputs: 'duel-inputs-2' }, later + 2), /rival_cooldown/);
+  assert.equal((await w.call({ operation: 'issue', duelInputs: 'duel-inputs-2' }, later + 5 * 60_000)).duel.mode, 'input-log', 'a new issue works once the cooldown is over');
   // an undecodable log is NOT a mismatch: it stays retryable and the battle stays open
   const w2 = world(), i2 = await issueLog(w2), bad = clone(winLog(i2.duel)); bad.sides[0].stream = '!!!!';
   await assert.rejects(() => w2.call({ operation: 'settle', battleId: i2.battleId, inputLog: bad }, later), /invalid_request/);
@@ -200,8 +208,9 @@ test('ruling 2: duel-rules-6 is issued only on the client\'s ask and only on top
   const w = world();
   const plain = await issueLog(w, ATTRS);
   assert.match(plain.duel.rulesId, /^duel-rules-5:/, 'no ask: today\'s issue');
-  await w.call({ operation: 'forfeit', battleId: plain.battleId });
-  const six = await issueLog(w, ATTRS, { fightRules: 'duel-rules-6' });
+  // a fresh world (forfeit-is-loss: a forfeit would start the per-rival cooldown against the same pilot)
+  const w6 = world();
+  const six = await issueLog(w6, ATTRS, { fightRules: 'duel-rules-6' });
   assert.match(six.duel.rulesId, /^duel-rules-6:/);
   const doc = F.rulesDocFromJson(six.duel.rules);
   assert.deepEqual(doc.tempo, F.defaultTempoRules());
@@ -210,9 +219,9 @@ test('ruling 2: duel-rules-6 is issued only on the client\'s ask and only on top
   assert.equal(F.rulesHash(doc.rules, doc.chase, doc.attrs, doc.tempo), six.duel.rulesHash);
   assert.equal(six.duel.simVersion, 'duel-sim-3', 'the wire envelope is unchanged');
   const log = winLog(six.duel);
-  const r = await w.call({ operation: 'settle', battleId: six.battleId, inputLog: log }, later, ATTRS);
+  const r = await w6.call({ operation: 'settle', battleId: six.battleId, inputLog: log }, later, ATTRS);
   assert.equal(r.fightReceipt.rulesId, six.duel.rulesId);
-  await assert.rejects(() => issueLog(world(), ATTRS, { fightRules: 'duel-rules-7' }), /invalid_request/);
+  await assert.rejects(() => issueLog(world(), ATTRS, { fightRules: 'duel-rules-8' }), /invalid_request/);
   const noAttrs = await issueLog(world(), { ...ON, fightChase: true }, { fightRules: 'duel-rules-6' });
   assert.match(noAttrs.duel.rulesId, /^duel-rules-4:/, 'without the attrs flag the ask changes nothing');
 });

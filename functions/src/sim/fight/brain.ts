@@ -536,7 +536,9 @@ export class FightCoreBrain implements FightBrainDriver {
     };
     const it = this.inner!.think(obs, rng);
     const inp = idleInput();
-    inp.moveX = axis(it.moveX); inp.moveZ = axis(it.moveZ); inp.guard = it.guard;
+    // duel-rules-7: a guard locked down by exhaustion is not held (a useless held guard would only block the CPU's own presses);
+    // always false without the guard block, so every earlier stream is unchanged
+    inp.moveX = axis(it.moveX); inp.moveZ = axis(it.moveZ); inp.guard = it.guard && !v.core.guardLocked(this.side);
     switch (it.press) {
       case AiPress.Strike: inp.press = Press.Light; break;
       case AiPress.Heavy: inp.press = Press.Heavy; break;

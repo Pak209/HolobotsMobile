@@ -18,6 +18,12 @@ export const SIM_VERSION_4 = 'duel-sim-4';
  * prefix). Issued ONLY to a client that asks for it at issue (`fightRules: 'duel-rules-6'`); tempo null = duel-rules-3/-4/-5 exactly. */
 export const RULES_SCHEMA_6 = 'duel-rules-6';
 export const SIM_VERSION_5 = 'duel-sim-5';
+/** duel-rules-7 (guard-hold-1, Pak 2026-11-11 "Guard costs stamina to hold"; GUARD_HOLD_DRAIN_SPEC.md): duel-rules-6 + the `guard`
+ * block (a held guard drains stamina; an exhausted guard drops and stays down until stamina recovers); simVersion duel-sim-6 (the
+ * state hash prefix). Issued ONLY on the ask `fightRules: 'duel-rules-7'`; guard null = duel-rules-6 exactly. Internally the block
+ * rides on the tempo object (`tempo.guard`), so every path that threads `tempo` carries it. */
+export const RULES_SCHEMA_7 = 'duel-rules-7';
+export const SIM_VERSION_6 = 'duel-sim-6';
 export const TICK_HZ = 30;
 export const MAX_ROSTER_PER_SIDE = 3;
 
@@ -92,7 +98,15 @@ export function defaultAttrRules(): FightAttrRules { return { ...ATTR_DEFAULTS }
 export const TEMPO_DEFAULTS = { lightTelegraphTicks: 6, cancelGuard: 1, cancelStep: 1, cancelPunishable: 0 };
 export type TempoKey = keyof typeof TEMPO_DEFAULTS;
 export const TEMPO_KEYS = Object.keys(TEMPO_DEFAULTS) as TempoKey[];
-export type FightTempoRules = { [K in TempoKey]: number };
+/** FightGuardRules (duel-rules-7 `guard`), in hash order. holdDrainPm: stamina per-mille drained per tick while the guard is raised
+ * (8 = a full bar in 125 ticks, 4.17 s); reraiseMinPm: after an exhaustion drop the guard cannot be raised until stamina >= this. */
+export const GUARD_DEFAULTS = { holdDrainPm: 8, reraiseMinPm: 200 };
+export type GuardKey = keyof typeof GUARD_DEFAULTS;
+export const GUARD_KEYS = Object.keys(GUARD_DEFAULTS) as GuardKey[];
+export type FightGuardRules = { [K in GuardKey]: number };
+export function defaultGuardRules(): FightGuardRules { return { ...GUARD_DEFAULTS }; }
+/** The issued tempo block; `guard` set = duel-rules-7 (not a TEMPO_KEYS field: hashed and serialized as its own block). */
+export type FightTempoRules = { [K in TempoKey]: number } & { guard?: FightGuardRules };
 export function defaultTempoRules(): FightTempoRules { return { ...TEMPO_DEFAULTS }; }
 
 /** duel-rules-5 only: the issued battle SPEED / SPECIAL (progression speed / intelligence). Serialized and hashed only in a
@@ -115,6 +129,8 @@ export type DuelRules5Doc = Omit<DuelRules4Doc, 'schemaVersion' | 'simVersion' |
 
 /** The duel-rules-6 JSON document: duel-rules-5 with simVersion duel-sim-5 + `tempo` after `attrs`. */
 export type DuelRules6Doc = Omit<DuelRules5Doc, 'schemaVersion' | 'simVersion'> & { schemaVersion: typeof RULES_SCHEMA_6; simVersion: typeof SIM_VERSION_5; tempo: FightTempoRules };
+/** The duel-rules-7 JSON document: duel-rules-6 with simVersion duel-sim-6 + `guard` after `tempo`. */
+export type DuelRules7Doc = Omit<DuelRules6Doc, 'schemaVersion' | 'simVersion'> & { schemaVersion: typeof RULES_SCHEMA_7; simVersion: typeof SIM_VERSION_6; guard: FightGuardRules };
 
 export class FightRulesError extends RangeError {}
 const fail = (code: string): never => { throw new FightRulesError(code); };
@@ -149,9 +165,30 @@ const KIT_ROWS: [string, number, number, number, number, number, number, number,
 ];
 export const KIT_IDS: readonly string[] = KIT_ROWS.map(r => r[0]);
 
-/** FightKitDefaults.Fighter: the bot's kit row (unknown bot = unknown_bot). */
+/**
+ * beast-fighter-1 (Pak 2026-11-11, BEAST_FIGHTER_SPEC.md): Error Beast fighters. The kit row belongs to a beast ARCHETYPE; the
+ * beast's own id (the issued holobotId, e.g. 'cacheback') picks the body and name and maps to its archetype. A new beast is one
+ * BEAST_ARCHETYPES entry (plus a new archetype row only if no existing one fits). Same columns as KIT_ROWS. KIT_IDS stays the
+ * Holobot list: beasts are never player fighters and never practice rivals. Numbers are placeholders (Pak tunes).
+ */
+//                  archetype         light heavy special primary run  strafe back bsMm bsT fjMm fjT hitL hitH
+const BEAST_KIT_ROWS: [string, number, number, number, number, number, number, number, number, number, number, number, number, number][] = [
+  ['beast_bruiser', C, 4500, 6000, M, 1700, 420, 400, 450, 28, 1500, 36, 11, 22],
+];
+export const BEAST_ARCHETYPE_IDS: readonly string[] = BEAST_KIT_ROWS.map(r => r[0]);
+/** Beast id -> archetype id. */
+export const BEAST_ARCHETYPES: Readonly<Record<string, string>> = Object.freeze({ cacheback: 'beast_bruiser' });
+export const BEAST_IDS: readonly string[] = Object.keys(BEAST_ARCHETYPES);
+export const isBeastId = (id: unknown): boolean => typeof id === 'string' && Object.prototype.hasOwnProperty.call(BEAST_ARCHETYPES, id);
+/** The archetype of a beast id, or null (a Holobot id, an archetype id itself, or an unknown id). */
+export const beastArchetype = (id: unknown): string | null => isBeastId(id) ? BEAST_ARCHETYPES[id as string] : null;
+/** Every id kitFighter accepts: the Holobots, then the beasts. */
+export const FIGHT_KIT_IDS: readonly string[] = [...KIT_IDS, ...BEAST_IDS];
+
+/** FightKitDefaults.Fighter: the bot's kit row, else a beast id's archetype row (unknown bot = unknown_bot). Def id = botId. */
 export function kitFighter(botId: string): FightFighterDef {
-  const r = KIT_ROWS.find(x => x[0] === botId);
+  const arch = beastArchetype(botId);
+  const r = KIT_ROWS.find(x => x[0] === botId) ?? (arch ? BEAST_KIT_ROWS.find(x => x[0] === arch) : undefined);
   if (!r) throw new FightRulesError('unknown_bot');
   return {
     ...newFighter(botId, 0), reachLightMm: r[1], reachHeavyMm: r[2], reachSpecialMm: r[3], primaryReachMm: r[4],
@@ -275,6 +312,15 @@ function rulesDoc34FromJson(o: unknown): { rules: FightRules; chase: FightChaseR
 /** FightRules.FromJsonAny(o, out chase, out attrs): duel-rules-3 (chase + attrs null), duel-rules-4 (attrs null) or duel-rules-5
  * (duel-rules-4 with simVersion duel-sim-4 + a strict attrs block + per-fighter speed / special). Same checks, order and codes as C#. */
 export function rulesDocFromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null; tempo: FightTempoRules | null } {
+  // duel-rules-7: the duel-rules-6 document (simVersion duel-sim-6) + a strict guard block, carried as tempo.guard
+  if (isObj(o) && o.schemaVersion === RULES_SCHEMA_7) {
+    exact(o, ['schemaVersion', 'simVersion', 'tickHz', 'rules', 'fighters', 'chase', 'attrs', 'tempo', 'guard']);
+    if (o.simVersion !== SIM_VERSION_6) fail('invalid_version');
+    const { guard, ...rest } = o;
+    const six = rulesDocFromJson({ ...rest, schemaVersion: RULES_SCHEMA_6, simVersion: SIM_VERSION_5 });
+    if (!six.tempo) return fail('invalid_tempo');
+    return { ...six, tempo: { ...six.tempo, guard: guardFromJson(guard) } };
+  }
   // duel-rules-6: the duel-rules-5 document (simVersion duel-sim-5) + a strict tempo block
   if (isObj(o) && o.schemaVersion === RULES_SCHEMA_6) {
     exact(o, ['schemaVersion', 'simVersion', 'tickHz', 'rules', 'fighters', 'chase', 'attrs', 'tempo']);
@@ -301,6 +347,22 @@ export function tempoFromJson(o: unknown): FightTempoRules {
   for (const k of TEMPO_KEYS) t[k] = int32(o[k], k);
   validateTempoRules(t);
   return t;
+}
+
+/** FightGuardRules.Validate (duel-rules-7). */
+export function validateGuardRules(g: FightGuardRules): void {
+  for (const k of GUARD_KEYS) if (!Number.isSafeInteger(g[k]) || g[k] < 0) fail('invalid_guard_' + k);
+  if (g.holdDrainPm > 1000 || g.reraiseMinPm > 1000) fail('invalid_guard_rules');
+}
+
+/** FightGuardRules.FromJson: strict (every key, integers only, nothing extra), then validateGuardRules. */
+export function guardFromJson(o: unknown): FightGuardRules {
+  if (!isObj(o)) return fail('invalid_guard');
+  exact(o, GUARD_KEYS);
+  const g = {} as FightGuardRules;
+  for (const k of GUARD_KEYS) g[k] = int32(o[k], k);
+  validateGuardRules(g);
+  return g;
 }
 
 function rulesDoc5FromJson(o: unknown): { rules: FightRules; chase: FightChaseRules | null; attrs: FightAttrRules | null } {
@@ -454,11 +516,13 @@ export function rulesCanonicalBytes5(r: FightRules, chase: FightChaseRules | nul
 export function rulesCanonicalBytes6(r: FightRules, chase: FightChaseRules | null, attrs: FightAttrRules | null, tempo: FightTempoRules | null): Buffer {
   if (!tempo) return rulesCanonicalBytes5(r, chase, attrs);
   if (!chase || !attrs) return fail('invalid_tempo_without_attrs');
-  const w = new Int32Writer(704).ascii(RULES_SCHEMA_6);
+  // duel-rules-7 (tempo.guard set): "duel-rules-7" and the GUARD_KEYS after the tempo keys; otherwise duel-rules-6, byte for byte
+  const w = new Int32Writer(720).ascii(tempo.guard ? RULES_SCHEMA_7 : RULES_SCHEMA_6);
   for (const k of GLOBAL_KEYS) w.int(r[k]);
   for (const k of CHASE_KEYS) w.int(chase[k]);
   for (const k of ATTR_KEYS) w.int(attrs[k]);
   for (const k of TEMPO_KEYS) w.int(tempo[k]);
+  if (tempo.guard) for (const k of GUARD_KEYS) w.int(tempo.guard[k]);
   w.int(r.fighters.length);
   for (const f of r.fighters) {
     const id = Buffer.from(f.id, 'ascii');
@@ -471,12 +535,18 @@ export function rulesCanonicalBytes6(r: FightRules, chase: FightChaseRules | nul
 
 /** FightRules.ToJson(chase, attrs, tempo): duel-rules-6 when tempo is set (needs chase + attrs): the duel-rules-5 document with
  * simVersion duel-sim-5 and `tempo` after `attrs`; tempo null = rulesDocToJson5. */
-export function rulesDocToJson6(r: FightRules, chase: FightChaseRules | null, attrs: FightAttrRules | null, tempo: FightTempoRules | null): DuelRules3Doc | DuelRules4Doc | DuelRules5Doc | DuelRules6Doc {
+export function rulesDocToJson6(r: FightRules, chase: FightChaseRules | null, attrs: FightAttrRules | null, tempo: FightTempoRules | null): DuelRules3Doc | DuelRules4Doc | DuelRules5Doc | DuelRules6Doc | DuelRules7Doc {
   if (!tempo) return rulesDocToJson5(r, chase, attrs);
   if (!chase || !attrs) return fail('invalid_tempo_without_attrs');
   const five = rulesDocToJson5(r, chase, attrs) as DuelRules5Doc;
   const t = {} as FightTempoRules;
   for (const k of TEMPO_KEYS) t[k] = tempo[k];
+  if (tempo.guard) {
+    // duel-rules-7: `guard` after `tempo`, simVersion duel-sim-6
+    const g = {} as FightGuardRules;
+    for (const k of GUARD_KEYS) g[k] = tempo.guard[k];
+    return { ...five, schemaVersion: RULES_SCHEMA_7, simVersion: SIM_VERSION_6, tempo: t, guard: g };
+  }
   return { ...five, schemaVersion: RULES_SCHEMA_6, simVersion: SIM_VERSION_5, tempo: t };
 }
 

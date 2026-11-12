@@ -5,8 +5,9 @@ import { duelFighterFromCombatant } from '../lib/duelResolver';
 import { getHolobotFightStatDelta } from '../lib/fightBalance';
 import { applyPartBoosts, PartBoosts } from '../lib/partStats';
 import {
-  defaultAttrRules, defaultChaseRules, defaultRulesValues, defaultTempoRules, FightFighterDef, FightRules, FightRulesValues, KIT_IDS, kitFighter, RULES_SCHEMA, RULES_SCHEMA_4,
-  RULES_SCHEMA_5, RULES_SCHEMA_6, rulesDocToJson6, rulesHash, validateRules,
+  beastArchetype, defaultAttrRules, defaultChaseRules, defaultRulesValues, defaultTempoRules, FIGHT_KIT_IDS, FightFighterDef, FightRules, FightRulesValues, isBeastId, KIT_IDS,
+  kitFighter, RULES_SCHEMA, RULES_SCHEMA_4,
+  RULES_SCHEMA_5, RULES_SCHEMA_6, RULES_SCHEMA_7, defaultGuardRules, rulesDocToJson6, rulesHash, validateRules,
 } from '../sim/fight/rules';
 import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_VERSION, RANKS } from '../sim/fight/profiles';
 
@@ -44,6 +45,18 @@ export function inputLogCombatant<T extends Combatant>(c: T, b: PartBoosts, temp
   return tempo && b.special > 0 ? { ...out, intelligence: (c.intelligence ?? 0) + b.special } : out;
 }
 
+/**
+ * live-tuning-1 (Pak 2026-11-11, after the first live Arena fight ended in one HARE Special): the numbers every LIVE duel is issued
+ * with (rival, Arena and Guild Court input-log issues pass `live: true`; expedition and every test fixture leave it off, so their
+ * bytes are unchanged). Both are data in the issued, hashed snapshot, so a client replays them from `rules`, never from its own
+ * defaults:
+ * - the attrs block's specialOpenPm (an unguarded Special's multiplier) is 2000 instead of ATTR_DEFAULTS' 5000 (only when attrs is
+ *   issued; ATTR_DEFAULTS stays the Unity-parity value).
+ */
+export const LIVE_SPECIAL_OPEN_PM = 2000;
+/** Start SYNC is NOT live-tuned (Pak 2026-11-11: "Special should be built up from battle for both users and enemy"): every live
+ * fighter starts at its kit 0, or at the readiness / CPU start SYNC exactly as before live-tuning-1. */
+
 /** Rival tier -> CPU rank skill row (producer pick: tiers 0-1 rookie ... 9+ legendary; Pak tunes). */
 export function fightRankForTier(tier: number): string {
   const t = Number.isSafeInteger(tier) && tier > 0 ? tier : 0;
@@ -61,14 +74,21 @@ export function buildFightReplayIssue(input: {
   playerStartSync?: Readonly<Record<string, number>>; cpuStartSync?: number;
   /** Expedition carry and sizing. Omitted for rival/Arena, retaining their issued bytes. */
   playerStartStaminaPm?: Readonly<Record<string, number>>; hpScaleLights?: number;
+  /** live-tuning-1: a live duel (rival / Arena / Guild Court input-log issue): LIVE_SPECIAL_OPEN_PM (start SYNC is untouched). */
+  live?: boolean;
+  /** guard-hold-1: the client asked duel-rules-7 (`fightRules: 'duel-rules-7'`): a duel-rules-6 issue that is also `live` adds
+   * the guard block (GUARD_HOLD_DRAIN_SPEC.md); anything else ignores it (the issue it would have made, byte for byte). */
+  guardHold?: boolean;
   encounter?: {kind:'expedition';runId:string;sectorId:string;ambush:'none'};
   readinessStart?: readonly {holobotId: string; readiness: number; cap: number; startSync: number}[];
 }): FightReplayIssueWire | null {
   const { player, opponent } = input;
   if (player.length < 1 || player.length > 3 || opponent.length < 1 || opponent.length > 3) return null;
-  const ids = [...player, ...opponent].map(c => c.holobotId);
-  if (ids.some(id => !KIT_IDS.includes(id))) return null;
-  if (opponent.some(c => !(PROFILE_ROSTER_IDS as readonly string[]).includes(c.holobotId))) return null;
+  // beast-fighter-1: a beast (rules.BEAST_ARCHETYPES) may only be an opponent; its kit and CPU profile are its archetype's
+  if (player.some(c => !KIT_IDS.includes(c.holobotId))) return null;
+  if (opponent.some(c => !FIGHT_KIT_IDS.includes(c.holobotId))) return null;
+  if (opponent.some(c => !(PROFILE_ROSTER_IDS as readonly string[]).includes(c.holobotId) && !isBeastId(c.holobotId))) return null;
+  const profileOf = (id: string) => beastArchetype(id) ?? id;
   if (new Set(player.map(c => c.holobotId)).size !== player.length || new Set(opponent.map(c => c.holobotId)).size !== opponent.length) return null;
   const half = Math.trunc(FIGHT_START_GAP_MM / 2);
   const issueAttrs = input.chase === true && input.attrs === true;
@@ -105,19 +125,20 @@ export function buildFightReplayIssue(input: {
   try { validateRules(rules); } catch { return null; }
   if (!rules.fighters.some(f => f.side === 0 && f.hp > 0)) return null;
   const chase = input.chase ? defaultChaseRules() : null;
-  const attrs = issueAttrs ? defaultAttrRules() : null;
-  const tempo = issueTempo ? defaultTempoRules() : null;
+  const attrs = issueAttrs ? { ...defaultAttrRules(), ...(input.live === true ? { specialOpenPm: LIVE_SPECIAL_OPEN_PM } : {}) } : null;
+  const issueGuard = issueTempo && input.live === true && input.guardHold === true;
+  const tempo = issueTempo ? { ...defaultTempoRules(), ...(issueGuard ? { guard: defaultGuardRules() } : {}) } : null;
   const hash = rulesHash(rules, chase, attrs, tempo);
   const lead = opponent[0].holobotId;
   return {
     mode: FIGHT_REPLAY_MODE, schemaVersion: FIGHT_RECEIPT_SCHEMA, inputsSchema: FIGHT_INPUTS_SCHEMA, simVersion: FIGHT_SIM_VERSION,
-    rulesId: `${tempo ? RULES_SCHEMA_6 : attrs ? RULES_SCHEMA_5 : chase ? RULES_SCHEMA_4 : RULES_SCHEMA}:${input.battleId}`, rulesHash: hash,
+    rulesId: `${tempo?.guard ? RULES_SCHEMA_7 : tempo ? RULES_SCHEMA_6 : attrs ? RULES_SCHEMA_5 : chase ? RULES_SCHEMA_4 : RULES_SCHEMA}:${input.battleId}`, rulesHash: hash,
     rules: rulesDocToJson6(rules, chase, attrs, tempo) as unknown as FightReplayIssueWire['rules'],
     seed: input.seed, playerSide: 0,
     player: { roster: player.map(c => ({ fighterId: c.holobotId, holobotId: c.holobotId })) },
     cpu: {
-      side: 1, rank: issuedSkill(input.mentor ? 'Rookie' : fightRankForTier(input.tier)), profile: issuedProfile(brainProfile(lead)),
-      roster: opponent.map(c => ({ fighterId: 'cpu-' + c.holobotId, holobotId: c.holobotId, profile: c.holobotId })),
+      side: 1, rank: issuedSkill(input.mentor ? 'Rookie' : fightRankForTier(input.tier)), profile: issuedProfile(brainProfile(profileOf(lead))),
+      roster: opponent.map(c => ({ fighterId: 'cpu-' + c.holobotId, holobotId: c.holobotId, profile: profileOf(c.holobotId) })),
     },
     profilesVersion: PROFILES_VERSION,
     ...(input.readinessStart ? { readinessStart: [...input.readinessStart] } : {}),
