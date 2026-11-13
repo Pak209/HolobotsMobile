@@ -429,6 +429,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // buddy-capture-1: wild-spot live duels (open duel, per-Holobot failed-win counters, issue receipts):
+    // written only by wildDuelHost. No client read: `quote` returns what the phone shows.
+    match /wildDuels/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
     // Durable Arena admission, lease and receipts: callable-only at every depth.
     match /arenaMatches/{uid}/{document=**} {
       allow read, write: if false;
