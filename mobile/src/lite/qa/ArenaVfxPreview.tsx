@@ -52,7 +52,7 @@ function cityPrepared() {
   const bot = { holobotId: 'ace', level: 2, maxHealth: 150, attack: 38, defense: 22, speed: 20, intelligence: 18, commandRules: { version: 1, maxStamina: 7, staminaRegen: 0.5 } };
   const raw = { schemaVersion: 'rival-battle-3', battleId: 'rb_000000000000000000000000', expiresAtMs: Date.now() + 7_200_000, playerCombatants: [bot], encounter: { encounterId: 'rb_000000000000000000000000', seed: 1, opponentPilot: { pilotId: rival.citizenId }, opponentSquad: [{ ...bot, holobotId: rival.holobotId, attack: 31, defense: 18 }] } };
   const issue = readCityRivalIssue(raw, rival.citizenId, rival.holobotId);
-  const player = cityCombatantFighter(issue.player, 'player', 'offline-city-preview'), opponent = cityCombatantFighter(issue.opponent, 'rival', 'offline-city-preview');
+  const player = cityCombatantFighter(issue.player!, 'player', 'offline-city-preview'), opponent = cityCombatantFighter(issue.opponent, 'rival', 'offline-city-preview');
   for (const fighter of [player, opponent]) fighter.signatureFinisher = getSignatureFinisher(fighter.name);
   const battle = ArenaCombatEngine.initializeBattle(player, opponent, { battleType: 'pve', allowPlayerControl: true, potentialRewards: { exp: 0, syncPoints: 0 } });
   return { battle, playerMoves: [...resolveCombatKit({ idPrefix: 'city' }).slots], raw };
