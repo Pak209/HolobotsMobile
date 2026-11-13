@@ -26,6 +26,7 @@ export function buildQuestClaimUpdates(
     profile.inventory,
     profile.syncPoints || 0,
     quest,
+    profile.parts,
   );
   const nextRewardSystem = {
     ...progression,
@@ -38,6 +39,7 @@ export function buildQuestClaimUpdates(
   return {
     holobots: claimResult.holobots,
     inventory: claimResult.inventory,
+    ...(claimResult.parts ? { parts: claimResult.parts } : {}),
     lifetimeSyncPoints: nextLifetimeSyncPoints,
     leaderboardScore: computeLeaderboardScore({
       holobots: claimResult.holobots,

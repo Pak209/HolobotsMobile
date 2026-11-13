@@ -77,8 +77,9 @@ describe("genesis sign-up client/server parity", () => {
     expect(authSource).toContain('export type GenesisStarterChoice = "ACE" | "KUMA" | "SHADOW";');
   });
 
-  it("host-only genesis grants (DECISIONS #72.5): one Repair Kit, added by the callable on top of the base doc", () => {
-    expect(server.buildGenesisHostGrants()).toEqual({ itemStocks: { repair_kit: 1 } });
+  it("host-only genesis grants (DECISIONS #72.5 + early-progression-1): one Repair Kit and 300 starter Holos, added by the callable on top of the base doc", () => {
+    expect(server.buildGenesisHostGrants()).toEqual({ itemStocks: { repair_kit: 1 }, holosTokens: 300 });
+    expect(server.GENESIS_STARTER_HOLOS).toBe(300);
     expect(server.GENESIS_REPAIR_KIT_ITEM).toBe("item.repair_kit");
     for (const starter of server.GENESIS_STARTER_CHOICES) {
       expect(server.buildGenesisSignupUserDoc(starter, "PakPilot", null)).not.toHaveProperty("itemStocks");
