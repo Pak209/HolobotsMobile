@@ -9,7 +9,7 @@ const reply = { schemaVersion: "rival-battle-3", battleId: "rb_0123456789abcdef0
 describe("host admission to mobile rival combat", () => {
   it("copies host stats and disambiguates mirror bot identities", () => {
     const issue = readCityRivalIssue(reply, citizen, "ace", 1);
-    const player = cityCombatantFighter(issue.player, "player", "uid");
+    const player = cityCombatantFighter(issue.player!, "player", "uid");
     const rival = cityCombatantFighter(issue.opponent, "rival", "uid");
     expect(player.attack).toBe(38); expect(player.maxHP).toBe(180);
     expect(player.holobotId).not.toBe(rival.holobotId);
@@ -29,6 +29,20 @@ describe("host admission to mobile rival combat", () => {
     expect(() => readCityRivalIssue({ ...reply, playerCombatants: [] }, citizen, "ace", 1)).toThrow();
     expect(() => readCityRivalIssue({ ...reply, playerCombatants: [{ ...bot, attack: NaN }] }, citizen, "ace", 1)).toThrow();
     expect(() => readCityRivalIssue({ ...reply, playerCombatants: [{ ...bot, commandRules: { ...bot.commandRules, version: 2 } }] }, citizen, "ace", 1)).toThrow();
+  });
+  it("reads a citizen issue without playerCombatants (host 8f82e19) as no entrant, never invented stats", () => {
+    const { playerCombatants: _omitted, ...citizenReply } = reply;
+    const issue = readCityRivalIssue(citizenReply, citizen, "ace", 1);
+    expect(issue.player).toBeNull();
+    expect(issue.opponent.attack).toBe(38);
+    expect(issue.raw).toBe(citizenReply);
+    // Fail-closed on everything else: the opponent block, pilot, expiry and a malformed present squad.
+    expect(() => readCityRivalIssue({ ...citizenReply, encounter: { ...citizenReply.encounter, opponentSquad: [] } }, citizen, "ace", 1)).toThrow();
+    expect(() => readCityRivalIssue({ ...citizenReply, encounter: { ...citizenReply.encounter, opponentSquad: [{ ...bot, attack: 0 }] } }, citizen, "ace", 1)).toThrow();
+    expect(() => readCityRivalIssue(citizenReply, "wrong", "ace", 1)).toThrow();
+    expect(() => readCityRivalIssue(citizenReply, citizen, "ace", 100_000)).toThrow();
+    expect(() => readCityRivalIssue({ ...citizenReply, playerCombatants: null }, citizen, "ace", 1)).toThrow();
+    expect(() => readCityRivalIssue({ ...citizenReply, playerCombatants: {} }, citizen, "ace", 1)).toThrow();
   });
   it("does not invent rounds when the host has no trace", () => { expect(cityBattleRounds([])).toEqual([]); });
 });

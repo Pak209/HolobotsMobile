@@ -21,7 +21,7 @@ function fightToKo() {
   // The engine gates actions on wall-clock cooldowns; step a fake clock like the component's 180 ms loop.
   vi.useFakeTimers(); vi.setSystemTime(1_000_000);
   const issue = readCityRivalIssue(reply, citizen, "tsuin", 1);
-  let battle: BattleState = ArenaCombatEngine.initializeBattle(cityCombatantFighter(issue.player, "player", "uid"), cityCombatantFighter(issue.opponent, "rival", "uid"), { battleType: "pve", allowPlayerControl: true, potentialRewards: { exp: 0, syncPoints: 0 } });
+  let battle: BattleState = ArenaCombatEngine.initializeBattle(cityCombatantFighter(issue.player!, "player", "uid"), cityCombatantFighter(issue.opponent, "rival", "uid"), { battleType: "pve", allowPlayerControl: true, potentialRewards: { exp: 0, syncPoints: 0 } });
   let observed: CityObservedAction[] = [];
   const commit = (next: BattleState) => { observed = [...observed, ...cityObservedActions(battle, next)]; battle = next; };
   for (let tick = 0; tick < 2000 && battle.status === "active"; tick++) {
