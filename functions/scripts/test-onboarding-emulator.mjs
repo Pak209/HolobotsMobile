@@ -47,7 +47,7 @@ test('genesis: a new account starts at step 0 with one Repair Kit; a repeat sign
   assert.equal((await createGenesisProfile.run({ auth: { uid }, data: { starterHolobot: 'SHADOW', username: 'New Pilot' } })).created, true);
   const stored = await user(uid);
   assert.equal(stored.onboarding.step, 0); assert.equal(stored.onboarding.skipped, false); assert.ok(Number.isSafeInteger(stored.onboarding.stepAt));
-  assert.deepEqual(stored.itemStocks, { repair_kit: 1 }); assert.deepEqual(stored.inventory, {}); assert.equal(stored.holosTokens, 0);
+  assert.deepEqual(stored.itemStocks, { repair_kit: 1 }); assert.deepEqual(stored.inventory, {}); assert.equal(stored.holosTokens, 300); // early-progression-1 starter Holos
   const r = await snap(uid);
   assert.deepEqual(r.onboarding, { schemaVersion: 'onboarding-1', step: 0, stepId: 'arrive', skipped: false, stepAt: stored.onboarding.stepAt });
   assert.equal(validate(r.onboarding), true);

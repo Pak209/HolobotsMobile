@@ -7,7 +7,7 @@
  *
  * Pure module: no firebase imports, safe to import from tests.
  */
-import { applyExpBooster, computeBattleSettlement, type BattleSettlementInput } from "./battleSettlement";
+import { applyExpBooster, computeBattleSettlement, getBattleBaseRewards, type BattleSettlementInput } from "./battleSettlement";
 import { toHolobotKey } from "./mintingEconomy";
 import { applyHolobotExperience, getHolobotRank, normalizeUserHolobot } from "./progression";
 
@@ -32,6 +32,8 @@ export type BattleExperienceAward = {
   /** The profile's holobots array with the awards applied (unchanged entries are the stored objects). */
   holobots: unknown[];
   progression: HolobotProgressionEntry[];
+  /** The table EXP after the live-win cap, before the first-win and EXP Booster multipliers. */
+  tableExp: number;
 };
 
 const whole = (value: unknown) => Math.max(0, Math.floor(Number(value) || 0));
@@ -66,13 +68,18 @@ export function awardBattleExperienceRaw(
   holobotIds: readonly string[],
   input: BattleSettlementInput,
   nowMs: number,
-  options: { withheld?: boolean } = {},
+  options: { withheld?: boolean; bonusCap?: number; expMultiplier?: number } = {},
 ): BattleExperienceAward | null {
   const settlement = computeBattleSettlement(input);
   if (!settlement) return null;
 
+  // early-progression-1 (lib/liveWinRewards.ts): a live win's multiplier is capped (bonusCap), then the first win of the day
+  // multiplies (expMultiplier), then the EXP Booster. A loss is the table's 0.3 rule, untouched by the cap.
+  const tableExp = input.didWin && options.bonusCap !== undefined
+    ? Math.floor(getBattleBaseRewards(settlement.tier).exp * Math.min(settlement.performanceBonus, options.bonusCap))
+    : settlement.exp;
   const holobots: unknown[] = Array.isArray(userData.holobots) ? [...userData.holobots] : [];
-  const exp = options.withheld ? 0 : applyExpBooster(settlement.exp, userData.expBoosterActiveUntil, nowMs);
+  const exp = options.withheld ? 0 : applyExpBooster(tableExp * Math.max(1, Math.floor(options.expMultiplier ?? 1)), userData.expBoosterActiveUntil, nowMs);
   const progression: HolobotProgressionEntry[] = [];
 
   for (const holobotId of holobotIds) {
@@ -89,5 +96,5 @@ export function awardBattleExperienceRaw(
     progression.push(holobotProgressionRow(holobotId, exp, before, after));
   }
 
-  return { expPerHolobot: exp, holobots, progression };
+  return { expPerHolobot: exp, holobots, progression, tableExp };
 }

@@ -52,7 +52,7 @@ test('issue: playerCombatants carry the real stats (getPlayerBattleStats) and pr
   assert.deepEqual({ maxHealth: ace.maxHealth, attack: ace.attack, defense: ace.defense, speed: ace.speed, intelligence: ace.intelligence }, { maxHealth: stats.maxHP, attack: stats.attack, defense: stats.defense, speed: stats.speed, intelligence: stats.intelligence });
   // ACE L4: base x10 x 1.15 + boosts, then power/guard/tempo/focus multipliers.
   assert.deepEqual([ace.maxHealth, ace.attack, ace.defense, ace.speed, ace.intelligence], [192, 96, 71, 80, 60]);
-  assert.deepEqual({ level: ace.level, experience: ace.experience, nextLevelExp: ace.nextLevelExp, attributePoints: ace.attributePoints, rank: ace.rank }, { level: 4, experience: 1700, nextLevelExp: 2500, attributePoints: 1, rank: 'Starter' });
+  assert.deepEqual({ level: ace.level, experience: ace.experience, nextLevelExp: ace.nextLevelExp, attributePoints: ace.attributePoints, rank: ace.rank }, { level: 4, experience: 1700, nextLevelExp: 1800, attributePoints: 1, rank: 'Starter' }); // early-progression-1: the stored old-curve 2,500 reads as 1,800
   assert.deepEqual(ace.boostedAttributes, { attack: 3, defense: 0, speed: 0, special: 0, health: 20 });
   assert.equal(wolf.level, 12); assert.equal(wolf.rank, 'Champion');
   assert.deepEqual({ maxStamina: ace.maxStamina, staminaRegen: ace.staminaRegen, deployment: ace.deployment }, { maxStamina: L.RIVAL_BASELINE.maxStamina, staminaRegen: L.RIVAL_BASELINE.staminaRegen, deployment: { ...L.RIVAL_BASELINE.deployment } });
@@ -99,7 +99,8 @@ test('settle win: every fielded bot gets the one-table EXP of the issued tier; b
   assert.deepEqual(p.holobots[2], bots()[2], 'WOLF was not fielded');
   // KUMA 350 + 180 crosses 400: level 2, +1 attribute point, Starter.
   const kuma = s.reply.progression[1];
-  assert.deepEqual(kuma, { holobotId: 'kuma', expGained: 180, levelBefore: 1, levelAfter: 2, attributePoints: 1, experience: 530, nextLevelExp: 900, rank: 'Starter' });
+  // early-progression-1: KUMA's stored old-curve 400 reads as 200; 350 + 180 = 530 passes LV2 (200) and LV3 (500): +2 points.
+  assert.deepEqual(kuma, { holobotId: 'kuma', expGained: 180, levelBefore: 1, levelAfter: 3, attributePoints: 2, experience: 530, nextLevelExp: 1000, rank: 'Starter' });
   assert.deepEqual(s.battleUpdates.settlement.progression, s.reply.progression);
   assert.deepEqual(s.battleUpdates.settlement.fielded, ['ace', 'kuma']);
 });
@@ -133,7 +134,7 @@ test('loss: 30 % EXP; a loss sooner than RIVAL_MIN_XP_MS settles but earns none 
   const fast = issue(q, ['ace'], T0 - 1000);
   const f = settle(q, fast, false, ['ace']);
   assert.equal(f.reply.alreadyProcessed, false); assert.equal(f.reply.didWin, false);
-  assert.deepEqual(f.reply.progression, [{ holobotId: 'ace', expGained: 0, levelBefore: 4, levelAfter: 4, attributePoints: 1, experience: 1700, nextLevelExp: 2500, rank: 'Starter' }]);
+  assert.deepEqual(f.reply.progression, [{ holobotId: 'ace', expGained: 0, levelBefore: 4, levelAfter: 4, attributePoints: 1, experience: 1700, nextLevelExp: 1800, rank: 'Starter' }]);
   assert.equal('holobots' in f.userUpdates, false); assert.deepEqual(q.holobots, bots());
 });
 

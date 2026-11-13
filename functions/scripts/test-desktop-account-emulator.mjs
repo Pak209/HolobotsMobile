@@ -27,7 +27,7 @@ test('v3: normalised holobots + battleStats / displayStats; the starter Buddy Un
   assert.equal(r.schemaVersion, 'desktop-account-3'); assert.deepEqual(r.buddyUnits, { light: 1, medium: 0, heavy: 0 });
   assert.deepEqual(r.holobots[0].battleStats, { attack: 96, defense: 71, maxHP: 192, speed: 80, intelligence: 60 });
   assert.deepEqual(r.holobots[0].displayStats, P.getHolobotDisplayStats('ACE', 4, { attack: 3, health: 20 }));
-  assert.deepEqual({ ...r.holobots[1], battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined }, { name: 'KUMA', level: 1, attributePoints: 1, experience: 0, nextLevelExp: 400, rank: 'Rookie', boostedAttributes: {}, battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined });
+  assert.deepEqual({ ...r.holobots[1], battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined }, { name: 'KUMA', level: 1, attributePoints: 1, experience: 0, nextLevelExp: 200, rank: 'Rookie', boostedAttributes: {}, battleStats: undefined, battlefieldMovement: undefined, displayStats: undefined });
   const s = E.getPlayerBattleStats({ name: 'KUMA', level: 1 });
   assert.deepEqual(r.holobots[1].battleStats, { attack: s.attack, defense: s.defense, maxHP: s.maxHP, speed: s.speed, intelligence: s.intelligence });
   const stored = (await db.doc(`users/${uid}`).get()).data();

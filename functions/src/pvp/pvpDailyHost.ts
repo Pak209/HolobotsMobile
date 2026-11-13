@@ -19,7 +19,7 @@ export const pvpDaily = onCall(async request => {
   } catch (error) {
     if (error instanceof PvpError || error instanceof RivalError) {
       const retryAfterMs = error instanceof RivalError ? error.retryAfterMs : undefined;
-      throw new HttpsError(pvpErrorCode(error), error.code, retryAfterMs !== undefined ? { rejectionCode: error.code, retryAfterMs } : { rejectionCode: error.code });
+      throw new HttpsError(pvpErrorCode(error), error.code, retryAfterMs !== undefined ? { rejectionCode: error.code, retryAfterMs } : { ...(error instanceof RivalError && error.code === 'holobot_ko' ? error.detail ?? {} : {}), rejectionCode: error.code }); // ko-return-25 readiness detail
     }
     throw error;
   }

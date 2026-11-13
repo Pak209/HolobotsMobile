@@ -55,6 +55,9 @@ type AiRules = {
   escapeCost: number; chargeCost: number; chargeMaxStartMm: number; shoveOnHeavyInClose: boolean;
   /** duel-rules-5 SYNC spend policy: the half / full special SYNC costs (rules specialHalfSync / specialFullSync). */
   specialHalfSync?: number; specialFullSync?: number;
+  /** cpu-stamina-8: the per-range regen rates (stamina units per second, x100 like every other stamina number here). Read only on
+   * duel-rules-8 (AiObs.econ set). */
+  regenOut?: number; regenEdge?: number; regenExchange?: number; regenClose?: number;
 };
 const costOf = (r: AiRules, s: number) => (s === Strike.Heavy ? r.heavyCost : s === Strike.Special ? r.specialCost : r.lightCost);
 type AiObs = {
@@ -63,7 +66,12 @@ type AiObs = {
   /** duel-rules-5 (#72.78): the SYNC spend policy is on (the core runs the attrs block). False/absent on duel-rules-3/-4, where the
    * brain is byte-for-byte today's (no extra draws). */
   syncSpend?: boolean;
+  /** cpu-stamina-8 (duel-rules-8 only: the core runs the `stamina` block): the winded rule the brain plans with. Absent on duel-rules-7
+   * and older, where every line below that reads it is skipped (no extra draws, the same decisions byte for byte). */
+  econ?: AiEcon;
 };
+/** cpu-stamina-8: the fighter's own winded state and the issued winded rule (x100 units: windRegen per second, windExit). */
+type AiEcon = { winded: boolean; windRegen: number; windExit: number };
 type AiIntent = { moveX: number; moveZ: number; guard: boolean; press: number; stepX: number; stepZ: number };
 
 // ---------------------------------------------------------------- FightBrain
@@ -72,6 +80,18 @@ const Mode = { Approach: 0, Stalk: 1, Engage: 2, Retreat: 3 } as const;
 const HIST_LEN = 32, THINK_EVERY = 3, FEINT_AT_AGE = 7, NO_TICK = -2147483648;
 export const EXCHANGE_PLAN_BASE_TICKS = 24, EXCHANGE_PLAN_PER_CHAIN_X10 = 12, EXCHANGE_PLAN_SPREAD_TICKS = 30, EXIT_MARGIN_MM = 600;
 export const STRIKE_MARGIN_MM = 900;
+/** cpu-stamina-8 (duel-rules-8 only). ECON_PATIENCE_TICKS: how far ahead the brain projects its regen at the current range when it
+ * asks "will I reach my engage number here?" (5 s). ECON_SLACK: the margin a strike keeps above the break line (10 per mille).
+ * ECON_PIN_TICKS by rank (Rookie .. Legendary): how long it keeps trying to back out of a low-regen range before it decides it is
+ * pinned and fights with the stamina it has. Legendary (owner "Soften Legendary"): 90, with ECON_READ_BPS 5000 and
+ * ECON_REACTION_TICKS 8, which put it back at about its rules-7 strength. */
+export const ECON_PATIENCE_TICKS = 150, ECON_SLACK = 1000;
+export const ECON_PIN_TICKS: readonly number[] = [90, 80, 70, 65, 60, 90];
+/** cpu-stamina-8 (rules-8 only), by rank: the chance (bps) it reads a resolved rival strike's recovery as its opening (E0b / A2). */
+/** cpu-stamina-8 (rules-8 only), by rank: the perception lag in ticks. The rank table's reactionTicks except Legendary, which the
+ * rules-8 economy rewarded far more than rules-7 did (it is softened back to rules-7 strength here). */
+export const ECON_REACTION_TICKS: readonly number[] = [15, 13, 11, 9, 7, 8];
+export const ECON_READ_BPS: readonly number[] = [3000, 4000, 5000, 6000, 7000, 5000];
 
 const clampI = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
@@ -119,6 +139,8 @@ export class FightBrain {
   private prevAct: number = Act.Free;
   private escapeTried = false; private chargeTried = false;   // r3: one quick-escape roll per retreat, one ShoulderCharge roll per chain
   private chargeFollowAt = -1;                                 // r3: the tick to press the Strike that turns its sidestep into the charge
+  // cpu-stamina-8 (duel-rules-8 only): ticks spent wanting out of a low-regen range, the latched "pinned" verdict, last tick's want
+  private pinTicks = 0; private pinned = false; private wantOut = false; private recoveryRead = NO_TICK;
   /** FightBrainStats subset: duel-rules-5 SYNC spend policy finishers pressed at the 50 / 100 tier (#72.78). */
   readonly stats = { halfSpends: 0, fullSpends: 0 };
 
@@ -133,7 +155,14 @@ export class FightBrain {
     return this.hist[(this.histCount - 1 - back) % HIST_LEN];
   }
 
-  private affords(s: AiView, k: number): boolean { return s.stamina - costOf(this.r, k) >= this.r.breakLine + 1000; }
+  /** Can it pay for strike k and stay above the break line? cpu-stamina-8: a pinned fighter (rules-8 only) takes a light with what it has. */
+  private affords(s: AiView, k: number): boolean { return s.stamina - costOf(this.r, k) >= this.r.breakLine + 1000 || (this.pinned && k === Strike.Light); }
+
+  /** cpu-stamina-8: its own light wind-up (as section A estimates it) would not reach contact before the rival's perceived strike lands. */
+  private windUpLoses(s: AiView, o: AiView, t: number): boolean {
+    const R = this.r, myTele = (t - this.lastOwnRecoveryEnd <= 9 ? R.chainTelegraphTicks : R.openerTelegraphTicks) + (s.stamina < R.breakLine ? 3 : 0);
+    return myTele >= o.contactTick - t;
+  }
 
   private startChain(rng: FightRng, forced: number): void {
     this.burstTried = false; this.postChain = false; this.nextKind = Strike.None; this.chargeTried = false;
@@ -164,7 +193,9 @@ export class FightBrain {
   think(obs: AiObs, rng: FightRng): AiIntent {
     const P = this.profile, K = this.skill, R = this.r;
     this.hist[this.histCount % HIST_LEN] = obs.opponent; this.histCount++;
-    const o = this.perceived(Math.max(0, K.reactionTicks - 1));
+    // cpu-stamina-8: on rules-8 the perception lag comes from ECON_REACTION_TICKS[rank] (only Legendary differs from the rank table)
+    const lag = obs.econ ? ECON_REACTION_TICKS[rankIndex(K.rank)] : K.reactionTicks;
+    const o = this.perceived(Math.max(0, lag - 1));
     const s = obs.self;
     const t = obs.tick;
     const kit = obs.selfKit;
@@ -225,11 +256,17 @@ export class FightBrain {
 
     // ---- A2. guard discipline ----
     if (this.shell) {
-      const swinging = o.act === Act.Telegraph || (o.act === Act.Recovery && o.actEndTick - (t - K.reactionTicks) <= 12);
+      const swinging = o.act === Act.Telegraph || (o.act === Act.Recovery && o.actEndTick - (t - lag) <= 12);
       if (swinging && !ownTele) {
         if (this.guardFrom < 0 || this.guardUntil < t) this.guardFrom = t;
         this.guardUntil = Math.max(this.guardUntil, t + 4);
       } else if (o.act !== Act.Telegraph && o.act !== Act.Recovery) this.shell = false;
+      else if (obs.econ && o.act === Act.Recovery && o.actStartTick !== this.recoveryRead) {
+        // cpu-stamina-8 (rules-8 only): the rival's strike has resolved and its recovery is not yet near its end: once per recovery
+        // it reads that as its opening and drops the shell, at ECON_READ_BPS[rank]
+        this.recoveryRead = o.actStartTick;
+        if (roll(rng, ECON_READ_BPS[rankIndex(K.rank)])) this.shell = false;
+      }
     }
 
     // ---- B. a perceived feint cancel ----
@@ -296,9 +333,28 @@ export class FightBrain {
     let aggr = P.aggressionBps;
     if (s.hp * 100 < 35 * s.maxHp) aggr = Math.min(10000, div(aggr * P.lowHpRiskBps, 10000));
 
+    // ---- E0. cpu-stamina-8 (duel-rules-8 only): pinned = it kept trying to back out (retreat / stalk out to regenerate) for
+    // ECON_PIN_TICKS[rank] and is still in a low-regen range (CLOSE / EXCHANGE) or inside the rival's light threat; the verdict
+    // holds until it is clear of both ----
+    const E = obs.econ;
+    // ---- E0b. cpu-stamina-8 (duel-rules-8 only): a rival strike it can SEE coming (its perceived view, lagged by the rank's
+    // reactionTicks) and is inside: no fresh wind-up into it; the telegraph answer above (guard / step / beat) and the punish of
+    // its recovery do the work. An exchange younger than the reaction lag was opened by a wind-up it cannot see yet, so the
+    // exchange engage boost waits until that strike has resolved (Rookie's longer lag walks into more of them than Legendary's) ----
+    const incoming = !!E && o.act === Act.Telegraph && d <= threat(obs.opponentKit, o.strike) + 300;
+    const unseenOpen = !!E && obs.exchangeTicks > 0 && obs.exchangeTicks <= lag;
+    const answer = !!E && obs.phase !== Phase.Exchange && obs.phase !== Phase.Close && o.act === Act.Recovery && d <= threat(kit, Strike.Light) + R.burstMm;
+    if (E) {
+      const caught = obs.phase === Phase.Close || obs.phase === Phase.Exchange || d <= threat(obs.opponentKit, Strike.Light) + 300;
+      if (!caught) { this.pinned = false; this.pinTicks = 0; }
+      else if (this.wantOut) { if (!s.breaking && ++this.pinTicks >= ECON_PIN_TICKS[rankIndex(K.rank)]) this.pinned = true; }   // its own BREAK pauses the count
+      else if (this.mode === Mode.Engage) this.pinTicks = 0;   // it went in on its own: start over; otherwise (hit, guarding) the count waits
+    }
+
     if (this.mode !== Mode.Retreat) {
       const engagedish = obs.phase === Phase.Exchange || obs.phase === Phase.Close || d <= edgeOuter;
-      if (s.breaking || (s.stamina < P.breakAtStamina && engagedish && !ownTele)) {
+      // cpu-stamina-8: a pinned fighter stops retreating on its break number (its own BREAK still sends it out); always false before rules-8
+      if (s.breaking || (s.stamina < P.breakAtStamina && engagedish && !ownTele && !this.pinned)) {
         if (!s.breaking && press === AiPress.None) press = AiPress.Disengage;
         this.mode = Mode.Retreat; this.chainLeft = 0; this.openerFeint = false; this.feintPending = false; this.nextKind = Strike.None; this.shell = false;
         this.retreatTarget = Math.min(100000, Math.max(P.engageMinStamina, P.breakAtStamina + 15000));
@@ -310,17 +366,33 @@ export class FightBrain {
       this.escapeTried = true;
       if (P.escapeBps > 0 && s.stamina >= R.escapeCost + 5000 && roll(rng, P.escapeBps)) { press = AiPress.Escape; stepX = -ux; stepZ = -uz; }
     }
-    if (this.mode === Mode.Retreat && !s.breaking && s.stamina >= this.retreatTarget) this.mode = d > edgeOuter ? Mode.Approach : Mode.Stalk;
+    if (this.mode === Mode.Retreat && !s.breaking && (s.stamina >= this.retreatTarget || this.pinned)) this.mode = d > edgeOuter ? Mode.Approach : Mode.Stalk;
     if (this.mode === Mode.Approach && d <= edgeOuter) this.mode = Mode.Stalk;
     if (this.mode === Mode.Stalk && d > edgeOuter + 1500) this.mode = Mode.Approach;
 
     const inExchange = obs.phase === Phase.Exchange || obs.phase === Phase.Close;
-    const needSta = inExchange || o.breaking ? Math.min(P.engageMinStamina, Math.max(P.breakAtStamina, R.breakLine) + 12000) : P.engageMinStamina;
-    if (think && (this.mode === Mode.Stalk || this.mode === Mode.Approach) && this.chainLeft === 0 && s.stamina >= needSta && !this.shell && !this.exiting) {
+    let needSta = inExchange || o.breaking ? Math.min(P.engageMinStamina, Math.max(P.breakAtStamina, R.breakLine) + 12000) : P.engageMinStamina;
+    // ---- E1. cpu-stamina-8 (duel-rules-8 only): the engage number has to be reachable where it stands. Project the regen at this
+    // range over ECON_PATIENCE_TICKS (winded: the wind floor first lifts it to windExit). Reachable: wait for it, as before. Not
+    // reachable: commit as soon as a light keeps it above the break line (cost + line + slack), else back out to regenerate.
+    // Pinned (it cannot back out): fight with what it has ----
+    const clean = R.breakLine + R.lightCost + ECON_SLACK;
+    let reachHere = true;
+    if (E) {
+      const rate = obs.phase === Phase.Out ? R.regenOut! : obs.phase === Phase.Edge ? R.regenEdge! : obs.phase === Phase.Exchange ? R.regenExchange! : R.regenClose!;
+      const proj = (E.winded ? Math.max(s.stamina, E.windExit) : s.stamina) + div(rate * ECON_PATIENCE_TICKS, TICK_HZ);
+      reachHere = proj >= needSta;
+      if (this.pinned) needSta = 0;
+      else if (!reachHere) needSta = Math.min(needSta, clean);
+    }
+    if (think && (this.mode === Mode.Stalk || this.mode === Mode.Approach) && this.chainLeft === 0 && s.stamina >= needSta && !this.shell && !this.exiting && !incoming) {
       let hazard = div(aggr, div(30, THINK_EVERY));
       if (o.breaking) hazard *= 2;
+      else if (E && o.stamina < R.breakLine) hazard *= 2;   // cpu-stamina-8: a gassed rival (its guard drains to a lockout) is an opening like a break
       if (this.mode === Mode.Approach) hazard = div(hazard, 2);
-      if (inExchange) hazard *= 3;
+      // the exchange boost; on rules-8 it waits for the strike that opened the exchange to resolve, and the rival's recovery in
+      // reach (the strike just resolved) earns it outside an exchange too. unseenOpen / answer: always false before rules-8
+      if ((inExchange && !unseenOpen) || answer) hazard *= 3;
       if (roll(rng, hazard)) {
         this.mode = Mode.Engage; this.startChain(rng, -1);
         this.openerFeint = roll(rng, P.feintRateBps);
@@ -331,7 +403,7 @@ export class FightBrain {
     // ---- F. engage: walk / burst in, then chain strikes ----
     if (this.mode === Mode.Engage && press === AiPress.None) {
       // r3 ShoulderCharge: an opener out of neutral inside the dash reach may be the dash attack (a sidestep now, the light next tick)
-      if (!this.chargeTried && free && !inExchange && !this.openerFeint && P.chargeShareBps > 0 && d > R.closeRangeMm + 200 && d <= R.chargeMaxStartMm - 100
+      if (!this.chargeTried && free && !inExchange && !incoming && !this.openerFeint && P.chargeShareBps > 0 && d > R.closeRangeMm + 200 && d <= R.chargeMaxStartMm - 100
         && s.stamina - R.chargeCost >= R.breakLine + 2000) {
         this.chargeTried = true;
         if (roll(rng, P.chargeShareBps)) {
@@ -349,8 +421,10 @@ export class FightBrain {
           this.burstTried = true;
           if (s.stamina >= R.burstCost + costOf(R, this.nextKind) + R.breakLine && roll(rng, P.burstInBps)) { press = AiPress.Step; stepX = ux; stepZ = uz; }
         }
-      } else if ((free || buffering) && !this.postChain) {
-        const floor = P.breakAtStamina <= R.breakLine ? 0 : P.breakAtStamina - 5000;
+      } else if ((free || buffering) && !this.postChain && !(incoming && this.windUpLoses(s, o, t))) {
+        let floor = P.breakAtStamina <= R.breakLine ? 0 : P.breakAtStamina - 5000;
+        // cpu-stamina-8: where its break number is out of reach the chain runs down to the break line; pinned, to empty
+        if (E) floor = this.pinned ? 0 : !reachHere ? Math.min(floor, R.breakLine + ECON_SLACK) : floor;
         if (this.nextKind !== Strike.Light && s.stamina - div(costOf(R, this.nextKind) * 18, 10) < Math.max(floor, R.breakLine + 2000)) this.nextKind = Strike.Light;
         if (s.stamina - R.lightCost < floor) { this.chainLeft = 0; this.mode = Mode.Stalk; this.postChain = true; this.nextKind = Strike.None; }
         else {
@@ -365,7 +439,7 @@ export class FightBrain {
 
     // ---- S. duel-rules-5 SYNC spend (#72.78): spend the 50 % tier (half special) and the 100 % tier (finisher) in good windows;
     // discipline (which windows qualify) and aggression (how often it takes one) rise with the issued rank ----
-    if (obs.syncSpend && press === AiPress.None && think && free && !s.guardHeld && s.sync >= R.specialHalfSync! && s.stamina >= R.specialCost) {
+    if (obs.syncSpend && press === AiPress.None && think && free && !incoming && !s.guardHeld && s.sync >= R.specialHalfSync! && s.stamina >= R.specialCost) {
       const rank = rankIndex(K.rank), disc = SYNC_DISCIPLINE[rank];
       const full = s.sync >= R.specialFullSync!;
       let window = d <= threat(kit, Strike.Special) - 300;
@@ -387,7 +461,8 @@ export class FightBrain {
     }
 
     // ---- G. CLOSE: shove-out ----
-    if (press === AiPress.None && think && free && obs.phase === Phase.Close && s.stamina >= R.shoveCost + R.breakLine
+    // cpu-stamina-8: a shove may not eat the stamina of the next clean strike (rules-8: cost + clean; before: cost + break line)
+    if (press === AiPress.None && think && free && obs.phase === Phase.Close && s.stamina >= R.shoveCost + (E ? clean : R.breakLine)
       && roll(rng, div(P.shoveRateBps, div(30, THINK_EVERY)))) press = AiPress.Shove;
 
     // ---- H. chase a breaking opponent with a banked finisher ----
@@ -403,6 +478,9 @@ export class FightBrain {
         else { stepX = -ux; stepZ = -uz; }
       }
     }
+
+    // cpu-stamina-8: what E0 reads next tick: it is trying to get out (retreating, or stalking out to regenerate)
+    if (E) this.wantOut = this.mode === Mode.Retreat || (this.mode === Mode.Stalk && s.stamina < needSta && (!inExchange || !reachHere));
 
     // A tagged runner cannot recover STA. Once the core's BREAK ends, use a legal
     // stationary guard to turn and clear the tag; the core still owns tag/regen rules.
@@ -422,7 +500,7 @@ export class FightBrain {
       case Mode.Approach:
         radial = 127; tang = div(this.circleDir * 127 * P.circleBiasBps, 20000); mag = 127; break;
       case Mode.Stalk:
-        if (s.stamina < needSta && !inExchange) pd = edgeOuter + 900;
+        if (s.stamina < needSta && (!inExchange || !reachHere)) pd = edgeOuter + 900;   // reachHere: always true before rules-8
         if (this.exiting) pd = Math.max(pd, Math.max(oppThreat, threat(kit, Strike.Light)) + EXIT_MARGIN_MM);
         radial = clampI(div((d - pd) * 127, 500), -127, 127); tang = div(this.circleDir * 127 * P.circleBiasBps, 10000);
         mag = Math.max(40, Math.min(127, Math.abs(radial) + div(Math.abs(tang), 2))); break;
@@ -451,6 +529,8 @@ export class FightBrain {
     const guard = this.guardFrom >= 0 && t >= this.guardFrom && t <= this.guardUntil && press === AiPress.None && !ownTele;
     if (press === AiPress.Heavy && R.shoveOnHeavyInClose && obs.phase === Phase.Close) press = AiPress.Strike;
     if (press === AiPress.Step && stepX === 0 && stepZ === 0) { stepX = -ux; stepZ = -uz; }
+    // cpu-stamina-8: a pinned fighter's verdict is spent on one chain: after its last strike it tries to get out again
+    if (this.pinned && this.chainLeft === 0 && (press === AiPress.Strike || press === AiPress.Heavy || press === AiPress.Finisher)) { this.pinned = false; this.pinTicks = 0; }
     return { moveX: clampI(mx, -127, 127), moveZ: clampI(mz, -127, 127), guard, press, stepX: clampI(stepX, -127, 127), stepZ: clampI(stepZ, -127, 127) };
   }
 }
@@ -515,6 +595,7 @@ export class FightCoreBrain implements FightBrainDriver {
       closeRangeMm: R.closeRangeMm, edgeBandMm: R.edgeBandMm, minGapMm: R.minGapMm, stepMm: me.backstepMm, burstMm: me.forwardJumpMm,
       escapeCost: R.costEscapePm * 100, chargeCost: (R.costLightPm + R.costChargeDashPm) * 100, chargeMaxStartMm: R.minGapMm + R.chargeDashMm,
       shoveOnHeavyInClose: R.shoveOnHeavyInClose !== 0, specialHalfSync: R.specialHalfSync, specialFullSync: R.specialFullSync,
+      regenOut: R.regenOutPmPerSec * 100, regenEdge: R.regenEdgePmPerSec * 100, regenExchange: R.regenExchangePmPerSec * 100, regenClose: R.regenClosePmPerSec * 100,
     };
     // duel-rules-6: the brain's "can I beat it" estimate uses the LIGHT wind-up it would actually press (no extra draws)
     const T = v.core.tempo;
@@ -532,11 +613,15 @@ export class FightCoreBrain implements FightBrainDriver {
     const obs: AiObs = {
       tick: t, side: this.side, self: mapView(self), opponent: mapView(opp), selfKit: kitOf(v.selfDef, v.rules), opponentKit: kitOf(v.opponentDef, v.rules),
       selfTagged: v.core.tagged(this.side), syncSpend: v.core.attrs !== null,
+      // cpu-stamina-8: only when the core runs the duel-rules-8 stamina block (the deterministic signal both hosts carry)
+      econ: v.core.tempo?.stamina ? { winded: v.core.winded(this.side), windRegen: v.core.tempo.stamina.windRegenPmPerSec * 100, windExit: v.core.tempo.stamina.windExitPm * 100 } : undefined,
       phase, exchangeTicks: v.exchangeActive ? t - v.exchangeStartTick : 0, pairReachMm: R, ringRadiusMm: v.rules.ringRadiusMm,
     };
     const it = this.inner!.think(obs, rng);
     const inp = idleInput();
-    inp.moveX = axis(it.moveX); inp.moveZ = axis(it.moveZ); inp.guard = it.guard;
+    // duel-rules-7: a guard locked down by exhaustion is not held (a useless held guard would only block the CPU's own presses);
+    // always false without the guard block, so every earlier stream is unchanged
+    inp.moveX = axis(it.moveX); inp.moveZ = axis(it.moveZ); inp.guard = it.guard && !v.core.guardLocked(this.side);
     switch (it.press) {
       case AiPress.Strike: inp.press = Press.Light; break;
       case AiPress.Heavy: inp.press = Press.Heavy; break;

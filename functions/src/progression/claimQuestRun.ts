@@ -10,6 +10,8 @@ import { timerHttpsError } from "./progressionTimerErrors";
 type ClaimQuestResponse = {
   rewards: { exp: number; itemAmount?: number; itemKey?: string; syncPoints: number };
   succeeded: boolean;
+  /** early-progression-1: the Parts this claim added to users/{uid}.parts ({name, rarity, slot}); [] when none. First claim only. */
+  partsGranted?: Array<{ name: string; rarity: string; slot: string }>;
   /** training-reward-replay-proof-1: present (true) when this run was already paid; the stored receipt, nothing paid. */
   alreadyProcessed?: true;
 };
@@ -60,7 +62,7 @@ export async function transactClaimQuestRun(firestore: Firestore, uid: string, r
     // update(), not merge-set: a merge-set would deep-merge the quests map and keep the claimed run.
     transaction.update(userRef, settleQuestClaim(resolved, result.succeeded, nowMs));
 
-    return { rewards: result.rewards, succeeded: result.succeeded };
+    return { rewards: result.rewards, succeeded: result.succeeded, partsGranted: result.partsGranted };
   });
 }
 

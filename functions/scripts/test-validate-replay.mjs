@@ -142,6 +142,9 @@ async function capture(fn) {
   try { return { result: await fn(), lines }; } finally { console.warn = w; console.info = i; }
 }
 const settle = (db, body, now) => transactRivalBattle(db, 'me', { schemaVersion: 'rival-battle-3', operation: 'settle', ...body }, now);
+// auto-heal-1: a lost fight can leave ACE at 0 HP, and a KO'd Holobot is refused (holobot_ko) below 25 %. These pvp
+// scenarios are about replay verdicts, not HP, so each new issue starts from a repaired Holobot.
+const repair = db => { const u = db.rows.get('users/me'); delete u.holobotVitals; db.rows.set('users/me', u); };
 
 test('pvp dry run: input-log issued with the global flag off; a match settles from the replay, a tamper / missing log only LOGS', async () => {
   const db = world();
@@ -159,6 +162,7 @@ test('pvp dry run: input-log issued with the global flag off; a match settles fr
   assert.ok(s1.lines.some(([k, l]) => k === 'info' && l.includes('"verdict":"match"')));
   assert.equal(db.rows.get(`rivalBattles/me/battles/${i1.battleId}`).replayDryRun.verdict, 'match');
   // tamper: never rejected; settled from the claim within the caps (Holos only); verdict logged and recorded
+  repair(db);
   const i2 = await transactPvpDaily(db, 'me', { operation: 'issue', opponentId: o2.opponentId, duelInputs: 'duel-inputs-2' }, T0 + 40000, 'dry_run');
   const forged = clone(recordFightLog(i2.duel, smartPlayer(i2.duel)).wire); forged.hashes = 'f'.repeat(16) + forged.hashes.slice(16);
   const before = db.rows.get('users/me').holosTokens;
@@ -168,6 +172,7 @@ test('pvp dry run: input-log issued with the global flag off; a match settles fr
   const warn = s2.lines.find(([k]) => k === 'warn'); assert.ok(warn && warn[1].includes('"event":"pvp_replay_dry_run"') && warn[1].includes('"verdict":"tamper"'), JSON.stringify(s2.lines));
   assert.deepEqual(Object.keys(db.rows.get(`rivalBattles/me/battles/${i2.battleId}`).replayDryRun).sort(), ['atMs', 'bytes', 'claimedWin', 'reason', 'verdict']);
   // the claim still obeys the rival caps: a claimed win under RIVAL_MIN_WIN_MS is too_fast
+  repair(db);
   const i3 = await transactPvpDaily(db, 'me', { operation: 'issue', opponentId: o3.opponentId, duelInputs: 'duel-inputs-2' }, T0 + 80000, 'dry_run');
   await capture(() => assert.rejects(settle(db, { battleId: i3.battleId, inputLogOmitted: 'too_large', didWin: true }, T0 + 81000), /too_fast/));
   // an omitted (over-cap) log: logged as missing, settled from the claim

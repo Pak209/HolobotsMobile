@@ -11,7 +11,7 @@ import { RivalError } from '../lib/rivalLadder';
 export function expeditionRejection(error:unknown):HttpsError|null {
   let code:string,details:Record<string,unknown>={};
   if(error instanceof ExpeditionError){code=error.code;details=error.details;}
-  else if(error instanceof HealthError)code=['holobot_ko','invalid_request','unavailable'].includes(error.message)?error.message:'unavailable';
+  else if(error instanceof HealthError){code=['holobot_ko','invalid_request','unavailable'].includes(error.message)?error.message:'unavailable';if(code==='holobot_ko'&&error.detail)details=error.detail;} // ko-return-25
   else if(error instanceof RepairError||error instanceof StoryError||error instanceof HostError||error instanceof HoloZoneError||error instanceof RivalError)code=error.code;
   else return null;
   return new HttpsError(code==='invalid_request'||code==='invalid_intents'?'invalid-argument':code==='unknown_run'?'not-found':code==='unavailable'?'unavailable':'failed-precondition',code,{rejectionCode:code,...details});

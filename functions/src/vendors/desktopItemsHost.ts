@@ -4,6 +4,7 @@ import {DUEL_SWITCH_LOCKOUT_MS} from "../duels/duelHealingHost";
 import {readHoloZoneRuns,HoloZoneError} from "../lib/holoZoneRuns";
 import {readOpenBattles} from "../lib/rivalLadder";
 import {REPAIR_ITEM,RepairError,healingItem,repairUse} from "../lib/repairItems";
+import {effectiveVitals,plainRow,VitalsRow} from "../lib/autoHeal";
 import {randomInt} from "node:crypto";
 import {Firestore} from "firebase-admin/firestore";
 import {HttpsError,onCall} from "firebase-functions/v2/https";
@@ -39,8 +40,11 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
    if(duelOpen(duel.data())){
     const d=duel.data()!;if(open.some(id=>id!==d.rivalBattleId))throw new ItemError("between_battles_only");if(!c.holobotId||!d.squad.includes(c.holobotId))throw new ItemError("not_in_squad");if(d.fielded.includes(c.holobotId))throw new ItemError("bench_only");if(now<d.switchLockedUntilMs)throw new ItemError("switch_lockout");
     if(c.currentHealth!==undefined){const v=d.vitals[c.holobotId];if(!v||c.currentHealth>v.currentHealth)throw new ItemError("invalid_request");d.vitals={...d.vitals,[c.holobotId]:{...v,currentHealth:c.currentHealth}};}
-    const repaired=repairUse({...user.data()!,travelSquad:{holobotIds:d.squad},holobotVitals:d.vitals},c.holobotId,c.itemId);
-    const {holobotVitals,...stock}=repaired.updates;const vitals=holobotVitals as Record<string,unknown>;
+    // auto-heal-1: run HP is session HP (no regen inside a duel): stamped `now` so repairUse reads it as it is, and the run
+    // record keeps its plain duel-healing-1 rows.
+    const sessionVitals=Object.fromEntries(Object.entries(d.vitals as Record<string,{currentHealth:number;maxHealth:number}>).map(([id,v])=>[id,{...v,hpUpdatedAt:now}]));
+    const repaired=repairUse({...user.data()!,travelSquad:{holobotIds:d.squad},holobotVitals:sessionVitals},c.holobotId,c.itemId!,now);
+    const {holobotVitals,...stock}=repaired.updates;const vitals=Object.fromEntries(Object.entries(holobotVitals as Record<string,VitalsRow>).map(([id,v])=>[id,plainRow(v)]));
     const event={requestId:c.requestId,itemId:c.itemId,holobotId:c.holobotId,before:d.vitals[c.holobotId].currentHealth,after:repaired.result.currentHealth,usedAtMs:now};
     // onboarding-host-1 (#72.3–#72.5): a healing-item use completes the repair beat.
     tx.update(userRef,{...stock,...onboardingAfterEvent(user.data()!,'repair',now)});tx.set(duel.ref,{...d,vitals,heals:[...d.heals,event],switchLockedUntilMs:now+DUEL_SWITCH_LOCKOUT_MS});
@@ -51,15 +55,16 @@ export async function transactDesktopItems(firestore:Firestore,uid:string,raw:un
   }
   if(c.currentHealth!==undefined && zone){
    const active=readHoloZoneRuns(zone.data()).find(x=>x.settlement===null&&x.closedAtMs===null&&now<=x.expiresAtMs);
-   const v=active?.issuedVitals?.[c.holobotId!];const ledger=user.data()!.holobotVitals?.[c.holobotId!];
+   const v=active?.issuedVitals?.[c.holobotId!];const ledger=effectiveVitals(user.data()!.holobotVitals,now)[c.holobotId!];
    if(!v||!ledger||c.currentHealth>v.currentHealth||c.currentHealth>ledger.currentHealth)throw new ItemError("invalid_request");
-   useProfile={...useProfile,holobotVitals:{...useProfile.holobotVitals,[c.holobotId!]:{...ledger,currentHealth:c.currentHealth}}};
+   // auto-heal-1: the observed in-run HP is the bot's HP now (stamped now, so the repair adds to it, not to older regen).
+   useProfile={...useProfile,holobotVitals:{...useProfile.holobotVitals,[c.holobotId!]:{...ledger,currentHealth:c.currentHealth,hpUpdatedAt:now}}};
   }else if(c.currentHealth!==undefined)throw new ItemError("invalid_request");
   let i=0;const r=applyItemCommand(useProfile,favorite,c,now,()=>draws[i++%draws.length]);
   if(zone && r.updates.holobotVitals){
    const runs=readHoloZoneRuns(zone.data());const active=runs.filter(x=>x.settlement===null&&x.closedAtMs===null&&now<=x.expiresAtMs);
    if(active.some(x=>x.healthSchema!=="rival-health-1"||!x.issuedVitals||!x.squad.includes(c.holobotId!)))throw new ItemError("health_unavailable");
-   if(active.length)tx.set(zone.ref,{...zone.data(),runs:runs.map(x=>active.includes(x)?{...x,issuedVitals:{...x.issuedVitals,[c.holobotId!]:(r.updates.holobotVitals as Record<string,unknown>)[c.holobotId!]},healingItems:[...(x as typeof x & {healingItems?:unknown[]}).healingItems??[],{requestId:c.requestId,itemId:c.itemId,holobotId:c.holobotId,usedAtMs:now}]}:x)});
+   if(active.length)tx.set(zone.ref,{...zone.data(),runs:runs.map(x=>active.includes(x)?{...x,issuedVitals:{...x.issuedVitals,[c.holobotId!]:plainRow((r.updates.holobotVitals as Record<string,VitalsRow>)[c.holobotId!])},healingItems:[...(x as typeof x & {healingItems?:unknown[]}).healingItems??[],{requestId:c.requestId,itemId:c.itemId,holobotId:c.holobotId,usedAtMs:now}]}:x)});
   }
   // onboarding-host-1 (#72.3–#72.5): the first vendor buy completes the market beat; a healing-item use the repair beat.
   const onboarding=c.operation==='buy'?onboardingAfterEvent(user.data()!,'vendor_purchase',now):c.operation==='use'&&healingItem(c.itemId!)?onboardingAfterEvent(user.data()!,'repair',now):{};

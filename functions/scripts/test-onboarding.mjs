@@ -64,8 +64,8 @@ test('skip: from any live step sets step 7 + skipped; skip-forward from 4 / 5 is
   assert.throws(() => O.acknowledgeOnboarding(at(4, { holosTokens: 100 }), { advance: 5 }, T), e => e.code === 'not_eligible');
   assert.throws(() => O.acknowledgeOnboarding(at(4, { holosTokens: 'x' }), { advance: 5 }, T), e => e.code === 'unavailable');
   // Step 5 (repair): only when no travel-squad bot is below max on the host ledger.
-  const hurt = { ...squad(['ace']), holobotVitals: { ace: { currentHealth: 99, maxHealth: 331 } } };
-  const full = { ...squad(['ace']), holobotVitals: { ace: { currentHealth: 331, maxHealth: 331 }, kuma: { currentHealth: 1, maxHealth: 200 } } };
+  const hurt = { ...squad(['ace']), holobotVitals: { ace: { currentHealth: 99, maxHealth: 331, hpUpdatedAt: T } } };
+  const full = { ...squad(['ace']), holobotVitals: { ace: { currentHealth: 331, maxHealth: 331 }, kuma: { currentHealth: 1, maxHealth: 200, hpUpdatedAt: T } } };
   assert.throws(() => O.acknowledgeOnboarding(at(5, hurt), { advance: 6 }, T), e => e.code === 'not_eligible');
   assert.equal(O.acknowledgeOnboarding(at(5, full), { advance: 6 }, T).step, 6, 'a hurt bot outside the squad does not block');
   assert.equal(O.acknowledgeOnboarding(at(5, squad(['ace'])), { advance: 6 }, T).step, 6, 'no ledger row = fresh');
@@ -124,7 +124,9 @@ test('mentor lineup: exactly one WOLF on the softest tier stats (v3 = WOLF L1 + 
 
 test('genesis Repair Kit (D3): one item.repair_kit in the desktopItems inventory shape; the mobile-parity doc is unchanged', () => {
   const grants = G.buildGenesisHostGrants();
-  assert.deepEqual(grants, { itemStocks: { repair_kit: 1 } });
+  // early-progression-1: + 300 starter Holos (host-only: the mobile-parity doc keeps holosTokens 0, the rules' create default).
+  assert.deepEqual(grants, { itemStocks: { repair_kit: 1 }, holosTokens: 300 });
+  assert.equal(G.buildGenesisSignupUserDoc('ACE', 'Pilot', 'TS').holosTokens, 0);
   assert.equal(R.healingStock(grants, 'item.repair_kit'), 1);
   assert.equal(R.healingStock(grants, 'item.emergency_patch'), 0);
   const doc = G.buildGenesisSignupUserDoc('ACE', 'Pilot', 'TS');

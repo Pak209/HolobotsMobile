@@ -1,5 +1,5 @@
 import { battlefieldIssueMovement } from '../lib/battlefieldMovement';
-import { battleIqEnabled, cpuStartSync, fightLearningAfterSettle, manualReadinessStart, readinessStartEnabled } from '../lib/readinessFight';
+import { battleIqEnabled, cpuStartSync, fightLearningAfterSettle, manualReadinessStart, momentumAfterForfeit, readinessStartEnabled } from '../lib/readinessFight';
 import { fightRankForTier } from './fightReplayIssue';
 // Dormant internal verification seam; no current callable or issuance routes here.
 export { verifyRivalInputLog } from './rivalInputVerification';
@@ -9,19 +9,23 @@ import { pilotRankAfterWin, PilotRankError } from '../account/pilotRank';
 import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
-import {issueVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
+import {issueVitals,requireLivingVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
+import {commitVitals} from "../lib/autoHeal";
 import { onboardingAfterEvent, onboardingMentorActive } from '../lib/onboarding';
 import { applyOnboardingMentor, isOnboardingMentorBattle } from './onboardingMentor';
 import { randomBytes, randomInt } from 'node:crypto';
 import { FIGHT_ATTRS_FLAG, FIGHT_CHASE_FLAG, FIGHT_INPUTS_CAPABILITY_FIELD, FIGHT_INPUTS_SCHEMA, FIGHT_LOG_FIELD, FIGHT_RECEIPT_FIELD, FIGHT_REPLAY_FLAG, FightReceiptWire, FightReplayIssueWire } from '../shared/fightReplayContract';
 import { FightReplayError, FightReplayVerdict, verifyFightReplay } from '../sim/fight/replay';
 import { buildFightReplayIssue, inputLogCombatant } from './fightReplayIssue';
+import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { FIGHT_LOG_OMITTED_FIELD, ReplayValidation, replayDryRunLine, validateReplay } from '../sim/fight/validateReplay';
 import { FieldValue, Firestore, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { applyPartBoosts, equippedPartBoosts, ledgerHealthAfterFight } from '../lib/partStats';
-import { closeRivalBattleNoPay, RIVAL_SCHEMA_V3 } from '../lib/rivalLadder';
-import { RULES_SCHEMA_6 } from '../sim/fight/rules';
+import { closeRivalBattleNoPay, RIVAL_SCHEMA_V3, RivalLiveSettle } from '../lib/rivalLadder';
+import { FIRST_WIN_COLLECTION, firstWinAvailable, firstWinRecord, livePerformanceFromReceipt } from '../lib/liveWinRewards';
+import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
+import { LEFT_BEFORE_FIGHT_CLOSED_BY, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
 import { FightPlausibility } from '../sim/fight/plausibility';
 import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand, PVP_ASYNC_SOURCE, IssueReply } from '../lib/rivalLadder';
 
@@ -128,7 +132,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   // One-release server flag. Requests cannot select or downgrade a stored mode. A resolver battle also needs the client's
   // per-request opt-in (`duelSchema`, as on arenaMatchHost): a build that doesn't ask keeps the legacy path whatever the env says.
   // server-rulings-1 ruling 3: the explicit forfeit of an open input-log battle (its own small transaction, below)
-  if ((raw as Record<string, unknown> | null)?.operation === 'forfeit') return transactRivalForfeit(db, uid, raw, nowMs);
+  if ((raw as Record<string, unknown> | null)?.operation === 'forfeit') return transactRivalForfeit(db, uid, raw, nowMs, options.battleIq ?? battleIqEnabled());
   const resolverAsked = (raw as Record<string, unknown> | null)?.duelSchema;
   if ((raw as Record<string, unknown> | null)?.operation === 'issue' && resolverAsked !== undefined && resolverAsked !== DUEL_RECEIPT_SCHEMA) throw new RivalError('invalid_request');
   const legacyMode = (options.issueLegacy ?? process.env.HOLOCITY_RIVAL_ISSUE_RESOLVER !== '1') || resolverAsked !== DUEL_RECEIPT_SCHEMA;
@@ -146,7 +150,11 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   // server-rulings-1 ruling 2: a client that runs the duel-rules-6 core asks for it at issue (`fightRules`); without the ask the
   // input-log issue is exactly today's (duel-rules-3/-4/-5 by the flags). It only opts INTO duel-rules-6, and only on top of -5.
   const rulesAsked = (raw as Record<string, unknown> | null)?.[FIGHT_RULES_CAPABILITY_FIELD];
-  if (rulesAsked !== undefined && rulesAsked !== RULES_SCHEMA_6) throw new RivalError('invalid_request');
+  // guard-hold-1: 'duel-rules-7' = the duel-rules-6 ask + the guard block (a rules-7 client runs the rules-6 core too)
+  // stamina-wind-1: 'duel-rules-8' = the duel-rules-7 ask + the stamina block
+  if (rulesAsked !== undefined && rulesAsked !== RULES_SCHEMA_6 && rulesAsked !== RULES_SCHEMA_7 && rulesAsked !== RULES_SCHEMA_8) throw new RivalError('invalid_request');
+  const rules8Asked = rulesAsked === RULES_SCHEMA_8, rules7Asked = rules8Asked || rulesAsked === RULES_SCHEMA_7;
+  const rules6Asked = rules7Asked || rulesAsked === RULES_SCHEMA_6;
   const allowLegacySettlement = options.allowLegacySettlement ?? process.env.HOLOCITY_RIVAL_ALLOW_LEGACY_DIDWIN !== '0';
   const request = raw as Record<string, unknown>;
   // Read the routing envelope before loading the pinned mode. Resolver mode ignores
@@ -163,7 +171,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   // treats any non-live reply as a failure, so an issue this host cannot make input-log is refused before anything is written: no
   // battle, no open-ledger slot, no vitals snapshot (otherwise the orphan blocks the retry with too_many_open for up to the 2 h TTL).
   // Requests that send duelSchema, or duelInputs alone (Unity's FightFlow, the pvp-daily request), keep today's fallback unchanged.
-  const liveOnly = command.operation === 'issue' && capability === FIGHT_INPUTS_SCHEMA && rulesAsked === RULES_SCHEMA_6 && resolverAsked === undefined;
+  const liveOnly = command.operation === 'issue' && capability === FIGHT_INPUTS_SCHEMA && rules6Asked && resolverAsked === undefined;
   if (liveOnly && !inputLogIssue) throw new RivalError('live_unavailable', undefined, { reason: 'replay_off' });
   const healthEnabled=!legacyMode || inputLogIssue || (raw as {healthSchema?:unknown})?.healthSchema===RIVAL_HEALTH_SCHEMA;
   const userRef = db.doc(`users/${uid}`);
@@ -175,6 +183,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
   // input-log seed: pinned outside the transaction like the draws (disclosed at issue: the client predicts the CPU locally).
   // (tests may pin it through options.fightSeed, like `random`; the deployed callable never passes it)
   const fightSeed = options.fightSeed ? options.fightSeed() : randomBytes(32).toString('hex');
+  // forfeit-is-loss (Pak 2026-11-11): a live battle left unplayed past its TTL is recorded as a loss on this touch, first.
+  await sweepExpiredLiveBattles(db, uid, nowMs, applyBattleIq);
   const fightPre = await preVerifyFightReplay(db, uid, request);
   const ledgerRef = db.doc(`rivalBattles/${uid}`);
   const battleRef = db.doc(`rivalBattles/${uid}/battles/${battleId}`);
@@ -200,14 +210,16 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const lastSettled = readRivalLastSettled(ledgerData);
       let i = 0;
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
-      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion));
+      // kaz-wolf-lead-1: Kaz's ordinary ladder issue (not pvp, not a gathering citizen, not Zell) leads with WOLF; same draws, same seed
+      const kazLead = !options.pvp && citizenId === undefined && !story.issueZell;
+      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion), { kazLead });
       // DECISIONS #72.3 (onboarding D1): Kaz's ordinary issue at host onboarding step <= 3 fields one tier-0 WOLF.
       // pvp-daily-1: an async PvP issue binds the frozen opponent squad (and spends the day's attempt) in THIS transaction.
       const mentor = !options.pvp && citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);
       if (options.pvp) await options.pvp.bind(tx, r);
       if (mentor) applyOnboardingMentor(r, rivalLineupScaleFor(command.schemaVersion));
       if ((!legacyMode || inputLogIssue) && r.reply.playerCombatants.length === 0) throw new RivalError('squad_required');
-      if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{const vitals=issueVitals(profile,r.reply.playerCombatants);r.userUpdates.holobotVitals=vitals;(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
+      if(healthEnabled){if(Object.keys(open).length)throw new RivalError("too_many_open");try{requireLivingVitals(profile,r.reply.playerCombatants.map(p=>p.holobotId),nowMs);const vitals=issueVitals(profile,r.reply.playerCombatants,nowMs);r.userUpdates.holobotVitals=commitVitals(profile.holobotVitals,vitals,nowMs);(r.battle as typeof r.battle & {healthSchema:string;issuedVitals:Vitals}).healthSchema=RIVAL_HEALTH_SCHEMA;(r.battle as typeof r.battle & {issuedVitals:Vitals}).issuedVitals=Object.fromEntries(r.reply.playerCombatants.map(p=>[p.holobotId,vitals[p.holobotId]]));for(const p of r.reply.playerCombatants)(p as typeof p & {currentHealth:number}).currentHealth=vitals[p.holobotId].currentHealth;}catch(e){if(e instanceof HealthError)throw e.message==='holobot_ko'?new RivalError('holobot_ko',undefined,e.detail):new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}
       if (story.issueZell) {
         bindZellLineup(r);
         const nextStory = meetZell(storyState!, nowMs);
@@ -220,10 +232,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // server-rulings-1 ruling 1: equipped parts count in an input-log fight exactly as in the resolver (applyPartBoosts on the
       // pinned player combatant; the ledger stays on the Holobot's own scale and the settle writes HP back as a fraction of max)
       // a duel-rules-6 issue happens only on the ask AND with both rules-5 flags (buildFightReplayIssue's own rule)
-      const issueTempo = rulesAsked === RULES_SCHEMA_6 && fightChase && fightAttrs;
+      const issueTempo = rules6Asked && fightChase && fightAttrs;
       const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
-        player:r.reply.playerCombatants.map(c => inputLogCombatant(c, equippedPartBoosts(profile, c.holobotId), issueTempo)),
-        opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo,
+        player:r.reply.playerCombatants.map(c => inputLogCombatant(c, equippedPartBoosts(profile, c.holobotId), issueTempo, liveMoveRanksFor(profile, c.holobotId))),
+        opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo, live:true, guardHold:rules7Asked, staminaWind:rules8Asked,
         ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
           cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
       // rival-live-only: a lineup the fight core cannot express would drop to resolver/legacy; a live-only client gets the refusal
@@ -263,6 +275,9 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     const withReceipt = (reply: object, receipt?: DuelReceipt, fight?: FightReceiptWire) => fight ? {...reply,[FIGHT_RECEIPT_FIELD]:fight} : receipt ? {...reply,duelReceipt:receipt} : reply;
     // Replays need no new intents/legacy flag/log and never recompute combat or write a grant.
     if (record?.settlement) {
+      // forfeit-is-loss: a live battle closed by its expiry answers a late settle exactly as before (battle_expired), now saying it
+      // was recorded as a loss (closedBy 'expired').
+      if (record.settlement.closedBy === 'expired') throw new RivalError('battle_expired', undefined, { closedBy: 'expired' });
       const replay = settleRivalBattle(profile,record,command.battleId,record.settlement.didWin,nowMs);
       return withStory(withReceipt(rivalReplyForVersion(replay.reply,command.schemaVersion),record.duelReceipt,record.fightReceipt));
     }
@@ -270,6 +285,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     let receipt: DuelReceipt | undefined;
     let fightReceipt: FightReceiptWire | undefined;
     let settleCommand = command;
+    let liveSettle: RivalLiveSettle | undefined;
     // Replay groundwork (item 8): a pvp dry-run battle whose replay did not match settles from the client's claimed outcome
     // (closed alpha trusts the client within the rival caps: too_fast, anti-farm, Holos only); the verdict was logged above.
     const dryRunMiss = record?.duel?.mode === 'input-log' && record.replayGate === 'dry_run' && record.source === PVP_ASYNC_SOURCE
@@ -284,12 +300,15 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (fightPre.mismatch) {
         // an expired battle is already closed for the ledger: report the mismatch as before, write nothing
         if (!Number.isFinite(record.expiresAtMs) || nowMs > record.expiresAtMs) throw fightPre.mismatch;
-        // server-rulings-1 ruling 3: the log failed replay: close the battle as a no-pay loss (slot freed, no per-rival cooldown),
-        // commit, then report replay_mismatch with its detail exactly as before
+        // server-rulings-1 ruling 3: the log failed replay: close the battle as a no-pay loss (slot freed), commit, then report
+        // replay_mismatch with its detail exactly as before. forfeit-is-loss (Pak 2026-11-11): counted as the forfeit's loss
+        // (per-rival cooldown started, win streak broken; still no pay and HP as issued).
         const closed = closeRivalBattleNoPay(profile, record, command.battleId, nowMs, 'replay_mismatch');
-        if (Object.keys(closed.userUpdates).length) tx.update(userRef, closed.userUpdates);
+        const loss = forfeitLossWrites(profile, record, ledger.data(), command.battleId, nowMs, applyBattleIq);
+        const lossUser = { ...closed.userUpdates, ...loss.userUpdates };
+        if (Object.keys(lossUser).length) tx.update(userRef, lossUser);
         tx.update(battleRef, closed.battleUpdates);
-        tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId), [RIVAL_LAST_SETTLED_FIELD]: readRivalLastSettled(ledger.data()) });
+        tx.set(ledgerRef, loss.ledger);
         return { [THROW_AFTER_COMMIT]: fightPre.mismatch };
       }
       if (!fightPre.verdict) throw new RivalError('invalid_request', undefined, { reason: 'input_log_required' });
@@ -300,6 +319,10 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if (fightReceipt.winner === 'player' && Number.isFinite(record.expiresAtMs) && nowMs <= record.expiresAtMs && !(sinceIssue >= RIVAL_MIN_WIN_MS))
         throw new RivalError('too_fast', Number.isFinite(sinceIssue) ? RIVAL_MIN_WIN_MS - sinceIssue : RIVAL_MIN_WIN_MS);
       settleCommand = {...command,didWin:fightReceipt.winner === 'player',fielded:fightPre.verdict.fieldedHolobotIds};
+      // early-progression-1: the verified receipt's win counts (capped multiplier) and, for a win, today's first-live-win ledger.
+      const firstWin = fightReceipt.winner === 'player' && record.source !== PVP_ASYNC_SOURCE
+        && firstWinAvailable((await tx.get(db.doc(`${FIRST_WIN_COLLECTION}/${uid}`))).data(), nowMs);
+      liveSettle = { performance: livePerformanceFromReceipt(fightReceipt), firstWin };
     } else if (record.duel?.mode === 'resolver') {
       let intents;
       try { intents = validateDuelIntents(request.playerIntents); } catch { throw new RivalError('invalid_request'); }
@@ -319,7 +342,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       settleCommand = legacy;
     }
     const r = settleRivalBattle(profile,record,command.battleId,settleCommand.didWin,nowMs,settleCommand.fielded,
-      receipt || fightReceipt ? [] : squadIdsOf(profile));
+      receipt || fightReceipt ? [] : squadIdsOf(profile), liveSettle);
     // Apply to the authoritative ruling, once in the same transaction as its receipt.
     // All rival versions (including gathering/Zell) count; losses and replays never do.
     // pvp-daily-1: an async PvP settle pays Holos only (rivalLadder.PVP_ASYNC_SOURCE): no pilotRank, no fight learning.
@@ -350,8 +373,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
         // server-rulings-1 ruling 1: the fight's HP goes back as the same FRACTION of max on the ledger's own scale (the cups' rule,
         // ledgerHealthAfterFight): the fight max may carry part HP and, on duel-rules-5, the #72.80 fight-row HP delta, so the raw
         // fight number is not ledger HP. A bot that never fought is not written (its ledger row stays as issued).
-        try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
-          fightReceipt.playerFinal.filter(f => f.fielded).map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])}))); }
+        try { r.userUpdates.holobotVitals = commitVitals(profile.holobotVitals,settleVitals(profile,b.issuedVitals,
+          fightReceipt.playerFinal.filter(f => f.fielded).map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])})),nowMs),nowMs); }
         catch { throw new RivalError('unavailable'); }
       }
       // server-rulings-1 ruling 4: a verified WIN carries its plausibility read; a flagged one is also listed for admins. Never
@@ -369,8 +392,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       if(bound?.rivalBattleId!==command.battleId){
         const b = battle.data()!;
         // Part HP is a fight-time layer: the receipt's HP goes back to the ledger's scale.
-        try { r.userUpdates.holobotVitals = settleVitals(profile,b.issuedVitals,
-          receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])}))); }
+        try { r.userUpdates.holobotVitals = commitVitals(profile.holobotVitals,settleVitals(profile,b.issuedVitals,
+          receipt.playerFinal.map(f => ({holobotId:f.holobotId,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,b.issuedVitals[f.holobotId])})),nowMs),nowMs); }
         catch { throw new RivalError('unavailable'); }
       }
     } else if(r.battleUpdates&&settleCommand.health!==undefined){const b=battle.data()!;if(b.healthSchema!==RIVAL_HEALTH_SCHEMA)throw new RivalError("invalid_request");
@@ -378,7 +401,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // with the duel; its settle writes the ledger). The client rows are not applied here, so a healed bench bot presented
       // above its rival issue neither refuses the settle (invalid_request) nor undoes the heal.
       const bound=(await tx.get(db.doc(`duelHealingRuns/${uid}`))).data();
-      if(bound?.rivalBattleId!==command.battleId){try{r.userUpdates.holobotVitals=settleVitals(profile,b.issuedVitals,settleCommand.health);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}}
+      if(bound?.rivalBattleId!==command.battleId){try{r.userUpdates.holobotVitals=commitVitals(profile.holobotVitals,settleVitals(profile,b.issuedVitals,settleCommand.health,nowMs),nowMs);}catch(e){if(e instanceof HealthError)throw new RivalError(e.message==='invalid_request'?'invalid_request':'unavailable');throw e;}}}
     // DECISIONS #72.3 (onboarding D1): a LOSS in a mentor-issued battle costs no HP. The squad's ledger rows go back to
     // their issue-time values (undoing a duel-healing run that settled first); the per-rival cooldown is not started below.
     const mentorLoss = !!r.battleUpdates && !r.battleUpdates.settlement?.didWin && isOnboardingMentorBattle(issued);
@@ -386,7 +409,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const issuedVitals = (battle.data() as {issuedVitals?: Vitals}).issuedVitals;
       if (issuedVitals && Object.keys(issuedVitals).length) {
         const ledgerNow = (profile.holobotVitals ?? {}) as Vitals;
-        r.userUpdates.holobotVitals = {...ledgerNow, ...Object.fromEntries(Object.entries(issuedVitals).map(([id,v]) => [id,{...v}]))};
+        r.userUpdates.holobotVitals = commitVitals(ledgerNow,{...ledgerNow, ...Object.fromEntries(Object.entries(issuedVitals).map(([id,v]) => [id,{...v}]))},nowMs);
       } else delete r.userUpdates.holobotVitals;
     }
     // Brief C2 beat 3: the first rival settle (any outcome) completes the mentor-duel beat.
@@ -399,6 +422,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
     if (Object.keys(r.userUpdates).length) tx.update(userRef, withRankHealingReward(profile,r.userUpdates));
     if (r.battleUpdates) {
       tx.update(battleRef, r.battleUpdates);
+      // early-progression-1: this settle spent today's first live win.
+      if (r.battleUpdates.settlement?.firstWinOfDay) tx.set(db.doc(`${FIRST_WIN_COLLECTION}/${uid}`), firstWinRecord('rival', command.battleId, nowMs));
       // The cooldown clock starts at the first-time settle; a replay (returned above) never moves it.
       const pilotId = (battle.data() as RivalBattleRecord).lineup.opponentPilot.pilotId;
       tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), command.battleId), [RIVAL_LAST_SETTLED_FIELD]: mentorLoss ? readRivalLastSettled(ledger.data()) : rivalLastSettledAfterSettle(readRivalLastSettled(ledger.data()), pilotId, nowMs) });
@@ -420,13 +445,19 @@ export const FIGHT_RULES_CAPABILITY_FIELD = 'fightRules';
 /**
  * server-rulings-1 (Pak 2026-11-09, ruling 3): `{operation:'forfeit', schemaVersion:'rival-battle-3', battleId}`. An OPEN
  * input-log battle becomes an immediate no-pay loss (RivalSettlement.closedBy 'forfeit'): no Holos / Buddy Units / XP / rank,
- * no HP write (the ledger keeps its issue-time rows), the open-battle slot is freed and the per-rival cooldown is NOT started,
- * so the next issue works at once. Repeating it (or settling afterwards) replays the stored ruling. Other modes: invalid_request.
+ * no HP write (the ledger keeps its issue-time rows), the open-battle slot is freed. forfeit-is-loss (Pak 2026-11-11): it counts
+ * as a loss, so the per-rival cooldown IS started (forfeitLossWrites) and the win streak breaks.
+ * Repeating it (or settling afterwards) replays the stored ruling and writes nothing. Other modes: invalid_request.
+ * no-loss-before-fight (Pak 2026-11-11): with `leftBeforeFight: true` inside LEFT_BEFORE_FIGHT_WINDOW_MS of the issue, the battle
+ * closes with no loss instead (closedBy 'left_before_fight'); a repeat replays that.
  */
-async function transactRivalForfeit(db: Firestore, uid: string, raw: unknown, nowMs: number) {
+async function transactRivalForfeit(db: Firestore, uid: string, raw: unknown, nowMs: number, battleIq: boolean) {
   const c = raw as Record<string, unknown>;
   if (c.schemaVersion !== RIVAL_SCHEMA_V3 || typeof c.battleId !== 'string' || !RIVAL_BATTLE_ID.test(c.battleId)) throw new RivalError('invalid_request');
+  const leftBeforeFight = readLeftBeforeFight(c);
+  if (leftBeforeFight === null) throw new RivalError('invalid_request');
   const battleId = c.battleId;
+  await sweepExpiredLiveBattles(db, uid, nowMs, battleIq);
   const userRef = db.doc(`users/${uid}`), ledgerRef = db.doc(`rivalBattles/${uid}`), battleRef = db.doc(`rivalBattles/${uid}/battles/${battleId}`);
   return db.runTransaction(async tx => {
     const user = await tx.get(userRef);
@@ -436,15 +467,106 @@ async function transactRivalForfeit(db: Firestore, uid: string, raw: unknown, no
     const record = battle.exists ? battle.data() as RivalBattleRecord : undefined;
     if (!record) throw new RivalError('unknown_battle');
     if (record.settlement) {
+      // forfeit-is-loss: an expired battle (already recorded as a loss by the sweep) answers battle_expired, as it did before.
+      if (record.settlement.closedBy === 'expired') throw new RivalError('battle_expired', undefined, { closedBy: 'expired' });
       const replay = settleRivalBattle(profile, record, battleId, record.settlement.didWin, nowMs);
       const reply = rivalReplyForVersion(replay.reply, RIVAL_SCHEMA_V3);
       return record.fightReceipt ? { ...reply, [FIGHT_RECEIPT_FIELD]: record.fightReceipt } : reply;
     }
     if (record.duel?.mode !== 'input-log') throw new RivalError('invalid_request');
+    // no-loss-before-fight (Pak 2026-11-11): left during the countdown, claimed within the window of its issue: the battle closes
+    // with nothing paid and NO loss (closedBy 'left_before_fight'): the slot is freed, no per-rival cooldown, no streak reset, HP as
+    // issued. Later than the window the same request is the ordinary forfeit loss below. (An expired battle never reaches here.)
+    if (leftBeforeFight && leftBeforeFightInWindow(record.issuedAtMs, nowMs)) {
+      const cancelled = closeRivalBattleNoPay(profile, record, battleId, nowMs, LEFT_BEFORE_FIGHT_CLOSED_BY);
+      if (Object.keys(cancelled.userUpdates).length) tx.update(userRef, cancelled.userUpdates);
+      tx.update(battleRef, cancelled.battleUpdates);
+      tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), battleId), [RIVAL_LAST_SETTLED_FIELD]: readRivalLastSettled(ledger.data()) });
+      return rivalReplyForVersion(cancelled.reply, RIVAL_SCHEMA_V3);
+    }
     const closed = closeRivalBattleNoPay(profile, record, battleId, nowMs, 'forfeit');
-    if (Object.keys(closed.userUpdates).length) tx.update(userRef, closed.userUpdates);
+    const loss = forfeitLossWrites(profile, record, ledger.data(), battleId, nowMs, battleIq);
+    const lossUser = { ...closed.userUpdates, ...loss.userUpdates };
+    if (Object.keys(lossUser).length) tx.update(userRef, lossUser);
     tx.update(battleRef, closed.battleUpdates);
-    tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledger.data(), nowMs), battleId), [RIVAL_LAST_SETTLED_FIELD]: readRivalLastSettled(ledger.data()) });
+    tx.set(ledgerRef, loss.ledger);
     return rivalReplyForVersion(closed.reply, RIVAL_SCHEMA_V3);
+  });
+}
+
+/**
+ * forfeit-is-loss (Pak 2026-11-11: quitting a losing live fight records a loss and starts the normal cooldown). What an OPEN input-log
+ * battle closed without a verified result (the explicit forfeit, a settle whose log failed replay, or its expiry unplayed) writes
+ * besides its no-pay settlement (didWin false + closedBy, which is already the rival loss record that the mission board and pvp-daily
+ * read):
+ *  - the open-battle ledger with the slot freed AND the per-rival cooldown started against this battle's pilot at `atMs` (the
+ *    closure time; for an expiry the expiry time, so that cooldown has always run out), exactly as a first-time lost settle does
+ *    (a mentor-issued battle never starts it, as for its ordinary loss);
+ *  - with HOLOCITY_BATTLE_IQ, the LEAD fighter's win streak reset (syncMomentum 0; Pak 2026-11-11: the lead only, the bot that was
+ *    fighting), never any battleIq gain. An async PvP battle (Holos only) has no fight learning, as on its ordinary settle.
+ * Never paid: no Holos, XP, Buddy Units, rank, IQ or repair kit, and the HP ledger keeps its issue-time rows (no write).
+ */
+function forfeitLossWrites(profile: Record<string, unknown>, record: RivalBattleRecord, ledgerData: Record<string, unknown> | undefined, battleId: string, nowMs: number, battleIq: boolean, atMs: number = nowMs): { ledger: Record<string, unknown>; userUpdates: Record<string, unknown> } {
+  const lastSettled = readRivalLastSettled(ledgerData);
+  const pilotId = record.lineup.opponentPilot.pilotId;
+  const cooled = isOnboardingMentorBattle(record) ? lastSettled
+    : rivalLastSettledAfterSettle(lastSettled, pilotId, Math.max(atMs, lastSettled[pilotId] ?? -Infinity));
+  const ledger = { [RIVAL_OPEN_BATTLES_FIELD]: openBattlesAfterSettle(readOpenBattles(ledgerData, nowMs), battleId), [RIVAL_LAST_SETTLED_FIELD]: cooled };
+  const lead = record.duel?.mode === 'input-log' ? liveLeadHolobotId(record.duel as FightReplayIssueWire) : undefined;
+  const userUpdates = battleIq && record.source !== PVP_ASYNC_SOURCE && lead ? momentumAfterForfeit(profile, [lead]) : {};
+  return { ledger, userUpdates };
+}
+
+/** The player's lead fighter in an input-log issue: the first player-side fighter issued with HP above 0 (the sim's first fielded
+ * slot, replay.ts firstFielded), mapped to its Holobot id. */
+export function liveLeadHolobotId(issue: FightReplayIssueWire): string | undefined {
+  const fighters = Array.isArray(issue.rules?.fighters) ? issue.rules.fighters : [];
+  const first = fighters.find(f => Number(f.side) === 0 && Number(f.hp) > 0);
+  return first ? issue.player.roster.find(slot => slot.fighterId === first.id)?.holobotId : undefined;
+}
+
+/** Open-ledger entries already past their expiry (raw, tolerant: a malformed ledger is ruled by the caller's own transaction). */
+function expiredLedgerIds(ledgerData: Record<string, unknown> | undefined, nowMs: number): string[] {
+  const raw = ledgerData?.[RIVAL_OPEN_BATTLES_FIELD];
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+  return Object.entries(raw as Record<string, unknown>).filter(([id, at]) => RIVAL_BATTLE_ID.test(id) && typeof at === 'number' && Number.isFinite(at) && nowMs > at).map(([id]) => id);
+}
+
+/**
+ * forfeit-is-loss (Pak 2026-11-11: timing out is a loss). On every rival touch (status, issue, settle, forfeit) and before the
+ * request's own transaction, each LIVE (input-log) battle still listed in the open-battle ledger but past its TTL, unsettled, is
+ * closed as the forfeit's loss: settlement didWin false, closedBy 'expired', settledAtMs = its expiry; per-rival cooldown from the
+ * expiry (already over); the lead's win streak reset under HOLOCITY_BATTLE_IQ; nothing paid; HP as issued. Counted once: the closure
+ * is the battle's settlement and its ledger entry is dropped in the same transaction. The ledger keeps an expired entry until the
+ * next rival write, and every rival write runs this first, so no expired live battle is skipped. Legacy and resolver battles are
+ * never touched (their expiry stays silent). Costs one ledger read when nothing has expired.
+ */
+async function sweepExpiredLiveBattles(db: Firestore, uid: string, nowMs: number, battleIq: boolean): Promise<void> {
+  const ledgerRef = db.doc(`rivalBattles/${uid}`), userRef = db.doc(`users/${uid}`);
+  if (!expiredLedgerIds((await ledgerRef.get()).data(), nowMs).length) return;
+  await db.runTransaction(async tx => {
+    const ledgerData = (await tx.get(ledgerRef)).data();
+    const ids = expiredLedgerIds(ledgerData, nowMs);
+    if (!ids.length) return;
+    const user = await tx.get(userRef);
+    if (!user.exists) return;
+    const stale: RivalBattleRecord[] = [];
+    for (const id of ids) {
+      const record = (await tx.get(db.doc(`rivalBattles/${uid}/battles/${id}`))).data() as RivalBattleRecord | undefined;
+      if (record && record.battleId === id && !record.settlement && record.duel?.mode === 'input-log' && Number.isFinite(record.expiresAtMs) && nowMs > record.expiresAtMs) stale.push(record);
+    }
+    if (!stale.length) return;
+    let profile = user.data()!, ledger = ledgerData;
+    const userUpdates: Record<string, unknown> = {};
+    for (const record of stale) {
+      const closed = closeRivalBattleNoPay(profile, record, record.battleId, record.expiresAtMs, 'expired');
+      const loss = forfeitLossWrites(profile, record, ledger, record.battleId, nowMs, battleIq, record.expiresAtMs);
+      Object.assign(userUpdates, closed.userUpdates, loss.userUpdates);
+      profile = { ...profile, ...userUpdates };
+      ledger = { ...ledger, ...loss.ledger };
+      tx.update(db.doc(`rivalBattles/${uid}/battles/${record.battleId}`), closed.battleUpdates);
+    }
+    if (Object.keys(userUpdates).length) tx.update(userRef, userUpdates);
+    tx.set(ledgerRef, { [RIVAL_OPEN_BATTLES_FIELD]: ledger![RIVAL_OPEN_BATTLES_FIELD], [RIVAL_LAST_SETTLED_FIELD]: ledger![RIVAL_LAST_SETTLED_FIELD] });
   });
 }

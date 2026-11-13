@@ -67,7 +67,8 @@ export async function transactPvpDaily(db: Firestore, uid: string, raw: unknown,
     for (const o of doc!.opponents) {
       if (!o.battleId) continue;
       const b = (await db.doc(`rivalBattles/${uid}/battles/${o.battleId}`).get()).data() as RivalBattleRecord | undefined;
-      if (b?.settlement) results[o.battleId] = b.settlement.didWin;
+      // no-loss-before-fight (Pak 2026-11-11): a battle left during its countdown was cancelled, not lost: no result is listed.
+      if (b?.settlement && b.settlement.closedBy !== 'left_before_fight') results[o.battleId] = b.settlement.didWin;
     }
     return pvpDailyView(doc!, nowMs, results);
   }

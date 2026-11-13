@@ -40,6 +40,22 @@ export function battleIqCpuRank(profile: Record<string, unknown>, holobotId: str
   return bands[Math.min(5, Math.floor(battleIqFor(profile, holobotId.toUpperCase()) / 20))];
 }
 
+/**
+ * forfeit-is-loss (Pak 2026-11-11): a live fight closed WITHOUT a verified result (the explicit forfeit, or a log that failed
+ * replay) breaks each fielded bot's win streak exactly as a lost fight does (syncMomentum -> 0), and teaches nothing (battleIq is
+ * not touched: the loss-to-a-stronger-opponent IQ gain is a consolation, never paid on a forfeit). Only the momentum map is returned.
+ */
+export function momentumAfterForfeit(profile: Record<string, unknown>, fielded: readonly string[]): {syncMomentum: Record<string, number>} {
+  const priorMomentum = profile.syncMomentum && typeof profile.syncMomentum === 'object' && !Array.isArray(profile.syncMomentum) ? profile.syncMomentum as Record<string, number> : {};
+  const syncMomentum = { ...priorMomentum };
+  const roster = Array.isArray(profile.holobots) ? profile.holobots : [];
+  for (const raw of new Set(fielded)) {
+    const name = raw.toUpperCase();
+    if (roster.some(row => row && typeof row === 'object' && typeof row.name === 'string' && row.name.trim().toUpperCase() === name)) syncMomentum[name] = 0;
+  }
+  return { syncMomentum };
+}
+
 /** Called only on a first authoritative settle, in the same user-doc transaction. */
 export function fightLearningAfterSettle(profile: Record<string, unknown>, fielded: readonly string[], didWin: boolean, opponentLevel: number): {battleIq: Record<string, number>; syncMomentum: Record<string, number>} {
   const priorIq = profile.battleIq && typeof profile.battleIq === 'object' && !Array.isArray(profile.battleIq) ? profile.battleIq as Record<string, number> : {};

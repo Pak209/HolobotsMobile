@@ -17,6 +17,7 @@ import { HOLOBOT_NAMES } from "./economy";
 import { toHolobotKey } from "./mintingEconomy";
 import { BUDDY_UNITS_FIELD, BuddyInventory, BuddyTierId, BuddyTierKey, readBuddyInventory, tierByKey, totalBuddyUnits, withTierDelta } from "./buddyUnits";
 import { awardBattleExperienceRaw, HolobotProgressionEntry } from "./battleProgression";
+import { FIRST_WIN_OF_DAY_MULTIPLIER, FirstWinOfDayWire, LIVE_WIN_BONUS_CAP, LivePerformance, LiveWinBonusWire, firstWinWire, liveWinBonusWire, utcDayOf } from "./liveWinRewards";
 import { getHolobotRank, normalizeUserHolobot } from "./progression";
 import { getPlayerBattleStats } from "./progressionEconomy";
 import { RIVAL_NAMED_PROFILES, RIVAL_LINEUP_SCALE_WOLF, rivalTierBattleStats, rivalTierDamageScale } from "./rivalTierStats";
@@ -326,18 +327,28 @@ export function buildPlayerCombatants(profile: Record<string, unknown>, squadIds
   return out;
 }
 
+/** kaz-wolf-lead-1 (owner 2026-11-12: "WOLF leads, random bench"): Kaz's WOLF is always the lead. A drawn WOLF moves to the
+ * front (the rest keep their draw order); an undrawn WOLF replaces the last pick and leads. Same length, same draws. */
+export const KAZ_LEAD_HOLOBOT = "wolf";
+export function kazLeadPicks(picked: readonly string[]): string[] {
+  if (picked.length === 0) return [];
+  const rest = picked.includes(KAZ_LEAD_HOLOBOT) ? picked.filter((id) => id !== KAZ_LEAD_HOLOBOT) : picked.slice(0, -1);
+  return [KAZ_LEAD_HOLOBOT, ...rest];
+}
+
 /**
  * `random` returns [0,1). Rivals are distinct roster ids. The ids, pilot and draw count are the same
  * for both scales (only the stat numbers differ), so a battle's seed never depends on the version.
  */
-export function buildRivalLineup(tier: number, random: () => number, scale: RivalLineupScale = RIVAL_LINEUP_SCALE_BASELINE): RivalLineup {
+export function buildRivalLineup(tier: number, random: () => number, scale: RivalLineupScale = RIVAL_LINEUP_SCALE_BASELINE, opts: { kazLead?: boolean } = {}): RivalLineup {
   const row = getRivalTierRow(tier);
   const pool = [...RIVAL_ROSTER_IDS];
-  const picked: string[] = [];
+  let picked: string[] = [];
   for (let i = 0; i < row.rivals; i++) {
     const j = Math.min(pool.length - 1, Math.floor(random() * pool.length));
     picked.push(pool.splice(j, 1)[0]);
   }
+  if (opts.kazLead) picked = kazLeadPicks(picked);
   return {
     opponentPilot: { pilotId: `rival_tier_${tier}`, displayName: "Rival", tier: row.label },
     opponentSquad: picked.map((id) => (scale === RIVAL_LINEUP_SCALE_WOLF ? rivalScaledCombatant(id, tier) : rivalCombatant(id, row))),
@@ -369,7 +380,7 @@ export function utcDay(nowMs: number): string {
 
 // ---- Rival battle rules ----------------------------------------------------
 
-export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable" | "replay_mismatch" | "live_unavailable";
+export type RivalErrorCode = "invalid_request" | "unknown_battle" | "battle_expired" | "too_many_open" | "too_fast" | "activity_conflict" | "rival_cooldown" | "legacy_settlement_disabled" | "squad_required" | "unavailable" | "replay_mismatch" | "live_unavailable" | "holobot_ko";
 export class RivalError extends Error {
   /** rival_cooldown only: ms until the same rival can be issued again. */
   public retryAfterMs?: number;
@@ -437,8 +448,15 @@ export type RivalSettlement = {
   /** server-rulings-1 (Pak 2026-11-09, ruling 3): an input-log battle closed WITHOUT a verified result: the player's explicit
    * `forfeit`, or a settle whose log failed replay (`replay_mismatch`). Always a no-pay loss; absent = an ordinary settle. */
   closedBy?: RivalClosedBy;
+  /** early-progression-1: a verified live win's receipt-derived counts and capped multiplier (lib/liveWinRewards.ts). */
+  winBonus?: LiveWinBonusWire;
+  /** early-progression-1: the UTC day whose first live win this settle spent (x2 EXP and Holos); absent = not spent here. */
+  firstWinOfDay?: string;
 };
-export type RivalClosedBy = "forfeit" | "replay_mismatch";
+/** forfeit-is-loss (Pak 2026-11-11): "expired" = a live battle left unplayed past its TTL, recorded as a loss on the next rival touch.
+ * no-loss-before-fight (Pak 2026-11-11): "left_before_fight" = the player left during the countdown (lib/leftBeforeFight.ts). Stored
+ * with didWin false and nothing paid, but it is NOT a loss: no cooldown, no streak reset, and pvp-daily lists no result for it. */
+export type RivalClosedBy = "forfeit" | "replay_mismatch" | "expired" | "left_before_fight";
 
 /** Stored at rivalBattles/{uid}/battles/{battleId}; server-only path. */
 export type RivalBattleRecord = {
@@ -594,11 +612,11 @@ export type IssueReply = {
  * either way (projected by rivalReplyForVersion); with the baseline scale its opponents carry no
  * speed / intelligence (the v1 / v2 projection has none).
  */
-export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number, playerSquadIds: readonly string[] = [], scale: RivalLineupScale = RIVAL_LINEUP_SCALE_WOLF): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
+export function issueRivalBattle(profile: Profile, nowMs: number, battleId: string, random: () => number, playerSquadIds: readonly string[] = [], scale: RivalLineupScale = RIVAL_LINEUP_SCALE_WOLF, opts: { kazLead?: boolean } = {}): { userUpdates: Profile; battle: RivalBattleRecord; reply: IssueReply } {
   if (!RIVAL_BATTLE_ID.test(battleId)) throw new RivalError("unavailable");
   const l = readLedger(profile);
   const status = statusOf(l, nowMs);
-  const lineup = buildRivalLineup(status.tier, random, scale);
+  const lineup = buildRivalLineup(status.tier, random, scale, opts);
   const seed = Math.floor(random() * 0x7fffffff);
   const battle: RivalBattleRecord = { schemaVersion: RIVAL_RECORD_SCHEMA, battleId, tier: status.tier, issuedAtMs: nowMs, expiresAtMs: nowMs + RIVAL_BATTLE_TTL_MS, lineup, seed, settlement: null, playerSquadIds: [...playerSquadIds], lineupScale: scale };
   const extra = scale === RIVAL_LINEUP_SCALE_WOLF ? rivalScaledCombatantStats(status.tier) : null;
@@ -630,12 +648,17 @@ export type SettleReply = {
   holosGranted: number;
   /** server-rulings-1: present only when the battle was closed by a forfeit / a replay_mismatch (RivalSettlement.closedBy). */
   closedBy?: RivalClosedBy;
+  /** early-progression-1: present on a verified live win (v3 only). */
+  winBonus?: LiveWinBonusWire;
+  /** early-progression-1: present on the settle that spent the day's first live win, and on its replays (v3 only). */
+  firstWinOfDay?: FirstWinOfDayWire;
 };
 
 /**
  * server-rulings-1 (Pak 2026-11-09, ruling 3): close an open battle as a NO-PAY loss without a verified result: no Holos, no
  * Buddy Units, no XP, no rivalWins change, no pilot rank. `closedBy` names why (the explicit forfeit, or a replay_mismatch settle).
- * The caller frees the open-battle slot and does NOT start the per-rival cooldown, so a new issue works at once.
+ * The caller frees the open-battle slot. forfeit-is-loss (Pak 2026-11-11): the caller also starts the per-rival cooldown and breaks
+ * the win streak, as for a lost settle (rivalBattleStore.forfeitLossWrites); nothing here pays.
  */
 export function closeRivalBattleNoPay(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, nowMs: number, closedBy: RivalClosedBy): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord>; reply: SettleReply } {
   const l = readLedger(profile);
@@ -665,7 +688,13 @@ export function closeRivalBattleNoPay(profile: Profile, battle: RivalBattleRecor
  * at issue or the current one (`currentSquadIds`), else invalid_request. rivalWins / Buddy Units are
  * ruled exactly as before; `fielded` never changes them.
  */
-export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, didWin: boolean, nowMs: number, fielded?: readonly string[], currentSquadIds: readonly string[] = []): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord> | null; reply: SettleReply } {
+/**
+ * early-progression-1 (`live`, lib/liveWinRewards.ts): a VERIFIED input-log settle passes its receipt-derived win counts; a win
+ * then pays the table EXP with that multiplier capped at LIVE_WIN_BONUS_CAP. `live.firstWin` (the store read firstWinOfDay/{uid}
+ * and found today's unspent) doubles that EXP and the win Holos; the settlement records the day so the store writes the ledger.
+ */
+export type RivalLiveSettle = { performance: LivePerformance; firstWin: boolean };
+export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | undefined, battleId: string, didWin: boolean, nowMs: number, fielded?: readonly string[], currentSquadIds: readonly string[] = [], live?: RivalLiveSettle): { userUpdates: Profile; battleUpdates: Partial<RivalBattleRecord> | null; reply: SettleReply } {
   const l = readLedger(profile);
   if (!battle || battle.battleId !== battleId || battle.schemaVersion !== RIVAL_RECORD_SCHEMA) throw new RivalError("unknown_battle");
   if (battle.settlement) {
@@ -673,7 +702,8 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     return {
       userUpdates: starterUpdates(l),
       battleUpdates: null,
-      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })), holosGranted: s.holosGranted ?? 0, ...(s.closedBy ? { closedBy: s.closedBy } : {}) },
+      reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: true, didWin: s.didWin, buddyUnitsGranted: s.buddyUnitsGranted, buddyUnitTierGranted: s.buddyUnitTierGranted ?? (s.buddyUnitsGranted > 0 ? tierByKey(DAILY_RIVAL_REWARD_TIER).id : ""), tierBefore: s.tierBefore, tierAfter: s.tierAfter, status: statusOf(l, nowMs), progression: (s.progression ?? []).map((row) => ({ ...row })), holosGranted: s.holosGranted ?? 0, ...(s.closedBy ? { closedBy: s.closedBy } : {}),
+        ...(s.winBonus ? { winBonus: { ...s.winBonus } } : {}), ...(s.firstWinOfDay ? { firstWinOfDay: firstWinWire(s.firstWinOfDay) } : {}) },
     };
   }
   if (!Number.isFinite(battle.expiresAtMs) || nowMs > battle.expiresAtMs) throw new RivalError("battle_expired");
@@ -699,7 +729,10 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
   }
   // DECISIONS #58: every settled battle pays Holos; a loss inside the anti-farm window pays 0 (wins there are too_fast).
   const farmWindow = !didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_XP_MS);
-  const holosGranted = farmWindow ? 0 : didWin ? BATTLE_WIN_HOLOS : BATTLE_LOSS_HOLOS;
+  // early-progression-1: the day's first live win (never a Holos-only async PvP settle) doubles the win Holos and EXP.
+  const firstWin = !!live?.firstWin && didWin && !holosOnly;
+  const firstWinMultiplier = firstWin ? FIRST_WIN_OF_DAY_MULTIPLIER : 1;
+  const holosGranted = farmWindow ? 0 : didWin ? BATTLE_WIN_HOLOS * firstWinMultiplier : BATTLE_LOSS_HOLOS;
   if (holosGranted > 0) {
     const next = holosAfterGrant(profile, holosGranted);
     if (next === null) throw new RivalError("unavailable");
@@ -711,16 +744,22 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
     const allowed = new Set([...(Array.isArray(battle.playerSquadIds) ? battle.playerSquadIds : []), ...currentSquadIds]);
     if (fielded.some((id) => !allowed.has(id))) throw new RivalError("invalid_request");
     const withheld = !didWin && (!Number.isFinite(battle.issuedAtMs) || nowMs - battle.issuedAtMs < RIVAL_MIN_XP_MS);
-    const award = awardBattleExperienceRaw(profile, fielded, { kind: "rival", tier: battle.tier, didWin }, nowMs, { withheld });
+    const perf = live && didWin ? live.performance : undefined;
+    const award = awardBattleExperienceRaw(profile, fielded, { kind: "rival", tier: battle.tier, didWin, ...(perf ?? {}) }, nowMs,
+      { withheld, ...(perf ? { bonusCap: LIVE_WIN_BONUS_CAP } : {}), expMultiplier: firstWinMultiplier });
     if (!award) throw new RivalError("unavailable");
     progression = award.progression;
     if (award.expPerHolobot > 0) userUpdates.holobots = award.holobots;
   }
-  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: holosOnly ? [] : [...(fielded ?? [])], progression, holosGranted };
+  const winBonus = live && didWin && !holosOnly ? liveWinBonusWire(live.performance) : undefined;
+  const day = firstWin ? utcDayOf(nowMs) : undefined;
+  const settlement: RivalSettlement = { didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: tierForWins(l.wins), settledAtMs: nowMs, fielded: holosOnly ? [] : [...(fielded ?? [])], progression, holosGranted,
+    ...(winBonus ? { winBonus } : {}), ...(day ? { firstWinOfDay: day } : {}) };
   return {
     userUpdates,
     battleUpdates: { settlement },
-    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs), progression: progression.map((row) => ({ ...row })), holosGranted },
+    reply: { schemaVersion: RIVAL_SCHEMA_V3, battleId, alreadyProcessed: false, didWin, buddyUnitsGranted: granted, buddyUnitTierGranted: tierGranted, tierBefore, tierAfter: settlement.tierAfter, status: statusOf(l, nowMs), progression: progression.map((row) => ({ ...row })), holosGranted,
+      ...(winBonus ? { winBonus: { ...winBonus } } : {}), ...(day ? { firstWinOfDay: firstWinWire(day) } : {}) },
   };
 }
 
@@ -730,12 +769,12 @@ export function settleRivalBattle(profile: Profile, battle: RivalBattleRecord | 
 export type RivalStatusV1 = Omit<RivalStatus, "buddyUnits"> & { buddyUnits: number };
 
 /** The fields rival-battle-3 adds; a v2 projection removes exactly these (and nothing else). */
-export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression", "holosGranted", "closedBy"] as const;
+export const RIVAL_V3_REPLY_FIELDS = ["playerCombatants", "progression", "holosGranted", "closedBy", "winBonus", "firstWinOfDay"] as const;
 export const RIVAL_V3_COMBATANT_FIELDS = ["speed", "intelligence", "commandRules"] as const;
 
 /** The rival-battle-2 shape of a v3 reply: identical to the 2026-10-01 deployment (#44). */
 function toV2(reply: { schemaVersion: string; status: RivalStatus }): Record<string, unknown> & { status: RivalStatus } {
-  const { playerCombatants: _p, progression: _g, holosGranted: _h, closedBy: _c, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown; holosGranted?: unknown; closedBy?: unknown };
+  const { playerCombatants: _p, progression: _g, holosGranted: _h, closedBy: _c, winBonus: _w, firstWinOfDay: _f, ...rest } = reply as typeof reply & { playerCombatants?: unknown; progression?: unknown; holosGranted?: unknown; closedBy?: unknown; winBonus?: unknown; firstWinOfDay?: unknown };
   const out: Record<string, unknown> & { status: RivalStatus } = { ...rest, schemaVersion: RIVAL_SCHEMA_V2 };
   const encounter = (reply as { encounter?: { opponentSquad?: CombatantSnapshot[] } }).encounter;
   if (encounter && Array.isArray(encounter.opponentSquad)) {

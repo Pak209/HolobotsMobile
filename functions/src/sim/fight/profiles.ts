@@ -48,8 +48,22 @@ export function allBrainProfiles(): BrainProfile[] {
   ];
 }
 
+/**
+ * beast-fighter-1 (BEAST_FIGHTER_SPEC.md): the Error Beast archetype personalities, in BEAST_PROFILE_IDS order. Kept OUT of
+ * allBrainProfiles / PROFILE_ROSTER_IDS (the 13-row table stays parity-pinned and practice never offers a beast). The issued
+ * profile id of a beast fight is its archetype id (rules.beastArchetype). Placeholders; Pak tunes.
+ */
+export const BEAST_PROFILE_IDS = ['beast_bruiser'] as const;
+export function allBeastProfiles(): BrainProfile[] {
+  return [
+    //  id               style                 aggr  engMin band close chain heavy feint guard ctr  beat  break  circle shove burst lowHp special            escape charge
+    P('beast_bruiser', 'error beast bruiser', 5000, 60000, 0, true, 20, 5500, 300, 3000, 2000, 1000, 35000, 1500, 3000, 4000, 13000, S.FullSyncOnBreak, 0, 5000),
+  ];
+}
+
+/** A Holobot profile, else a beast archetype profile (by archetype id, never by beast id). Unknown id throws. */
 export function brainProfile(id: string): BrainProfile {
-  const p = allBrainProfiles().find(x => x.id === id);
+  const p = allBrainProfiles().find(x => x.id === id) ?? allBeastProfiles().find(x => x.id === id);
   if (!p) throw new RangeError('unknown_profile:' + id);
   return p;
 }
@@ -59,7 +73,8 @@ export function profileIsValid(p: BrainProfile): string | null {
   if (!p.id || p.id !== p.id.toLowerCase()) return 'id';
   if (![p.aggressionBps, p.heavyRatioBps, p.feintRateBps, p.guardRateBps, p.counterRateBps, p.beatShareBps, p.circleBiasBps, p.shoveRateBps, p.burstInBps,
     p.escapeBps, p.chargeShareBps].every(bps)) return 'bps';
-  if (p.breakAtStamina < 30000 || p.breakAtStamina > 90000) return 'breakAt';
+  // cpu-gama-engage-1: floor 25000 (was 30000) so the issued GAMA tuning (breakAtStaminaPm 250) is a legal row; every table row is >= 30000
+  if (p.breakAtStamina < 25000 || p.breakAtStamina > 90000) return 'breakAt';
   if (p.engageMinStamina < 30000 || p.engageMinStamina > 100000) return 'engageMin';
   if (p.chainMeanX10 < 10 || p.chainMeanX10 > 60) return 'chain';
   if (p.lowHpRiskBps < 2000 || p.lowHpRiskBps > 20000) return 'lowHp';

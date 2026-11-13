@@ -7,6 +7,7 @@ import {readTravelSquad} from '../acquisition/captureOwnership';
 import {arenaOpen,duelOpen} from '../lib/healingGuards';
 import {RepairError} from '../lib/repairItems';
 import {healthRows,Vitals} from '../lib/rivalHealth';
+import {commitVitals,effectiveVitals} from '../lib/autoHeal';
 import {buildPlayerCombatants,readOpenBattles} from '../lib/rivalLadder';
 import {readHoloZoneRuns} from '../lib/holoZoneRuns';
 export const DUEL_SWITCH_LOCKOUT_MS=3000;
@@ -36,7 +37,9 @@ export async function transactDuelHealing(firestore:Firestore,uid:string,raw:unk
    // settle finds it. A present-but-malformed row still fails closed.
    const stored=profile.holobotVitals;if(stored!==undefined&&(!stored||typeof stored!=='object'||Array.isArray(stored)))throw new RepairError('health_unavailable');
    const seeded:Vitals={},combatants=buildPlayerCombatants(profile,squad);
-   for(const id of squad){let v=stored?.[id];
+   // auto-heal-1: the run starts from each bot's regenerated HP (plain rows on the run record, the duel-healing-1 shape).
+   const effective=effectiveVitals(stored,now);
+   for(const id of squad){let v=effective[id];
     if(v===undefined){const c=combatants.find(x=>x.holobotId===id);if(!c||!Number.isFinite(c.maxHealth)||c.maxHealth<=0)throw new RepairError('health_unavailable');v=seeded[id]={currentHealth:c.maxHealth,maxHealth:c.maxHealth};}
     if(!v||!Number.isFinite(v.currentHealth)||!Number.isFinite(v.maxHealth)||v.maxHealth<=0||v.currentHealth<0||v.currentHealth>v.maxHealth)throw new RepairError('health_unavailable');if(fielded.includes(id)&&v.currentHealth===0)throw new RepairError("holobot_ko");vitals[id]={...v};}
    if(Object.keys(seeded).length)tx.update(userRef,{holobotVitals:{...stored,...seeded}});
@@ -57,7 +60,7 @@ export async function transactDuelHealing(firestore:Firestore,uid:string,raw:unk
   if(c.operation==='observe'){tx.set(ref,{...r,vitals});return {schemaVersion:'duel-healing-1',runId:r.runId,vitals};}
   const ledger={...profile.holobotVitals};for(const id of r.squad){const issued=vitals[id],current=ledger[id];if(!current||current.maxHealth!==issued.maxHealth)throw new RepairError('health_unavailable');ledger[id]={...issued};}
   const settlement={schemaVersion:'duel-healing-1',runId:r.runId,vitals,heals:r.heals,settledAtMs:now,alreadyProcessed:false};
-  tx.update(userRef,{holobotVitals:ledger});tx.set(ref,{...r,vitals,open:false,settlement});return settlement;
+  tx.update(userRef,{holobotVitals:commitVitals(profile.holobotVitals,ledger,now)});tx.set(ref,{...r,vitals,open:false,settlement});return settlement;
  });
 }
 export const duelHealingHost=onCall(async request=>{

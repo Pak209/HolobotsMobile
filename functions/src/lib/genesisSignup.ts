@@ -138,5 +138,9 @@ export const GENESIS_REPAIR_KIT_COUNT = 1;
  * callable from lib/onboarding.ts genesisOnboarding.
  */
 export function buildGenesisHostGrants(): Record<string, unknown> {
-  return healingDelta({}, GENESIS_REPAIR_KIT_ITEM, GENESIS_REPAIR_KIT_COUNT);
+  // early-progression-1 (Pak 2026-11-12): a new account starts with GENESIS_STARTER_HOLOS so the Rookie Arena (50) is open.
+  return { ...healingDelta({}, GENESIS_REPAIR_KIT_ITEM, GENESIS_REPAIR_KIT_COUNT), holosTokens: GENESIS_STARTER_HOLOS };
 }
+
+/** early-progression-1: starter Holos for a NEW account only (createGenesisProfile never touches an existing profile). */
+export const GENESIS_STARTER_HOLOS = 300;

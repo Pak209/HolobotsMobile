@@ -1,5 +1,6 @@
 import { applyHolobotExperience, getHolobotBattleStats, getLegacyBattleSpeed, normalizeUserHolobot } from "@/lib/progression";
 import { getTodayMissionKey, normalizeRewardSystem, type MobileRewardSystem } from "@/lib/dailyMissions";
+import { MARKETPLACE_PART_CATALOG, type MarketplacePartRarity } from "@/lib/marketplace";
 import type { UserHolobot, UserProfile } from "@/types/profile";
 
 export type TrainingCourseId =
@@ -424,11 +425,43 @@ export function startQuestRun(
   return next;
 }
 
+/**
+ * early-progression-1: the Part rarity a quest's advertised item key pays (no legendary Parts exist; legendary pays epic).
+ * Server mirror: functions/src/lib/progressionEconomy.ts QUEST_REWARD_PART_RARITY.
+ */
+export const QUEST_REWARD_PART_RARITY: Readonly<Record<QuestRewardItemKey, MarketplacePartRarity>> = { common: "common", rare: "rare", legendary: "epic" };
+export type QuestRewardPart = { name: string; rarity: MarketplacePartRarity; slot: string };
+
+/** 32-bit FNV-1a: the same deterministic pick as the server, keyed by the run id. */
+function fnv1a(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h >>> 0;
+}
+
+/** `amount` Parts of the key's rarity from the Marketplace part catalog, picked by the run id (server questRewardParts). */
+export function questRewardParts(itemKey: QuestRewardItemKey, amount: number, runId: string): QuestRewardPart[] {
+  const rarity = QUEST_REWARD_PART_RARITY[itemKey];
+  const pool = MARKETPLACE_PART_CATALOG.filter((offer) => offer.rarity === rarity);
+  if (!pool.length) return [];
+  const out: QuestRewardPart[] = [];
+  for (let i = 0; i < Math.max(0, Math.floor(amount)); i++) {
+    const offer = pool[fnv1a(`${runId}:${i}`) % pool.length];
+    out.push({ name: offer.name, rarity: offer.rarity, slot: offer.slot });
+  }
+  return out;
+}
+
+/**
+ * early-progression-1 (server applyQuestClaim): a successful quest's item reward is real Parts appended to users/{uid}.parts;
+ * the legacy inventory[itemKey] counter is left as it is (never incremented again).
+ */
 export function claimQuestRun(
   holobots: UserHolobot[],
   inventory: Record<string, number> | undefined,
   syncPoints: number,
   quest: ActiveQuestRecord,
+  parts?: Array<Record<string, unknown>>,
 ) {
   const nextHolobots = holobots.map((rawHolobot) => {
     if (rawHolobot.name.toUpperCase() !== quest.holobotName.toUpperCase() || !quest.succeeded) {
@@ -439,13 +472,18 @@ export function claimQuestRun(
   });
 
   const nextInventory = { ...(inventory || {}) };
-  if (quest.succeeded && quest.rewards.itemKey && quest.rewards.itemAmount) {
-    nextInventory[quest.rewards.itemKey] = (nextInventory[quest.rewards.itemKey] || 0) + quest.rewards.itemAmount;
-  }
+  const partsGranted = quest.succeeded && quest.rewards.itemKey && quest.rewards.itemAmount
+    ? questRewardParts(quest.rewards.itemKey, quest.rewards.itemAmount, typeof quest.id === "string" ? quest.id : String(quest.questId))
+    : [];
+  const nextParts = partsGranted.length
+    ? [...(Array.isArray(parts) ? parts : []), ...partsGranted.map((part) => ({ ...part }))]
+    : undefined;
 
   return {
     holobots: nextHolobots,
     inventory: nextInventory,
+    parts: nextParts,
+    partsGranted,
     syncPoints: syncPoints + (quest.succeeded ? quest.rewards.syncPoints : 0),
   };
 }

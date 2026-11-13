@@ -1,4 +1,5 @@
 import {KO_FALLBACK_FRACTION} from "./rivalHealth";
+import {commitVitals,effectiveRow} from "./autoHeal";
 /** Server-owned repair stock and health. No client-supplied amount/health is accepted. */
 export const REPAIR_FIELD = "emergencyPatches";
 export const REPAIR_ITEM = "item.emergency_patch";
@@ -61,7 +62,9 @@ export function repairGrant(profile:Record<string,unknown>,amount=1):Record<stri
  if(!Number.isSafeInteger(amount)||amount<0||!Number.isSafeInteger(next))throw new RepairError("unavailable");
  return {[REPAIR_FIELD]:next};
 }
-export function repairUse(profile:Record<string,unknown>,botId:string|undefined,itemId:string=REPAIR_ITEM){
+/** auto-heal-1: the item applies on top of the bot's regenerated HP at the server's `nowMs` (lib/autoHeal.ts), and the
+ * written row is stamped `nowMs` (commitVitals). A caller healing session HP (a duel-healing run) stamps its rows `nowMs`. */
+export function repairUse(profile:Record<string,unknown>,botId:string|undefined,itemId:string,nowMs:number){
  if(!botId)throw new RepairError("choose_holobot");
  const squad=profile.travelSquad as {holobotIds?:unknown[]}|undefined;
  if(!squad?.holobotIds?.includes(botId))throw new RepairError("not_in_squad");
@@ -69,8 +72,9 @@ export function repairUse(profile:Record<string,unknown>,botId:string|undefined,
  if(healingStock(profile,itemId)<1)throw new RepairError("no_item");
  // Existing practice health is session-local. Missing server health fails closed; never infer a wounded bot.
  const ledger=profile.holobotVitals as Record<string,{currentHealth:number;maxHealth:number}>|undefined;
- const v=ledger?.[botId];
- if(!v||!Number.isFinite(v.currentHealth)||!Number.isFinite(v.maxHealth)||v.maxHealth<=0||v.currentHealth<0||v.currentHealth>v.maxHealth)throw new RepairError("health_unavailable");
+ const stored=ledger?.[botId];
+ if(!stored||!Number.isFinite(stored.currentHealth)||!Number.isFinite(stored.maxHealth)||stored.maxHealth<=0||stored.currentHealth<0||stored.currentHealth>stored.maxHealth)throw new RepairError("health_unavailable");
+ const v=effectiveRow(stored,nowMs);
  if(v.currentHealth>=v.maxHealth)throw new RepairError("already_full");
  // DECISIONS #72.1 "floor + item": a bot below the KO fallback (HP 0, or under 40 %) heals FROM the fallback, so a heal
  // never leaves it lower than not healing would (the unhealed bot enters its next rival duel at the fallback).
@@ -79,5 +83,5 @@ export function repairUse(profile:Record<string,unknown>,botId:string|undefined,
  // The client prints this value verbatim ({hp}/{max}); strip binary-float noise from the floor sum (192*.4+48 is
  // 124.80000000000001) without changing the amount.
  const health=Math.min(v.maxHealth,Math.round((start+v.maxHealth*item.fraction)*1e6)/1e6);
- return {updates:{...healingDelta(profile,itemId,-1),holobotVitals:{...ledger,[botId]:{...v,currentHealth:health}}},result:{kind:"repair",itemId,holobotId:botId,currentHealth:health,maxHealth:v.maxHealth}};
+ return {updates:{...healingDelta(profile,itemId,-1),holobotVitals:commitVitals(ledger,{...ledger,[botId]:{...v,currentHealth:health}},nowMs)},result:{kind:"repair",itemId,holobotId:botId,currentHealth:health,maxHealth:v.maxHealth}};
 }

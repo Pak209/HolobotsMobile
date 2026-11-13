@@ -6,13 +6,14 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { repairHolobotProgression } = require('../lib/lib/holobotRecordRepair.js');
-const { calculateExperience } = require('../lib/lib/progression.js');
+// early-progression-1: levels 2-5 are cheaper (LV4 -> 5 at 1,800, was 2,500); an old-curve LV1 record at 400 EXP is still refused.
+const { calculateExperience, legacyCalculateExperience } = require('../lib/lib/progression.js');
 const { readStoryFlags, readStoryFlagsTolerant } = require('../lib/story/storyFlags.js');
 const { sanitizeEconomyFields, ECONOMY_SANE_FIELDS, ECONOMY_SANE_EPOCH_FIELDS, ECONOMY_SANE_MAX } = require('../lib/lib/economyFieldSanitizer.js');
 const { describeRepairValue } = require('../lib/lib/accountRepairAudit.js');
 
 test('holobot repair: canonical records are untouched (no changes, same values)', () => {
-  for (const bot of [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 2500, attributePoints: 1, boostedAttributes: { attack: 3 } }, { name: 'KUMA' }, { name: 'KUMA', level: 1, experience: 0 }]) {
+  for (const bot of [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 1800, attributePoints: 1, boostedAttributes: { attack: 3 } }, { name: 'KUMA' }, { name: 'KUMA', level: 1, experience: 0 }]) {
     const r = repairHolobotProgression(bot);
     assert.equal(r.ok, true); assert.deepEqual(r.changes, []); assert.deepEqual(r.holobot, bot);
   }
@@ -20,11 +21,11 @@ test('holobot repair: canonical records are untouched (no changes, same values)'
 
 test('holobot repair: legacy derived fields heal from level; level / experience never change; nothing is raised', () => {
   const cases = [
-    [{ name: 'KUMA', level: 1, experience: 150, nextLevelExp: 100 }, { nextLevelExp: 400 }],
-    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 1600 }, { nextLevelExp: 2500 }],
-    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: '2500' }, { nextLevelExp: 2500 }],
-    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: null }, { nextLevelExp: 2500 }],
-    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 99999 }, { nextLevelExp: 2500 }],
+    [{ name: 'KUMA', level: 1, experience: 150, nextLevelExp: 100 }, { nextLevelExp: 200 }],
+    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 1600 }, { nextLevelExp: 1800 }],
+    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: '2500' }, { nextLevelExp: 1800 }],
+    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: null }, { nextLevelExp: 1800 }],
+    [{ name: 'ACE', level: 4, experience: 1700, nextLevelExp: 99999 }, { nextLevelExp: 1800 }],
     [{ name: 'ACE', level: 4, experience: 0, attributePoints: null }, { attributePoints: 0 }],
     [{ name: 'ACE', level: 4, experience: 0, attributePoints: '3' }, { attributePoints: 3 }],
     [{ name: 'ACE', level: 4, experience: 0, attributePoints: 2.7 }, { attributePoints: 2 }],
@@ -45,7 +46,7 @@ test('holobot repair: unhealable records are refused with a reason, never guesse
   const cases = [
     [{ name: 'ACE', level: 0 }, 'level_malformed'], [{ name: 'ACE', level: '4' }, 'level_malformed'], [{ name: 'ACE', level: Infinity }, 'level_malformed'],
     [{ name: 'ACE', level: 4, experience: -1 }, 'experience_malformed'], [{ name: 'ACE', level: 4, experience: '1e309' }, 'experience_malformed'],
-    [{ name: 'ACE', level: 4, experience: 2500 }, 'experience_over_level'], [{ name: 'ACE', level: 1, experience: calculateExperience(2) }, 'experience_over_level'],
+    [{ name: 'ACE', level: 4, experience: 2500 }, 'experience_over_level'], [{ name: 'ACE', level: 1, experience: legacyCalculateExperience(2) }, 'experience_over_level'],
     [{ name: 'ACE', level: 4, experience: 0, attributePoints: -1 }, 'attribute_points_malformed'], [{ name: 'ACE', level: 4, experience: 0, attributePoints: Infinity }, 'attribute_points_malformed'],
     [{ name: 'ACE', level: 4, experience: 0, attributePoints: 'lots' }, 'attribute_points_malformed'],
     [{ name: 'ACE', level: 4, experience: 0, boostedAttributes: [1] }, 'boosted_attributes_malformed'], [{ name: 'ACE', level: 4, experience: 0, boostedAttributes: { attack: -1 } }, 'boosted_attributes_malformed'],

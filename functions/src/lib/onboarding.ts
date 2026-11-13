@@ -24,6 +24,7 @@
  *
  * Pure module: no firebase imports, safe to import from tests.
  */
+import { effectiveHealth, VitalsRow } from "./autoHeal";
 import { readTravelSquad } from "../acquisition/captureOwnership";
 import { HEALING_ITEMS } from "./repairItems";
 
@@ -95,7 +96,7 @@ export function validateOnboardingIntent(raw: unknown): OnboardingIntent {
 }
 
 /** Host check for a step-4 / step-5 skip-forward ack: the beat's trigger cannot happen right now. */
-function skipForwardAllowed(profile: Record<string, unknown>, step: number): boolean {
+function skipForwardAllowed(profile: Record<string, unknown>, step: number, nowMs: number): boolean {
   if (step === 4) {
     const holos = profile.holosTokens ?? 0;
     if (typeof holos !== "number" || !Number.isFinite(holos) || holos < 0) throw new OnboardingError("unavailable");
@@ -111,7 +112,7 @@ function skipForwardAllowed(profile: Record<string, unknown>, step: number): boo
       const v = (vitals as Record<string, { currentHealth?: unknown; maxHealth?: unknown }>)[id];
       if (v === undefined) return true; // no ledger row = fresh (rivalHealth.issueVitals reads it the same way)
       if (!v || typeof v.currentHealth !== "number" || typeof v.maxHealth !== "number") throw new OnboardingError("unavailable");
-      return v.currentHealth >= v.maxHealth;
+      return effectiveHealth(v as VitalsRow, nowMs) >= v.maxHealth; // auto-heal-1: regenerated HP
     });
   }
   return false;
@@ -129,7 +130,7 @@ export function acknowledgeOnboarding(profile: Record<string, unknown>, intent: 
   if (intent.advance <= state.step) return state;
   if (intent.advance !== state.step + 1) throw new OnboardingError("not_eligible");
   const allowed = ONBOARDING_ACK_STEPS.includes(state.step)
-    || (ONBOARDING_SKIP_FORWARD_STEPS.includes(state.step) && skipForwardAllowed(profile, state.step));
+    || (ONBOARDING_SKIP_FORWARD_STEPS.includes(state.step) && skipForwardAllowed(profile, state.step, nowMs));
   if (!allowed) throw new OnboardingError("not_eligible");
   return { step: intent.advance, skipped: false, stepAt: nowMs };
 }

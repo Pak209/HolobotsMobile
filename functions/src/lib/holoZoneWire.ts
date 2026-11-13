@@ -35,11 +35,12 @@ export function holoZoneIssueReplyForVersion(reply: HoloZoneIssueReply, version:
 }
 
 /** The settle fields holozone-run-2 adds (DECISIONS #58 grants); a v1 settle reply never carries them. */
-export const HOLOZONE_V2_SETTLE_FIELDS = ["holosGranted", "blueprintFragmentsGranted"] as const;
-/** settle: v1 is the deployed shape (the #58 grant fields stripped; the grants still happen); v2 carries them. */
-export function holoZoneSettleReplyForVersion(reply: HoloZoneSettleReply, version: HoloZoneWireVersion): Omit<HoloZoneSettleReply, "holosGranted" | "blueprintFragmentsGranted"> | HoloZoneSettleReplyV2 {
+export const HOLOZONE_V2_SETTLE_FIELDS = ["holosGranted", "blueprintFragmentsGranted", "winBonus", "firstWinOfDay"] as const;
+/** settle: v1 is the deployed shape (the #58 grant fields and the early-progression-1 fields stripped; the grants still happen); v2
+ * carries them. */
+export function holoZoneSettleReplyForVersion(reply: HoloZoneSettleReply, version: HoloZoneWireVersion): Omit<HoloZoneSettleReply, (typeof HOLOZONE_V2_SETTLE_FIELDS)[number]> | HoloZoneSettleReplyV2 {
   if (version !== HOLOZONE_SCHEMA_V2) {
-    const { holosGranted: _h, blueprintFragmentsGranted: _f, ...v1 } = reply;
+    const { holosGranted: _h, blueprintFragmentsGranted: _f, winBonus: _w, firstWinOfDay: _d, ...v1 } = reply;
     return v1;
   }
   return { ...reply, schemaVersion: HOLOZONE_SCHEMA_V2 };

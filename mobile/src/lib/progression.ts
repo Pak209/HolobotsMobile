@@ -161,8 +161,31 @@ export function getHolobotDisplayStats(
   };
 }
 
-export function calculateExperience(level: number) {
+/**
+ * early-progression-1 (Pak 2026-11-12, "faster first levels"): the cumulative EXP a Holobot needs to REACH `level`.
+ * Levels 2-5 come from EARLY_LEVEL_EXPERIENCE (200 / 500 / 1,000 / 1,800); level 6 rejoins floor(100 x L^2) at 3,600.
+ * Server mirror: functions/src/lib/progression.ts (same table, same stored-threshold migration).
+ */
+export const EARLY_LEVEL_EXPERIENCE: Readonly<Record<number, number>> = Object.freeze({ 2: 200, 3: 500, 4: 1000, 5: 1800 });
+
+/** The pre-early-progression-1 curve, floor(100 x L^2). */
+export function legacyCalculateExperience(level: number) {
   return Math.floor(100 * Math.pow(Math.max(1, level), 2));
+}
+
+export function calculateExperience(level: number) {
+  const l = Math.max(1, level);
+  return Object.prototype.hasOwnProperty.call(EARLY_LEVEL_EXPERIENCE, l) ? EARLY_LEVEL_EXPERIENCE[l] : legacyCalculateExperience(l);
+}
+
+/**
+ * A stored nextLevelExp written under the old curve for a level the new curve changed (exactly floor(100 x (level+1)^2) with
+ * level + 1 in 2..5) reads as the new curve's threshold. Any other stored value passes through unchanged.
+ */
+export function migrateStoredNextLevelExp(level: number, stored: number) {
+  const next = Math.max(1, level) + 1;
+  if (Object.prototype.hasOwnProperty.call(EARLY_LEVEL_EXPERIENCE, next) && stored === legacyCalculateExperience(next)) return calculateExperience(next);
+  return stored;
 }
 
 export function getHolobotRank(level: number) {
@@ -191,7 +214,7 @@ export function normalizeUserHolobot(holobot: UserHolobot): UserHolobot {
     boostedAttributes: holobot.boostedAttributes || {},
     experience: holobot.experience || 0,
     lifetimeSPInvested: holobot.lifetimeSPInvested ?? 0,
-    nextLevelExp: holobot.nextLevelExp || calculateExperience(level + 1),
+    nextLevelExp: migrateStoredNextLevelExp(level, holobot.nextLevelExp || 0) || calculateExperience(level + 1),
     rank: holobot.rank || getHolobotRank(level),
     syncAbilityUnlocks:
       holobot.syncAbilityUnlocks ?? getUnlockedSyncAbilities({ name: holobot.name, syncStats }),

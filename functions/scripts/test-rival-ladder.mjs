@@ -196,3 +196,51 @@ test('wire versions: requests default to rival-battle-1; v1 replies carry the to
 });
 
 test('wins grant one Emergency Patch, loss and duplicate grant none',()=>{const p={buddyUnits:light(0),rivalWins:0};const i=issue(p,T0,'rb_repair');const a=L.settleRivalBattle(p,i.battle,'rb_repair',true,T0+L.RIVAL_MIN_WIN_MS);assert.equal(a.userUpdates.emergencyPatches,1);const b=L.settleRivalBattle({...p,...a.userUpdates},{...i.battle,...a.battleUpdates},'rb_repair',true,T0+L.RIVAL_MIN_WIN_MS+1);assert.equal(b.userUpdates.emergencyPatches,undefined);const j=issue(p,T0,'rb_loss');const c=L.settleRivalBattle(p,j.battle,'rb_loss',false,T0+L.RIVAL_MIN_WIN_MS);assert.equal(c.userUpdates.emergencyPatches,undefined);});
+
+// kaz-wolf-lead-1 (owner 2026-11-12: "WOLF leads, random bench"): Kaz's ordinary ladder issue leads with WOLF; the draw count and
+// therefore the battle seed are unchanged, and every other caller of buildRivalLineup keeps its random lead.
+test('Kaz lineup: WOLF leads (moved to the front, or replacing the last pick), same size, same draws, same seed', () => {
+  assert.equal(L.KAZ_LEAD_HOLOBOT, 'wolf');
+  assert.deepEqual(L.kazLeadPicks(['ace', 'wolf', 'kuma']), ['wolf', 'ace', 'kuma'], 'drawn: moved to the front, the rest in draw order');
+  assert.deepEqual(L.kazLeadPicks(['wolf', 'ace']), ['wolf', 'ace']);
+  assert.deepEqual(L.kazLeadPicks(['ace', 'kuma', 'shadow']), ['wolf', 'ace', 'kuma'], 'not drawn: replaces the last pick');
+  assert.deepEqual(L.kazLeadPicks(['shadow']), ['wolf']);
+  assert.deepEqual(L.kazLeadPicks([]), []);
+  const counting = seedState => { let s = seedState, calls = 0; return { rnd: () => { calls++; return (s = (s * 9301 + 49297) % 233280) / 233280; }, calls: () => calls }; };
+  let wolfDrawnElsewhere = 0, wolfMissing = 0, shadowLedPlain = 0;
+  for (const tier of [0, 1, 2, 3, 4, 9]) for (let k = 0; k < 40; k++) {
+    const a = counting(k * 101 + tier), b = counting(k * 101 + tier);
+    const plain = L.buildRivalLineup(tier, a.rnd, L.RIVAL_LINEUP_SCALE_WOLF).opponentSquad.map(c => c.holobotId);
+    const kaz = L.buildRivalLineup(tier, b.rnd, L.RIVAL_LINEUP_SCALE_WOLF, { kazLead: true }).opponentSquad.map(c => c.holobotId);
+    assert.equal(a.calls(), b.calls(), 'same number of random() draws');
+    assert.equal(kaz.length, plain.length); assert.equal(kaz[0], 'wolf'); assert.equal(new Set(kaz).size, kaz.length, 'distinct');
+    assert.deepEqual(kaz, L.kazLeadPicks(plain));
+    if (plain.includes('wolf') && plain[0] !== 'wolf') wolfDrawnElsewhere++;
+    if (!plain.includes('wolf')) wolfMissing++;
+    if (plain[0] === 'shadow') shadowLedPlain++;
+  }
+  assert.ok(wolfDrawnElsewhere > 0 && wolfMissing > 0 && shadowLedPlain > 0, 'the sample covers both rewrite cases and a SHADOW lead');
+  // issueRivalBattle: the seed and the record's other fields are the same with and without the Kaz lead; only the squad order differs
+  for (let k = 0; k < 20; k++) {
+    const p = { buddyUnits: light(0), rivalWins: 40 }, a = counting(k + 7), b = counting(k + 7);
+    const x = L.issueRivalBattle(p, T0, 'rb_kaz', a.rnd), y = L.issueRivalBattle(p, T0, 'rb_kaz', b.rnd, [], L.RIVAL_LINEUP_SCALE_WOLF, { kazLead: true });
+    assert.equal(y.reply.encounter.seed, x.reply.encounter.seed); assert.equal(y.battle.seed, x.battle.seed); assert.equal(a.calls(), b.calls());
+    assert.equal(y.reply.encounter.opponentSquad[0].holobotId, 'wolf'); assert.equal(y.battle.lineup.opponentSquad[0].holobotId, 'wolf');
+    assert.deepEqual(y.battle.lineup.opponentSquad.map(c => c.holobotId), L.kazLeadPicks(x.battle.lineup.opponentSquad.map(c => c.holobotId)));
+    assert.equal(y.reply.encounter.opponentSquad[0].commandRules !== undefined, true, 'the WOLF row carries its v3 reply extras');
+  }
+});
+
+test('Kaz lineup through the rival host: ordinary issues lead with WOLF; mentor stays one WOLF; seed unchanged', async () => {
+  const { fakeDb } = await import('./lib/fake-firestore.mjs');
+  const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
+  const P = require('../lib/lib/progression.js');
+  const bot = (name, level) => ({ name, level, experience: 0, nextLevelExp: P.calculateExperience(level + 1), attributePoints: 0, boostedAttributes: {} });
+  for (let k = 0; k < 12; k++) {
+    const db = fakeDb({ now: T0 }), uid = 'kaz_' + k;
+    db.put(`users/${uid}`, { holobots: [bot('ACE', 20)], holosTokens: 0, rivalWins: 40, buddyUnits: light(0), travelSquad: { schemaVersion: 'travel-squad-1', revision: 1, holobotIds: ['ace'] } });
+    let s = k * 31 + 5; const rnd2 = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const r = await transactRivalBattle(db, uid, { schemaVersion: 'rival-battle-3', operation: 'issue' }, T0, rnd2, {});
+    assert.equal(r.encounter.opponentSquad[0].holobotId, 'wolf', 'seed ' + k + ': ' + r.encounter.opponentSquad.map(c => c.holobotId));
+  }
+});

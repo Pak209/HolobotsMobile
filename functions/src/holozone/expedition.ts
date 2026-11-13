@@ -7,9 +7,13 @@ import { healingDelta, healingStock, healingItem } from '../lib/repairItems';
 import { readTravelSquad } from '../acquisition/captureOwnership';
 import { readStoryFlags } from '../story/storyFlags';
 import { FightReceiptWire, FightReplayIssueWire, FIGHT_INPUTS_SCHEMA } from '../shared/fightReplayContract';
-import { buildFightReplayIssue } from '../rival/fightReplayIssue';
+import { buildFightReplayIssue, withLiveMoveRanks } from '../rival/fightReplayIssue';
+import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { manualReadinessStart, cpuStartSync } from '../lib/readinessFight';
 import { fightLearningAfterSettle } from '../lib/readinessFight';
+import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
+import { ledgerHealthAfterFight } from '../lib/partStats';
+import { commitVitals } from '../lib/autoHeal';
 
 /** Storage version of every run document AND the zone-run-3 wire. zone-run-4 is a reply shape over the same rulings. */
 export const ZONE_RUN_SCHEMA = 'zone-run-3';
@@ -113,8 +117,8 @@ export type UtilityEffect='route'|'cache'|'clear'|'none';
 /** zone-run-4 utility reply field. haul = rows this use added (also present in run.haul, unbanked until extraction). */
 export type UtilityResult={sectorId:string;utility:'ace'|'shadow'|'kuma';effect:UtilityEffect;opensSectorId:string|null;haul:Haul[];spent:boolean;cooldownMs:number|null};
 export type ExpeditionCommand={schemaVersion:string;operation:string;requestId?:string;runId?:string;itemId?:string;repairKits?:number;carryExtractionCharge?:boolean;
-  sectorId?:string;holobotId?:string;order?:string[];haulId?:string;utility?:string;playerIntents?:unknown;duelInputs?:string;fightId?:string;inputLog?:unknown;signature?:string;targetSectorId?:string};
-const fields:Record<string,string[]>={status:[],layout:[],buy:['itemId'],issue:['repairKits','carryExtractionCharge','duelInputs'],move:['sectorId'],fight:['playerIntents'],engage:['duelInputs'],fight_settle:['fightId','inputLog'],flee:['fightId'],resume:['fightId'],cache:[],protect:['haulId'],heal:['holobotId'],reorder:['order'],utility:['utility'],signature:['signature','holobotId','targetSectorId'],extract:['mode'],emergency_start:[],emergency_finish:[],wipe:[]};
+  sectorId?:string;holobotId?:string;order?:string[];haulId?:string;utility?:string;playerIntents?:unknown;duelInputs?:string;fightRules?:string;fightId?:string;inputLog?:unknown;signature?:string;targetSectorId?:string};
+const fields:Record<string,string[]>={status:[],layout:[],buy:['itemId'],issue:['repairKits','carryExtractionCharge','duelInputs'],move:['sectorId'],fight:['playerIntents'],engage:['duelInputs','fightRules'],fight_settle:['fightId','inputLog'],flee:['fightId'],resume:['fightId'],cache:[],protect:['haulId'],heal:['holobotId'],reorder:['order'],utility:['utility'],signature:['signature','holobotId','targetSectorId'],extract:['mode'],emergency_start:[],emergency_finish:[],wipe:[]};
 /** signatures = the HOLOCITY_ZONE_SIGNATURES flag (store passes it). Off: zone-run-5 is an unknown version (invalid_request). */
 export function validateExpeditionCommand(raw:unknown,options:{signatures?:boolean}={}):ExpeditionCommand {
   if(!object(raw)||typeof raw.operation!=='string'||!Object.hasOwn(fields,raw.operation))return fail('invalid_request');
@@ -133,6 +137,9 @@ export function validateExpeditionCommand(raw:unknown,options:{signatures?:boole
   if(op==='fight'&&raw.schemaVersion===ZONE_RUN_SCHEMA_V6)return fail('client_update_required');
   if(['engage','fight_settle','flee','resume'].includes(op)&&raw.schemaVersion!==ZONE_RUN_SCHEMA_V6)return fail('invalid_request');
   if(op==='engage'&&raw.duelInputs!==FIGHT_INPUTS_SCHEMA)return fail('client_update_required');
+  // expedition-rules-8 (2026-11-12): engage's optional `fightRules` ask, exactly the rival / Arena rule: only duel-rules-6/-7/-8
+  // are known; any other value is refused here, before the store reads or writes anything. Absent = today's issue, byte for byte.
+  if(op==='engage'&&raw.fightRules!==undefined&&raw.fightRules!==RULES_SCHEMA_6&&raw.fightRules!==RULES_SCHEMA_7&&raw.fightRules!==RULES_SCHEMA_8)return fail('invalid_request');
   if(op==='issue'&&raw.schemaVersion===ZONE_RUN_SCHEMA_V6&&raw.duelInputs!==FIGHT_INPUTS_SCHEMA)return fail('client_update_required');
   // duelInputs is a zone-run-6 capability; older issue requests keep main's exact key set.
   if(op==='issue'&&raw.schemaVersion!==ZONE_RUN_SCHEMA_V6&&raw.duelInputs!==undefined)return fail('invalid_request');
@@ -174,9 +181,9 @@ export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionComma
   // The HoloZones portal gate (critic review 2026-10-17 #1): no expedition until the host flips holoZonesArcBuilt.
   if(!flags.holoZonesArcBuilt)return fail('zone_locked');
   const ids=readTravelSquad(profile).holobotIds;if(!ids.length)return fail('squad_required');
-  requireLivingVitals(profile,ids);
+  requireLivingVitals(profile,ids,now);
   const players=buildPlayerCombatants(profile,ids);if(players.length!==ids.length)return fail('unavailable');
-  const vitals=issueVitals(profile,players),supplies=expeditionSupplies(profile);
+  const vitals=issueVitals(profile,players,now),supplies=expeditionSupplies(profile);
   if(supplies.energy<config.sectorEnergyCost)return fail('no_energy');
   const kits=c.repairKits!,charge=c.carryExtractionCharge?ZONE_EXPEDITION_RULES.extraction.carriedCharges:0;
   if(healingStock(profile,'item.repair_kit')<kits)return fail('no_kit');
@@ -191,7 +198,7 @@ export function issueExpedition(profile:Record<string,unknown>,c:ExpeditionComma
     ...(options.signatures===true&&!realtime?{signaturePool:signaturePool(squad),signatureArmed:null,forecasts:[],slipOpened:[],protectedSlots:ZONE_EXPEDITION_RULES.protectedSlot.count,signatureAtMs:null}:{}),
     ...(realtime?{realtime:true,pendingFight:null,lastFight:null}: {})};
   if(realtime)run.squad=run.squad.map(b=>({...b,staminaPm:1000}));
-  return {run,updates:{...healingDelta(profile,'item.repair_kit',-kits),holobotVitals:vitals,expeditionSupplies:{...supplies,extractionCharges:supplies.extractionCharges-charge}}};
+  return {run,updates:{...healingDelta(profile,'item.repair_kit',-kits),holobotVitals:commitVitals(profile.holobotVitals,vitals,now),expeditionSupplies:{...supplies,extractionCharges:supplies.extractionCharges-charge}}};
 }
 /** zone-run-3 view: the deployed shape, byte for byte (utility bookkeeping stripped). zone-run-4 view: schemaVersion
  * "zone-run-4" plus utilityUsed. The cooldown anchor and private seed never leave the host. */
@@ -386,7 +393,7 @@ function terminal(profile:Record<string,unknown>,run:ExpeditionRun,outcome:Extra
   const updates=healingDelta(profile,'item.repair_kit',run.kits),supplies=expeditionSupplies(profile),vitals=vitalsOf(run);
   run.state='closed';run.extraction=null;run.receipt={schemaVersion:ZONE_EXTRACT_SCHEMA,runId:run.runId,outcome,closedAtMs:now,banked,lost,guardianDefeated:run.guardianDefeated,finalVitals:vitals};
   return {...updates,itemStocks:{...(updates.itemStocks as Record<string,unknown>??stocks),blueprint_fragment:count(stocks.blueprint_fragment)+fragments},
-    expeditionSupplies:{energy:run.energy,extractionCharges:supplies.extractionCharges+run.charge},holobotVitals:{...(profile.holobotVitals as Vitals??{}),...vitals},
+    expeditionSupplies:{energy:run.energy,extractionCharges:supplies.extractionCharges+run.charge},holobotVitals:commitVitals(profile.holobotVitals,{...(profile.holobotVitals as Vitals??{}),...vitals},now),
     expeditionBank:{...bank,rareBlueprints:count(bank.rareBlueprints)+banked.filter(h=>h.kind==='rare_blueprint_fragment').reduce((n,h)=>n+h.amount,0),
       bulkySalvage:count(bank.bulkySalvage)+banked.filter(h=>h.kind==='bulky_salvage').reduce((n,h)=>n+h.amount,0),guardianDefeated:bank.guardianDefeated===true||run.guardianDefeated}};
 }
@@ -402,13 +409,26 @@ export function advanceRealtimeExpedition(profile:Record<string,unknown>,origina
     if(at.safe)return fail('safe_room');if(run.cleared.includes(at.id))return fail('already_cleared');
     if(!run.squad.some(b=>(b.currentHealth??b.maxHealth)>0))return fail('holobot_ko');
     const fightId=`ef_${run.runId}_${at.id}`;
+    // beast-fighter-1 (BEAST_FIGHTER_SPEC.md 5.4): expedition beasts keep the WOLF body; only the live Guild Court issues an Error
+    // Beast fighter (rules.BEAST_ARCHETYPES) until an expedition client is verified with it (Pak's call). Not a live-tuning-1 path.
     const beast=threat(run,at),cpu=playerCombatant('wolf',{name:'WOLF',level:beast.level});
+    // live-move-ranks-1 (Pak 2026-11-11 "add to expeditions too"): each squad bot's STORED Move Lab ranks, read from the profile at
+    // engage and pinned in this issue (attack, defense, step distances; special only when chase+attrs issue the field). No
+    // liveMoves key = rank 0 = the issue exactly as before. The WOLF side never gets ranks. The legacy resolver 'fight' is unchanged.
     const starts=process.env.HOLOCITY_READINESS_START==='1'?run.squad.map(b=>manualReadinessStart(profile,b.holobotId,now)):undefined;
+    // expedition-rules-8 (2026-11-12, owner: "Yes, include it now"): a client that asked `fightRules` gets the inputs the rival /
+    // Arena / Guild Court live hosts pass for that ask: live (unguarded Special 2x), tempo on top of the rules-5 flags (duel-rules-6,
+    // whose TEMPO_RULE_OVERRIDES hpScaleLights 17 then applies), guardHold for -7/-8 and staminaWind for -8. Without the flags the
+    // issue falls back as on those hosts (the client reads the issued rulesId). No ask (Unity, older phones) = the exact issue as
+    // before: no live, no tempo, hpScaleLights 19 pinned.
+    const rules8=c.fightRules===RULES_SCHEMA_8,rules7=rules8||c.fightRules===RULES_SCHEMA_7,rules6=rules7||c.fightRules===RULES_SCHEMA_6;
+    const chase=process.env.HOLOCITY_FIGHT_CHASE==='1',attrs=process.env.HOLOCITY_FIGHT_ATTRS==='1';
     const issue=buildFightReplayIssue({battleId:fightId,seed:createHash('sha256').update(`${run.privateSeed}:realtime:${at.id}`).digest('hex'),
-      tier:Math.max(0,at.band-1),mentor:false,player:run.squad.map(b=>({...b,currentHealth:Math.floor(b.currentHealth??b.maxHealth)})),
+      tier:Math.max(0,at.band-1),mentor:false,player:run.squad.map(b=>withLiveMoveRanks({...b,currentHealth:Math.floor(b.currentHealth??b.maxHealth)},liveMoveRanksFor(profile,b.holobotId))),
       opponent:[{...cpu,currentHealth:beast.currentHealth??beast.maxHealth}],
-      chase:process.env.HOLOCITY_FIGHT_CHASE==='1',attrs:process.env.HOLOCITY_FIGHT_ATTRS==='1',
-      playerStartStaminaPm:Object.fromEntries(run.squad.map(b=>[b.holobotId,b.staminaPm??1000])),hpScaleLights:19,
+      chase,attrs,
+      playerStartStaminaPm:Object.fromEntries(run.squad.map(b=>[b.holobotId,b.staminaPm??1000])),
+      ...(rules6?{tempo:chase&&attrs,live:true,guardHold:rules7,staminaWind:rules8}:{hpScaleLights:19}),
       ...(starts?{playerStartSync:Object.fromEntries(starts.map(s=>[s.holobotId,s.startSync])),cpuStartSync:cpuStartSync('champion'),readinessStart:starts}:{}),
       encounter:{kind:'expedition',runId:run.runId,sectorId:at.id,ambush:'none'}});
     if(!issue)return fail('unavailable');
@@ -426,8 +446,12 @@ export function advanceRealtimeExpedition(profile:Record<string,unknown>,origina
       if(now>pending.settleByMs)return fail('fight_expired');
       if(!verified||verified.battleId!==pending.fightId||verified.rulesHash!==pending.issue.rulesHash||verified.seed!==pending.issue.seed)return fail('replay_mismatch');
       if(verified.winner==='player'&&now-pending.issuedAtMs<Math.max(0,verified.endTick*1000/30-3000))return fail('too_fast');
+      // expedition-rules-8: a chase+attrs issue (duel-rules-5 and the asked -6/-7/-8) pins the #72.80 fight-row max HP, so the receipt's
+      // HP is on that scale; map it back onto the run's ledger scale (lib/partStats.ledgerHealthAfterFight, as the live Arena / Court
+      // settles do) and never above the HP carried in. Same scale (every other issue) = f.currentHealth unchanged, as before. Writing
+      // the fight-scale number left currentHealth > maxHealth, which readExpedition refuses ('unavailable' on every later call).
       run.squad=run.squad.map(b=>{const f=verified.playerFinal.find(x=>x.holobotId===b.holobotId);if(!f)return fail('unavailable');
-        return {...b,currentHealth:f.currentHealth,staminaPm:f.staminaPm};});
+        return {...b,currentHealth:ledgerHealthAfterFight(f.currentHealth,f.maxHealth,{currentHealth:b.currentHealth??b.maxHealth,maxHealth:b.maxHealth}),staminaPm:f.staminaPm};});
       run.pendingFight=null;
       let updates:Record<string,unknown>={};
       if(verified.winner==='player'){run.cleared.push(at.id);if(at.guardian)run.guardianDefeated=true;}
@@ -435,7 +459,7 @@ export function advanceRealtimeExpedition(profile:Record<string,unknown>,origina
       const encounterResult:EncounterResult={outcome:verified.winner==='player'?'cleared':'wipe',sectorId:at.id,ambush:'none',
         carry:run.squad.map(b=>({holobotId:b.holobotId,currentHealth:b.currentHealth??b.maxHealth,staminaPm:b.staminaPm??1000}))};
       run.lastFight={fightId:pending.fightId,receipt:verified,encounterResult};run.revision++;
-      if(run.state==='open')updates={expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy},holobotVitals:{...(profile.holobotVitals as Vitals??{}),...vitalsOf(run)}};
+      if(run.state==='open')updates={expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy},holobotVitals:commitVitals(profile.holobotVitals,{...(profile.holobotVitals as Vitals??{}),...vitalsOf(run)},now)};
       if(process.env.HOLOCITY_BATTLE_IQ==='1')Object.assign(updates,fightLearningAfterSettle(profile,verified.playerFinal.filter(f=>f.fielded).map(f=>f.holobotId),verified.winner==='player',threat(run,at).level));
       return {run,updates,fightReceipt:verified,encounterResult};
     }
@@ -517,6 +541,6 @@ export function advanceExpedition(profile:Record<string,unknown>,original:Expedi
     default:return fail('invalid_request');
   }
   run.revision++;
-  if(run.state==='open')updates={expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy},holobotVitals:{...(profile.holobotVitals as Vitals??{}),...vitalsOf(run)}};
+  if(run.state==='open')updates={expeditionSupplies:{...expeditionSupplies(profile),energy:run.energy},holobotVitals:commitVitals(profile.holobotVitals,{...(profile.holobotVitals as Vitals??{}),...vitalsOf(run)},now)};
   return {run,updates,...(duelReceipt?{duelReceipt}:{}),...(interrupted?{interrupted:true}:{}),...(utilityResult?{utilityResult}:{}),...(signatureResult?{signatureResult}:{})};
 }

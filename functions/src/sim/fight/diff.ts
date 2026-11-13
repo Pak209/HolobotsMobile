@@ -1,5 +1,5 @@
 import { CHASE_SIDE_FIELDS, FightCore, STATE_FIGHTER_FIELDS, STATE_FIGHTER_FIELDS_4, STATE_HEADER_FIELDS, STATE_SIDE_FIELDS } from './core';
-import { ATTR_KEYS, CHASE_KEYS, SIM_VERSION_4 } from './rules';
+import { ATTR_KEYS, CHASE_KEYS, GUARD_KEYS, SIM_VERSION_4, SIM_VERSION_5, SIM_VERSION_6, SIM_VERSION_7, STAMINA_KEYS, TEMPO_KEYS } from './rules';
 import { FightRules } from './rules';
 
 /**
@@ -31,7 +31,8 @@ export function decodeState(bytes: Uint8Array, rules: FightRules): Record<string
   for (const k of STATE_HEADER_FIELDS) out[k] = take();
   for (let s = 0; s < 2; s++) for (const k of STATE_SIDE_FIELDS) out[`side${s}.${k}`] = take();
   // duel-sim-4 (duel-rules-5): every member carries syncAcc / evadeRolls / retreatChain after its duel-sim-3 fields
-  const sim4 = b.toString('ascii', 0, 10) === SIM_VERSION_4;
+  // (duel-sim-5 / -6 / -7 carry them too: rules-6 / rules-7 / rules-8 are rules-5 + tails)
+  const sim4 = [SIM_VERSION_4, SIM_VERSION_5, SIM_VERSION_6, SIM_VERSION_7].includes(b.toString('ascii', 0, 10));
   for (const f of rules.fighters) {
     for (const k of STATE_FIGHTER_FIELDS) out[`${f.id}.${k}`] = take();
     if (sim4) for (const k of STATE_FIGHTER_FIELDS_4) out[`${f.id}.${k}`] = take();
@@ -48,6 +49,26 @@ export function decodeState(bytes: Uint8Array, rules: FightRules): Record<string
   if (b.length - at >= atag.length && b.toString('ascii', at, at + atag.length) === atag) {
     at += atag.length;
     for (const k of ATTR_KEYS) out[`attrs.${k}`] = take();
+  }
+  // duel-rules-6 tail: ASCII 'fight-tempo-1' then the tempo rules
+  const ttag = 'fight-tempo-1';
+  if (b.length - at >= ttag.length && b.toString('ascii', at, at + ttag.length) === ttag) {
+    at += ttag.length;
+    for (const k of TEMPO_KEYS) out[`tempo.${k}`] = take();
+  }
+  // duel-rules-7 tail: ASCII 'fight-guard-1', the guard rules, then every member's guardLocked (rules.fighters order)
+  const gtag = 'fight-guard-1';
+  if (b.length - at >= gtag.length && b.toString('ascii', at, at + gtag.length) === gtag) {
+    at += gtag.length;
+    for (const k of GUARD_KEYS) out[`guard.${k}`] = take();
+    for (const f of rules.fighters) out[`${f.id}.guardLocked`] = take();
+  }
+  // duel-rules-8 tail: ASCII 'fight-stamina-1', the stamina rules, then every member's winded (rules.fighters order)
+  const stag = 'fight-stamina-1';
+  if (b.length - at >= stag.length && b.toString('ascii', at, at + stag.length) === stag) {
+    at += stag.length;
+    for (const k of STAMINA_KEYS) out[`stamina.${k}`] = take();
+    for (const f of rules.fighters) out[`${f.id}.winded`] = take();
   }
   if (at !== b.length) out.trailingBytes = b.length - at;
   return out;
