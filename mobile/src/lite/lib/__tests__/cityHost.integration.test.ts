@@ -5,8 +5,6 @@ import path from "node:path";
 import { cityDistrictAccess, readArenaGathering, record } from "../cityHub";
 import { cityBattleRounds, cityCombatantFighter, readCityRivalIssue, readCityRivalSettlement } from "../cityRivalBattle";
 import { normalizeDuelReceipt } from "../bots/duelPlayback";
-import { ArenaCombatEngine } from "../../features/arena/combatEngine";
-import { resolveCombatKit } from "../../../features/arena/moveKits";
 
 // Optional integration lane; the regular mobile suite needs no server credentials or emulator.
 const hostRoot = process.env.HOLOCITY_TEST_HOST_ROOT;
@@ -54,24 +52,25 @@ describe.skipIf(!hostRoot)("HoloCity mobile against #80 host + loopback Firestor
     const roundsByPilot = [];
     for (const [i, rival] of roster.entries()) {
       const issueRaw = await transactRivalBattle(db, uid, { schemaVersion: "rival-battle-3", operation: "issue", storySchema: "arena-gathering-1", rivalId: rival.citizenId }, now + i * 1000, () => 0.5);
+      // Host 8f82e19 omits playerCombatants from roster-citizen issues; the client reads no entrant and invents none.
+      expect(Object.prototype.hasOwnProperty.call(issueRaw, "playerCombatants")).toBe(false);
       const issue = readCityRivalIssue(issueRaw, rival.citizenId, rival.holobotId, now);
-      const player = cityCombatantFighter(issue.player, "player", uid), opponent = cityCombatantFighter(issue.opponent, "rival", uid);
-      const initial = ArenaCombatEngine.initializeBattle(player, opponent);
-      const observed = ArenaCombatEngine.resolveAction(initial, resolveCombatKit({ idPrefix: "integration" }).slots[0], player.holobotId);
-      const rounds = cityBattleRounds(observed.actionHistory);
-      expect(rounds.length).toBe(1); expect(rounds[0].damage).toBeGreaterThan(0);
-      // Test the real idempotent loss receipt at a controlled host clock, never invent a client win.
-      const command = { schemaVersion: "rival-battle-3", operation: "settle", battleId: issue.battleId, didWin: false, fielded: [issue.player.holobotId] };
+      expect(issue.player).toBeNull();
+      const opponent = cityCombatantFighter(issue.opponent, "rival", uid);
+      expect(opponent.maxHP).toBe(issueRaw.encounter.opponentSquad[0].maxHealth); expect(opponent.attack).toBe(issueRaw.encounter.opponentSquad[0].attack);
+      // Unity's minimal gathering settle: no travel squad was issued, so no fielded ids. A real idempotent loss
+      // receipt at a controlled host clock; never a client win.
+      const command = { schemaVersion: "rival-battle-3", operation: "settle", battleId: issue.battleId, didWin: false };
       const settlementRaw = await transactRivalBattle(db, uid, command, now + i * 1000 + 20_000, () => 0.5);
       const settlement = readCityRivalSettlement(settlementRaw, issue.battleId);
       expect(settlement.didWin).toBe(false); expect(settlementRaw.holosGranted).toBe(25);
-      const normalized = normalizeDuelReceipt({ issue: issueRaw, settlement }, rounds);
-      expect(normalized.traceSource).toBe("client"); expect(normalized.didWin).toBe(false); expect(normalized.rounds).toHaveLength(1);
+      const normalized = normalizeDuelReceipt({ issue: issueRaw, settlement: settlementRaw }, cityBattleRounds([]));
+      expect(normalized.traceSource).toBe("none"); expect(normalized.didWin).toBe(false); expect(normalized.rounds).toHaveLength(0);
       const replay = await transactRivalBattle(db, uid, command, now + i * 1000 + 21_000, () => 0.5);
       expect(readCityRivalSettlement(replay, issue.battleId).alreadyProcessed).toBe(true);
       await expect(transactRivalBattle(db, uid, { schemaVersion: "rival-battle-3", operation: "issue", storySchema: "arena-gathering-1", rivalId: rival.citizenId }, now + i * 1000 + 21_000, () => 0.5)).rejects.toMatchObject({ code: "rival_cooldown", retryAfterMs: 299_000 });
-      roundsByPilot.push({ citizenId: rival.citizenId, assignedBot: rival.holobotId, ringColor: rival.ringColor, playerBot: issue.player.holobotId, observedDamage: rounds[0].damage, receiptHolos: settlementRaw.holosGranted });
-      if (i === 0) { captures.issue = issueRaw; captures.settlement = settlementRaw; captures.settlementReplay = replay; captures.clientTrace = rounds; }
+      roundsByPilot.push({ citizenId: rival.citizenId, assignedBot: rival.holobotId, ringColor: rival.ringColor, playerBot: null, opponentMaxHealth: issue.opponent.maxHealth, receiptHolos: settlementRaw.holosGranted });
+      if (i === 0) { captures.issue = issueRaw; captures.settlement = settlementRaw; captures.settlementReplay = replay; }
     }
     captures.citizenIntegration = roundsByPilot;
     expect((await db.doc(`users/${uid}`).get()).data()?.holosTokens).toBe(1200);
