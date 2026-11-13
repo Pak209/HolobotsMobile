@@ -2,6 +2,7 @@ import { acknowledgeTournamentUnlock, readTournamentAcknowledged, tournamentUnlo
 import { readStoryFlagsTolerant, StoryError } from '../story/storyFlags';
 import { sanitizeEconomyFields } from '../lib/economyFieldSanitizer';
 import { recordAccountRepair } from '../lib/accountRepairAudit';
+import { catchUpHolobotLevels } from '../lib/holobotRecordRepair';
 import { readPilotRank, PilotRankError } from '../account/pilotRank';
 import { acknowledgeOnboarding, OnboardingError, OnboardingIntent, readOnboarding, validateOnboardingIntent } from '../lib/onboarding';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -57,6 +58,9 @@ export const desktopAccountSnapshot = onCall(async request => {
     // host-crawl-fixes-1: malformed legacy economy fields (firestore.rules economyFieldsSane) are clamped here too, so
     // Home load alone unblocks the account's client writes. Never raises a stored number; audited.
     const economy = sanitizeEconomyFields(profile, nowMs);
+    // exp-catch-up-on-read: a Holobot still at its old-curve level with new-curve EXP is levelled up here (lib/holobotRecordRepair
+    // catchUpHolobotLevels: +1 point per level, EXP kept), so Home never shows EXP past the next-level line. Audited like any repair.
+    const levels = catchUpHolobotLevels(profile.holobots);
     // host-crawl-fixes-1: malformed / inconsistent story flags no longer refuse the whole snapshot (that blanked
     // HOLOS / SYNC / PILOT / ZONES and the squad LV on Home). A non-exact read is display-only: it is never persisted,
     // tournament unlocks are withheld, and every story writer / gate still reads the flags strictly and fails closed.
@@ -87,11 +91,11 @@ export const desktopAccountSnapshot = onCall(async request => {
       throw e;
     }
     const changedTournamentUpdates = Object.fromEntries(Object.entries(tournamentUpdates).filter(([key,value]) => JSON.stringify(profile[key]) !== JSON.stringify(value)));
-    const updates = { ...economy.updates, ...changedTournamentUpdates, ...onboardingUpdates, ...inv.updates, ...squad.updates,
+    const updates = { ...economy.updates, ...(levels.holobots ? { holobots: levels.holobots } : {}), ...changedTournamentUpdates, ...onboardingUpdates, ...inv.updates, ...squad.updates,
       ...(profile.pilotRank === undefined ? {pilotRank} : {}),
       ...(story.exact && JSON.stringify(profile.storyFlags) !== JSON.stringify(storyFlags) ? {storyFlags} : {}) };
     if (Object.keys(updates).length) tx.update(userRef, updates);
-    recordAccountRepair(db, tx, uid, 'desktopAccountSnapshot', economy.changes, nowMs);
+    recordAccountRepair(db, tx, uid, 'desktopAccountSnapshot', [...economy.changes, ...levels.changes], nowMs);
     return buildDesktopAccountReply({ ...profile, ...updates }, uid, version, inv.units);
   });
 });

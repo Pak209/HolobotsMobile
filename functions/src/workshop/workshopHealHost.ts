@@ -25,6 +25,21 @@ export function workshopDailyRefusal(now:number){
  return {nextFreeAtMs,nextFreeInMs,message:`The workshop crew already patched your squad today. Next free repair in ${waitWords(nextFreeInMs)}.`};
 }
 export class WorkshopDailyError extends RepairError{constructor(public readonly detail:Record<string,unknown>){super('workshop_daily_used');}}
+/**
+ * workshop-status-1: read-only `{schemaVersion:'healing-workshop-1', operation:'status'}` so the Workshop panel knows before a tap
+ * whether today's free heal is used. Reply {schemaVersion, operation:'status', available, nextFreeAtMs, nextFreeInMs} (both null
+ * while available; the next UTC midnight once used). Reads workshopHeals/{uid} only; writes nothing, spends nothing. Only the
+ * daily marker is reported: a heal can still be refused for its other reasons (battle_open, arena_no_heal, no_squad...).
+ */
+export async function readWorkshopHealStatus(firestore:Firestore,uid:string,now=Date.now()){
+ const daily=(await firestore.doc(`workshopHeals/${uid}`).get()).data();
+ const used=daily?.day===workshopUtcDay(now),nextFreeAtMs=used?workshopNextFreeAtMs(now):null;
+ return {schemaVersion:'healing-workshop-1',operation:'status',available:!used,nextFreeAtMs,nextFreeInMs:nextFreeAtMs===null?null:nextFreeAtMs-now};
+}
+export function isWorkshopStatusRequest(raw:unknown):boolean{
+ const c=raw as Record<string,unknown>;
+ return !!c&&typeof c==='object'&&c.operation==='status'&&c.schemaVersion==='healing-workshop-1'&&Object.keys(c).every(k=>k==='schemaVersion'||k==='operation');
+}
 export async function transactWorkshopHeal(firestore:Firestore,uid:string,raw:unknown,now=Date.now()){
  const c=raw as Record<string,unknown>;
  if(!c||typeof c!=='object'||Object.keys(c).some(k=>!['schemaVersion','operation','requestId'].includes(k))||c.schemaVersion!=='healing-workshop-1'||c.operation!=='heal'||typeof c.requestId!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(c.requestId))throw new RepairError('invalid_request');
@@ -49,6 +64,6 @@ export async function transactWorkshopHeal(firestore:Firestore,uid:string,raw:un
 export const workshopHealHost=onCall(async request=>{
  if(!request.auth)throw new HttpsError('unauthenticated','Sign in to heal.');
  if(request.auth.token?.holoServer===true)throw new HttpsError('permission-denied','server_not_allowed');
- try{return await transactWorkshopHeal(db,request.auth.uid,request.data);}
+ try{return isWorkshopStatusRequest(request.data)?await readWorkshopHealStatus(db,request.auth.uid):await transactWorkshopHeal(db,request.auth.uid,request.data);}
  catch(e){const reason=(e as {code?:string}).code??(e as Error).message;throw new HttpsError('failed-precondition',reason,{...(e instanceof WorkshopDailyError?e.detail:{}),rejectionCode:reason});}
 });
