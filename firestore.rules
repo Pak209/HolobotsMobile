@@ -400,6 +400,11 @@ service cloud.firestore {
     match /missionBoards/{uid}/{document=**} {
       allow read, write: if false;
     }
+    // HoloCity daily district pickups (city-daily-1): the once-per-UTC-day ledger,
+    // written only by missionBoardHost dailyClaim (Admin SDK). No client read.
+    match /cityDailyPickups/{uid}/{document=**} {
+      allow read, write: if false;
+    }
     // DECISIONS #48 wardrobe (entitlements, saved appearance recipe, receipts):
     // written only by wardrobeHost. No client read either: wardrobeHost
     // `status` returns everything Unity renders, so no stored shape becomes
