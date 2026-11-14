@@ -6,7 +6,7 @@ import {
   buildPvpDaily, candidateFromProfile, PVP_CANDIDATE_QUERY_LIMIT, PVP_DAILY_SCHEMA, PVP_NEAR_TIER_BAND, PVP_WIDE_TIER_BAND,
   PvpCandidate, PvpError, pvpDailyNeedsRefresh, pvpDailyView, pvpIssue, readPvpDaily, validatePvpCommand, winsRangeForBand,
 } from '../lib/pvpDaily';
-import { pvpReplayMode, PvpReplayMode, transactRivalBattle } from '../rival/rivalBattleStore';
+import { FIGHT_RULES_CAPABILITY_FIELD, pvpReplayMode, PvpReplayMode, transactRivalBattle } from '../rival/rivalBattleStore';
 
 /**
  * pvp-daily-1 host (ship-readiness item 7). pvpDaily/{uid} is the day's list (server-only path). `list` rebuilds it once
@@ -75,6 +75,8 @@ export async function transactPvpDaily(db: Firestore, uid: string, raw: unknown,
   // issue: the ordinary rival issue request a rival-battle-3 desktop client sends, bound to the chosen opponent.
   const rivalRequest: Record<string, unknown> = { schemaVersion: 'rival-battle-3', operation: 'issue', healthSchema: 'rival-health-1' };
   if (command.duelInputs !== undefined) rivalRequest.duelInputs = command.duelInputs;
+  // pvp-daily-fight-rules: the client's rules ask goes to the rival issue as sent (rivalBattleStore validates and pins it)
+  if (command.fightRules !== undefined) rivalRequest[FIGHT_RULES_CAPABILITY_FIELD] = command.fightRules;
   let callsign = '';
   const reply = await transactRivalBattle(db, uid, rivalRequest, nowMs, undefined, {
     pvp: {

@@ -15,6 +15,7 @@ import {
   buildPlayerCombatants, buildRivalLineup, CombatantSnapshot, getRivalTierRow, NpcPilotSnapshot, RIVAL_BATTLE_ID,
   RIVAL_LINEUP_SCALE_WOLF, rivalScaledCombatantStats, tierForWins, utcDay,
 } from "./rivalLadder";
+import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from "../sim/fight/rules";
 
 export const PVP_DAILY_SCHEMA = "pvp-daily-1" as const;
 export const PVP_OPPONENTS_PER_DAY = 3;
@@ -68,22 +69,29 @@ export type PvpCandidate = { uid: string; tier: number; callsign: string; squad:
 
 export type PvpCommand =
   | { operation: "list" }
-  | { operation: "issue"; opponentId: string; duelInputs?: string };
+  | { operation: "issue"; opponentId: string; duelInputs?: string; fightRules?: string };
+
+/** pvp-daily-fight-rules: the live-fight rules a client may ask for at issue (the rival issue's own ask, forwarded as sent). */
+export const PVP_FIGHT_RULES_ASKS: readonly string[] = [RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8];
 
 /** Strict request validation (desktopTelemetry style): unknown operation, extra-long or malformed ids refuse. */
 export function validatePvpCommand(raw: unknown): PvpCommand {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new PvpError("invalid_request");
   const c = raw as Record<string, unknown>;
   if (c.schemaVersion !== undefined && c.schemaVersion !== PVP_DAILY_SCHEMA) throw new PvpError("invalid_request");
-  for (const k of Object.keys(c)) if (!["schemaVersion", "operation", "opponentId", "duelInputs"].includes(k)) throw new PvpError("invalid_request");
+  for (const k of Object.keys(c)) if (!["schemaVersion", "operation", "opponentId", "duelInputs", "fightRules"].includes(k)) throw new PvpError("invalid_request");
   if (c.operation === "list") {
-    if (c.opponentId !== undefined || c.duelInputs !== undefined) throw new PvpError("invalid_request");
+    if (c.opponentId !== undefined || c.duelInputs !== undefined || c.fightRules !== undefined) throw new PvpError("invalid_request");
     return { operation: "list" };
   }
   if (c.operation !== "issue") throw new PvpError("invalid_request");
   if (typeof c.opponentId !== "string" || !PVP_OPPONENT_ID.test(c.opponentId)) throw new PvpError("invalid_request");
   if (c.duelInputs !== undefined && (typeof c.duelInputs !== "string" || c.duelInputs.length > 32)) throw new PvpError("invalid_request");
-  return c.duelInputs === undefined ? { operation: "issue", opponentId: c.opponentId } : { operation: "issue", opponentId: c.opponentId, duelInputs: c.duelInputs };
+  // A rules ask (duel-rules-6 / -7 / -8) only makes sense on a live input-log issue, as on the rival issue itself; anything else
+  // is refused before any read or write (clients step down 8 -> 7 -> 6 -> no ask on invalid_request).
+  if (c.fightRules !== undefined && (c.duelInputs === undefined || typeof c.fightRules !== "string" || !PVP_FIGHT_RULES_ASKS.includes(c.fightRules))) throw new PvpError("invalid_request");
+  if (c.duelInputs === undefined) return { operation: "issue", opponentId: c.opponentId };
+  return c.fightRules === undefined ? { operation: "issue", opponentId: c.opponentId, duelInputs: c.duelInputs } : { operation: "issue", opponentId: c.opponentId, duelInputs: c.duelInputs, fightRules: c.fightRules };
 }
 
 // ---- projection of another player's profile --------------------------------

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { pinFlags } from './lib/flag-env.mjs';
+import { pinFlags, withFlagsAsync } from './lib/flag-env.mjs';
 import { F, recordFightLog, issueFor, smartPlayer, clone } from './lib/fight-replay-helpers.mjs';
 pinFlags({ HOLOCITY_FIGHT_ATTRS: undefined, HOLOCITY_FIGHT_REPLAY: undefined, HOLOCITY_FIGHT_CHASE: undefined, HOLOCITY_RIVAL_ISSUE_RESOLVER: undefined, HOLOCITY_PVP_REPLAY: undefined, HOLOCITY_READINESS_START: undefined, HOLOCITY_BATTLE_IQ: undefined });
 const require = createRequire(import.meta.url);
@@ -200,4 +200,24 @@ test('pvp gate: the same tampered log is refused (replay_mismatch); unset mode k
   const fresh = world(); const offList = await transactPvpDaily(fresh, 'me', { operation: 'list' }, T0, undefined);
   const off = await transactPvpDaily(fresh, 'me', { operation: 'issue', opponentId: offList.opponents[1].opponentId, duelInputs: 'duel-inputs-2' }, T0 + 40000, undefined);
   assert.equal(off.duel.mode, 'legacy', 'mode unset: pvp follows the global flags (off in alpha)');
+});
+
+test('pvp-daily-fight-rules: the rules ask is forwarded to the rival issue (duel-rules-8 issued); no ask issues today\'s rules', async () => {
+  await withFlagsAsync({ HOLOCITY_FIGHT_CHASE: '1', HOLOCITY_FIGHT_ATTRS: '1' }, async () => {
+    const db = world();
+    const list = await transactPvpDaily(db, 'me', { operation: 'list' }, T0, 'dry_run');
+    const [o1, o2] = list.opponents;
+    const asked = await transactPvpDaily(db, 'me', { operation: 'issue', opponentId: o1.opponentId, duelInputs: 'duel-inputs-2', fightRules: 'duel-rules-8' }, T0, 'dry_run');
+    assert.equal(asked.duel.mode, 'input-log'); assert.match(asked.duel.rulesId, /^duel-rules-8:/);
+    assert.ok(asked.duel.rules.guard && asked.duel.rules.stamina, 'rules-8: the guard and stamina blocks');
+    assert.equal(db.rows.get(`rivalBattles/me/battles/${asked.battleId}`).source, 'pvp_async');
+    assert.equal(asked.pvp.source, 'pvp_async');
+    // settles through rivalBattleHost on the pinned rules: a recorded log verifies
+    const log = recordFightLog(asked.duel, smartPlayer(asked.duel));
+    const s = await settle(db, { battleId: asked.battleId, inputLog: log.wire, didWin: false }, T0 + 30000);
+    assert.equal(s.fightReceipt.verified, true); assert.match(s.fightReceipt.rulesId, /^duel-rules-8:/);
+    repair(db);
+    const plain = await transactPvpDaily(db, 'me', { operation: 'issue', opponentId: o2.opponentId, duelInputs: 'duel-inputs-2' }, T0 + 40000, 'dry_run');
+    assert.doesNotMatch(plain.duel.rulesId, /^duel-rules-[678]:/, 'no ask: the pre-ask rules');
+  });
 });

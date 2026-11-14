@@ -6,7 +6,8 @@ import { pvpErrorCode, transactPvpDaily } from './pvpDailyStore';
 
 /**
  * pvp-daily-1 callable (rivalLadder family): { operation: 'list' } -> the day's three opponents;
- * { operation: 'issue', opponentId, duelInputs? } -> an ordinary rival issue reply bound to that opponent (+ `pvp`).
+ * { operation: 'issue', opponentId, duelInputs?, fightRules? } -> an ordinary rival issue reply bound to that opponent (+ `pvp`).
+ *   fightRules ('duel-rules-6' / '-7' / '-8', only beside duelInputs) is forwarded to the rival issue as its rules ask.
  * Settle the returned battleId through rivalBattleHost. Not deployed; deploy with
  *   firebase deploy --only functions:pvpDaily
  * on Pak's word.
