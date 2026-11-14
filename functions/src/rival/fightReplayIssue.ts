@@ -12,6 +12,7 @@ import {
 } from '../sim/fight/rules';
 import { brainProfile, issuedProfile, issuedSkill, PROFILE_ROSTER_IDS, PROFILES_VERSION, RANKS } from '../sim/fight/profiles';
 import type { FightProfile } from '../sim/fight/contracts';
+import { playerTraining, rivalScalePreset, scaledRivalStats, type FightStatLine } from '../lib/rivalScaling';
 
 /**
  * fight-host-1 issue side of rival-battle mode `input-log` (fight-flow brief C0, lane H1): turn the battle the ladder just
@@ -123,6 +124,10 @@ export function buildFightReplayIssue(input: {
    * carries the guard block adds the stamina block (STAMINA_DEFAULTS); anything else ignores it, byte for byte. The ask also opts
    * into the CPU issue tuning (cpuIssueProfile: GAMA engages sooner), which only a rules-8 phone's brain accepts. */
   staminaWind?: boolean;
+  /** rival-scaling-1 (lib/rivalScaling, host flag HOLOCITY_RIVAL_SCALING): build every CPU fighter as a same-level Holobot trained like
+   * the player, shaped by the issued rank; `exclude` = training the opponent's own host already folded in (the court beast's parts).
+   * Absent = today's issue, byte for byte. Never for PvP (real players' Holobots). */
+  rivalScale?: { exclude?: Partial<FightStatLine> };
   encounter?: {kind:'expedition';runId:string;sectorId:string;ambush:'none'};
   readinessStart?: readonly {holobotId: string; readiness: number; cap: number; startSync: number}[];
 }): FightReplayIssueWire | null {
@@ -178,6 +183,26 @@ export function buildFightReplayIssue(input: {
     fighters: [...player.map(c => fighter(c, 0, c.holobotId)), ...opponent.map(c => fighter(c, 1, 'cpu-' + c.holobotId))],
   };
   if (input.hpScaleLights !== undefined) rules.hpScaleLights = input.hpScaleLights;
+  // rival-scaling-1: the CPU side as a same-level Holobot trained like the player (pair i with player fighter i, else the lead)
+  if (input.rivalScale) {
+    const rank = input.mentor ? 'Rookie' : fightRankForTier(input.tier);
+    const mine = rules.fighters.filter(f => f.side === 0);
+    let i = 0;
+    for (const f of rules.fighters) {
+      if (f.side !== 1) continue;
+      const pf = mine[Math.min(i, mine.length - 1)], pc = player[Math.min(i, player.length - 1)], oc = opponent[i]; i++;
+      const level = Math.max(1, Math.floor(pc.level ?? 1));
+      const training = playerTraining({ holobotId: pc.holobotId, level, maxHealth: pf.maxHp, attack: pf.attack, defense: pf.defense, speed: pf.speed ?? 0, special: pf.special ?? 0 }, input.rivalScale.exclude);
+      const beast: FightStatLine = { maxHealth: f.maxHp, attack: f.attack, defense: f.defense, speed: f.speed ?? 0, special: f.special ?? 0 };
+      const s = scaledRivalStats(oc.holobotId, level, training, rank, beast);
+      if (!s) continue;
+      // a CPU that comes in hurt (an expedition beast carried between sectors) keeps its HP fraction on the new scale
+      const hp = f.hp >= f.maxHp ? s.maxHealth : f.hp <= 0 ? 0 : Math.max(1, Math.floor(f.hp * s.maxHealth / f.maxHp));
+      f.maxHp = s.maxHealth; f.hp = hp; f.attack = s.attack; f.defense = s.defense;
+      if (issueAttrs) { f.speed = s.speed; f.special = s.special; }
+    }
+    if (input.hpScaleLights === undefined) rules.hpScaleLights = rivalScalePreset(rank).lights;
+  }
   try { validateRules(rules); } catch { return null; }
   if (!rules.fighters.some(f => f.side === 0 && f.hp > 0)) return null;
   const chase = input.chase ? defaultChaseRules() : null;
