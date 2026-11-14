@@ -54,6 +54,7 @@ import { readFailedWins, WILD_DUEL_RANK_TIER, WILD_DUEL_SCHEMA, WILD_DUEL_TTL_MS
 import { projectCapture, readTravelSquad } from '../acquisition/captureOwnership';
 import { ACQUISITION_SCHEMA, HostError, newRollSeed, Session } from '../acquisition/wildEncounterDomain';
 import { cityWildSpot, currentSpotEncounter } from './cityWildSpots';
+import { rivalScalingEnabled } from '../lib/rivalScaling';
 import { CITY_ENCOUNTER_SCHEMA, CITY_KURAI_ENCOUNTER_ID, provisionCityEncounter, provisionCitySpot } from './cityEncounterHost';
 
 export const WILD_DUEL_FLAG = 'HOLOCITY_WILD_DUEL';
@@ -290,7 +291,7 @@ async function issue(store: Firestore, uid: string, c: Extract<WildDuelCommand, 
     const wild = playerCombatant(spot.holobotId, { name: spot.holobotId.toUpperCase(), level });
     const duel = buildFightReplayIssue({ battleId, seed: fightSeed, tier: WILD_DUEL_RANK_TIER, mentor: false,
       player: [inputLogCombatant({ ...player, currentHealth: player.maxHealth }, equippedPartBoosts(profile, c.holobotId), tempo, liveMoveRanksFor(profile, c.holobotId))],
-      opponent: [{ ...wild, statSource: 'progression' as const }], chase: fightChase, attrs: fightAttrs, tempo, live: true, guardHold: rules7, staminaWind: rules8 });
+      opponent: [{ ...wild, statSource: 'progression' as const }], chase: fightChase, attrs: fightAttrs, tempo, live: true, guardHold: rules7, staminaWind: rules8, ...(rivalScalingEnabled() ? { rivalScale: {} } : {}) });
     if (!duel) return fail('live_unavailable', undefined, { reason: 'lineup_unsupported' });
     // Every read is above; writes follow. An open duel is superseded. Ruling 6 (producer 2026-11-12): one replaced within the
     // leave-before-FIGHT window of its issue never started (the phone lost the issue reply and challenged again), so its Unit comes

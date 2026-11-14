@@ -27,6 +27,7 @@ import { FIRST_WIN_COLLECTION, firstWinAvailable, firstWinRecord, livePerformanc
 import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
 import { LEFT_BEFORE_FIGHT_CLOSED_BY, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
 import { FightPlausibility } from '../sim/fight/plausibility';
+import { rivalScalingEnabled } from '../lib/rivalScaling';
 import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand, PVP_ASYNC_SOURCE, IssueReply } from '../lib/rivalLadder';
 
 /** pvp-daily-1: binds an issue to another player's frozen squad inside the issue transaction (reads first, then writes). */
@@ -242,6 +243,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
         player:r.reply.playerCombatants.map(c => inputLogCombatant(c, equippedPartBoosts(profile, c.holobotId), issueTempo, liveMoveRanksFor(profile, c.holobotId))),
         opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo, live:true, guardHold:rules7Asked, staminaWind:rules8Asked,
+        // rival-scaling-1: CPU rivals scale to the player (flag); a PvP challenger is a real player's Holobot and is never scaled
+        ...(rivalScalingEnabled() && !options.pvp && r.battle.source !== PVP_ASYNC_SOURCE ? { rivalScale: {} } : {}),
         ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
           cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
       // rival-live-only: a lineup the fight core cannot express would drop to resolver/legacy; a live-only client gets the refusal

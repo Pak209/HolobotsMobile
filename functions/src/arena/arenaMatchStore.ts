@@ -34,6 +34,7 @@ import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { FIGHT_PLAUSIBILITY_COLLECTION, FIGHT_RULES_CAPABILITY_FIELD } from '../rival/rivalBattleStore';
 import { RIVAL_MIN_WIN_MS } from '../lib/rivalLadder';
 import { LEFT_BEFORE_FIGHT_FIELD, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
+import { rivalScalingEnabled } from '../lib/rivalScaling';
 import { FIRST_WIN_COLLECTION, FIRST_WIN_OF_DAY_MULTIPLIER, LIVE_WIN_BONUS_CAP, firstWinAvailable, firstWinRecord, firstWinWire, livePerformanceFromReceipt, utcDayOf } from '../lib/liveWinRewards';
 
 /**
@@ -555,7 +556,7 @@ export async function transactArenaMatch(firestore: Firestore, uid: string, raw:
           const liveOpponent = playerCombatant(c.opponentName.toLowerCase(), {name:c.opponentName,level:arenaLiveOpponentLevel(tier.id,tier.opponentLevel,player.level)});
           const live = buildFightReplayIssue({battleId:generatedId,seed:fightSeed,tier:ARENA_FIGHT_RANK_TIER[tierIndex] ?? 0,mentor:false,
             player:[inputLogCombatant({...player,currentHealth:player.maxHealth},equippedPartBoosts(profile,c.holobotId),tempo,liveMoveRanksFor(profile,c.holobotId))],
-            opponent:[{...liveOpponent,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo,live:true,guardHold:rules7Asked,staminaWind:rules8Asked});
+            opponent:[{...liveOpponent,statSource:'progression' as const}],chase:fightChase,attrs:fightAttrs,tempo,live:true,guardHold:rules7Asked,staminaWind:rules8Asked,...(rivalScalingEnabled()?{rivalScale:{}}:{})});
           if (live) { resolverDuel = live as unknown as Data; matchOpponent = liveOpponent; entrantHp = player.maxHealth; }
         }
         // rival-live-only (Pak 2026-11-11), the rival host's rule: a live-only client (duel-inputs-2 + the duel-rules-6 ask, no
