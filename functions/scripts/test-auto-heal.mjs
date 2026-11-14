@@ -348,3 +348,14 @@ test('workshop daily doc: deleteUserData removes workshopHeals/{uid} (the day ma
   await deleteUserData(stub, 'u1');
   assert.ok(deleted.includes('workshopHeals/u1'));
 });
+
+// active-lead-ko-1 (QA retest 2026-11-12): a KO'd squad mate sits a City rival duel out; the lead always stays (and is still refused).
+test('fightReadySquad keeps the lead and drops only KO squad mates', () => {
+  const now = 1_800_000_000_000;
+  const profile = { holobotVitals: { tora: { currentHealth: 0, maxHealth: 200, hpUpdatedAt: now }, kuma: { currentHealth: 150, maxHealth: 200, hpUpdatedAt: now } } };
+  assert.deepEqual(H.fightReadySquad(profile, ['ace', 'tora', 'kuma'], now), ['ace', 'kuma']);
+  assert.deepEqual(H.fightReadySquad(profile, ['tora', 'ace'], now), ['tora', 'ace']);
+  assert.throws(() => H.requireLivingVitals(profile, H.fightReadySquad(profile, ['tora', 'ace'], now), now), /holobot_ko/);
+  assert.doesNotThrow(() => H.requireLivingVitals(profile, H.fightReadySquad(profile, ['ace', 'tora'], now), now));
+  assert.deepEqual(H.fightReadySquad({}, ['ace'], now), ['ace']);
+});

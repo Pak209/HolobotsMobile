@@ -9,7 +9,7 @@ import { pilotRankAfterWin, PilotRankError } from '../account/pilotRank';
 import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
-import {issueVitals,requireLivingVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
+import {fightReadySquad,issueVitals,requireLivingVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
 import {commitVitals} from "../lib/autoHeal";
 import { onboardingAfterEvent, onboardingMentorActive } from '../lib/onboarding';
 import { applyOnboardingMentor, isOnboardingMentorBattle } from './onboardingMentor';
@@ -57,6 +57,12 @@ export function pvpReplayMode(raw: string | undefined = process.env.HOLOCITY_PVP
  * record); rival-battle-1 / -2 issues keep the #43 baseline x statScale.
  */
 
+/** active-lead-ko-1: the squad minus KO'd squad mates (the lead always stays; lib/rivalHealth.ts fightReadySquad). An unreadable
+ * ledger keeps the whole squad so requireLivingVitals reports it as before. */
+function fieldableSquad(profile: Record<string, unknown>, nowMs: number): string[] {
+  const ids = squadIdsOf(profile);
+  try { return fightReadySquad(profile, ids, nowMs); } catch { return ids; }
+}
 /** The travel squad ids for the player-side additions; [] when unreadable so v1/v2 rulings never depend on it. */
 function squadIdsOf(profile: Record<string, unknown>): string[] {
   try {
@@ -212,7 +218,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
       // kaz-wolf-lead-1: Kaz's ordinary ladder issue (not pvp, not a gathering citizen, not Zell) leads with WOLF; same draws, same seed
       const kazLead = !options.pvp && citizenId === undefined && !story.issueZell;
-      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion), { kazLead });
+      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], healthEnabled ? fieldableSquad(profile, nowMs) : squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion), { kazLead });
       // DECISIONS #72.3 (onboarding D1): Kaz's ordinary issue at host onboarding step <= 3 fields one tier-0 WOLF.
       // pvp-daily-1: an async PvP issue binds the frozen opponent squad (and spends the day's attempt) in THIS transaction.
       const mentor = !options.pvp && citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);

@@ -19,9 +19,12 @@ export function applySquadSelection(profile: Record<string, unknown>, command: E
   if (s.revision !== i.expectedRevision) throw new HostError('stale_revision');
   if (!ownsCaptureBot(profile, i.holobotId) || i.slotIndex > s.holobotIds.length) throw new HostError('not_allowed');
   const assigned = s.holobotIds.indexOf(i.holobotId);
-  if (assigned >= 0 && assigned !== i.slotIndex) throw new HostError('not_allowed');
+  // active-lead-swap-1 (QA retest 2026-11-12): a bot already in the squad may move to another FILLED slot; the two swap (the
+  // phone's "make active" moves a bot into slot 1). Moving it past the end (a hole) stays refused.
+  if (assigned >= 0 && assigned !== i.slotIndex && i.slotIndex >= s.holobotIds.length) throw new HostError('not_allowed');
   if (assigned === i.slotIndex) return s;
   if (s.revision === 2147483647) throw new HostError('unavailable');
+  if (assigned >= 0) s.holobotIds[assigned] = s.holobotIds[i.slotIndex];
   s.holobotIds[i.slotIndex] = i.holobotId;
   s.revision++;
   return s;
