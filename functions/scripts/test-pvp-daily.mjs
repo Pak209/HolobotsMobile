@@ -80,6 +80,21 @@ test('validation: strict shapes like desktopTelemetry', () => {
     assert.throws(() => P.validatePvpCommand(bad), /invalid_request/, JSON.stringify(bad));
 });
 
+test('pvp-daily-fight-rules: issue takes a rules ask (duel-rules-6 / -7 / -8) beside duelInputs only; list and anything else refuse', () => {
+  for (const r of ['duel-rules-6', 'duel-rules-7', 'duel-rules-8'])
+    assert.deepEqual(P.validatePvpCommand({ schemaVersion: 'pvp-daily-1', operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2', fightRules: r }),
+      { operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2', fightRules: r });
+  assert.deepEqual(P.validatePvpCommand({ operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2' }), { operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2' }, 'no ask: today\'s command');
+  for (const bad of [
+    { operation: 'issue', opponentId: 'po_20261104_0', fightRules: 'duel-rules-8' },                                   // no duelInputs
+    { operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2', fightRules: 'duel-rules-5' },       // not an ask value
+    { operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2', fightRules: 'duel-rules-9' },
+    { operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2', fightRules: 8 },
+    { operation: 'issue', opponentId: 'po_20261104_0', duelInputs: 'duel-inputs-2', fightRules: null },
+    { operation: 'list', fightRules: 'duel-rules-8' },
+  ]) assert.throws(() => P.validatePvpCommand(bad), /invalid_request/, JSON.stringify(bad));
+});
+
 test('selection: near band first, then wide, self and duplicates excluded, seeded fill; never empty', () => {
   const day = '2026-11-04';
   const near = P.selectDailyOpponents('me', 4, [cand('me', 4), cand('a', 3), cand('b', 5), cand('a', 3), cand('w', 7), cand('x', 20)], day);

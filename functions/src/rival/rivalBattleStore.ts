@@ -9,7 +9,7 @@ import { pilotRankAfterWin, PilotRankError } from '../account/pilotRank';
 import { ActivityError, expeditionOpen, leaseHolder } from '../lib/arenaActivity';
 import {withRankHealingReward} from "../lib/rankHealingReward";
 import { allyAfterZellVictory, bindZellLineup, meetZell, readZellStory, storyRequest, StoryRivalRecord, ZELL_STORY_SCHEMA, zellStoryView } from '../lib/zellStory';
-import {issueVitals,requireLivingVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
+import {fightReadySquad,issueVitals,requireLivingVitals,settleVitals,RIVAL_HEALTH_SCHEMA,HealthError,Vitals} from "../lib/rivalHealth";
 import {commitVitals} from "../lib/autoHeal";
 import { onboardingAfterEvent, onboardingMentorActive } from '../lib/onboarding';
 import { applyOnboardingMentor, isOnboardingMentorBattle } from './onboardingMentor';
@@ -27,6 +27,7 @@ import { FIRST_WIN_COLLECTION, firstWinAvailable, firstWinRecord, livePerformanc
 import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
 import { LEFT_BEFORE_FIGHT_CLOSED_BY, leftBeforeFightInWindow, readLeftBeforeFight } from '../lib/leftBeforeFight';
 import { FightPlausibility } from '../sim/fight/plausibility';
+import { rivalScalingEnabled } from '../lib/rivalScaling';
 import { RIVAL_MIN_WIN_MS, issueRivalBattle, rivalLineupScaleFor, rivalReplyForVersion, openBattlesAfterIssue, openBattlesAfterSettle, readOpenBattles, RIVAL_BATTLE_CLEANUP_FIELD, RIVAL_OPEN_BATTLES_FIELD, RIVAL_BATTLE_ID, rivalBattleCleanupAtMs, RivalBattleRecord, readRivalLastSettled, requireRivalOffCooldown, rivalLastSettledAfterSettle, RIVAL_LAST_SETTLED_FIELD, RivalError, rivalStatus, settleRivalBattle, validateRivalCommand, PVP_ASYNC_SOURCE, IssueReply } from '../lib/rivalLadder';
 
 /** pvp-daily-1: binds an issue to another player's frozen squad inside the issue transaction (reads first, then writes). */
@@ -57,6 +58,12 @@ export function pvpReplayMode(raw: string | undefined = process.env.HOLOCITY_PVP
  * record); rival-battle-1 / -2 issues keep the #43 baseline x statScale.
  */
 
+/** active-lead-ko-1: the squad minus KO'd squad mates (the lead always stays; lib/rivalHealth.ts fightReadySquad). An unreadable
+ * ledger keeps the whole squad so requireLivingVitals reports it as before. */
+function fieldableSquad(profile: Record<string, unknown>, nowMs: number): string[] {
+  const ids = squadIdsOf(profile);
+  try { return fightReadySquad(profile, ids, nowMs); } catch { return ids; }
+}
 /** The travel squad ids for the player-side additions; [] when unreadable so v1/v2 rulings never depend on it. */
 function squadIdsOf(profile: Record<string, unknown>): string[] {
   try {
@@ -212,7 +219,7 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       // #53 amendment 1: rival-battle-3 opponents = WOLF at level 1 + 4t; v1 / v2 keep the #43 baseline (byte-identical replies).
       // kaz-wolf-lead-1: Kaz's ordinary ladder issue (not pvp, not a gathering citizen, not Zell) leads with WOLF; same draws, same seed
       const kazLead = !options.pvp && citizenId === undefined && !story.issueZell;
-      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion), { kazLead });
+      const r = issueRivalBattle(profile, nowMs, battleId, () => draws[i++ % draws.length], healthEnabled ? fieldableSquad(profile, nowMs) : squadIdsOf(profile), rivalLineupScaleFor(command.schemaVersion), { kazLead });
       // DECISIONS #72.3 (onboarding D1): Kaz's ordinary issue at host onboarding step <= 3 fields one tier-0 WOLF.
       // pvp-daily-1: an async PvP issue binds the frozen opponent squad (and spends the day's attempt) in THIS transaction.
       const mentor = !options.pvp && citizenId === undefined && !story.issueZell && onboardingMentorActive(profile);
@@ -236,6 +243,8 @@ export async function transactRivalBattle(db: Firestore, uid: string, raw: unkno
       const fightIssue = inputLogIssue ? buildFightReplayIssue({battleId, seed:fightSeed, tier:r.battle.tier, mentor,
         player:r.reply.playerCombatants.map(c => inputLogCombatant(c, equippedPartBoosts(profile, c.holobotId), issueTempo, liveMoveRanksFor(profile, c.holobotId))),
         opponent:r.reply.encounter.opponentSquad, chase:fightChase, attrs:fightAttrs, tempo:issueTempo, live:true, guardHold:rules7Asked, staminaWind:rules8Asked,
+        // rival-scaling-1: CPU rivals scale to the player (flag); a PvP challenger is a real player's Holobot and is never scaled
+        ...(rivalScalingEnabled() && !options.pvp && r.battle.source !== PVP_ASYNC_SOURCE ? { rivalScale: {} } : {}),
         ...(starts ? { playerStartSync: Object.fromEntries(starts.map(row => [row.holobotId, row.startSync])),
           cpuStartSync: cpuStartSync(fightRankForTier(r.battle.tier)), readinessStart: starts } : {})}) : null;
       // rival-live-only: a lineup the fight core cannot express would drop to resolver/legacy; a live-only client gets the refusal

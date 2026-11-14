@@ -16,6 +16,17 @@ export type LeaderboardEntry = {
   genesisBadge: boolean;
 };
 
+const EMAIL_TOKEN = /\S*@\S*/g;
+/** leaderboard-no-email-1 (QA retest 2026-11-12): the public board shows a display name only, never an email. Any token with
+ * an "@" is dropped ("LIVEPILOT1 live-1@pilot.test" -> "LIVEPILOT1"); nothing left reads "Unnamed pilot". No username keeps
+ * the old pilot_<uid8> fallback. */
+export function publicPilotName(raw: unknown, uid: string): string {
+  const name = typeof raw === "string" ? raw : raw == null ? "" : String(raw);
+  if (!name.trim()) return `pilot_${uid.slice(0, 8)}`;
+  const clean = name.replace(EMAIL_TOKEN, " ").replace(/\s+/g, " ").trim();
+  return clean || "Unnamed pilot";
+}
+
 export function projectLeaderboardEntry(uid: string, data: Record<string, unknown>): LeaderboardEntry {
   const holobots = Array.isArray(data.holobots) ? (data.holobots as Array<Record<string, unknown>>) : [];
   const highestHolobotLevel = holobots.reduce(
@@ -24,7 +35,7 @@ export function projectLeaderboardEntry(uid: string, data: Record<string, unknow
   );
 
   return {
-    username: String(data.username || `pilot_${uid.slice(0, 8)}`),
+    username: publicPilotName(data.username, uid),
     // holobots-write-lockdown-1: recomputed from the server-owned inputs instead of
     // trusting the stored users/{uid}.leaderboardScore (client-writable until this
     // lane, so a legacy tampered value would otherwise keep ranking).

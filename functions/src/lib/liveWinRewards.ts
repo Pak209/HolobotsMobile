@@ -23,7 +23,7 @@ export const FIRST_WIN_OF_DAY_MULTIPLIER = 2;
 export const FIRST_WIN_SCHEMA = "first-win-1";
 /** Server-only users' ledger collection: firstWinOfDay/{uid}. */
 export const FIRST_WIN_COLLECTION = "firstWinOfDay";
-export type FirstWinSource = "arena" | "rival" | "court";
+export type FirstWinSource = "arena" | "rival" | "court" | "wild";
 
 export type LivePerformance = { perfectDefenses: number; combosCompleted: number };
 /** The reply/settlement block that says how the win bonus was computed. */

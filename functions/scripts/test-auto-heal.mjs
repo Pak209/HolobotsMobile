@@ -319,6 +319,27 @@ test('workshop heal is once per UTC day: the second use refuses workshop_daily_u
   assert.equal(w2.daily(), undefined);
 });
 
+test('workshop-status-1: a read-only status says up front whether today\'s free heal is used, and writes nothing', async () => {
+  const w = workshopWorld({ ace: row(0, aceMax, T0) });
+  const midnight = Date.UTC(2026, 10, 13);
+  assert.deepEqual(await WS.readWorkshopHealStatus(w.db, w.uid, T0),
+    { schemaVersion: 'healing-workshop-1', operation: 'status', available: true, nextFreeAtMs: null, nextFreeInMs: null });
+  assert.equal(w.daily(), undefined);                                    // reading spends nothing
+  await w.heal(T0);
+  const at = T0 + 2 * HOUR;
+  assert.deepEqual(await WS.readWorkshopHealStatus(w.db, w.uid, at),
+    { schemaVersion: 'healing-workshop-1', operation: 'status', available: false, nextFreeAtMs: midnight, nextFreeInMs: midnight - at });
+  assert.equal((await WS.readWorkshopHealStatus(w.db, w.uid, midnight)).available, true);   // the next UTC day
+  // request shape: only {schemaVersion, operation:'status'}; anything else goes to the heal path (and its own validation)
+  assert.equal(WS.isWorkshopStatusRequest({ schemaVersion: 'healing-workshop-1', operation: 'status' }), true);
+  assert.equal(WS.isWorkshopStatusRequest({ schemaVersion: 'healing-workshop-1', operation: 'status', requestId: 'x' }), false);
+  assert.equal(WS.isWorkshopStatusRequest({ schemaVersion: 'healing-workshop-0', operation: 'status' }), false);
+  assert.equal(WS.isWorkshopStatusRequest({ schemaVersion: 'healing-workshop-1', operation: 'heal', requestId: 'x' }), false);
+  assert.equal(WS.isWorkshopStatusRequest(null), false);
+  // the heal path still refuses a status-shaped request it receives directly
+  await assert.rejects(WS.transactWorkshopHeal(w.db, w.uid, { schemaVersion: 'healing-workshop-1', operation: 'status' }, at), /invalid_request/);
+});
+
 test('workshop daily doc: deleteUserData removes workshopHeals/{uid} (the day marker and its receipts)', async () => {
   const deleted = [];
   const stub = { recursiveDelete: async ref => { deleted.push(ref.path); }, doc: path => ({ path }),
@@ -326,4 +347,15 @@ test('workshop daily doc: deleteUserData removes workshopHeals/{uid} (the day ma
     runTransaction: async fn => fn({ get: async () => ({ exists: false }), set: () => {} }) };
   await deleteUserData(stub, 'u1');
   assert.ok(deleted.includes('workshopHeals/u1'));
+});
+
+// active-lead-ko-1 (QA retest 2026-11-12): a KO'd squad mate sits a City rival duel out; the lead always stays (and is still refused).
+test('fightReadySquad keeps the lead and drops only KO squad mates', () => {
+  const now = 1_800_000_000_000;
+  const profile = { holobotVitals: { tora: { currentHealth: 0, maxHealth: 200, hpUpdatedAt: now }, kuma: { currentHealth: 150, maxHealth: 200, hpUpdatedAt: now } } };
+  assert.deepEqual(H.fightReadySquad(profile, ['ace', 'tora', 'kuma'], now), ['ace', 'kuma']);
+  assert.deepEqual(H.fightReadySquad(profile, ['tora', 'ace'], now), ['tora', 'ace']);
+  assert.throws(() => H.requireLivingVitals(profile, H.fightReadySquad(profile, ['tora', 'ace'], now), now), /holobot_ko/);
+  assert.doesNotThrow(() => H.requireLivingVitals(profile, H.fightReadySquad(profile, ['ace', 'tora'], now), now));
+  assert.deepEqual(H.fightReadySquad({}, ['ace'], now), ['ace']);
 });

@@ -15,7 +15,7 @@ const W = require('../lib/lib/liveWinRewards.js');
 const A = require('../lib/arena/arenaMatchStore.js');
 const G = require('../lib/lib/genesisSignup.js');
 const BP = require('../lib/lib/battleProgression.js');
-const { repairHolobotProgression } = require('../lib/lib/holobotRecordRepair.js');
+const { repairHolobotProgression, catchUpHolobotLevels } = require('../lib/lib/holobotRecordRepair.js');
 const { transactCreateGenesisProfile } = require('../lib/account/createGenesisProfile.js');
 const { transactRivalBattle } = require('../lib/rival/rivalBattleStore.js');
 const { rivalReplyForVersion } = require('../lib/lib/rivalLadder.js');
@@ -79,6 +79,25 @@ test('existing players: cumulative EXP is kept; every old-canonical record gains
   const r = repairHolobotProgression({ name: 'ACE', level: 1, experience: 300, nextLevelExp: 400, rank: 'Rookie' });
   assert.deepEqual(r.holobot, { name: 'ACE', level: 2, experience: 300, nextLevelExp: 500, rank: 'Starter' });
   assert.deepEqual(r.changes.map(c => c.path).sort(), ['holobot.level', 'holobot.nextLevelExp', 'holobot.rank']);
+});
+
+test('exp-catch-up-on-read: the account read levels up only the records the curve change left behind, and leaves the rest as stored', () => {
+  const behind = { name: 'ACE', level: 1, experience: 335, nextLevelExp: 400, attributePoints: 1, rank: 'Rookie' };
+  const fine = { name: 'KUMA', level: 2, experience: 300, nextLevelExp: 500, attributePoints: 2 };
+  const forged = { name: 'ERA', level: 1, experience: 9999 };                 // refused by the repair: left as is, never a level grant
+  const oddButLevelled = { name: 'HARE', level: 3, experience: 600, attributePoints: null };   // repair would coerce points, but no level change
+  const out = catchUpHolobotLevels([behind, fine, forged, oddButLevelled, null]);
+  assert.deepEqual(out.holobots[0], { name: 'ACE', level: 2, experience: 335, nextLevelExp: 500, attributePoints: 2, rank: 'Starter' });
+  assert.equal(out.holobots[1], fine);
+  assert.equal(out.holobots[2], forged);
+  assert.equal(out.holobots[3], oddButLevelled);
+  assert.equal(out.holobots[4], null);
+  assert.deepEqual(out.changes.map(c => c.path).sort(), ['holobots.ace.attributePoints', 'holobots.ace.level', 'holobots.ace.nextLevelExp', 'holobots.ace.rank']);
+  // nothing behind: no holobots write at all
+  assert.deepEqual(catchUpHolobotLevels([fine, forged]), { changes: [] });
+  assert.deepEqual(catchUpHolobotLevels(undefined), { changes: [] });
+  // idempotent: a second read changes nothing
+  assert.deepEqual(catchUpHolobotLevels(out.holobots), { changes: [] });
 });
 
 // ------------------------------------------------------------------ Arena world

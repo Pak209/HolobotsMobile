@@ -118,3 +118,10 @@ test('leaderboard projection recomputes the score and ignores a stored (tampered
   assert.equal(entry.highestHolobotLevel, 7);
   assert.equal(P.projectLeaderboardEntry('uid12345678', {}).leaderboardScore, 25);
 });
+
+test('leaderboard projection never publishes an email as the pilot name', () => {
+  assert.equal(P.projectLeaderboardEntry('uid12345678', { username: 'LIVEPILOT1 live-1@pilot.test' }).username, 'LIVEPILOT1');
+  assert.equal(P.projectLeaderboardEntry('uid12345678', { username: 'live-1@pilot.test' }).username, 'Unnamed pilot');
+  assert.equal(P.projectLeaderboardEntry('uid12345678', { username: 'pilot_critic_g' }).username, 'pilot_critic_g');
+  assert.equal(P.projectLeaderboardEntry('uid12345678', {}).username, 'pilot_uid12345');
+});

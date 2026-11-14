@@ -81,5 +81,7 @@ export { equipHolobotPart } from "./progression/equipHolobotPart";
 export { claimStarterDeck } from "./account/claimStarterDeck";
 // LITE CITY (Pak approved, 2026-11-07): provisions the Research Garden KURAI encounter.
 export { cityEncounterHost } from "./city/cityEncounterHost";
+// buddy-capture-1 (owner 2026-11-11): Buddy capture by live duel at the wild spots (HOLOCITY_WILD_DUEL, default off).
+export { wildDuelHost } from "./city/wildDuelHost";
 // HoloCity Mission Board (Pak, 2026-11-07): the board postings Unity and Lite share (mission-board-1).
 export { missionBoardHost } from "./missionBoard/missionBoardHost";

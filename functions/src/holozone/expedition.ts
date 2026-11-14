@@ -12,6 +12,7 @@ import { liveMoveRanksFor } from '../lib/liveMoveRanks';
 import { manualReadinessStart, cpuStartSync } from '../lib/readinessFight';
 import { fightLearningAfterSettle } from '../lib/readinessFight';
 import { RULES_SCHEMA_6, RULES_SCHEMA_7, RULES_SCHEMA_8 } from '../sim/fight/rules';
+import { rivalScalingEnabled } from '../lib/rivalScaling';
 import { ledgerHealthAfterFight } from '../lib/partStats';
 import { commitVitals } from '../lib/autoHeal';
 
@@ -430,6 +431,10 @@ export function advanceRealtimeExpedition(profile:Record<string,unknown>,origina
       playerStartStaminaPm:Object.fromEntries(run.squad.map(b=>[b.holobotId,b.staminaPm??1000])),
       ...(rules6?{tempo:chase&&attrs,live:true,guardHold:rules7,staminaWind:rules8}:{hpScaleLights:19}),
       ...(starts?{playerStartSync:Object.fromEntries(starts.map(s=>[s.holobotId,s.startSync])),cpuStartSync:cpuStartSync('champion'),readinessStart:starts}:{}),
+      // rival-scaling-1 (owner 2026-11-13: expeditions too): the beast's WOLF body as a same-level Holobot trained like the squad lead,
+      // shaped by the band's rank. The settle maps the squad's end HP by fraction (ledgerHealthAfterFight below), so a different pair
+      // HP scale changes nothing there; a beast that comes in hurt keeps its fraction.
+      ...(rivalScalingEnabled()?{rivalScale:{}}:{}),
       encounter:{kind:'expedition',runId:run.runId,sectorId:at.id,ambush:'none'}});
     if(!issue)return fail('unavailable');
     run.energy=Math.max(0,run.energy-run.config.fightEnergyCost); // An entered fight stays playable at zero energy.

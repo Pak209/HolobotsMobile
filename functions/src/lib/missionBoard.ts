@@ -106,7 +106,7 @@ export type BoardCandidates = {
 
 // ---- Errors ----
 
-export type MissionBoardErrorCode = "invalid_request" | "unknown_posting" | "not_complete" | "already_claimed" | "refill_pending" | "out_of_order" | "unavailable";
+export type MissionBoardErrorCode = "invalid_request" | "unknown_posting" | "not_complete" | "already_claimed" | "refill_pending" | "out_of_order" | "unavailable" | "daily_off" | "daily_limit";
 export class MissionBoardError extends Error {
   constructor(public code: MissionBoardErrorCode, public detail?: Record<string, unknown>) {
     super(code);

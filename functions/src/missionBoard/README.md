@@ -200,3 +200,48 @@ transaction as the board write.
 Deploy (when Pak says so): `firebase deploy --project holobots-24046 --only functions:missionBoardHost,functions:cityEncounterHost`
 plus the rules (`firestore:rules`). The rival query uses the automatic single-field index on `settlement.settledAtMs`. The
 capture queries are one equality filter each. No composite index is needed.
+
+## Daily district pickups (`dailyStatus` / `dailyClaim`, city-daily-2)
+
+Owner, 2026-11-12 (CITY_PATH_PLAN 3b / S4) and 2026-11-13 rulings (local-midnight reset, Buddy pickups shown). Code:
+`lib/dailyPickups.ts` (pure), `missionBoard/dailyPickupStore.ts`. Tests: `scripts/test-daily-pickups.mjs`. Host flag
+**`HOLOCITY_DAILY_PICKUPS`**, default off, ON only for exactly `"1"`; off, both operations refuse with `daily_off` before any read.
+
+- Where: the clients draw each district's pickup at its shared plan **`visit` point** (`cityPlan.generated.json`
+  `districts[].visit`). The server knows only the district id (`D01`…`D10`, `lib/cityDistricts.ts`).
+- Local day: the phone sends `utcOffsetMinutes` (−720…+840, whole 15-minute steps; absent = 0). The server computes the local day
+  key from its own clock + that offset and stores it with each claim. One claim per district per local day.
+- Against time-zone hopping, whatever offset is sent: a district can't be claimed again within **20 h** of its last claim, and at
+  most **10** claims land in any rolling **20 h** (`daily_limit`).
+- Reward (server-owned): **5 Holos** per pickup; **1 Light Buddy Unit** where `sha256(["city-daily-1", uid, localDay, districtId])`
+  says (about 1 in 20), revealed in the status (`buddy`); **+25 Holos** when the 10th district of the local day is claimed.
+  Most in a day: 75 Holos (+ about 0.5 Light Buddy Units). One rookie Arena win or town rival win pays 100 Holos plus EXP.
+
+```jsonc
+{ "operation": "dailyStatus", "utcOffsetMinutes": -480 }
+{ "operation": "dailyClaim", "districtId": "D02", "requestId": "<[A-Za-z0-9_-]{1,128}>", "utcOffsetMinutes": -480 }
+// status reply
+{ "schemaVersion": "mission-board-1", "source": "daily",
+  "daily": { "day": "2026-11-13", "nextResetAtMs": 1794643200000, "total": 10, "claimedCount": 3,
+             "districts": [{ "districtId": "D01", "name": "Tower Plaza", "claimed": true, "ready": false, "readyAtMs": 1794643200000, "buddy": false }, …],
+             "reward": { "holos": 5, "allDistrictsBonusHolos": 25, "buddyLightOneIn": 20 } },
+  "balances": { … } }
+// claim reply
+{ "schemaVersion": "mission-board-1", "source": "daily", "districtId": "D02", "requestId": "…", "alreadyProcessed": false,
+  "granted": { "holos": 5, "items": [], "allDistrictsBonus": false }, "balances": { … }, "daily": { … } }
+```
+
+`claimed`: claimed on this local day (the "n/10" count). `ready`: claimable now; clients draw a pickup only then. `readyAtMs`: when
+it will be (null when ready). `buddy`: a ready pickup that holds a Light Buddy Unit.
+
+Refusals: `invalid_request` (bad shape or keys, unknown district, bad offset, a `requestId` reused for another district),
+`already_claimed` (`details.readyAtMs`), `daily_limit` (`details.readyAtMs`), `unavailable` (no profile, malformed ledger or balance;
+never reset), `daily_off`. A replayed `requestId` returns the first grant with `alreadyProcessed: true` (last 40 claims kept).
+
+Storage: `cityDailyPickups/{uid}` `{schemaVersion:'city-daily-2', last:{D0n:{day, atMs}}, requests[≤40]}` (a `city-daily-1` doc is
+upgraded on read), top-level, server-only (`firestore.rules`), removed by account deletion. Status writes nothing.
+
+Unity (same plan, not built): read `districts[].visit`, send the device UTC offset, draw a pickup per `ready` district (gold when
+`buddy`), call `dailyClaim` on walk-in, hide on any refusal / `daily_off`.
+
+Deploy (when Pak says so): `functions:missionBoardHost`, the rules (`firestore:rules`), and `HOLOCITY_DAILY_PICKUPS=1`.

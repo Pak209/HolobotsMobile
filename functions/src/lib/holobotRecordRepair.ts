@@ -94,3 +94,27 @@ export function repairHolobotProgression(bot: Data, pathPrefix = "holobot"): Hol
   }
   return { ok: true, holobot: out, changes };
 }
+
+/**
+ * exp-catch-up-on-read (2026-11-12): the early-progression-1 catch-up, applied to every stored Holobot when the account is read
+ * (desktopAccountSnapshot), so a Holobot that already holds its new-curve EXP stops showing "EXP 335 / 200" at its old level
+ * before its next award. Only records whose LEVEL the repair raises are replaced (with the repair's whole consistent record:
+ * level, nextLevelExp, rank, +1 attribute point per level gained); every other record, including one the repair refuses, is left
+ * byte for byte as stored. EXP is never changed. `holobots` is absent when nothing changed. Pure.
+ */
+export function catchUpHolobotLevels(stored: unknown): { holobots?: unknown[]; changes: RepairChange[] } {
+  if (!Array.isArray(stored)) return { changes: [] };
+  const changes: RepairChange[] = [];
+  let changed = false;
+  const holobots = stored.map((bot: unknown, index: number) => {
+    if (!bot || typeof bot !== "object" || Array.isArray(bot)) return bot;
+    const b = bot as Data;
+    const key = typeof b.name === "string" ? b.name.trim().toLowerCase().replace(/\s+/g, "-") : String(index);
+    const healed = repairHolobotProgression(b, `holobots.${key}`);
+    if (!healed.ok || healed.holobot.level === (b.level ?? 1)) return bot;
+    changed = true;
+    changes.push(...healed.changes);
+    return healed.holobot;
+  });
+  return changed ? { holobots, changes } : { changes: [] };
+}

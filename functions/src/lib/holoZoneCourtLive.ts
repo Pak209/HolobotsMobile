@@ -27,6 +27,7 @@ import { COURT_BEAST_ID } from "./holoZoneCourtDuel";
 import { ledgerHealthAfterFight, PartBoosts } from "./partStats";
 import type { LiveMoveRanks } from "./liveMoveRanks";
 import type { PlayerCombatantSnapshot } from "./rivalLadder";
+import { rivalScalingEnabled } from "./rivalScaling";
 
 export const COURT_FIGHT_REPLAY_FLAG = "HOLOCITY_COURT_FIGHT_REPLAY";
 export function courtFightReplayEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -59,6 +60,8 @@ export function courtLiveIssue(input: {
     // Tier-curve numbers (no statSource 'progression'): the #72.80 fight-row delta is not applied to the beast.
     opponent: [{ holobotId: COURT_BEAST_ID, level: beast.level, maxHealth: beast.maxHealth, currentHealth: beast.maxHealth, attack: beast.attack, defense: beast.defense, speed: beast.speed }],
     chase: input.chase, attrs: input.attrs, tempo: input.tempo, live: true, guardHold: input.guardHold === true, staminaWind: input.staminaWind === true,
+    // rival-scaling-1: the beast keeps its host-built base (already at the fighter's level, with its parts); the player's other training is added
+    ...(rivalScalingEnabled() ? { rivalScale: { exclude: { maxHealth: input.gear.hp, attack: input.gear.attack, defense: input.gear.defense, speed: input.gear.speed, special: input.gear.special } } } : {}),
   });
 }
 

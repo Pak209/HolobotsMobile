@@ -36,6 +36,14 @@ export function requireLivingVitals(profile:Record<string,unknown>,holobotIds:re
  for(const id of holobotIds){const row=stored[id];if(!row||fightReady(row,nowMs))continue;const at=readyAtMs(row,nowMs)!;if(!worst||at>worst.at)worst={id,at};}
  if(worst)throw new HealthError('holobot_ko',koRefusalDetail(worst.id,stored[worst.id],nowMs));
 }
+/** active-lead-ko-1 (QA retest 2026-11-12): the squad a City rival duel fields. The lead (slot 1, the active Holobot) always
+ * stays, so a KO'd lead is still refused by requireLivingVitals; a squad mate under KO_RETURN_FRACTION sits the duel out
+ * instead of blocking it. Missing ledger rows are fresh. */
+export function fightReadySquad(profile:Record<string,unknown>,holobotIds:readonly string[],nowMs:number):string[]{
+ if(holobotIds.length<2)return [...holobotIds];
+ const stored=storedLedger(profile);
+ return holobotIds.filter((id,i)=>i===0||!stored[id]||fightReady(stored[id],nowMs));
+}
 /** The issue-time ledger (plain effective rows; the caller writes it through lib/autoHeal.ts commitVitals). Callers gate
  * admission first (requireLivingVitals), so every fielded bot carries at least 25 % of max: there is no KO floor here. */
 export function issueVitals(profile:Record<string,unknown>,players:{holobotId:string;maxHealth:number}[],nowMs:number){
